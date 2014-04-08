@@ -36,7 +36,7 @@ also be sent to this list.</li>
 
 <li>Please update your mirror site at least once a week.  We recognize
 that not all sites have the bandwidth luxury to update every day (note
-that Subversion is quite efficient and transfers very little data,
+that Git is quite efficient and transfers very little data,
 especially if the Open MPI web site has not changed since your last
 update).  However, we would like to have mirror sites that are at
 least "mostly current" with the main web site.</li>
@@ -80,26 +80,26 @@ URL (specifically, it is what is returned by PHP's
 <p>
 
 <li> Obtain a copy of the Open MPI web site.  There are two main
-mechanisms to obtain / update your mirror: Subversion and rsync.
+mechanisms to obtain / update your mirror: Git and rsync.
 
 <p>
 <ol>
 
-<li> <strong> Using Subversion </strong>
+<li> <strong> Using Git </strong>
 
-<p> The web pages can be anonymously checked out from Subversion:
+<p> The web pages can be anonymously checked out from Git:
 
 <?php print_code("shell$ cd /path/to/your/docroot
-shell$ svn co http://svn.open-mpi.org/svn/ompi-www/trunk ."); ?>
+shell$ git clone https://github.com/open-mpi/ompi-www.git"); ?>
 
-<p> Create an automated process to run "<code>svn up</code>" in your
+<p> Create an automated process to run "<code>git pull</code>" in your
 checkout at whatever frequency you want (see the guidelines, above).
 This will keep you web pages up to date.  An easy way to do this is to
 add a crontab entry for a user who has write permissions in the Open
 MPI docroot tree.  The follow sample crontab entry updates the tree at
 4:23am every morning:</p>
 
-<?php print_code("23 4 * * * cd /path/to/your/docroot; svn up"); ?>
+<?php print_code("23 4 * * * cd /path/to/your/docroot; git pull"); ?>
 
 <p> Alternatively, a slightly more elegant mechanism to update and
 mail someone only if there are errors would be to use the following
@@ -148,11 +148,11 @@ fi
 rm -f \"\$stdout\" \"\$stderr\"
 exit 0"; 
 
-$svn_script = preg_replace("/@METHOD@/", "Subversion synchronization", 
+$git_script = preg_replace("/@METHOD@/", "Git synchronization", 
                            $base_script);
-$svn_script = preg_replace("/@COMMAND@/", "svn up", $svn_script);
-$svn_script = preg_replace("/@SHORT_COMMAND@/", "\"svn up\"", $svn_script);
-print_code($svn_script);
+$git_script = preg_replace("/@COMMAND@/", "git pull", $git_script);
+$git_script = preg_replace("/@SHORT_COMMAND@/", "\"git pull\"", $git_script);
+print_code($git_script);
 
 ?>
 
@@ -179,7 +179,7 @@ docroot tree.  The follow sample crontab entry updates the tree at
 
 <p> Alternatively, a slightly more elegant mechanism to update and
 mail someone only if there are errors would be to use essentially the
-same script that is listed in the Subversion method (above) but
+same script that is listed in the Git method (above) but
 replace the "<code>svn up</code>" command with the "<code>rsync
 ...</code>" command:
 
@@ -194,9 +194,21 @@ print_code($rsync_script); ?>
 
 </li>
 
+<p>
+<li> <strong> Using Subversion </strong>
+
+<p> <font color="red">This method is no longer supported.</font> The
+Open MPI web site is now maintained in Git, not Subversion.</p>
+
+<p>If you were previously using subversion, please switch to using
+Git.</p>
+
+</li>
 </ol>
 
 </li>
+
+<hr>
 
 <p>
 
@@ -238,9 +250,9 @@ can use PHP code in the file.</li>
 
 </ol>
 
-</ul>
 </p>
 
+</ul>
 <p>Thanks!</p>
 
 <?php
