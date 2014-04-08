@@ -1,0 +1,37 @@
+<?php
+  $topdir = "../../..";
+  include_once("$topdir/software/ompi/v1.0/version.inc");
+
+  $title = "Open MPI: Version $ver_v1_0 Source RPM Notes";
+  include_once("$topdir/software/ompi/nav.inc");
+  include_once("$topdir/includes/header.inc");
+  include_once("$topdir/includes/curl_get.inc");
+
+  include_once("$topdir/includes/downloads.inc");
+
+  $base_url = "http://svn.open-mpi.org/svn/ompi/branches/v1.0";
+  $readme = "$base_url/contrib/dist/linux/README";
+?>
+
+<p>Because every parallel computation environment is different, Open MPI
+is a highly configurable piece of software.  As such, a single set of
+build options is not sufficient to meet everyone's needs.  The source
+RPM therefore accepts a wide variety of configuration options on the
+"<code>rpmbuild --rebuild</code>" command line.  The following text
+describes the options that are available.</p>
+
+<p>A script to build an Open MPI RPM from a source tarball <a
+href="<?php print($base_url); ?>/contrib/dist/linux/buildrpm.sh">is
+available here</a>, and is referred to as "<code>buildrpm.sh</code>"
+in the text below.  Additionally, you can build an Open MPI RPM from
+the SRPM (also described below).</p>
+
+<p>The text below is specific to the v1.0 series of Open MPI and <a
+href="<?php print($readme); ?>">is available here in a
+printer-friendly format</a>.
+
+<?php 
+  $str = do_curl_get($readme);
+  print("<p><hr>\n<pre>\n$str\n</pre><p><hr>\n\n");
+  
+  include_once("$topdir/includes/footer.inc");
