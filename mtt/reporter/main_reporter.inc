@@ -1,0 +1,3394 @@
+<?php
+
+#
+# Copyright (c) 2006-2008 Sun Microsystems, Inc.
+#                         All rights reserved.
+# Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.
+# $COPYRIGHT$
+#
+# Additional copyrights may follow
+#
+# $HEADER$
+#
+
+####################
+# Print a report
+####################
+
+#
+# Global variables
+#
+$date_fields;
+
+#
+# Top-level report printing function
+#   1. Print the query screen
+#   2. Print the report
+#
+function display_report() {
+    unset($resource);
+
+    $is_fast_lookup = false;
+
+    # Create or update cookie, and set
+    # definitions accordingly
+    process_cookie($_GET, $_COOKIE);
+
+    # Display input parameters
+    debug_cgi($_GET, "GET " . __LINE__);
+
+    # Fresh web page is brought up
+    if (! isset($_GET['go']) and 
+        ! isset($_GET['click'])) {
+        $nogo = true;
+    } else {
+        $nogo = false;
+    }
+
+    #
+    # Header
+    #
+    display_header("Open MPI Test Reporter");
+
+    if (! $nogo) {
+
+        # Get row numbers from postgres
+        $row_number_fields = process_row_number_fields();
+
+        # cherry_fields are the only fields that
+        # are filtered by PHP instead of SQL
+        $cherry_fields = process_cherry_fields($_GET);
+
+        # Process/mutator controls
+        # (they need to come first, because _GET could be mutated here)
+        $report_type = process_report_type($_GET);
+
+        # Tweak some postgres options for this session
+        process_postgres_options($_GET);
+
+        # There are oddball field(s) that we constrain *for* the user
+        process_oddball_fields($_GET);
+
+        # Process input params
+        $phases          = process_phase_field($_GET);
+        $date_fields     = process_date_field($_GET);
+        $large_fields    = process_large_fields($_GET);
+        $input_fields    = process_input_fields($_GET);
+        $result_fields   = process_result_fields($phases, $report_type, $_GET);
+        $sort_field      = process_sort_field($_GET);
+        $offset_field    = process_offset_field($_GET);
+        $rows_field      = process_rows_field($_GET);
+
+        # Display results run with --trial option
+        $trial_field = process_trial_field(TRIAL);
+
+        # Display what the query planner is thinking
+        $explain = process_explain_field($_GET);
+
+        # Print either a summary or detail report,
+        # depending on whether a 'select_more' parameter is set
+        if ($report_type == 'detail') {
+            $do_detailed = true;
+            $detail_fields = setup_detail_fields(get_scalar($phases));
+        } elseif ($report_type == 'performance') {
+            $do_performance = true;
+            $performance_fields = setup_performance_fields();
+        } else {
+            $do_summary = true;
+        }
+
+        # Prepare query components
+        $query = array_merge_recursive(
+            $row_number_fields,
+            $date_fields,
+            $input_fields,
+            $large_fields,
+            $result_fields,
+            $detail_fields,
+            $performance_fields,
+            $sort_field,
+            $offset_field,
+            $trial_field
+        );
+
+        # Order columns left-to-right
+        $query['select']      = order_columns($query['select']);
+        $query['select_more'] = order_columns($query['select_more']);
+
+        # Pass down phases field
+        $query['phases'] = $phases;
+
+        # Compose query
+        $ret = db_iface_compose_sql_select($query, $report_type);
+
+        $sql_cmd = $ret['sql_cmd'];
+        $sql_count_star = $ret['count_star']; # JJH Needed?
+        $is_fast_lookup = $ret['fast'];
+
+        # Execute query
+        $resource = do_pg_query($sql_cmd);
+
+        # Number of rows in this report
+        $n = row_count(pg_num_rows($resource), $_GET);
+        $o = offset($_GET);
+
+        # Prepare headers array for *_table functions
+        $headers['params']      = array_keys($query['select']);
+        $headers['details']     = array_keys($query['select_more']);
+        $headers['performance'] = array_keys($query['performance']);
+        $headers['results']     = array_keys($query['aggregates']);
+        $headers['phases']      = $phases;
+        $headers['offset']      = $o;
+    }
+
+    #
+    # Print the user query screen
+    #
+    display_dashboard($nogo, $sql_cmd, $resource);
+
+    # Exit if a button hasn't been pressed
+    if ($nogo)
+        return;
+
+    # Print some basic, useful info atop each report table
+    report_header($date_fields, $phases, $n, $is_fast_lookup);
+    
+    # Do not print an empty table
+    if (pg_num_rows($resource) < 1) {
+        print "<p><b><i><font color=red>No data available for the specified query.</font></i></b></p>";
+        return;
+    }
+
+    # Report chunks index
+    $slices_links = slices_links($n, LIMIT, $_GET);
+
+    print $slices_links;
+
+    if ($do_detailed)
+        detail_table($headers, $resource);
+    elseif ($do_summary)
+        summary_table($headers, $resource, $cherry_fields);
+    elseif ($do_performance) {
+        summary_table($headers, $resource, $cherry_fields);
+    }
+
+    print $slices_links;
+
+    # Clean up old graphs, csv dumps
+    housekeeping('./tmp');
+
+    pg_close();
+}
+
+#########################################
+# Header
+#########################################
+function display_header($title) {
+    global $mtt_head_html;
+
+    print("<html>\n" .
+          "<head>\n" .
+          "  <title>$title</title>\n" .
+          "  <LINK href=\"./reporter/style.css\" rel=\"stylesheet\" type=\"text/css\">\n" .
+          "  <script language='javascript' type='text/javascript' src='./reporter/scripts.js'></script>\n" .
+          $mtt_head_html .
+          "</head>\n" .
+          "\n".
+          "<body>\n".
+          $mtt_body_html_prefix . print_ga());
+}
+
+
+#########################################
+#                                       
+#  Report Table Generating Functions
+#                                     
+#########################################
+
+# Void function to print out a Detail style HTML table
+function detail_table($headers, $resource) {
+
+    # Print result headers
+    $arr = phase_results_table();
+    $phase_results_table = $arr['aggregates'];
+    $num_cols['results'] = 0;
+    foreach ($headers['phases'] as $phase) {
+        $num_cols['results'] += sizeof($phase_results_table[$phase]);
+    }
+    $num_cols['details'] = sizeof($headers['details']);
+    $num_cols['params'] = sizeof($headers['params']);
+
+    print "\n<tr>";
+
+    foreach ($headers['results'] as $result) {
+        printf("\n<th bgcolor='" . THCOLOR . "'>%s", $labels[$result]);
+    }
+
+    # Row numbering starts at the OFFEST arg to LIMIT
+    $offset = $headers['offset'];
+    $php_row_n = $offset;
+    $lastrow = $offset + LIMIT;
+
+    # Remove duplicated headers
+    $headers = array_unique(
+        array_merge(
+            $headers['params'],
+            $headers['details']
+        )
+    );
+
+
+    # Print data rows
+    while ($row = pg_fetch_row($resource)) {
+        if ($php_row_n >= $lastrow)
+            break;
+
+        # Results are always in the far right cols
+        $results = array_splice($row, $num_cols['params']);
+
+        # Splice in the php_row_n in place of db_row_n
+        $db_row_n = array_shift(array_splice($row, 0, 1, ($php_row_n + 1)));
+
+        # Stylize rows of "--trial" results
+        $trial = process_trial_value($row, 1);
+
+        # Details are always in the far far right cols
+        $details = array_splice($results, $num_cols['results']);
+
+        list($pass,
+             $fail,
+             $skip,
+             $time,
+             $perf) = $results;
+
+        if ($pass)
+            $bgcolor = (($pass > 0) ? stylize_trial_color(LGREEN, $trial)  : "");
+        elseif ($fail)
+            $bgcolor = (($fail > 0) ? stylize_trial_color(LRED, $trial)    : "");
+        elseif ($skip)
+            $bgcolor = (($skip > 0) ? stylize_trial_color(LYELLOW, $trial) : "");
+        elseif ($time)
+            $bgcolor = (($time > 0) ? stylize_trial_color(LORANGE, $trial) : "");
+        elseif ($perf)
+            $bgcolor = (($time > 0) ? stylize_trial_color(LBLUE, $trial)   : "");
+
+        print "<table border='1' width='100%'>" .
+              "<tr><td bgcolor='$bgcolor'>";
+
+        $td = "<td bgcolor='" . LGRAY . "' width='10%' valign='top'>";
+        $tdl = "<td bgcolor='" . stylize_trial_color(WHITE, $trial) . "'>";
+
+        $values =
+            array_merge(
+                $row,
+                $details
+            );
+
+        $i = 1;
+        print "<table border='1' width='100%'>";
+        foreach ($headers as $header) {
+            print (($i % 1 == 0) ? "\n<tr>" : "") .
+                  "\n$td <b>" . stylize_trial_font(label($header), $trial) . "</b> $tdl " .
+                  "\n<pre>" . stylize_trial_font(highlight_match($header, wordwrap($values[$i-1], WRAP)), $trial) . "</pre>";
+            $i++;
+        }
+        print "</table>";
+        print "</table><br>";
+
+        $php_row_n++;
+    }
+
+    print "\n</table>" .
+          "\n</table>" .
+          "\n\n<!-- report_end -->\n\n";
+}
+
+# Wrap matches with HTML FONT tags to visually highlight them
+function highlight_match($param, $value) {
+
+    $match = $_GET["text_$param"];
+
+    # This is beyond the reasonable number of highlight colors
+    # needed, but at least they're there if we need them
+    static $highlight_colors;
+    if (! $highlight_colors) {
+        $highlight_colors = array(
+            "#FFFF00", # Yellow
+            "#00FFFF", # Turquoise
+            "#FF00FF", # Pink
+            "#00FF00", # Pastel Green
+            "#D4A017", # Gold
+            "#FF99FF", # Purple
+            "#FF9900", # Orange
+            "#FFFFCC",
+            "#E0F0FF",
+            "#00FFFF",
+            "#FFCCCC",
+            "#FFCCFF",
+            "#E0E0F0",
+            "#C0DCC0",
+            "#66CC99",
+            "#90EE90", # LightGreen
+            "#ADD8E6", # LightBlue
+            "#FFA500", # Orange
+            "#FF00FF", # Magenta
+            "#00FFFF", # Cyan
+            "#FFFF99", 
+            "#00BBBB", 
+            "#99FFFF", 
+            "#70DB93", # AQUAMARINE 
+            "#0000FF", # BLUE 
+            "#9F5F9F", # BLUE VIOLET 
+            "#B5A642", # BRASS 
+            "#D9D919", # BRIGHT GOLD 
+            "#8C7853", # BRONZE 
+            "#5F9F9F", # CADET BLUE 
+            "#D98719", # COOL COPPER 
+            "#B87333", # COPPER 
+            "#FF7F00", # CORAL 
+            "#42426F", # CORN FLOWER BLUE 
+            "#00FFFF", # CYAN 
+            "#545454", # DIM GRAY 
+            "#856363", # DUSTY ROSE 
+            "#D19275", # FELDSPAR 
+            "#A8A8A8", # LIGHT GRAY 
+            "#8E2323", # FIREBRICK 
+            "#238E23", # FOREST GREEN 
+            "#CD7F32", # GOLD 
+            "#DBDB70", # GOLDENROD 
+            "#C0C0C0", # GRAY 
+            "#00FF00", # GREEN 
+            "#93DB70", # GREEN YELLOW 
+            "#215E21", # HUNTER GREEN 
+            "#4E2F2F", # INDIAN RED 
+            "#9F9F5F", # KHAKI 
+            "#C0D9D9", # LIGHT BLUE 
+            "#8F8FBD", # LIGHT STEEL BLUE 
+            "#E9C2A6", # LIGHT WOOD 
+            "#32CD32", # LIME GREEN 
+            "#FF00FF", # MAGENTA 
+            "#6B8E23", # MEDIUM FOREST GREEN 
+            "#E47833", # MANDARIN ORANGE 
+            "#8E236B", # MAROON 
+            "#32CD99", # MEDIUM AQUAMARINE 
+            "#3232CD", # MEDIUM BLUE 
+            "#EAEAAE", # MEDIUM GOLDENROD 
+            "#FF2400", # ORANGE RED 
+            "#9370DB", # MEDIUM ORCHID 
+            "#426F42", # MEDIUM SEA GREEN 
+            "#00009C", # NEW MIDNIGHT BLUE 
+            "#EBC79E", # NEW TAN 
+            "#CFB53B", # OLD GOLD 
+            "#FF7F00", # ORANGE 
+            "#A67D3D", # BRONZE II
+            "#DB70DB", # ORCHID 
+            "#8FBC8F", # PALE GREEN 
+            "#BC8F8F", # PINK 
+            "#EAADEA", # PLUM 
+            "#D9D9F3", # QUARTZ 
+            "#FF0000", # RED 
+            "#5959AB", # RICH BLUE 
+            "#FF8888", # SALMON 
+            "#8C1717", # SCARLET 
+            "#238E68", # SEA GREEN 
+            "#6B4226", # SEMI-SWEET CHOCOLATE 
+            "#8E6B23", # SIENNA 
+            "#E6E8FA", # SILVER 
+            "#3299CC", # SKY BLUE 
+            "#007FFF", # SLATE BLUE 
+            "#00FF7F", # SLATE GREEN 
+            "#FF1CAE", # SPICY PINK 
+            "#236B8E", # STEEL BLUE 
+            "#38B0DE", # SUMMER SKY 
+            "#DB9370", # TAN 
+            "#D8BFD8", # THISTLE 
+            "#ADEAEA", # TURQUOISE 
+            "#CDCDCD", # VERY LIGHT GREY 
+            "#4F2F4F", # VIOLET 
+            "#CC3299", # VIOLET RED 
+            "#D8D8BF", # WHEAT 
+            "#FFFF00", # YELLOW 
+            "#99CC32", # YELLOW GREEN 
+            "#2F4F2F", # DARK GREEN 
+            "#4A766E", # DARK GREEN COPPER
+            "#4F4F2F", # DARK OLIVE GREEN 
+            "#9932CD", # DARK ORCHID 
+            "#871F78", # DARK PURPLE 
+            "#6F4242", # DARK SALMON 
+            "#6B238E", # DARK SLATE BLUE 
+            "#2F4F4F", # DARK SLATE GRAY
+            "#97694F", # DARK TAN 
+            "#7093DB", # DARK TURQUOISE 
+            "#855E42", # DARK WOOD 
+        );
+    }
+
+    # "all" is the magic word for *no filter*
+    if (($match == 'all') or ! preg_match("/\w/i", $match))
+        return $value;
+
+    $ret = $value;
+    $i = 0;
+    foreach (tokenize_quoted($match) as $t) {
+
+        # Negated tokens (!|-) will have no match
+        if (preg_match("/^\s*(\!|\-)\s*/i", $t)) {
+            continue;
+        }
+
+        $font_tag_open = "<font style=\"background-color:" . $highlight_colors[$i++] . "\">";
+        $font_tag_close = "</font>";
+
+        # Protect against the oddball case where the user searches
+        # on a string that is part of the highlighting HTML <font> tag
+        if (preg_match("/$t/i", $font_tag_open) or
+            preg_match("/$t/i", $font_tag_close)) {
+            continue;
+        }
+
+        $ret = preg_replace(
+                    "/(" . escape_nonword_chars($t) . ")/i",
+                    "$font_tag_open$1$font_tag_close",
+                    $ret
+               );
+    }
+    return $ret;
+}
+
+# Escape non-word characters ([0-9a-zA-Z_]),
+# except ^ and $ ... we really mean those
+function escape_nonword_chars($str) {
+    return preg_replace('/([^\w\^\$])/', "\\\\$1", $str);
+}
+
+# Return true if the row is a row flagged "--trial"
+# X: THE trial VALUE IS ALWAYS ON THE FAR LEFT (TO THE RIGHT
+# OF THE DB ROW NUMBER)
+function process_trial_value($row, $i) {
+    if (TRIAL) {
+        if ($row[$i] == TRIAL_TRUE)
+            return true;
+        else
+            return false;
+    }
+}
+
+# Print out a summary table
+# (and maybe a performance graph)
+function summary_table($headers, $resource, $filter) {
+
+    # Are we dumping Performance graphs?
+    if (preg_match("/performance/i", $_GET['go']))
+        $do_performance = true;
+
+    # Insert useful information on the left-hand side?
+    print "\n<div align='center'>" .
+
+          "\n<!-- report_start -->\n\n" .
+
+          "\n<table width='100%' cellpadding='5'>" .
+          "\n<tr>" .
+          "\n<td bgcolor='" . LGRAY . "'>" .
+          "\n<table border='1' width='100%'>";
+
+    # Display headers
+    $format  = "\n<th bgcolor='" . THCOLOR . "' rowspan=2>%s";
+    $format2 = "\n<th bgcolor='" . THCOLOR . "' rowspan=2 width='1%%'>%s";
+
+    print "<tr>";
+    if (allow_cherry_picking($_GET))
+        print sprintf($format2, '') .
+                # X: MAKE THIS CHECKBOX ''CHECK ALL'' THE BOXES
+                #
+                #             "<input " . 
+                #                 "type='checkbox' " . 
+                #                 "name='all_cherries' " . 
+                #                 "value='on' " . 
+                #                 "checked>") .
+                "";
+
+    $pound_sign = array_shift($headers['params']);
+    printf($format, label($pound_sign));
+    foreach (sorting_links($headers['params']) as $header)
+        printf($format, $header);
+
+    # Setup sequence of result colors
+    $phases = $headers['phases'];
+    $result_colors = result_colors($phases);
+
+    # Create links for drilled-down queries
+    $links = drilldown_links($headers['phases']);
+
+    # Print phase headers
+    $total_results_cols = 0;
+    foreach (array_keys($links) as $phase) {
+        $link = array_shift($links[$phase]);
+        $colspan = sizeof($links[$phase]);
+        $num_result_types[$phase] = $colspan;
+
+        printf("\n<th bgcolor='" . THCOLOR . "' " .
+                     "colspan='$colspan'>%s",
+                     $link);
+        $total_results_cols += $colspan;
+    }
+
+    print "\n<tr>";
+
+    # Print phase headers
+    foreach (array_keys($links) as $phase)
+        foreach ($links[$phase] as $result)
+            printf("\n<th id='result' bgcolor='" . THCOLOR . "'>%s", $result);
+
+    # Calculate some colspans
+    $arr = phase_results_table();
+    $phase_results_table = $arr['aggregates'];
+    $num_cols['results'] = 0;
+    foreach ($headers['phases'] as $phase) {
+        $num_cols['results'] += sizeof($phase_results_table[$phase]);
+    }
+    $num_cols['details'] = sizeof($headers['details']);
+    $num_cols['params'] = sizeof($headers['params']);
+    $num_cols['performance'] = sizeof($headers['performance']);
+
+    # Row numbering starts at the OFFEST arg to LIMIT
+    $offset = $headers['offset'];
+    $php_row_n = $offset;
+    $lastrow = $offset + LIMIT;
+
+    # printf formats
+    $format   = "\n<td bgcolor='%s' align='right'>%s";
+    $formatg  = "\n<td bgcolor='" . LGRAY . "' align='right'>%s";
+    $formatgc = "\n<td bgcolor='" . LGRAY . "' align='center'>%s";
+    $formatw  = "\n<td bgcolor='%s'>";
+
+    # Print data rows
+    while ($row = pg_fetch_row($resource)) {
+        if ($php_row_n >= $lastrow)
+            break;
+
+        # Results are always in the far right cols
+        $results = array_splice($row, $num_cols['params'] + 1); # (+1 for row #)
+
+        # Grab the db_row_n
+        $db_row_n = array_shift($row);
+
+        # Grab the trial boolean
+        $trial = process_trial_value($row, 0);
+
+        # Skip unchecked cherry rows
+        if ($filter)
+            if (! isset($filter[$db_row_n]))
+                continue;
+
+        # Checkbox off the db_row_n, but display ascending php_row_n
+        print "\n<tr>";
+
+        if (allow_cherry_picking($_GET))
+            printf($formatgc, cherry_checkbox($db_row_n));
+
+        printf($formatg, ($php_row_n + 1));
+
+        for ($i = 0; $i < sizeof($row); $i++) {
+            printf($formatw, stylize_trial_color(WHITE, $trial));
+            print stylize_trial_font(
+                            drilldown_links($headers['params'][$i], $row[$i]),
+                            $trial);
+        }
+
+        $j = 0;
+        foreach ($headers['phases'] as $phase) {
+            
+            # Each phase has differing result types
+            $_results =
+                array_splice($results, 0, $num_result_types[$phase]);
+
+            # Link result counts to filtered drill-down reports
+            $ret = drilldown_links($headers,
+                                   $row,
+                                   $_results,
+                                   $phase);
+
+            list($pass,
+                 $fail,
+                 $skip,
+                 $time,
+                 $perf) = $ret['links'];
+
+            list($pass_count,
+                 $fail_count,
+                 $skip_count,
+                 $time_count,
+                 $perf_count) = $ret['counts'];
+
+            printf($format,
+                    (($pass_count > 0) ? 
+                        stylize_trial_color($result_colors[$j], $trial) : LGRAY), 
+                        stylize_trial_font($pass, $trial));
+            $j++;
+            printf($format,
+                    (($fail_count > 0) ? 
+                        stylize_trial_color($result_colors[$j], $trial) : LGRAY), 
+                        stylize_trial_font($fail, $trial));
+            $j++;
+            if (! is_null($skip)) {
+                printf($format,
+                        (($skip_count > 0) ? 
+                            stylize_trial_color($result_colors[$j], $trial) : LGRAY), 
+                            stylize_trial_font($skip, $trial));
+                $j++;
+            }
+            if (! is_null($time)) {
+                printf($format,
+                        (($time_count > 0) ?
+                            stylize_trial_color($result_colors[$j], $trial) : LGRAY), 
+                            stylize_trial_font($time, $trial));
+                $j++;
+            }
+            if (! is_null($perf)) {
+                printf($format,
+                        (($perf_count > 0) ?
+                            stylize_trial_color($result_colors[$j], $trial) : LGRAY), 
+                            stylize_trial_font($perf, $trial));
+                $j++;
+            }
+
+            # Tally totals for all result counts
+            foreach ($ret['counts'] as $count) {
+                $totals[$i++] += $count;
+            }
+
+        }
+
+        # Complile some performance data, if requested
+        if ($do_performance) {
+
+            $performance = array_slice($results, 0 - $num_cols['performance']);
+
+            # Prepare perf data to be displayed in a graph
+            $hash = array_combine(
+                        $headers['performance'], 
+                        array_map('csv2arr', $performance)
+                    );
+            $graph_data['plots'][$php_row_n] = $hash;
+
+            # Prepare legend data for each individual line plot
+            array_combine2($graph_data['legend'], $headers['params'], $row);
+
+            # Prepare global legend data for the entire perf graph
+            $hash = array_combine(
+                        $headers['params'], 
+                        $row
+                    );
+            $graph_data['params'][$php_row_n] = $hash;
+        }
+
+        $php_row_n++;
+    }
+
+    table_footer($totals, $headers, $result_colors);
+
+    print "\n</table>" .
+          "\n</table>" .
+          "\n<!-- report_end -->" .
+          "</div>";
+
+    # Print performance graphs
+    if ($do_performance)
+        performance_graphs($graph_data);
+}
+
+# Change font style for a row of "--trial" results
+function stylize_trial_font($str, $trial) {
+    if ($trial)
+        return '<i>' . $str . '</i>';
+    else
+        return $str;
+}
+
+# Change table cell color of "--trial" results
+function stylize_trial_color($color, $trial) {
+    if ($trial) {
+        if ($color == WHITE)
+            return LLLGRAY;
+        elseif ($color == LRED)
+            return DRED;
+        elseif ($color == LGREEN)
+            return DGREEN;
+        elseif ($color == LYELLOW)
+            return DYELLOW;
+        elseif ($color == LORANGE)
+            return DORANGE;
+        elseif ($color == LBLUE)
+            return DBLUE;
+    } else
+        return $color;
+}
+
+# Output a checkbox for cherry-picking feature
+function cherry_checkbox($n) {
+    return "<input type='checkbox' " .
+            "name='cherry_$n' " . 
+            "value='on' " .
+            "checked>";
+}
+
+# Only allow cherry picking for Performance reports
+function allow_cherry_picking($params) {
+    return preg_match("/latency|perf/i", $params['go']);
+}
+
+# Print the totals and a cherry-picking button 
+# at the foot of the summary table
+function table_footer($totals, $headers, $result_colors) {
+
+    $top = DOCROOT;
+
+    # Carryover the report type
+    $type = strtolower(process_report_type($_GET));
+
+    print "\n<tfoot><tr>";
+
+    # Print cherry button
+    if (allow_cherry_picking($_GET))
+        print "\n<td bgcolor='" . LGRAY . "' align='center'>" .
+              "\n<button name='go' value='${type}_cherry' type='submit'>" .
+                  "\n<img src='$top/images/cherries.gif' width='20' border='0'>" .
+              "\n</button>";
+
+    # Print totals
+    print "\n<td align='left' " .
+                "bgcolor='" . LGRAY . "' " .
+                "colspan='" . (sizeof($headers['params']) + 1) . "'>" .
+          "\n<b>Totals</b>";
+
+    $i = 0;
+    foreach ($totals as $total) {
+        print "\n<td align='right' " .
+                     "bgcolor='" . (($total > 0) ? $result_colors[$i] : LGRAY) . "'" .
+                 "><b>$total</b>";
+        $i++;
+    }
+    print "\n</tfoot>";
+}
+
+#########################################
+#                                       
+#  Report Graph Generating Functions
+#                                     
+#########################################
+
+# Print all the available performance graphs
+function performance_graphs($data) {
+
+    # These are the "types":
+    #   * latency_avg
+    #   * latency_min
+    #   * latency_max
+    #   * bandwidth_avg
+    #   * bandwidth_min
+    #   * bandwidth_max
+    $arr = setup_performance_fields();
+    unset($arr["performance"]["message_size"]);
+    $types = array_keys($arr["performance"]);
+
+    # Grab the split_graphs preference
+    $split_graphs_param = english_fraction_2_float(SPLIT_GRAPHS);
+    eval("\$split_graphs_increment = $split_graphs_param;");
+
+    # Split up graphs by "split_graph" fraction here. Then pass the
+    # $data to do_graph. We're assuming (I know, always a bad thing to
+    # do) that the user is graphing something relatively sane, e.g., a
+    # few runs of the same test - all of which have the same sequence
+    # of message sizes.
+
+    foreach ($types as $type) {
+
+        $i = 0;
+        # This loop should break without this "while" condition, but
+        # let's play it safe. We will not split the graph into more
+        # than 10 pieces.
+        while ($i < 10) {
+
+            # Split up the graph data based on iteration and fraction
+            $split_data = split_graph_data($data, $split_graphs_increment, $i++);
+
+            if (! $split_data) {
+                break;
+            }
+
+            $ret = do_graph($split_data, $type);
+            if (! is_null($ret)) {
+                $images[] = $ret['image'];
+                $widths[] = $ret['width'];
+                $raws[] = $ret['raw'];
+            }
+        }
+    }
+
+    $total_width = array_sum($widths);
+
+    # Calculate how many graphs to show per row
+    # (Using best guess screen size)
+    $avg_width = $total_width/sizeof($widths);
+    $cols = floor(SCREEN_WIDTH/$avg_width);
+
+    # Display graphs
+    print "<br><table width='100%'>";
+
+    $i = 0;
+    foreach ($images as $image) {
+        print ((($i % $cols) == 0) ? "<tr>" : "") .
+                "<td align='center'>" .  $image .
+                "<br><br>Raw data: " .  $raws[$i] . "<br><br>";
+        $i++;
+    }
+    print "</table>";
+}
+
+# Return a slice of graph data (for the split/graphs preference)
+function split_graph_data($data, $fraction, $iteration) {
+
+    # Relegate the x-axis unification to later in the graph-creation process
+    # (grab the longest series of message_size's in the array).
+    # Can't really make this static, since we could be doing several types of 
+    # graphs (latency, bandwidth, etc.)
+    $sizeof_xdata = 0;
+    $sizeof_xdata_max = 0;
+    foreach (array_keys($data['plots']) as $i) {
+        $sizeof_xdata = sizeof($data['plots'][$i]['message_size']);
+        if ($sizeof_xdata > $sizeof_xdata_max) {
+            $xdata = $data['plots'][$i]['message_size'];
+        }
+    }
+
+    # Calculate offset and length of slice
+    $length = ceil($sizeof_xdata * $fraction);
+    $offset = ceil($iteration * $length);
+
+    # (WE MUST AVOID A GRAPH THAT HAS ONLY ONE DATA POINT ON THE X-AXIS BECAUSE
+    # IT CAUSES A JPGRAPH ERROR!
+
+    # We do "minus 1" here because we may have attached the ending graph
+    # fragment from the previous invocation of this function in the next if
+    # block 
+    if ($offset >= ($sizeof_xdata - 1)) {
+        return null;
+    }
+
+    # Oddball case where the graph doesn't divide up evenly and we 
+    # end up with a last graph fragment that is a single message size. we leave a single-message size chunk at the end
+    # which causes a JpGraph error
+    if (($offset + $length + 1) >= $sizeof_xdata) {
+        $length++;
+    }
+
+    # Slice on these sub-arrays
+    $performance_fields = setup_performance_fields();
+    $params = array_keys($performance_fields['performance']);
+
+    foreach ($params as $param) {
+        foreach (array_keys($data['plots']) as $i) {
+            $ret['plots'][$i][$param] = array_slice($data['plots'][$i][$param], $offset, $length);
+        }
+    }
+
+    # Legend does not change between graph slices
+    $ret['legend'] = $data['legend'];
+
+    # Make the message_size range a part of the legend (and thus the filename as well)
+    $ret['legend']['message_size_range'] = array($xdata[$offset].'-'.$xdata[$offset + $length - 1] => 1);
+
+    # Params do not change between graph slices
+    $ret['params'] = $data['params'];
+
+    return $ret;
+}
+
+# Print out the actual binary image data
+# Uses jpgraph (http://www.aditus.nu/jpgraph)
+# type = latency*|bandwidth* 
+function do_graph($data, $type) {
+    global $mtt_graph_tmp_dir;
+
+    $type = strtolower($type);
+
+    $jpgraph_dir = './jpgraph';
+    include_once("$jpgraph_dir/jpgraph.php");
+    include_once("$jpgraph_dir/jpgraph_line.php");
+    include_once("$jpgraph_dir/jpgraph_log.php");
+
+    # Collect graph data
+    list($datapoints,
+         $lineplots,
+         $message_sizes,
+         $legend_items,
+         $title,
+         $subtitle) = collect_graph_data($data, $type);
+
+    # Return nothing if we have no line plots
+    if (is_null($lineplots)) {
+        return;
+    }
+
+    list($width, 
+         $height,
+         $xfont,
+         $margins,
+         $legend_cols) = 
+            get_graph_dimensions($legend_items, $message_sizes);
+
+    # Create the graph. These two calls are always required
+    $graph = new Graph($width, $height, "auto");    
+
+    # Set axis scaling (default: 'textlin')
+    $yscale = YAXIS_SCALE;
+    $xscale = XAXIS_SCALE;
+
+    if (! $xscale)
+        $xscale = 'text';
+    if (! $yscale or $yscale == 'text')
+        $yscale = 'lin';
+
+    $scale = "$xscale$yscale";
+
+    $graph->SetScale($scale);
+
+    # Do not let the plots go off the bottom of the graph!
+    $ymin = min(array_map('min', $datapoints));
+
+    # For logarithmic axis scaling, JpGraph incorrectly
+    # defaults to 10^0 when the min approaches zero, set the
+    # y-minimum to 10^-2 (0.01)
+    if ($ymin < 0.01 and $yscale == 'log')
+        $graph->yaxis->scale->SetAutoMin(-2);
+
+    $gJpgBrandTiming = true;
+
+    list($lmargin,
+         $rmargin,
+         $tmargin,
+         $bmargin) = array_values($margins);
+    $graph->img->SetMargin($lmargin, $rmargin, $tmargin, $bmargin);
+    
+    # Setup legend
+    $graph->legend->SetPos(0.05,0.95, 'right','bottom');
+    $graph->legend->SetColumns($legend_cols);
+    $graph->legend->SetLineWeight(10);
+
+    # Setup titles
+    $graph->title->Set($title);
+
+    if (! HIDE_SUBTITLE)
+        $graph->subtitle->Set($subtitle);
+
+    $graph->subtitle->ParagraphAlign("left");
+    $graph->title->SetFont(FF_FONT1, FS_BOLD);
+    $graph->subtitle->SetFont(FF_FONT1, FS_NORMAL);
+
+    # Setup axes
+    list($titles['xaxis'],
+         $titles['yaxis']) = get_axis_labels($type);
+
+    $graph->xaxis->SetTickLabels($message_sizes);
+
+    # If you want to use any angles other than 0 and 90 degrees you must make
+    # sure that the labels are using TTF fonts. Internal fonts only support
+    # vertical and horizontal angles. (Could be useful for getting the x-axis
+    # labels out of the way of the x-axis tick labels.)
+    $graph->xaxis->SetLabelAngle(90);
+    $graph->xaxis->SetFont($xfont);
+    $graph->xaxis->SetTitleMargin(25);
+    $graph->yaxis->SetTitleMargin(40);
+    $graph->xaxis->setTitle($titles['xaxis'], "middle");
+    $graph->yaxis->setTitle($titles['yaxis'], "middle");
+    $graph->xaxis->title->SetFont(FF_FONT1, FS_BOLD);
+    $graph->yaxis->title->SetFont(FF_FONT1, FS_BOLD);
+
+    # Plot the lines
+    foreach (array_keys($lineplots) as $i) {
+        $graph->Add($lineplots[$i]);
+    }
+
+    $graph->SetShadow();
+
+    # Write the graph to a file
+    # (Timestamp it so the browser doesn't reload a cached
+    # image when/if the user changes a graphing preference)
+    $filename = $mtt_graph_tmp_dir . "/" . time().'_'.title2filename($title.' '.$type.' '.$subtitle).'.png';
+    unlink($filename);
+    $graph->Stroke($filename);
+
+    # Snarf plots argument
+    $plots = $data['plots'];
+
+    # Create 2D array to feed to raw data output function
+    $meta_data['title']          = $title;
+    $meta_data['subtitle']       = $subtitle;
+    $meta_data['unit']           = $unit;
+    $meta_data['type']           = $type;
+    $meta_data['legend_items']   = $legend_items;
+    $table_data['message_sizes'] = $message_sizes;
+    $table_data['plots']         = $plots;
+
+    $arr = prepare_raw_data_arr($meta_data, $table_data);
+    $raw = prepare_raw_data_links($arr, label($type));
+    $top = DOCROOT;
+
+    $image = "<img src='$top/$filename' " .
+                  "alt='$title' " .
+                  "border='0'>";
+
+    # Return links to the image, raw data, and width
+    $ret = array(
+        'image' => $image,
+        'raw'   => $raw,
+        'width' => $width
+    );
+
+    return $ret;
+}
+
+function get_graph_dimensions($legend_items, $message_sizes) {
+
+    # Default margin sizes
+    $margins['left']   = 60;
+    $margins['right']  = 50;
+
+    # Top margin is adjusted automatically for
+    # title/subtitle 
+    $margins['top']    = 0;
+
+    # Bottom margin for legend
+    $margins['bottom'] = 80;
+
+    # Font width in pixels (NEED A WAY TO DETERMINE THESE
+    # NUMBERS CORRECTLY!)
+    $fontwidth = 6.2;
+    $fontheight = 6;
+    $legend_mark = 20;
+    $legend_entry_width = $fontwidth *
+                    max(array_map('strlen', $legend_items)) +
+                    $legend_mark;
+    $legend_width = $legend_entry_width;
+
+    # Best guess for pixel:char and line:char ratios
+    # WE WOULD HAVE TO GUESS AGAIN IF WE CHANGE FONT!
+    # (NEED A BETTER WAY TO GET PIXEL SIZE OF FONTS)
+    $c2p = 20;
+    $l2p = 21;
+    
+    # Set image dimensions 
+    # Width: based on ticks on the x-axis (and legend, if wide)
+    # Height: based on max latency/bw value
+    $xticks = sizeof($message_sizes);
+    $width = $xticks * $c2p;
+    $height = 400;
+
+    list($width, $xfont) = constrain_graph_attrs($width);
+
+    $legend_cols       =  floor($width / $legend_entry_width);
+    $legend_cols       =  max(1, $legend_cols);
+    $legend_rows       =  ceil(sizeof($legend_items) / $legend_cols);
+    $height            += $legend_rows * $l2p;
+    $margins['bottom'] += $legend_rows * $l2p;
+
+    # Will the legend go off the edge?
+    if ($legend_cols)
+        $legend_width = $legend_entry_width * $legend_cols;
+
+    if ($legend_rows)
+        $legend_height = $fontheight * $legend_rows;
+
+    # Pad for a tight-fit legend
+    $diff = abs($legend_width - $width);
+    $width += $diff + 50;
+
+    list($width, $xfont) = constrain_graph_attrs($width);
+
+    $ret = array(
+        $width, 
+        $height, 
+        $xfont,
+        $margins,
+        $legend_cols
+    );
+
+    return $ret;
+}
+
+function get_axis_labels($type) {
+    if (preg_match("/latency/i", $type))
+        $ret = array('Message Size (bytes)', 'Time (usec)');
+    elseif (preg_match("/bandwidth/i", $type))
+        $ret = array('Message Size (bytes)', 'Bandwidth (Mbps)');
+
+    return $ret;
+}
+
+# Collect and massage graph data
+function collect_graph_data($data, $type) {
+
+    # Process inputs
+    $legend = $data['legend'];
+    unset($data['legend']);
+
+    $params = $data['params'];
+    unset($data['params']);
+
+    $plots = $data['plots'];
+    unset($data['plots']);
+
+    # Setup line plot colors
+    static $colors;
+    if (! $colors)
+        $colors = graph_colors();
+
+    # Set up titles
+    $title = label($type);
+    $subtitle = create_subtitle($legend);
+
+    $j = 0;
+
+    # Axis scaling is a cookie-ized preference
+    $xaxis_scale = XAXIS_SCALE;
+    $yaxis_scale = YAXIS_SCALE;
+
+    # Collect the line plots
+    $unified_xdata;
+    foreach (array_keys($plots) as $i) {
+        
+        # Create the plot if we have Y data of the desired type in
+        # this plot
+        if ($plots[$i][$type]) {
+            $empty = false;
+
+            # If we have a log scale, use the actual X values.  If we
+            # have a linear scale, just supply "null" for the X axis
+            # and jpgraph will use an x axis starting with 1 and
+            # growing by 1 for each Y value.
+            if (preg_match('/log/', $xaxis_scale)) {
+                $xdata = $plots[$i]['message_size'];
+            } else {
+                $xdata = null;
+            }
+
+            # Create a unified X axis that represents the union of
+            # all lines' X values.
+            $unified_xdata = 
+                array_merge($unified_xdata, $plots[$i]['message_size']);
+
+            $color = $colors[$j++];
+
+            # Avoid null color error
+            if (! $color)
+                $color = 'black';
+
+            $datapoints[$i] = $plots[$i][$type];
+            $lineplots[$i] = new LinePlot($datapoints[$i], $xdata);
+
+            # Human row numbers are +1
+            $legend_items[$i] = 
+                ($i + 1) . ' ' . create_legend_item($params[$i], $legend);
+
+            $lineplots[$i]->SetColor($color);
+            $lineplots[$i]->SetWeight(2);
+        }
+    }
+
+    # Remove all duplicate X values in the unified X axis array
+    $unified_xdata = array_unique($unified_xdata);
+
+    # Print a legend, even if there's only one line in the plot
+    # because you may have multiple graphs and only *one* of them only
+    # has one line, and the source row for that line may not be
+    # obvious from the displayed sumary table.
+    foreach (array_keys($legend_items) as $i)
+        $lineplots[$i]->SetLegend($legend_items[$i]);
+
+    return array($datapoints,
+                 $lineplots,
+                 $unified_xdata,
+                 $legend_items,
+                 $title,
+                 $subtitle);
+}
+
+# Create 2D array to feed to raw data output function
+function prepare_raw_data_arr($meta, $data) {
+
+    $title         = $meta['title'];
+    $subtitle      = $meta['subtitle'];
+    $unit          = $meta['unit'];
+    $type          = $meta['type'];
+    $legend_items  = $meta['legend_items'];
+    $message_sizes = $data['message_sizes'];
+    $plots         = $data['plots'];
+
+    $i = 0;
+    $arr[$i++] = $title;
+    $arr[$i++] = $subtitle;
+    $arr[$i++] = 'bytes';
+    $arr[$i++] = $unit;
+
+    # Note: There is no legend item that goes above message size
+    foreach (array_keys($plots) as $p) {
+        if (! is_null($legend_items[$p]))
+            $arr[$i][] = $legend_items[$p];
+    }
+    $i++;
+
+    for ($j = 0; $j < sizeof($message_sizes); $j++) {
+        $arr[$i][0] = $message_sizes[$j];
+        $k = 1;
+        foreach (array_keys($plots) as $p) {
+            if ($plots[$p][$type]) {
+                $arr[$i][$k++] = $plots[$p][$type][$j];
+            }
+        }
+        $i++;
+    }
+
+    return $arr;
+}
+
+# Return links to raw data in HTML and CSV format
+function prepare_raw_data_links($arr, $title) {
+
+    # Adjust size of raw data links
+    $cols = max(array_map('sizeof', array_values($arr)));
+    $rows = sizeof($arr);
+    $rwidth = (90 * $cols) + 50;
+    $rheight = ((20 * $rows) + 200);
+    if ($rheight > 800)
+        $rheight = 800;
+    if ($rwidth > SCREEN_WIDTH)
+        $rwidth = SCREEN_WIDTH;
+
+    # Setup list of raw data formats
+    $styles = array(
+                'HTML' => 'html',
+                'CSV'  => 'text');
+
+    # Provide popups for raw data
+    foreach (array_keys($styles) as $style) {
+        $ctype = strtolower($styles[$style]);
+
+        if ($ctype == 'html') {
+            $raw_links .=
+                "\n<a class='black_ln' href='javascript:popup_nameless_${ctype}_window(" .
+                    "\n\"" . $rwidth . "\", " .
+                    "\n\"" . $rheight . "\"," .
+                    "\n\"MTT Raw Performance Data - $title\"," .
+                    "\n\"\"," .
+                    "\n\"" . htmlentities(raw_data_content($arr, $style), ENT_QUOTES) . "\"," .
+                    "\n\"font-family:Courier,monospace\"" .
+                ")' " .
+                ">" .
+                "\n$style" .
+                "</a>&nbsp;";
+
+        } elseif ($ctype == 'text') {
+            $top = DOCROOT;
+            $raw_links .=
+                "\n<a href='$top/" . raw_data_content($arr, $style) . "'>$style</a>&nbsp;";
+        }
+    }
+
+    return $raw_links;
+}
+
+# Max-out/bottom-out image/font size
+function constrain_graph_attrs($width) {
+    $font = FF_FONT1;
+    if ($width > SCREEN_WIDTH) {
+        $width = SCREEN_WIDTH;
+        $font = FF_FONT0;
+    } elseif ($width < 250)
+        $width = 250;
+
+    return array($width, $font);
+}
+
+# Convert a 2D array (output by do_graph) to an HTML or CSV table
+# HTML: returns HTML string
+# CSV: returns .csv filename 
+#
+# X: IT WOULD BE PREFERABLE TO DO CSV THE SAME WAY WE DO HTML.
+# FOR BOTH CONSITENCY, AND SO THAT THE LINK NEVER "EXPIRES"
+function raw_data_content($arr, $style) {
+
+    # Prepare a var to store all the content
+    $content = '';
+
+    # Headers are always here
+    $colspan = sizeof($arr[5]) - 1;
+
+    # Number of plots = colspan
+    $plots = $colspan;
+
+    # HTML
+    if (strtolower($style) == 'html') {
+        $tbl  = "\n<br><table border='1'>";
+        $tbl_ = "\n</table>";
+        $tr   = "\n<tr>";
+        $tdr  = "\n<td align='right'>";
+        $th   = "\n<th bgcolor='" . LGRAY . "'>";
+        $tdl  = "\n<td bgcolor='" . LGRAY . "'>";
+        $tdll = "\n<td bgcolor='" . LLGRAY . "' align='right'>";
+        $ths  = "\n<th bgcolor='" . LGRAY . "' colspan='$colspan'>";
+        $tdc  = "\n<td bgcolor='" . LGRAY . "' align='center'>";
+        $tdc_ = "\n<td bgcolor='" . LGRAY . "' align='center'>";
+        $br  = "<br>";
+
+        # Functions for eval
+        $sp2func  = "sp2br";
+        $nl2br  = "nl2br";
+    }
+    # CSV
+    else {
+        $tbl_ = "\n";
+        $tdll = "\ndata:";
+        $tdr  = ",";
+        $th   = "data:column-units:";
+        $ths  = ",";
+        $tdc_ = "\ndata:column-names:message-size, ";
+        $tdc  = ",";
+        $br_  = "title:";
+
+        # Functions for eval
+        $nl2br     = "";
+        $unalign   = "unalign";
+        $stripfunc = "strip_html";
+        $br2hyphen = "br2hyphen";
+
+        # Repeat column unit (e.g., usec) per number of
+        # columns 
+        $str_repeat = 
+            '$str = ' .
+                'rtrim(' . 
+                    'str_repeat(' .
+                        '"," . $arr[$i + 1], ' .
+                        'sizeof($arr[$i + 2]) - 1' .
+                    '), ","' . 
+                ');';
+    }
+
+    $i = 0;
+
+    # Title
+    eval("\$title = $br2hyphen(\$arr[\$i]);");
+    $content .= "$br_$br<b>" . $title . "</b>";
+    $i++;
+
+    # Subtitle
+    eval("\$subtitle = $nl2br(\$arr[\$i]);");
+
+    # Prepare a logical filename for the CSV file
+    $filename = "tmp/".title2filename($title.$subtitle).".csv";
+
+    eval("\$subtitle = $unalign(\$subtitle);");
+    $content .= "$br<b><i>" . font('-1', $subtitle) . "</b></i>";
+    $i++;
+
+    $content .= $tbl;
+    $content .= $tr;
+
+    # Repeat the unit for the number of legend columns
+    eval($str_repeat);
+    
+    # "bytes", "usec or Mbps"
+    $content .= $th  . font('-2', $arr[$i++]);
+    $content .= $ths . font('-2', $arr[$i++] . $str);
+    $content .= $tr;
+    $content .= $tdl;
+
+    # Headers (legend items)
+    $j = 0;
+    foreach ($arr[$i] as $cell) {
+        eval("\$cell = $sp2func('$cell');");
+        $content .= ($j++ ? $tdc : $tdc_) . font('-2', $cell);
+    }
+
+    # For each message size ...
+    for ($i++; $i < sizeof($arr); $i++) {
+        $content .= $tr;
+        $content .= $tdll . font('-2', $arr[$i][0]);
+
+        # ... print the corresponding latency/bandwidth
+        # values for the message size
+        for ($j = 1; $j <= $colspan; $j++) {
+            if (! is_null($arr[$i][$j]))
+                $data = sprintf("%01.2f", $arr[$i][$j]);
+            else
+                $data = null;
+            $content .= $tdr . font('-2', $data);
+        }
+    }
+    $content .= $tbl_;
+
+    # If it's a CSV, strip all the tags out
+    eval("\$content = $stripfunc(\$content);");
+
+    # Write the CSV to a file
+    if (strtolower($style) == 'csv') {
+        $filename = write_to_file($filename, $content);
+        return $filename;
+    }
+    # Return an HTML string
+    else {
+        return $content;
+    }
+}
+
+# Write content to a file
+function write_to_file($filename, $content) {
+    unlink($filename);
+    $fh = fopen($filename, 'x');
+    fwrite($fh, $content);
+    fclose($fh);
+    return $filename;
+}
+
+# Convert an graph's title to a filename
+# (for use in links to .csv files)
+function title2filename($str) {
+    $cclass = '[a-zA-Z0-9_ \t]';
+    $str = preg_replace("/$cclass+:\s+/", "_", $str);
+    $str = preg_replace('/\s+|\n+|\r+/', '_', $str);
+    return $str;
+}
+
+# Convert input parameters to a filename
+# (for use in links to *-explain.txt files)
+function params2filename($params) {
+
+    $tokens[] = process_report_type($_GET);
+
+    foreach (array_keys($params) as $k) {
+        $value = $params[$k];
+
+        # Phase and text fields
+        if (((strpos($k, 'text_') !== false) or
+             (strpos($k, 'phase') !== false)) 
+            and
+            (($value != 'all') and
+             ($value != ''))) {
+
+            $str = $value;
+            $str = preg_replace('/\s+/', '_', $str);
+            $str = preg_replace('/\W+/', '', $str);
+            $filename .= $str . '_';
+        }
+        # postgres options
+        elseif (strpos($k, 'pg_') !== false) {
+            $filename .= "$k=${value}_";
+        }
+    }
+
+    # Other SQL params
+    $tokens[] = isset($params['dynamic_view']) ? 'dynamic_view_' : '';
+    $tokens[] = isset($params['explain'])      ? 'explain_'      : '';
+    $tokens[] = isset($params['analyze'])      ? 'analyze_'      : '';
+
+    $filename .= '_' . join('_', $tokens);
+
+    return $filename;
+}
+
+function strip_html($str) {
+    return strip_tags($str);
+}
+
+# For unaligning the subtitle for the CSV dump
+function unalign($str) {
+    $arr = explode("\n", $str);
+    foreach ($arr as $l) {
+        if (preg_match('/^([^:]+):\s+(.*)$/', $l, $m)) {
+            $left = preg_replace('/\s+/', ':', strtolower($m[1]));
+            $right = $m[2];
+            $ret .= "\nsubtitle:" . $left . ':' . $right;
+        }
+    }
+    return $ret . "\n";
+}
+
+# Wrap a string in font tags
+function font($size, $str) { 
+    return sprintf("<font size='%s'>%s</font>", $size, $str);
+}
+
+# ' ' -> '<br>'
+function sp2br($str) {
+    return preg_replace('/\s+/', '<br>', $str);
+}
+
+# '<br>' -> ' - '
+function br2hyphen($str) {
+    return preg_replace('/<br>/', ' - ', $str);
+}
+
+# Return HTML colors for the lineplots
+function graph_colors() {
+    return array(
+        '#FFA500', # 255,165,0       Orange              	
+        '#0000FF', # 0,0,255         Blue	
+        '#FF0000', # 255,0,0         Red                 	
+        '#008000', # 0,128,0         Green               	
+        '#DAA520', # 218,165,32      GoldenRod           	
+        '#FF00FF', # 255,0,255       Magenta             	
+        '#000000', # 0,0,0           Black
+        '#00FFFF', # 0,255,255       Cyan                	
+        '#808080', # 128,128,128     Gray                	
+        '#DA70D6', # 218,112,214     Orchid              	
+        '#F0E68C', # 240,230,140     Khaki               	
+        '#DC143C', # 237,164,61      Crimson             	
+        '#66CDAA', # 102,205,170     MediumAquaMarine    	
+        '#0000CD', # 0,0,205         MediumBlue          	
+        '#BA55D3', # 186,85,211      MediumOrchid        	
+        '#9370D8', # 147,112,219     MediumPurple        	
+        '#3CB371', # 60,179,113      MediumSeaGreen      	
+        '#7B68EE', # 123,104,238     MediumSlateBlue     	
+        '#00FA9A', # 0,250,154       MediumSpringGreen   	
+        '#48D1CC', # 72,209,204      MediumTurquoise     	
+        '#C71585', # 199,21,133      MediumVioletRed     	
+        '#00008B', # 0,0,139         DarkBlue            	
+        '#B8860B', # 184,134,11      DarkGoldenRod       	
+        '#006400', # 0,100,0         DarkGreen           	
+        '#8B008B', # 139,0,139       DarkMagenta         	
+        '#A9A9A9', # 169,169,169     DarkGray            	
+        '#FF8C00', # 255,140,0       Darkorange          	
+        '#008B8B', # 0,139,139       DarkCyan            	
+        '#BDB76B', # 189,183,107     DarkKhaki           	
+        '#556B2F', # 85,107,47       DarkOliveGreen      	
+        '#9932CC', # 153,50,204      DarkOrchid          	
+        '#8B0000', # 139,0,0         DarkRed             	
+        '#E9967A', # 233,150,122     DarkSalmon          	
+        '#8FBC8F', # 143,188,143     DarkSeaGreen        	
+        '#483D8B', # 72,61,139       DarkSlateBlue       	
+        '#2F4F4F', # 47,79,79        DarkSlateGray       	
+        '#00CED1', # 0,206,209       DarkTurquoise       	
+        '#9400D3', # 148,0,211       DarkViolet          	
+    );
+}
+
+# Return a subtitle out of items that would be redundant in
+# the legend (whack those would-be legend items)
+function create_subtitle(&$legend) {
+
+    # Remove singletons from legend and put them in 
+    # the subtitle
+    foreach (array_keys($legend) as $k) {
+        $items = array_keys($legend[$k]);
+        if (sizeof($items) == 1) {
+            unset($legend[$k]);
+            $subtitle[$k] = array_shift($items);
+        }
+    }
+
+    $subtitle_pad = max(
+                      array_map('strlen', 
+                        array_map('label', 
+                          array_keys($subtitle)))) + 3;
+
+    # Loop through the singletons and create a nicely aligned table
+    foreach (array_keys($subtitle) as $k) {
+        $item = $subtitle[$k];
+        $ret .= "\n" . str_pad(label($k) . ': ', $subtitle_pad) . $item;
+    }
+
+    $ret .= "\n";
+
+    return $ret;
+}
+
+# Return string for a given hash entry. 
+# $legend is keyed by params that are *not* in the subtitle,
+# because they differ across lineplots
+function create_legend_item($hash, $legend) {
+
+    foreach (array_keys($legend) as $k)
+        if (isset($legend[$k]))
+            $items[] = $hash[$k];
+
+    $ret = join(' ', $items);
+    
+    return $ret;
+}
+
+# Generate a random string
+# function randstr($length) {
+# 
+#     $pattern = "abcdefghijklmnopqrstuvwxyz";
+#     for($i = 0; $i < $length; $i++) {
+#         if (isset($key))
+#             $key .= $pattern{rand(0,26)};
+#         else
+#             $key = $pattern{rand(0,26)};
+#     }
+#     return $key;
+# }
+
+#########################################
+
+# Return a sequence of result cell bgcolors
+function result_colors($phases) {
+
+    # Arrayify the argument
+    if (! is_array($phases))
+        $phases = array($phases);
+
+    if (array_search('mpi_install', $phases) !== false) {
+        $colors[] = LGREEN;
+        $colors[] = LRED;
+    }
+    if (array_search('test_build', $phases) !== false) {
+        $colors[] = LGREEN;
+        $colors[] = LRED;
+    }
+    if (array_search('test_run', $phases) !== false) {
+        $colors[] = LGREEN;
+        $colors[] = LRED;
+        $colors[] = LYELLOW;
+        $colors[] = LORANGE;
+        $colors[] = LBLUE;
+    }
+    return $colors;
+}
+
+# Return either the first element of the list
+# or the scalar argument
+function get_scalar($var) {
+    if (is_array($var))
+        return $var[0];
+    else
+        return $var;
+}
+
+#########################################
+#                                       
+#  Link Generating Functions
+#                                     
+#########################################
+
+# Show links to report slices ('x' rows at a time)
+function slices_links($n, $limit, $params) {
+    
+    # Globalize the date range
+    global $date_fields;
+
+    $top = DOCROOT;
+
+    # Convenience arrow for going through 100s of rows
+    $img  = "<img src='$top/images/%s_arrow.gif' border='0'>";
+    $href = "<a href='$self?%s' class='black_ln' target='_self'>%s</a>";
+    $prev = sprintf($img, 'no');
+    $next = sprintf($img, 'no');
+
+    $qstring_arr = $params;
+    #$qstring_arr['rows'] = $n;
+    if( $params['rows'] != "" ) {
+        $qstring_arr['rows'] = $params['rows'];
+    }
+    else {
+        $qstring_arr['rows'] = $n;
+    }
+
+    $phase  = process_phase_field($params['phase']);
+    $offset = offset($params);
+
+    $go = strtolower($params['go']);
+
+    # Determine report type
+    if (preg_match('/(summary|detail)/i', $go, $m))
+        $qstring_arr['go'] = $m[1];
+
+    # Differentiate between link clicks and button clicks
+    unset($qstring_arr['click']);
+
+    # Report "slices" should use absolute date range
+    # because the LIMIT clause may not make sense in
+    # the future
+    $absolute_date = handle_absolute_date($date_fields);
+    $qstring_arr['text_start_timestamp'] = $absolute_date;
+
+    # Flag all the links as slices
+    $qstring_arr['slice'] = 1;
+
+    # This is needed because the hidden 'lastgo' is 
+    # not passed on an href, only a submit
+    $qstring_arr['lastgo'] = $qstring_arr['go'];
+
+    $i = 0;
+    while ($i < $n) {
+        $qstring_arr['offset'] = $i;
+        $label = (($i/$limit) + 1);
+
+        $qstring = arr2qstring($qstring_arr);
+
+        # Numbered links
+        if ($i == $offset)
+            $links[] = $label;
+        else
+            $links[] = sprintf($href, $qstring, $label);
+
+        # Arrows
+        $prevn = $offset - $limit;
+        $nextn = $offset + $limit;
+        if ($i == $prevn)
+             $prev = sprintf($href, $qstring, sprintf($img, "left"));
+        elseif ($i == $nextn)
+             $next = sprintf($href, $qstring, sprintf($img, "right"));
+
+        $i += $limit;
+    }
+    $ret .= "\n<br>";
+
+    # Do not print a lone '1'
+    if (sizeof($links) > 1) {
+        $ret .= "\n<table width='100%'><tr><td align='center'>";
+
+        # Left arrow
+        $ret .= "\n$prev";
+
+        foreach ($links as $link)
+            $ret .= "\n&nbsp;$link";
+
+        # Right arrow
+        $ret .= "\n&nbsp;$next<br><br>";
+    }
+    $ret .= "\n</table>";
+
+    return $ret;
+}
+
+# Create links that drill down by phase, result, and a set
+# of general params This function takes the following three
+# forms:
+#
+# 1. Entire row or data
+#    * Phase, series of param/value pairs, result counts
+#    * For "colored" result count table cells
+#       
+# 2. Just a single param/value pair
+#    * For "white" parameter table cells
+#    
+# 3. List of phases
+#    * For phase/result table header cells
+#
+# Note: this function takes a variable number of arguments
+#
+# X: THIS FUNCTION IS A MESS! IT SHOULD USE THE SAME
+# METHOD OF CREATING A DRILLDOWN FOR EACH CASE. THAT IS,
+# TAKE THE EXISTING _GET ARRAY, AND PRUNE/ADD WHAT'S NEEDED
+# FOR THE DRILLDOWN (IN OTHER WORDS, form_carryover SHOULD 
+# ONLY BE USED FOR AUTO-FILLING A FORM)
+function drilldown_links() {
+
+    # This function has three forms (see above comment)
+    $argc = func_num_args();
+
+    static $phase_results_table;
+    if (! $phase_results_table) {
+        $arr = phase_results_table();
+        $phase_results_table = $arr['aggregates'];
+    }
+
+    $self = 'http://' . $_SERVER['SERVER_NAME'] . $_SERVER['SCRIPT_NAME'];
+    $format = "<a href='$self?%s' class='black_ln' target='_self'>%s</a>";
+
+    # 1. Entire row or data
+    #    * Phase, series of param/value pairs, result counts
+    #    * For "colored" result count table cells
+    #
+    # USING TTABLE FOR THIS CASE
+    if ($argc == 4) {
+
+        $headers = func_get_arg(0);
+        $params  = func_get_arg(1);
+        $results = func_get_arg(2);
+        $phase   = func_get_arg(3);
+
+        # Drilldowns are not allowed from a cherry-picked report
+        # Return plain non-clickable text labels
+        if (is_cherry_pick($_GET) or (ENABLE_DRILLDOWNS == false))
+            return array(
+                'links' => $results,
+                'counts' => $results,
+            );
+
+        # Bring over phase-independent selections, and
+        # combine them with phase-dependent defaults
+        $defaults = setup_mainwin_fields($phase);
+        $qstring_arr = array_merge(
+                            form_carryover($defaults),
+                            advanced_carryover($_GET)
+        );
+        $qstring_arr['phase'] = $phase;
+
+        # NOTE: WE CANNOT MARK THIS AS A TRUE DRILLDOWN,
+        # BECAUSE WE FETCH EXTRA PHASE-SPECIFIC FIELDS WHICH
+        # ARE NOT CACHED IN TTABLE.
+
+        sanitize_qstring_arr($qstring_arr);
+
+        $j = 0;
+        # Loop over result count values
+        foreach ($results as $count) {
+
+            $i = 0;
+            # Loop over header names
+            foreach ($headers['params'] as $param) {
+
+                $qstring_arr["text_$param"] = 
+                    exact_match($param, $params[$i++]);
+            }
+            $qstring_arr['test_result'] = $phase_results_table[$phase][$j++];
+
+            $ret['links'][] = sprintf($format, arr2qstring($qstring_arr), $count);
+            $ret['counts'][] = $count;
+        }
+    }
+
+    # 2. Just a single param/value pair
+    #    * For "white" parameter table cells
+    #    
+    # USING TTABLE FOR THIS CASE
+    elseif ($argc == 2) {
+
+        $header = func_get_arg(0);
+        $param  = func_get_arg(1);
+
+        # We do not know how to provide drilldowns for start_timestamp right
+        # now. It would require a lot of conditionalizing about whether a
+        # ttable is being used, carrying over the date rollup ('by interval'),
+        # etc.
+        if ($header == 'start_timestamp')
+            return $param;
+
+        # Prepare a query string for manipulation
+        # Note the direct assignment from _GET, instead of using
+        # form_carryover
+        $qstring_arr = $_GET;
+
+        # Unset some fields that may be set illogicallly
+        sanitize_qstring_arr($qstring_arr);
+
+        # Mark this as a drilldown so we can use the tttable
+        $qstring_arr['drill'] = 1;
+
+        # Drilldowns are not allowed from a cherry-picked report
+        # Return plain non-clickable text labels
+        if (is_cherry_pick($_GET) or (ENABLE_DRILLDOWNS == false))
+            return $param;
+
+        $qstring_arr["text_$header"] = 
+            exact_match($header, $param);
+
+        $ret = sprintf($format, arr2qstring($qstring_arr), $param);
+    }
+
+    # 3. List of phases
+    #    * For phase/result table header cells
+    #
+    # Return a series of links, containing one or three of
+    # the following:
+    #
+    # * MPI Install
+    #   Pass, Fail
+    # * Test Build
+    #   Pass, Fail
+    # * Test Run
+    #   Pass, Fail, Skipped, Timed out, Perf
+    #
+    # DO NOT USE TTABLE FOR THIS CASE
+    elseif ($argc == 1) {
+
+        $phases = func_get_arg(0);
+
+        # Drilldowns are not allowed from a cherry-picked
+        # report. Return plain non-clickable text labels.
+        if (is_cherry_pick($_GET) or (ENABLE_DRILLDOWNS == false)) {
+            foreach ($phases as $phase) {
+                $ret[$phase][] = label($phase);
+                foreach ($phase_results_table[$phase] as $result)
+                    $ret[$phase][] = label(label($result));
+            }
+            return $ret;
+        }
+
+        foreach ($phases as $phase) {
+
+            # Bring over phase-independent selections, and
+            # combine them with phase-dependent defaults
+            $defaults = setup_mainwin_fields($phase);
+            $qstring_arr = array_merge(
+                                form_carryover($defaults),
+                                advanced_carryover($_GET)
+            );
+
+
+            $qstring_arr['phase'] = $phase;
+
+            # NOTE: WE CANNOT MARK THIS AS A TRUE DRILLDOWN,
+            # BECAUSE WE FETCH EXTRA PHASE-SPECIFIC FIELDS WHICH
+            # ARE NOT CACHED IN TTABLE.
+
+            sanitize_qstring_arr($qstring_arr);
+
+            # test_result will be getting reset for each
+            # result count cell
+            unset($qstring_arr['test_result']);
+            $ret[$phase][] = sprintf($format, arr2qstring($qstring_arr), label($phase));
+
+            foreach ($phase_results_table[$phase] as $result) {
+                $qstring_arr['test_result'] = $result;
+
+                # Do label(label()) because we go from 
+                # "result code" to "column name" to "web page label"
+                $label = 
+                    sprintf($format, arr2qstring($qstring_arr), label(label($result)));
+                $header = sorting_links($result, $label, 0.85);
+                $ret[$phase][] = $header;
+            }
+        }
+    }
+
+    return $ret;
+}
+
+function sanitize_qstring_arr(&$arr) {
+
+    # Globalize the date range
+    global $date_fields;
+
+    # Do not bring over LIMIT clause for a drilldown
+    unset($arr['rows']);
+    unset($arr['offset']);
+    unset($arr['slice']);
+
+    # Differentiate between link clicks and button clicks
+    unset($arr['click']);
+
+    # Drilldowns should use absolute date range in case
+    # the user walks away from the browser for awhile
+    # (some data points could slip out of a relative
+    # date range)
+    $absolute_date = handle_absolute_date($date_fields);
+    $arr['text_start_timestamp'] = $absolute_date;
+
+    # Cherries are not applicable for a drilldown report
+    unset_cherries($arr);
+
+    # Strip off _cherry|_slice
+    $arr['go'] = base_type($arr['go']);
+
+    # This is needed because the hidden 'lastgo' is 
+    # not passed on an href, only a submit
+    $arr['lastgo'] = $arr['go'];
+}
+
+# Return true if the user has clicked the cherry button
+function is_cherry_pick($params) {
+    $go = $params['go'];
+    if (preg_match("/cherry/i", $go))
+        return true;
+    else
+        return false;
+}
+
+# Mutator function to clear out all cherry checkbox values
+function unset_cherries(&$arr) {
+    foreach (array_keys($arr) as $k)
+        if (preg_match("/cherry_\d+/i", $k))
+            unset($arr[$k]);
+}
+
+# Create headers wrapped by up/down sort arrows
+# (Rather have this as another if/else in drilldown_links.
+# Oh well.) (Override the standard text label with $label
+# argument)
+function sorting_links($headers, $label, $arrow_size) {
+
+    # Globalize the date range
+    global $date_fields;
+
+    $scalar_context = false;
+    $default_label = false;
+
+    # Arrayify the argument
+    if (! is_array($headers)) {
+        $headers = array($headers);
+        $scalar_context = true;
+    }
+
+    # Drilldowns are not allowed from a cherry-picked report
+    # Return plain non-clickable text labels
+    if (is_cherry_pick($_GET))
+        return array_map('label', $headers);
+
+    # Use standard label by default
+    if (is_null($label))
+        $default_label = true;
+
+    # Adjust arrow size
+    if ($arrow_size) {
+        list($width) = getimagesize('./images/right_arrow.gif');
+        $size = "width='" . ($arrow_size * $width) . "'";
+    }
+
+    # Prepare a query string for manipulation
+    $qstring_arr = $_GET;
+
+    # Do not bring over LIMIT or ORDER BY info for a header link
+    unset($qstring_arr['orderby_up']);
+    unset($qstring_arr['orderby_down']);
+    unset($qstring_arr['rows']);
+    unset($qstring_arr['offset']);
+    unset($qstring_arr['slice']);
+
+    # Differentiate between link clicks and button clicks
+    unset($qstring_arr['click']);
+
+    # Cherries are not applicable for a sorted report
+    unset_cherries($arr);
+
+    # Report "slices" should use absolute date range
+    # because the LIMIT clause may not make sense in
+    # the future
+    $absolute_date = handle_absolute_date($date_fields);
+    $qstring_arr['text_start_timestamp'] = $absolute_date;
+
+    # Setup printf formats
+    $top = DOCROOT;
+
+    $a_format = "<a href='$self?%s' class='black_ln' target='_self'>%s</a>";
+    $img_format = "<img src='$top/images/%s_arrow.gif' $size border='0'>";
+
+    # ASC and DESC sort
+    $directions = array('up', 'down');
+
+    foreach ($headers as $header) {
+
+        foreach ($directions as $direction) {
+            $qstring_arr["orderby_$direction"] = $header;
+            $qstring = arr2qstring($qstring_arr);
+            $links[] = sprintf($a_format, $qstring, sprintf($img_format, $direction));
+            unset($qstring_arr["orderby_$direction"]);
+        }
+
+        if ($default_label)
+            $label = label($header);
+
+        $ret[] = array_shift($links) .
+                 $label .
+                 array_shift($links);
+    }
+
+    if ($scalar_context)
+        $ret = array_shift($ret);
+
+    return $ret;
+}
+
+# If the param is not a ''large_field'', return the string with
+# beginning/ending regexp match boundaries (param/value drilldown links on
+# table cells should use this)
+function exact_match($param, $str) {
+
+    static $special_fields;
+    if (! $special_fields)
+        $special_fields = setup_large_fields();
+
+    # A few fields are *highly*  unlikely to be searched 
+    # for in the ''exact'' sense
+    if (! preg_match("/" . join("|", $special_fields) . "/i", $param))
+        return '^' . $str . '$';
+    else
+        return $str;
+}
+
+# Return number of rows in report
+# (Needed becase if we have filtered by LIMIT, the PG
+# resource will contain only LIMIT rows despite the same
+# query minus the LIMIT clause returning more than LIMIT
+# rows)
+function row_count($sql_count_star, $params) {
+    if (! isset($params['rows'])) {
+        return $sql_count_star;
+    } else {
+        return $params['rows'];
+    }
+}
+
+# Return offset integer from where this report is displaying
+function offset($params) {
+    if (isset($params['offset']))
+        return $params['offset'];
+    else
+        return 0;
+}
+
+# Print some basic, useful info atop each report table
+function report_header($date_fields, $phases, $n, $fast) {
+
+    $basic_info = basic_info($date_fields, $phases, $n, $fast);
+    $permalinks = permalinks($date_fields);
+
+    # Print general info/links up top
+    print "<table width='100%'><tr>" .
+          "<td>$basic_info" .
+          "<td align='right'>$permalinks" .
+          "</table>";
+}
+
+# Show links to point user to more info ...
+function permalinks($date_fields) {
+
+    $params = $_GET;
+
+    $domain        = $_SERVER['SERVER_NAME'];
+    $uri           = $_SERVER['REQUEST_URI'];
+    $script        = $_SERVER['SCRIPT_NAME'];
+    $absolute_date = handle_absolute_date($date_fields);
+
+    $start_timestamp = $params["text_start_timestamp"];
+
+    # Tell reporter to create a permalink
+    $params["make_redir"] = 1;
+
+    # Absolute date range
+    $params["text_start_timestamp"] = $absolute_date;
+
+    # Create links to report using relative and absolute date ranges
+    $links["Absolute date range"] = $absolute_date;
+
+    # Do not display two permalinks with identical URLs
+
+    $pat = '\s*(;|\|)\s*';
+    $absolute_date = convert_quoted_tokens_to_pipe_delimited($absolute_date);
+    $start_timestamp = convert_quoted_tokens_to_pipe_delimited($start_timestamp);
+
+    if (preg_replace("/$pat/", "", $absolute_date) != 
+        preg_replace("/$pat/", "", $start_timestamp)) {
+        $links["Relative date range"] = $start_timestamp;
+    }
+
+    # Formatting for Javascript to open a small window
+    $anchor = "<a href='javascript:OpenPermalinkConfirmation(\"%s\");' " .
+                 "class='black_ln'>Create permalink</a>";
+
+    # Formatting for a link which generates a permalink when clicked
+    $href = "\n<tr><td><b>%s</b>:<td>$anchor";
+
+    $ret = "\n<table>";
+
+    foreach (array_keys($links) as $k)
+        $ret .= sprintf($href, $k, $links[$k]);
+
+    $ret .= "\n</table>";
+
+    return $ret;
+}
+
+function handle_absolute_date($date_fields) {
+    $absolute_date   = $date_fields["absolute"];
+    $rollup          = $date_fields["rollup"];
+    $date_field      = $absolute_date;
+
+    if (! is_null($rollup))
+        $date_field .= " $rollup";
+
+    return $date_field;
+}
+
+# Print current time, date range, phases, and
+# result filter for the report
+function basic_info($date_fields, $phases, $num_rows, $fast) {
+
+    $current = $date_fields["current"];
+    $absolute = $date_fields["absolute"];
+
+    # Strip off regexp for the report header
+    if (preg_match('/^\^(.*)\$$/', $absolute, $m))
+        $absolute = $m[1];
+
+    $ret = "<table>" .
+          "<tr><td><b>Current time (" . strtoupper(TIMEZONE) . ")</b>:<td>" . $current . 
+          "<tr><td><b>Date range (" . strtoupper(TIMEZONE) . ")</b>: <td>" .  $absolute .
+          "<tr><td><b>Phase(s)</b>:<td>" . en_join(array_map('label', $phases));
+    if( $fast ) {
+        $ret .= "&nbsp;&nbsp;<i>(Via Summary)</i>";
+    } else {
+        $ret .= "&nbsp;&nbsp;<i>(Via Direct Access)</i>";
+    }
+
+    if ($_GET["test_result"]) {
+        $ret .= "<tr><td><b>Result</b>:<td>" . label(label($_GET["test_result"])) . " only";
+    }
+    $ret .= "<tr><td><b>Number of rows</b>:<td>" . $num_rows .
+            "</table>";
+
+    return $ret;
+}
+
+#########################################
+
+
+#########################################
+#                                       
+#  Input Processing Functions          
+#                                     
+# The following process_*_field(s) functions return arrays
+# ready to be fed to compose_sql_select. The query array is
+# structured more or less like an SQL SELECT statement:
+#
+# All SELECT items (including aggregates) are formatted as:
+# [column alias] => {string functions|column alias}
+#
+# (type)
+# (all)    $query['select']      => list of general SELECTs
+# (all)    $query['aggregates']  => list of COUNT clauses for result counts
+# (detail) $query['select_more'] => list of detail SELECT columns
+# (detail) $query['performance'] => list of performance SELECT columns
+# (all)    $query['where']       => list of WHERE clauses
+# (all)    $query['limit']       => LIMIT value
+# (all)    $query['offset']      => OFFSET value
+# (all)    $query['orderby_*']   => primary sort for ORDER BY
+#
+#########################################
+
+#
+# Search syntax is borrowed from Google's. See
+#   http://www.google.com/advanced_search?hl=en
+# 
+#  * Whitespace implies "AND"
+#  * "foo bar" and 'foo bar' imply exact phrase
+#  * "|" is the same as "OR"
+#  * -foo means NOT foo
+#
+
+# Determine report type, Summary or Detail
+#
+# SHOULD THIS FUNCTION BE "PASS BY REFERENCE"?
+function process_report_type($params) {
+
+    $slice = $params['slice'];
+    $go    = strtolower($_GET['go']);
+    $click = strtolower($_GET['click']);
+
+    # Report type is carried onward, not the button click event
+    if ($click)
+        $go = $click;
+
+    # Determine report type, and
+    # whether this is a "slice" report
+    if (preg_match("/(summary|detail|performance|latency\w+)/i", $go, $m)) {
+        $type = $m[1];
+
+        if (! $slice) {
+            unset($_GET['rows']);
+            unset($_GET['offset']);
+            unset($_GET['slice']);
+        }
+    }
+
+    # Press 'Summary' for them if they traverse from a
+    # detailed report into multi-phase mode
+    $phases = process_phase_field($_GET);
+    if ((sizeof($phases) > 1) and (! preg_match("/summary/i", $type))) {
+        $type = 'summary';
+    } 
+    # Press 'Summary' for them if they go from a performance
+    # report to a non-test_run radio button
+    elseif (preg_match("/performance/i", $type) and $phases[0] != 'test_run') {
+        $type = 'summary';
+    }
+
+    # Put the report type into the global env
+    $_GET['go'] = $type;
+
+    if (preg_match("/cherry/i", $go))
+        $_GET['go'] = $go;
+
+    return $type;
+}
+
+# 1. Generate WHERE clause pieces from user-entered textfields
+# 2. Generate SELECT items from user-entered show/hide menus
+function process_input_fields($params) {
+    global $new_ttable;
+
+    static $query;
+    if ($query)
+        return $query;
+
+    $query['where'] = array();
+    $query['select'] = array();
+
+    # These fields will not be string searchable
+    $special_fields = array_merge(
+        array("timestamp", "phase", "trial"),
+
+        # Handle these with process_large_fields()
+        setup_large_fields()
+    );
+
+    # Separator for SQL clauses
+    $nl = "\n\t\t";
+
+    foreach (array_keys($params) as $k) {
+
+        if (preg_match("/" . join("|", $special_fields) . "/i", $k)) {
+            continue;
+        }
+
+        # If it's a textfield, tokenize it and add each
+        # item to WHERE clause
+        if (preg_match("/^text_/i", $k)) {
+            $column = strip_prefix($k);
+            $textfield = $params[$k];
+
+            $wheres = array();
+            $clause = "";
+            foreach (tokenize_quoted($textfield) as $str) {
+
+                # No WHERE clause, if field is blank or "all"
+                if (preg_match("/^\s*all\s*$|^\s*$/i", $str))
+                    continue;
+
+                # Use LIKE if there is a '%'
+                if (strpos($str, '%') !== false) {
+                    $str = human_to_bitmapped($column, $str);
+                    $clause = "$column LIKE '$str'";
+
+                # Exact match for '^...$'
+                # (Optimize here, by doing a straight '='
+                # comparison instead of using the regular
+                # expression engine)
+                } elseif (preg_match('/^\^.*\$$/', $str)) {
+                    $str = human_to_bitmapped($column, $str);
+                    $clause = "$column = '" . trim($str, '^$') . "'";
+
+                # Otherwise, regular expression(s)
+                } else {
+                    # '!' negates for back compatibility
+                    $pat = '^\s*(\!|\-)\s*';
+
+                    # !~ (NOT)
+                    if (preg_match("/$pat/", $str)) {
+                        $operator = "!~*";
+                        $str = preg_replace("/$pat/", "", $str);
+                    # ~
+                    } else {
+                        $operator = "~*";
+                    }
+
+                    # We have to provide the illusion that a regexp can be performed on
+                    # a bitmapped column (e.g., '32|64')
+                    if (is_bitmapped($column)) {
+                        $clauses = array();
+                        foreach (preg_split("/\|/", $str) as $s) {
+                            $s = human_to_bitmapped($column, $s);
+                            $clauses[] = "$column = '" . pg_escape_string($s) . "'";
+                        }
+                        $clause = '(' . join(' OR ', $clauses) . ')';
+                    } else {
+                        $clause = "$column $operator '" . pg_escape_string($str) . "'";
+                    }
+                }
+
+                $wheres[] = $clause;
+            }
+
+            # Join all the WHERE's with AND
+            if (sizeof($wheres)) {
+                $query['where'][$column] = join(" AND $nl", array_unique($wheres));
+            }
+        }
+
+        # If "show" is selected, add it to SELECT clause
+        elseif (preg_match("/^show_/i", $k)) {
+            $column = strip_prefix($k);
+
+            if ($params[$k] == 'show')
+                $query['select'][$column] = $column;
+        }
+        # If it's a "more" param, add it to the ''end'' of the SELECT clause
+        elseif (preg_match("/^more_/i", $k)) {
+            $column = strip_prefix($k);
+
+            if (isset($params[$k]))
+                $query['select_more'][$column] = $column;
+        }
+    }
+
+    return $query;
+}
+
+# TEST_NAME IS AN ODDBALL FIELD. WE DO NOT ALLOW USERS
+# TO HIDE IT IN DETAIL VIEW
+function process_oddball_fields($params) {
+
+    $go = get_go_or_click($_GET);
+    $phase = array_shift(process_phase_field($_GET));
+
+    if (preg_match("/detail/i", $go) and 
+        $phase == 'test_run') {
+        $_GET['show_test_name'] = 'show';
+    }
+}
+
+# Arguments:
+# 1. English filter (e.g., 'yesterday' or
+#    'past x days')
+# 2. Optional timestamp string description (e.g.,
+#    "by second", "by hour", ...)
+#
+# Returns: 
+#   - SQL date filter with string function
+#   - Absolute time stamp
+#
+# NOTE:
+#   Casting an index column kills performance.
+#   For example:
+#     'start_timestamp' is much faster than
+#     CAST(start_timestamp as TIMESTAMP WITH TIME ZONE) AT TIME ZONE 'GMT'
+#   As the later forces the optimizer to visit *all* tables and tuples,
+#   do the conversion, then the comparison.
+#   Whereas the former just does the comparison, and the optimizer can then
+#   eliminate tables depending on check contraints.
+#   performance difference of 
+#Sort  (cost=11581.18..11581.68 rows=200 width=510) [with ce]
+#Sort  (cost=131232.57..131233.58 rows=403 width=510) [without ce]
+# versus
+#Sort  (cost=595516.49..595517.49 rows=403 width=510)
+# about 51% improvement :D
+function process_date_field($params) {
+
+    # Globalize the date range
+    global $date_fields;
+
+    $date = array();
+    $tokens = array();
+
+    $sep = '[\s\+]';
+    $nl = "\n\t";
+
+    # Remove the GMT offset from fetched string
+    $trunc_format = "date_trunc('second', %s)";
+
+    # Grab global TIMEZONE constant
+    $timezone = strtoupper(TIMEZONE);
+
+    $now = select_scalar("SELECT " . sprintf($trunc_format, "now() AT TIME ZONE '$timezone'"));
+    $date['current'] = $now;
+
+    $timestamp_name        = "start_timestamp";
+    $starttime_at_timezone = "CAST($timestamp_name as TIMESTAMP WITH TIME ZONE) AT TIME ZONE '$timezone'";
+    $time_at_timezone_fmt  = "$nl CAST('%s' as TIMESTAMP WITH TIME ZONE) AT TIME ZONE '$timezone'";
+    # JJH XXX FIGURE OUT HOW TO DEAL WITH TIMEZONE
+    $starttime_at_timezone = "$timestamp_name";
+    $time_at_timezone_fmt  = "'%s'";
+    $timestamp_param       = $params["text_$timestamp_name"];
+
+    # This will immediately put reporter.php in ''absolute date range'' mode
+    $force_absolute_date = $params["force_absolute_date"];
+
+    # Date-string functions
+    $format2 = "substring($starttime_at_timezone from 0 for %d) || ':00 - ' || " .
+               "$nl substring($starttime_at_timezone + interval '1 %s' from 0 for %d)  || ':00' " .
+               "$nl   as $timestamp_name";
+    $format3 = "substring($starttime_at_timezone from 0 for %d) || ' - ' || " .
+               "$nl substring($starttime_at_timezone + interval '1 %s' from 0 for %d) " .
+               "$nl   as $timestamp_name";
+    $format4 = "$starttime_at_timezone " .
+               "$nl   as $timestamp_name";
+
+    # ^ and $ only have meaning for text columns (not for timestamps),
+    # but the drilldown generator is dumbed down so that it treats all
+    # columns like text columns.
+    $timestamp_param = preg_replace("/\^/", "", $timestamp_param);
+    $timestamp_param = preg_replace("/\\$/", "", $timestamp_param);
+
+    # For back-compatibility (e.g., permalinks!), accept a non-quoted,
+    # semi-colon delimited date specifier
+    if (preg_match('/\s*(;|\|)\s*/', $timestamp_param, $m) and 
+        !preg_match('/"/', $timestamp_param, $m)) {
+        $tokens = tokenize($timestamp_param);
+    # Quoted date specifier
+    } elseif (preg_match('/"/', $timestamp_param, $m)) {
+        $tokens = tokenize_quoted($timestamp_param);
+    } else {
+        $tokens[] = $timestamp_param;
+    }
+
+    foreach ($tokens as $token) {
+
+        # Do date filtering
+        if (! preg_match("/by /i", $token)) {
+
+            # Yesterday
+            if (preg_match("/yesterday/i", $token, $m)) {
+                $operand        = "'yesterday' AT TIME ZONE '$timezone'";
+                $wheres[]       = "$starttime_at_timezone > $operand";
+                $absolute_start[] = select_scalar("SELECT " . sprintf($trunc_format, $operand));
+                $absolute_end[]   = $now;
+            }
+            # Today
+            elseif (preg_match("/today/i", $token, $m)) {
+                $operand        = "'today' AT TIME ZONE '$timezone'";
+                $wheres[]       = "$starttime_at_timezone > $operand";
+                $absolute_start[] = select_scalar("SELECT " . sprintf($trunc_format, $operand));
+                $absolute_end[]   = $now;
+            }
+            # Past x increments
+            elseif (preg_match(
+                        "/(?:past|last)$sep*" .
+                        "(\w+)$sep*" .
+                        "(\w+)/i", $token, $m)) {
+
+                $quantity = $m[1];
+                $unit = $m[2];
+
+                $valid_date_units = array(
+                    "microseconds",
+                    "milliseconds",
+                    "second",
+                    "minute",
+                    "hour",
+                    "day",
+                    "week",
+                    "month",
+                    "quarter",
+                    "year",
+                    "decade",
+                    "century",
+                    "millennium",
+                );
+
+                # Sanity check on a "past foo bars" date range
+                $tab = str_repeat("&nbsp;", 5);
+                if (! preg_match("/" . join("|", $valid_date_units) . "/i", $unit, $m)) {
+                    abort("Invalid unit ('<i>$unit</i>') used in Date range ('<i>$token</i>').</font>" .
+                           "Use one of the following:<br>" .
+                           "<pre>\t" . join("<br>\t", $valid_date_units) . "</pre>"
+                    );
+                }
+
+                $operand        = "now() AT TIME ZONE '$timezone' - interval '" . strtonumeral($quantity) . " $unit'";
+                $start_time     = select_scalar("SELECT " . sprintf($trunc_format, $operand));
+                $wheres[]       = "$starttime_at_timezone > " . sprintf($time_at_timezone_fmt, $start_time);
+                $absolute_start[] = $start_time;
+                $absolute_end[]   = $now;
+            }
+            # Range (e.g., date1 - date2)
+            elseif (preg_match("/(?:between)?" .
+                                "(.*)" .
+                                "(?:through|thru|and| +- +)" .
+                                "(.*)/i", $token, $m)) {
+                $wheres[] =
+                    "($starttime_at_timezone > '$m[1]'" . " AND" . 
+                    " $starttime_at_timezone < '$m[2]')";
+                $absolute_start[] = $m[1];
+                $absolute_end[]   = $m[2];
+            }
+            # Exact date
+            elseif (preg_match("/-|\//", $token)) {
+                $wheres[] = "$starttime_at_timezone = '$token'";
+                $absolute_start[] = $token;
+                $absolute_end[]   = $token;
+            }
+            # Nothing (used to prevent an SQL error on a
+            # clean bring-up of reporter.php)
+            else {
+                $wheres[] = "$starttime_at_timezone = 'now()'";
+            }
+        }
+        # Do date aggregation
+        else {
+
+            if (preg_match("/by(?:-| *)sec(?:onds?)?/i", $token)) {
+                $clause = $format4;
+
+            } elseif (preg_match("/by(?:-| *)min(?:utes?)?/i", $token)) {
+                $clause = sprintf($format3, 17, "minute", 17);
+
+            } elseif (preg_match("/by(?:-| *)hours?/i", $token)) {
+                $clause = sprintf($format2, 14, "hour", 14);
+
+            } elseif (preg_match("/by(?:-| *)days?/i", $token)) {
+                $clause = sprintf($format3, 11, "day", 11);
+
+            } elseif (preg_match("/by(?:-| *)mon(?:ths?)?/i", $token)) {
+                $clause = sprintf($format3, 8, "month", 8);
+
+            } elseif (preg_match("/by(?:-| *)years?/i", $token)) {
+                $clause = sprintf($format3, 5, "year", 5);
+            }
+
+            $date['select'][$timestamp_name] = $timestamp_name;
+            $date["rollup"] = " | $token";
+        }
+    }
+
+    $type = strtolower(process_report_type($_GET));
+
+    # Always show ''by second'' timestamps in Detail view
+    if ($type == 'detail') {
+        $clause = $format4;
+        $date["rollup"] = ' | by second';
+    }
+
+    # PROTECT AGAINST AN EMPTY DATE RANGE.
+    # OUGHT TO PRINT A JAVASCRIPT ALERT AS WELL
+    if (! sizeof($wheres)) {
+        $operand        = "now() AT TIME ZONE '$timezone' - interval '24 hours'";
+        $where          = "$starttime_at_timezone > $operand";
+        $absolute_start[] = select_scalar("SELECT " . sprintf($trunc_format, $operand));
+        $absolute_end[]   = $now;
+
+        $date['select'][$timestamp_name] = $timestamp_name;
+    }
+
+    # JOIN all the WHERE clauses with OR
+    # (unlike string searches on e.g., STDOUT, date searching requires an OR,
+    # not an AND since a test result can only have one timestamp)
+    $where = "(" . join(" OR $nl", array_unique($wheres)) . ")";
+
+    # In order to get the behavior we want with the timestamp column, we have
+    # to move the WHERE clause into the subquery (the WHERE can even be
+    # duplicated in the outer query seemingly without any noticable performance
+    # degradation)
+    $date['select_in_subquery'][$timestamp_name] = $clause;
+    $date['where'][$timestamp_name] = $where;
+
+    for ($i = 0; $i < sizeof($absolute_start); $i++) {
+        $date['absolute'] .= $absolute_start[$i] . ' - ' . $absolute_end[$i] . ' | ';
+    }
+    $date['absolute'] = rtrim($date['absolute'], ' |');
+
+    $date['absolute_start'] = $absolute_start;
+    $date['absolute_end']   = $absolute_end;
+
+    # Put reporter.php in absolute date range mode
+    # (This is an option for cron/alerts.php)
+    if ($force_absolute_date)
+        $_GET["text_$timestamp_name"] = $date['absolute'];
+
+    # Globalize the date range
+    $date_fields = $date;
+
+    # Check the validity of the time input
+    # This should probably go a bit earlier, but it is unclear where
+    if( 0 == preg_match("/^\d*-\d*-\d*\s\d*:\d*:\d*$/", $date['absolute_start'][0]) ) {
+        abort("Invalid unit ('<i>".$timestamp_param."</i>') used in Date range.</font>" .
+              "Date required to be in the format of YYYY-MM-DD HH:MM:SS.");
+    }
+
+    return $date;
+}
+
+# Return 
+# 1. An array of SQL COUNT(CASE ...) clauses
+#    which will be used to tally the result numbers
+# 2. A result filter (optional)
+# (Reference: postgresql.org/docs/7.3/static/functions-conditional.html)
+function process_result_fields($phases, $report_type, $params) {
+
+    $test_result = $params['test_result'];
+
+    $arr = phase_results_table();
+    $table = $arr['aggregates'];
+    $cases = $arr['cases'];
+    $where = $arr['where'];
+
+    $format_agg = "SUM(%s) as %s";
+
+    foreach (array_keys($table) as $phase) {
+        foreach ($table[$phase] as $result) {
+            if (array_search($phase, $phases) !== false) {
+
+                # The result alias has gone from
+                # pass|fail|... to _xx in the summary views
+                $when[$result] = label($result) . " = '" . pg_escape_string($result) . "'";
+
+                # These clauses SELECT from the TABLE
+                if ($report_type == 'detail') {
+                    $results['aggregates'][$result] = $result;
+                } else {
+                    $results['aggregates'][$result] =
+                        sprintf($format_agg, $result, $result);
+                }
+            }
+        }
+    }
+
+    foreach (array_keys($cases) as $phase) {
+        foreach ($cases[$phase] as $result) {
+            if (array_search($phase, $phases) !== false) {
+                $results['cases'][$phase] = array_merge($cases[$phase]);
+            }
+        }
+    }
+
+    if ($test_result) {
+        $results['where'][$test_result] = $where[$test_result];
+    }
+
+    return $results;
+}
+
+# Process OFFSET value for LIMIT clause
+function process_offset_field($params) {
+    $offset = $_GET['offset'];
+    return array('offset' => $offset);
+}
+
+# Process Rows value
+function process_rows_field($params) {
+    $rows = $_GET['rows'];
+    return array('rows' => $rows);
+}
+
+# Process OFFSET value for LIMIT clause
+function process_sort_field($params) {
+    $orderbys = array(
+        'orderby_up',
+        'orderby_down',
+    );
+    foreach ($orderbys as $orderby) {
+        $field = $_GET[$orderby];
+        if (! is_null($field))
+            return array($orderby => $field);
+    }
+}
+
+function process_row_number_fields() {
+    do_pg_query("CREATE TEMPORARY SEQUENCE row_number;");
+    $query['select']['n'] = "nextval('row_number')";
+    return $query;
+}
+
+# Generate WHERE clause for row numbers
+function process_cherry_fields($params) {
+
+    $go = $params['go'];
+
+    # Cherries are only picked with the cherry button
+    if (! preg_match("/cherry/i", $go))
+        return null;
+
+    # Compile all the cherry checkboxes and 
+    # place them in an array (eliminating duplicates)
+    foreach (array_keys($params) as $k) {
+        if (preg_match("/cherry_(\d+)/i", $k, $m))
+            $filter[] = $m[1];
+    }
+
+    if ($filter)
+        return array_flip($filter);
+}
+
+# Generate WHERE and SELECT clause for ''trial'' boolean
+function process_trial_field($trial) {
+
+    $text_trial = $_GET['text_trial'];
+
+    # Query string parameter
+    if ($text_trial) {
+        # Trial is a boolean field, but since drilldowns are always handled
+        # like strings - we need to see which boolean value it is: 't' or 'f'
+        if (preg_match("/\b([tf])\b/i", $text_trial, $m)) {
+            $text_trial = $m[1];
+        }
+
+        $query['where']['trial'] = "(trial = '$text_trial')";
+        $query['select']['trial'] = 'trial';
+
+    # Cookie preference
+    } elseif (! $trial) {
+        $query['where']['trial'] = "(trial = 'f')";
+    } else {
+        $query['select']['trial'] = 'trial';
+    }
+
+    return $query;
+}
+
+# Generate WHERE and SELECT clause for ''trial'' boolean
+function process_explain_field($params) {
+
+    # ANALYZE requires EXPLAIN
+    if (isset($_GET['analyze']))
+        $_GET['explain'] = 1;
+
+    return isset($_GET['explain']) ? 1 : 0;
+}
+
+# Set Postgres options for this session
+function process_postgres_options($params) {
+    # Always set constraint_exclusion = on; JJH XXX VERIFY THIS
+    do_pg_query("set constraint_exclusion = on;");
+
+    # Also called 'work_mem' this values determines the amount
+    # of memory available to the query executor when doing sorting.
+    # Since sorting/grouping is the primary task of the reporter
+    # Increasing this value has large benifits for large time ranges.
+    # By default this is set to 1 MB, after some testing the following were
+    # found to be reasonable values:
+    # For 2 weeks of data (approx 1.5 Million tuples) 128 MB
+    # For 1 month of date (approx 3.1 Million tuples) 256 MB
+    #
+    # Past 2 weeks (All orgs) [1.5 Million tuples]
+    # Total runtime: 314433.770 ms (  32 MB)
+    # Total runtime: 367773.125 ms (  64 MB)
+    # Total runtime:  43869.336 ms ( 128 MB)
+    # Total runtime:  43284.725 ms ( 256 MB)
+    # Total runtime:  43658.443 ms ( 512 MB)
+    #
+    # Past 1 month (All orgs) [3.1 million tuples]
+    # Total runtime: 1124091.272 ms (128 MB)
+    # Total runtime:  121745.668 ms (256 MB)
+    # Total runtime:  128246.327 ms (512 MB)
+    #
+    do_pg_query("set sort_mem = '256MB';");
+
+    # The following options may also help speed up queries, but must be set
+    # at server start time.
+    # http://www.postgresql.org/docs/8.1/interactive/runtime-config-resource.html
+    #do_pg_query("set max_stack_depth = '16MB';");
+    #do_pg_query("set shared_buffers  = '128MB';");
+
+    foreach (array_keys($params) as $k) {
+        if (preg_match("/^pg_(.*)$/i", $k, $m)) {
+            $pg_param = $m[1];
+            $value = $params[$k];
+            do_pg_query("set $pg_param to $value;");
+        }
+    }
+}
+
+# X: COULD USING THIS BE AN OPTIMZATION? OR IS
+# IT USELESS?
+#
+# Return 'on' if all cherries are checked
+# Return 'off' if all cherries are unchecked
+# Return false if cherries are heterogeneous
+# function is_homogenous($params) {
+#     $on = 0;
+#     $off = 0;
+#     foreach (array_keys($params) as $k)
+#         if (preg_match("/^cherry:/i", $k))
+#             preg_match("/^on:/i", $params[$k]) ? $on++ : $off++;
+# 
+#     if (! $on)
+#         return 'off';
+#     elseif (! $off)
+#         return 'on';
+#     else
+#         return false;
+# }
+
+# Read/create/update a cookie, and put its data into the
+# environment
+function process_cookie(&$params, &$cookie) {
+
+    $remote_go = $params['remote_go'];
+    $do_cookies = $params['do_cookies'];
+
+    # Keep cookies around for 1 yr
+    $days = 365;
+
+    unset($params['remote_go']);
+    unset($params['do_cookies']);
+
+    $no_cookies = isset($params['no_cookies']) ? 1 : 0;
+
+    # 'click' the button for them according to the report
+    # type (which was exported from the Preferences window)
+    if ($remote_go) {
+        unset($params['go']);
+        $params['click'] = $remote_go;
+    }
+
+    static $defaults;
+    if (! $defaults)
+        $defaults = setup_prefs();
+
+    foreach (array_keys($defaults) as $category) {
+        foreach (array_keys($defaults[$category]) as $p) {
+
+            # Their browser has cookies disabled, or
+            # they've been sent a link - use _GET
+            if ($params[$p] != "") {
+                define(strtoupper($p), param2constant($params[$p]));
+
+                # Set the cookies, if asked to
+                if ($do_cookies) {
+                    setcookie("mtt_$p",
+                              $params[$p],
+                              time() + ($days * 24 * 60 * 60)
+                    );
+                }
+
+            # Use the cookie
+            } elseif ($cookie["mtt_$p"] and ! $no_cookies) {
+                define(strtoupper($p), param2constant($cookie["mtt_$p"]));
+
+            # None of the above, use the defaults
+            } else {
+                define(strtoupper($p), param2constant(prefs_default($p)));
+            }
+        }
+    }
+}
+
+# Large fields are categorized as fields that often contain
+# more than ~32 chars.  Return a list of fields that need to
+# be ''substring-ed'' out in order to fit properly in a
+# Summary table
+function setup_large_fields() {
+
+    static $ret;
+    if ($ret)
+        return $ret;
+
+    $ret = array(
+        'configure_arguments',
+        'full_command',
+        'result_message',
+        'result_stdout',
+        'result_stderr',
+        'environment',
+        'description',
+    );
+
+    return $ret;
+}
+
+# Generate WHERE clause pieces from user-entered textfields
+function process_large_fields($params) {
+
+    static $query;
+    if ($query)
+        return $query;
+
+    $type = strtolower(process_report_type($_GET));
+
+    $fields = setup_large_fields();
+
+    foreach ($fields as $field) {
+        $textfield = $params["text_$field"];
+
+        $wheres = array();
+        foreach (tokenize_quoted($textfield) as $value) {
+            if ($value and ($value != 'all')) {
+
+                # "!" negates for back compatibility
+                $pat = '^\s*(\!|\-)\s*';
+
+                # !~ (NOT)
+                if (preg_match("/$pat/", $value)) {
+                    $operator = "!~*";
+                    $value = preg_replace("/$pat/", "", $value);
+
+                    # Originally, we pulled out the leading/trailing chars
+                    # of the large field. But now ...
+                    # when we do a negated search, we do not SELECT on it
+                    # because the "^... ...$" string ends up in the VIEW
+                    # so the !~* WHERE clause gets applied to that elipses string
+                    # and we don't want that. This could be
+                    # fixed, but eh.
+
+                # ~
+                } else {
+                    $operator = "~*";
+                    $string_func = "substring($field from '" . pg_escape_string($value) . "') as $field";
+                }
+
+                # In Summary view, use a string function to extract the match
+                # for display in the table
+                if ($type == 'summary' or 
+                    $type == 'performance') {
+
+                    $query['select'][$field] = $field;
+
+                    # Take the first string function we get, and use it.
+                    # This means the left-most search string takes precedence
+                    # in the "large field" capture.
+                    if (! isset($query['select_in_subquery'][$field])) {
+                        $query['select_in_subquery'][$field] = $string_func;
+                    }
+
+                # In Detail view, display the entire field (with the matches highlighted)
+                #
+                # X: WE SHOULD PUT THE RETURN VALUES HERE THROUGH A PL/pgSQL FUNCTION OF 
+                # SOME KIND TO DO THE HIGHLIGHTING THERE
+                } else {
+                    $query['select_more'][$field] = $field;
+                }
+
+                $wheres[] = "($field $operator '" . pg_escape_string($value) . "')";
+            }
+        }
+        # Join all the WHERE's with AND
+        if (sizeof($wheres)) {
+            $query['where'][$field] = join(" AND\n\t\t", array_unique($wheres));
+        }
+    }
+    
+    return $query;
+}
+
+# Convert a _GET param to a define() constant
+function param2constant($str) {
+
+    $str = strtolower(strip_star($str));
+
+    static $map;
+    if (! $map)
+        $map = array(
+            'on'  => true,
+            'off' => false,
+
+            # Graph axis scaling
+            'logarithmic' => 'log',
+            'linear'      => 'lin',
+            'text'        => 'text',
+        );
+
+    if (isset($map[$str]))
+        return $map[$str];
+    else 
+        return $str;
+}
+
+# Return the default value of preference named $pref
+function prefs_default($pref) {
+
+    # Compile the prefs hash
+    static $prefs;
+    if (! $prefs) {
+        $_prefs = setup_prefs();
+        foreach (array_keys($_prefs) as $cat)
+            foreach (array_keys($_prefs[$cat]) as $p)
+                $prefs[$p] = $_prefs[$cat][$p];
+    }
+
+    $value = array_shift($prefs[$pref]);
+
+    if (is_bool($value) or is_scalar($value))
+        $ret = $value;
+    elseif (is_array($value)) {
+        foreach ($value as $v)
+            if (preg_match('/^\*/', $v))
+                $ret = strip_star($v);
+    
+    }
+
+    return $ret;
+}
+
+#########################################
+#                                       
+#  Column Processing
+#                                     
+#########################################
+
+# Loop through column aliases, and return a
+# left-to-right ordering of SELECT clauses
+#
+# X: CAN WE GRAB THIS ORDERING FROM A setup_*
+# FUNCTION?
+function order_columns($columns) {
+
+    $layout = array(
+
+        # row number
+        'n'                   => 1,
+
+        # trial
+        'trial'               => 1,
+
+        # results (left)
+        'start_timestamp'     => 1,
+
+        # submit
+        'http_username'       => 1,
+        'local_username'      => 1,
+        'hostname'            => 1,
+        'platform_name'       => 1,
+
+        # compute_cluster
+        'platform_hardware'   => 1,
+        'platform_type'       => 1,
+        'os_name'             => 1,
+        'os_version'          => 1,
+
+        # mpi_install
+        'mpi_name'            => 1,
+        'mpi_version'         => 1,
+        'bitness'             => 1,
+        'endian'              => 1,
+        'vpath_mode'          => 1,
+        'compiler_name'       => 1,
+        'compiler_version'    => 1,
+        'configure_arguments' => 1,
+
+        # test_build
+        'suite_name'          => 1,
+
+        # test_run
+        'test_name'           => 1,
+        'np'                  => 1,
+        'full_command'        => 1,
+        'launcher'            => 1,
+        'resource_mgr'        => 1,
+        'parameters'          => 1,
+        'network'             => 1,
+
+        # results (right)
+        'description'         => 1,
+        'exit_value'          => 1,
+        'exit_signal'         => 1,
+        'duration'            => 1,
+        'client_serial'       => 1,
+        'result_message'      => 1,
+        'result_stdout'       => 1,
+        'result_stderr'       => 1,
+        'environment'         => 1,
+
+        # performance
+        'message_size'        => 1,
+        'bandwidth_min'       => 1,
+        'bandwidth_max'       => 1,
+        'bandwidth_avg'       => 1,
+        'latency_min'         => 1,
+        'latency_max'         => 1,
+        'latency_avg'         => 1,
+    );
+
+    foreach (array_keys($layout) as $column) {
+       if (isset($columns[$column])) {
+         $ordering[$column] = $columns[$column];
+       }
+    }
+
+    return $ordering;
+}
+
+# Add these to select statements for Detail reports
+function setup_detail_fields($phase) {
+
+    static $ret;
+    if ($ret) {
+        return $ret;
+    }
+
+    # MPI Install
+    if ($phase == 'mpi_install') {
+        $phase_columns = array(
+            'configure_arguments' => 'configure_arguments',
+            'compiler_version'    => 'compiler_version',
+            'vpath_mode'          => 'vpath_mode',
+        );
+    }
+
+    # Test Build
+    if ($phase == 'test_build') {
+        $phase_columns = null;
+    }
+
+    # Test Run
+    if ($phase == 'test_run') {
+        $phase_columns = array(
+            'full_command' => 'full_command',
+            'parameters'   => 'parameters',
+            'launcher'     => 'launcher',
+            'network'      => 'network',
+            'resource_mgr' => 'resource_mgr',
+        );
+    }
+
+    $results_columns = array(
+        'exit_value'      => 'exit_value',
+        'exit_signal'     => 'exit_signal',
+        'duration'        => 'duration',
+        'result_message'  => 'result_message',
+        'result_stdout'   => 'result_stdout',
+        'result_stderr'   => 'result_stderr',
+        'environment'     => 'environment',
+        'description'     => 'description',
+        'client_serial'   => 'client_serial',
+    );
+    
+    $ret =
+        array('select_more' =>
+            array_merge(
+                $phase_columns,
+                $results_columns
+            )
+        );
+
+    # Whack fields set in this function that have already been filtered on
+    $large_fields = process_large_fields($_GET);
+    $input_fields = process_input_fields($_GET);
+
+    $query = array_merge_recursive(
+        $large_fields,
+        $input_fields
+    );
+
+    foreach (array_keys($ret['select_more']) as $k)
+        if (isset($query['where'][$k]))
+            unset($ret['select_more'][$k]);
+
+    return $ret;
+}
+
+# Return performance columns
+function setup_performance_fields() {
+
+    static $ret;
+    if ($ret)
+        return $ret;
+
+    $ret =
+        array('performance' =>
+            array(
+                'message_size'  => 'message_size',
+                'bandwidth_min' => 'bandwidth_min',
+                'bandwidth_max' => 'bandwidth_max',
+                'bandwidth_avg' => 'bandwidth_avg',
+                'latency_min'   => 'latency_min',
+                'latency_max'   => 'latency_max',
+                'latency_avg'   => 'latency_avg',
+            )
+        );
+    return $ret;
+}
+
+#########################################
+#                                       
+#  String & List Processing Functions
+#                                     
+#########################################
+
+# The following process_*_field(s) functions return arrays
+# Convert English words to integers (1-10)
+function strtonumeral($str) {
+
+    $words_to_numerals = array(
+        'zero'  => 0,
+        'one'   => 1,
+        'two'   => 2,
+        'three' => 3,
+        'four'  => 4,
+        'five'  => 5,
+        'six'   => 6,
+        'seven' => 7,
+        'eight' => 8,
+        'nine'  => 9,
+        'ten'   => 10,
+    );
+
+    $converted = $words_to_numerals[strtolower($str)];
+
+    if ($converted)
+        return $converted;
+    else
+        return $str;
+}
+
+function suffix_list($arr, $sfx) {
+    $tmp = array();
+    foreach ($arr as $a)
+        $tmp[] = $a . $sfx;
+    return $tmp;
+}
+
+# Generate the shorthand for the given phase-result code (see process_result_fields)
+function result_str($phase, $result) {
+    $abbrevs = array(
+        'mpi_install' => 'i',
+        'test_build' => 'b',
+        'test_run' => 'r',
+    );
+    return '_' . $abbrevs[$phase] . substr($result, 0, 1);
+}
+
+# Convert an SQL array (bracketed CSV) to a PHP array
+function csv2arr($str) {
+    if (preg_match("/{([^}]+)}/i", $str, $m)) {
+        $csv = $m[1];
+        $arr = explode(',', $csv);
+    }
+    else 
+        $arr = false;
+
+    return $arr;
+}
+
+# PHP5 has this function built-in
+function array_combine($keys, $values) {
+    $arr = array();
+    for ($i = 0; $i < sizeof($keys); $i++)
+        $arr[$keys[$i]] = $values[$i];
+
+    return $arr;
+}
+
+# Take keys and values and mutate hash
+# like so: list[keys][values] = 1
+function array_combine2(&$hash, $keys, $values) {
+    for ($i = 0; $i < sizeof($values); $i++) {
+        $hash[$keys[$i]][$values[$i]] = 1;
+    }
+}
+
+# '%' -> '%%'
+function esc_percent($str) {
+    return preg_replace('/%/', '%%', $str);
+}
+
+#########################################
+#                                       
+#  Housekeeping
+#                                     
+#########################################
+
+# Clean up old image and csv files
+function housekeeping($dir) {
+
+    $res = opendir($dir);
+
+    $root = dirname($_SERVER["SCRIPT_FILENAME"]);
+
+    $file_types = array("\.gif$",
+                       "\.jpg$",
+                       "\.png$",
+                       "\.jpeg$",
+                       "\.pdf$",
+                       "\.csv$");
+
+    # Threshold to unlink a file
+    $hours = 1;
+
+    $now = time();
+
+    # Loop through the files and delete any old ones
+    while ($filename = readdir($res)) {
+
+        # unlink needs a full path
+        $filename = "$root/$dir/$filename";
+
+        if (preg_match('/'.join('|', $file_types).'/i', $filename)) {
+            $age = $now - fileatime($filename);
+            if ($age > (60 * 60 * $hours))
+                unlink($filename);
+        }
+    }
+    closedir($res);
+}
+
+?>

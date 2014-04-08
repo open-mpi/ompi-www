@@ -1,0 +1,111 @@
+- add info about why a process takes up so much memory
+
+- cross compiling and how to do it
+
+- fill in developers
+
+- section for sm btl
+
+- items about mpi_preconnect_all and mpi_preconnect_all_oob MCA params
+
+- how do i tell which interconnects are used?
+  - use "ompi_info | grep btl" to see which you have
+  - all btl's print a warning if they load but do not select
+  - tcp is disabled if any high-speed are used on a by-peer basis
+  - worst case: mca_base_verbose level:1000
+
+- how do I know for sure it's using those network interconnects?
+  (low latency interconnects will print warnings if not used)
+
+- how do I do nightly builds?
+- how do I do nightly tests?
+
+- info about striping across multiple networks nicely
+	From: 	  bosilca@cs.utk.edu
+	Subject: 	Re: [OMPI users] NetPipe benchmark & spanning multiple
+interconnects
+	Date: 	February 8, 2007 12:50:04 PM EST
+	To: 	  users@open-mpi.org
+	Reply-To: 	  users@open-mpi.org
+
+In order to get any performance improvement from stripping the  
+messages over multiple interconnects one has to specify the latency  
+and bandwidth for these interconnects, and to make sure that any of  
+them don't ask for exclusivity. I'm usually running over multiple TCP  
+interconnects and here is my mca-params.conf file:
+btl_tcp_if_include = eth0,eth1
+btl_tcp_max_rdma_size = 524288
+
+btl_tcp_latency_eth0 = 47
+btl_tcp_bandwidth_eth0 = 587
+
+btl_tcp_latency_eth1 = 51
+btl_tcp_bandwidth_eth1 = 233
+
+Something similar has to be done for openib and gm, in order to allow  
+us to strip the messages correctly.
+
+   Thanks,
+     george.
+
+
+-----------------------------------
+
+>Looks like I have some values already set for openib and gm bandwidth:
+># ompi_info --param all all |grep -i band
+>                 MCA btl: parameter "btl_gm_bandwidth" (current  
+>value: "250")
+>                 MCA btl: parameter "btl_mvapi_bandwidth" (current  
+>value: "800")
+>                          Approximate maximum bandwidth of  
+>interconnect
+>                 MCA btl: parameter "btl_openib_bandwidth" (current
+>value: "800")
+>                          Approximate maximum bandwidth of  
+>interconnect
+
+These are the default values, which are wrong most of the time. The  
+bandwidth is in Mbs, so the default value for GM is set to something  
+ridiculously low. What really matter is the ration between the  
+bandwidth of the components you plan to use.
+
+>whereas, ompi_info reports no available parameters dealing with  
+>latency:
+># ompi_info --param all all |grep -i laten
+><no output>
+
+Strange, the latency is supposed to be there too. Anyway, the latency  
+is only used to determine which one is faster, in order to use it for  
+small messages.
+
+>Also, I'm not entirely sure what value to set the latency to,
+>especially for tcp. It depends on so many factors and varies. Why does
+>the latency value have effect on message striping? I can see how
+>knowing the bandwidth limitations of available interconnects would
+>allow you to proportionally divide up the message among them, but
+>latency? Especially for large message sizes the time should be
+>dominated by the bandwidth limitations.
+
+As I said the bandwidth is in Mbs and the latency is micro-sec. But  
+what really matter for latency is the absolute value, as we will  
+order them starting from the smallest latency. For bandwidth, what  
+really matters is the relative ratio. We sum all bandwidths and they  
+we divide by the device bandwidth to find out how much data we should  
+send over each interconnect (that's really close with what happens  
+there).
+
+How do I compute my latencies and bandwidths ? Well I run NetPIPE  
+over one interconnect at the time and get the latency for the message  
+size 1 and the bandwidth from the message size around 1MB. That  
+should give you a quite accurate values o start from. After you can  
+tweak them, in order to increase the ratio based on the latencies.
+
+>Finally, what are the units for bandwidth and latency mca parameters
+>and how did you arrive at the values you set in your params file? Is
+>there a description of the message striping algorithm somewhere (other
+>than code :) )?
+
+Read the previous paragraph. Unfortunately, except the code and my  
+little explanation there is no documentation about how we do the  
+stripping ...
+
