@@ -269,6 +269,21 @@ input.buttonred{background	: #C0C0C0 ;
 .quotelev3 {color : #007799}
 .quotelev4 {color : #95c500}
 
+/*
+DongInn Kim (dikim@indiana.edu) tried to add the following
+style to make the index pages of ompi mail archives a little
+better on Mar 22, 2014.
+The current href links in index pages are too thick and underlined.
+He was not sure if removing the strong boldness and underline
+from the index pages would be better or not but this is
+what he tried.
+li a strong { font-style:normal;
+              font-weight:normal; }
+
+li a { text-decoration: none; }
+td a { text-decoration: none; }
+*/
+
 td.example { background-color : <?php print($osl_std_grey); ?>; }
 <?php
 if (isset($added_css)) {

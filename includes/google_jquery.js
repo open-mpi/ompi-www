@@ -31,19 +31,20 @@ $(document).ready(function() {
           //alert("Downloading");
           var extension = isDownload.exec(this.href);
           _gaq.push(["_trackEvent", "Downloads", extension[1].toUpperCase(), this.href.replace(isInternal, '')]);
-        } else if (isInternalSpecial.test(this.href)) {
+        //} else if (isInternalSpecial.test(this.href)) {
+        } else {
           // Keep the internal URL for Google Analytics website overlay intact.
           _gaq.push(["_trackPageview", this.href.replace(isInternal, '')]);
         }
       } else {
-        if ($(this).is("a[href^=mailto:],area[href^=mailto:]")) {
+        //if ($(this).is("a[href^=mailto:],area[href^=mailto:]")) {
           // Mailto link clicked.
-          _gaq.push(["_trackEvent", "Mails", "Click", this.href.substring(7)]);
-        } else if (this.href) {
+        //  _gaq.push(["_trackEvent", "Mails", "Click", this.href.substring(7)]);
+        //} else if (this.href) {
           // Track all external links as page views after URL cleanup.
           // Currently required, if click should be tracked as goal.
           _gaq.push(["_trackPageview", '/outbound/' + this.href.replace(/^(https?|ftp|news|nntp|telnet|irc|ssh|sftp|webcal):\/\//i, '').split('/').join('--')]);
-        }
+        //}
       }
     });
   });
