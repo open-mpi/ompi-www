@@ -10,7 +10,7 @@ function contact(host, user, fullname) {
     var atchar = '@';
     var thingy = user+atchar+host;
 
-    document.write('<a hre' + 'f=' + "mai" + "lto:" + thingy + '>' + fullname + '</a>');
+    document.write('<a hre' + 'f=' + "mai" + "lto:" + thingy + ' onClick="_gaq.push([\"_trackEvent\", \"Mails\", \"Click\", "' + thingy + '\"])">' + fullname + '</a>');
 }
 //-->
 </script>
