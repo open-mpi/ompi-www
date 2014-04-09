@@ -55,7 +55,7 @@ include:</p>
 <ul>
 
 <li> Many OS's supported (32 and 64 bit)
-<?php #stupid emacs mde: '
+<?php #stupid emacs mode: '
 ?>
 <li> Production quality software
 <li> High performance on all platforms
