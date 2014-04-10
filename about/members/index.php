@@ -30,53 +30,75 @@ $member = 0;
 $contrib = 1;
 $partner = 2;
 
+$organization = 0;
+$individual = 1;
+
 $num_members = 0;
 $num_contribs = 0;
 $num_partners = 0;
 
+$num_organizations = 0;
+$num_individuals = 0;
+
+$contribs;
+
 function print_line() {
-    print("<tr><td colspan=5><hr></td></tr>\n\n");
+    print("<tr><td colspan=6><hr></td></tr>\n\n");
 }
 
-class org {
-    var $url, $small_org, $big_org, $logo, $level;
+class contrib {
+    var $url, $short_name, $big_org, $logo, $level, $type;
 
-    function org($url, $small_org, $big_org, $logo, $level) {
+    function contrib($url, $short_name, $long_name, $logo, $level, $type) {
         $this->url = $url;
-        $this->small_org = $small_org;
-        $this->big_org = $big_org;
+        $this->short_name = $short_name;
+        $this->long_name = $long_name;
         $this->logo = $logo;
         $this->level = $level;
+        $this->type = $type;
     }
 }
 
-function add_org($url, $small_org, $big_org, $logo, $level) {
-    global $orgs;
+function add_org($url, $short_name, $long_name, $logo, $level) {
+    global $contribs;
+    global $organization;
 
-    $orgs[] = new org($url, $small_org, $big_org, $logo, $level);
+    $contribs[] = new contrib($url, $short_name, $long_name, $logo, $level,
+                              $organization);
 }
 
-function org_cmp($a, $b) {
-    return strcasecmp($a->small_org, $b->small_org);
+function add_individual($url, $short_name, $long_name, $level) {
+    global $contribs;
+    global $individual;
+
+    $contribs[] = new contrib($url, $short_name, $long_name, $logo, $level,
+                              $individual);
 }
 
-function print_orgs() {
-    global $orgs;
-    usort($orgs, "org_cmp");
+function contrib_cmp($a, $b) {
+    return strcasecmp($a->short_name, $b->short_name);
+}
 
-    while ($org = each($orgs)) {
-        print_item($org[1]->url, $org[1]->small_org, $org[1]->big_org,
-                   $org[1]->logo, $org[1]->level);
+function print_contribs() {
+    global $contribs;
+    usort($contribs, "contrib_cmp");
+
+    while ($contrib = each($contribs)) {
+        print_item($contrib[1]->url,
+                   $contrib[1]->short_name, $contrib[1]->long_name,
+                   $contrib[1]->logo, $contrib[1]->level, $contrib[1]->type);
     }
 }
 
-function print_item($url, $small_org, $big_org, $logo, $level) {
+function print_item($url, $short_name, $long_name, $logo, $level, $type) {
     $href_start = "";
     $href_end = "";
     $img = "&nbsp;";
     $skip_space = 3;
     global $member, $contrib, $partner;
+    global $organization, $individual;
     global $num_members, $num_contribs, $num_partners;
+    global $num_organizations, $num_individuals;
 
     if (!empty($url)) {
         $href_start = "<a href=\"$url\">";
@@ -86,15 +108,28 @@ function print_item($url, $small_org, $big_org, $logo, $level) {
     print "<tr>\n";
 
     # Organization
-    $org = "$href_start$small_org$href_end";
-    if (!empty($big_org)) {
-        $org .= "<br>$big_org";
+    $org = "$href_start$short_name$href_end";
+    if (!empty($long_name)) {
+        $org .= "<br>$long_name";
     }
     print("<td>$org</td>\n");
     print("<td width=$skip_space>&nbsp;</td>\n");
 
+    # Type
+    print("<td align=\"center\">");
+    if ($type == $organization) {
+        print("Organization");
+        ++$num_organizations;
+
+
+    } else if ($type == $individual) {
+        print("Individual");
+        ++$num_individuals;
+    }
+    print("</td>\n");
+
     # Status
-    print("<td>");
+    print("<td align=\"center\">");
     if ($level == $member) {
         print("Member");
         ++$num_members;
@@ -243,7 +278,43 @@ add_org("http://hpcc.kpi.ua/", "High Performance Computing Center",
 add_org("http://www.hs-esslingen.de/", "Hochschule Esslingen",
         "University of Applied Sciences", "hs-esslingen.png", $contrib);
 
-print_orgs();
+add_individual("https://www.clarkson.edu/math/faculty_pages/black.html",
+               "Kelly Black", "", $contrib);
+
+add_individual("", "Artem Polyakov", "", $contrib);
+
+add_individual("", "Brian Barrett", "", $contrib);
+
+add_individual("http://users.dsic.upv.es/~jroman/",
+               "Jose Roman", "", $contrib);
+
+add_individual("http://users.dsic.upv.es/~jroman/",
+               "Oscar Vega-Gisbert", "", $contrib);
+
+add_individual("", "Soren Rasmussen", "", $contrib);
+
+add_individual("", "Tetsuya Mishima", "", $contrib);
+
+add_individual("", "Amnon Barak", "", $contrib);
+
+add_individual("http://www.linkedin.com/pub/craig-rasmussen/5/80b/b13",
+               "Craig Rasmussen", "", $contrib);
+
+add_individual("", "Xin He", "", $contrib);
+
+add_individual("", "Rougier Antoine", "", $contrib);
+
+add_individual("", "Gene Cooperman", "", $contrib);
+
+add_individual("", "Evan Clinton", "", $contrib);
+
+add_individual("", "Amnon Barak", "", $contrib);
+
+add_individual("", "Amit Saha", "", $contrib);
+
+add_individual("", "Alex Brick", "", $contrib);
+
+print_contribs();
 
 ?>
 
@@ -258,6 +329,9 @@ print "<p>Totals:<br>
 <li><strong>Members:</strong> $num_members</li>
 <li><strong>Partners:</strong> $num_partners</li>
 <li><strong>Contributors:</strong> $num_contribs</li>
+<p>
+<li><strong>Individuals:</strong> $num_individuals</li>
+<li><strong>Organizations:</strong> $num_organizations</li>
 </ul>
 </p>\n";
 
