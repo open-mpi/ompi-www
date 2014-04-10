@@ -71,52 +71,52 @@ function print_orgs() {
 }
 
 function print_item($url, $small_org, $big_org, $logo, $level) {
-  $href_start = "";
-  $href_end = "";
-  $img = "&nbsp;";
-  $skip_space = 3;
-  global $member, $contrib, $partner;
-  global $num_members, $num_contribs, $num_partners;
+    $href_start = "";
+    $href_end = "";
+    $img = "&nbsp;";
+    $skip_space = 3;
+    global $member, $contrib, $partner;
+    global $num_members, $num_contribs, $num_partners;
 
-  if (!empty($url)) {
-      $href_start = "<a href=\"$url\">";
-      $href_end = "</a>";
-  }
+    if (!empty($url)) {
+        $href_start = "<a href=\"$url\">";
+        $href_end = "</a>";
+    }
 
-  print "<tr>\n";
+    print "<tr>\n";
 
-  # Organization
-  $org = "$href_start$small_org$href_end";
-  if (!empty($big_org)) {
-      $org .= "<br>$big_org";
-  }
-  print("<td>$org</td>\n");
-  print("<td width=$skip_space>&nbsp;</td>\n");
+    # Organization
+    $org = "$href_start$small_org$href_end";
+    if (!empty($big_org)) {
+        $org .= "<br>$big_org";
+    }
+    print("<td>$org</td>\n");
+    print("<td width=$skip_space>&nbsp;</td>\n");
 
-  # Status
-  print("<td>");
-  if ($level == $member) {
-    print("Member");
-    ++$num_members;
-  } else if ($level == $contrib) {
-    print("Contributor");
-    ++$num_contribs;
-  } else if ($level == $partner) {
-    print("Partner");
-    ++$num_partners;
-  }
-  print("</td>\n<td width=$skip_space>&nbsp;</td>\n");
+    # Status
+    print("<td>");
+    if ($level == $member) {
+        print("Member");
+        ++$num_members;
+    } else if ($level == $contrib) {
+        print("Contributor");
+        ++$num_contribs;
+    } else if ($level == $partner) {
+        print("Partner");
+        ++$num_partners;
+    }
+    print("</td>\n<td width=$skip_space>&nbsp;</td>\n");
 
-  # Logo
-  if (!empty($logo)) {
-      $size = GetImageSize($logo);
-      print("<td align=center>$href_start<img src=\"$logo\" $size[3] border=\"0\">$href_end</td>\n");
-  } else {
-      print("<td>&nbsp;</td>\n");
-  }
+    # Logo
+    if (!empty($logo)) {
+        $size = GetImageSize($logo);
+        print("<td align=center>$href_start<img src=\"$logo\" $size[3] border=\"0\">$href_end</td>\n");
+    } else {
+        print("<td>&nbsp;</td>\n");
+    }
 
-  print("</tr>\n\n");
-  print_line();
+    print("</tr>\n\n");
+    print_line();
 }
 
 print_line();
