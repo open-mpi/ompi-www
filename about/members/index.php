@@ -295,8 +295,6 @@ add_individual("", "Soren Rasmussen", "", $contrib);
 
 add_individual("", "Tetsuya Mishima", "", $contrib);
 
-add_individual("", "Amnon Barak", "", $contrib);
-
 add_individual("http://www.linkedin.com/pub/craig-rasmussen/5/80b/b13",
                "Craig Rasmussen", "", $contrib);
 
