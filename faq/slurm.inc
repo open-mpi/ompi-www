@@ -69,11 +69,13 @@ $q[] = "Doe Open MPI support \"srun -n X my_mpi_application\"?";
 $anchor[] = "slurm-direct-srun-mpi-apps";
 
 $a[] = "Yes, if you have configured OMPI --with-pmi=foo, where foo is
-the path to the directory where pmi.h is located. Slurm installs PMI-1
-support by default. If you desire PMI-2, Slurm requires that you manually
-install that support. When the --with-pmi option is given, OMPI will
-automatically determine if PMI-2 support was built and use it in place
-of PMI-1.";
+the path to the directory where pmi.h/pmi2.h is located. Slurm (> 2.6,
+> 14.03) installs PMI-2 support by default.
+
+Older versions of Slurm install PMI-1 by default. If you desire PMI-2,
+Slurm requires that you manually install that support. When the
+--with-pmi option is given, OMPI will automatically determine if PMI-2
+support was built and use it in place of PMI-1.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -94,7 +96,10 @@ $q[] = "Any issues with Slurm 2.6.3?";
 
 $anchor[] = "slurm-2.6.3-issue";
 
-$a[] = "Yes.  The Slurm 2.6.3 release has a bug in its PMI-2 support. We
-recommend not installing the PMI-2 support for that release. Fortunately,
-Slurm doesn't automatically install it anyway - you have to manually do it,
-so this shouldn't be an issue in default installations";
+$a[] = "Yes. The Slurm 2.6.3, 14.03 releases have a bug in their PMI-2
+support. 
+
+For the slurm-2.6 branch, it is recommended to use the latest version
+(2.6.9 as of 2014/4), which is known to work properly with pmi2.
+
+For the slurm-14.03 branch, the fix will be in 14.03.1.";
