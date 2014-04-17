@@ -73,7 +73,7 @@ suitable for a wide variety of different execution environments.</li>
 
 <p>The Open MPI Project uses the MTT for all of its nightly regression
 testing across all of the members.  Results are submitted to a central
-database and <a href="http://www.open-mpi.org/mtt/")>can be
+database and <a href="http://mtt.open-mpi.org/")>can be
 interactively queried via the Open MPI web site</a>.</p>
 
 <p><div align=center><hr width=50%></div></p>
