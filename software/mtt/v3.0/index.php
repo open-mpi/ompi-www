@@ -96,7 +96,7 @@ $prev_describe = "the v$ver_v3_0 download page";
 include_once("$topdir/includes/subscribe-announce.inc");
 
 print("<p><hr></p>\n\n");
-print("<p>Coming soon!  MTT is currently downloadable <a href=\"$topdir/projects/mtt/svn.php\">via Subversion</a>; a self-contained tarball is coming soon.\n");
+print("<p>MTT is currently only downloadable <a href=\"$topdir/projects/mtt/git.php\">via Git</a>.\n");
   include_once("$topdir/includes/footer.inc");
 exit(0);
 
