@@ -12,6 +12,10 @@ include_once("$topdir/includes/code.inc");
 
 <ul>
 <li>
+ 2014/04/22 &mdash; 1,5 hour Tutorial (ComPAS conference, Neuchatel, Switzerland)
+ &mdash; <a href="20140422-ComPAS-hwloc-tutorial.pdf">Slides</a>
+</li>
+<li>
  2013/12/05 &mdash; 1 hour Introduction (University of San Luis, Argentina)
  &mdash; <a href="20131205-UNSL-hwloc-tutorial.pdf">Slides</a>
 </li>
@@ -22,7 +26,7 @@ include_once("$topdir/includes/code.inc");
  &mdash; <a href="20130121-HiPEAC-hwloc-tutorial.tar.bz2">Material</a>
 </li>
 <li>
- 2013/01/15 &mdash; 3-4 hours Tutorial (ComPAS French conference, Grenoble, France)
+ 2013/01/15 &mdash; 3-4 hours Tutorial (ComPAS conference, Grenoble, France)
  &mdash; <a href="20130115-ComPAS-hwloc-tutorial.html">Details (in French)</a>
  &mdash; <a href="20130115-ComPAS-hwloc-tutorial.pdf">Slides (in English)</a>
  &mdash; <a href="20130115-ComPAS-hwloc-tutorial.tar.bz2">Material (in English)</a>
