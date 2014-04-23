@@ -1,5 +1,5 @@
 <?php
-$version = "1.8";
+$version = "1.8.1";
 
 $files[] = "1";
 $files_1 = array("mpic++", "mpicc", "mpicxx", "mpiexec", "mpif77", "mpif90", "mpifort", "mpirun", "ompi-clean", "ompi-ps", "ompi-server", "ompi-top", "ompi_info", "opal_wrapper", "orte-clean", "orte-info", "orte-ps", "orte-server", "orte-top", "orted", "orterun");
