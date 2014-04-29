@@ -196,13 +196,12 @@ system</a>.</a>
 <h3>Publications</h3>
 
 <p>
- Many hwloc-related publications are listed at the bottom of the
- <a href="http://runtime.bordeaux.inria.fr/hwloc/">Inria hwloc research page</a>
- and in the
- <a href="http://www.open-mpi.org/papers/">Open MPI publication list</a>.
-</p>
-<p>
- If you are looking for general-purpose hwloc citations, please use this one:
+ If you are looking for general-purpose hwloc citations, please use thie following one.
+ This paper (available <a href="http://hal.inria.fr/inria-00429889">here</a>)
+ introduces hwloc, its goals and its implementation.
+ It then shows how hwloc may be used by MPI implementations and OpenMP
+ runtime systems as a way to carefully place processes and adapt communication
+ strategies to the underlying hardware.
 </p>
 <blockquote>
  François Broquedis, Jérôme Clet-Ortega, Stéphanie Moreaud, Nathalie Furmento, Brice Goglin, Guillaume Mercier, Samuel Thibault, and Raymond Namyst.
@@ -211,12 +210,25 @@ system</a>.</a>
  Pisa, Italia, February 2010.
  IEEE Computer Society Press.
 </blockquote>
+
 <p>
- This paper (available <a href="http://hal.inria.fr/inria-00429889">here</a>)
- introduces hwloc, its goals and its implementation.
- It then shows how hwloc may be used by MPI implementations and OpenMP
- runtime systems as a way to carefully place processes and adapt communication
- strategies to the underlying hardware.
+ If you are looking for a citation about I/O device locality and cluster/multi-node support, please use the following one instead.
+ This paper (available <a href="http://hal.inria.fr/hal-00985096">here</a>)
+ explains how I/O locality is managed in hwloc, how device details are represented,
+ how hwloc interacts with other libraries, and how multiple nodes such as a cluster can be efficiently managed.
+</p>
+<blockquote>
+ Brice Goglin.
+ <b>Managing the Topology of Heterogeneous Cluster Nodes with Hardware Locality (hwloc).</b>
+ In <em>Proceedings of 2014 International Conference on High Performance Computing & Simulation (HPCS 2014)</em>,
+ Bologna, Italy, July 2014.
+</blockquote>
+
+<p>
+ See also the
+ <a href="http://www.open-mpi.org/papers/">Open MPI publication list</a>.
+ and the bottom of the
+ <a href="http://runtime.bordeaux.inria.fr/hwloc/">Inria hwloc research page</a>.
 </p>
 
 <!------------------------------------------------------------------------->
