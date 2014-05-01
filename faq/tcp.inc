@@ -1,4 +1,8 @@
 <?php
+global $shell_font;
+global $shell;
+global $cmd_font;
+
 $q[] = "How do I specify to use the TCP network for MPI messages?";
 
 $anchor[] = "tcp-btl";
@@ -58,10 +62,14 @@ TCP for MPI communications):
 
 <font color=\"red\"><strong>NOTE:</strong></font> Starting with the
 Open MPI 1.7 series, you [ompi_info] will only show a few MCA
-parameters by default.  You will need to specify [--level 9] to show
-_all_ MCA parameters.  For example:
+parameters by default.  You will need to specify [--level 9] (or
+[--all]) to show _all_ MCA parameters.  For example:
 
 " . faqcode("ompi_info --param btl tcp <strong>--level 9</strong>") . "
+
+or
+
+" . faqcode("ompi_info <strong>--all</strong></strong>") . "
 
 ";
 
@@ -166,8 +174,6 @@ write to the now-dead MPI process and failed.</li>
 
 /////////////////////////////////////////////////////////////////////////
 
-global $shell_font;
-global $shell;
 $ss = "$shell_font$shell";
 
 $q[] = "How do I tell Open MPI which TCP interfaces / networks to use?";
@@ -286,6 +292,108 @@ communication with peers.";
 
 /////////////////////////////////////////////////////////////////////////
 
+$shell_save = $shell;
+$shell = $shell_font . "shell#";
+
+$c1 = array();
+$o1 = array();
+$c1[] = "cat /proc/sys/net/ipv4/tcp_syn_retries";
+$o1[] = "5";
+$c1[] = "echo 6 > /proc/sys/net/ipv4/tcp_syn_retries";
+
+$c2 = array();
+$o2 = array();
+$c2[] = "sysctl net.ipv4.tcp_syn_retries";
+$o2[] = "net.ipv4.tcp_syn_retries = 5";
+$c2[] = "sysctl -w net.ipv4.tcp_syn_retries=6";
+$o2[] = "net.ipv4.tcp_syn_retries = 6";
+
+$c3 = array();
+$o3 = array();
+$c3[] = "grep tcp_syn_retries /etc/sysctl.conf";
+$o3[] = "net.ipv4.tcp_syn_retries = 6";
+
+$c4 = array();
+$o4 = array();
+$c4[] = "cat /etc/sysctl.d/my-tcp-settings";
+$o4[] = "net.ipv4.tcp_syn_retries = 6";
+
+function goog($term) {
+    return "<a href=\"https://www.google.com/search?q=$term\">$term</a>";
+}
+
+$q[] = "Are there any Linux kernel TCP parameters that I should set?";
+
+$anchor[] = "tcp-linux-kernel-params";
+
+$a[] = "Everyone has different opinions on this, and it also depends
+on your exact hardware and environment.  Below are general guidelines
+that some users have found helpful.
+
+<ol>
+<li> *" . goog("net.ipv4.tcp_syn_retries") . ":* Some Linux systems
+have very large initial connection timeouts -- they retry sending SYN
+packets many times before determining that a connection cannot be
+made.  If MPI is going to fail to make socket connections, it would be
+better for them to fail in somewhat quickly (minutes vs. hours).  You
+might want to reduce this value to smaller value; YMMV.</li>
+
+<li> *" . goog("net.ipv4.tcp_keepalive_time") . ":* Some MPI
+applications send an initial burst of MPI messages (over TCP) and then
+send nothing for long periods of time (e.g., embarrissingly parallel
+applications).  Linux may decide that these dormant TCP sockets are
+dead because it has seen no traffic on them for long periods of time.
+You might therefore need to lengthen the TCP inactivity timeout.  Many
+Linux systems default to 7,200 seconds; increase it if necessary.</li>
+
+<li> Increase TCP buffering for 10G or 40G.  Many Linux distributions
+come with good buffering presets for 1G Ethernet.  In a datacenter/HPC
+cluster with 10G or 40G Ethernet NICs, this amount of kernel buffering
+is typically insufficient.  Here's a set of parameters that some have
+used for good 10G/40G TCP bandwidth:
+<ul>
+<li> *" . goog("net.core.rmem_max") . ":* 16777216</li>
+<li> *" . goog("net.core.wmem_max") . ":* 16777216</li>
+<li> *" . goog("net.ipv4.tcp_rmem") . ":* 4096 87380 16777216</li>
+<li> *" . goog("net.ipv4.tcp_wmem") . ":* 4096 65536 16777216</li>
+<li> *" . goog("net.core.netdev_max_backlog") . ":* 30000</li>
+<li> *" . goog("net.core.rmem_default") . ":* 16777216</li>
+<li> *" . goog("net.core.wmem_default") . ":* 16777216</li>
+<li> *" . goog("net.ipv4.tcp_mem") . ":* '16777216 16777216 16777216'</li>
+<li> *" . goog("net.ipv4.route.flush") . ":* 1</li>
+</ul>
+</li>
+</ol>
+
+Each of the above items is a Linux kernel parameter that can be set in
+multiple different ways.
+
+<ol>
+<li> You can change the running kernel via the [/proc] filesystem:
+
+" . faqcode($c1, $o1) . "
+</li>
+<li> You can also use the [sysctl] command:
+
+" . faqcode($c2, $o2) . "
+</li>
+<li> Or you can set them by adding entries in [/etc/sysctl.conf],
+which are persistent across reboots:
+
+" . faqcode($c3, $o3) . "
+</li>
+<li> Your Linux distro may also support you putting individual files
+in [/etc/sysctl.d] (even if that directory does not yet exist), which
+is actually better practice than putting them in [/etc/sysctl.conf].
+For example:
+
+" . faqcode($c4, $o4) . "
+</ol>";
+
+$shell = $shell_save;
+
+/////////////////////////////////////////////////////////////////////////
+
 $q[] = "How does Open MPI know which TCP addresses are routable to each other in Open MPI 1.2?";
 
 $anchor[] = "tcp-routability";
@@ -397,7 +505,7 @@ of interfaces.
         NodeA                NodeB
    ---------------       ---------------
   |     lo0       |     |     lo0       |
- '|  127.0.0.1    |     |  127.0.0.1    |
+  |  127.0.0.1    |     |  127.0.0.1    |
   |  255.0.0.0    |     |  255.0.0.0    |
   |               |     |               |
   |     eth0      |     |    eth0       |
@@ -448,13 +556,12 @@ be the library trying to make connections to unreachable hosts.
 <faqcode>
 # Here is an example with some of the output deleted for clarity.
 # One can see the connections that are attempted.
-
-> mpirun --mca btl self,sm,tcp <font color=red><strong>--mca btl_base_verbose 30</strong></font> -np 2 -host NodeA,NodeB a.out
-[...snip...]
+$ss mpirun --mca btl self,sm,tcp <font color=red><strong>--mca btl_base_verbose 30</strong></font> -np 2 -host NodeA,NodeB a.out
+" . $shell_font . "[...snip...]
 [NodeA:18003] btl: tcp: attempting to connect() to address 10.8.47.2 on port 59822
 [NodeA:18003] btl: tcp: attempting to connect() to address 192.168.1.2 on port 59822
 [NodeB:16842] btl: tcp: attempting to connect() to address 192.168.1.1 on port 44500
-[...snip...]
+[...snip...]</font>
 </faqcode>
 
 In case you want more details about the theory behind the connection
