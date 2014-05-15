@@ -44,6 +44,8 @@ Please see the "<a href="<?php printf("$topdir/community/help/");
 help.  <?php red("Subscribers"); ?> can post questions, comments,
 suspected bug reports, etc. to the list at the following address:</p>
 
+<?php print_list("mtt-devel"); ?>
+
 <?php print_link("MTT developers list", "mtt-devel"); ?>
 
 <P>This list is used for developers who are working with the internals
