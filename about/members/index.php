@@ -71,7 +71,7 @@ function add_individual($url, $short_name, $long_name, $level) {
     global $contribs;
     global $individual;
 
-    $contribs[] = new contrib($url, $short_name, $long_name, $logo, $level,
+    $contribs[] = new contrib($url, $short_name, $long_name, "", $level,
                               $individual);
 }
 

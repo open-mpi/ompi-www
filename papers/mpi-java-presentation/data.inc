@@ -8,3 +8,9 @@ $abstract = " A tutorial on use of Java MPI bindings";
 
 $files[] = "mpi-java1995.pdf";
 $files[] = "mpi-java1995.pptx";
+
+$presented = "";
+$month = 1;
+$day = 1;
+$year = 1995;
+$bibtex = "";
