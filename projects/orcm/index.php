@@ -20,9 +20,8 @@ include_once("$topdir/includes/code.inc");
 
 <h3>Getting and using ORCM</h3>
 
-<p> The latest ORCM releases are available on the
-<a href="../../software/orcm/">download page</a>.
-The GIT repository is also accessible for
+<p> There are no ORCM releases at this time.
+The GIT repository is accessible for
 <a href="http://github.com/open-mpi/orcm">online browsing</a>
 or checkout</a>.
 
