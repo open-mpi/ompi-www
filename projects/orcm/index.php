@@ -9,7 +9,8 @@ include_once("$topdir/includes/code.inc");
 
 <p> The Open Resilient Cluster Manager (ORCM) project.</p>
 
-<p>ORCM was originally developed by Ralph Castain while employed at Cisco to provide
+<p>ORCM was originally developed as an open-source project (under the Open MPI license)
+   by Ralph Castain while employed at Cisco to provide
    a resilient, 100% uptime run-time environment for enterprise-class routers. Based on the
    Open Run-Time Environment (ORTE) embedded in Open MPI, the system provided launch and
    execution support for processes executing within the router itself
@@ -21,7 +22,9 @@ include_once("$topdir/includes/code.inc");
 
 <p>The Cisco implementation naturally required a significant amount of monitoring, and
    included the notion of <i>fault prediction</i> as a means of taking pre-emptive action
-   to relocate processes prior to their node failing. <p>
+   to relocate processes prior to their node failing. This was facilitated using an
+   analytics framework that allowed users to chain various analysis modules in the
+   data pipeline so as to perform <i>in-flight</i> data reduction.<p>
 
 <p>Subsequently, ORCM was extended by Ralph while at Greenplum to serve as a scalable
    monitoring system for Hadoop clusters. While ORCM itself had run on quite a few
@@ -34,7 +37,10 @@ include_once("$topdir/includes/code.inc");
     enough that in-flight data reduction was not required, nor was fault prediction considered
     to be of value in the Hadoop paradigm.</p>
 
-<p></p>
+<p>Throughout this time, ORCM has retained ORTE's ability to perform scalable launch and
+   process monitoring, and ORTE's support for a variety of scheduling environments. We are
+   now in the process of validating and extending ORCM to provide both monitoring and
+   launch support for exascale environments.</p>
 
 <!------------------------------------------------------------------------->
 
