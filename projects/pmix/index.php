@@ -70,7 +70,7 @@ Users, of course, may have difficulty deciding on the best data distribution met
 <p>The PMI standard has been the subject of many papers over the
     years, including the one
 <a href="http://www.mcs.anl.gov/papers/P1760.pdf">available here</a>. Detailed documentation
-on the design of PMIx itself is under development on the
+on the design of PMIx itself, including the API, is under development on the
 <a href="https://svn.open-mpi.org/trac/pmix/">PMIx wiki page</a>.
 </p>
 

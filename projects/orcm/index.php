@@ -9,11 +9,40 @@ include_once("$topdir/includes/code.inc");
 
 <p> The Open Resilient Cluster Manager (ORCM) project.</p>
 
+<p>ORCM was originally developed by Ralph Castain while employed at Cisco to provide
+   a resilient, 100% uptime run-time environment for enterprise-class routers. Based on the
+   Open Run-Time Environment (ORTE) embedded in Open MPI, the system provided launch and
+   execution support for processes executing within the router itself
+   (e.g., computing routing tables), ensuring that a minimum number of copies of each
+   program were always present. Failed processes were relocated based on the concept of
+   <i>fault groups</i> - i.e., the grouping of nodes with common failure modes. Thus, ORCM
+   attempted to avoid cascade failures by ensuring that processes were not relocated onto
+   nodes with a high probability of failing in the immediate future.</p>
+
+<p>The Cisco implementation naturally required a significant amount of monitoring, and
+   included the notion of <i>fault prediction</i> as a means of taking pre-emptive action
+   to relocate processes prior to their node failing. <p>
+
+<p>Subsequently, ORCM was extended by Ralph while at Greenplum to serve as a scalable
+   monitoring system for Hadoop clusters. While ORCM itself had run on quite a few
+   "nodes" in the Cisco router, and its base ORTE platform has been used for years
+    on very large clusters involving many thousands of nodes, this was the first time
+    the ORCM/ORTE platform had been used solely as a system state-of-health monitor with no responsibility
+    for process launch or monitoring. Instead, ORCM was asked to provide a resilient, scalable
+    monitoring capability that tracked process resource utilization and node state-of-health,
+    collecting all the data in a database for subsequent analysis. Sampling rates were low
+    enough that in-flight data reduction was not required, nor was fault prediction considered
+    to be of value in the Hadoop paradigm.</p>
+
+<p></p>
+
 <!------------------------------------------------------------------------->
 
 <h3>Documentation</h3>
 
-<p>Coming soon</p>
+<p>Detailed documentation on the design of ORCM itself is under development on the
+<a href="https://svn.open-mpi.org/trac/orcm/">ORCM wiki page</a>.
+</p>
 
 
 <!------------------------------------------------------------------------->
@@ -22,8 +51,8 @@ include_once("$topdir/includes/code.inc");
 
 <p> There are no ORCM releases at this time.
 The GIT repository is accessible for
-<a href="http://github.com/open-mpi/orcm">online browsing</a>
-or checkout</a>.
+<a href="http://github.com/open-mpi/orcm">online browsing
+or checkout</a></p>.
 
 <!------------------------------------------------------------------------->
 
