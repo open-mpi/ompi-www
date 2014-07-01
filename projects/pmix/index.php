@@ -35,7 +35,6 @@ the desired level of scalability. </p>
 <li>retrieval of data as a block instead of item-by-item. Current PMI implementations return a single data element to the requesting process with each call it makes to PMI_Get, thus necessitating repeated communications to obtain all desired data. While minimizing the amount of data locally stored, most MPI processes will (if requesting any data about a peer) eventually query all posted data from that peer. Thus, PMIx anticipates these subsequent requests by obtaining and locally caching in the shared memory region all data posted by a process upon first request for data from that peer.</li>
 <li>extension of the PMI_Get API to allow the passing of a flag to indicate the range of data to be collected. This provides a hint to the PMI system as to the type of data that will be requested in subsequent calls, thus allowing for more efficient and scalable retrieval. Supported flags include:
 <ul>
-<li>PMIx_GET_ITEM - retrieve only the specified item from the specified process</li>
 <li>PMIx_GET_PROC - retrieve all data published by the specified process (this is the default behavior)</li>
 <li>PMIx_GET_NODE - retrieve all data published by all processes sharing a node with the specified process, including all data published by the process itself</li>
 <li>PMIx_GET_APP - retrieve all data published by all processes from the same application as the specified process</li>
