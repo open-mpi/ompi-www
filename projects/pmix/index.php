@@ -33,14 +33,23 @@ the desired level of scalability. </p>
 <li>use of shared memory to minimize footprint at scale. Data retrieved by calls to PMI_Get are stored by the local PMIx server in a shared memory region accessible by all local processes. Thus, once the data is retrieved the first time, all local processes can immediately access it without further communication.</li>
 <li>posting of data as a block. Data "put" by the application will be locally cached by the process until execution of the "fence" API - at that time, all data will be transmitted to the local PMIx server as a single "blob".</li>
 <li>retrieval of data as a block instead of item-by-item. Current PMI implementations return a single data element to the requesting process with each call it makes to PMI_Get, thus necessitating repeated communications to obtain all desired data. While minimizing the amount of data locally stored, most MPI processes will (if requesting any data about a peer) eventually query all posted data from that peer. Thus, PMIx anticipates these subsequent requests by obtaining and locally caching in the shared memory region all data posted by a process upon first request for data from that peer.</li>
+<li>extension of the PMI_Get API to allow the passing of a flag to indicate the range of data to be collected. This provides a hint to the PMI system as to the type of data that will be requested in subsequent calls, thus allowing for more efficient and scalable retrieval. Supported flags include:
+<ul>
+<li>PMIx_GET_ITEM - retrieve only the specified item from the specified process</li>
+<li>PMIx_GET_PROC - retrieve all data published by the specified process (this is the default behavior)</li>
+<li>PMIx_GET_NODE - retrieve all data published by all processes sharing a node with the specified process, including all data published by the process itself</li>
+<li>PMIx_GET_APP - retrieve all data published by all processes from the same application as the specified process</li>
+<li>PMIx_GET_COMM_WORLD - retrieve all data published by all processes in the same MPI_COMM_WORLD as the specified process</li>
+</ul>
+Note that only the specified item will be returned by the PMIx_Get call - the flag only tells PMIx to pre-fetch the remaining data as specified.</li>
 <li>added functions to support packing/unpacking of binary data. Currently, PMI only supports the transmission of string data. Although binary groupings can be encoded, the encoding process itself consumes both time and memory, thus increasing the volume of data that must be collectively communicated. This was originally done as a means of avoiding the heterogeneous data problem. PMIx, in contrast, provides the required pack/unpack functions to reliably send data between heterogeneous nodes, and a block API for posting and retrieving such blobs.</li>
 <li>addition of a non-blocking version of PMI_Get so that processes can request information and continue operations until the request can be satisfied. Notification is provided via the user-provided callback function, which includes delivery of the requested data.</li>
 <li>addition of a non-blocking version of PMI_Fence so that processes can post their information and continue operations without waiting for any data exchange to complete. Subsequent calls to the blocking form of PMI_Get will "block" pending availability of the requested data.</li>
-<li>extension of the PMI_Put API to allow the passing of flags indicating the scope of the data being published:
+<li>extension of the PMI_Put API to allow the passing of a flag indicating the scope of the data being published:
 <ul>
-<li>PMIx_LOCAL - the data is intended only for other application processes on the same node. Data marked in this way will not be included in data packages sent to remote requestors</li>
-<li>PMIx_REMOTE - the data is intended solely for applications processes on remote nodes. Data marked in this way will not be shared with other processes on the same node</li>
-<li>PMIx_GLOBAL - the data is to be shared with all other requesting processes, regardless of location</li>
+<li>PMIx_PUT_LOCAL - the data is intended only for other application processes on the same node. Data marked in this way will not be included in data packages sent to remote requestors</li>
+<li>PMIx_PUT_REMOTE - the data is intended solely for applications processes on remote nodes. Data marked in this way will not be shared with other processes on the same node</li>
+<li>PMIx_PUT_GLOBAL - the data is to be shared with all other requesting processes, regardless of location</li>
 </ul>
 </li>
 <li>support for fork/exec of child processes by applications. The PMIx client will provide dynamic connections to the local server, thereby allowing any child process of an application process to also access PMI on its own behalf, if desired. The responsibility for defining any required unique PMI keys for the child is left to the application developer.</li>
