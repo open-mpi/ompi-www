@@ -126,7 +126,12 @@ include_once("$topdir/includes/code.inc");
 <li>Scalable launch
 <ul>
 <li>Distributed mapping system to minimize data transmission of launch commands*</li>
-<li>PMIx wireup support for MPI applications*</li>
+<li>Rapid MPI wireup
+<ul>
+<li>Endpoint management and support for static endpoints, enabling communication upon init</li>
+<li><a href="../pmix/index.php">PMIx</a> wireup support for unmanaged environments*</li>
+</ul>
+</li>
 <li>Automatic pre-positioning of dynamic libraries*</li>
 <li>Pre-loading of libraries and data by user directive*</li>
 </ul>
