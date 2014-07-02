@@ -59,6 +59,7 @@ print_papers(array("sc-2011",
                    "euro-mpi-2011-log-validate",
                    "ipdps-dpdns-2011",
                    "ipdps-hips-2011",
+                   "orcm-2011",
                    ));
 ?>
 </UL>
@@ -80,6 +81,7 @@ print_papers(array("sc-2009",
                    "tr-uni-muenchen-8991",
                    "trinity-btl-2009",
                    "hpdc-2009",
+                   "orcm-2009",
                    ));
 ?>
 </UL>
