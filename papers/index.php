@@ -34,7 +34,8 @@ href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.ps">ps</a>]
 <p><strong>2013</strong></p>
 <UL>
 <?php
-print_papers(array("sc-2013"
+print_papers(array("sc-2013",
+		   "euro-mpi-2013-iopp"
 		   ));
 ?>
 </UL>
@@ -57,6 +58,7 @@ print_papers(array("sc-2012",
 print_papers(array("sc-2011",
                    "cluster-2011-lama",
                    "euro-mpi-2011-log-validate",
+		   "euro-mpi-2011-ompio",
                    "ipdps-dpdns-2011",
                    "ipdps-hips-2011",
                    "orcm-2011",
