@@ -119,24 +119,24 @@ ported to it:<ul>
 <li>MPI implementations and tools</li><ul>
  <li><a href="http://www.open-mpi.org">Open MPI</a></li>
  <li>The <a
- href="http://www.mcs.anl.gov/research/projects/mpich2/">MPICH2</a>
+ href="http://www.mpich.org">MPICH</a>
  process launcher Hydra</li>
  <li><a href="http://mvapich.cse.ohio-state.edu/">MVAPICH2</a></li>
  <li>The parallel job inspector <a
  href="http://padb.pittman.org.uk/">Padb</a></li>
 </ul>
 <li>Runtime systems and compilers</li><ul>
- <li>The <a
- href="http://runtime.bordeaux.inria.fr/forestgomp">ForestGOMP</a>
- OpenMP platform for hierarchical architectures</li>
  <li>The <a href="http://runtime.bordeaux.inria.fr/StarPU">StarPU</a>
  runtime system for heterogeneous multicore architectures</li>
- <li>The Directed Acyclic Graph Unified Environment
- (<a href="http://icl.cs.utk.edu/dague/">DAGuE</a>) project</li>
+ <li>The Parallel Runtime Scheduling and Execution Controller
+ (<a href="http://icl.cs.utk.edu/parsec">PaRSEC</a>) project</li>
  <li>The Qthreads project (<a
  href="http://www.cs.sandia.gov/qthreads/">site 1</a>, <a
  href="http://code.google.com/p/qthreads/">site 2</a>)</li>
  <li> The <a href="http://www.rosecompiler.org/">Rose compiler</a></li>
+ <li>The <a
+ href="http://runtime.bordeaux.inria.fr/forestgomp">ForestGOMP</a>
+ OpenMP platform for hierarchical architectures</li>
 </ul>
 <li>Parallel scientific libraries</li><ul>
  <li>The <a href="http://pastix.gforge.inria.fr/">Parallel Sparse matriX</a>
@@ -146,7 +146,7 @@ ported to it:<ul>
 </ul>
 <li>Resource manager and job schedulers</li><ul>
  <li>The <a href="http://gridscheduler.sourceforge.net/">Open Grid Scheduler</a></li>
- <li>The <a href="http://www.clusterresources.com/products/torque-resource-manager.php">Torque resource manager</a></li>
+ <li>The <a href="http://www.adaptivecomputing.com/products/open-source/torque/">TORQUE resource manager</a></li>
  <li>The <a href="http://www.univa.com/products/grid-engine">Univa Grid Engine</a></li>
  <li>The <a href="http://arc.liv.ac.uk/trac/SGE/">Son of Grid Engine</a> project</li>
  <li>Altair's <a href="http://www.pbsworks.com/Product.aspx?id=1">PBS Professional</a> solution (part of PBS Works)</li>
@@ -252,8 +252,7 @@ team as a sub-project.  Both are now deprecated in favor of hwloc,
 which is distributed here as an Open MPI sub-project.</p>
 
 <p>Portability tests are performed thanks to
-the Inria <a href="https://ci.inria.fr/hwloc/">Continuous Integration</a> platform,
-and the Inria <a href="http://pipol.inria.fr/">PIPOL</a> platform.
+the Inria <a href="https://ci.inria.fr/hwloc/">Continuous Integration</a> platform.
 </p>
 
 <?php
