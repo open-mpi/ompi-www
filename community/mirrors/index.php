@@ -87,6 +87,7 @@ print_region("North America", 1);
 <TD VALIGN=TOP>
 <?php
 print_region("Europe", 2);
+#print_region("Austrailia", 2);
 ?>
 </TD></TR>
 </TABLE>
