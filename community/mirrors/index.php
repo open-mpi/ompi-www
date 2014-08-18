@@ -28,7 +28,7 @@ function print_region($region, $columns = 1) {
         if (!$val->get_display() && !$show_inactive) {
             continue;
         }
-        
+
         if ($region != $val->get_region()) {
             continue;
         }
@@ -54,10 +54,10 @@ function print_region($region, $columns = 1) {
             print("\n<TD ALIGN=LEFT>");
             $u = "<a href=\"" . $val->get_url(). "\">";
             $inactive = $val->get_display() ? "" : " <FONT COLOR=\"RED\">(INACTIVE)</FONT>";
-            print("<TABLE BORDER=0 CELLPADDING=5><TR><TD VALIGN=\"TOP\">$u" . 
-                  "<IMG VALIGN=\"TOP\" SRC=\"" . $val->get_flag() . "\" " . 
-                  $size[3] . 
-                  " BORDER=0></A></TD>\n<TD VALIGN=\"TOP\">" . 
+            print("<TABLE BORDER=0 CELLPADDING=5><TR><TD VALIGN=\"TOP\">$u" .
+                  "<IMG VALIGN=\"TOP\" SRC=\"" . $val->get_flag() . "\" " .
+                  $size[3] .
+                  " BORDER=1></A></TD>\n<TD VALIGN=\"TOP\">" .
                   $val->get_name() . "$inactive<BR>" .
                   $val->get_location() . "<BR>$u" .
                   $val->get_url() . "</A></TD></TR></TABLE>\n</TD>\n\n");
@@ -68,7 +68,7 @@ function print_region($region, $columns = 1) {
 }
 ?>
 
-<P><A HREF="become-a-mirror.php">Are you interested in becoming an 
+<P><A HREF="become-a-mirror.php">Are you interested in becoming an
 official Open MPI mirror site?</A>
 
 <p>The Open MPI web pages are available at the following sites:</p>
@@ -77,7 +77,7 @@ official Open MPI mirror site?</A>
 <DIV ALIGN="CENTER">
 <TABLE BORDER=0 CELLPADDING=0>
 <TR><TD VALIGN=TOP>
-<?php 
+<?php
 print_region("Asia", 1);
 print("<BR />\n");
 print_region("North America", 1);
@@ -92,8 +92,8 @@ print_region("Europe", 2);
 </TABLE>
 </DIV>
 
-<P><A HREF="become-a-mirror.php">Are you interested in becoming an 
+<P><A HREF="become-a-mirror.php">Are you interested in becoming an
 official Open MPI mirror site?</A>
 
-<?php 
-  include_once("$topdir/includes/footer.inc"); 
+<?php
+  include_once("$topdir/includes/footer.inc");
