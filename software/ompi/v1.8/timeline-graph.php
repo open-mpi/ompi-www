@@ -15,6 +15,7 @@ series("v1.8 series", "2014-03-01", $beyond_end_date, $data, $vpos, $graph);
 milestone("branch", "2014-03-25", $data, $vpos);
 milestone("v1.8", "2014-03-31", $data, $vpos);
 milestone("v1.8.1", "2014-04-23", $data, $vpos);
+milestone("v1.8.2", "2014-08-25", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
