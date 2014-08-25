@@ -90,9 +90,9 @@ information</a></h3>
 news("Performance Benchmarks",
      "New section on performance benchmarks added",
      "http://www.open-mpi.org/performance/index.php");
-news("Open MPI v1.8 released",
+news("Open MPI v1.8.2 released",
      "Stable release",
-     "http://www.open-mpi.org/community/lists/announce/2014/03/0061.php");
+     "http://www.open-mpi.org/community/lists/announce/2014/08/0063.php");
 news("hwloc v1.9 released",
      "New feature release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2014/03/0068.php");
