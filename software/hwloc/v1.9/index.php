@@ -73,11 +73,11 @@ if (preg_match("/[a-z]/i", $v)) {
 #
 #############################################################################
 
-#$t_older = new downloadTable("./downloads", "./downloads",
-#			     dirname($_SERVER["PHP_SELF"]));
+$t_older = new downloadTable("./downloads", "./downloads",
+			     dirname($_SERVER["PHP_SELF"]));
 
 if (isset($t_older)) {
-    $versions = array();
+    $versions = array("1.9");
 
     foreach ($versions as $key => $ver) {
         $src = "Version $ver";

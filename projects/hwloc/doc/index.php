@@ -38,7 +38,7 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 
 print($blank_line);
 
-$versions = array("v1.9");
+$versions = array("v1.9.1", "v1.9");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
