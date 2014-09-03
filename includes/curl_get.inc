@@ -14,6 +14,10 @@ function do_curl_get($url) {
     # usual true/false.
     curl_setopt ($ch, CURLOPT_RETURNTRANSFER, 1);
 
+    # Set CURLOPT_FOLLOWOCATION so that if we get any redirects, curl
+    will follow them to get the content from the final location.
+    curl_setopt ($ch, CURLOPT_FOLLOWLOCATION, 1);
+
     # Execute the request and get the output
     $output = curl_exec ($ch);
 
