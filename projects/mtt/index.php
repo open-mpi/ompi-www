@@ -84,14 +84,14 @@ this web site someday:
 <p>
 <ul>
 
-<li><a href="https://svn.open-mpi.org/trac/mtt/wiki">The main MTT wiki
+<li><a href="https://github.com/open-mpi/mtt/wiki">The main MTT wiki
 site</a></li>
 
-<li><a href="https://svn.open-mpi.org/trac/mtt/wiki/MTTOverview">An
+<li><a href="https://github.com/open-mpi/mtt/wiki/MTTOverview">An
 overview of what MTT does and how it works</a></li>
 
 <li><a
-href="https://svn.open-mpi.org/trac/mtt/wiki/MTTINIFileFields">A list
+href="https://github.com/open-mpi/mtt/wiki/MTTINIFileFields">A list
 of all available fields in the MTT client configuration file</a></li>
 
 </ul>
