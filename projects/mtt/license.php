@@ -13,6 +13,7 @@ distributed under the <?php
 print("<a href=\"http://www.opensource.org/licenses/bsd-license.php\">");
 ?>New BSD license</a>, listed below.</strong>
 
+<?php
 # JMS Somehow the curl get from github doesn't work reliably :(
 #$str = do_curl_get("https://raw.github.com/open-mpi/mtt/master/LICENSE");
 #print("<p><hr>\n<pre>\n$str\n</pre><p><hr>\n\n");
