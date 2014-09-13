@@ -9,5 +9,5 @@ include_once("$topdir/includes/code.inc");
 MTT's Git repository <a href="https://github.com/open-mpi/mtt">is hosted
 at Github</a>.
 
-<?php 
-  include_once("$topdir/includes/footer.inc"); 
+<?php
+  include_once("$topdir/includes/footer.inc");
