@@ -11,6 +11,9 @@ include_once("$topdir/includes/code.inc");
 
 <h2>Git checkout</h2>
 
+<p>Hwloc's Git repository is
+<a href="https://github.com/open-mpi/hwloc">hosted at Github</a>.</p>
+
 <p>
 The Git repository may be checked out with:
 </p>

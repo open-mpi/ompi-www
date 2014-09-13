@@ -17,6 +17,6 @@ $this_nav[] = new Nav("Documentation", "$topdir/projects/hwloc/doc/");
 $this_nav[] = new Nav("Tutorials", "$topdir/projects/hwloc/tutorials/");
 $this_nav[] = new Nav("License", "$topdir/projects/hwloc/license.php");
 $this_nav[] = new Nav("Mailing lists", "$topdir/community/lists/hwloc.php");
-$this_nav[] = new Nav("Bug tracking", "https://git.open-mpi.org/trac/hwloc/report");
+$this_nav[] = new Nav("Bug tracking", "https://github.com/open-mpi/hwloc/issues");
 $this_nav[] = new Nav("Git access", "$topdir/projects/hwloc/git.php");
 $this_nav[] = new Nav("Nightly snapshots", "$topdir/software/hwloc/nightly/");
