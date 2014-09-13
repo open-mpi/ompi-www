@@ -14,7 +14,7 @@ include_once("$topdir/includes/code.inc");
 </a></div>
 
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
-<?php 
+<?php
 # Lists are not mirrored - use an absolute URL
 news("hwloc v1.9.1 released",
      "New stable release",
@@ -162,7 +162,7 @@ ported to it:<ul>
 
 <p> When in doubt, say "hardware locality."</p>
 
-<p> Some of the core developers say "H. W. Loke"; others say 
+<p> Some of the core developers say "H. W. Loke"; others say
 "H. W. Lock".  We've heard several other pronunciations as well.  We
 don't really have a strong preference for <em>how</em> you say it; we
 chose the name for its Google-ability, not its pronunciation.</p>

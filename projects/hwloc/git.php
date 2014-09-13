@@ -55,6 +55,5 @@ tag <code>hwloc-2.3.4</code>, etc.
 
 </ul>
 
-
-<?php 
-  include_once("$topdir/includes/footer.inc"); 
+<?php
+  include_once("$topdir/includes/footer.inc");
