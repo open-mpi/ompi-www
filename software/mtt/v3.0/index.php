@@ -96,7 +96,7 @@ $prev_describe = "the v$ver_v3_0 download page";
 include_once("$topdir/includes/subscribe-announce.inc");
 
 print("<p><hr></p>\n\n");
-print("<p>MTT is currently only downloadable <a href=\"$topdir/projects/mtt/git.php\">via Git</a>.\n");
+print("<p>MTT is currently only downloadable <a href=\"https://github.com/open-mpi/mtt\">via Git</a>.\n");
   include_once("$topdir/includes/footer.inc");
 exit(0);
 
