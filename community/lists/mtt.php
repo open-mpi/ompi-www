@@ -49,21 +49,12 @@ suspected bug reports, etc. to the list at the following address:</p>
 <?php print_link("MTT developers list", "mtt-devel"); ?>
 
 <P>This list is used for developers who are working with the internals
-of MTT itself.  <?php red("Subscribers"); ?> are welcome to post 
+of MTT itself.  <?php red("Subscribers"); ?> are welcome to post
 any topics dealing with the internal code of MTT are welcome on
 this list: questions, comments, bug reports, etc.</p>
 
 <?php print_list("mtt-devel"); ?>
-
-<?php print_link("Bug activity list (<font
-color=red>USERS CANNOT POST TO THIS LIST</font>)", "mtt-bugs"); ?>
-
-<p>A mail is sent to this list for every action on a MTT bug.   
-This is handy for those who want to keep up with bug activity.  The
-only mail that comes across this list is sent from the bug tracking
-system; all manual posts are discarded.
-
 </UL>
 
 <?php
-  include_once("$topdir/includes/footer.inc"); 
+  include_once("$topdir/includes/footer.inc");
