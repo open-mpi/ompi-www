@@ -1,10 +1,9 @@
 <?php
 include_once("$topdir/includes/nav.inc");
 
-$this_dir = "pmix";
-$this_nav[] = new Nav("Documentation", "$topdir/projects/orcm/doc/");
+$this_dir = "orcm";
+$this_nav[] = new Nav("Documentation", "https://github.com/open-mpi/orcm/wiki");
 $this_nav[] = new Nav("License", "$topdir/projects/orcm/license.php");
 $this_nav[] = new Nav("Mailing lists", "$topdir/community/lists/orcm.php");
-$this_nav[] = new Nav("Bug tracking", "https://svn.open-mpi.org/trac/orcm/report");
-$this_nav[] = new Nav("GIT access", "$topdir/projects/orcm/orcm.php");
-$this_nav[] = new Nav("Nightly snapshots", "$topdir/software/orcm/nightly/");
+$this_nav[] = new Nav("Bug tracking", "https://github.com/open-mpi/orcm/issues");
+$this_nav[] = new Nav("GIT access", "https://github.com/open-mpi/orcm");
