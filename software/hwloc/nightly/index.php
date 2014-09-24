@@ -18,7 +18,6 @@ the latest progression in the 1.9.x series.  The emphasis of this tree
 is on bug fixes and stability.  <strong>This is the recommended series for
 all users to download and use.</strong></li>
 
-<!--
 <p> <strong>Upcoming stable release series</strong>
 
 <li><a href="v1.10/"><strong>v1.10 series</strong></a> (upcoming stable
@@ -26,7 +25,6 @@ release series): These snapshots are from the 1.10 branch and reflect
 the latest progression in the 1.10.x series.  The emphasis of this tree
 is on bug fixes and stability.  <strong>This tree is not ready for
 prime time consumption yet.</strong></li>
--->
 
 <p> <strong>Previous stable release series</strong>
 
