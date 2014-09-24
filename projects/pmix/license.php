@@ -1,19 +1,17 @@
 <?php
 $topdir = "../..";
-$title = "Portable Hardware Locality (hwloc)";
-include_once("$topdir/software/hwloc/current/version.inc");
-include_once("$topdir/projects/hwloc/nav.inc");
+$title = "Project Management Interface for Exascale Operations";
+include_once("$topdir/projects/pmix/nav.inc");
 include_once("$topdir/includes/header.inc");
 include_once("$topdir/includes/curl_get.inc");
 ?>
 
-<p><strong>The Portable Hardware Locality (hwloc) software is
-distributed under the <?php
-print("<a href=\"http://www.opensource.org/licenses/bsd-license.php\">");
+<p><strong>The Project Management Interface for Exascale Operations (PMIx) software is distributed under the <?php
+print("<a href=\"http://www.opensource.org/licenses/BSD-3-Clause\">");
 ?>New BSD license</a>, listed below.</strong>
 
 <?php
-$str = do_curl_get("https://raw.github.com/open-mpi/hwloc/master/COPYING");
+$str = do_curl_get("https://raw.github.com/open-mpi/pmix/master/LICENSE");
 print("<p><hr>\n<pre>\n$str\n</pre><p><hr>\n\n");
 
 include_once("$topdir/includes/footer.inc"); 
