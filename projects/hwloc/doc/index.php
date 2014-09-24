@@ -48,7 +48,7 @@ foreach ($versions as $key => $v) {
 
 #########################################################
 
-$snapv_dir = "v1.9";
+$snapv_dir = "v1.10";
 $v = "";
 if (file_exists("$topdir/software/hwloc/$snapv_dir")) {
     $fp = fopen("$topdir/software/hwloc/$snapv_dir/downloads/latest_snapshot.txt", "r");
