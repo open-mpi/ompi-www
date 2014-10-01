@@ -155,8 +155,8 @@ probably be using the <a href="<?php print($topdir);
 
 <p><dv align=center><hr width=50%></div></p>
 
-<P><? $dir = "svn.open-mpi.org/svn/ompi/branches/v1.5/NEWS";
-      print("<a href=\"http://$dir\">"); ?>This
+<P><? $dir = "https://github.com/open-mpi/ompi-release/blob/v1.5/NEWS";
+      print("<a href=\"$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the Open
 MPI releases in the v1.5 series</p>
 

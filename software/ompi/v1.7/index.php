@@ -145,8 +145,8 @@ include_once("$topdir/includes/subscribe-announce.inc");
 
 <p><hr>
 
-<P><? $dir = "svn.open-mpi.org/svn/ompi/branches/v1.7/NEWS";
-      print("<a href=\"http://$dir\">"); ?>This
+<P><? $dir = "https://github.com/open-mpi/ompi-release/blob/v1.7/NEWS";
+      print("<a href=\"$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the Open
 MPI releases in the v1.7 series</p>
 

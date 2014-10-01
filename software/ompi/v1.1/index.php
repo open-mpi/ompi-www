@@ -134,8 +134,8 @@ possible.</strong></p>
 
 <p><dv align=center><hr width=50%></div></p>
 
-<P><? $dir = "svn.open-mpi.org/svn/ompi/branches/v1.1/NEWS";
-      print("<a href=\"http://$dir\">"); ?>This
+<P><? $dir = "https://github.com/open-mpi/ompi-release/blob/v1.1/NEWS";
+      print("<a href=\"$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the Open
 MPI v1.1 series.</p>
 

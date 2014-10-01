@@ -9,8 +9,7 @@ $a[] = "
 
 <ol>
 <li>
-<a
-href=\"https://svn.open-mpi.org/trac/ompi/wiki/KnownIssues1.7\">1.7.3</a>
+Hello
 </li>
 </ol>";
 

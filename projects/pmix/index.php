@@ -79,7 +79,7 @@ Users, of course, may have difficulty deciding on the best data distribution met
     years, including the one
 <a href="http://www.mcs.anl.gov/papers/P1760.pdf">available here</a>. Detailed documentation
 on the design of PMIx itself, including the API, is under development on the
-<a href="https://svn.open-mpi.org/trac/pmix/">PMIx wiki page</a>.
+<a href="https://github.com/open-mpi/pmix/wiki">PMIx wiki page</a>.
 </p>
 
 <!------------------------------------------------------------------------->
@@ -100,7 +100,7 @@ or checkout</a>.
 
 <p> Questions, comments, and bugs should be sent to the <a
 href="../../community/lists/pmix.php">pmix mailing lists</a>, and/or
-submitted to the PMIx <a href="https://svn.open-mpi.org/trac/pmix/report">bug tracking
+submitted to the PMIx <a href="https://github.com/open-mpi/pmix/issues">bug tracking
 system</a>.
 
 <?php

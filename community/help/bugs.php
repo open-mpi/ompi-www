@@ -35,24 +35,23 @@ don't miss it.</li>
 
 <p>
 
-<li> Open MPI uses <a href="http://trac.edgewall.org/">Trac</a> to
-maintain a list of bugs, etc.
+<li> Open MPI uses <a href="https://github.com/open-mpi/ompi">GitHub</a>
+for development and bug tracking.
 
 <ul>
 
-<li> You can <a href="https://svn.open-mpi.org/trac/ompi/register">
-register for an account on our Trac system</a>.  Having a Trac
-account allows you to file bugs, add comments to existing bugs, add
-yourself as a CC to bugs (to see when they are updated), etc.</li>
+<li> You must have a GitHub account (they're free) to file bugs,
+comment on bugs, and subscribe to bugs (i.e., be notified when they're
+changed).</li>
 
-<li> <a href="https://svn.open-mpi.org/trac/ompi/report/2">List
+<li> <a href="https://github.com/open-mpi/ompi/milestones">List
 of active tickets by version</a></li>
 
-<li> <a href="https://svn.open-mpi.org/trac/ompi/wiki">Open MPI
+<li> <a href="https://github.com/open-mpi/ompi/wiki">Open MPI
 developer's wiki</a></li>
 
-<li> <a href="https://svn.open-mpi.org/trac/ompi/timeline">Timeline of
-Open MPI Trac events</a></li>
+<li> <a href="https://github.com/open-mpi/ompi/pulse/weekly">Timeline of
+Open MPI events</a></li>
 
 </ul>
 </li>

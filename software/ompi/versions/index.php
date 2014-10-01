@@ -7,11 +7,11 @@
 ?>
 
 The following text is taken directly from the <?php
-print("<a href=\"http://svn.open-mpi.org/svn/ompi/trunk/README\">"); ?>
-Open MPI README file</a> on the Subversion development trunk.
+print("<a href=\"https://github.com/open-mpi/ompi/blob/master/README\">"); ?>
+Open MPI README file</a> in the development branch.
 
-<?php 
-$str = do_curl_get("http://svn.open-mpi.org/svn/ompi/trunk/README");
+<?php
+$str = do_curl_get("https://raw.githubusercontent.com/open-mpi/ompi/master/README");
 
 # Extract just the sections we want from the README.
 

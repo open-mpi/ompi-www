@@ -227,10 +227,8 @@ printsublink("$topurl/performance/", "Performance");
 printbutton("Open MPI Software");
 printsublink("$topurl/software/", "Download");
 printsublink("$topurl/doc/", "Documentation");
-printsublink("$topurl/svn/", "Source Code Access");
+printsublink("$topurl/source/", "Source Code Access");
 printsublink("$topurl/community/help/bugs.php", "Bug Tracking");
-//printsublink("https://svn.open-mpi.org/trac/ompi/", "Bug Tracking", 
-//	     print("<a href=\"/outgoing/svn.open-mpi.org/trac/ompi\">"));
 // MTT is not mirrored
 printsublink("http://mtt.open-mpi.org/", "Regression Testing");
 printsublink("$topurl/software/ompi/versions/", "Version Information");

@@ -154,7 +154,7 @@ include_once("$topdir/includes/code.inc");
 <h3>Documentation</h3>
 
 <p>Detailed documentation on the design of ORCM itself is under development on the
-<a href="https://svn.open-mpi.org/trac/orcm/">ORCM wiki page</a>.
+<a href="https://github.com/open-mpi/orcm/wiki">ORCM wiki page</a>.
 </p>
 
 
@@ -179,7 +179,7 @@ href="../../community/lists/orcm.php">ORCM mailing lists</a>. Passing
 helpful debugging information.</p>
 
 <p>Also be sure to see the <a
-href="https://svn.open-mpi.org/trac/orcm/">ORCM wiki and bug tracking
+href="https://github.com/open-mpi/orcm">ORCM wiki and bug tracking
 system</a>.</a>
 
 <?php
