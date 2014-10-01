@@ -108,8 +108,8 @@ the following websites:
 http://osl.iu.edu/research/ft/ompi-cr/</a>
 </li>
 <li> Development WIKI: " . 
-"<a href=\"https://svn.open-mpi.org/trac/ompi/wiki/ProcessFT_CR\">" . "
-https://svn.open-mpi.org/trac/ompi/wiki/ProcessFT_CR</a>
+"<a href=\"https://github.com/open-mpi/ompi/wiki/ProcessFT_CR\">" . "
+https://github.com/open-mpi/ompi/wiki/ProcessFT_CR</a>
 </li>
 </ul>
 

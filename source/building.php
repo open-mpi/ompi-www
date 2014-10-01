@@ -7,13 +7,11 @@ include_once("$topdir/includes/code.inc");
 include_once("warning.inc");
 ?>
 
-<p>After obtaining a successful <a href="obtaining.php">Subversion
-checkout</a>, <a href="git.php">Git clone</a>, or <a
-href="mercurial.php">Mercurial clone</a>, the following tools are
-required for developers to compile Open MPI from its repository
-sources (users who download Open MPI tarballs <em>do not need these
-tools - they are <strong>only</strong> required for developers working
-on the internals of Open MPI itself</em>):
+<p>After obtaining a successful <a href="git.php">Git clone</a>, the
+following tools are required for developers to compile Open MPI from
+its repository sources (users who download Open MPI tarballs <em>do
+not need these tools - they are <strong>only</strong> required for
+developers working on the internals of Open MPI itself</em>):
 
 <!- ------------------------------------------------------------------ -->
 
@@ -27,9 +25,9 @@ on the internals of Open MPI itself</em>):
 </TR>
 
 <TR>
-<TD>Subversion client</TD>
-<TD>Version 1.5.0 or above</TD>
-<TD><?php print("<a href=\"http://subversion.apache.org/\">"); ?>http://subversion.apache.org/</A></TD>
+<TD>Git client</TD>
+<TD>Version 1.8.0 or above</TD>
+<TD><?php print("<a href=\"http://git-scm.org/\">"); ?>http://git-scm.org/</A></TD>
 </TR>
 
 <TR>
@@ -158,7 +156,7 @@ snapshot).</blockquote>
 compiler.</P>
 
 <P> The <?php
-print("<a href=\"http://svn.open-mpi.org/svn/ompi/trunk/HACKING\">");
+print("<a href=\"https://github.com/open-mpi/ompi/blob/master/HACKING\">");
 ?>HACKING file</a> in the top-level directory of the Open MPI checkout
 details how to install the tools listed above and the steps required
 to build a developer checkout of Open MPI.  It always contains the

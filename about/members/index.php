@@ -14,8 +14,8 @@ include_once("$topdir/includes/header.inc");
   voting rights, which entitles them to help determine the direction
   of the project, participate in release processes, etc.  "Partners"
   provide services to the Open MPI project.  See the full definitions
-  of these three levels of membership 
-  <a href="https://svn.open-mpi.org/trac/ompi/wiki/Admistrative%20rules">here</a>.</p>
+  of these three levels of membership
+  <a href="https://github.com/open-mpi/ompi/wiki/Admistrative-rules">here</a>.</p>
 
   <p>Open MPI contributors who have submitted signed 3rd Party
   Contribution Agreements and members are listed below in alphabetical
