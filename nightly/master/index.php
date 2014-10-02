@@ -3,11 +3,11 @@
   include_once("$topdir/includes/force-server.inc");
   force_server("www.open-mpi.org");
 
-  $title = "Open MPI: Trunk nightly snapshot tarballs";
+  $title = "Open MPI: Git master nightly snapshot tarballs";
   include_once("$topdir/software/ompi/nav.inc");
   include_once("$topdir/includes/header.inc");
   include_once("$topdir/includes/downloads.inc");
-  $dir = "$topdir/nightly/trunk";
+  $dir = "$topdir/nightly/master";
 ?>
 
 <h2>These are not stable releases of software packages!</h2>
@@ -16,10 +16,10 @@
 print($topdir); ?>/software/ompi/current/">look here</a>.</p>
 
 <p>Note that snapshots are only generated when there has been a commit to
-the corresponding branch in the SVN repository.  This may be less than
+the corresponding branch in the Git repository.  This may be less than
 once a day!</p>
 
-<p>Tarballs are made from the Subversion trunk nightly at approximately
+<p>Tarballs are made from the Git master nightly at approximately
 9pm US Indiana time.</p>
 
 <?php
