@@ -66,4 +66,4 @@ list;</strong> all other posts are automatically discarded.
 </UL>
 
 <?php
-  include_once("$topdir/includes/footer.inc"); 
+  include_once("$topdir/includes/footer.inc");
