@@ -62,15 +62,6 @@ proxies.  If your network setup requires the user of a web proxy,
 <?php print("<a href=\"http://git-scm.com/\">"); ?>consult the Git
 documentation for more details</a>.
 
-<blockquote>
-<p> <strong><font color="red">NOTE:</font></strong> Prior to October
-2014, Open MPI was maintained in a Subversion repository.  This
-Subversion repository had two read-only mirrors: a Mercurial mirror at
-bitbucket.com and a Git mirror at github.com.  <em>These two mirrors
-are now defunct</em> and will no longer be updated.  <strong> If you
-are using either of these mirrors, you should stop using them and
-switch to the main Open MPI Git repository at GitHub.</strong> </p>
-</blockquote>
-
 <?php
+  include_once("$topdir/source/svn-read-only-mirror-eol.php");
   include_once("$topdir/includes/footer.inc");
