@@ -77,38 +77,13 @@ documentation of Open MPI.</p>
 
 <!--------------------------------------------------------------------->
 
-<?php print_link("Bug activity list (<font
-color=red>USERS CANNOT POST TO THIS LIST</font>)", "bugs"); ?>
+<?php print_link("Git commit list (<font
+color=red>USERS CANNOT POST TO THIS LIST</font>)", "ompi-commits"); ?>
 
-<p>A mail is sent to this list for every action on an Open MPI bug.   
-This is handy for those who want to keep up with bug activity.  The
-only mail that comes across this list is sent from the bug tracking
-system; all manual posts are discarded.
-
-<!--------------------------------------------------------------------->
-
-<?php print_link("Subversion commit list, abbreviated (<font
-color=red>USERS CANNOT POST TO THIS LIST</font>)", "svn"); ?>
-
-<p>A mail is sent to this list for every Subversion commit in the Open
-MPI code base.  The mail includes a list of files that were changed,
-the developer's commit message, and a diff of the changes.  However,
-if the diff is larger than 40 kilobytes, it is not included in the
-mail.  This is handy for those who want to keep up with commit
-activity but are subject to mailbox quotas.  <strong>Only developers
-can post to this list;</strong> all other posts are automatically
-discarded.
-
-<!--------------------------------------------------------------------->
-
-<?php print_link("Subversion commit list, full (<font color=red>USERS
-CANNOT POST TO THIS LIST</font>)", "svn-full"); ?>
-
-<p>A mail is sent to this list for every Subversion commit in the Open
-MPI code base.  The mail includes a list of files that were changed,
-the developer's commit message, and a diff of the changes.  Unliked
-the abbreviated list, the diff is <em>always</em> included in the
-e-mail, regardless of size.  <strong>Only developers can post to this
+<p>A mail is sent to this list for every Git push to Github commit in
+the Open MPI code base.  The mail includes a list of files that were
+changed, the developer's commit message, and a diff of the changes.
+<strong>Only the automated git-email-bot can post to this
 list;</strong> all other posts are automatically discarded.
 
 </UL>
