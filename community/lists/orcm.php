@@ -54,24 +54,16 @@ suspected bug reports, etc. to the list at the following address:</p>
 
 <?php print_list("orcm-devel"); ?>
 
-<?php print_link("Bug activity list (<font
-color=red>USERS CANNOT POST TO THIS LIST</font>)", "orcm-bugs"); ?>
-
-<p>A mail is sent to this list for every action on a ORCM bug.   
-This is handy for those who want to keep up with bug activity.  The
-only mail that comes across this list is sent from the bug tracking
-system; all manual posts are discarded.
-
 <?php print_link("Git commit list (<font color=red>USERS
 CANNOT POST TO THIS LIST</font>)", "orcm-commits"); ?>
 
-<p>A mail is sent to this list for every Git commit in the
-ORCM code base.  The mail includes a list of files that were changed,
-the developer's commit message, and a diff of the changes.
-<strong>Only developers can post to this list;</strong> all other
-posts are automatically discarded.
+<p>A mail is sent to this list for every Git push to Github commit in
+the ORCM code base.  The mail includes a list of files that were
+changed, the developer's commit message, and a diff of the changes.
+<strong>Only the automated git-email-bot can post to this
+list;</strong> all other posts are automatically discarded.
 
 </UL>
 
 <?php
-  include_once("$topdir/includes/footer.inc"); 
+  include_once("$topdir/includes/footer.inc");

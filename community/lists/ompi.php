@@ -52,7 +52,7 @@ suspected bug reports, etc. to the list at the following address:</p>
 <?php print_link("Development list", "devel"); ?>
 
 <P>This list is used for developers who are working with the internals
-of Open MPI itself.  <?php red("Subscribers"); ?> are welcome to post 
+of Open MPI itself.  <?php red("Subscribers"); ?> are welcome to post
 any topics dealing with the internal code of Open MPI are welcome on
 this list: questions, comments, bug reports, etc.</p>
 
@@ -89,4 +89,4 @@ list;</strong> all other posts are automatically discarded.
 </UL>
 
 <?php
-  include_once("$topdir/includes/footer.inc"); 
+  include_once("$topdir/includes/footer.inc");
