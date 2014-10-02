@@ -29,8 +29,8 @@ series for all users to download and use.</strong></li>
 
 <p> <strong>Current development</strong>
 
-<li><a href="trunk/"><strong>Trunk</strong></a> (development head):
-These snapshots are from the Subversion trunk and reflect the current
+<li><a href="master/"><strong>Master</strong></a> (development head):
+These snapshots are from the Git master and reflect the current
 head of development.  The usual disclaimers about the state of
 development code apply.</li>
 
@@ -40,7 +40,7 @@ development)</strong>
 <li><a href="v1.7/"><strong>v1.7 series</strong></a> (previous feature
 series): These snapshots are from the 1.7 branch and reflect the
 latest progression in the feature 1.7.x series; it was morphed into the
-v1.8 stable series at the end of March 2014.  This tree is unlikely to be 
+v1.8 stable series at the end of March 2014.  This tree is unlikely to be
 updated any more.</li>
 
 <li><a href="v1.6/"><strong>v1.6 series</strong></a> (previous stable
@@ -86,5 +86,5 @@ in a long, long time.</li>
 </ul>
 </p>
 
-<?php 
-  include_once("$topdir/includes/footer.inc"); 
+<?php
+  include_once("$topdir/includes/footer.inc");
