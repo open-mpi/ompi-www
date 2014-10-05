@@ -4,8 +4,9 @@ $q[] = "What operating systems does Open MPI support?";
 $anchor[] = "os";
 
 $a[] = "We primarily develop Open MPI on Linux,
-OS X, Solaris (both 32 and 64 on all platforms) and
-Windows (Windows XP, Windows HPC Server 2003/2008 and also Windows 7 RC).
+OS X, Solaris (both 32 and 64 on all platforms, only pre-v1.8) and
+Windows (Windows XP, Windows HPC Server 2003/2008 and also Windows 7 RC,
+again only pre-1.8).
 
 Open MPI is fairly POSIX-neutral, so it will run without too many
 modifications on most POSIX-like systems.  Hence, if we haven't listed
@@ -20,7 +21,10 @@ systems to test these on, we probably will only claim to
 \"unofficially\" support those systems.
 
 Microsoft Windows support has been added in v1.3.3, please see the file
-README.WINDOWS.";
+README.WINDOWS.
+
+<strong><font color=red>NOTE:</font></strong> as of the v1.8 series,
+we no longer support either Microsoft Windows or Solaris.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -54,12 +58,12 @@ point-to-point communication:
 <li> TCP / ethernet</li>
 <li> Shared memory</li>
 <li> Loopback (send-to-self)</li>
-<li> Myrinet / GM</li>
+<li> Myrinet / GM (pre-1.8 only) </li>
 <li> Myrinet / MX</li>
 <li> Infiniband / OpenIB</li>
-<li> Infiniband / mVAPI</li>
-<li> Portals</li>
-</ul>
+<li> Infiniband / mVAPI (pre-1.8)</li>
+<li> Portals (pre-1.8)</li>
+<li> Portals4 (1.8 and above)</li></ul>
 
 Is there a network that you'd like to see supported that is not shown
 above?  <a href=\"$topdir/community/lists/\">Contributions are
@@ -84,16 +88,16 @@ back-end RTEs.
 ORTE currently natively supports the following run-time environments:
 
 <ul>
-<li> Recent versions of BProc (e.g., Clustermatic)</li>
+<li> Recent versions of BProc (e.g., Clustermatic, pre-1.3 only)</li>
 <li> Sun Grid Engine</li>
 <li> PBS Pro, Torque, and Open PBS (the TM system)</li>
 <li> LoadLeveler </li>
 <li> LSF </li>
-<li> POE</li>
+<li> POE (pre-1.8 only)</li>
 <li> rsh / ssh</li>
 <li> SLURM</li>
-<li> XGrid</li>
-<li> Yod (Red Storm)</li>
+<li> XGrid (pre-1.3 only)</li>
+<li> Yod (Red Storm, pre-1.5 only)</li>
 </ul>
 
 Is there a run-time system that you'd like to use Open MPI with that
@@ -121,7 +125,9 @@ $anchor[] = "mpi-support";
 
 $a[] = "Open MPI 1.2 supports all of MPI-2.0.
 
-Open MPI 1.3 supports all of MPI-2.1.";
+Open MPI 1.3 supports all of MPI-2.1.
+
+Open MPI 1.8 supports all of MPI-3";
 
 /////////////////////////////////////////////////////////////////////////
 
