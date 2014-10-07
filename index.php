@@ -93,9 +93,9 @@ news("Performance Benchmarks",
 news("Open MPI v1.8.3 released",
      "Stable release",
      "http://www.open-mpi.org/community/lists/announce/2014/09/0064.php");
-news("hwloc v1.9 released",
+news("hwloc v1.10.0 released",
      "New feature release",
-     "http://www.open-mpi.org/community/lists/hwloc-announce/2014/03/0068.php");
+     "http://www.open-mpi.org/community/lists/hwloc-announce/2014/10/0072.php");
 
 ?>
 

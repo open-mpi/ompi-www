@@ -38,7 +38,7 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 
 print($blank_line);
 
-$versions = array("v1.9.1", "v1.9");
+$versions = array("v1.10.0");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
@@ -76,10 +76,22 @@ if (preg_match("/[a-z]/i", $v) &&
 
 print($blank_line);
 
-$versions = array("v1.8.1", "v1.8");
+$versions = array("v1.9.1", "v1.9");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (old)",
+               "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
+    $first = 0;
+}
+
+#########################################################
+
+print($blank_line);
+
+$versions = array("v1.8.1", "v1.8");
+$first = 1;
+foreach ($versions as $key => $v) {
+    print_docs("Release $v (older)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -91,7 +103,7 @@ print($blank_line);
 $versions = array("v1.7.2", "v1.7.1", "v1.7");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (old)",
+    print_docs("Release $v (ancient)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -103,7 +115,7 @@ print($blank_line);
 $versions = array("v1.6.2", "v1.6.1", "v1.6");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (older)",
+    print_docs("Release $v (ancient)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -115,7 +127,7 @@ print($blank_line);
 $versions = array("v1.5.2", "v1.5.1", "v1.5");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (older)",
+    print_docs("Release $v (Middle Age)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -126,7 +138,7 @@ print($blank_line);
 
 $versions = array("v1.4.3", "v1.4.2", "v1.4.1", "v1.4");
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (older)",
+    print_docs("Release $v (Antiquity)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
 }
 
@@ -136,7 +148,7 @@ print($blank_line);
 
 $versions = array("v1.3.3", "v1.3.2", "v1.3.1", "v1.3");
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (ancient)",
+    print_docs("Release $v (Stone Age)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
 }
 
@@ -146,7 +158,7 @@ print($blank_line);
 
 $versions = array("v1.2.2", "v1.2.1", "v1.2");
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (ancient)",
+    print_docs("Release $v (Cretaceous)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
 }
 
@@ -156,7 +168,7 @@ print($blank_line);
 
 $versions = array("v1.1.2", "v1.1.1", "v1.1");
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (ancient)",
+    print_docs("Release $v (Jurassic)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
 }
 
@@ -166,7 +178,7 @@ print($blank_line);
 
 $versions = array("v1.0.3", "v1.0.2", "v1.0.1", "v1.0");
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (jurassic)",
+    print_docs("Release $v (Precambrian)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
 }
 
@@ -176,7 +188,7 @@ print($blank_line);
 
 $versions = array("v0.9.3", "v0.9.2", "v0.9.1");
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (big-bang" . ($v == "v0.9.2" ? ", identical to 0.9.1 except for some documentation image sizes" : "") . ")",
+    print_docs("Release $v (Big-Bang" . ($v == "v0.9.2" ? ", identical to 0.9.1 except for some documentation image sizes" : "") . ")",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
 }
 print("</table>\n</div>\n\n");
