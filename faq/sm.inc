@@ -1,6 +1,23 @@
 <?php
 include_once("$topdir/software/ompi/current/version.inc");
 
+$q[] = "What is the vader BTL?";
+
+$anchor[] = "what-is-vader";
+
+$a[] = "The [vader] BTL is a low-latency, high-bandwidth
+mechanism for transferring data between two processes via shared memory.
+This BTL can only be used between processes executing on the same node.
+
+Beginning with the v1.8 series, the [vader] BTL replaces the [sm] BTL unless
+the local system lacks the required support or the user specifically request
+the latter be used. At this time, [vader] requires CMA support which is typically
+found in more current kernels. Thus, systems based on older kernels may default
+to the slower [sm] BTL.";
+
+
+/////////////////////////////////////////////////////////////////////////
+
 $q[] = "What is the sm BTL?";
 
 $anchor[] = "what-is-sm";

@@ -126,7 +126,7 @@ $parent_name[] = "";
     $parent_name[] = "tune_parent";
 
     $titles[] = "Tuning the run-time characteristics of MPI sm communications";
-    $short_titles[] = "Shared memory";
+    $short_titles[] = "Shared memory/Vader";
     $names[] = "sm";
     $parent_name[] = "tune_parent";
 
