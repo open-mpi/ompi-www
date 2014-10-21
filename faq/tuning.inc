@@ -219,7 +219,14 @@ $a[] = "The [ompi_info] command, in addition to providing a wealth of
 configuration information about your Open MPI installation, will list
 all components (and the frameworks that they belong to) that are
 available.  These include system-provided components as well as
-user-provided components.";
+user-provided components.
+
+Please note that starting with Open MPI v1.8, [ompi_info] categorizes it's
+parameter parameters in so-called levels, as defined by the MPI_T
+interface.  You will need to specify [--level 9] (or
+[--all]) to show _all_ MCA parameters.  See
+<a href=\"http://blogs.cisco.com/performance/open-mpi-and-the-mpi-3-mpi_t-interface/\">
+Jeff Squyres' Blog</a> for further information.";
 
 /////////////////////////////////////////////////////////////////////////
 
