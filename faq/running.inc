@@ -1710,7 +1710,7 @@ are having issues. For Open MPI 1.7.3 and later, you can see if the library
 was built with CUDA-aware support.
 
 <faqcode>
- > ./ompi_info --parsable -l 9 -all | grep mpi_built_with_cuda_support:value
+ > ./ompi_info --parsable -l 9 --all | grep mpi_built_with_cuda_support:value
  mca:mpi:base:param:mpi_built_with_cuda_support:value:true
 </faqcode>
 
@@ -1763,7 +1763,7 @@ To see if you have GPU Direct RDMA compiled into your library, you can check lik
 
 To see if your OFED stack has GPU Direct RDMA support, you can check like this.
 <faqcode>
-> ompi_info -all | grep btl_openib_have_driver_gdr
+> ompi_info --all | grep btl_openib_have_driver_gdr
    MCA btl: informational \"btl_openib_have_driver_gdr\" (current value: \"true\", data source: default, level: 4 tuner/basic, type: bool)
 </faqcode>
 
