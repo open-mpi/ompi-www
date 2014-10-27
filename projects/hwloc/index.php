@@ -19,6 +19,9 @@ include_once("$topdir/includes/code.inc");
 news("hwloc v1.10.0 released",
      "New feature release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2014/10/0072.php");
+news("R&D engineer position",
+     "at Inria Bordeaux (France)",
+     "http://www.open-mpi.org/community/lists/hwloc-users/2014/10/1113.php");
 news("Network Locality (netloc)",
      "New hwloc companion",
      "http://blogs.cisco.com/performance/the-network-locality-project-netloc/");
