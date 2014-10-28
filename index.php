@@ -87,7 +87,7 @@ information</a></h3>
 
 <?php 
 # Lists are not mirrored - use an absolute URL
-news("SC2014 State Of The Union",
+news("SC2014 State Of The Union BOF",
      "Want to ask the OMPI developers something at the BOF?",
      "sc2014/");
 news("Performance Benchmarks",
