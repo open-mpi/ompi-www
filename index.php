@@ -87,9 +87,12 @@ information</a></h3>
 
 <?php 
 # Lists are not mirrored - use an absolute URL
+news("SC2014 State Of The Union",
+     "Want to ask the OMPI developers something at the BOF?",
+     "sc2014/");
 news("Performance Benchmarks",
      "New section on performance benchmarks added",
-     "http://www.open-mpi.org/performance/index.php");
+     "http://www.open-mpi.org/performance/");
 news("Open MPI v1.8.3 released",
      "Stable release",
      "http://www.open-mpi.org/community/lists/announce/2014/09/0064.php");
