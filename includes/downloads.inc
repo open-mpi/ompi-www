@@ -64,7 +64,8 @@ class downloadFileInfo {
         $file = $download_dir . "/" . $filename;
         $st = stat($file);
         $this->size = prettyprint_filesize($st[size]);
-        $this->mtime = date("M j, Y", $st[mtime]);
+        $this->mtime = $st[mtime];
+        $this->mtime_str = date("M j, Y", $st[mtime]);
     }
 
     function setLink($section, $filename, $date, $link, $a_modifier) {
@@ -77,8 +78,8 @@ class downloadFileInfo {
         $this->shasum = "";
         $this->link = $link;
         $this->size = "";
-        $this->mtime = $date;
-    $this->a_modifier = $a_modifier;
+        $this->mtime_str = $date;
+        $this->a_modifier = $a_modifier;
     }
 
     //
@@ -97,7 +98,7 @@ class downloadFileInfo {
         }
         print("$this->filename</A></TD>
 <TD>&nbsp;</TD>
-<TD>$this->mtime</TD>
+<TD>$this->mtime_str</TD>
 <TD ALIGN=CENTER>(external link)</TD>
 </TR>\n");
         } else {
@@ -111,7 +112,7 @@ class downloadFileInfo {
                 print("<TD>$this->filename</TD>\n");
             }
             print("<TD ALIGN=RIGHT>$this->size</TD>\n");
-            print("<TD ALIGN=RIGHT>$this->mtime</TD>\n");
+            print("<TD ALIGN=RIGHT>$this->mtime_str</TD>\n");
 
             print("<TD><TABLE BORDER=0>\n");
             if ($this->mdsum) {
@@ -136,13 +137,15 @@ class downloadTable {
     //
     // Constructor
     //
-    function downloadTable($download_url, $download_dir, $base_url) {
+    function downloadTable($download_url, $download_dir, $base_url,
+                           $sort_by_date = true) {
         global $download_base;
 
         $this->download_url = $download_url;
         $this->download_dir = $download_dir;
         $this->base_url = $base_url;
         $this->title = "";
+        $this->sort_by_date = $sort_by_date;
     }
 
     //
@@ -195,6 +198,10 @@ class downloadTable {
 <TH>Checksums (GNU md5sum and sha1sum v5.2.1)</TH>
 </TR>\n\n");
 
+        if ($this->sort_by_date) {
+            usort($this->files, "downloadFileInfo_sort_by_date");
+        }
+
         $next_section = 0;
         for ($i = 0; $i < sizeof($this->files); $i++) {
             $f = $this->files[$i];
@@ -216,4 +223,13 @@ class downloadTable {
         }
         print("</TABLE>\n\n");
     }
+}
+
+# Reverse sort the filenames by date (i.e., newest first)
+function downloadFileInfo_sort_by_date($a, $b)
+{
+    if ($a->mtime == $b->mtime) {
+        return 0;
+    }
+    return ($a->mtime > $b->mtime) ? -1 : 1;
 }
