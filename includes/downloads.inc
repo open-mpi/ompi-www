@@ -12,7 +12,7 @@ function prettyprint_filesize($s) {
         $s = (int) ($s / 1024) . "KB";
     }
     return $s;
-}    
+}
 
 //
 // Utility function to read in a file of checksums (i.e., the output
@@ -44,13 +44,13 @@ class downloadFileInfo {
     var $section, $filename, $base_url, $size, $mdsum, $shasum;
     var $link, $a_modifier;
     var $headerText;
-    
+
     //
     // Set the file info
     //
-    function setFile($section, $filename, $base_url, $download_dir, 
+    function setFile($section, $filename, $base_url, $download_dir,
                      $mdsum = "", $shasum = "") {
-        
+
         // Save almost everything
         $this->section = $section;
         $this->filename = $filename;
@@ -59,7 +59,7 @@ class downloadFileInfo {
         $this->link = "";
         $this->base_url = $base_url;
         $this->a_modifier = "";
-        
+
         // Compute a print-friendly size
         $file = $download_dir . "/" . $filename;
         $st = stat($file);
@@ -68,7 +68,7 @@ class downloadFileInfo {
     }
 
     function setLink($section, $filename, $date, $link, $a_modifier) {
-        
+
         // Save almost everything
         $this->section = $section;
         $this->filename = $filename;
@@ -80,8 +80,8 @@ class downloadFileInfo {
         $this->mtime = $date;
     $this->a_modifier = $a_modifier;
     }
-        
-    // 
+
+    //
     // Output this instance
     //
     function printMe($rowspan, $download_url) {
@@ -112,7 +112,7 @@ class downloadFileInfo {
             }
             print("<TD ALIGN=RIGHT>$this->size</TD>\n");
             print("<TD ALIGN=RIGHT>$this->mtime</TD>\n");
-            
+
             print("<TD><TABLE BORDER=0>\n");
             if ($this->mdsum) {
                 print("<TR>\n<TD ALIGN=RIGHT>MD5:</TD>\n<TD>$this->mdsum</TD></TR>");
@@ -124,7 +124,7 @@ class downloadFileInfo {
         }
     }
 }
-    
+
 //
 // Base class to hold info for download files
 //
@@ -132,26 +132,26 @@ class downloadTable {
     var $files;
     var $download_url, $download_dir;
     var $title;
-    
+
     //
     // Constructor
     //
     function downloadTable($download_url, $download_dir, $base_url) {
         global $download_base;
-        
+
         $this->download_url = $download_url;
         $this->download_dir = $download_dir;
         $this->base_url = $base_url;
         $this->title = "";
     }
-    
+
     //
     // Add a heading to the table
     //
     function setHeader($title) {
         $this->title= $title;
     }
-    
+
     //
     // Add a file to the table
     //
@@ -160,7 +160,7 @@ class downloadTable {
         $foo->setFile($section, $file, $this->base_url, $this->download_url, $mdsum, $shasum);
         $this->files[] = $foo;
     }
-    
+
     //
     // Add an external link to the table
     //
@@ -172,13 +172,13 @@ class downloadTable {
         $foo->setLink($section, $text, $date, $link, $a_modifier);
         $this->files[] = $foo;
     }
-    
+
     //
     // Function to cache / print out an entry in the table
     //
     function printMe() {
         $next_section = 0;
-        
+
         if (sizeof($this->files) == 0) {
             return;
         }
@@ -200,14 +200,14 @@ class downloadTable {
             $f = $this->files[$i];
             if ($next_section == $i) {
                 $s = $f->section;
-                for ($next_section = $j = $i + 1; $j < sizeof($this->files); 
+                for ($next_section = $j = $i + 1; $j < sizeof($this->files);
                      $next_section++, $j++) {
                     $f2 = $this->files[$j];
                     if ($f2->section != $s) {
                         break;
                     }
                 }
-                
+
                 $rowspan = $next_section - $i;
             } else {
                 $rowspan = 0;
