@@ -6,12 +6,12 @@ $vpos = 0;
 $graph = 0;
 $data = array();
 
-# The v1.7 series isn't done yet
-$beyond_end_date = strftime("%Y-%m-%d", time() + (90 * 24 * 60 * 60));
+# The v1.7 series is done
+$beyond_end_date = "2014-05-01";
 
 //////////////////////////////////////////////////////////////////////////
 // v1.7 release series
-series("v1.7 series", "2012-04-15", $beyond_end_date, $data, $vpos, $graph);
+series("v1.7 series", "2012-03-15", $beyond_end_date, $data, $vpos, $graph);
 milestone("branch", "2012-04-03", $data, $vpos);
 milestone("v1.7", "2013-04-01", $data, $vpos);
 milestone("v1.7.1", "2013-04-16", $data, $vpos);

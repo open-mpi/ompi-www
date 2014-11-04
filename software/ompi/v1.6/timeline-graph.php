@@ -6,8 +6,8 @@ $vpos = 0;
 $graph = 0;
 $data = array();
 
-# The v1.6 series isn't done yet
-$beyond_end_date = strftime("%Y-%m-%d", time() + (90 * 24 * 60 * 60));
+# The v1.6 series is done
+$beyond_end_date =  "2013-09-01";
 
 //////////////////////////////////////////////////////////////////////////
 // v1.6 release series
