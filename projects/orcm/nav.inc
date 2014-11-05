@@ -2,6 +2,7 @@
 include_once("$topdir/includes/nav.inc");
 
 $this_dir = "orcm";
+$this_nav[] = new Nav("Download v0.5 (preview)", "$topdir/software/orcm/v0.5/");
 $this_nav[] = new Nav("Documentation", "https://github.com/open-mpi/orcm/wiki");
 $this_nav[] = new Nav("License", "$topdir/projects/orcm/license.php");
 $this_nav[] = new Nav("Mailing lists", "$topdir/community/lists/orcm.php");
