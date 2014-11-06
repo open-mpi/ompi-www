@@ -99,6 +99,9 @@ news("Open MPI v1.8.3 released",
 news("hwloc v1.10.0 released",
      "New feature release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2014/10/0072.php");
+news("ORCM v0.5.0 released",
+     "New preview release",
+     "http://www.open-mpi.org/community/lists/orcm-announce/2014/11/0000.php");
 
 ?>
 
