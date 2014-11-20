@@ -31,6 +31,14 @@ href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.ps">ps</a>]
 
 <p><B>Open MPI Bibliography and Papers:</B><BR>
 
+<p><strong>2014</strong></p>
+<UL>
+<?php
+print_papers(array("sc-2014"
+		   ));
+?>
+</UL>
+
 <p><strong>2013</strong></p>
 <UL>
 <?php
