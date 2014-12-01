@@ -55,7 +55,7 @@ suspected bug reports, etc. to the list at the following address:</p>
 <?php print_list("pmix-devel"); ?>
 
 <?php print_link("Git commit list (<font color=red>USERS
-CANNOT POST TO THIS LIST</font>)", "otpo-svn"); ?>
+CANNOT POST TO THIS LIST</font>)", "pmix-commits"); ?>
 
 <p>A mail is sent to this list for every Git push to Github commit in
 the PMIx code base.  The mail includes a list of files that were
