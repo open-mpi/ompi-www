@@ -27,7 +27,7 @@ $q[] = "Is there documentation for the Java interface?";
 $anchor[] = "java_docs";
 
 $a[] = "The Java API documentation is generated at build time in
-'$prefix/share/doc/openmpi/javadoc'.
+'\$prefix/share/doc/openmpi/javadoc'.
 
 Here you have an overview of how to use the Java bindings:
 <a href=\"http://blogs.cisco.com/performance/java-bindings-for-open-mpi\">
