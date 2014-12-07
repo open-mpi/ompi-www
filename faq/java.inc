@@ -37,8 +37,8 @@ The following paper serves as a reference for the API, and in addition
 provides details of the internal implementation to justify some of the
 design decisions:
 <ul>
-    O. Vega-Gisbert, J. E. Roman, and J. M. Squyres. "Design and
-    implementation of Java bindings in Open MPI". Submitted (2014).
+    O. Vega-Gisbert, J. E. Roman, and J. M. Squyres. \"Design and
+    implementation of Java bindings in Open MPI\". Submitted (2014).
 </ul>";
 
 /////////////////////////////////////////////////////////////////////////
