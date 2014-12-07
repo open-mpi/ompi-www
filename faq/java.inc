@@ -2,104 +2,65 @@
 $q[] = "Why is there a Java interface in Open MPI?";
 $anchor[] = "java_why";
 
-$a[] = "The Java interface is provided in Open MPI on a provisional
-basis. It is not part of the current or any proposed MPI
-standard. Continued inclusion of the Java interface is contingent upon
-active user interest and continued developer support.
-
-The decision to add a Java interface to Open MPI was motivated by a
-request from the Hadoop community. Hadoop is a Java-based environment
-for processing extremely large data sets. Modeled on the Google
-enterprise system, it has evolved into its own rapidly growing
-open-source community.
-
-Although executed in parallel, Hadoop processes are independent
-and thus would only possibly use MPI as a base for efficient
-messaging. Of greater interest, however, is the ability to
-add MPI-based follow-on processing to a Hadoop map-reduce
-operation. Since Hadoop map-reduce is typically done in Java,
-any subsequent MPI operations would best be done in that language.";
+$a[] = "Because there is an increasing interest in using Java for HPC.
+Also, MPI can benefit from Java because its widespread use makes it
+likely to find new uses beyond traditional HPC applications.";
 
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "What MPI coverage is provided by the Java interface?";
 $anchor[] = "java_cover";
 
-$a[] = "The Java interface currently covers all MPI 1.2 APIs. Work to
-extend the interface to the full MPI-3 specification is on-going.";
+$a[] = "Almost full MPI-3 coverage.";
 
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "What releases contain the Java interface?";
 $anchor[] = "java_rels";
 
-$a[] = "The Java interface is included in the Open MPI developer code
-trunk. Nightly snapshots of that code repository are available as
-tarballs from our web site at <a
-href=\"http://www.open-mpi.org/nightly/trunk/index.php\" >Nightly
-Snapshots</a>.
-
-There was discussion of including the Java interface in an upcoming
-release, but as of January 2013, the development community has decided
-that it is not yet ready, and is therefore only available in the
-development trunk.";
+$a[] = "The Java bindings are integrated into Open MPI starting from
+the v1.7 series.";
 
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "Is there documentation for the Java interface?";
 $anchor[] = "java_docs";
 
-$a[] = "The Java interface documentation is included in the Open MPI
-man pages. Please note that we are working to complete this
-documentation - if you don't see a specific interface documented, it
-may just be that we haven't gotten to it yet.";
+$a[] = "The Java API documentation is generated at build time in
+'$prefix/share/doc/openmpi/javadoc'.
+
+Here you have an overview of how to use the Java bindings:
+<a href=\"http://blogs.cisco.com/performance/java-bindings-for-open-mpi\">
+Cisco Blog for High Performance Computing Networking</a>
+
+The following paper serves as a reference for the API, and in addition
+provides details of the internal implementation to justify some of the
+design decisions:
+<ul>
+    O. Vega-Gisbert, J. E. Roman, and J. M. Squyres. "Design and
+    implementation of Java bindings in Open MPI". Submitted (2014).
+</ul>";
 
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "How do I build the Java interface?";
 $anchor[] = "java_build";
 
-$a[] = "The Java interface will build only if it is explicitly
-requested and the required JDK support is found.  Java support
-requires that Open MPI be built at least with shared libraries (i.e.,
---enable-shared) - any additional options are fine and will not
-conflict. Note that this is the default for Open MPI, so you don't
-have to explicitly add the option.
-
-If the JDK is not in a place where we automatically find it, you can
-specify the location. Two
-options are available for this purpose:
+$a[] = "In order to use Java bindings in Open MPI, they must be enabled
+during configuration. If the JDK can be found in a standard location,
+the simplest way to do this is:
 
 <faqcode>
---with-jdk-bindir=[the location of javac and javah]
---with-jdk-headers=[the directory containing jni.h]
+shell$ ./configure --enable-mpi-java ...
 </faqcode>
 
-For simplicity, typical configurations are provided in platform files
-under contrib/platform/hadoop. These will meet the needs of most
-users, or at least provide a starting point for your own custom
-configuration.
-
-In summary, therefore, you can configure the system using the
-following Java-related options:
+Otherwise, it is necessary to indicate where the JDK binaries and headers
+are located:
 
 <faqcode>
-./configure --with-platform=contrib/platform/hadoop/[your-platform] ...
-</faqcode>
-
-or
-
-<faqcode>
-./configure --enable-mpi-java --with-jdk-bindir=foo --with-jdk-headers=bar ...
-</faqcode>
-
-or simply
-
-<faqcode>
-./configure --enable-mpi-java ...
-</faqcode>
-
-if the JDK is in a standard place that we automatically find.";
+shell$ ./configure --enable-mpi-java --with-jdk-bindir=<foo>
+                   --with-jdk-headers=<bar> ...
+</faqcode>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -136,21 +97,17 @@ application classes must be available on all nodes.";
 $q[] = "Where did the Java interface come from?";
 $anchor[] = "java_origin";
 
-$a[] = "We have based the Open MPI interface on the mpiJava code
+$a[] = "Initially we based the Open MPI interface on the mpiJava code
 originally developed at Syracuse and Indiana Universities, and
-subsequently maintained by HLRS. Documentation on their use can be
-found in the Publications section of our FAQ site at <a
-href=\"http://www.open-mpi.org/papers/mpi-java-presentation/\" >MPI
-Java Tutorial</a> and at <a
-href=\"http://www.open-mpi.org/papers/mpi-java-spec/\" >MPI Java
-Spec</a>.";
+subsequently maintained by HLRS. However, we later totally rewrote the
+Java bindings and extended the API to cover MPI-3 functionality.";
 
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "Does the Java interface impact performance of my non-Java application?";
 $anchor[] = "java_impact";
 
-$a[] = "The Java interface in Open MPI is logically separated from,and
+$a[] = "The Java interface in Open MPI is logically separated from, and
 completely transparent to, all other Open MPI users and have zero
 performance impact on the rest of the code/bindings.";
 
@@ -159,8 +116,10 @@ performance impact on the rest of the code/bindings.";
 $q[] = "How does MPI perform under Java?";
 $anchor[] = "java_perform";
 
-$a[] = "We are currently quantifying the performance of MPI-based Java
-applications. Historically, Java-based applications have exhibited a
-roughly 20% reduction in performance when compared to the C-based
-equivalent. However, Java has improved significantly over the years
-and we expect this difference to be less that previously observed.";
+$a[] = "We have tested the Java bindings against some benchmarks and
+the results are satisfactory (having a slight overhead with respect to
+C/Fortran code).
+
+We suggest users experiencing performance problems to contact the
+<a href=\"http://www.open-mpi.org/community/lists/ompi.php\">
+OMPI users mailing list</a>.";
