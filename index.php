@@ -87,21 +87,18 @@ information</a></h3>
 
 <?php 
 # Lists are not mirrored - use an absolute URL
-news("SC2014 State Of The Union BOF",
-     "Want to ask the OMPI developers something at the BOF?",
-     "sc2014/");
-news("Performance Benchmarks",
-     "New section on performance benchmarks added",
-     "http://www.open-mpi.org/performance/");
-news("Open MPI v1.8.3 released",
+news("Open MPI v1.8.4 released",
      "Stable release",
-     "http://www.open-mpi.org/community/lists/announce/2014/09/0064.php");
+     "http://www.open-mpi.org/community/lists/announce/2014/12/0066.php");
 news("hwloc v1.10.0 released",
      "New feature release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2014/10/0072.php");
 news("ORCM v0.5.0 released",
      "New preview release",
      "http://www.open-mpi.org/community/lists/orcm-announce/2014/11/0000.php");
+news("Performance Benchmarks",
+     "New section on performance benchmarks added",
+     "http://www.open-mpi.org/performance/");
 
 ?>
 
