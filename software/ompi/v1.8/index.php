@@ -90,6 +90,7 @@ $t_older = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP
 
 if (isset($t_older)) {
     $versions = array();
+    $versions[] = "1.8.3";
     $versions[] = "1.8.2";
     $versions[] = "1.8.1";
     $versions[] = "1.8";
