@@ -25,7 +25,7 @@ and (b) provide a reference implementation of the PMI-server that demonstrates
 the desired level of scalability. </p>
 
 <h3>Client-side Library</h3>
-<p>The client side library is provided as source under the Open MPI's New BSD <a href="../../community/license.php">license</a>. Official releases are expected to be available beginning in late summer of 2014. Meantime, the development trunk is maintained in the PMIx Github repository located <a href="https://github.com/open-mpi/pmix">here</a>. Client library features include:
+<p>The client side library is provided as source under the Open MPI's New BSD <a href="../../community/license.php">license</a>. Official releases are expected to be available beginning in late summer of 2014. Meantime, the development master is maintained in the PMIx Github repository located <a href="https://github.com/open-mpi/pmix">here</a>. Client library features include:
 </p>
 
 <ul>
