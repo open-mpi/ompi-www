@@ -117,7 +117,7 @@ versions that we <em>know</em> work.</p>
 </TR>
 
 <TR>
-<TD>master</TD><TD>1.4.16</TD><TD>2.69</TD><TD>1.13.3</TD><TD>2.4.2</TD><TD>2.5.35</TD>
+    <TD>master</TD><TD>1.4.16</TD><TD>2.69</TD><TD>1.13.3</TD><TD>2.4.2</TD><TD>2.5.35</TD>
 </TR>
 
 </TABLE>
@@ -126,34 +126,55 @@ versions that we <em>know</em> work.</p>
 
 <!- ------------------------------------------------------------------ -->
 
-<P>Note that other version combinations <em>may</em> work, but are
-untested and unsupported.</P>
+<p>Autotools notes:
 
-<p> Note that the v1.4 and v1.5 series had their Automake versions
-updated on 10 July 2011 (from 1.10.1 to 1.10.3, and 1.11 to 1.11.1,
-respectively) due to CVE-2009-4029.  This applies to all new snapshot
-tarballs produced after this date, and the v1.4 series as of v1.4.4,
-and the v1.5 series as of 1.5.4.</p>
+<OL>
 
-<P><B>Autoconf/Automake Note:</B> If Autoconf 2.60 (and higher) is
-used, Automake 1.10 (and higher) <b>must</b> be used.
+<LI> Other version combinations <em>may</em> work, but are untested
+     and unsupported.  In particular, developers tend to use higher
+     versions of Autotools for master/development work, and they
+     usually work fine.</LI>
 
-<P><B>Libtool Note:</B> The Open MPI v1.2 branch and later (including
-the present trunk) require the use of the Libtool 2 so that Open MPI
-can build the Fortran 90 module as a shared library.  If (and only if)
-you intend to not build the Fortran 90 library or your Fortran 77 and
-Fortran 90 compilers have the same name (ie, gfortran), you can use
-Libtool 1.5.22.</p>
+<UL>
+<LI> <STRONG>Note that as of December 2014, there is a bug somewhere
+     in the Autotools (possibly in Autoconf) that prevents building
+     Open MPI with Libtool 2.4.3 or higher.  <A
+     HREF="https://github.com/open-mpi/ompi/issues/311">See this
+     Github issue for more details</A>.</STRONG></LI>
+</UL>
 
-<blockquote><font color=red>Note:</font> There was a period of time
-where OMPI nightly trunk snapshot tarballs were made with a <a
-href="libtool.tar.gz">Libtool 2.0 development snapshot</a>.  This is
-now deprecated; Open MPI uses official Libtool releases (no official
-Open MPI releases used the Libtool 2.0 development
-snapshot).</blockquote>
+<LI> The v1.4 and v1.5 series had their Automake versions updated on
+     10 July 2011 (from 1.10.1 to 1.10.3, and 1.11 to 1.11.1,
+     respectively) due to CVE-2009-4029.  This applies to all new
+     snapshot tarballs produced after this date, and the v1.4 series
+     as of v1.4.4, and the v1.5 series as of 1.5.4.</LI>
+
+<LI> If Autoconf 2.60 (and higher) is used, Automake 1.10 (and higher)
+     <b>must</b> be used.</LI>
+
+<LI> The Open MPI v1.2 branch and later (including the present master)
+     require the use of the Libtool 2.x (or higher) so that Open MPI
+     can build the Fortran 90 module as a shared library.  If (and
+     only if) you intend to not build the Fortran 90 library or your
+     Fortran 77 and Fortran 90 compilers have the same name (e.g.,
+     gfortran), you can use Libtool 1.5.22 to build Open MPI v1.0
+     through v1.2.x.</LI>
+
+<LI> There was a period of time where OMPI nightly trunk snapshot
+     tarballs were made with a <a href="libtool.tar.gz">Libtool 2.0
+     development snapshot</a>.  This is now deprecated; Open MPI uses
+     official Libtool releases (no official Open MPI releases used the
+     Libtool 2.0 development snapshot).</LI>
+
+</OL>
+</P>
+
+<!- ------------------------------------------------------------------ -->
 
 <P> Although it should probably be assumed, you'll also need a C/C++
-compiler.</P>
+compiler.  You'll also need a Fortran compiler if you want to build
+the Fortran MPI bindings, and a Java compiler if you want to build the
+(unofficial) Java MPI bindings.</P>
 
 <P> The <?php
 print("<a href=\"https://github.com/open-mpi/ompi/blob/master/HACKING\">");
@@ -178,9 +199,10 @@ debugging code is enabled.</font></strong> This results in a
 several options for building an optimzed Open MPI; see the HACKING
 file for more details.</p>
 
-<p><strong>NOTE:</strong> Most Linux distributions and OSX install Flex
-by default (and this is sufficient).  Other operating systems may
-provide "lex", but this is notsufficient -- flex is required.</p>
+<p><strong>NOTE:</strong> Most Linux distributions and OS X install
+Flex by default (and this is sufficient).  Other operating systems may
+provide "lex", but this is <em>not</em> sufficient -- flex is
+required.</p>
 
 <?php 
   include_once("$topdir/includes/footer.inc"); 
