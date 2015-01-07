@@ -80,7 +80,7 @@ checkpoint/restart systems (e.g., Condor, libckpt) and protocols
 
 <font color=\"red\"><strong>Note:</strong></font>
 The checkpoint/restart support was last released as part of the v1.6 series.
-The v1.7 series and the Open MPI trunk do not support this functionality (most of
+The v1.7 series and the Open MPI master do not support this functionality (most of
 the code is present in the repository, but it is known to be non-functional in 
 most cases).
 This feature is looking for a maintainer. Interested parties should inquire
@@ -94,12 +94,12 @@ $q[] = "Where can I find the fault tolerance development work?";
 $anchor[] = "ft-location";
 
 $a[] = "The end-to-end MPI message data reliability work is being actively
-developed on the subversion trunk (i.e., reliable message passing over
+developed on the git master  (i.e., reliable message passing over
 unreliable networks).  See <a href=\"#dr-support\">this FAQ entry</a>
 for more details.
 
 The coordinated checkpoint and restart process fault tolerance work is
-currently available on the Open MPI development trunk and in the v1.3
+currently available on the Open MPI development master and in the v1.3
 release series. For more information about how to use this feature see
 the following websites:
 <ul>
@@ -141,7 +141,7 @@ explicit data reliability support (i.e., more functionality than is
 provided by the underlying network).
 
 Specifically, the data reliability (\"dr\") PML component (available
-on the trunk, but not yet in a stable release) assumes that the
+on the master, but not yet in a stable release) assumes that the
 underlying network is unreliable.  It can drop / restart connections,
 retransmit corrupted or lost data, etc.  The end effect is that data
 sent through MPI API functions will be guaranteed to be reliable.

@@ -15,7 +15,7 @@ file provides short bullets describing user-visible changes in Open
 MPI between versions.
 
 <p>The NEWS file at the head of our development (i.e., the Git
-"master" branch) is kept up-to-date with changes both on the trunk and
+"master" branch) is kept up-to-date with changes both on the master and
 all release branches.  The Open MPI team starts a new section in NEWS
 immediately after each release and keeps it up-to-date as changes are
 made in the repository.  Hence, checking this file will show he

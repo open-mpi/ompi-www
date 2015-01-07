@@ -117,7 +117,7 @@ versions that we <em>know</em> work.</p>
 </TR>
 
 <TR>
-<TD>trunk</TD><TD>1.4.16</TD><TD>2.69</TD><TD>1.12.2</TD><TD>2.4.2</TD><TD>2.5.35</TD>
+<TD>master</TD><TD>1.4.16</TD><TD>2.69</TD><TD>1.12.2</TD><TD>2.4.2</TD><TD>2.5.35</TD>
 </TR>
 
 </TABLE>
