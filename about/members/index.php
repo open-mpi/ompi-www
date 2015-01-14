@@ -210,6 +210,8 @@ Stuttgart (HLRS)", "University of Stuttgart", "hlrs.png", $member);
 
 add_org("http://www.ibm.com/", "IBM", "", "ibm.jpg", $contrib);
 
+add_org("http://www.intel.com/", "Intel", "", "intel.jpg", $member);
+
 add_org("http://icl.cs.utk.edu/", "Innovative Computing
 Laboratory", "Department of Computer Science, University of
 Tennessee", "utk-icl.gif", $member);
