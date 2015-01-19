@@ -46,9 +46,9 @@ Synthetic description string</h1>
 <p>Cache level depths are automatically chosen by hwloc (only a L2 first, then a L1 under it, then L3 above, then L4 etc.) unless they are specified. Memory and cache sizes are also automatically chosen. The only way to modifying them is to export to XML and manually modify the file.</p>
 <p>Each item may be followed parentheses containing a list of space-separated attributes. For instance: </p><ul>
 <li>
-<code>L2iCache:2(size=32768)</code> specifies 2 children of 32kB level-2 instruction caches.  </li>
+<code>L2iCache:2(size=32kB)</code> specifies 2 children of 32kB level-2 instruction caches. The size may be specified in bytes (without any unit suffix) or as TB, GB, MB or kB.  </li>
 <li>
-<code>NUMANode:3(memory=16777216)</code> specifies 3 NUMA nodes with 16MB each.  </li>
+<code>NUMANode:3(memory=16MB)</code> specifies 3 NUMA nodes with 16MB each. The size may be specified in bytes (without any unit suffix) or as TB, GB, MB or kB.  </li>
 <li>
 <code>PU:2(indexes=0,2,1,3)</code> specifies 2 PU children and the full list of OS indexes among the entire set of 4 PU objects.  </li>
 <li>

@@ -245,6 +245,7 @@ Functions</h2></td></tr>
 
 <p>Insert an object somewhere in the topology. </p>
 <p>It is added as the last child of the given parent. The cpuset is completely ignored, so strange objects such as I/O devices should preferably be inserted with this.</p>
+<p>When used for "normal" children with cpusets (when importing from XML when duplicating a topology), the caller should make sure children are inserted in order.</p>
 <p>The given object may have children.</p>
 <p>Remember to call topology_connect() afterwards to fix handy pointers. </p>
 

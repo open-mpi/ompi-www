@@ -82,6 +82,8 @@ Custom string infos</h1>
 <dd>The MAC address and the port number of a software network interface, such as <code>eth4</code> on Linux.  </dd>
 <dt>NodeGUID, SysImageGUID, Port1State, Port2LID, Port2LMC, Port3GID1 (OpenFabrics OS devices) </dt>
 <dd>The node GUID and GUID mask, the state of a port #1 (value is 4 when active), the LID and LID mask count of port #2, and GID #1 of port #3.  </dd>
+<dt>hwlocVersion </dt>
+<dd>The version number of the hwloc library that was used to generate the topology. If the topology was loaded from XML, this is not the hwloc version that loaded it, but rather the first hwloc instance that exported the topology to XML earlier.  </dd>
 </dl>
 <p>Here is a non-exhaustive list of user-provided info attributes that have a special meaning: </p><dl>
 <dt>lstopoStyle </dt>
