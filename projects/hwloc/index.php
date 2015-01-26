@@ -255,7 +255,8 @@ href="http://runtime.bordeaux.inria.fr">Inria Runtime Team-Project</a>
 (headed by <a href="http://dept-info.labri.fr/~namyst/">Raymond
 Namyst</a>).  PLPA was initially developed by the Open MPI development
 team as a sub-project.  Both are now deprecated in favor of hwloc,
-which is distributed here as an Open MPI sub-project.</p>
+which is mostly developed by Inria (Bordeaux, France),
+and is distributed here as an Open MPI sub-project.</p>
 
 <p>Portability tests are performed thanks to
 the Inria <a href="https://ci.inria.fr/hwloc/">Continuous Integration</a> platform.
