@@ -42,7 +42,19 @@ for development and bug tracking.
 
 <li> You must have a GitHub account (they're free) to file bugs,
 comment on bugs, and subscribe to bugs (i.e., be notified when they're
-changed).</li>
+changed).
+<ul>
+
+<li> File bugs in the <a
+href="https://github.com/open-mpi/ompi/issues">Github issue
+tracker</a> on the <code>ompi</code> repository.</li>
+
+<li> Including short reproducer codes is always helpful.  <a
+href="https://gist.github.com/">Create a Gist</a> (with your same
+Github account) and include its link in the Github issue.</a></li>
+
+</ul>
+</li>
 
 <li> <a href="https://github.com/open-mpi/ompi/milestones">List
 of active tickets by version</a></li>

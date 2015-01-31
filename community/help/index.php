@@ -9,11 +9,11 @@
 
 <p>If you have a bug report and/or patch for Open MPI, you should
 probably subscribe to the Open MPI <a href="<?php print($topdir);
-?>/community/lists/ompi.php">developer's list</a> and post it there.
-Open MPI uses <a href="http://trac.edgewall.org/">Trac</a> for its bug
-tracking (see the "Bug Tracking" link in the left-hand navigation), but
-only developers are allowed to open new tickets (mainly as an artifact
-of our SVN+Trac authentication system; it's never been a big enough
+?>/community/lists/ompi.php">developer's list</a> and post it there.  Open MPI uses <a
+href="https://github.com/open-mpi/ompi/issues">Github issues</a> for
+its bug tracking (see the "Bug Tracking" link in the left-hand
+navigation), but only developers are allowed to open new tickets
+(mainly as an artifact of our SVN+Trac authentication system; it's never been a big enough
 issue for us to figure out how to issue non-developer/Trac-only
 accounts).</p>
 
@@ -173,7 +173,7 @@ foreach? end");
 
       <LI> Please include information about your network:
 
-           <UL> 
+           <UL>
 
 	   <LI> For Myrinet-based networks, include the information <a
                 href="<? print($topdir);
@@ -193,7 +193,7 @@ foreach? end");
                <code>/usr/sbin/ifconfig</code>.</LI>
 
 	   </UL></LI>
-	      
+
     </OL>
 
   <P><LI><STRONG>For compile problems</STRONG>:
@@ -219,7 +219,7 @@ foreach? end");
     <LI> Output from when you ran "<code>make install</code>" to
     install Open MPI (<strong>please compress, e.g., with
     bzip2!</strong>)</LI>
- 
+
     </OL>
 </UL>
 
@@ -317,5 +317,5 @@ sending a link to it on the list.
 
 <P> Make today an Open MPI day!
 
-<?php 
-  include_once("$topdir/includes/footer.inc"); 
+<?php
+  include_once("$topdir/includes/footer.inc");
