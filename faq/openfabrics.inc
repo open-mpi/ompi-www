@@ -1984,6 +1984,30 @@ shell$ mpirun --mca btl <font color=red>openib</font>,self,sm --mca btl_openib_c
 (or set these MCA parameters <a
 href=\"./?category=tuning#setting-mca-params\">in other ways</a>)
 
+*How does MXM run on top of RoCE?*
+
+In order to use RoCE with <a href=\"#mxm\">MXM</a>, the Ethernet port must be specified using the MXM_RDMA_PORTS
+environment parameter.<Br>
+For example:
+
+<faqcode>
+shell$ mpirun --mca pml cm -mca mtl mxm <font color=red>-x MXM_RDMA_PORTS=mlx4_0:2</font> ...
+</faqcode>
+
+MXM can also be run with the 'yalla' pml. Using RoCE requires the same environment
+parameter:
+
+<faqcode>
+shell$ mpirun --mca pml yalla <font color=red>-x MXM_RDMA_PORTS=mlx4_0:2</font> ...
+</faqcode>
+
+Older versions of MXM may also require an additional environment parameter:
+
+<faqcode>
+shell$ mpirun --mca pml cm -mca mtl mxm <font color=red>-x MXM_RDMA_PORTS=mlx4_0:2 -x MXM_TLS=self,shm,ud</font> ...
+</faqcode>
+
+
 *How do I tell Open MPI to use a specific RoCE VLAN?*
 
 When a system administrator configures VLAN in RoCE, every VLAN is
@@ -2211,26 +2235,36 @@ shell$ ./configure <font color=red>--with-mxm=/opt/mellanox/mxm</font> ...
 
 *Enabling MXM in Open MPI 1.6.1 or later*
 
-Running Open MPI job with MXM:
+In Open MPI 1.6 and above, MXM will be enabled by default, regardless of the number of ranks.
 
+Running an Open MPI job with MXM:
+
+MXM can be run in one of two ways:
+
+<ul>
+<li>
+With 'pml cm' and 'mtl mxm'
 <faqcode>
-shell$ mpirun <font color=red>--mca mtl mxm</font> ...
+shell$ mpirun <font color=red>--mca pml cm --mca mtl mxm</font> ...
 </faqcode>
-
-MXM advantages kick in with large Open MPI jobs only.
-By default, MXM is automatically selected by Open MPI when the job has at
-least 128 ranks.
-To enable MXM for an arbitrary number of ranks ( N ), please use the following parameter:
-
+</li>
+<li>
+With 'pml yalla'.<Br>
 <faqcode>
-shell$ mpirun <font color=red>--mca mtl_mxm_np &lt;N&gt;</font> ...
+shell$ mpirun <font color=red>--mca pml yalla</font> ...
 </faqcode>
+</li>
+</ul>
 
-To activate MXM for any job, run the following command:
+<ul>The 'yalla' pml calls MXM directly and therefore improves the performance significantly.<Br>
+Pml 'yalla' and pml 'cm' are mutually exclusive.<Br>
+</ul>
+$note Please note that the 'yalla' pml is available only from Open MPI v1.9 and above.
+
+In older versions of Open MPI (before v1.6), MXM is automatically selected when the job has at
+least 128 ranks. To activate MXM for any number of ranks, run the following command:
 
 <faqcode>
 shell$ mpirun <font color=red>--mca mtl_mxm_np 0</font> ...
 </faqcode>
-
-$note In Open MPI 1.6 MXM will always be selected, regardless of the number of ranks.";
-
+";
