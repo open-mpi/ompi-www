@@ -13,7 +13,7 @@ The following versions are available as nightly snapshots:
 <p> <strong>Current development</strong>
 
 <li><a href="master/"><strong>Master</strong></a> (development head):
-These snapshots are from the svn master branch and reflect the current
+These snapshots are from the git master repo and reflect the current
 head of development.  The usual disclaimers about the state of
 development code apply.</li>
 
