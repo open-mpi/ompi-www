@@ -13,10 +13,9 @@
 <h2>These are not stable releases of software packages!</h2>
 
 <p>Note that snapshots are only generated when there has been a commit to
-the corresponding branch in the svn repository.  This may be less than
-once a day!</p>
+the corresponding branch in the git repository during the last day.</p>
 
-<p>Tarballs are made from the svn master branch nightly at approximately
+<p>Tarballs are made from the git master branch nightly at approximately
 9pm US Indiana time.</p>
 
 <?php
