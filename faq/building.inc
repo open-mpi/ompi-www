@@ -1409,7 +1409,7 @@ $anchor[] = "build-cuda";
 $a[] = "CUDA-aware support means that the MPI library can send and receive GPU 
 buffers directly.  This feature exists in the Open MPI 1.7 series and later.  The support
 is being continuously updated so different levels of support exist in different
-versions.
+versions.  We recommend you use the latest 1.8 version for best support.
 
 *Configuring Open MPI 1.7, MPI 1.7.1 and 1.7.2*
 
