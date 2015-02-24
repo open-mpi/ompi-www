@@ -1701,7 +1701,19 @@ with CUDA-aware support, but run on machines that do not have CUDA installed.
 host memory if it is not available.
 </ul>
 
-*For best results, it is recommended that you use Open MPI 1.7.3 or later.*
+*Open MPI 1.8.0 - 1.8.4 New Features*
+<ul>
+<li> Minor error handling fixes.
+<li> Better cleanup of CUDA resources
+</ul>
+
+*Open MPI 1.8.5 New Features*
+<ul>
+<li> Improved on-node GPU to GPU transfers even when CUDA IPC is not supported between the two GPUs.
+<li> Properly handle Unified Memory.  This is done by disabling CUDA IPC and GPU Direct RDMA optimizations on Unified Memory buffers.
+</ul>
+
+*For best results, it is recommended that you use the latest version of Open MPI which as of this writing was Open MPI 1.8.4.*
 
 *Additional Information about CUDA-aware support*
 
@@ -1750,8 +1762,9 @@ on some verbosity that shows whether CUDA IPC gets enabled between two GPUs.
 
 *GPU Direct RDMA Information*
 
-Open MPI 1.7.4 has added some support to take advantage of GPU Direct RDMA on Mellanox cards.
-However, the supporting driver has not been released yet, so these features cannot be used yet.
+Open MPI 1.7.4 and later have added some support to take advantage of GPU Direct RDMA on Mellanox cards.
+All the details about Mellanox hardware as well as software needed to get things to work can be found at
+<a href=\"http://www.mellanox.com/page/products_dyn?product_family=116&mtag=gpudirect\"> Mellanox web site.</a> 
 Note that to get GPU Direct RDMA support, you also need to configure your Open MPI library
 with CUDA 6.0.
 
