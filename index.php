@@ -93,9 +93,9 @@ news("Open MPI v1.8.4 released",
 news("hwloc v1.10.1 released",
      "New stable release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2015/01/0075.php");
-news("ORCM v0.5.0 released",
+news("ORCM v0.7.0 released",
      "New preview release",
-     "http://www.open-mpi.org/community/lists/orcm-announce/2014/11/0000.php");
+     "http://www.open-mpi.org/community/lists/orcm-announce/2015/02/0001.php");
 news("Performance Benchmarks",
      "New section on performance benchmarks added",
      "http://www.open-mpi.org/performance/");
