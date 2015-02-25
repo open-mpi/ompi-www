@@ -1,8 +1,8 @@
 <?php
 $topdir = "../../..";
 
-include_once("$topdir/software/orcm/v0.5/version.inc");
-$title = "Open RCM: Version 0.5";
+include_once("$topdir/software/orcm/v0/version.inc");
+$title = "Open RCM: Version 0";
 
 include_once("$topdir/projects/orcm/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -15,6 +15,13 @@ $sha1 = read_checksums("downloads/sha1sums.txt");
 
 $t = new downloadTable("./downloads", "./downloads",
 		       dirname($_SERVER["PHP_SELF"]));
+
+$src = "v0.7.0 (preview) source code";
+$name = "openrcm-0.7.0.tar";
+$t->addFile($src, "$name.bz2", $md5["$name.bz2"], $sha1["$name.bz2"]);
+$t->addFile($src, "$name.gz", $md5["$name.gz"], $sha1["$name.gz"]);
+$name = "openrcm-0.7.0-1.src.rpm";
+$t->addFile($src, $name, $md5[$name], $sha1[$name]);
 
 $src = "v0.5.0 (preview) source code";
 $name = "openrcm-0.5.0.tar";
@@ -29,7 +36,7 @@ $t->addFile($src, $name, $md5[$name], $sha1[$name]);
 #
 #############################################################################
 
-$prev_describe = "the v0.5 download page";
+$prev_describe = "the v0 download page";
 $psave = $project;
 $project = "Open RCM";
 include_once("$topdir/includes/subscribe-announce.inc");
