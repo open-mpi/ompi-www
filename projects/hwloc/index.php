@@ -42,6 +42,26 @@ It primarily aims at helping
 applications with gathering information about modern computing
 hardware so as to exploit it accordingly and efficiently.</p>
 
+<p> The democratization of multicore processors and NUMA architectures
+leads to the spreading of complex hardware topologies into the whole server world.
+Nodaways every single cluster node may contain tens of cores, hierarchical caches,
+and multiple memory nodes, making its topology far from flat.
+Such complex and hierarchical topologies have strong impact of the application performance.
+The developer must take hardware affinities into account when trying to exploit
+the actual hardware performance. For instance, two tasks that tightly cooperate
+should probably rather be placed onto cores sharing a cache.
+However, two independent memory-intensive tasks should better be spread out
+onto different sockets so as to maximize their memory throughput.
+As described in <a href="http://hal.inria.fr/inria-00496295">this paper</a>,
+OpenMP threads have to be placed according to their affinities and to the
+hardware characteristics.
+MPI implementations apply similar techniques while also adapting their
+communication strategies to the network locality as described in
+<a href="http://hal.inria.fr/inria-00486178">this paper</a>
+or <a href="http://hal.inria.fr/inria-00566246">this one</a>.
+</p>
+
+
 <!------------------------------------------------------------------------->
 
 <h3>Portability and support</h3>
@@ -230,30 +250,26 @@ system</a>.</a>
 <p>
  See also the
  <a href="http://www.open-mpi.org/papers/">Open MPI publication list</a>.
- and the bottom of the
- <a href="http://runtime.bordeaux.inria.fr/hwloc/">Inria hwloc research page</a>.
 </p>
 
 <!------------------------------------------------------------------------->
 
 <h3>History / credits</h3>
 
-<p>hwloc is the evolution and merger of the <a
-href="http://runtime.bordeaux.inria.fr/libtopology/">libtopology</a>
-project and the <a href="../plpa/">Portable Linux Processor Affinity
-(PLPA)</a> project.  Because of functional and ideological overlap,
-these two code bases and ideas were merged and released under the name
-"hwloc" as an Open MPI sub-project.</p>
+<p>hwloc is the evolution and merger of the libtopology and
+<a href="../plpa/">Portable Linux Processor Affinity (PLPA)</a> projects.
+Because of functional and ideological overlap, these two code bases and ideas
+were merged and released under the name "hwloc" as an Open MPI sub-project.
+hwloc is now mostly developed by the TADaaM team at Inria (Bordeaux, France).
+</p>
 
 <p><a href="http://www.inria.fr/"><img align="right" hspace="10" src="<?php print($topdir); ?>/about/members/inria.jpg"></a></p>
 
-<p>libtopology was initially developed by the <a
-href="http://runtime.bordeaux.inria.fr">Inria Runtime Team-Project</a>
-(headed by <a href="http://dept-info.labri.fr/~namyst/">Raymond
-Namyst</a>).  PLPA was initially developed by the Open MPI development
-team as a sub-project.  Both are now deprecated in favor of hwloc,
-which is mostly developed by Inria (Bordeaux, France),
-and is distributed here as an Open MPI sub-project.</p>
+<p>libtopology was initially developed by the Inria Runtime team-project
+as a way to discover hardware affinities inside the Marcel threading library.
+With the advent of multicore machines, this work became interesting for much more than multithreading.
+So libtopology was extracted from Marcel and became an independent library.
+</p>
 
 <p>Portability tests are performed thanks to
 the Inria <a href="https://ci.inria.fr/hwloc/">Continuous Integration</a> platform.
