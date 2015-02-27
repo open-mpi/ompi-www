@@ -70,8 +70,8 @@ or <a href="http://hal.inria.fr/inria-00566246">this one</a>.
 
 <p><ul>
 <li>Linux (including old kernels not having sysfs topology
-information, with knowledge of cpusets, offline CPUs, ScaleMP vSMP,
-NumaScale NumaConnect, and Kerrighed support)</li>
+information, with knowledge of cgroups, offline CPUs, ScaleMP vSMP,
+and NumaScale NumaConnect)</li>
 <li>Solaris</li>
 <li>AIX</li>
 <li>Darwin / OS X</li>
@@ -89,12 +89,13 @@ etc.</p>
 
 <p>Since it uses standard Operating System information, hwloc's support is
 almost always independent from the processor type (x86, powerpc, ia64, ...),
-and just relies on the Operating System support. The only exception to this is
-kFreeBSD, which does not support topology information, and hwloc thus uses an
-x86-only CPUID-based backend (which could be used for other OSes too).</p>
+and just relies on the Operating System support. Whenever the OS does not
+support topology information (e.g. some BSDs), hwloc uses an x86-only
+CPUID-based backend.</p>
 
 <p>To check whether hwloc works on a particular machine, just try to build
-it and run <tt>lstopo</tt> If some things do not look right (e.g. bogus or
+it and run <tt>lstopo</tt> or <tt>lstopo-no-graphics</tt>.
+If some things do not look right (e.g. bogus or
 missing cache information), see Questions and bugs below</p>
 
 <p> hwloc may display the topology in multiple convenient formats (see
