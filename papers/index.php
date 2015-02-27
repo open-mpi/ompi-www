@@ -34,7 +34,9 @@ href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.ps">ps</a>]
 <p><strong>2014</strong></p>
 <UL>
 <?php
-print_papers(array("sc-2014"
+print_papers(array("sc-2014",
+		   "hpcs-2014-hwloc",
+		   "psti-2014-netloc",
 		   ));
 ?>
 </UL>
