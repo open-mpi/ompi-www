@@ -71,7 +71,8 @@ or <a href="http://hal.inria.fr/inria-00566246">this one</a>.
 <p><ul>
 <li>Linux (including old kernels not having sysfs topology
 information, with knowledge of cgroups, offline CPUs, ScaleMP vSMP,
-and NumaScale NumaConnect)</li>
+and NumaScale NumaConnect) on all supported hardware,
+including Intel Xeon Phi.</li>
 <li>Solaris</li>
 <li>AIX</li>
 <li>Darwin / OS X</li>
