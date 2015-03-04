@@ -198,6 +198,21 @@ $parent_name[] = "";
     $names[] = "java";
     $parent_name[] = "langs_parent";
 
+$titles[] = "CUDA-aware Support";
+$short_titles[] = "CUDA-aware";
+$names[] = "cuda_parent";
+$parent_name[] = "";
+
+    $titles[] = "Building CUDA-aware Open MPI";
+    $short_titles[] = "Building CUDA-aware";
+    $names[] = "buildcuda";
+    $parent_name[] = "cuda_parent";
+
+    $titles[] = "Running CUDA-aware Open MPI";
+    $short_titles[] = "Running CUDA-aware";
+    $names[] = "runcuda";
+    $parent_name[] = "cuda_parent";
+
 $titles[] = "Known Issues";
 $short_titles[] = "Known Issues";
 $names[] = "known_issues";
