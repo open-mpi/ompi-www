@@ -76,6 +76,7 @@ host memory if it is not available.
 <ul>
 <li> Improved on-node GPU to GPU transfers even when CUDA IPC is not supported between the two GPUs.
 <li> Properly handle Unified Memory.  This is done by disabling CUDA IPC and GPU Direct RDMA optimizations on Unified Memory buffers.
+<li> Support for blocking reduction MPI APIs.
 </ul>
 
 *For best results, it is recommended that you use the latest version of Open MPI which as of this writing was Open MPI 1.8.4.*
