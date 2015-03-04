@@ -14,15 +14,11 @@ being passed in is a CUDA device memory pointer and do the right
 thing.   This is referred to as CUDA-aware support.
 
 The use of device pointers is supported in all of the send and receive
-APIs as well as most of the collective APIs.  Neither the collective
-reduction APIs nor the one-sided APIs are supported. Here is the list
-of APIs that currently support sending and receiving CUDA device memory.
+APIs as well as the blocking collective APIs.  Neither the nonblocking
+collective APIs nor the accumulate one-sided APIs are supported.
 
-_MPI_Send, MPI_Bsend, MPI_Ssend, MPI_Rsend, MPI_Isend, MPI_Ibsend,
- MPI_Issend, MPI_Irsend, MPI_Send_init, MPI_Bsend_init, MPI_Ssend_init,
- MPI_Rsend_init, MPI_Recv, MPI_Irecv, MPI_Recv_init, MPI_Sendrecv,
- MPI_Bcast, MPI_Gather, MPI_Gatherv, MPI_Allgather,
- MPI_Allgatherv, MPI_Alltoall, MPI_Alltoallv, MPI_Scatter, MPI_Scatterv_
+See <a href=\"?category=runcuda#mpi-apis-cuda\">this FAQ entry</a>
+for more details on which APIs are supported.
 
 Open MPI depends on various features of CUDA 4.0, so one needs to
 have at least the CUDA 4.0 driver and toolkit.  The new features of interest
@@ -336,7 +332,75 @@ int main(int argc, char *argv[])
 
 See <a href=\"?category=building#build-cuda\">this FAQ entry</a>
 for detals on how to configure the CUDA support into the library.
+";
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Which MPI APIs work with CUDA-aware?";
+
+$anchor[] = "mpi-apis-cuda";
+
+$a[] = "
+
+<p>
+<center>
+<table border=1 cellpadding=5>
+<tr>
+<th>MPI API</th>
+<th>Support Added In Version</th>
+</tr>
+
+<tr>
+<td>MPI_Send, MPI_Bsend, MPI_Ssend, MPI_Rsend, MPI_Isend, MPI_Ibsend,
+ MPI_Issend, MPI_Irsend, MPI_Send_init, MPI_Bsend_init, MPI_Ssend_init,
+ MPI_Rsend_init, MPI_Recv, MPI_Irecv, MPI_Recv_init, MPI_Sendrecv,
+ MPI_Bcast, MPI_Gather, MPI_Gatherv, MPI_Allgather,
+ MPI_Allgatherv, MPI_Alltoall, MPI_Alltoallv, MPI_Alltoallw, MPI_Scatter, MPI_Scatterv
+</td>
+<td>Open MPI 1.7.0</td>
+</tr>
+
+<td>MPI_Put, MPI_Get</td>
+<td>Open MPI 1.8.0</td>
+</tr>
+
+<td>MPI_Reduce, MPI_Allreduce, MPI_Scan, MPI_Exscan, MPI_Reduce_scatter,
+    MPI_Reduce_scatter_block</td>
+<td>Open MPI 1.8.5</td>
+</tr>
+
+</table>
+</center>
 
 ";
+/////////////////////////////////////////////////////////////////////////
 
+$q[] = "Which MPI APIs do NOT work with CUDA-aware?";
+
+$anchor[] = "mpi-apis-no-cuda";
+
+$a[] = "
+
+<p>
+<table border=1 cellpadding=5>
+<tr>
+<th>MPI API</th>
+<th>Expected Support</th>
+</tr>
+
+<tr>
+<td>MPI_Accumulate, MPI_Rget, MPI_Rput
+</td>
+<td>Future</td>
+</tr>
+
+<tr>
+<td>MPI_Iallgather, MPI_Iallgatherv, MPI_Iallreduce, MPI_Ialltoall,
+    MPI_Iialltoallv, MPI_Ialltoallw, MPI_Ibcast, MPI_Iexscan                     
+</td>
+<td>Future</td>
+</tr>
+
+</table>
+
+";
 /////////////////////////////////////////////////////////////////////////
