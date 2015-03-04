@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
 </faqcode>
 
 
-See <a href=\"?category=building#build-cuda\">this FAQ entry</a>
+See <a href=\"?category=buildcuda\">this FAQ entry</a>
 for detals on how to configure the CUDA support into the library.
 ";
 /////////////////////////////////////////////////////////////////////////
