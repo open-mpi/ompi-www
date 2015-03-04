@@ -71,7 +71,7 @@ unused anyways.  This bug is fixed in Open MPI 1.7.3.
  --enable-mca-no-build=pml-bfo
 </faqcode>
 
-See <a href=\"?category=running#mpi-cuda-support\">this FAQ entry</a>
+See <a href=\"?category=runcuda\">this FAQ entry</a>
 for detals on how to use the CUDA support.";
 
 /////////////////////////////////////////////////////////////////////////
