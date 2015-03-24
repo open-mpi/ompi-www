@@ -360,7 +360,7 @@ $a[] = "
 <td>Open MPI 1.7.0</td>
 </tr>
 
-<td>MPI_Put, MPI_Get</td>
+<td>MPI_Win_create, MPI_Put, MPI_Get</td>
 <td>Open MPI 1.8.0</td>
 </tr>
 
@@ -389,7 +389,8 @@ $a[] = "
 </tr>
 
 <tr>
-<td>MPI_Accumulate, MPI_Rget, MPI_Rput
+<td>MPI_Accumulate, MPI_Rget, MPI_Rput, MPI_Get_Accumulate, MPI_Fetch_and_op,
+    MPI_Compare_and_swap
 </td>
 <td>Future</td>
 </tr>
