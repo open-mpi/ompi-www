@@ -16,6 +16,9 @@ include_once("$topdir/includes/code.inc");
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
 <?php
 # Lists are not mirrored - use an absolute URL
+news("The Best of lstopo published",
+     "Best lstopo graphical outputs",
+     "lstopo");
 news("hwloc v1.10.1 released",
      "New stable release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2015/01/0075.php");
@@ -86,7 +89,8 @@ including Intel Xeon Phi.</li>
 
 <p>Additionally hwloc can detect the locality PCI devices as well as OpenCL,
 CUDA and Xeon Phi accelerators, network and InfiniBand interfaces,
-etc.</p>
+etc.
+See the <a href="lstopo">Best of lstopo</a> for more examples of supported platforms.</p>
 
 <p>Since it uses standard Operating System information, hwloc's support is
 almost always independent from the processor type (x86, powerpc, ia64, ...),
@@ -101,7 +105,7 @@ missing cache information), see Questions and bugs below</p>
 
 <p> hwloc may display the topology in multiple convenient formats (see
 <a href="doc/v<?php print($ver_current); ?>/#cli_examples">v<?php
-print($ver_current); ?> examples</a>).
+print($ver_current); ?> examples</a> and the <a href="lstopo">Best of lstopo</a>).
 It also offers a powerful programming interface to gather information
 about the hardware, bind processes, and much more.</p>
 

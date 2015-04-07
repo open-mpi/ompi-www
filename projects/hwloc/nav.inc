@@ -8,6 +8,7 @@ $this_nav[] = new Nav("Download v1.8 (older)", "$topdir/software/hwloc/v1.8/");
 $this_nav[] = new Nav("Download v1.7 (ancient)", "$topdir/software/hwloc/v1.7/");
 $this_nav[] = new Nav("Download ancient", "$topdir/software/hwloc/ancient/");
 $this_nav[] = new Nav("Documentation", "$topdir/projects/hwloc/doc/");
+$this_nav[] = new Nav("Best of lstopo", "$topdir/projects/hwloc/lstopo/");
 $this_nav[] = new Nav("Tutorials", "$topdir/projects/hwloc/tutorials/");
 $this_nav[] = new Nav("License", "$topdir/projects/hwloc/license.php");
 $this_nav[] = new Nav("Mailing lists", "$topdir/community/lists/hwloc.php");
