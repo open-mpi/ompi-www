@@ -484,6 +484,46 @@ AMCA files with relative paths. By default this is
 
 /////////////////////////////////////////////////////////////////////////
 
+$q[] = "How do I set application specific environment variables in global
+parameter files?";
+
+$anchor[] = "tune-param-files";
+
+$a[] = "Starting with OMPI version 1.9, the {{{-am}}} option to supply AMCA
+parameter files (see <a href=\"#amca-param-files\">this FAQ entry</a>)
+is deprecated. Users should instead use the {{{-tune}}} option. This option
+allows one to specify both mca parameters and environment variables
+from within a file using the same command line syntax.
+
+The usage of the {{{-tune}}} option is the same as that for the {{{-am}}} option
+except that {{{-tune}}} requires a single file or a comma delimited list
+of files, while a colon delimiter is used with the {{{-am}}} option.
+
+A valid line in the file may contain zero or many \"-x\", \"-mca\", or
+\"--mca\" arguments. If any argument is duplicated in the file, the last
+value read will be used.
+
+Fox example, a file may contain the following line:
+<faqcode>
+-x envar1 = value1 -mca param1 value1 -x envar2 -mca param2 \"value2\"
+</faqcode>
+
+To use the {{{foo.conf}}} parameter file in order to run {{{a.out}}}
+the command line looks as the following
+
+<faqcode>
+shell$ mpirun -np 2 -tune foo.conf a.out
+</faqcode>
+
+Similar to {{{-am}}} option, MCA parameters and environment specified on the
+command line have higher precedence than variables specified in the file.
+
+The {{{-tune}}} option can also be replaced by the MCA parameter
+({{{mca_base_envar_file_prefix}}}) which is similar to {{{mca_base_param_file_prefix}}}
+having the same meaning as the {{{-am}}} option.";
+
+/////////////////////////////////////////////////////////////////////////
+
 $q[] = "How do I select which components are used?";
 
 $anchor[] = "selecting-components";
