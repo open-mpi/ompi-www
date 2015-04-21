@@ -27,6 +27,9 @@ $sections[] = 1;
 $files[] = "2XeonE5+1mic+1ib.v1.11.png";
 $descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2680 + 1x Xeon Phi + 1x InfiniBand HCA (from 2013), with hwloc v1.11";
 $sections[] = 2;
+$files[] = "2XeonE5v2+2usnic+collapse.v1.11.png";
+$descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2690 + 2x Cisco USNIC with many PCI virtual functions collapsed (from 2013), with hwloc v1.11";
+$sections[] = 2;
 $files[] = "2XeonE5+2ocl.v1.11.png";
 $descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2650 + 2x AMD GPUs appearing as OpenCL devices (from 2013), with hwloc v1.11";
 $sections[] = 2;
@@ -77,6 +80,10 @@ $sections[] = 4;
 $files[] = "IBM-S390+books.v1.11.png";
 $descriptions[] = "IBM/S390 with packages assembled as \"Books\" (from 2010), with hwloc v1.11";
 $sections[] = 4;
+
+$files[] = "laptop.ascii.v1.11.png";
+$descriptions[] = "ASCII Art output in case you don't have X11 available (generated with <tt>lstopo -.ascii</tt> with hwloc v1.11, or with <tt>lstopo -.txt</tt> in older releases)";
+$sections[] = 5;
 
 if (count($files) != count($descriptions) or count($files) != count($sections)) {
   echo "Error: ".count($files)." files, ".count($descriptions)." descriptions and ".count($sections)." sections.\n";
@@ -145,6 +152,8 @@ If your output is even nicer, please send it together with the XML!
 <? show_by_section(3); ?>
 <h2>Unusual platforms (you won't often run hwloc there)</h2>
 <? show_by_section(4); ?>
+<h2>Miscellaneous</h2>
+<? show_by_section(5); ?>
 
 <?php
 //}
