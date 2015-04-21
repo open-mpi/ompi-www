@@ -3,10 +3,14 @@ $q[] = "What operating systems does Open MPI support?";
 
 $anchor[] = "os";
 
-$a[] = "We primarily develop Open MPI on Linux,
-OS X, Solaris (both 32 and 64 on all platforms, only pre-v1.8) and
-Windows (Windows XP, Windows HPC Server 2003/2008 and also Windows 7 RC,
-again only pre-1.8).
+$a[] = "We primarily develop Open MPI on Linux and OS X.
+
+Other operatings are supported, however.  The exact list of operating
+systems supported has changed over time (e.g., native Microsoft
+Windows support was added in v1.3.3, and although it was removed prior
+to v1.8, is still supported through Cygwin).  See the README file in
+your copy of Open MPI for a listing of the OSs that that version
+supports.
 
 Open MPI is fairly POSIX-neutral, so it will run without too many
 modifications on most POSIX-like systems.  Hence, if we haven't listed
@@ -18,13 +22,7 @@ happy to provide information about how to port it to new platforms.
 It should be noted that we are quite open to accepting patches for
 operating systems that we do not currently support.  If we do not have
 systems to test these on, we probably will only claim to
-\"unofficially\" support those systems.
-
-Microsoft Windows support has been added in v1.3.3, please see the file
-README.WINDOWS.
-
-<strong><font color=red>NOTE:</font></strong> as of the v1.8 series,
-we no longer support either Microsoft Windows or Solaris.";
+\"unofficially\" support those systems.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -36,9 +34,9 @@ $a[] = "Essentially all the common platforms that the operating
 systems listed in the previous question support.
 
 For example, Linux runs on a *wide* variety of platforms, and we
-certainly can't claim to support all of them (e.g., Open MPI does not
-run in an embedded environment), but we include assembly for support
-Intel, AMD, and PowerPC chips, for example.";
+certainly can't claim to support all of them.  Open MPI includes
+Linux-compiler-based assembly for support Intel, AMD, and PowerPC
+chips, for example.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -46,24 +44,66 @@ $q[] = "What network interconnects does Open MPI support?";
 
 $anchor[] = "network-interconnects";
 
+function net_table_init()
+{
+    return "<div align=\"center\"><table border=1 cellpadding=5>
+<tr>
+<th valign=\"bottom\">Interconnect</th>
+<th valign=\"bottom\">Support type</th>
+<th valign=\"bottom\">Introduced in<br />Open MPI version</th>
+<th valign=\"bottom\">Removed in<br />Open MPI version</th>
+</tr>\n";
+}
+
+function net_table_row($interconnect, $type, $start, $stop)
+{
+    return "<tr>
+<td align=\"center\">$interconnect</td>
+<td align=\"center\">$type</td>
+<td align=\"center\">$start</td>
+<td align=\"center\">$stop</td>
+</tr>\n";
+}
+
+function net_table_finalize()
+{
+    return "</table></div>\n\n";
+}
+
 $a[] = "Open MPI is based upon a component architecture; support for its MPI
 point-to-point functionality only utilize a small number of components
 at run-time.  Adding native support for a new network interconnect was
 specifically designed to be easy.
 
-Here's the list of networks that we natively support for
-point-to-point communication:
+The list of supported interconnects has changed over time.  You should
+consult your copy of Open MPI to see exactly which interconnects it
+supports.  The table below shows various interconnects and the
+versions in which they were supported in Open MPI:
+
+" . net_table_init() .
+    net_table_row("TCP sockets", "BTL", "1.0", "") .
+    net_table_row("Shared memory", "BTL", "1.0", "") .
+    net_table_finalize() . "
+
 
 <ul>
-<li> TCP / ethernet</li>
-<li> Shared memory</li>
+<li> TCP sockets</li>
+<li> Shared memory (two different varities)</li>
 <li> Loopback (send-to-self)</li>
-<li> Myrinet / GM (pre-1.8 only) </li>
-<li> Myrinet / MX</li>
-<li> Infiniband / OpenIB</li>
-<li> Infiniband / mVAPI (pre-1.8)</li>
-<li> Portals (pre-1.8)</li>
-<li> Portals4 (1.8 and above)</li></ul>
+<li> Myrinet / GM (pre-v1.8 only) </li>
+<li> Myrinet / MX (pre-v2.0 only)</li>
+<li> Infiniband / MXM</li>
+<li> Infiniband / OpenFabrics verbs</li>
+<li> Infiniband / mVAPI (pre-v1.8)</li>
+<li> Portals (pre-v1.8)</li>
+<li> Portals4 (v1.8 and later)</li>
+<li> PSM / PSM2 (v2.0 and later)</li>
+<li> RoCE / OpenFabrics verbs</li>
+<li> SCIF</li>
+<li> uDAPL</li>
+<li> uGNI</li>
+<li> usNIC (v1.8 and later)</li>
+</ul>
 
 Is there a network that you'd like to see supported that is not shown
 above?  <a href=\"$topdir/community/lists/\">Contributions are
@@ -110,7 +150,7 @@ $q[] = "Does Open MPI support LSF?";
 
 $anchor[] = "rte-lsf-support";
 
-$a[] = "Starting with Open MPI v1.3, yes!  
+$a[] = "Starting with Open MPI v1.3, yes!
 
 Prior to Open MPI v1.3, Platform released a script-based integration
 in the LSF 6.1 and 6.2 maintenance packs around November of 2006.  If

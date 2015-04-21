@@ -33,7 +33,7 @@ $names[] = "new_category";
 
 The ordering of the arrays is the same as the ordering used on the web
 pages, so if you want to add a category at the end, add a new triple
-at the end, etc. 
+at the end, etc.
 
 Once you have added to the categories.inc file, create a new file
 named <names>.inc (e.g., "new_category.inc") and put your questions in
@@ -59,6 +59,7 @@ and ] characters may get missed if they are against some
 non-whitespace characters like < or >):
 
     - blank lines before text have <p>'s insertted in them
+
     - strings *enclosed in asterisks* will be rendered as:
 
       <strong>enclosed in asterisks</strong>
@@ -71,9 +72,25 @@ non-whitespace characters like < or >):
 
       <code>enclosed in brackets</code>
 
-    - the special HTML-like tag <faqcode></faqcode> can be used to
+    - the special HTML-like tag <geshi NAME></geshi> can be used to
       delimit verbatim / code-like sections.  These sections will be
-      rendered inside a <pre> HTML block, and on a grey background.
+      rendered inside a <pre> HTML block, and on a grey background,
+      with syntax highlighting according to NAME.  We use the Geshi
+      syntax highlighter; the NAME token tells Geshi how to syntax
+      highlight the enclosed block.  Common NAME tokens used in the
+      FAQ include:
+
+      - c: for C source code
+      - bash: for shell prompts and shell code
+      - diff: for showing diffs
+      - make: for showing Makefiles
+      - text: for plain text (no highlighting)
+      - ini: INI-style files
+
+      Many other syntax highlighting contexts are available; see the
+      list of .php files in include/geshi, and/or the Geshi web site
+      for more info (http://qbnz.com/highlighter/ and
+      https://en.wikipedia.org/wiki/GeSHi).
 
 That's about it.  I told you it was simple.
 
@@ -85,9 +102,9 @@ The biggest convention that I have used is to add ficticious shell
 prompts when I am depicting commands that users are expected to type
 in a command shell.  For example:
 
-<faqcode>
+<geshi bash>
 shell$ ompi_info --param coll sm
-</faqcode>
+</geshi>
 
 The "shell" label makes it 100% blatently obvious that we're talking
 about a shell prompt, and the "$" indicates that it is a Bourne-like

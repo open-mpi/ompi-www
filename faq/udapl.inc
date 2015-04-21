@@ -55,20 +55,20 @@ $a[] = "The uDAPL BTL looks for a match from the uDAPL static registry which is 
 
 Solaris Example:
 
-<faqcode>
+<geshi bash>
 shell% datadm -v
 ibd0  u1.2  nonthreadsafe  default  udapl_tavor.so.1  SUNW.1.0  \" \"  \"driver_name=tavor\"
 shell% mpirun --mca btl_udapl_if_include ibd0 ...
-</faqcode>
+</geshi>
 
 Linux Example:
 
-<faqcode>
+<geshi bash>
 shell% cat /etc/dat.conf
 OpenIB-cma u1.2 nonthreadsafe default /usr/local/ofed/lib64/libdaplcma.so dapl.1.2 \"ib0 0\" \"\"
 OpenIB-bond u1.2 nonthreadsafe default /usr/local/ofed/lib64/libdaplcma.so dapl.1.2 \"bond0 0\" \"\"
 shell% mpirun --mca btl_udapl_if_exclude OpenIB-bond ...
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -97,51 +97,51 @@ $anchor[] = "privileged-memory";
 
 $a[] = "The error message probably looks something like this:
 
-<faqcode>
+<geshi text>
 WARNING: The uDAPL BTL is not able to register memory. Possibly out of
 allowed privileged memory (i.e. memory that can be pinned). Increasing
 the allowed privileged memory may alleviate this issue.
-</faqcode>
+</geshi>
 
 One thing to do is increase the amount of available privileged
 memory. On Solaris your system adminstrator can increase the amount of
 available privileged memory by editing the [/etc/project] file on the
 nodes. For more information see Solaris \"project\" man page.
 
-<faqcode>
+<geshi bash>
 shell% man project
-</faqcode>
+</geshi>
 
 As an example of increasing the privileged memory first determine the
 amount available (example of typical value is 978MB):
 
-<faqcode>
+<geshi bash>
 shell% prctl -n project.max-device-locked-memory -i project default
 NAME    PRIVILEGE       VALUE    FLAG   ACTION          RECIPIENT
 project.max-device-locked-memory
         privileged       978MB      -   deny            -
         system          16.0EB    max   deny            -
-</faqcode>
+</geshi>
 
 To increase the amount of privileged memory edit [/etc/project] file:
 
 Default [/etc/project] file.
 
-<faqcode>
+<geshi text>
 system:0::::
 user.root:1::::
 noproject:2::::
 default:3::::
 group.staff:10::::
-</faqcode>
+</geshi>
 
 Change to, for example 4GB.
 
-<faqcode>
+<geshi text>
 system:0::::
 user.root:1::::
 noproject:2::::
-default:3::::project.max-device-locked-memory=(priv, 4294967296, deny) 
+default:3::::project.max-device-locked-memory=(priv, 4294967296, deny)
 group.staff:10::::
-</faqcode>
+</geshi>
 ";

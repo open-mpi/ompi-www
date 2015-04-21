@@ -25,11 +25,11 @@ sections.  That is, they are compiled into three separate libraries:
 OMPI depends on ORTE and OPAL, and ORTE depends on OPAL.  More
 specifically, OMPI executables are linked with:
 
-<faqcode>
+<geshi bash>
 shell$ mpicc myapp.c -o myapp
 # This actually turns into:
 shell$ cc myapp.c -o myapp -lmpi -lopen-rte -lopen-pal ...
-</faqcode>
+</geshi>
 
 More system-level libraries may listed after [-lopal], but you get the
 idea.
@@ -39,7 +39,7 @@ engineering sense (even though it is convenient to refer to them as
 such).  They are listed above in dependency order, but that does not
 mean that, for example, the OMPI code must go through the ORTE and
 OPAL code in order to reach the operating system or a network
-interface.  
+interface.
 
 As such, this code organization more reflects abstractions and
 software engineering, not a strict hierarchy of functions that must be
@@ -141,7 +141,7 @@ Each of the three main source directories ([ompi/], [orte/], and
 [opal/]) generate a top-level library named [libmpi], [liborte], and
 [libopal], respectively.  They can be built as either static or shared
 libraries.  Executables are also produced in subdirectories of some of
-the trees.  
+the trees.
 
 Each of the sub-project source directories have similar (but not
 identical) directory structures under them:
@@ -166,9 +166,9 @@ project.  For example, the MPI API implementations can be found under
 The layout of the [mca/] trees are strictly defined.  They are of the
 form:
 
-<faqcode>
+<pre>
 &lt;project&gt;/mca/&lt;framework name&gt;/&lt;component name&gt;/
-</faqcode>
+</pre>
 
 To be explicit: it is forbidden to have a directory under the [mca]
 trees that does not meet this template (with the execption of [base]
@@ -179,27 +179,32 @@ That is, framework and component names must be valid directory names
 (and C variables; more on that later).  For example, the TCP BTL
 component is located in the following directory:
 
-<faqcode>
+<pre>
+# In v1.6.x and earlier:
 ompi/mca/btl/tcp/
-</faqcode>
+
+# In v1.7.x and later:
+opal/mca/btl/tcp/
+</pre>
 
 The name [base] is reserved; there cannot be a framework or component
-named \"base.\"  Directories named [base] are reserved for the
-implementatio of the MCA and frameworks.  Here are a few examples:
+named \"base.\" Directories named [base] are reserved for the
+implementatio of the MCA and frameworks.  Here are a few examples (as
+of the v1.8 source tree):
 
-<faqcode>
+<pre>
 # Main implementation of the MCA
 opal/mca/base
 
-# Implementation of the paffinity framework
-opal/mca/paffinity/base
+# Implementation of the btl framework
+opal/mca/btl/base
 
-# Implementation of the pls framework
-orte/mca/pls/base
+# Implementation of the rml framework
+orte/mca/rml/base
 
 # Implementation of the pml framework
 ompi/mca/pml/base
-</faqcode>
+</pre>
 
 Under these mandated directories, frameworks and/or components may have
 arbitrary directory structures, however.";
@@ -220,12 +225,6 @@ discussing Open MPI internals in 2012.  The videos <a
 href=\"$topdir/videos/internals/\">are available here</a>.";
 
 /////////////////////////////////////////////////////////////////////////
-
-$q[] = "More coming...";
-
-$anchor[] = "more-coming";
-
-$a[] = "There are more questions / answers coming... stay tuned...";
 
 $foo ="
 open mpi sub-projects: orte, opal

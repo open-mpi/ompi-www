@@ -13,7 +13,7 @@ include_once("$topdir/software/ompi/current/version.inc");
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "Open MPI tells me that it fails to load components with a \"file not found\" error -- but the file is there!  Why does it say this?";
- 
+
 $anchor[] = "erroneous-file-not-found-message";
 
 $a[] = "Open MPI loads a lot of plugins at run time.  It opens its
@@ -28,9 +28,9 @@ Unfortunately, there is a well-known bug in libltdl that may cause a
 _is_ found.  The \"file not found\" error usually masks the real,
 underlying cause of the problem.  For example:
 
-<faqcode>
+<geshi text>
 mca: base: component_find: unable to open /opt/openmpi/mca_ras_dash_host: file not found (ignored)
-</faqcode>
+</geshi>
 
 Note that Open MPI put in a libltdl workaround starting with version
 1.5.  This workaround should print the real reason the plugin failed
@@ -54,7 +54,7 @@ the [libmyriexpress.so] shared library at run time).</li>
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "I see strange messages about missing symbols in my application; what do these mean?";
- 
+
 $anchor[] = "missing-symbols";
 
 $a[] = "Open MPI loads a lot of plugins at run time.  It opens its
@@ -73,11 +73,11 @@ plugins.</li>
 a private symbol space.  For example, if an application is not linked
 against [libmpi], but rather calls something like this:
 
-<faqcode>
+<geshi c>
 /* This is a Linux example -- the issue is similar/the same on other
    operating systems */
 handle = dlopen(\"libmpi.so\", RTLD_NOW | RTLD_LOCAL);
-</faqcode>
+</geshi>
 
 This is due to some deep run time linker voodoo -- it is discussed
 towards the end of <a
@@ -122,7 +122,7 @@ href=\"?category=building#avoid-dso\">this FAQ entry</a> for more
 details on these options).  These options slurp all of Open MPI's
 plugins up in to [libmpi] -- meaning that the plugins physically
 reside in [libmpi] and will not be dynamically opened at run
-time.</li> 
+time.</li>
 <li> Build Open MPI as a static library by configuring Open MPI with
 [--disable-shared] and [--enable-static].  This has the same effect as
 [--disable-dlopen], but it also makes [libmpi.a] (as opposed to a
@@ -139,9 +139,9 @@ $anchor[] = "teg-symbols-not-found";
 $a[] = "You may wonder why you see this warning message (put here
 verbatim so that it becomes web-searchable):
 
-<faqcode>
+<geshi text>
 mca_pml_teg.so:undefined symbol:mca_ptl_base_modules_initialized
-</faqcode>
+</geshi>
 
 This happens when you upgrade to Open MPI v1.1 (or later) over an old
 installation of Open MPI v1.0.x without previously uninstalling
@@ -149,13 +149,13 @@ v1.0.x.  There are fairly uninteresting reasons why this problem
 occurs; the simplest, safest solution is to uninstall version 1.0.x
 and then re-install your newer version.  For example:
 
-<faqcode>
+<geshi bash>
 shell# cd /path/to/openmpi-1.0
 shell# make uninstall
 [... lots of output ...]
 shell# cd /path/to/openmpi-1.1
 shell# make install
-</faqcode>
+</geshi>
 
 The above example shows changing into the Open MPI 1.1 directory to
 re-install, but the same concept applies to any version after Open MPI
@@ -171,13 +171,13 @@ $q[] = "Can I build shared libraries on AIX with the IBM XL compilers?";
 
 $anchor[] = "aix-xl-shared-libraries";
 
-$a[] = "Short answer: in older versions of Open MPI, maybe.  
+$a[] = "Short answer: in older versions of Open MPI, maybe.
 
 Add \"LDFLAGS=-Wl,-brtl\" to your configure command line:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure LDFLAGS=-Wl,-brtl ...
-</faqcode>
+</geshi>
 
 This enables \"runtimelinking\", which will make GNU Libtool name the
 libraries properly (i.e., *.so).  More importantly, runtimelinking
@@ -192,36 +192,35 @@ no longer supported.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Why am I getting a seg fault in libopal?";
+$q[] = "Why am I getting a seg fault in libopen-pal (or libopal)?";
 
 $anchor[] = "libopal-apparent-segv";
 
-$a[] = "It is likely that you did _not_ get a segv in libopal; it is
-likely that you are seeing a message like this (with OMPI v1.0 and v1.1):
+$a[] = "It is likely that you did _not_ get a segv in libopen-pal (or
+\"libopal\", in older versions of Open MPI); it is likely that you are
+seeing a message like this:
 
-<faqcode>
+<geshi text>
+[0] func:/opt/ompi/lib/libopen-pal.so.0(opal_backtrace_print+0x2b) [0x2a958de8a7]
+</geshi>
+
+Or something like this in older versions of Open MPI:
+
+<geshi text>
 [0] func:/opt/ompi/lib/libopal.so.0 [0x2a958de8a7]
-</faqcode>
-
-or something like this (OMPI v1.2 and beyond; Linux output shown
-below -- looks slightly different on other OS's):
-
-<faqcode>
-[0] func:/opt/ompi/lib/libopal.so.0(opal_backtrace_print+0x2b) [0x2a958de8a7]
-</faqcode>
+</geshi>
 
 This is actually the function that is printing out the stack trace
 message; it is not the function that caused the segv itself.  The
 function that caused the problem will be a few below this.  Future
-versions of OMPI will simply not display this libopal function in the
+versions of OMPI will simply not display this libopen-pal function in the
 segv reporting to avoid confusion.
 
 Let's provide a concrete example.  Take the following trivial MPI
 program that is guaranteed to cause a seg fault in MPI_COMM_WORLD rank
 1:
 
-<faqcode>
-shell$ <strong>cat segv.c</strong>
+<geshi c>
 #include <mpi.h>
 
 int main(int argc, char **argv)
@@ -238,28 +237,28 @@ int main(int argc, char **argv)
     MPI_Finalize();
     return 0;
 }
-</faqcode>
+</geshi>
 
 Running this code, you'll see something similar to the following:
 
-<faqcode>
-shell$ <strong>mpicc segv.c -o segv -g</strong>
-shell$ <strong>mpirun -np 2 --mca btl tcp,self segv</strong>
+<geshi bash>
+shell$ mpicc segv.c -o segv -g
+shell$ mpirun -np 2 --mca btl tcp,self segv
 Signal:11 info.si_errno:0(Success) si_code:1(SEGV_MAPERR)
 Failing at addr:(nil)
-[0] func:/opt/ompi/lib/libopal.so.0(opal_backtrace_print+0x2b) [0x2a958de8a7]
-[1] func:/opt/ompi/lib/libopal.so.0 [0x2a958dd2b7]
+[0] func:/opt/ompi/lib/libopen-pal.so.0(opal_backtrace_print+0x2b) [0x2a958de8a7]
+[1] func:/opt/ompi/lib/libopen-pal.so.0 [0x2a958dd2b7]
 [2] func:/lib64/tls/libpthread.so.0 [0x3be410c320]
-<strong><font color=red>[3] func:segv(main+0x3c) [0x400894]</font></strong>
+[3] func:segv(main+0x3c) [0x400894]
 [4] func:/lib64/tls/libc.so.6(__libc_start_main+0xdb) [0x3be361c4bb]
 [5] func:segv [0x4007ca]
 *** End of error message ***
-</faqcode>
+</geshi>
 
 The _real_ error was back up in main, which is #3 on the stack trace.
 But Open MPI's stack-tracing function (opal_backtrace_print, in this
 case) is what is displayed as #0, so it's an easy mistake to assume
-that libopal is the culprit.";
+that libopen-pal is the culprit.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -290,7 +289,7 @@ $anchor[] = "intel-12.1-compiler";
 $a[] = "Users have reported on the Open MPI users mailing list
 multiple times that when they compile Open MPI with the Intel 12.1
 compiler suite, Open MPI tools (such as the wrapper compilers,
-including [mpicc]) and MPI applications will seg fault immediately.  
+including [mpicc]) and MPI applications will seg fault immediately.
 
 As far as we know, this affects both Open MPI v1.4.4 (and later) and
 v1.5.4 (and later).
@@ -331,7 +330,7 @@ that cannot be read by TotalView and other parallel debuggers.
 If you run into this problem, you can manully build [mpirun] without
 optimization flags.  Go into the tree where you built Open MPI:
 
-<faqcode>
+<geshi bash>
 shell$ cd /path/to/openmpi/build/tree
 shell$ cd orte/tools/orterun
 shell$ make clean
@@ -339,7 +338,7 @@ shell$ make clean
 shell$ make all CFLAGS=-g
 [...output not shown...]
 shell$
-</faqcode>
+</geshi>
 
 This will build [mpirun] (also known as [orterun]) with just the \"-g\"
 flag.  Once this completes, run [make install], also from within the
@@ -352,39 +351,39 @@ may be helpful with attaching.  The user specifically cited the Open
 MPI v1.3 series compiled with the Intel 11 compilers and TotalView
 8.6, but it may also be helpful for other versions, too:
 
-<faqcode>
+<geshi bash>
 shell$ export with_tv_debug_flags=\"-O0 -g -fno-inline-functions\"
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "When launching large MPI jobs, I see messages like: <code>mca_oob_tcp_peer_complete_connect: connection failed: Connection timed out (110) - retrying</code>";
- 
+
 $anchor[] = "large-job-tcp-oob-timeout";
 
 $a[] = "This is a known issue in the Open MPI v1.2. series.  Try the
-following: 
+following:
 
 <ol>
 <li>If you are using Linux-based systems, increase some of the limits
 on the node where [mpirun] is invoked (you must have
 administrator/root privlidges to increase these limits):
-<faqcode>
+<geshi bash>
 # The default is 128; increase it to 10,000
 shell# echo 10000 > /proc/sys/net/core/somaxconn
 
 # The default is 1,000; increase it to 100,000
 shell# echo 100000 > /proc/sys/net/core/netdev_max_backlog
-</faqcode>
+</geshi>
 </li>
 
 <li> Set the [oob_tcp_listen_mode] MCA parameter to the string value
 [listen_thread].  This enables Open MPI's [mpirun] to respond much
 more quickly to incoming TCP connections during job launch, for
 example:
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca oob_tcp_listen_mode listen_thread -np 1024 my_mpi_program
-</faqcode>
+</geshi>
 See <a href=\"?category=tuning#setting-mca-params\">this FAQ entry</a>
 for more details on how to set MCA parameters.</li>
 </ol>";
@@ -392,7 +391,7 @@ for more details on how to set MCA parameters.</li>
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "How do I find out what MCA parameters are being seen/used by my job?";
- 
+
 $anchor[] = "seeing-mca-params";
 
 $a[] = "As described elsewhere, MCA parameters are the \"life's blood\" of
@@ -432,7 +431,7 @@ These options can be combined in any order by separating them with commas.
 
 Here is an example of the output generated by this parameter:
 
-<faqcode>
+<geshi bash>
 $ mpirun -mca grpcomm basic -mca mpi_show_mca_params enviro ./hello
 ess=env (environment or cmdline)
 orte_ess_jobid=1016725505 (environment or cmdline)
@@ -441,7 +440,7 @@ grpcomm=basic (environment or cmdline)
 mpi_yield_when_idle=0 (environment or cmdline)
 mpi_show_mca_params=enviro (environment or cmdline)
 Hello, World, I am 0 of 1
-</faqcode>
+</geshi>
 
 Note that several MCA parameters set by Open MPI itself for internal uses are displayed in addition to the
 ones actually set by the user.

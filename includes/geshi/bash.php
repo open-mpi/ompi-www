@@ -392,7 +392,9 @@ $language_data = array (
             1 => 'color: #007800;',
             2 => 'color: #007800;',
             4 => 'color: #007800;',
-            5 => 'color: #660033;'
+            5 => 'color: #660033;',
+            # Open MPI bright red emphasis
+            999 => 'color: #FF0000;'
             ),
         'SCRIPT' => array(
             )
@@ -415,7 +417,9 @@ $language_data = array (
         //Shorthand shell variables
         4 => "\\$[*#\$\\-\\?!\d]",
         //Parameters of commands
-        5 => "(?<=\s)--?[0-9a-zA-Z\-]+(?=[\s=]|<(?:SEMI|PIPE)>|$)"
+        5 => "(?<=\s)--?[0-9a-zA-Z\-]+(?=[\s=]|<(?:SEMI|PIPE)>|$)",
+        // Open MPI: emphasize
+        999 => "\*\*\*\*(.+)\*\*\*\*"
         ),
     'STRICT_MODE_APPLIES' => GESHI_NEVER,
     'SCRIPT_DELIMITERS' => array(

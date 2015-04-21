@@ -36,4 +36,3 @@ list, reported by Ricardo Fonseca:
 <div align=center>
 " . "<a href=\"$url\">" . "$url</a>
 </div>";
-

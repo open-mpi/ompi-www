@@ -60,18 +60,18 @@ to perform the necessary instrumentation of the program and link the
 suitable VampirTrace library.
 
 Original:
-<faqcode>
+<geshi bash>
 shell$ mpicc -c hello.c -o hello
-</faqcode>
+</geshi>
 
 With instrumentation:
-<faqcode>
+<geshi bash>
 shell$ mpicc-vt -c hello.c -o hello
-</faqcode>
+</geshi>
 
 For your application, simply change the compiler definitions in your
 Makefile(s):
-<faqcode>
+<geshi make>
 # original definitions in Makefile
 ## CC=mpicc
 ## CXX=mpicxx
@@ -81,20 +81,20 @@ Makefile(s):
 CC=mpicc-vt
 CXX=mpicxx-vt
 F90=mpif90-vt
-</faqcode>
+</geshi>
 ";
 
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "Does VampirTrace cause overhead to my application?";
 $anchor[] = "vt_overhead";
-$a[] = "By using the default MPI compiler wrappers ( [mpicc] etc.) your 
-application will be run without any changes at all. The VampirTrace 
-compiler wrappers ( [mpicc-vt] etc.) link the VampirTrace library which intercepts 
+$a[] = "By using the default MPI compiler wrappers ( [mpicc] etc.) your
+application will be run without any changes at all. The VampirTrace
+compiler wrappers ( [mpicc-vt] etc.) link the VampirTrace library which intercepts
 MPI calls and some user level function/subroutine calls. This causes a certain
 amount of runtime overhead to applications. Usually, the overhead is reasonably
-small (0.x% - 5%) and VampirTrace by default enables precautions to avoid 
-excessive overhead. However, it can be configured to produce very substantial 
+small (0.x% - 5%) and VampirTrace by default enables precautions to avoid
+excessive overhead. However, it can be configured to produce very substantial
 overhead using non-default settings.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -111,12 +111,12 @@ can set the compiler with the wrapper's option [-vt:[cc|cxx|f77|f90]]
 The following two are equivalent, setting the underlying compiler to
 gcc:
 
-<faqcode>
+<geshi bash>
 shell$ VT_CC=gcc mpicc-vt -c hello.c -o hello
 shell$ mpicc-vt -vt:cc gcc -c hello.c -o hello
-</faqcode>
+</geshi>
 
-Futhermore, you can modify the default settings in 
+Futhermore, you can modify the default settings in
 [<install-prefix>/share/openmpi/mpi*-wrapper-data.txt].";
 
 /////////////////////////////////////////////////////////////////////////
@@ -132,9 +132,9 @@ The following example passes the options [--with-papi-lib-dir] and [--with-papi-
 to the VampirTrace configure script to specify the location and the name of the PAPI
 library:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --with-contrib-vt-flags='--with-papi-lib-dir=/usr/lib64 --with-papi-lib=-lpapi64' ...
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -146,7 +146,7 @@ installed.  If you would like to disable building and installing of
 VampirTrace add the value [vt] to the configure option
 [--enable-contrib-no-build].
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --enable-contrib-no-build=vt ...
-</faqcode>";
+</geshi>";
 

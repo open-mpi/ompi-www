@@ -28,9 +28,9 @@ $th MX supported </th>
 ". myrirow("v1.1 series", "Yes", "Yes") . "
 ". myrirow("v1.2 series", "Yes", "Yes (BTL and MTL)") . "
 ". myrirow("v1.3 / v1.4 series", "Yes", "Yes (BTL and MTL)") . "
-". myrirow("v1.5 / v1.6 series", "No", "Yes (MTL and MTL)") . "
+". myrirow("v1.5 / v1.6 series", "No", "Yes (BTL and MTL)") . "
 ". myrirow("v1.7 / v1.8 series", "No", "Yes (MTL only)") . "
-". myrirow("v1.9 and beyond", "No", "No") . "
+". myrirow("v1.10 and beyond", "No", "No") . "
 </table>
 </div>";
 
@@ -41,14 +41,14 @@ $q[] = "How do I specify to use the Myrinet GM network for MPI messages?";
 $anchor[] = "myri-btl-gm";
 
 $a[] = "In general, you specify that the [gm] BTL component should be used.
-However, note that you should _also_ specify that the [self] BTL component 
-should be used.  [self] is for loopback communication (i.e., when an MPI 
-process sends to itself). This is technically a different 
+However, note that you should _also_ specify that the [self] BTL component
+should be used.  [self] is for loopback communication (i.e., when an MPI
+process sends to itself). This is technically a different
 communication channel than Myrinet.  For example:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca btl gm,self ...
-</faqcode>
+</geshi>
 
 Failure to specify the [self] BTL may result in Open MPI being unable
 to complete send-to-self scenarios (meaning that your program will run
@@ -58,9 +58,9 @@ To use Open MPI's shared memory support for on-host communication
 instead of GM's shared memory support, simply include the [sm] BTL.
 For example:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca btl gm,sm,self ...
-</faqcode>
+</geshi>
 
 Finally, note that if the [gm] component is
 available at run time, Open MPI should automatically use it by
@@ -76,27 +76,27 @@ $q[] = "How do I specify to use the Myrinet MX network for MPI messages?";
 $anchor[] = "myri-btl-mx";
 
 $a[] = "As of version 1.2, Open MPI has two different components
-to support Myrinet MX, the [mx] BTL and the [mx] MTL, only one of which can be 
-used at a time. Prior versions only have the [mx] BTL. 
+to support Myrinet MX, the [mx] BTL and the [mx] MTL, only one of which can be
+used at a time. Prior versions only have the [mx] BTL.
 
-If available, the [mx] BTL is used by default. However, to be sure it is 
-selected you can specify it. Note that you should _also_ specify the 
+If available, the [mx] BTL is used by default. However, to be sure it is
+selected you can specify it. Note that you should _also_ specify the
 [self] BTL component (for loopback communication) and the [sm] BTL
 component (for on-host communication). For example:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca btl mx,sm,self ...
-</faqcode>
+</geshi>
 
 To use the [mx] MTL component, it _must_ be specified. Also, you _must_ use
 the [cm] PML component. For example:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca mtl mx --mca pml cm ...
-</faqcode>
+</geshi>
 
 Note that one cannot use both the [mx] MTL and the [mx] BTL components
-at once. Deciding which to use largely depends on the application being 
+at once. Deciding which to use largely depends on the application being
 run.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -117,7 +117,7 @@ $anchor[] = "myri-params";
 $a[] = "The [ompi_info] command can display all the parameters
 available for the [gm] and [mx] BTL components and the [mx] MTL component:
 
-<faqcode>
+<geshi bash>
 # Show the gm BTL parameters
 shell$ ompi_info <font color=red><strong>--param btl gm</strong></font>
 
@@ -126,7 +126,7 @@ shell$ ompi_info <font color=red><strong>--param btl mx</strong></font>
 
 # Show the mx MTL parameters
 shell$ ompi_info <font color=red><strong>--param mtl mx</strong></font>
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -182,7 +182,7 @@ $anchor[] = "mx-first-frag-size";
 $a[] = "The MX library limits the maximum message fragment size for
 both on-node and off-node messages.  As of MX v1.0.3, the inter-node
 maximum fragment size is 32k, and the intra-node maximum fragment size
-is 16k -- fragments sent larger than these sizes will fail.  
+is 16k -- fragments sent larger than these sizes will fail.
 
 Open MPI automatically fragments large messages; it currently limits
 its first fragment size on MX networks to the lower of these two
@@ -190,7 +190,7 @@ values -- 16k.  As such, increasing the value of the MCA parameter
 named [btl_mx_first_frag_size] larger than 16k may cause failures in
 some cases (i.e., when using MX to send large messages to processes on
 the same node); it will cause failures in all cases if it is set above
-32k.  
+32k.
 
 Note that this only affects the *first* fragment of messages; latter
 fragments do not have this size restriction.  The MCA parameter

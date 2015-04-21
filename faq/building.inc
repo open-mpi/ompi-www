@@ -21,13 +21,13 @@ For everyone else, in general, all you need to do is expand the
 tarball, run the provided [configure] script, and then run \"[make all
 install]\".  For example:
 
-<faqcode>
+<geshi bash>
 shell$ gunzip -c openmpi-$ver_current.tar.gz | tar xf -
 shell$ cd openmpi-$ver_current
 shell$ ./configure --prefix=/usr/local
 <...lots of output...>
 shell$ make all install
-</faqcode>
+</geshi>
 
 Note that the [configure] script supports a lot of different command
 line options.  For example, the [--prefix] option in the above example
@@ -71,7 +71,7 @@ $q[] = "What are the default build options for Open MPI?";
 
 $anchor[] = "default-build";
 
-$a[] = "If you have obtained a developer's checkout from Subversion, 
+$a[] = "If you have obtained a developer's checkout from Subversion,
 <a href=\"$topdir/svn/\">you must consult these directions</a>.
 
 The default options for building an Open MPI tarball are:
@@ -132,7 +132,7 @@ build flags.  This option is helpful when support for feature [FOO] is
 not found in default search paths.</li>
 <li> If [--with-&lt;FOO&gt;-libdir=/some/path/lib] is specified, it
 _only_ specifies that if Open MPI searches for [FOO] support, it
-should use [/some/path/lib] for the linker search path.</li> 
+should use [/some/path/lib] for the linker search path.</li>
 </ul>
 
 In general, it is usually sufficient to run Open MPI's [configure]
@@ -231,12 +231,12 @@ that [/opt/openmpi-$ver_current] on all machines is effectively \"the
 same\".  That is, the following directories all contain the Open MPI
 installation:
 
-<faqcode>
+<geshi text>
 inky:/opt/openmpi-$ver_current
 blinky:/opt/openmpi-$ver_current
 pinky:/opt/openmpi-$ver_current
 clyde:/opt/openmpi-$ver_current
-</faqcode>
+</geshi>
 
 <li> Install Open MPI on [inky]'s local hard drive in the directory
 [/usr/local/openmpi-$ver_current].  The system administrator then
@@ -248,12 +248,12 @@ one tree is NFS exported, but another tree is typically used for the
 location of actual installation.  For example, the following
 directories all contain the Open MPI installation:
 
-<faqcode>
+<geshi text>
 inky:/opt/openmpi-$ver_current
 blinky:/opt/openmpi-$ver_current
 pinky:/opt/openmpi-$ver_current
 clyde:/opt/openmpi-$ver_current
-</faqcode>
+</geshi>
 
 Notice that there are the same four directories as the previous
 example, but on [inky], the directory is _actually_ located in
@@ -399,7 +399,7 @@ large parallel job starts, for example.</li>
 up\" the plugins includes them in libmpi (and other libraries).
 Hence, _all_ plugins are included in the main Open MPI libraries
 that are loaded by the system linker before an MPI process even
-starts.  
+starts.
 <ul>
 <li> *Advantage:* Significantly less filesystem traffic than the DSO
 approach.  This model can be much more performant on network
@@ -437,7 +437,7 @@ MPI's main libraries are built as static or shared.</li>
 
 <li> *--enable-static:* Using this option to Open MPI's [configure]
 script will cause the building of static libraries (e.g., [libmpi.a]).
-This option automatically implies [--disable-mca-dso].  
+This option automatically implies [--disable-mca-dso].
 
 Note that [--enable-shared] is also the default; so if you use
 [--enable-static], Open MPI will build _both_ static and shared
@@ -484,11 +484,11 @@ $anchor[] = "vpath-parallel-build";
 $a[] = "Yes, both VPATH and parallel builds are supported.  This
 allows Open MPI to be built in a different directory than where its
 source code resides (helpful for multi-architecture builds).  Open MPI
-uses Automake for its build system, so 
+uses Automake for its build system, so
 
 For example:
 
-<faqcode>
+<geshi bash>
 shell$ gtar zxf openmpi-1.2.3.tar.gz
 shell$ cd openmpi-1.2.3
 shell$ mkdir build
@@ -496,12 +496,12 @@ shell$ cd build
 shell$ ../configure ...
 <... lots of output ...>
 shell$ make -j 4
-</faqcode>
+</geshi>
 
 Running [configure] from a different directory from where it actually
 resides triggers the VPATH build (i.e., it will configure and built
 itself from the directory where [configure] was run, not from the
-directory where [configure] resides).  
+directory where [configure] resides).
 
 Some versions of [make] support parallel builds.  The example above
 shows GNU make's \"[-j]\" option, which specifies how many compile
@@ -540,9 +540,9 @@ command line options to Open MPI's [configure] script.
 *Building static libraries:* You can disable building shared libraries
 and enable building static libraries with the following options:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --enable-static --disable-shared ...
-</faqcode>
+</geshi>
 
 Similarly, you can build _both_ static and shared libraries by simply
 specifying [--enable-static] (and _not_ specifying
@@ -553,10 +553,10 @@ DSOs, they can also be \"rolled up\" and included in their respective
 libraries (e.g., [libmpi]).  This is controlled with the
 [--enable-mca-static] option.  Some examples:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --enable-mca-static=pml ...
 shell$ ./configure --enable-mca-static=pml,btl-openib,btl-self ...
-</faqcode>
+</geshi>
 
 Specifically, entire frameworks and/or individual components can be
 specified to be rolled up into the library in a comma-separated list
@@ -573,9 +573,9 @@ Automake uses a tightly-woven set of file timestamp-based
 dependencies to compile and link software.  This behavior, frequently
 paired with messages similar to:
 
-<faqcode>
+<geshi text>
 Warning: File `Makefile.am' has modification time 3.6e+04 s in the future
-</faqcode>
+</geshi>
 
 typically means that you are building on a networked filesystem where
 the local time of the client machine that you are building on does not
@@ -607,14 +607,14 @@ $anchor[] = "configure-sed-errors";
 $a[] = "Some users have reported seeing warnings like this in the
 final output from configure:
 
-<faqcode>
-*** Final output 
-configure: creating ./config.status 
-config.status: creating ompi/include/ompi/version.h 
-sed: file ./confstatA1BhUF/subs-3.sed line 33: unterminated `s' command 
-sed: file ./confstatA1BhUF/subs-4.sed line 4: unterminated `s' command 
-config.status: creating orte/include/orte/version.h 
-</faqcode>
+<geshi text>
+*** Final output
+configure: creating ./config.status
+config.status: creating ompi/include/ompi/version.h
+sed: file ./confstatA1BhUF/subs-3.sed line 33: unterminated `s' command
+sed: file ./confstatA1BhUF/subs-4.sed line 4: unterminated `s' command
+config.status: creating orte/include/orte/version.h
+</geshi>
 
 These messages _usually_ indicate a problem in the user's local shell
 configuration.  Ensure that when you run a new shell, no output is
@@ -623,12 +623,11 @@ script is more than just the hostname of your computer, you need to go
 check your shell startup files to see where the extraneous output is
 coming from (and eliminate it):
 
-<faqcode>
-<faqcode>
+<geshi bash>
 #!/bin/sh
 `hostname`
 exit 0
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -655,9 +654,9 @@ product, it defaults to the GNU compiler set.  However, this is easily
 overridden on the [configure] command line.  For example, to build
 Open MPI with the Intel compiler suite:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure CC=icc CXX=icpc F77=ifort FC=ifort ...
-</faqcode>
+</geshi>
 
 Note that you can include additional parameters to [configure],
 implied by the \"...\" clause in the example above.
@@ -680,14 +679,16 @@ compiler suites is almost guaranteed not to work).
 
 Here are some more examples for common compilers:
 
-<faqcode>
+<geshi bash>
 # Portland compilers
 shell$ ./configure CC=pgcc CXX=pgCC F77=pgf77 FC=pgf90
+
 # Pathscale compilers
 shell$ ./configure CC=pathcc CXX=pathCC F77=pathf90 FC=pathf90
+
 # Oracle Solaris Studio (Sun) compilers
 shell$ ./configure CC=cc CXX=CC F77=f77 FC=f90
-</faqcode>
+</geshi>
 
 In all cases, the compilers must be found in your PATH and be able to
 successfully compile and link non-MPI applications before Open MPI
@@ -733,20 +734,20 @@ must generate code that can be compiled and linked against code that
 is generated by the other language compilers.  For example, on a 64
 bit system where the compiler default is to build 32 bit executables:
 
-<faqcode>
+<geshi bash>
 # Assuming the GNU compiler suite
 shell$ ./configure CFLAGS=-m64 ...
-</faqcode>
+</geshi>
 
 will produce 64 bit C objects, but 32 bit objects for C++, Fortran 77,
 and Fortran 90.  These codes will be incompatible with each other, and
 Open MPI will build successfully.  Instead, you must specify to build
 64 bit objects for _all_ languages:
 
-<faqcode>
+<geshi bash>
 # Assuming the GNU compiler suite
 shell$ ./configure CFLAGS=-m64 CXXFLAGS=-m64 FFLAGS=-m64 FCFLAGS=-m64 ...
-</faqcode>
+</geshi>
 
 The above command line will pass \"[-m64]\" to all four compilers, and
 therefore will produce 64 bit objects for all languages.";
@@ -771,15 +772,15 @@ the C compiler.  Bad Things then happen.
 The solution is to be sure to specify that the C++ compiler is
 \"[icpc]\", not \"[icc]\".  For example:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure CC=icc CXX=icpc F77=ifort FC=ifort ...
-</faqcode>
+</geshi>
 
 For Googling purposes, here's some of the error messages that may be
 issued during the Open MPI C++ codes with the Intel C compiler
 (<code>icc</code>), in no particular order:
 
-<faqcode>
+<geshi text>
 IPO Error: unresolved : _ZNSsD1Ev
 IPO Error: unresolved : _ZdlPv
 IPO Error: unresolved : _ZNKSs4sizeEv
@@ -799,7 +800,7 @@ components.o(.text+0xaa): In function `ompi_info::open_components()':
 : undefined reference to `std::string::operator=(std::string const&)'
 components.o(.text+0xb3): In function `ompi_info::open_components()':
 : undefined reference to `std::basic_string<char, std::char_traits<char>, std::allocator<char> >::~basic_string()'
-</faqcode>
+</geshi>
 
 There are many more error messages, but the above should be sufficient
 for someone trying to find this FAQ entry via a web crawler.";
@@ -817,11 +818,11 @@ compilers on some platforms, you may see warnings similar to the
 following when compiling MPI applications with Open MPI's wrapper
 compilers:
 
-<faqcode>
+<geshi bash>
 shell$ mpicc hello.c -o hello
 libimf.so: warning: warning: feupdateenv is not implemented and will always fail
-shell$ 
-</faqcode>
+shell$
+</geshi>
 
 This warning is generally harmless, but it can be alarming to some
 users.  To remove this warning, pass either the [-shared-intel] or
@@ -829,10 +830,10 @@ users.  To remove this warning, pass either the [-shared-intel] or
 option depends on your version of the Intel compilers; consult your
 local documentation):
 
-<faqcode>
+<geshi bash>
 shell$ mpicc hello.c -o hello -shared-intel
-shell$ 
-</faqcode>
+shell$
+</geshi>
 
 You can also <a
 href=\"?category=mpi-apps#override-wrappers-after-v1.0\">change the
@@ -849,22 +850,22 @@ $anchor[] = "build-ibm-compilers";
 
 $a[] = "Unfortunately there are some problems between Libtool (which
 Open MPI uses for library support) and the IBM compilers when creating
-shared libraries. Currently the only workaround is to disable shared 
+shared libraries. Currently the only workaround is to disable shared
 libraries and build Open MPI statically. For example:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure CC=xlc CXX=xlc++ F77=xlf FC=xlf90 --disable-shared --enable-static ...
-</faqcode>
+</geshi>
 
-For Googling purposes, here's a error message that may be 
+For Googling purposes, here's a error message that may be
 issued when the build fails:
 
-<faqcode>
+<geshi bash>
 xlc: 1501-216 command option --whole-archive is not recognized - passed to ld
 xlc: 1501-216 command option --no-whole-archive is not recognized - passed to ld
 xlc: 1501-218 file libopen-pal.so.0 contains an incorrect file suffix
 xlc: 1501-228 input file libopen-pal.so.0 not found
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -894,7 +895,7 @@ $anchor[] = "build-sun-compilers-suggested-configure-options";
 
 $a[] = "The below configure options are suggested for use with the Oracle Solaris Studio (Sun) compilers:
 
-<faqcode>
+<geshi text>
 --enable-heterogeneous
 --enable-cxx-exceptions
 --enable-shared
@@ -904,29 +905,29 @@ $a[] = "The below configure options are suggested for use with the Oracle Solari
 --disable-mpi-threads
 --disable-progress-threads
 --disable-debug
-</faqcode>
+</geshi>
 
 Linux only:
 
-<faqcode>
+<geshi text>
 --with-openib
 --without-udapl
 --disable-openib-ibcm (only in v1.5.4 and earlier)
-</faqcode>
+</geshi>
 
 Solaris x86 only:
 
-<faqcode>
+<geshi bash>
 CFLAGS=\"-xtarget=generic -xarch=sse2 -xprefetch -xprefetch_level=2 -xvector=simd -xdepend=yes -xbuiltin=%all -xO5\"
 FFLAGS=\"-xtarget=generic -xarch=sse2 -xprefetch -xprefetch_level=2 -xvector=simd -stackvar -xO5\"
-</faqcode>
+</geshi>
 
 Solaris SPARC only:
 
-<faqcode>
+<geshi bash>
 CFLAGS=\"-xtarget=ultra3 -m32 -xarch=sparcvis2 -xprefetch -xprefetch_level=2 -xvector=lib -xdepend=yes -xbuiltin=%all -xO5\"
 FFLAGS=\"-xtarget=ultra3 -m32 -xarch=sparcvis2 -xprefetch -xprefetch_level=2 -xvector=lib -stackvar -xO5\"
-</faqcode>
+</geshi>
 
 ";
 /////////////////////////////////////////////////////////////////////////
@@ -935,9 +936,9 @@ $q[] = "When building with the Oracle Solaris Studio 12 Update 1 (Sun) compilers
 
 $anchor[] = "build-sun-compilers-btl_sm.c-compiler-loop";
 
-$a[] = "Apply Sun patch <a href='http://sunsolve.sun.com/show.do?target=patches/zp-SunStudio12'>141859-04</a>.  
+$a[] = "Apply Sun patch <a href='http://sunsolve.sun.com/show.do?target=patches/zp-SunStudio12'>141859-04</a>.
 
-You may also consider updating your Oracle Solaris Studio compilers to 
+You may also consider updating your Oracle Solaris Studio compilers to
 the latest <a href='http://www.oracle.com/technetwork/server-storage/solarisstudio/downloads/index-jsp-136197.html'>Oracle Solaris Studio Express</a>.
 ";
 
@@ -951,7 +952,7 @@ $a[] = "You can use two following scripts (contributed by IBM) to build Open MPI
 
 Script to build OpenMPI using the GCC compiler
 
-<faqcode>
+<geshi bash>
 #!/bin/bash
 export PREFIX=/usr/local/openmpi-1.2.7_gcc
 
@@ -979,13 +980,11 @@ btl_openib_want_fork_support = 0
 EOF
 
 cp config.status \$PREFIX/config.status
-
-
-</faqcode>
+</geshi>
 
 Script to build OpenMPI using XLC and XLF compilers
 
-<faqcode>
+<geshi bash>
 #!/bin/bash
 #
 export PREFIX=/usr/local/openmpi-1.2.7_xl
@@ -1020,8 +1019,7 @@ btl_openib_want_fork_support = 0
 EOF
 
 cp config.status \$PREFIX/config.status
-
-</faqcode>
+</geshi>
 ";
 
 /////////////////////////////////////////////////////////////////////////
@@ -1038,9 +1036,9 @@ v3.0 and v3.1 versions of their compiler; you must disable certain
 <li>With PathScale 3.0 and 3.1 compilers use the workaround options
 -O2 and -fno-builtin in CFLAGS across the Open MPI build.  For
 example:
-<faqcode>
+<geshi bash>
 shell$ ./configure CFLAGS=\"-O2 -fno-builtin\" ...
-</faqcode></li>
+</geshi></li>
 <li>With PathScale 3.2 beta and later, no workaround options are
 required.</li>
 </ol>";
@@ -1068,9 +1066,6 @@ users these days (our informal testing shows that not many users are
 still using GCC 3.x), but this information is provided so that it is
 Google-able for those still using older compilers.";
 
-#See Open MPI's problem ticket on this issue for more detail: " . 
-#ompi_bug(1326) . "#1326</a>";
-
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "How do I build Open MPI with support for Open IB (Infiniband),
@@ -1083,7 +1078,7 @@ generally only have to specify the directory where its support header
 files and libraries were installed to Open MPI's [configure] script.
 You can specify where multiple packages were installed if you have
 support for more than one kind of interconnect -- Open MPI will build
-support for as many as it can.  
+support for as many as it can.
 
 You tell [configure] where support libraries are with the appropriate
 [--with] command line switch.  Here is the list of available switches:
@@ -1100,10 +1095,10 @@ note that iWARP support was added in the v1.3 series).</li>
 
 For example:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --with-mvapi=/path/to/mvapi/installation \
   --with-gm=/path/to/gm/installation
-</faqcode>
+</geshi>
 
 These switches enable Open MPI's [configure] script to automatically
 find all the right header files and libraries to support the various
@@ -1122,11 +1117,11 @@ included, after you build and install Open MPI, you can run the
 The v1.2 (and earlier) series has two openib components (your exact
 version numbers may be different):
 
-<faqcode>
+<geshi bash>
 shell$ ompi_info | grep openib
                MCA mpool: openib (MCA v1.0, API v1.0, Component v1.0)
                  MCA btl: openib (MCA v1.0, API v1.0, Component v1.0)
-</faqcode>
+</geshi>
 
 mVAPI components will be named \"[mvapi]\", GM components will be
 named \"[gm]\", and MX components will be named \"[mx]\".
@@ -1158,26 +1153,26 @@ v1.2 and v1.3.
 For Open MPI v1.2, no extra [configure] arguments are needed as SGE
 support is built in automatically.  After Open MPI is installed, you
 should see two components named _gridengine_.
-<faqcode>
+<geshi bash>
 shell$ ompi_info | grep gridengine
                  MCA ras: gridengine (MCA v1.0, API v1.3, Component v1.2.5)
                  MCA pls: gridengine (MCA v1.0, API v1.3, Component v1.2.5)
-</faqcode>
+</geshi>
 
 For Open MPI v1.3, you need to explicitly request the SGE support with
 the \"[--with-sge]\" command line switch to the Open MPI [configure]
 script. For example:
-<faqcode>
+<geshi bash>
 shell$ ./configure --with-sge
-</faqcode>
+</geshi>
 
 After Open MPI is installed, you should see one component named
 _gridengine_.
-<faqcode>
+<geshi bash>
 shell$ ompi_info | grep gridengine
                  MCA ras: gridengine (MCA v2.0, API v2.0, Component v1.3)
-</faqcode>
-Open MPI v1.3 only has the one specific gridengine component as the 
+</geshi>
+Open MPI v1.3 only has the one specific gridengine component as the
 other functionality was rolled into other components.
 
 Component versions may vary depending on the version of Open MPI 1.2 or
@@ -1195,18 +1190,18 @@ script.  In general, the procedure is the same <a
 href=\"#build-p2p\">building support for high-speed interconnect
 networks</a>, except that you use [--with-tm].  For example:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --with-tm=/path/to/pbs_or_torque/installation
-</faqcode>
+</geshi>
 
 After Open MPI is installed, you should see two components named
 \"[tm]\":
 
-<faqcode>
+<geshi bash>
 shell$ ompi_info | grep tm
                  MCA pls: tm (MCA v1.0, API v1.0, Component v1.0)
                  MCA ras: tm (MCA v1.0, API v1.0, Component v1.0)
-</faqcode>
+</geshi>
 
 Specific frameworks and version numbers may vary, depending on your
 version of Open MPI.
@@ -1229,10 +1224,9 @@ on some platforms.  Notably, on at least some 64 bit Linux platforms
 (e.g., AMD64), trying to create a dynamic plugin that links against a
 static library will result in error messages such as:
 
-<faqcode>
-relocation R_X86_64_32S against `a local symbol' can not be used when
-making a shared object; recompile with -fPIC
-</faqcode>
+<geshi text>
+relocation R_X86_64_32S against `a local symbol' can not be used when making a shared object; recompile with -fPIC
+</geshi>
 
 Note that recent versions of Torque (as of October 2006) have started
 shipping shared libraries and this issue does not occur.
@@ -1263,9 +1257,9 @@ run-time.  This does not affect user MPI code at all (i.e., the
 location of Open MPI's plugins is transparent to MPI applications).
 Use the following options to Open MPI's [configure] script:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --disable-shared --enable-static ...
-</faqcode>
+</geshi>
 
 Note that this option only changes the location of Open MPI's _default
 set_ of plugins (i.e., they are included in [libmpi] and friends
@@ -1292,25 +1286,25 @@ $q[] = "How do I build Open MPI with support for LoadLeveler?";
 
 $anchor[] = "build-rte-loadleveler";
 
-$a[] = "Support for LoadLeveler will be automatically built if the LoadLeveler 
-libraries and headers are in the default path. If not, support 
-must be explicitly requested with the \"[--with-loadleveler]\" command 
-line switch to Open MPI's [configure] script.  In general, the procedure 
-is the same <a href=\"#build-p2p\">building support for high-speed 
-interconnect networks</a>, except that you use [--with-loadleveler].  
+$a[] = "Support for LoadLeveler will be automatically built if the LoadLeveler
+libraries and headers are in the default path. If not, support
+must be explicitly requested with the \"[--with-loadleveler]\" command
+line switch to Open MPI's [configure] script.  In general, the procedure
+is the same <a href=\"#build-p2p\">building support for high-speed
+interconnect networks</a>, except that you use [--with-loadleveler].
 For example:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --with-loadleveler=/path/to/LoadLeveler/installation
-</faqcode>
+</geshi>
 
 After Open MPI is installed, you should see one or more components
 named \"[loadleveler]\":
 
-<faqcode>
+<geshi bash>
 shell$ ompi_info | grep loadleveler
                  MCA ras: loadleveler (MCA v1.0, API v1.3, Component v1.3)
-</faqcode>
+</geshi>
 
 Specific frameworks and version numbers may vary, depending on your
 version of Open MPI.";
@@ -1332,19 +1326,19 @@ requested with the \"[--with-lsf]\" command line switch to Open MPI's
 href=\"#build-p2p\">building support for high-speed interconnect
 networks</a>, except that you use [--with-lsf].  For example:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --with-lsf=/path/to/lsf/installation
-</faqcode>
+</geshi>
 
 After Open MPI is installed, you should see a component named
 \"[lsf]\":
 
-<faqcode>
+<geshi bash>
 shell$ ompi_info | grep lsf
                  MCA ess: lsf (MCA v2.0, API v1.3, Component v1.3)
                  MCA ras: lsf (MCA v2.0, API v1.3, Component v1.3)
                  MCA plm: lsf (MCA v2.0, API v1.3, Component v1.3)
-</faqcode>
+</geshi>
 
 Specific frameworks and version numbers may vary, depending on your
 version of Open MPI.";
@@ -1357,10 +1351,19 @@ $q[] = "How do I build Open MPI with processor affinity support?";
 
 $anchor[] = "build-paffinity";
 
-$a[] = "Open MPI currently only supports processor affinity for some
-platforms.  In general, processor affinity will automatically be built
-if it is supported -- no additional command line flags to [configure]
-should be necessary.
+$a[] = "Open MPI supports processor affinity for many platforms.  In
+general, processor affinity will automatically be built if it is
+supported -- no additional command line flags to [configure] should be
+necessary.
+
+However, Open MPI fail to build processor affinity if the appropriate
+support libraries and header files are not available on the system on
+which Open MPI is being built.  Ensure that you have all appropriate
+\"development\" packages installed.  For example, Red Hat Enterprise
+Linux (RHEL) systems typically require the [numactl-devel] packages to
+be installed before Open MPI will be able to build full support for
+processor affinity.  Other OS's / Linux distros may have different
+packages that are required.
 
 <a href=\"?category=tuning#paffinity-defs\">See this FAQ entry for
 more details.</a>";
@@ -1371,31 +1374,19 @@ $q[] = "How do I build Open MPI with memory affinity / NUMA support (e.g., libnu
 
 $anchor[] = "build-maffinity";
 
-$a[] = "Open MPI currently only supports [<a
-href=\"http://oss.sgi.com/projects/libnuma/\">libnuma</a>] memory
-affinity for Linux-based systems (please let us know if there are
-other NUMA libraries that you need supported!).
+$a[] = "Open MPI supports memory affinity for many platforms.  In
+general, processor affinity will automatically be built if it is
+supported -- no additional command line flags to [configure] should be
+necessary.
 
-Support for [libnuma] must be explicitly requested with the
-\"[--with-libnuma]\" command line switch to Open MPI's [configure]
-script.  In general, the procedure is the same <a
-href=\"#build-p2p\">building support for high-speed interconnect
-networks</a>, except that you use [--with-libnuma].  For example:
-
-<faqcode>
-shell$ ./configure --with-libnuma=/path/to/libnuma/installation
-</faqcode>
-
-After Open MPI is installed, you should see an [maffinity] component
-named \"[libnuma]\":
-
-<faqcode>
-shell$ ompi_info | grep libnuma
-           MCA maffinity: libnuma (MCA v1.0, API v1.0, Component v1.0)
-</faqcode>
-
-Specific frameworks and version numbers may vary, depending on your
-version of Open MPI.
+However, Open MPI fail to build memory affinity if the appropriate
+support libraries and header files are not available on the system on
+which Open MPI is being built.  Ensure that you have all appropriate
+\"development\" packages installed.  For example, Red Hat Enterprise
+Linux (RHEL) systems typically require the [numactl-devel] packages to
+be installed before Open MPI will be able to build full support for
+memory affinity.  Other OS's / Linux distros may have different
+packages that are required.
 
 <a href=\"?category=tuning#maffinity-defs\">See this FAQ entry for
 more details.</a>";
@@ -1419,45 +1410,45 @@ all you need is the path to the cuda.h header file.
 
 1. Searches in default locations.  Looks for cuda.h in
 /usr/local/cuda/include.
-<faqcode>
- ./configure --with-cuda
-</faqcode>
+<geshi bash>
+shell$ ./configure --with-cuda
+</geshi>
 
 2. Searches for cuda.h in /usr/local/cuda-v6.0/cuda/include.
-<faqcode>
- ./configure --with-cuda=/usr/local/cuda-v6.0/cuda
-</faqcode>
+<geshi bash>
+shell$ ./configure --with-cuda=/usr/local/cuda-v6.0/cuda
+</geshi>
 
 Note that you cannot configure with *--disable-dlopen* as that will
 break the ability of the Open MPI library to dynamically load libcuda.so.
 
 *Configuring Open MPI 1.7, MPI 1.7.1 and 1.7.2*
 
-<faqcode>
+<geshi text>
   --with-cuda(=DIR)       Build cuda support, optionally adding DIR/include,
                           DIR/lib, and DIR/lib64
   --with-cuda-libdir=DIR  Search for cuda libraries in DIR
-</faqcode>
+</geshi>
 
 Here are some examples of configure commands that enable CUDA support.
 
 1. Searches in default locations.  Looks for cuda.h in
 /usr/local/cuda/include and libcuda.so in /usr/lib64.
-<faqcode>
- ./configure --with-cuda
-</faqcode>
+<geshi bash>
+shell$ ./configure --with-cuda
+</geshi>
 
 2. Searches for cuda.h in /usr/local/cuda-v4.0/cuda/include and libcuda.so in
 default location of /usr/lib64.
-<faqcode>
- ./configure --with-cuda=/usr/local/cuda-v4.0/cuda
-</faqcode>
+<geshi bash>
+shell$ ./configure --with-cuda=/usr/local/cuda-v4.0/cuda
+</geshi>
 
 3. Searches for cuda.h in /usr/local/cuda-v4.0/cuda/include and
 libcuda.so in /usr/lib64.  (same as previous one)
-<faqcode>
- ./configure --with-cuda=/usr/local/cuda-v4.0/cuda --with-cuda-libdir=/usr/lib64
-</faqcode>
+<geshi bash>
+shell$ ./configure --with-cuda=/usr/local/cuda-v4.0/cuda --with-cuda-libdir=/usr/lib64
+</geshi>
 
 If the cuda.h or libcuda.so files cannot be found, then the configure
 will abort.
@@ -1467,9 +1458,9 @@ error if you configure the library with *--enable-static*.  To get
 around this error, add the following to your configure line and
 reconfigure.  This disables the build of the PML BFO which is largely
 unused anyways.  This bug is fixed in Open MPI 1.7.3.
-<faqcode>
+<geshi text>
  --enable-mca-no-build=pml-bfo
-</faqcode>
+</geshi>
 
 See <a href=\"?category=running#mpi-cuda-support\">this FAQ entry</a>
 for detals on how to use the CUDA support.";
@@ -1483,23 +1474,23 @@ $anchor[] = "skip-components";
 $a[] = "The [--enable-mca-no-build] option to Open MPI's [configure]
 script enables you to specify a list of components that you want to
 skip building.  This allow you to not include support for specific
-features in Open MPI if you do not want to.  
+features in Open MPI if you do not want to.
 
 It takes a single argmuent: a comma-delimited list of
 framework/component pairs inidicating which specific components you do
 not want to build.  For example:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --enable-mca-no-build=paffinity-linux,timer-solaris
-</faqcode>
+</geshi>
 
 Note that this option is really only useful for components that would
 otherwise be built.  For example, if you are on a machine without
 Myrinet support, it is not necessary to specify:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --enable-mca-no-build=btl-gm
-</faqcode>
+</geshi>
 
 because the [configure] script will naturally see that you do not have
 support for GM and will automatically skip the [gm] BTL component.";
@@ -1514,9 +1505,9 @@ $a[] = "There are _many_ options to Open MPI's [configure] script.
 Please run the following to get a full list (including a short
 description of each option);
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --help
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -1621,7 +1612,7 @@ As such, Open MPI v1.3 made the test for supporting [MPI_REAL16] and
 [MPI_COMPLEX32] more stringent: Open MPI will support these types only
 if:
 
-<ul> 
+<ul>
 <li> An integer C type can be found that has the same size (measured
 in bytes) as the Fortran [REAL*16] type.</li>
 <li> The bit representation is the same between the C type and the

@@ -5,7 +5,7 @@ $q[] = "How do I run jobs under Torque / PBS Pro?";
 
 $anchor[] = "tm-run-jobs";
 
-$a[] = "The short answer is just to use [mpirun] as normal.  
+$a[] = "The short answer is just to use [mpirun] as normal.
 
 Open MPI automatically obtains both the list of hosts and how many
 processes to start on each host from Torque / PBS Pro directly.
@@ -16,24 +16,25 @@ required).
 
 For example:
 
-<faqcode>
+<geshi bash>
 # Allocate a PBS job with 4 nodes
 shell$ qsub -I -lnodes=4
+
 # Now run an Open MPI job on all the nodes allocated by PBS/Torque
 # (starting with Open MPI v1.2; you need to specify -np for the 1.0
 # and 1.1 series).
 shell$ mpirun my_mpi_application
-</faqcode>
+</geshi>
 
 This will run the 4 MPI processes on the nodes that were allocated by
 PBS/Torque.  Or, if submitting a script:
 
-<faqcode>
+<geshi bash>
 shell$ cat my_script.sh
 #!/bin/sh
 mpirun my_mpi_application
 shell$ qsub -l nodes=4 my_script.sh
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -99,16 +100,14 @@ when running in a Torque / PBS environment?";
 
 $anchor[] = "tm-use-hostfile";
 
-$a[] = "As of version v1.2.1, no.
+$a[] = "Prior to v1.3, no.
 
-Open MPI will fail to launch processes properly when a hostfile is
-specifed on the [mpirun] command line, or if the [mpirun] [--host]
+Open MPI &lt;v1.3 will fail to launch processes properly when a hostfile is
+specified on the [mpirun] command line, or if the [mpirun] [--host]
 option is used.
 
-We're working on correcting the error.  A future version of Open MPI
-will likely launch on the hosts specified either in the hostfile or
-via the [--host] option as long as they are a proper subset of the
-hosts allocated to the Torque / PBS Pro job.";
+As of v1.3, Open MPI can use the [--hostfile] and [--host] options in
+conjunction with TM jobs.";
 
 /////////////////////////////////////////////////////////////////////////
 

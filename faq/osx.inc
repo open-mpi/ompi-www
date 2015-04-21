@@ -1,4 +1,5 @@
 <?php
+
 include_once("$topdir/software/ompi/current/version.inc");
 
 $q[] = "How does Open MPI handle HFS+ / UFS filesystems?";
@@ -14,7 +15,7 @@ case sensitive or not, and assume the install file system is the same
 way.  Generally, this is all that is needed to deal with HFS+.
 
 However, if you are building on UFS and installing to HFS+, you should
-specify <code>--without-cs-fs</code> to configure to make sure Open 
+specify <code>--without-cs-fs</code> to configure to make sure Open
 MPI does not build the <code>mpiCC</code> wrapper.  Likewise, if you
 build on HFS+ and install to UFS, you may want to specify
 <code>--with-cs-fs</code> to ensure that <code>mpiCC</code> is
@@ -29,7 +30,7 @@ $anchor[] = "xcode";
 
 $a[] = "
 XCode has a non-public interface for adding compilers to XCode.  A
-friendly Open MPI user sent in configuration file for XCode 2.3, 
+friendly Open MPI user sent in configuration file for XCode 2.3,
 <A HREF=\"MPICC.pbcompspec\">MPICC.pbcompspec</A>, which will add
 support for the Open MPI wrapper compilers.  The file should be
 placed in <code>/Library/Application Support/Apple/Developer Tools/Specifications/</code>.  Upon starting XCode, this file is loaded and added to the list of
@@ -49,12 +50,44 @@ Thanks to Karl Dockendorf for this information.
 
 /////////////////////////////////////////////////////////////////////////
 
+function xgridrow($ver, $support) {
+    return "<tr>
+<td align=\"left\" valign=\"top\">$ver</td>
+<td align=\"middle\" valign=\"top\">$support</td>
+</tr>\n";
+}
+
+$th = '<th style="border-bottom:1px solid black; padding:5px">';
+
+$q[] = "What versions of Open MPI support XGrid?";
+
+$anchor[] = "xgrid-what-versions";
+
+$a[] = "XGrid is a batch-scheduling technology that was included in
+some older versions of OS X.  Support for XGrid appeared in the
+following versions of Open MPI:
+
+<div align=\"center\">
+<table style=\"border:0px; padding:15px\">
+<tr>
+$th Open MPI series </th>
+$th XGrid supported </th>
+</tr>
+". xgridrow("v1.0 series", "Yes") . "
+". xgridrow("v1.1 series", "Yes") . "
+". xgridrow("v1.2 series", "Yes") . "
+". xgridrow("v1.3 series", "Yes") . "
+". xgridrow("v1.4 and beyond", "No") . "
+</table>
+</div>";
+
+/////////////////////////////////////////////////////////////////////////
+
 $q[] = "How do I run jobs under XGrid?";
 
 $anchor[] = "xgrid-howto";
 
-$a[] = "XGrid support is included in Open MPI and will be build if the
-XGrid tools are installed.
+$a[] = "XGrid support will be built if the XGrid tools are installed.
 
 We unfortunately have little documentation on how to run with XGrid at
 this point other than a fairly lengthy e-mail that Brian Barrett wrote
@@ -86,8 +119,13 @@ $q[] = "Is Open MPI included in OS X?";
 
 $anchor[] = "osx-bundled-ompi";
 
-$a[] = "Open MPI v1.2.3 was included in OS X starting with version 10.5
-(Leopard).  Note that the Leopard does not include a Fortran compiler,
+$a[] = "Open MPI v1.2.3 was included in some older versions of OS X --
+starting with version 10.5 (Leopard).  It was removed in more recent
+versions of OS X (we're not sure in which version it disappeared --
+*but your best bet is to simply <a href=\"$topdir/software/\">download
+a modern version of Open MPI</a> for your modern version of OS X*).
+
+Note, however, that the Leopard does not include a Fortran compiler,
 so the OS X-shipped version of Open MPI does not include Fortran
 support.
 
@@ -118,11 +156,10 @@ with the bindir of Open MPI</a>.  This will ensure that you are using
 your newly-installed Open MPI, not the OS X-installed Open MPI.  For
 example:
 
-<faqcode>
-# Not showing the complete URL/tarball name because it changes over time :-)
+<geshi bash>
 shell$ wget http://www.open-mpi.org/.../open-mpi....
-shell$ tar zxf openmpi-...gz
-shell$ cd openmpi-...
+shell$ tar xf openmpi-<version>.tar.bz2
+shell$ cd openmpi-<version>
 shell$ ./configure --prefix=/opt/openmpi 2>&1 | tee config.out
 [...lots of output...]
 shell$ make -j 4 2>&1 | tee make.out
@@ -132,7 +169,7 @@ shell$ sudo make install 2>&1 | tee install.out
 shell$ export PATH=/opt/openmpi/bin:\$PATH
 shell$ ompi_info
 [...see output from newly-installed Open MPI...]
-</faqcode>
+</geshi>
 
 Of course, you'll want to make your [PREFIX] changes permanent.  One
 way to do this is to <a
@@ -156,6 +193,6 @@ href=\"?category=mpi-apps#override-wrappers-after-v1.0\">editing
 OMPI's wrapper compilers</a> to force the use of the Right libraries,
 such as with the following flag when configuring Open MPI:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --with-wrapper-ldflags=\"-Wl,-search_paths_first\" ...
-</faqcode>";
+</geshi>";

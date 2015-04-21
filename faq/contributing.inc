@@ -33,7 +33,7 @@ $q[] = "I found a bug!  How do I report it?";
 $anchor[] = "reporting-bugs";
 
 $a[] = "First check that this is not already a known issue by checking
-the <a href=\"$topdir/faq/\">FAQ</a> and the 
+the <a href=\"$topdir/faq/\">FAQ</a> and the
 <a href=\"$topdir/community/lists/\">mailing list archives</a>.  If you
 can't find your problem mentioned anywhere, it is most helpful if you
 can create a \"recipe\" to replicate the bug.
@@ -56,7 +56,7 @@ href=\"$topdir/community/license.php\">the BSD license</a>.";
 
 //$anchor[] = "joining-open-mpi";
 
-//$a[] = "The first thing to do is to get involved.  
+//$a[] = "The first thing to do is to get involved.
 //
 //---Need more----";
 
@@ -183,7 +183,7 @@ they want / need to use, which can be a daunting and confusing task.
 
 We do periodically have \"short\" forks.  Specifically, sometimes an
 origanization needs to release a version of Open MPI with a specific
-feature.  
+feature.
 
 If you're thinking of forking the Open MPI code base, please let us
 know -- let's see if we can work something out so that it is not
@@ -198,7 +198,7 @@ $anchor[] = "external-contributions";
 
 $a[] = "If your contribution was not accepted into the main Open MPI
 code base, there are likely to be good reasons for it (perhaps
-technical, perhaps due to licensing restrictions, etc.).  
+technical, perhaps due to licensing restrictions, etc.).
 
 If you wrote a standalone component, you can still distribute this
 component independent of the main Open MPI distribution.  Open MPI

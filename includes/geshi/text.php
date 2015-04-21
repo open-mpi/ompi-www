@@ -65,12 +65,18 @@ $language_data = array (
         'METHODS' => array(),
         'SYMBOLS' => array(),
         'SCRIPT' => array(),
-        'REGEXPS' => array()
+        'REGEXPS' => array(
+            # Open MPI bright red emphasis
+            999 => 'color: #FF0000;'
+        )
         ),
     'URLS' => array(),
     'OOLANG' => false,
     'OBJECT_SPLITTERS' => array(),
-    'REGEXPS' => array(),
+    'REGEXPS' => array(
+        // Open MPI: emphasize
+        999 => "\*\*\*\*(.+)\*\*\*\*"
+    ),
     'STRICT_MODE_APPLIES' => GESHI_NEVER,
     'SCRIPT_DELIMITERS' => array(),
     'HIGHLIGHT_STRICT_BLOCK' => array(),

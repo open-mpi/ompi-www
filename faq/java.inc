@@ -50,17 +50,17 @@ $a[] = "In order to use Java bindings in Open MPI, they must be enabled
 during configuration. If the JDK can be found in a standard location,
 the simplest way to do this is:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --enable-mpi-java ...
-</faqcode>
+</geshi>
 
 Otherwise, it is necessary to indicate where the JDK binaries and headers
 are located:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --enable-mpi-java --with-jdk-bindir=<foo>
                    --with-jdk-headers=<bar> ...
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -76,9 +76,9 @@ interested.
 Once your application has been compiled, you can run it with the
 standard [mpirun] command line:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun [options] java [your-java-options] my-app-class
-</faqcode>
+</geshi>
 
 For convenience, mpirun has been updated to detect the [java] command
 and ensure that the required MPI libraries and class paths are defined

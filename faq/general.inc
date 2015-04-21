@@ -8,18 +8,30 @@ $a[] = "MPI stands for the Message Passing Interface.  Written by the
 MPI Forum (a large committee comprising of a cross-section between
 industry and research representatives), MPI is a standardized API
 typically used for parallel and/or distributed computing.  The MPI
-standard is comprised of 2 documents: MPI-1 (published in 1994) and
-MPI-2 (published in 1996).  MPI-2 is, for the most part, additions and
-extensions to the original MPI-1 specification.
+standard has been published multiple times:
 
-The MPI-1 and MPI-2 documents can be downloaded from the official MPI
-Forum web site: " . "<a href=\"http://www.mpi-forum.org/\">" .
+<ul>
+<li> MPI-1.0 (published in 1994).</li>
+<li> MPI-2.0 (published in 1996).  MPI-2.0 is, for the most part,
+additions and extensions to the original MPI-1.0 specification.
+<ul>
+<li> MPI-2.1 and MPI-2.2 were subsequently published, and contained
+minor fixes, changes, and additions compared to MPI-2.0.</li>
+</ul></li>
+<li> MPI-3.0 (published in 2012).
+<ul>
+<li> MPI-3.1 was subsequently, and contains minor fixes, changes, and
+additions compared to MPI-3.0.</li>
+</ul></li>
+</ul>
+
+All MPI specifications documents can be downloaded from the official
+MPI Forum web site: " . "<a href=\"http://www.mpi-forum.org/\">" .
 "http://www.mpi-forum.org/</a>.
 
-Open MPI is an open source, freely available implementation of both
-the MPI-1 and MPI-2 documents.  The Open MPI software achieves high
-performance; the Open MPI project is quite receptive to community
-input.";
+Open MPI is an open source, freely available implementation of the MPI
+specifications.  The Open MPI software achieves high performance; the
+Open MPI project is quite receptive to community input.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -28,7 +40,7 @@ $q[] = "Where can I learn about MPI?  Are there tutorials available?";
 $anchor[] = "tutorials";
 
 $a[] = "There are many resources available on the internet for
-learning MPI.  
+learning MPI.
 
 <ul>
 <li> The definitive reference for MPI is " . "<a href=\"http://www.mpi-forum.org\">" . "the MPI Forum Web site</a>.  It has
@@ -48,13 +60,10 @@ not recommended for beginners, but is an invaluable reference.</li>
      </ul>
 </li>
 <li> " . "<a href=\"http://www.citutor.org/browse.php\">"
-.  "The \"Introduction to MPI\" and \"Intermediate MPI\" tutorials</a> are 
+.  "The \"Introduction to MPI\" and \"Intermediate MPI\" tutorials</a> are
 excellent web-based MPI instruction offered by the NCSA.
 <font color=\"red\"><strong>This is a great place for
 beginners.</strong></font></li>
-<li> The LAM/MPI web site "
-. "<a href=\"http://www.lam-mpi.org/tutorials/\">" . "has links to a
-few tutorials</a>.</li>
 <li> Last but not least, "
 . "<a href=\"http://www.google.com/search?q=MPI+tutorial\">"
 . "searching for \"MPI tutorial\" on Google</a> turns up a wealth of
@@ -71,7 +80,7 @@ $a[] = "We have several top-level goals:
 
 <ul>
 <li> Create a free, open source, peer-reviewed, production-quality
-complete MPI-2 implementation.</li>
+complete MPI implementation.</li>
 <li> Provide extremely high, competitive performance (latency,
 bandwidth, ...pick your favorite metric).</li>
 <li> Directly involve the HPC community with external development
@@ -84,7 +93,7 @@ projects.</li>
 </ul>
 
 In short, we want to work _with_ and _for_ the HPC community to make a
-world-class MPI-2 implementation that can be used on a huge number and
+world-class MPI implementation that can be used on a huge number and
 kind of systems.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -163,7 +172,7 @@ By virtue of our extremely liberal <a
 href=\"$topdir/community/license.php\">license</a>, it is possible for
 anyone to fork at any time.
 
-However, we hope that no one does.  
+However, we hope that no one does.
 
 We intend to distinguish ourselves from other projects by:
 
@@ -183,7 +192,7 @@ goals of the main Open MPI Project, it is our hope that they can do
 what they need in components that can be distributed without forking
 the main Open MPI code base.
 
-Only time will tell if this ambitious plan is feasible, but we're going 
+Only time will tell if this ambitious plan is feasible, but we're going
 to work hard to make it a reality!";
 
 /////////////////////////////////////////////////////////////////////////
@@ -193,7 +202,7 @@ $q[] = "How are 3rd party contributions handled?";
 $anchor[] = "3rd-party-contrib";
 
 $a[] = "Before accepting any code from 3rd parties, we require an original
-signed contribution agreement from the donator.  
+signed contribution agreement from the donator.
 
 These agreements assert that the contributor has the right to donate
 the code and allow the Open MPI Project to perpetually distribute it
@@ -305,8 +314,7 @@ Although each MPI implementation focused on different areas of
 excellence, we all shared the same common core values:
 
 <ul>
-<li>A full MPI-1 implementation, moving towards an MPI-2
-implementation</li> 
+<li>A full MPI implementation</li>
 <li>Production quality code -- it has to \"just work\"</li>
 <li>A desire to explore lots of things that an MPI implementation can
 do that we've never had the time/resources to investigate because we

@@ -78,14 +78,13 @@ techniques. This allows us to support the methods described above
 checkpoint/restart systems (e.g., Condor, libckpt) and protocols
 (e.g., uncoordinated, message induced).
 
-<font color=\"red\"><strong>Note:</strong></font>
-The checkpoint/restart support was last released as part of the v1.6 series.
-The v1.7 series and the Open MPI master do not support this functionality (most of
-the code is present in the repository, but it is known to be non-functional in 
-most cases).
-This feature is looking for a maintainer. Interested parties should inquire
-on the developers mailing list.
-";
+<font color=\"red\"><strong>Note:</strong></font> The
+checkpoint/restart support was last released as part of the v1.6
+series.  The v1.7 series and the Open MPI master do not support this
+functionality (most of the code is present in the repository, but it
+is known to be non-functional in most cases).  This feature is looking
+for a maintainer. Interested parties should inquire on the developers
+mailing list.  ";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -103,11 +102,11 @@ currently available on the Open MPI development master and in the v1.3
 release series. For more information about how to use this feature see
 the following websites:
 <ul>
-<li> Fault Tolerance Research at Indiana University: " . 
+<li> Fault Tolerance Research at Indiana University: " .
 "<a href=\"http://osl.iu.edu/research/ft/ompi-cr/\">" . "
 http://osl.iu.edu/research/ft/ompi-cr/</a>
 </li>
-<li> Development WIKI: " . 
+<li> Development WIKI: " .
 "<a href=\"https://github.com/open-mpi/ompi/wiki/ProcessFT_CR\">" . "
 https://github.com/open-mpi/ompi/wiki/ProcessFT_CR</a>
 </li>
@@ -116,11 +115,11 @@ https://github.com/open-mpi/ompi/wiki/ProcessFT_CR</a>
 For information on the Fault Tolerant MPI prototype in Open MPI see the
 links below:
 <ul>
-<li>MPI Forum's Fault Tolerance Working Group: " . 
+<li>MPI Forum's Fault Tolerance Working Group: " .
 "<a href=\"https://svn.mpi-forum.org/trac/mpi-forum-web/wiki/FaultToleranceWikiPage\">" . "
 https://svn.mpi-forum.org/trac/mpi-forum-web/wiki/FaultToleranceWikiPage</a>
 </li>
-<li>Fault Tolerant MPI Prototype: " . 
+<li>Fault Tolerant MPI Prototype: " .
 "<a href=\"http://fault-tolerance.org/\">" . "
 http://fault-tolerance.org/</a>
 </li>
