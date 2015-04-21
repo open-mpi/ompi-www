@@ -38,15 +38,15 @@ use [mpicc].  Open MPI provides a wrapper compiler for four languages:
 
 Hence, if you expect to compile your program as:
 
-<faqcode>
+<geshi bash>
 shell$ gcc my_mpi_application.c -o my_mpi_application
-</faqcode>
+</geshi>
 
 Simply use the following instead:
 
-<faqcode>
-shell$ <strong>mpicc</strong> my_mpi_application.c -o my_mpi_application
-</faqcode>
+<geshi bash>
+shell$ mpicc my_mpi_application.c -o my_mpi_application
+</geshi>
 
 Note that Open MPI's wrapper compilers do not do any actual compiling
 or linking; all they do is manipulate the command line and add in all
@@ -119,13 +119,13 @@ provides a workaround to find out what command line flags you need to
 compile MPI applications.  There are generally two sets of flags that
 you need: compile flags and link flags.
 
-<faqcode>
+<geshi bash>
 # Show the flags necessary to compile MPI C applications
 shell$ mpicc --showme:compile
 
 # Show the flags necessary to link MPI C applications
 shell$ mpicc --showme:link
-</faqcode>
+</geshi>
 
 The [--showme:*] flags work with all Open MPI wrapper compilers
 (specifically: [mpicc], [mpiCC] / [mpicxx] / [mpic++], [mpifort], and
@@ -146,13 +146,13 @@ Makefile (or other build system).  It is almost always best to run
 find out what you need.  For example, GNU Make allows running commands
 and assigning their results to variables:
 
-<faqcode>
+<geshi make>
 MPI_COMPILE_FLAGS = $(shell mpicc --showme:compile)
 MPI_LINK_FLAGS = $(shell mpicc --showme:link)
 
 my_app: my_app.c
         $(CC) $(MPI_COMPILE_FLAGS) my_app.c $(MPI_LINK_FLAGS) -o my_app
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -169,9 +169,9 @@ entry</a>.
 The wrapper compilers each construct command lines in the following
 form:
 
-<faqcode>
-<center>&lt;compiler&gt; &lt;xCPPFLAGS&gt; &lt;xFLAGS&gt; <em>user_arguments</em> &lt;xLDFLAGS&gt; &lt;xLIBS&gt;</center>
-</faqcode>
+<geshi bash>
+[compiler] [xCPPFLAGS] [xFLAGS] user_arguments [xLDFLAGS] [xLIBS]
+</geshi>
 
 Where [&lt;compiler&gt;] is replaced by the default back-end compiler for each
 language, and \"[x]\" is customized for each language (i.e., C, C++, F77,
@@ -448,12 +448,12 @@ To obtain the values of the other flags, there are two main methods:
 <li> Use the [--showme] option to any wrapper compiler.  For example
 (lines broken here for readability):
 
-<faqcode>
-shell$ mpicc <strong>prog.c -o prog</strong> --showme
+<geshi bash>
+shell$ mpicc prog.c -o prog --showme
 gcc -I/path/to/openmpi/include -I/path/to/openmpi/include/openmpi/ompi \
-<strong>prog.c -o prog</strong> -L/path/to/openmpi/lib -lmpi \
+prog.c -o prog -L/path/to/openmpi/lib -lmpi \
 -lopen-rte -lopen-pal -lutil -lnsl -ldl -Wl,--export-dynamic -lm
-</faqcode>
+</geshi>
 
 This shows a coarse-grained method for getting the entire command
 line, but does not tell you what each set of flags are (xFLAGS,
@@ -461,7 +461,7 @@ xCPPFLAGS, xLDFLAGS, and xLIBS).
 
 <li> Use the [ompi_info] command.  For example:
 
-<faqcode>
+<geshi bash>
 shell$ ompi_info --all | grep wrapper
    Wrapper extra CFLAGS:
  Wrapper extra CXXFLAGS:
@@ -469,7 +469,7 @@ shell$ ompi_info --all | grep wrapper
   Wrapper extra FCFLAGS:
   Wrapper extra LDFLAGS:
      Wrapper extra LIBS: -lutil -lnsl -ldl -Wl,--export-dynamic -lm
-</faqcode>
+</geshi>
 
 This installation is _only_ adding options in the [xLIBS] areas of the
 wrapper compilers; all other values are blank (remember: the [-I]'s
@@ -478,7 +478,7 @@ and [-L]'s are implicit).
 Note that the [--parsable] option can be used to obtain
 machine-parsable versions of this output.  For example:
 
-<faqcode>
+<geshi bash>
 shell$ ompi_info --all --parsable | grep wrapper:extra
 option:wrapper:extra_cflags:
 option:wrapper:extra_cxxflags:
@@ -486,7 +486,7 @@ option:wrapper:extra_fflags:
 option:wrapper:extra_fcflags:
 option:wrapper:extra_ldflags:
 option:wrapper:extra_libs:-lutil -lnsl  -ldl  -Wl,--export-dynamic -lm
-</faqcode>
+</geshi>
 </ol>";
 
 /////////////////////////////////////////////////////////////////////////
@@ -499,11 +499,11 @@ $anchor[] = "wrapper-showme-with-no-file";
 $a[] = "The output of commands similar to the following may be
 somewhat surprising:
 
-<faqcode>
+<geshi bash>
 shell$ mpicc -g --showme
 gcc -g
 shell$
-</faqcode>
+</geshi>
 
 Where are all the MPI-related flags, such as the necessary -I, -L, and
 -l flags?
@@ -513,20 +513,20 @@ compiler's underlying command line unless the wrapper compiler sees a
 filename argument.  Specifically (output artifically wrapped below for
 readability)
 
-<faqcode>
+<geshi bash>
 shell$ mpicc -g --showme
 gcc -g
 shell$ mpicc -g foo.c --showme
 gcc -I/opt/openmpi/include/openmpi -I/opt/openmpi/include -g foo.c
 -Wl,-u,_munmap -Wl,-multiply_defined,suppress -L/opt/openmpi/lib -lmpi
 -lopen-rte -lopen-pal -ldl
-</faqcode>
+</geshi>
 
 The second command had the filename \"foo.c\" in it, so the wrapper
 added all the relevant flags.  This behavior is specifically to allow
 behavior such as the following:
 
-<faqcode>
+<geshi bash>
 shell$ mpicc --version --showme
 gcc --version
 shell$ mpicc --version
@@ -536,7 +536,7 @@ This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 shell$
-</faqcode>
+</geshi>
 
 That is, the wrapper compiler does not behave differently when
 constructing the underlying command line if \"--showme\" is used or
@@ -617,9 +617,9 @@ manually override the flags in the wrapper compilers:
 <li> First and simplest, you can add your own flags to the wrapper
 compiler command line by simply listing them on the command line.  For
 example:
-<faqcode>
+<geshi bash>
 shell$ mpicc my_mpi_application.c -o my_mpi_application -rpath /path/to/openmpi/install/lib
-</faqcode>
+</geshi>
 <li> Use the [--showme] options to the wrapper compilers to
 dynamically see what flags the wrappers are adding, and modify them as
 appropiate.  <a href=\"#cant-use-wrappers\">See this FAQ entry</a> for
@@ -708,10 +708,10 @@ script).  This will eliminate the linker warnings about [dlopen].</li>
 For example, this is how to configure Open MPI to build static
 libraries on Linux:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --without-memory-manager --without-libnuma \
   --enable-static [...your other configure arguments...]
-</faqcode>
+</geshi>
 
 Some systems may have additional constraints about their support
 libraries that require additional steps to produce working 100% static
@@ -743,14 +743,14 @@ Once all of that has been setup, run the following (artificially
 wrapped sample output shown below -- your output may be slightly
 different):
 
-<faqcode>
+<geshi bash>
 shell$ mpicc your_app.c -o your_app --showme
 gcc -I/opt/openmpi/include/openmpi \
 -I/opt/openmpi/include -pthread ring.c -o ring \
 -L/usr/local/ofed/lib -L/usr/local/ofed/lib64/infiniband \
 -L/usr/local/ofed/lib64 -L/opt/openmpi/lib -lmpi -lopen-rte \
 -lopen-pal -libverbs -lrt -Wl,--export-dynamic -lnsl -lutil -lm -ldl
-</faqcode>
+</geshi>
 
 (or use whatever wrapper compiler is relevant -- the [--showme] flag
 is the important part here)
@@ -766,15 +766,15 @@ Take the output of from the above command and run it manually to
 compile and link your application, adding the following hilighted
 arguments:
 
-<faqcode>
-shell$ gcc <strong><font color=red>-static</font></strong> -I/opt/openmpi/include/openmpi \
+<geshi bash>
+shell$ gcc ***--static*** -I/opt/openmpi/include/openmpi \
   -I/opt/openmpi/include -pthread ring.c -o ring \
   -L/usr/local/ofed/lib -L/usr/local/ofed/lib64/infiniband \
   -L/usr/local/ofed/lib64 -L/opt/openmpi/lib -lmpi -lopen-rte \
   -lopen-pal <strong><font color=red>-Wl,--whole-archive</font></strong> -libverbs <strong><font color=red>/usr/local/ofed/lib64/infiniband/mthca.a \
   -Wl,--no-whole-archive</font></strong> -lrt -Wl,--export-dynamic -lnsl -lutil \
   -lm -ldl
-</faqcode>
+</geshi>
 
 Note that the *mthca.a* file is the verbs plugin for Mellanox HCAs.
 If you have an HCA from a different vendor (such as IBM or QLogic),
@@ -841,7 +841,7 @@ After selecting the appropriate starting [Bmake.inc], make the
 following changes to Sections 1, 2, and 3. The example below is from
 the [Bmake.MPI-SUN4SOL2]; your [Bmake.inc] file may be different.
 
-<faqcode>
+<geshi make>
 # Section 1:
 # Ensure to use MPI for the communication layer
 
@@ -878,7 +878,7 @@ the [Bmake.MPI-SUN4SOL2]; your [Bmake.inc] file may be different.
 
    CC             = mpicc
    CCLOADFLAGS    =
-</faqcode>
+</geshi>
 
 The remainder of the values are fairly obvious and irrelevant to Open
 MPI; you can set whatever optimization level you want, etc.
@@ -900,7 +900,7 @@ instructions only pertain to making Open MPI work correctly with
 ScaLAPACK.  These instructions assume that you have built and
 installed BLACS with Open MPI.
 
-<faqcode>
+<geshi make>
 # Make sure you follow the instructions to build BLACS with Open MPI,
 # and put its location in the following.
 
@@ -940,7 +940,7 @@ installed BLACS with Open MPI.
 
    CC             = mpicc
    CCLOADFLAGS    =
-</faqcode>
+</geshi>
 
 The remainder of the values are fairly obvious and irrelevant to Open
 MPI; you can set whatever optimization level you want, etc.
@@ -984,12 +984,12 @@ optimization to [-O0] for mpi.f like I suggested before).  The [-D]'s
 are standard except I get a little better performance with
 [-DscaLAPACK] (I tested it with out this option too):
 
-<faqcode>
+<geshi make>
 CPP    = $(CPP_) -DMPI  -DHOST=\"LinuxIFC\" -DIFC \
      -Dkind8 -DNGZhalf -DCACHE_SIZE=4000 -DPGF90 -Davoidalloc \
      -DMPI_BLOCK=2000  \
      -Duse_cray_ptr -DscaLAPACK
-</faqcode>
+</geshi>
 
 Also, Blacs and Scalapack used the [-D]'s suggested in the Open MPI FAQ.";
 

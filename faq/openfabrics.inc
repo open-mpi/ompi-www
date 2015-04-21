@@ -148,7 +148,7 @@ OFED 1.5):
 
 <li> *OFED 1.3:* Open MPI v1.2.5.</li>
 
-<li> *OFED 1.2:* Open MPI v1.2.1.  
+<li> *OFED 1.2:* Open MPI v1.2.1.
 
 $note A prior version of this
 FAQ entry specified that \"v1.2ofed\" would be included in OFED v1.2,
@@ -221,9 +221,9 @@ loopback communication (i.e., when an MPI process sends to itself),
 and is technically a different communication channel than the
 OpenFabrics networks.  For example:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca btl openib,self ...
-</faqcode>
+</geshi>
 
 Failure to specify the [self] BTL may result in Open MPI being unable
 to complete send-to-self scenarios (meaning that your program will run
@@ -231,11 +231,13 @@ fine until a process tries to send to itself).
 
 Note that [openib,self] is the _minimum_ list of BTLs that you might
 want to use.  It is *highly* likely that you also want to include the
-[sm] (shared memory) BTL in the list as well, like this:
+[vader] or [sm] (shared memory) BTLs in the list as well, like this:
 
-<faqcode>
-shell$ mpirun --mca btl openib,self<font color=\"red\"><strong>,sm</strong></font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca btl openib,self,vader ...
+# Or
+shell$ mpirun --mca btl openib,self,sm ...
+</geshi>
 
 See <a href=\"?category=tuning#selecting-components\">this FAQ
 entry</a> for more details on selecting which MCA plugins are used at
@@ -265,10 +267,15 @@ $anchor[] = "ib-params";
 $a[] = "The [ompi_info] command can display all the parameters
 available for the [openib] BTL component:
 
-<faqcode>
+<geshi bash>
 # Show the openib BTL parameters
-shell$ ompi_info <font color=red><strong>--param btl openib</strong></font>
-</faqcode>";
+
+# Note that Open MPI v1.8 and later will only show an abbreviated list
+# of parameters by default.  Use \"--level 9\" to show all available
+# parameters.
+
+shell$ ompi_info --param btl openib --level 9
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -342,7 +349,7 @@ address mapping.</li>
 
 These two factors allow network adapters to move data between the
 network fabric and physical RAM without involvement of the main CPU or
-operating system.  
+operating system.
 
 Note that many people say \"pinned\" memory when they actually mean
 \"registered\" memory.
@@ -370,7 +377,7 @@ to one of the following (the messages have changed throughout the
 release versions of Open MPI):
 
 <ol>
-<li><faqcode>
+<li><geshi text>
 WARNING: It appears that your OpenFabrics subsystem is configured to only
 allow registering part of your physical memory.  This can cause MPI jobs to
 run with erratic performance, hang, and/or crash.
@@ -381,8 +388,8 @@ relevant Linux kernel module parameters that control how much physical
 memory can be registered, and increase them to allow registering all
 physical memory on your machine.
 
-See this Open MPI FAQ item for more information on these Linux kernel module
-parameters:
+See this Open MPI FAQ item for more information on these Linux kernel
+module parameters:
 
     http://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages
 
@@ -391,24 +398,24 @@ parameters:
   Total memory:            65476 MiB
 
 Your MPI job will continue, but may be behave poorly and/or hang.
-</faqcode></li>
+</geshi></li>
 
-<li><faqcode>
+<li><geshi text>
 [node06:xxxx] mca_mpool_openib_register: \
 error registering openib memory of size yyyy errno says Cannot allocate memory
-</faqcode></li>
+</geshi></li>
 
-<li><faqcode>
+<li><geshi text>
 [x,y,z][btl_openib.c:812:mca_btl_openib_create_cq_srq] \
 error creating low priority cq for mthca0 errno says Cannot allocate memory
-</faqcode></li>
+</geshi></li>
 
-<li><faqcode>
+<li><geshi text>
 libibverbs: Warning: RLIMIT_MEMLOCK is 32768 bytes.
     This will severely limit memory registrations.
-</faqcode></li>
+</geshi></li>
 
-<li><faqcode>
+<li><geshi text>
 The OpenIB BTL failed to initialize while trying to create an internal
 queue.  This typically indicates a failed OpenFabrics installation or
 faulty hardware.  The failure occurred here:
@@ -421,9 +428,9 @@ faulty hardware.  The failure occurred here:
 
 You may need to consult with your system administrator to get this
 problem fixed.
-</faqcode></li>
+</geshi></li>
 
-<li><faqcode>
+<li><geshi text>
 The OpenIB BTL failed to initialize while trying to allocate some
 locked memory.  This typically can indicate that the memlock limits
 are set too low.  For most HPC installations, the memlock limits
@@ -440,11 +447,11 @@ problem fixed.  This FAQ entry on the Open MPI web site may also be
 helpful:
 
     http://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages
-</faqcode></li>
+</geshi></li>
 
-<li><faqcode>
+<li><geshi text>
 error creating qp errno says Cannot allocate memory
-</faqcode></li>
+</geshi text></li>
 </ol>
 
 There are two typical causes for Open MPI being unable to register
@@ -453,7 +460,7 @@ memory, or warn that it might not be able to register enough memory:
 <ol>
 
 <li> Linux kernel module parameters that control the amount of
-available registered memory are set too low; 
+available registered memory are set too low;
 <a href=\"#ib-low-reg-mem\">see this FAQ entry</a>.</li>
 <li> System / user needs to increase locked memory limits: see <a
 href=\"#ib-locked-pages-user\">this FAQ entry</a> and <a
@@ -487,13 +494,13 @@ locked by user processes by default.  Set it by creating a file in
 below (or, if your system doesn't have a [/etc/security/limits.d/]
 directory, add a line directly to [/etc/security/limits.conf]):
 
-<faqcode>
-* soft memlock &lt;number&gt;
-</faqcode>
+<geshi text>
+* soft memlock <number>
+</geshi>
 
 where \"&lt;number&gt;\" is the number of bytes that you want user
 processes to be allowed to lock by default (presumably rounded down to
-an integral number of pages).  \"&lt;number&gt;\" can also be 
+an integral number of pages).  \"&lt;number&gt;\" can also be
 \"unlimited\".
 
 <li> *Hard:* The \"hard\" value is the maximum amount of memory that a
@@ -501,9 +508,9 @@ user process can lock.  Similar to the soft lock, add it to the file
 you added to [/etc/security/limits.d/] (or editing
 [/etc/security/limits.conf] directly on older systems):
 
-<faqcode>
-* hard memlock &lt;number&gt;
-</faqcode>
+<geshi text>
+* hard memlock <number>
+</geshi>
 
 where \"&lt;number&gt;\" is the maximum number of bytes that you want
 user processes to be allowed to lock (presumably rounded down to an
@@ -520,15 +527,15 @@ than the hard limit in [/etc/security/limits.d] (or [limits.conf]).
 Users can increase the default limit by adding the following to their
 shell startup files for Bourne style shells (sh, bash):
 
-<faqcode>
-ulimit -l unlimited
-</faqcode>
+<geshi bash>
+shell$ ulimit -l unlimited
+</geshi>
 
 Or for C style shells (csh, tcsh):
 
-<faqcode>
-limit memorylocked unlimited
-</faqcode>
+<geshi bash>
+shell% limit memorylocked unlimited
+</geshi>
 
 This effectively sets their limit to the hard limit in
 [/etc/security/limits.d] (or [limits.conf]).  Alternatively, users can
@@ -547,10 +554,10 @@ More specifically -- it may not be sufficient to simply execute the
 following, because the [ulimit] may not be in effect on all nodes
 where Open MPI processes will be run:
 
-<faqcode>
+<geshi bash>
 shell$ ulimit -l unlimited
 shell$ mpirun -np 2 my_mpi_application
-</faqcode>
+</geshi>
 </li>
 </ol>";
 
@@ -614,7 +621,7 @@ etc. may affect OpenFabrics jobs in two ways:
 unlimited memlock limits (which may involve editing the resource
 manager daemon startup script, or some other system-wide location that
 allows the resource manager daemon to get an unlimited limit of locked
-memory).  
+memory).
 Otherwise, jobs that are started under that resource manager
 will get the default locked memory limits, which are far too small for
 Open MPI.</li>
@@ -651,7 +658,7 @@ that this may be fixed in recent versions of Open SSH.
 If you do disable privilege separation in ssh, be sure to check with
 your local system administrator and/or security officers to understand
 the full implications of this change.  See " .
-"<a href=\"http://www.google.com/search?q=ssh+privilege+separation+limits.conf&hl=en\">" . 
+"<a href=\"http://www.google.com/search?q=ssh+privilege+separation+limits.conf&hl=en\">" .
 "this Google search link</a> for more information.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -664,7 +671,7 @@ $a[] = "OpenFabrics network vendors provide Linux kernel module
 parameters controlling the size of the size of the memory translation
 table (MTT) used to map virtual addresses to physical address. The
 size of this table controls the amount of physical memory that can be
-registered for use with OpenFabrics devices.  
+registered for use with OpenFabrics devices.
 
 With *Mellanox* hardware, two parameters are provided to control the
 size of this table:
@@ -678,13 +685,13 @@ size of this table:
 The amount of memory that can be registered is calculated using this
 formula:
 
-<faqcode>
+<geshi text>
 In newer hardware:
     max_reg_mem = (2^log_num_mtt) * (2^log_mtts_per_seg) * PAGE_SIZE
 
-In older hardware: 
+In older hardware:
     max_reg_mem = num_mtt * (2^log_mtts_per_seg) * PAGE_SIZE
-</faqcode>
+</geshi>
 
 *<font color=\"red\">At least some versions of OFED (community OFED,
 Mellanox OFED, and upstream OFED in Linux distributions) set the
@@ -707,9 +714,9 @@ has 64 GB of memory and a 4 KB page size, [log_num_mtt] should be set
 to 24 and (assuming [log_mtts_per_seg] is set to 1). This will allow
 processes on the node to register:
 
-<faqcode>
+<geshi text>
 max_reg_mem = (2^24) * (2^1) * (4 kB) = 128 GB
-</faqcode>
+</geshi>
 
 *NOTE:* Starting with OFED 2.0, OFED's default kernel parameter values
 should allow registering twice the physical memory size.";
@@ -731,13 +738,13 @@ To enable RDMA for short messages, you can add this snippet to the
 bottom of the [\$prefix/share/openmpi/mca-btl-openib-hca-params.ini]
 file:
 
-<faqcode>
+<geshi ini>
 [Mellanox Hermon]
 vendor_id = 0x2c9,0x5ad,0x66a,0x8f1,0x1708
 vendor_part_id = 25408,25418,25428
 use_eager_rdma = 1
 mtu = 2048
-</faqcode>
+</geshi>
 
 Enabling short message RDMA will significantly reduce short message
 latency, especially on ConnectX (and newer) Mellanox hardware.";
@@ -781,7 +788,7 @@ following quantities:
 <th>Explanation</th>
 </tr>
 
-" . 
+" .
 
 row("User memory", "[mpool_rdma_rcache_size_limit]", "By default Open
     MPI will register as much user memory as necessary (upon demand).
@@ -855,11 +862,14 @@ will try to free up registered memory (in the case of registered user
 memory) and/or wait until message passing progresses and more
 registered memory becomes available.
 
-Use the [ompi_info] command to view the values of the MCA parameters described above in your Open MPI installation:
+Use the [ompi_info] command to view the values of the MCA parameters
+described above in your Open MPI installation:
 
-<faqcode>
-shell$ ompi_info --param btl openib
-</faqcode>
+<geshi bash>
+# Note that Open MPI v1.8 and later require the \"--level 9\"
+# CLIP option to display all available MCA parameters.
+shell$ ompi_info --param btl openib --level 9
+</geshi>
 
 See <a href=\"?category=tuning#setting-mca-params\">this FAQ entry</a>
 for information on how to set MCA parameters at run-time.";
@@ -880,7 +890,7 @@ Chelsio firmware v6.0.  Download the firmware from "
 file in [/lib/firmware].  Then reload the [iw_cxgb3] module and bring
 up the ethernet interface to flash this new firmware.  For example:
 
-<faqcode>
+<geshi bash>
 # Note that the URL for the firmware may change over time
 shell# cd /lib/firmware
 shell# wget http://service.chelsio.com/drivers/firmware/t3/t3fw-6.0.0.bin.gz
@@ -894,15 +904,15 @@ shell# modprobe iw_cxgb3
 # been properly configured and is ready to bring up).  Substitute the
 # proper ethernet interface name for your T3 (vs. <font
 # color=red>ethX</font>).
-shell# ifup <font color=red>ethX</font>
-</faqcode>
+shell# ifup ethX
+</geshi>
 
 If all goes well, you should see a message similar to the following in
 your syslog 15-30 seconds later:
 
-<faqcode>
+<geshi text>
 kernel: cxgb3 0000:0c:00.0: successful upgrade to firmware 6.0.0
-</faqcode>
+</geshi>
 
 Open MPI will work without any specific configuration to the [openib]
 BTL.  Users wishing to performance tune the configurable options may
@@ -924,10 +934,10 @@ could return an erroneous value (0) and it would hang during startup.
 Starting with v1.0.2, error messages of the following form are
 reported:
 
-<faqcode>
-[0,1,0][btl_openib_endpoint.c:889:mca_btl_openib_endpoint_create_qp] 
+<geshi text>
+[0,1,0][btl_openib_endpoint.c:889:mca_btl_openib_endpoint_create_qp]
 ibv_create_qp: returned 0 byte(s) for max inline data
-</faqcode>
+</geshi>
 
 This is caused by an error in older versions of the OpenIB user
 library.  Upgrading your OpenIB stack to recent versions of the
@@ -961,9 +971,9 @@ to tune it.
 To enable the \"leave pinned\" behavior, set the MCA parameter
 [mpi_leave_pinned] to 1. For example:
 
-<faqcode>
-shell$ mpirun <font color=red><strong>--mca mpi_leave_pinned 1</strong></font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca mpi_leave_pinned 1 ...
+</geshi>
 
 $mlp
 
@@ -1052,13 +1062,13 @@ handled.
 Open MPI uses a few different protocols for large messages.  Much
 detail is provided in <a
 href=\"$topdir/papers/euro-pvmmpi-2006-hpc-protocols/\">this
-paper</a>.  
+paper</a>.
 
 The [btl_openib_flags] MCA parameter is a set of bit flags that
 influences which protocol is used; they generally indicate what kind
 of transfers are allowed to send the bulk of long messages.
 Specifically, these flags do not regulate the behavior of \"match\"
-headers or other intermediate fragments. 
+headers or other intermediate fragments.
 
 The following flags are available:
 
@@ -1089,7 +1099,7 @@ via MPI_ALLOC_MEM), a slightly simpler protocol is used:
 information (communicator, tag, etc.) to the receiver using copy
 in/copy out semantics.  No data from the user message is included in
 the match header.</li>
-<li> Use RDMA to transfer the message: 
+<li> Use RDMA to transfer the message:
 <ul>
 <li> If RDMA reads are enabled *and* only one network connection is
 available between the pair of MPI processes, once the receiver has
@@ -1102,7 +1112,7 @@ sends an ACK back when a matching MPI receive is posted and the sender
 issues an RDMA write across each available network link (i.e., BTL
 module) to transfer the message.  The RDMA write sizes are weighted
 across the available network links.  For example, if two MPI processes
-are connected by both SDR and DDR IB networks, this protocol will 
+are connected by both SDR and DDR IB networks, this protocol will
 issue an RDMA write for 1/3 of the entire message across the SDR
 network and will issue a second RDMA write for the remaining 2/3 of
 the message across the DDR network.
@@ -1148,7 +1158,7 @@ fragments in the large message.</li>
 
 </ol>
 
-Note that phases 2 and 3 occur in parallel.  Each phase 3 fragment is 
+Note that phases 2 and 3 occur in parallel.  Each phase 3 fragment is
 unregistered when its transfer completes (<a
 href=\"$topdir/papers/euro-pvmmpi-2006-hpc-protocols/\">see the
 paper</a> for more details).
@@ -1316,7 +1326,7 @@ When [mpi_leave_pinned] is set to 1, Open MPI aggressively
 leaves user memory registered with the OpenFabrics network stack after
 the first time it is used with a send or receive MPI function.  This
 allows Open MPI to avoid expensive registration / deregistration
-function invocations for each send or receive MPI function.  
+function invocations for each send or receive MPI function.
 
 $note The [mpi_leave_pinned] MCA parameter
 has some restrictions on how it can be set starting with Open MPI
@@ -1407,9 +1417,9 @@ are provided, resulting in higher peak bandwidth by default.
 To utilize the independent ptmalloc2 library, users need to add
 [-lopenmpi-malloc] to the link command for their application:
 
-<faqcode>
+<geshi bash>
 shell$ mpicc foo.o -o foo -lopenmpi-malloc
-</faqcode>
+</geshi>
 
 Linking in libopenmpi-malloc will result in the OpenFabrics BTL not
 enabling mallopt() but using the hooks provided with the ptmalloc2
@@ -1422,9 +1432,9 @@ libopen-pal, Open MPI can be built with the
 When not using ptmalloc2, mallopt() behavior can be disabled by
 disabling [mpi_leave_pined]:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca mpi_leave_pinned 0 ...
-</faqcode>
+</geshi>
 
 Because [mpi_leave_pinned] behavior is usually only useful for
 synthetic MPI benchmarks, the never-return-behavior-to-the-OS behavior
@@ -1447,9 +1457,9 @@ As with all MCA parameters, the [mpi_leave_pinned] parameter (and
 [mpi_leave_pinned_pipeline] parameter) can be set from the mpirun
 command line:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca mpi_leave_pinned 1 ...
-</faqcode>
+</geshi>
 
 Prior to the v1.3 series, <a
 href=\"./?category=tuning#setting-mca-params\">all the usual methods
@@ -1511,7 +1521,7 @@ $anchor[] = "ofa-default-subnet-gid";
 
 $a[] = "Users may see the following error message from Open MPI v1.2:
 
-<faqcode>
+<geshi text>
 WARNING: There are more than one active ports on host '%s', but the
 default subnet GID prefix was detected on more than one of these
 ports.  If these ports are connected to different physical OFA
@@ -1519,9 +1529,9 @@ networks, this configuration will fail in Open MPI.  This version of
 Open MPI requires that every physically separate OFA subnet that is
 used between connected MPI processes must have different subnet ID
 values.
-</faqcode>
+</geshi>
 
-This is a complicated issue.  
+This is a complicated issue.
 
 What it *usually* means is that you have a host connected to multiple,
 physically separate OFA-based networks, at least 2 of which are using
@@ -1602,13 +1612,13 @@ versions.
 
 <ol>
 <li>Stop any OpenSM instances on your cluster:
-<faqcode>
+<geshi bash>
 shell# /etc/init.d/opensm stop
-</faqcode></li>
+</geshi></li>
 <li> Run a single OpenSM iteration:
-<faqcode>
+<geshi bash>
 shell# opensm -c -o
-</faqcode>
+</geshi>
 The [-o] option causes OpenSM to run for one loop and exit.
 The [-c] option tells OpenSM to create an \"options\" text file.</li>
 
@@ -1618,9 +1628,9 @@ The [-c] option tells OpenSM to create an \"options\" text file.</li>
 </li>
 
 <li> Re start OpenSM:
-<faqcode>
+<geshi bash>
 shell# /etc/init.d/opensm start
-</faqcode>
+</geshi>
 OpenSM will automatically load the options file from the cache
 repository and will use new prefix.</li>
 </ol>
@@ -1773,22 +1783,22 @@ clusters and/or versions of Open MPI; they can script to know whether
 the OMPI that they're using (and therefore the underlying IB stack)
 has fork support.  For example:
 
-<faqcode>
-#!/bin/sh 
+<geshi bash>
+#!/bin/sh
 
-have_fork_support=`ompi_info --param btl openib --parsable | grep have_fork_support:value | cut -d: -f7`
+have_fork_support=`ompi_info --param btl openib --level 9 --parsable | grep have_fork_support:value | cut -d: -f7`
 if test \"\$have_fork_support\" = \"1\"; then
     # Happiness / world peace / birds are singing
 else
     # Despair / time for Haagen Daas
 fi
-</faqcode>
+</geshi>
 
 Alternatively, you can skip querying and simply try to run your job:
 
-<faqcode>
+<geshi bash>
 shell\$ mpirun --mca btl_openib_want_fork_support 1 --mca btl openib,self ...
-</faqcode>
+</geshi>
 
 Which will abort if OMPI's openib BTL does not have fork support.
 
@@ -1909,10 +1919,9 @@ SL that should be used for each endpoint</li>
 Use the <code>btl_openib_ib_service_level</code> MCA parameter to tell
 <code>openib</code> BTL which IB SL to use:
 
-<faqcode>
-shell$ mpirun --mca btl <font color=red>openib</font>,self,sm \
-    --mca <font color=red>btl_openib_ib_service_level N</font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca btl openib,self,vader --mca btl_openib_ib_service_level N ...
+</geshi>
 
 The value of IB SL *N* should be between 0 and 15, where 0 is the
 default value.
@@ -1930,10 +1939,9 @@ PathRecord query to OpenSM in the process of establishing connection
 between two endpoints, and will use the IB Service Level from the
 PathRecord response:
 
-<faqcode>
-shell$ mpirun --mca btl openib,self,sm \
-    --mca <font color=red>btl_openib_ib_path_record_service_level 1</font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca btl openib,self,sm --mca btl_openib_ib_path_record_service_level 1 ...
+</geshi>
 
 $note The
 [btl_openib_ib_path_record_service_level] MCA parameter is supported
@@ -1977,35 +1985,36 @@ So if you just want the data to run over <code>RoCE</code> and you're
 not interested in VLANs, PCP, or other VLAN tagging parameters, you
 can just run OMPI with the [openib] BTL and [rdmacm] CPC:
 
-<faqcode>
-shell$ mpirun --mca btl <font color=red>openib</font>,self,sm --mca btl_openib_cpc_include <font color=red>rdmacm</font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm ...
+</geshi>
 
 (or set these MCA parameters <a
 href=\"./?category=tuning#setting-mca-params\">in other ways</a>)
 
 *How does MXM run on top of RoCE?*
 
-In order to use RoCE with <a href=\"#mxm\">MXM</a>, the Ethernet port must be specified using the MXM_RDMA_PORTS
-environment parameter.<Br>
+In order to use RoCE with <a href=\"#mxm\">MXM</a>, the Ethernet port
+must be specified using the MXM_RDMA_PORTS environment parameter.
 For example:
 
-<faqcode>
-shell$ mpirun --mca pml cm -mca mtl mxm <font color=red>-x MXM_RDMA_PORTS=mlx4_0:2</font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca pml cm -mca mtl mxm -x MXM_RDMA_PORTS=mlx4_0:2 ...
+</geshi>
 
-MXM can also be run with the 'yalla' pml. Using RoCE requires the same environment
+MXM can also be run with the Yalla PML.  Using RoCE requires the same
+environment parameter:
+
+<geshi bash>
+shell$ mpirun --mca pml yalla -x MXM_RDMA_PORTS=mlx4_0:2 ...
+</geshi>
+
+Older versions of MXM may also require an additional environment
 parameter:
 
-<faqcode>
-shell$ mpirun --mca pml yalla <font color=red>-x MXM_RDMA_PORTS=mlx4_0:2</font> ...
-</faqcode>
-
-Older versions of MXM may also require an additional environment parameter:
-
-<faqcode>
-shell$ mpirun --mca pml cm -mca mtl mxm <font color=red>-x MXM_RDMA_PORTS=mlx4_0:2 -x MXM_TLS=self,shm,ud</font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca pml cm -mca mtl mxm -x MXM_RDMA_PORTS=mlx4_0:2 -x MXM_TLS=self,shm,ud ...
+</geshi>
 
 
 *How do I tell Open MPI to use a specific RoCE VLAN?*
@@ -2025,13 +2034,13 @@ To control which VLAN will be selected, use the
 provide it with the required IP/netmask values.  For
 example, if you want to use a VLAN with IP 13.x.x.x:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm \
-    <font color=red>--mca btl_openib_ipaddr_include \"13.0.0.0/8\"</font> ...
-</faqcode>
+    --mca btl_openib_ipaddr_include \"13.0.0.0/8\" ...
+</geshi>
 
-$note VLAN selection in the OMPI v1.4 series
-works only with version 1.4.4 or later.";
+$note VLAN selection in the OMPI v1.4 series works only with version
+v1.4.4 or later.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -2079,9 +2088,9 @@ OFED 1.4 with Mellanox ConnectX family HCAs)</li>
 The default value of the [btl_openib_receive_queues] MCA parameter
 is sometimes equivalent to the following command line:
 
-<faqcode>
-shell$ mpirun ... --mca <font color=red>btl_openib_receive_queues P,128,256,192,128:S,2048,256,128,32:S,12288,256,128,32:S,65536,256,128,32</font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun ... --mca btl_openib_receive_queues P,128,256,192,128:S,2048,256,128,32:S,12288,256,128,32:S,65536,256,128,32 ...
+</geshi>
 
 In particular, note that XRC is (currently) _not_ used by default.
 
@@ -2102,7 +2111,7 @@ Per-peer receive queues require between 1 and 5 parameters:
 <li> Number of buffers: optional; defaults to 8</li>
 <li> Low buffer count watermark: optional; defaults to (num_buffers / 2)</li>
 <li> Credit window size: optional; defaults to (low_watermark / 2)</li>
-<li> Number of buffers reserved for credit messages: optional; defaults to 
+<li> Number of buffers reserved for credit messages: optional; defaults to
 ((num_buffers*2 - 1) / credit_window)</li>
 </ol>
 
@@ -2145,9 +2154,9 @@ XRC queues take the same parameters as SRQs.  Note that if you use
 *any* XRC queues, then *all* of your queues must be XRC.  Therefore,
 to use XRC, specify the following:
 
-<faqcode>
-shell$ mpirun --mca btl openib... --mca <font color=red>btl_openib_receive_queues X,128,256,192,128:X,2048,256,128,32:X,12288,256,128,32:X,65536,256,128,32</font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca btl openib... --mca btl_openib_receive_queues X,128,256,192,128:X,2048,256,128,32:X,12288,256,128,32:X,65536,256,128,32 ...
+</geshi>
 
 $note the [rdmacm] CPC is not supported with
 XRC. Also, XRC cannot be used when [btls_per_lid] &gt; 1.";
@@ -2159,46 +2168,46 @@ $a[] = "Yes.
 
 *FCA* (which stands for _<strong>F</strong>abric <strong>C</strong>ollective
 <strong>A</strong>ccelerator_) is a Mellanox MPI-integrated software package
-that utilizes " 
+that utilizes "
 . "<a href=\"http://www.mellanox.com/related-docs/whitepapers/TB_CORE-Direct.pdf\" target=\"&#95;blank\">" .
-"CORE-Direct</a> 
+"CORE-Direct</a>
 technology for implementing the MPI collectives communications. </br>
 
 You can find more information about FCA on the product web page.
 FCA is available for download here: "
-. "<a href=\"http://www.mellanox.com/products/fca\" target=\"&#95;blank\">" .
+. "<a href=\"http://www.mellanox.com/products/fca\" target=\"_blank\">" .
 "http://www.mellanox.com/products/fca</a>
 
 *Building Open MPI 1.5.x or later with FCA support*
 
 By default, FCA is installed in [/opt/mellanox/fca]. Use the following
 configure option to enable FCA integration in OMPI:
-<faqcode>
-shell$ ./configure <font color=red>--with-fca=/opt/mellanox/fca</font> ...
-</faqcode>
+<geshi bash>
+shell$ ./configure --with-fca=/opt/mellanox/fca ...
+</geshi>
 
 *Verifying the FCA Installation*
 
 To verify that Open MPI is built with FCA support, use the following command:
-<faqcode>
-shell$ ompi_info <font color=red>--param coll fca</font> | grep fca_enable
-</faqcode>
+<geshi bash>
+shell$ ompi_info --param coll fca --level 9 | grep fca_enable
+</geshi>
 
 A list of FCA parameters will be displayed if Open MPI has FCA support.
 
 </br>
 * How do I tell Open MPI to use <code>FCA</code>? *
-<faqcode>
-shell$ mpirun <font color=red> --mca coll_fca_enable 1</font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca coll_fca_enable 1 ...
+</geshi>
 
-By default, FCA will be enabled only with 64 or more ranks.
-To turn on FCA for an arbitrary number of ranks ( [N] ), please use the
-following MCA parameters:
+By default, FCA will be enabled only with 64 or more MPI processes.
+To turn on FCA for an arbitrary number of ranks ( [N] ), please use
+the following MCA parameters:
 
-<faqcode>
-shell$ mpirun --mca coll_fca_enable 1 <font color=red>--mca coll_fca_np &lt;N&gt;</font> ...
-</faqcode>
+<geshi bash>
+shell$ mpirun --mca coll_fca_enable 1 --mca coll_fca_np &lt;N&gt; ...
+</geshi>
 ";
 /////////////////////////////////////////////////////////////////////////
 $q[] = "Does Open MPI support <code>MXM</code>?";
@@ -2229,9 +2238,9 @@ Open MPI 1.6 or later
 
 By default, MXM is installed in [/opt/mellanox/mxm]. Use the following
 configure option to enable MXM support in OMPI:
-<faqcode>
-shell$ ./configure <font color=red>--with-mxm=/opt/mellanox/mxm</font> ...
-</faqcode>
+<geshi bash>
+shell$ ./configure --with-mxm=/opt/mellanox/mxm ...
+</geshi>
 
 *Enabling MXM in Open MPI 1.6.1 or later*
 
@@ -2243,28 +2252,31 @@ MXM can be run in one of two ways:
 
 <ul>
 <li>
-With 'pml cm' and 'mtl mxm'
-<faqcode>
-shell$ mpirun <font color=red>--mca pml cm --mca mtl mxm</font> ...
-</faqcode>
+With the CM PML and the MXM MTL:
+<geshi bash>
+shell$ mpirun --mca pml cm --mca mtl mxm ...
+</geshi>
 </li>
 <li>
-With 'pml yalla'.<Br>
-<faqcode>
-shell$ mpirun <font color=red>--mca pml yalla</font> ...
-</faqcode>
+With the Yalla PML:
+<geshi bash>
+shell$ mpirun --mca pml yalla ...
+</geshi>
 </li>
 </ul>
 
-<ul>The 'yalla' pml calls MXM directly and therefore improves the performance significantly.<Br>
-Pml 'yalla' and pml 'cm' are mutually exclusive.<Br>
-</ul>
-$note Please note that the 'yalla' pml is available only from Open MPI v1.9 and above.
+The Yalla PML calls MXM directly and therefore improves the
+performance significantly.  Note that the Yalla PML and CM PML are
+mutually exclusive.
 
-In older versions of Open MPI (before v1.6), MXM is automatically selected when the job has at
-least 128 ranks. To activate MXM for any number of ranks, run the following command:
+$note Please note that the Yalla PML is available only from Open MPI
+v1.10 and above.
 
-<faqcode>
-shell$ mpirun <font color=red>--mca mtl_mxm_np 0</font> ...
-</faqcode>
+In older versions of Open MPI (before v1.6), MXM is automatically
+selected when the job has at least 128 MPI processes. To activate MXM
+for any number of MPI processes, run the following command:
+
+<geshi bash>
+shell$ mpirun --mca mtl_mxm_np 0 ...
+</geshi>
 ";

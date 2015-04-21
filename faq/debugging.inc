@@ -17,7 +17,7 @@ simultaneously executing -- the problem becomes quite formidable.
 
 This FAQ section does not provide any definition solutions to
 debugging in parallel.  At best, it shows some general techniques and
-a few specific examples that may be helpful to your situation.  
+a few specific examples that may be helpful to your situation.
 
 But there are various controls within Open MPI that can help with
 debugging.  These are probably the most valuable entries in this FAQ
@@ -59,7 +59,7 @@ $anchor[] = "parallel-debuggers";
 $a[] = "See these FAQ entries:
 
 <ul>
-<li><a href=\"./?category=running#run-with-tv\">Running under 
+<li><a href=\"./?category=running#run-with-tv\">Running under
 TotalView</a></li>
 <li><a href=\"./?category=running#run-with-ddt\">Running under
 DDT</a></li>
@@ -77,9 +77,14 @@ be <a href=\"?category=tuning#setting-mca-params\">can be set in the
 usual ways</a>.  MPI-level MCA parameters can be displayed by invoking
 the following command:
 
-<faqcode>
+<geshi bash>
+# Starting with Open MPI v1.7, you must use \"--level 9\" to see
+# all the MCA parameters (the default is \"--level 1\"):
+shell$ ompi_info --param mpi all --level 9
+
+# Before Open MPI v1.7:
 shell$ ompi_info --param mpi all
-</faqcode>
+</geshi>
 
 Here is a summary of the debugging parameters for the MPI layer:
 
@@ -181,7 +186,7 @@ An inelegant-but-functional technique commonly used with this method
 is to insert the following code in your application where you want to
 attach:
 
-<faqcode>
+<geshi c>
 {
     int i = 0;
     char hostname[256];
@@ -191,7 +196,7 @@ attach:
     while (0 == i)
         sleep(5);
 }
-</faqcode>
+</geshi>
 
 This code will output a line to stdout outputting the name of the host
 where the process is running and the PID to attach to.  It will then
@@ -204,9 +209,9 @@ are in this block of code (you'll likely attach during the [sleep()])
 then set the variable [i] to a nonzero value.  With GDB, the syntax
 is:
 
-<faqcode>
+<geshi bash>
 (gdb) set var i = 7
-</faqcode>
+</geshi>
 
 Then set a breakpoint after your block of code and continue execution
 until the breakpoint is hit.  Now you have control of your live MPI
@@ -229,9 +234,9 @@ MPI jobs, but requires a bit of setup and configuration that is
 outside of Open MPI to work properly.  A naieve approach would be to
 assume that the following would immediately work:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun -np 4 xterm -e gdb my_mpi_application
-</faqcode>
+</geshi>
 
 Unfortunately, it likely _won't_ work.  Several factors must be
 considered:
@@ -283,14 +288,14 @@ following:
 add it to your X server's permission list with the [xhost] command.
 For example:
 
-<faqcode>
+<geshi bash>
 shell$ cat my_hostfile
 inky
 blinky
 stinky
 clyde
 shell$ for host in `cat my_hostfile` ; do xhost +host ; done
-</faqcode>
+</geshi>
 
 <li> Use the [-x] option to [mpirun] to export an appropriate DISPLAY
 variable so that the launched X applications know where to send their
@@ -298,12 +303,12 @@ output.  An appropriate value is _usually_ (but not always) the
 hostname containing the display where you want the output and the [:0]
 (or [:0.0]) suffix.  For example:
 
-<faqcode>
+<geshi bash>
 shell$ hostname
 arcade.example.come
 shell$ mpirun -np 4 --hostfile my_hostfile \
     -x DISPLAY=arcade.example.com:0 xterm -e gdb my_mpi_application
-</faqcode>
+</geshi>
 
 Note that X traffic is fairly \"heavy\" -- if you are operating over a
 slow network connection, it may take some time before the [xterm]
@@ -321,9 +326,9 @@ output.</li>
 permissions from the hosts that you were using.  Use [xhost] again to
 disable these permissions:
 
-<faqcode>
+<geshi bash>
 shell$ for host in `cat my_hostfile` ; do xhost -host ; done
-</faqcode>
+</geshi>
 </li>
 
 </ol>
@@ -369,9 +374,9 @@ sometimes it can mask a real error.  You can disable Open MPI's error
 message aggregation with the [orte_base_help_aggregate] MCA
 parameter.  For example:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun --mca orte_base_help_aggregate 0 ...
-</faqcode>";
+</geshi>";
 
 //////////////////////////////////////////////////////////
 
@@ -402,53 +407,53 @@ communications, e.g. reading or writing to buffers of active
 non-blocking Recv-operations and writing to buffers of active
 non-blocking Send-operations.
 
-Here are some example codes that Memchecker can detect:  
+Here are some example codes that Memchecker can detect:
 
 Accessing buffer under control of non-blocking communication:
-<faqcode>
+<geshi c>
 int buf;
 MPI_Irecv(&buf, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, &req);
-<font color=red>/* The following line will produce a memchecker warning */</font>
+// The following line will produce a memchecker warning
 buf = 4711;
 MPI_Wait (&req, &status);
-</faqcode>
- 
+</geshi>
+
 
 Wrong input parameters, e.g. wrongly sized send buffers:
-<faqcode>
+<geshi c>
 char *send_buffer;
 send_buffer = malloc(5);
 memset(send_buffer, 0, 5);
-<font color=red>/* The following line will produce a memchecker warning */</font>
+// The following line will produce a memchecker warning
 MPI_Send(send_buffer, 10, MPI_CHAR, 1, 0, MPI_COMM_WORLD);
-</faqcode>
- 
+</geshi>
+
 
 Accessing window under control of one-sided communication:
-<faqcode>
+<geshi c>
 MPI_Get(A, 10, MPI_INT, 1, 0, 1, MPI_INT, win);
 A[0] = 4711;
-MPI_Win_fence(0, win); 
-</faqcode>
- 
+MPI_Win_fence(0, win);
+</geshi>
+
 Uninitialized input buffers:
-<faqcode>
+<geshi c>
 char *buffer;
 buffer = malloc(10);
-<font color=red>/* The following line will produce a memchecker warning */</font>
+// The following line will produce a memchecker warning
 MPI_Send(buffer, 10, MPI_INT, 1, 0, MPI_COMM_WORLD);
-</faqcode>
- 
+</geshi>
+
 
 Usage of the uninitialized MPI_Status field in MPI_ERROR structure:
 (The MPI-1 standard defines the MPI ERROR-field to be undefined for
 single-completion calls such as MPI Wait or MPI Test, see MPI-1 p. 22):
-<faqcode>
+<geshi c>
 MPI_Wait(&request, &status);
-<font color=red>/* The following line will produce a memchecker warning */</font>
+// The following line will produce a memchecker warning
 if (status.MPI_ERROR != MPI_SUCCESS)
     return ERROR;
-</faqcode>
+</geshi>
 ";
 
 /////////////////////////////////////////////////////////////////////////
@@ -458,7 +463,7 @@ $q[] = "How can I use Memchecker?";
 $anchor[] = "memchecker_how";
 
 $a[] = "To use Memchecker, you need Open MPI 1.3 or later, and
-Valgrind 3.2.0 or later. 
+Valgrind 3.2.0 or later.
 
 As this functionality is *off* by default, one needs to turn them on
 with the configure flag [--enable-memchecker].  Then, configure will
@@ -472,23 +477,23 @@ the messages from Valgrind are nearly useless.
 
 Here is a configuration example to enable Memchecker:
 
-<faqcode>
+<geshi bash>
 shell$ ./configure --prefix=/path/to/openmpi --enable-debug \
     --enable-memchecker --with-valgrind=/path/to/valgrind
-</faqcode>
+</geshi>
 
 To check if Memchecker is successfully enabled after installation,
 simply run command:
 
-<faqcode>
+<geshi bash>
 shell$ ompi_info | grep memchecker
-</faqcode>
+</geshi>
 
 You will get the output message like this:
 
-<faqcode>
+<geshi text>
     MCA memchecker: valgrind (MCA v1.0, API v1.0, Component v1.3)
-</faqcode>
+</geshi>
 
 Otherwise, you probably didn't configure and install Open MPI correctly.";
 
@@ -502,17 +507,17 @@ $a[] = "First of all, you have to make sure that Valgrind 3.2.0 or
 later is installed, and Open MPI is compiled with Memchecker
 enabled. Then simply run you application with Valgrind, e.g.:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun -np 2 valgrind ./my_app
-</faqcode>
- 
+</geshi>
+
 Or if you enabled Memchecker, but you don't want to check the
 application at this time, then just run your application as
 usual. E.g.:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun -np 2 ./my_app
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -537,13 +542,13 @@ There are two cases:
    In the case of x86-64 ClientRequests boil down to the following
    four rotate-left (ROL) and one xchange (XCHG) assembler instructions
    (from <code>valgrind.h</code>):
-<faqcode>
+<geshi c>
 #define __SPECIAL_INSTRUCTION_PREAMBLE                      \
                      \"rolq \$3,  %%rdi; rolq \$13, %%rdi\\n\\t\" \
                      \"rolq \$61, %%rdi; rolq \$51, %%rdi\\n\\t\"
-</faqcode>
+</geshi>
 and
-<faqcode>
+<geshi c>
     __asm__ volatile(__SPECIAL_INSTRUCTION_PREAMBLE         \
                      /* %RDX = client_request ( %RAX ) */   \
                      \"xchgq %%rbx,%%rbx\"                    \
@@ -551,7 +556,7 @@ and
                      : \"a\" (& _zzq_args[0]), \"0\" (_zzq_default)   \
                      : \"cc\", \"memory\"                       \
                     );                                      \
-</faqcode>
+</geshi>
    for every single ClientRequest.  In the case of not running
    Valgrind, these ClientRequest instructions do not change the
    arithmetic outcome (rotating a 64-bit register left by 128-Bits,
@@ -560,7 +565,7 @@ and
    The first request is checking whether we're run under Valgrind.
    In case we're not run under Valgrind sub-sequent checks (aka ClientRequests)
    are not done.</li>
-     
+
 <li>
    If the application is run under Valgrind, performance is naturally reduced due
    to the Valgrind JIT and the checking tool employed.
@@ -573,7 +578,7 @@ and
     . "Building Workload Characterization Tools with Valgrind</a>\".</li>
 </ul>
 
-   
+
 Further information and performance data with the NAS Parallel Benchmarks
 may be found in the paper <a
 HREF=\"$topdir/papers/parco-2007/\">Memory Debugging of MPI-Parallel
@@ -602,9 +607,9 @@ function contexts.
 In an attempt to ease debugging using Valgrind, starting with v1.5, Open MPI
 provides a so-called Valgrind-suppression file, that can be passed on the
 command line:
-<faqcode>
+<geshi bash>
 mpirun -np 2 valgrind --suppressions=\$PREFIX/share/openmpi/openmpi-valgrind.supp
-</faqcode>
+</geshi>
 
 More information on suppression-files and how to generate
 them can be found in

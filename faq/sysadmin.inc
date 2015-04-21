@@ -33,7 +33,7 @@ $q[] = "Do I need multiple Open MPI installations?";
 
 $anchor[] = "multiple-installs";
 
-$a[] = "Yes and no.  
+$a[] = "Yes and no.
 
 Open MPI can handle a variety of different run-time environments
 (e.g., rsh/ssh, SLURM, PBS, etc.) and a variety of different
@@ -223,9 +223,9 @@ support; in this case, you want to disable the [tcp] plug-in.  You can
 do this by adding the following line in the file
 [\$prefix/etc/openmpi-mca-params.conf]:
 
-<faqcode>
+<geshi text>
 btl = ^tcp
-</faqcode>
+</geshi>
 
 This tells Open MPI to load all BTL components *except* [tcp].
 
@@ -234,9 +234,9 @@ NFS and administration-level jobs, and another for MPI jobs.  You can
 tell Open MPI to ignore the TCP network used by NFS by adding the
 following line in the file [\$prefix/etc/openmpi-mca-params.conf]:
 
-<faqcode>
+<geshi text>
 btl_tcp_if_exclude = lo,eth0
-</faqcode>
+</geshi>
 
 The value of this parameter is the device names to exclude.  In this
 case, we're excluding [lo] (localhost, because Open MPI has its own
@@ -247,25 +247,30 @@ has a variety of different tunable parameters.  Use the [ompi_info]
 command to see what is available.  You show _all_ available parameters
 with:
 
-<faqcode>
-shell$ ompi_info --param all all
-</faqcode>
+" . faqcode("ompi_info --param all all") . "
+
+NOTE: Starting with Open MPI v1.8, ompi_info categorizes
+its parameter parameters in so-called levels, as defined by
+the MPI_T interface.  You will need to specify [--level 9]
+(or [--all]) to show _all_ MCA parameters.  See
+<a href=\"http://blogs.cisco.com/performance/open-mpi-and-the-mpi-3-mpi_t-interface\">this blog entry</a>
+for further information.
+
+" . faqcode("ompi_info --param all all --level 9") . "
+or
+" . faqcode("ompi_info --all") . "
 
 Beware: there are _many_ variables available.  You can limit the
 output by showing all the parameters in a specific framework or in a
 specific plug-in with the command line parameters:
 
-<faqcode>
-shell$ ompi_info --param btl all
-</faqcode>
+" . faqcode("ompi_info --param btl all --level 9") . "
 
 Shows all the parameters of all BTL components, and:
 
-<faqcode>
-shell$ ompi_info --param btl mvapi
-</faqcode>
+" . faqcode("ompi_info --param btl tcp --level 9") . "
 
-Shows all the parameters of just the [mvapi] BTL component.
+Shows all the parameters of just the [tcp] BTL component.
 
 </ul>";
 
@@ -291,7 +296,7 @@ $anchor[] = "new-network-version";
 $a[] = "If your installation of Open MPI uses shared libraries and
 components are standalone plug-in files, then no.  You simply need to
 recompile the Open MPI components that support that network and
-re-install them.  
+re-install them.
 
 More specifically, Open MPI shifts the dependency on the underlying
 network away from the MPI applications and to the Open MPI plug-ins.

@@ -1,6 +1,6 @@
 <?php
 # Question: What is this 'parent_name' thing?
-# Answer: This identifies an entry as a child of other entries. If 
+# Answer: This identifies an entry as a child of other entries. If
 #   'parent_name' is blank for an entry, it means 1 of 2 things:
 #       1. it is the parent of some other entries
 #       2. It is a top-level FAQ page
@@ -28,12 +28,12 @@ $parent_name[] = "";
     $titles[] = "What kinds of systems / networks / run-time environments does Open MPI support?";
     $short_titles[] = "Supported systems";
     $names[] = "supported-systems";
-    
+
     $parent_name[] = "general_parent";
     $titles[] = "Contributing to the Open MPI project";
     $short_titles[] = "Contributing";
     $names[] = "contributing";
-    
+
     $parent_name[] = "general_parent";
     $titles[] = "Developer-level technical information on the internals of Open MPI";
     $short_titles[] = "Developer information";
@@ -64,7 +64,7 @@ $parent_name[] = "";
     $short_titles[] = "Compiling MPI apps";
     $names[] = "mpi-apps";
     $parent_name[] = "build_parent";
-    
+
 $titles[] = "Running Jobs with Open MPI";
 $short_titles[] = "Running Jobs";
 $names[] = "run_parent";
@@ -212,13 +212,3 @@ $parent_name[] = "";
     $short_titles[] = "Running CUDA-aware";
     $names[] = "runcuda";
     $parent_name[] = "cuda_parent";
-
-$titles[] = "Known Issues";
-$short_titles[] = "Known Issues";
-$names[] = "known_issues";
-$parent_name[] = "";
-
-    $titles[] = "Known Issues";
-    $short_titles[] = "All releases";
-    $names[] = "known-issues";
-    $parent_name[] = "known_issues";

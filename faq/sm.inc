@@ -29,9 +29,9 @@ This BTL can only be used between processes executing on the same node.
 The [sm] BTL has high exclusivity.  That is, if one process can reach another
 process via [sm], then no other BTL will be considered for that connection.
 
-Note that with OMPI 1.3.2, the [sm] so-called \"FIFOs\" were reimplemented and
+Note that with Open MPI v1.3.2, the [sm] so-called \"FIFOs\" were reimplemented and
 the sizing of the shared-memory area was changed.  So, much of this FAQ will
-distinguish between releases up to OMPI 1.3.1 and releases starting with OMPI 1.3.2.";
+distinguish between releases up to Open MPI v1.3.1 and releases starting with Open MPI v1.3.2.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -47,9 +47,9 @@ Nevertheless, you may use the MCA parameter [btl].  You should also specify the
 processes in your job will run on the same, single node, then you also need
 to specify a BTL for internode communications.  For example:
 
-<faqcode>
+<geshi bash>
 shell$ mpirun <font color=red>--mca btl self,sm,tcp</font> -np 16 ./a.out
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -85,7 +85,7 @@ one node?";
 
 $anchor[] = "large-job-startup";
 
-$a[] = "If you are using OMPI 1.3.1 or earlier, it is possible that the shared-memory
+$a[] = "If you are using Open MPI v1.3.1 or earlier, it is possible that the shared-memory
 area set aside for your job was not created large enough.  Make sure you're running
 in 64-bit mode (compiled with [-m64]) and set the MCA parameter mpool_sm_max_size
 to be very large -- even several Gbytes.  Exactly how large is discussed further
@@ -103,10 +103,10 @@ $anchor[] = "sm-params";
 $a[] = "The [ompi_info] command can display all the parameters available for the
 [sm] BTL and [sm] mpool:
 
-<faqcode>
+<geshi bash>
 shell$ ompi_info <font color=red><strong>--param  btl  sm</strong></font>
 shell$ ompi_info <font color=red><strong>--param mpool sm</strong></font>
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -114,47 +114,54 @@ $q[] = "How can I tune these parameters to improve performance?";
 
 $anchor[] = "more-sm";
 
-$a[] = "Mostly, the default values of the MCA parameters have already been
-chosen to give good performance.  To improve performance further is a little
-bit of an art.  Sometimes, it's a matter of trading off performance for memory.
+$a[] = "Mostly, the default values of the MCA parameters have already
+been chosen to give good performance.  To improve performance further
+is a little bit of an art.  Sometimes, it's a matter of trading off
+performance for memory.
 
-[btl_sm_eager_limit]:
-If message data plus header information fits within this limit,
-the message is sent \"eagerly\"... -- that is, a sender attempts
-to write its entire message to shared buffers without waiting for a receiver
-to be ready.  Above this size, a sender will only write the first part of a
-message, then wait for the receiver to acknowledge its ready before continuing.
-Eager sends _can_ improve performance by decoupling senders from receivers.
+<ul>
+<li> [btl_sm_eager_limit]:
+If message data plus header information fits within this limit, the
+message is sent \"eagerly\"... -- that is, a sender attempts to write
+its entire message to shared buffers without waiting for a receiver to
+be ready.  Above this size, a sender will only write the first part of
+a message, then wait for the receiver to acknowledge its ready before
+continuing.  Eager sends _can_ improve performance by decoupling
+senders from receivers.</li>
 
-[btl_sm_max_send_size]:
-Large messages are sent in fragments of this size.  Larger segments _can_
-lead to greater efficiencies, though they could perhaps also inhibit
-pipelining between sender and receiver.
+<li> [btl_sm_max_send_size]:
+Large messages are sent in fragments of this size.  Larger segments
+_can_ lead to greater efficiencies, though they could perhaps also
+inhibit pipelining between sender and receiver.</li>
 
-[btl_sm_num_fifos]:
-Starting in OMPI 1.3.2, this is the number of FIFOs per receiving process.
-By default, there is only one FIFO per process.  Conceivably, if many senders
-are all sending to the same process and contending for a single FIFO, there
-will be congestion.  If there are many FIFOs, however, the receiver must
-poll more FIFOs to find in-coming messages.  Therefore, you might try
-increasing this parameter slightly if you have _many_ (at least dozens) of
-processes all sending to the same process.  For example, if 100 senders are
-all contending for a single FIFO for a particular receiver, it may suffice
-to increase [btl_sm_num_fifos] from 1 to 2.
+<li> [btl_sm_num_fifos]:
+Starting in Open MPI v1.3.2, this is the number of FIFOs per receiving
+process.  By default, there is only one FIFO per process.
+Conceivably, if many senders are all sending to the same process and
+contending for a single FIFO, there will be congestion.  If there are
+many FIFOs, however, the receiver must poll more FIFOs to find
+in-coming messages.  Therefore, you might try increasing this
+parameter slightly if you have _many_ (at least dozens) of processes
+all sending to the same process.  For example, if 100 senders are all
+contending for a single FIFO for a particular receiver, it may suffice
+to increase [btl_sm_num_fifos] from 1 to 2.</li>
 
-[btl_sm_fifo_size]:
-Starting in OMPI 1.3.2, FIFOs could no longer grow.  If you believe the
-FIFO is getting congested because a process falls far behind in reading
-in in-coming message fragments, increase this size manually.
+<li> [btl_sm_fifo_size]:
+Starting in Open MPI v1.3.2, FIFOs could no longer grow.  If you
+believe the FIFO is getting congested because a process falls far
+behind in reading in in-coming message fragments, increase this size
+manually.</li>
 
-[btl_sm_free_list_num]:
-This is the initial number of fragments on each (eager and max) free list.
-The free lists can grow in response to resource congestion, but you can
-increase this parameter to pre-reserve space for more fragments.
+<li> [btl_sm_free_list_num]:
+This is the initial number of fragments on each (eager and max) free
+list.  The free lists can grow in response to resource congestion, but
+you can increase this parameter to pre-reserve space for more
+fragments.</li>
 
-[mpool_sm_min_size]:
-You can reserve headroom for the shared-memory area to grow by increasing
-this parameter.";
+<li> [mpool_sm_min_size]:
+You can reserve headroom for the shared-memory area to grow by
+increasing this parameter.</li>
+</ul>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -228,45 +235,52 @@ $q[] = "How much shared memory will my job use?";
 
 $anchor[] = "how-much-use";
 
-$a[] = "Your job will create a shared-memory area on each node where it has
-two or more processes.  This area will be fixed during the lifetime of your
-job.  Shared-memory allocations (for FIFOs and fragment free lists) will be
-made in this area.  Here, we look at the size of that shared-memory area.
+$a[] = "Your job will create a shared-memory area on each node where
+it has two or more processes.  This area will be fixed during the
+lifetime of your job.  Shared-memory allocations (for FIFOs and
+fragment free lists) will be made in this area.  Here, we look at the
+size of that shared-memory area.
 
-If you want just one, hard number, then go with approximately 128 Mbytes per
-node per job, shared by all the job's processes on that node.  That is, an OMPI
-job will need more than a few Mbytes per node, but typically less than a few Gbytes.
+If you want just one, hard number, then go with approximately 128
+Mbytes per node per job, shared by all the job's processes on that
+node.  That is, an OMPI job will need more than a few Mbytes per node,
+but typically less than a few Gbytes.
 
 Better yet, read on.
 
-Up through OMPI 1.3.1, the shared-memory file would basically be sized:
-<faqcode>
-  nbytes = n * mpool_sm_per_peer_size
-  if ( nbytes < mpool_sm_min_size ) nbytes = mpool_sm_min_size
-  if ( nbytes > mpool_sm_max_size ) nbytes = mpool_sm_max_size
-</faqcode>
-where [n] is the number of processes in the job running on that particular node
-and the [mpool_sm_*] are MCA parameters.
-For small [n], this size is typically excessive.  For large [n] (e.g.,
-128 MPI processes on the same node), this size may not be sufficient for the job
-to start.
+Up through Open MPI v1.3.1, the shared-memory file would basically be
+sized thusly:
 
-Starting in OMPI 1.3.2, a more sophisticated formula was introduced to model more
-closely how much memory was actually needed.  That formula is somewhat complicated
-and subject to change.  It guarantees that there will be at least enough shared
-memory for the program to start up and run.  See <a href=\"#how-much-need\">this
-FAQ item</a> to see how much is needed.    Alternatively, the motivated user can
-examine the OMPI source code to see the formula used -- for example, here is the "
-. "<a href=\"https://svn.open-mpi.org/source/xref/ompi-trunk/ompi/mca/btl/sm/btl_sm.c?r=20906#195\">"
+<geshi c>
+nbytes = n * mpool_sm_per_peer_size
+if ( nbytes < mpool_sm_min_size ) nbytes = mpool_sm_min_size
+if ( nbytes > mpool_sm_max_size ) nbytes = mpool_sm_max_size
+</gesih>
+
+where [n] is the number of processes in the job running on that
+particular node and the [mpool_sm_*] are MCA parameters.  For small
+[n], this size is typically excessive.  For large [n] (e.g., 128 MPI
+processes on the same node), this size may not be sufficient for the
+job to start.
+
+Starting in OMPI v1.3.2, a more sophisticated formula was introduced to
+model more closely how much memory was actually needed.  That formula
+is somewhat complicated and subject to change.  It guarantees that
+there will be at least enough shared memory for the program to start
+up and run.  See <a href=\"#how-much-need\">this FAQ item</a> to see
+how much is needed.  Alternatively, the motivated user can examine the
+OMPI source code to see the formula used -- for example, here is the "
+. "<a
+href=\"https://svn.open-mpi.org/source/xref/ompi-trunk/ompi/mca/btl/sm/btl_sm.c?r=20906#195\">"
 . "formula in OMPI revision SVN r20906</a>.
 
-OMPI 1.3.2 also uses the MCA parameter [mpool_sm_min_size] to set a minimum size
--- e.g., so that there is not only enough shared memory for the job to start, but
-additionally headroom for further shared-memory allocations (e.g., of more eager
-or max fragments).
+OMPI v1.3.2 also uses the MCA parameter [mpool_sm_min_size] to set a
+minimum size -- e.g., so that there is not only enough shared memory
+for the job to start, but additionally headroom for further
+shared-memory allocations (e.g., of more eager or max fragments).
 
-Once the shared-memory area is established, it will not grow further during the
-course of the MPI job's run.";
+Once the shared-memory area is established, it will not grow further
+during the course of the MPI job's run.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -274,28 +288,32 @@ $q[] = "How much shared memory do I need?";
 
 $anchor[] = "how-much-need";
 
-$a[] = "In most cases, OMPI will start your job with sufficient shared memory.
+$a[] = "In most cases, OMPI will start your job with sufficient shared
+memory.
 
-Nevertheless, if OMPI doesn't get you enough shared memory (e.g., you're using OMPI 1.3.1
-or earlier with roughly 128 processes or more on a single node) or you want to
-trim shared-memory consumption, you may want to know how much shared memory is really needed.
+Nevertheless, if OMPI doesn't get you enough shared memory (e.g.,
+you're using OMPI v1.3.1 or earlier with roughly 128 processes or more
+on a single node) or you want to trim shared-memory consumption, you
+may want to know how much shared memory is really needed.
 
-As we saw <a href=\"#how-does-sm-BTL-work\">earlier</a>, the shared memory area contains:
+As we saw <a href=\"#how-does-sm-BTL-work\">earlier</a>, the shared
+memory area contains:
 <ul>
 <li> FIFOs
 <li> eager fragments
 <li> max fragments
 </ul>
 
-In general, you _need_ only enough shared memory for the FIFOs and fragments
-that are allocated during [MPI_Init()].
+In general, you _need_ only enough shared memory for the FIFOs and
+fragments that are allocated during [MPI_Init()].
 
-Beyond that, you might _want_ additional shared memory for performance reasons,
-so that FIFOs and fragment lists can grow if your program's message traffic encounters
-resource congestion.  Even if there is no room to grow, however, your correctly
-written MPI program should still run to complete in the face of congestion;
-performance simply degrades somewhat.  Note that while shared-memory resources
-can grow after [MPI_Init()], they cannot shrink.
+Beyond that, you might _want_ additional shared memory for performance
+reasons, so that FIFOs and fragment lists can grow if your program's
+message traffic encounters resource congestion.  Even if there is no
+room to grow, however, your correctly written MPI program should still
+run to complete in the face of congestion; performance simply degrades
+somewhat.  Note that while shared-memory resources can grow after
+[MPI_Init()], they cannot shrink.
 
 So, how much shared memory is needed during [MPI_Init()] ?
 You need approximately the total of:
@@ -303,8 +321,8 @@ You need approximately the total of:
 <ul>
 <li> FIFOs:
      <ul>
-     <li> <i>(&le; OMPI 1.3.1)</i>: &nbsp;&nbsp;&nbsp; [3 &times; n &times; n &times; pagesize]
-     <li> <i>(&ge; OMPI 1.3.2)</i>: &nbsp;&nbsp;&nbsp; [n &times; btl_sm_num_fifos &times; btl_sm_fifo_size &times; sizeof(void *)]
+     <li> <i>(&le; Open MPI v1.3.1)</i>: &nbsp;&nbsp;&nbsp; [3 &times; n &times; n &times; pagesize]
+     <li> <i>(&ge; Open MPI v1.3.2)</i>: &nbsp;&nbsp;&nbsp; [n &times; btl_sm_num_fifos &times; btl_sm_fifo_size &times; sizeof(void *)]
      </ul>
 <li> eager fragments: &nbsp;&nbsp;&nbsp; [n &times; ( 2 &times; n + btl_sm_free_list_inc ) &times; btl_sm_eager_limit]
 <li> max fragments: &nbsp;&nbsp;&nbsp; [n &times; btl_sm_free_list_num &times; btl_sm_max_send_size]
@@ -328,14 +346,15 @@ $a[] = "There are two parts to this question.
 
 First, how does one reduce how big the [mmap] file is?  The answer is:
 <ul>
-<li> up to OMPI 1.3.1:  reduce [mpool_sm_per_peer_size], [mpool_sm_min_size],
+<li> up to Open MPI v1.3.1:  reduce [mpool_sm_per_peer_size], [mpool_sm_min_size],
      and [mpool_sm_max_size]
-<li> starting with OMPI 1.3.2:  reduce [mpool_sm_min_size]
+<li> starting with Open MPI v1.3.2:  reduce [mpool_sm_min_size]
 </ul>
 
-Second, how does one reduce how much shared memory is needed?  (Just making
-the [mmap] file smaller doesn't help if then your job won't start up.)  The
-answers are:
+Second, how does one reduce how much shared memory is needed?  (Just
+making the [mmap] file smaller doesn't help if then your job won't
+start up.)  The answers are:
+
 <ul>
 <li> For small values of [n] -- that is, for few processes per node --
      shared-memory usage during [MPI_Init()] is predominantly for max free lists.
@@ -345,10 +364,10 @@ answers are:
 <li> For large values of [n] -- that is, for many processes per node -- there
      are two cases:
      <ul>
-     <li> up to OMPI 1.3.1:  shared-memory usage is dominated by the
+     <li> up to Open MPI v1.3.1:  shared-memory usage is dominated by the
           FIFOs, which consume a certain number of pages.  Usage is
           high and cannot be reduced much via MCA parameter tuning.
-     <li> starting with OMPI 1.3.2:  shared-memory usage is dominated
+     <li> starting with Open MPI v1.3.2:  shared-memory usage is dominated
           by the eager free lists.  So, you can reduce the MCA parameter
           [btl_sm_eager_limit].
      </ul>

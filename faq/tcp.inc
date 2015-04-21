@@ -3,17 +3,22 @@ global $shell_font;
 global $shell;
 global $cmd_font;
 
-$q[] = "How do I specify to use the TCP network for MPI messages?";
+$q[] = "How do I specify to use the IP network for MPI messages?";
 
 $anchor[] = "tcp-btl";
 
 $a[] = "In general, you specify that the [tcp] BTL component should be
-used.  However, note that you should _also_ specify that the [self]
+used.  This will direct Open MPI to use TCP-based communications over
+IP interfaces / networks.
+
+However, note that you should _also_ specify that the [self]
 BTL component should be used.  [self] is for loopback communication
 (i.e., when an MPI process sends to itself), and is technically a
 different communication channel than TCP.  For example:
 
-" . faqcode("mpirun --mca btl tcp,self ...") . "
+<geshi bash>
+shell$ mpirun --mca btl tcp,self ...
+</geshi>
 
 Failure to specify the [self] BTL may result in Open MPI being unable
 to complete send-to-self scenarios (meaning that your program will run
@@ -37,14 +42,14 @@ disable the TCP BTL?";
 $anchor[] = "tcp-auto-disable";
 
 $a[] = "No.  Following the so-called \"Law of Least Astonishment\",
-Open MPI assumes that if you have both a TCP network and at least one
-high-speed network (such as Myrinet or InfiniBand), you will likely
+Open MPI assumes that if you have both a IP network and at least one
+high-speed network (such InfiniBand), you will likely
 only want to use the high-speed network(s) for MPI message passing.
 Hence, the [tcp] BTL component will sense this and automatically
 deactivate itself.
 
 That being said, Open MPI may still use TCP for setup and teardown
-information -- so you'll see traffic across your TCP network during
+information -- so you'll see traffic across your IP network during
 startup and shutdwon of your MPI job.  This is normal and does not
 affect the MPI message passing channels.";
 
@@ -58,31 +63,25 @@ $a[] = "The [ompi_info] command can display all the parameters
 available for the [tcp] BTL component (i.e., the component that uses
 TCP for MPI communications):
 
-" . faqcode("ompi_info <strong>--param btl tcp</strong>") . "
+<geshi bash>
+shell$ ompi_info --param btl tcp --level 9
+</geshi>
 
-<font color=\"red\"><strong>NOTE:</strong></font> Starting with the
-Open MPI 1.7 series, you [ompi_info] will only show a few MCA
-parameters by default.  You will need to specify [--level 9] (or
-[--all]) to show _all_ MCA parameters.  For example:
-
-" . faqcode("ompi_info --param btl tcp <strong>--level 9</strong>") . "
-
-or
-
-" . faqcode("ompi_info <strong>--all</strong></strong>") . "
-
-";
+<font color=\"red\"><strong>NOTE:</strong></font> Prior to the Open
+MPI 1.7 series, [ompi_info] would show all MCA parameters by default.
+Starting with Open MPI v1.7, you need to specify [--level 9] (or
+[--all]) to show _all_ MCA parameters";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Does Open MPI use the TCP loopback interface?";
+$q[] = "Does Open MPI use the IP loopback interface?";
 
 $anchor[] = "tcp-loopback";
 
 $a[] = "Usually not.
 
 In general message passing usage, there are two scenarios where using
-the TCP loopback interface could be used:
+the IP loopback interface could be used:
 
 <ol>
 <li>Sending a message from one process to itself</li>
@@ -92,27 +91,30 @@ machine</li>
 
 The TCP BTL does not handle \"send-to-self\" scenarios in Open MPI;
 indeed, it is not even capable of doing so.  Instead, the [self] BTL
-component is used for all send-to-self MPI communications (this allows
-all Open MPI BTL components to avoid special case code for
-send-to-self scenarios).  The [self] component uses its own mechanisms
-for send-to-self scenarios; it does not use network interfaces.
+component is used for all send-to-self MPI communications.  Not only
+does this allow all Open MPI BTL components to avoid special case code
+for send-to-self scenarios, it also allows avoiding using inefficient
+loopback network stacks (such as the IP loopback device).
 
-When sending to processes on the same machine, Open MPI will default
-to using the shared memory (<tt>sm</tt>) BTL.  If the user has
-deactivated this BTL, depending on what other BTL components are
-available, it is possible that the TCP BTL will be chosen for message
-passing to processes on the same node, in which case the TCP lookback
-device will likely be used.  But this is not the default; either
-shared memory has to fail to startup properly or the user must
-specifically request not to use the shared memory BTL.";
+Specifically: the [self] component uses its own mechanisms for
+send-to-self scenarios; it does not use network interfaces.
+
+When sending to other processes on the same machine, Open MPI will
+default to using a shared memory BTL (<tt>sm</tt> or <tt>vader</tt>).
+If the user has deactivated these BTLs, depending on what other BTL
+components are available, it is possible that the TCP BTL will be
+chosen for message passing to processes on the same node, in which
+case the IP lookback device will likely be used.  But this is not the
+default; either shared memory has to fail to startup properly or the
+user must specifically request not to use the shared memory BTL.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "I have multiple TCP networks on some/all of my cluster nodes.  Which ones will Open MPI use?";
+$q[] = "I have multiple IP networks on some/all of my cluster nodes.  Which ones will Open MPI use?";
 
 $anchor[] = "tcp-multi-network";
 
-$a[] = "In general, Open MPI will greedily use all TCP networks that
+$a[] = "In general, Open MPI will greedily use all IP networks that
 it finds per its <a href=\"#tcp-routability\">reachability
 computations</a>.
 
@@ -123,13 +125,6 @@ href=\"#tcp-selection\">this FAQ entry</a> for more details.
 
 /////////////////////////////////////////////////////////////////////////
 
-$c1 = array();
-$o1 = array();
-$c1[] = "perl -e 'die$!=113'";
-$o1[] = "No route to host at -e line 1.";
-$c1[] = "perl -e 'die$!=104'";
-$o1[] = "Connection reset by peer at -e line 1.";
-
 $q[] = "I'm getting TCP-related errors.  What do they mean?";
 
 $anchor[] = "tcp-connection-errors";
@@ -137,17 +132,22 @@ $anchor[] = "tcp-connection-errors";
 $a[] = "TCP-related errors are usually reported by Open MPI in a
 message similar to these:
 
-<faqcode>
+<geshi text>
 btl_tcp_endpoint.c:572:mca_btl_tcp_endpoint_complete_connect] connect() failed with errno=113
-mca_btl_tcp_frag_send: writev failed with errno=104 
-</faqcode>
+mca_btl_tcp_frag_send: writev failed with errno=104
+</geshi>
 
 If an error number is displayed with no explanation string, you can
 see what that specific error number means on your operating system
 with the following command (the following example was run on Linux;
 results may be different on other operating systems):
 
-" . faqcode($c1, $o1) . "
+<geshi bash>
+shell$ perl -e 'die\$!=113'
+No route to host at -e line 1.
+shell$ perl -e 'die\$!=104'
+Connection reset by peer at -e line 1.
+</geshi>
 
 Two types of errors are commonly reported to the Open MPI user's
 mailing list:
@@ -155,13 +155,13 @@ mailing list:
 <ul>
 
 <li> *No route to host:* These types of errors _usually_ mean that
-there are multiple TCP interfaces available and they do not obey Open
+there are multiple IP interfaces available and they do not obey Open
 MPI's assumptions about routability.  See these two FAQ items for more
 information:
 
 <ul>
 <li> <a href=\"#tcp-routabiliy\">Open MPI's routability assumptions</a></li>
-<li> <a href=\"#tcp-selection\">How to force specific TCP interfaces</a></li>
+<li> <a href=\"#tcp-selection\">How to force specific IP interfaces</a></li>
 </ul></li>
 
 <li> *Connection reset by peer:* These types of errors _usually_ occur
@@ -176,25 +176,25 @@ write to the now-dead MPI process and failed.</li>
 
 $ss = "$shell_font$shell";
 
-$q[] = "How do I tell Open MPI which TCP interfaces / networks to use?";
+$q[] = "How do I tell Open MPI which IP interfaces / networks to use?";
 
 $anchor[] = "tcp-selection";
 
 $a[] = "In some parallel environments, it is not uncommon to have
-multiple TCP interfaces on each node -- for example, one TCP network
+multiple IP interfaces on each node -- for example, one IP network
 may be \"slow\" and used for control information such as a batch
 scheduler, a networked filesystem, and/or interactive logins.  Another
-TCP network (or networks) may be \"fast\" and be intended for parallel
+IP network (or networks) may be \"fast\" and be intended for parallel
 applications to use during their runs.  As another example, some
 operating systems may also have virtual interfaces for communicating
 with virtual machines.
 
-Unless otherwise specified, Open MPI will greedily use all \"up\" TCP
+Unless otherwise specified, Open MPI will greedily use all \"up\" IP
 networks that it can find and try to connect to all peers _upon
 demand_ (i.e., Open MPI does not open sockets to all of its MPI peers
 during [MPI_INIT] -- see <A HREF=\"#tcp-sockets\">this FAQ entry</A>
 for more details).  Hence, if you want MPI jobs to not use specific
-TCP networks -- or not use any TCP networks at all -- then you need to
+IP networks -- or not use any IP networks at all -- then you need to
 tell Open MPI.
 
 *NOTE:* Aggressively using all \"up\" interfaces can cause problems in
@@ -219,15 +219,15 @@ tried to send or receive MPI messages.
 _exclude_ the TCP component or _include_ all other components.
 Specifically:
 
-<faqcode>
-# This says to exclude the TCP BTL component 
+<geshi bash>
+# This says to exclude the TCP BTL component
 # (implicitly including all others)
-$ss mpirun <font color=red><strong>--mca btl ^tcp</strong></font> ...
+shell$ mpirun --mca btl ^tcp...
 
 # This says to include only the listed BTL components
 # (tcp is not listed, and therefore will not be used)
-$ss mpirun <font color=red><strong>--mca btl self,sm,openib</strong></font> ...
-</faqcode>
+shell$ mpirun --mca btl self,vader,openib ...
+</geshi>
 
 <li>If you want to use TCP for MPI communications, but want to
 restrict it from certain networks, use the [btl_tcp_if_include] or
@@ -235,27 +235,32 @@ restrict it from certain networks, use the [btl_tcp_if_include] or
 set).  The values of these parameters can be a comma-delimited list of
 network interfaces.  For example:
 
-<faqcode>
+<geshi bash>
 # This says to not use the eth0 and lo interfaces.
-# (an implicitly use all the rest)  Per the description
-# above, TCP loopback and all local-only devices *must*
+# (and implicitly use all the rest)  Per the description
+# above, IP loopback and all local-only devices *must*
 # be included if the exclude list is specified.
-$ss mpirun <font color=red><strong>--mca btl_tcp_if_exclude lo,eth0</strong></font> ...
+shell$ mpirun --mca btl_tcp_if_exclude lo,eth0 ...
 
 # This says to only use the eth1 and eth2 interfaces
 # (and implicitly ignore the rest)
-$ss mpirun <font color=red><strong>--mca btl_tcp_if_include eth1,eth2</strong></font> ...
-</faqcode>
+shell$ mpirun --mca btl_tcp_if_include eth1,eth2 ...
+</geshi>
 </li>
 
 <li>Starting in the Open MPI v1.5 series, you can specify subnets in the
 include or exclude lists in CIDR notation.  For example:
 
-<faqcode>
+<geshi bash>
 # Only use the 192.168.1.0/24 and 10.10.0.0/16 subnets for MPI
 # communications:
-$ss mpirun <font color=red><strong>--mca btl_tcp_if_include 192.168.1.0/24,10.10.0.0/16</strong></font> ...
-</faqcode>
+shell$ mpirun --mca btl_tcp_if_include 192.168.1.0/24,10.10.0.0/16 ...
+</geshi>
+
+<font color=red><strong>NOTE:</strong></font> You must specify the
+CIDR notation for a given network precisely.  For example, if you have
+two IP networks 10.10.0.0/24 and 10.10.1.0/24, Open MPI will not
+recognize either of them if you specify \"10.10.0.0/16\".
 
 <font color=red><strong>NOTE:</strong></font> If you use the
 [btl_tcp_if_include] and [btl_tcp_if_exclude] MCA parametes to shape
@@ -291,32 +296,6 @@ descriptors) if your parallel application is sparse in its
 communication with peers.";
 
 /////////////////////////////////////////////////////////////////////////
-
-$shell_save = $shell;
-$shell = $shell_font . "shell#";
-
-$c1 = array();
-$o1 = array();
-$c1[] = "cat /proc/sys/net/ipv4/tcp_syn_retries";
-$o1[] = "5";
-$c1[] = "echo 6 > /proc/sys/net/ipv4/tcp_syn_retries";
-
-$c2 = array();
-$o2 = array();
-$c2[] = "sysctl net.ipv4.tcp_syn_retries";
-$o2[] = "net.ipv4.tcp_syn_retries = 5";
-$c2[] = "sysctl -w net.ipv4.tcp_syn_retries=6";
-$o2[] = "net.ipv4.tcp_syn_retries = 6";
-
-$c3 = array();
-$o3 = array();
-$c3[] = "grep tcp_syn_retries /etc/sysctl.conf";
-$o3[] = "net.ipv4.tcp_syn_retries = 6";
-
-$c4 = array();
-$o4 = array();
-$c4[] = "cat /etc/sysctl.d/my-tcp-settings";
-$o4[] = "net.ipv4.tcp_syn_retries = 6";
 
 function goog($term) {
     return "<a href=\"https://www.google.com/search?q=$term\">$term</a>";
@@ -371,36 +350,49 @@ multiple different ways.
 <ol>
 <li> You can change the running kernel via the [/proc] filesystem:
 
-" . faqcode($c1, $o1) . "
+<geshi bash>
+shell# cat /proc/sys/net/ipv4/tcp_syn_retries
+5
+shell# echo 6 > /proc/sys/net/ipv4/tcp_syn_retries
+</geshi>
 </li>
 <li> You can also use the [sysctl] command:
 
-" . faqcode($c2, $o2) . "
+<geshi bash>
+shell# sysctl net.ipv4.tcp_syn_retries
+net.ipv4.tcp_syn_retries = 5
+shell# sysctl -w net.ipv4.tcp_syn_retries=6
+net.ipv4.tcp_syn_retries = 6
+</geshi>
 </li>
 <li> Or you can set them by adding entries in [/etc/sysctl.conf],
 which are persistent across reboots:
 
-" . faqcode($c3, $o3) . "
+<geshi bash>
+shell$ grep tcp_syn_retries /etc/sysctl.conf
+net.ipv4.tcp_syn_retries = 6
+</geshi>
 </li>
 <li> Your Linux distro may also support you putting individual files
 in [/etc/sysctl.d] (even if that directory does not yet exist), which
 is actually better practice than putting them in [/etc/sysctl.conf].
 For example:
 
-" . faqcode($c4, $o4) . "
+<geshi bash>
+shell$ cat /etc/sysctl.d/my-tcp-settings
+net.ipv4.tcp_syn_retries = 6
+</geshi>
 </ol>";
-
-$shell = $shell_save;
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How does Open MPI know which TCP addresses are routable to each other in Open MPI 1.2?";
+$q[] = "How does Open MPI know which IP addresses are routable to each other in Open MPI 1.2?";
 
 $anchor[] = "tcp-routability";
 
 $a[] = "This is a fairly complicated question -- there can be
-ambiguity when hosts have multiple TCP NICs and/or there are multiple
-TCP networks that are not routable to each other in a single MPI job.
+ambiguity when hosts have multiple NICs and/or there are multiple
+IP networks that are not routable to each other in a single MPI job.
 
 It is important to note that Open MPI's atomic unit of routing is a
 _process_ -- not an IP address.  Hence, Open MPI makes connections
@@ -408,11 +400,11 @@ between _processes_, not nodes (these processes are almost always on
 remote nodes, but it's still better to think in terms of _processes_,
 not _nodes_).
 
-Specifically, since OMPI can span multiple TCP networks, each MPI
-process may be able to use multiple IP addresses to each to each other
-MPI process (and vice versa).  So for each process, Open MPI needs to
-determine which IP address -- if any - to use to connect to a peer MPI
-process.
+Specifically, since Open MPI jobs can span multiple IP networks, each
+MPI process may be able to use multiple IP addresses to communicate
+with each other MPI process (and vice versa).  So for each process,
+Open MPI needs to determine which IP address -- if any -- to use to
+connect to a peer MPI process.
 
 For example, say that you have a cluster with 16 nodes on a private
 ethernet network.  One of these nodes doubles as the head node for the
@@ -427,13 +419,13 @@ MPI_INIT.  Even though Open MPI only makes TCP connections between
 peer MPI processes upon demand (see <a href=\"#tcp-sockets\">this FAQ
 entry</a>), each process publishes its TCP contact information which
 is then made available to all processes.  Hence, every process knows
-the TCP address(es) and corresponding port number(s) to contact every
+the IP address(es) and corresponding port number(s) to contact every
 other process.
 
-But keep in mind that these addresses may span multiple TCP networks
+But keep in mind that these addresses may span multiple IP networks
 and/or not be routable to each other.  So when a connection is
 requested, the TCP BTL component in Open MPI creates pairwise
-combinations of all the TCP addresses of the localhost to all the TCP
+combinations of all the IP addresses of the localhost to all the IP
 addresses of the peer process, looking for a match.
 
 A \"match\" is defined by the following rules:
@@ -470,38 +462,38 @@ subnets).</li>
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How does Open MPI know which TCP addresses are routable to each other in Open MPI 1.3 (and beyond)?";
+$q[] = "How does Open MPI know which IP addresses are routable to each other in Open MPI 1.3 (and beyond)?";
 
 $anchor[] = "tcp-routability-1.3";
 
-$a[] = "The 1.3 series assumptions about routability are much different than
-in the 1.2 series assumption.  In the 1.3 series, we assume that
-all interfaces are routable as long as they have the same address
-family, IPv4 or IPv6.  We use graph theory and give each possible
-connection a weight depending on the quality of the connection.  This
-allows the library to select the best connections between nodes.  This
-method also supports striping but prevents more than one connection to
-any interface.
+$a[] = "Starting with the Open MPI v1.3 series, assumptions about
+routability are much different than prior series.
+
+With v1.3 and later, Open MPI assumes that all interfaces are routable
+as long as they have the same address family, IPv4 or IPv6.  We use
+graph theory and give each possible connection a weight depending on
+the quality of the connection.  This allows the library to select the
+best connections between nodes.  This method also supports striping
+but prevents more than one connection to any interface.
 
 The quality of the connection is defined as follows, with a higher
 number meaning better connection.  Note that when giving a weight to a
 connection consisting of a private address and a public address, it will
-give it the weight of PRIVATE_DIFFERENT_NETWORK.
+give it the weight of [PRIVATE_DIFFERENT_NETWORK].
 
-<faqcode>
+<geshi text>
             NO_CONNECTION = 0
 PRIVATE_DIFFERENT_NETWORK = 1
 PRIVATE_SAME_NETWORK      = 2
 PUBLIC_DIFFERENT_NETWORK  = 3
 PUBLIC_SAME_NETWORK       = 4
-</faqcode>
-
+</geshi>
 
 At this point, an example will best illustrate how two processes on two
 different nodes would connect up.  Here we have two nodes with a variety
 of interfaces.
 
-<faqcode>       
+<geshi text>
         NodeA                NodeB
    ---------------       ---------------
   |     lo0       |     |     lo0       |
@@ -520,13 +512,15 @@ of interfaces.
   |  192.168.2.2  |     |               |
   | 255.255.255.0 |     |               |
    ---------------       ---------------
-</faqcode> 
+</geshi>
+
 From these two nodes, the software builds up a bipartite graph that
 shows all the possible connections with all the possible weights.  The
 _lo0_ interfaces are excluded as the [btl_tcp_if_exclude] mca parameter
 is set to _lo_ by default.  Here is what all the possible connections
 with their weights look like.
-<faqcode>
+
+<geshi text>
      NodeA         NodeB
 eth0 --------- 2 -------- eth0
     \
@@ -542,7 +536,7 @@ ibd1 --------- 1 -------- eth0
     \
      \
       \------- 1 -------- ibd0
-</faqcode>
+</geshi>
 
 The library then examines all the connections and picks the optimal
 ones.  This leaves us with two connections being established between
@@ -553,22 +547,20 @@ the processes, then you can run with [--mca btl_base_verbose 30].
 This can be useful if you notice your job hanging and believe it may
 be the library trying to make connections to unreachable hosts.
 
-<faqcode>
+<geshi bash>
 # Here is an example with some of the output deleted for clarity.
 # One can see the connections that are attempted.
-$ss mpirun --mca btl self,sm,tcp <font color=red><strong>--mca btl_base_verbose 30</strong></font> -np 2 -host NodeA,NodeB a.out
-" . $shell_font . "[...snip...]
+shell$ mpirun --mca btl self,sm,tcp --mca btl_base_verbose 30 -np 2 -host NodeA,NodeB a.out
+[...snip...]
 [NodeA:18003] btl: tcp: attempting to connect() to address 10.8.47.2 on port 59822
 [NodeA:18003] btl: tcp: attempting to connect() to address 192.168.1.2 on port 59822
 [NodeB:16842] btl: tcp: attempting to connect() to address 192.168.1.1 on port 44500
-[...snip...]</font>
-</faqcode>
+[...snip...]
+</geshi>
 
 In case you want more details about the theory behind the connection
 code, you can find the background story in a brief
-" . "<a href=\"http://www.ieeexplore.ieee.org/xpl/freeabs_all.jsp?isnumber=4476518&arnumber=4476565&count=56&index=46\">" . "IEEE paper.</A>
-
-";
+" . "<a href=\"http://www.ieeexplore.ieee.org/xpl/freeabs_all.jsp?isnumber=4476518&arnumber=4476565&count=56&index=46\">" . "IEEE paper.</A>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -576,7 +568,7 @@ $q[] = "Does Open MPI ever close TCP sockets?";
 
 $anchor[] = "tcp-socket-closing";
 
-$a[] = "As of v1.2, no.  
+$a[] = "In general, no.
 
 Although TCP sockets are opened \"lazily\" (meaning that MPI
 connections / TCP sockets are only opened upon demand -- as opposed to
@@ -589,19 +581,19 @@ $q[] = "Does Open MPI support IP interfaces that have more than one IP address?"
 
 $anchor[] = "ip-multiaddress-devices";
 
-$a[] = "As of v1.6, no.  
+$a[] = "In general, no.
 
 For example, if the output from your [ifconfig] has a single IP device
 with multiple IP addresses like this:
 
-<faqcode>
+<geshi text>
 0: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP qlen 1000
    link/ether 00:18:ae:f4:d2:29 brd ff:ff:ff:ff:ff:ff
    inet 192.168.0.3/24 brd 192.168.0.255 scope global eth0:1
    inet 10.10.0.3/24 brf 10.10.0.255 scope global eth0
-   inet6 fe80::218:aef2:29b4:2c4/64 scope link 
+   inet6 fe80::218:aef2:29b4:2c4/64 scope link
       valid_lft forever preferred_lft forever
-</faqcode>
+</geshi>
 
 (note the two \"inet\" lines in there)
 
@@ -613,11 +605,11 @@ $q[] = "Does Open MPI support virtual IP interfaces?";
 
 $anchor[] = "ip-virtual-ip-interfaces";
 
-$a[] = "As of v1.6.2, no.  
+$a[] = "No.
 
 For exampe, if the output of your [ifconfig] has both \"eth0\" and
 \"eth0:0\", Open MPI will get confused if you use the TCP BTL, and
-will likely hang.
+may hang or otherwise act unpredictably.
 
 Note that using [btl_tcp_if_include] or [btl_tcp_if_exclude] to avoid
 using the virtual interface will *not* solve the issue.

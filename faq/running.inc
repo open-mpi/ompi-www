@@ -13,10 +13,10 @@ libraries are located must be in your [LD_LIBRARY_PATH] on every node.
 Specifically, if Open MPI was installed with a prefix of /opt/openmpi,
 then the following should be in your [PATH] and [LD_LIBRARY_PATH]
 
-<faqcode>
+<geshi text>
 PATH:            /opt/openmpi/bin
 LD_LIBRARY_PATH: /opt/openmpi/lib
-</faqcode>
+</geshi>
 
 Depending on your environment, you may need to set these values in
 your shell startup files (e.g., [.profile], [.cshrc], etc.).
@@ -42,6 +42,25 @@ $anchor[] = "abi-guarantees";
 $a[] = "Open MPI's versioning and ABI scheme <a
 href=\"http://www.open-mpi.org/software/ompi/versions/\">is described
 here</a>, but is summarized here in this FAQ entry for convenience.
+
+
+
+JMS NEED MORE HERE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Open MPI provided forward application binary interface (ABI)
 compatibility for MPI applications starting with v1.3.2.  Prior to
@@ -267,7 +286,7 @@ In such cases, you have two options:
 below).</li>
 <li> Modify the wrapper compilers to include directives to include
 run-time search locations for the Open MPI libraries (<a
-href=\"?category=mpi-apps#why-no-rpath\">see this FAQ entry</a>)</li> 
+href=\"?category=mpi-apps#why-no-rpath\">see this FAQ entry</a>)</li>
 </ol>
 
 [mpirun]'s [--prefix] command line option takes as an argument the
@@ -280,7 +299,9 @@ For example, say that Open MPI was installed into
 [/opt/openmpi-$ver_current].  You would use the [--prefix] option like
 this:
 
-" . faqcode("mpirun --prefix /opt/openmpi-$ver_current -np 4 a.out") . "
+<geshi bash>
+shell$ mpirun --prefix /opt/openmpi-$ver_current -np 4 a.out
+</geshi>
 
 This will prefix the [PATH] and [LD_LIBRARY_PATH] on both the local
 and remote hosts with [/opt/openmpi-$ver_current/bin] and
@@ -304,7 +325,9 @@ Finally, note that specifying the absolute pathname to [mpirun] is
 equivalent to using the [--prefix] argument.  For example, the
 following is equivalent to the above command line that uses [--prefix]:
 
-" . faqcode("/opt/openmpi-$ver_current/bin/mpirun -np 4 a.out");
+<geshi bash>
+shell$ /opt/openmpi-$ver_current/bin/mpirun -np 4 a.out
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -328,13 +351,6 @@ though the same discussions also apply to [mpiexec] and [orterun]
 
 /////////////////////////////////////////////////////////////////////////
 
-$c1 = array();
-$o1 = array();
-$c1[] = "cat my_hostfile";
-$o1[] = "host01.example.com
-host02.example.com";
-$c1[] = "mpirun --hostfile my_hostfile -np 4 my_parallel_application";
-
 $q[] = "How do I run a simple SPMD MPI job?";
 
 $anchor[] = "simple-spmd-run";
@@ -343,7 +359,9 @@ $a[] = "Open MPI provides both [mpirun] and [mpiexec] commands.  A simple way
 to start a single program, multiple data (SPMD) application in
 parallel is:
 
-" . faqcode("mpirun -np 4 my_parallel_application") . "
+<geshi bash>
+shell$ mpirun -np 4 my_parallel_application
+</geshi>
 
 This starts a four-process parallel application, running four copies
 of the executable named [my_parallel_application].
@@ -352,7 +370,12 @@ The [rsh] starter component accepts the [--hostfile] (also known as
 [--machinefile]) option to indicate which hosts to start the processes
 on:
 
-" . faqcode($c1, $o1) . "
+<geshi bash>
+shell$ cat my_hostfile
+host01.example.com
+host02.example.com
+shell$ mpirun --hostfile my_hostfile -np 4 my_parallel_application
+</geshi>
 
 This command will launch one copy of [my_parallel_application] on each
 of [host01.example.com] and [host02.example.com].
@@ -379,7 +402,9 @@ $a[] = "Both the [mpirun] and [mpiexec] commands support multiple
 program, multiple data (MPMD) style launches, either from the command
 line or from a file.  For example:
 
-" . faqcode("mpirun -np 2 a.out : -np 2 b.out") . "
+<geshi bash>
+shell$ mpirun -np 2 a.out : -np 2 b.out
+</geshi>
 
 This will launch a single parallel application, but the first two
 processes will be instances of the [a.out] executable, and the second
@@ -391,11 +416,13 @@ processes will be ranks 2 and 3 in [MPI_COMM_WORLD].
 [mpirun] (and [mpiexec]) can also accept a parallel application
 specified in a file instead of on the command line.  For example:
 
-" . faqcode("mpirun --app my_appfile") . "
+<geshi bash>
+shell$ mpirun --app my_appfile
+</geshi>
 
 where the file [my_appfile] contains the following:
 
-<faqcode>
+<geshi bash>
 # Comments are supported; comments begin with #
 # Application context files specify each sub-application in the
 # parallel job, one per line.  The first sub-application is the 2
@@ -403,7 +430,7 @@ where the file [my_appfile] contains the following:
 -np 2 a.out
 # The second sub-application is the 2 b.out processes:
 -np 2 b.out
-</faqcode>
+</geshi>
 
 This will result in the same behavior as running [a.out] and [b.out]
 from the command line.
@@ -487,48 +514,6 @@ $q[] = "How can I diagnose problems when running across multiple hosts?";
 
 $anchor[] = "diagnose-multi-host-problems";
 
-$c1 = array();
-$o1 = array();
-$c1[] = "ssh remotehost hostname";
-$o1[] = "remotehost";
-
-$c2 = array();
-$o2 = array();
-$c2[] = "ssh remotehost env | grep -i path";
-$o2[] = "PATH=...path on the remote host...
-LD_LIBRARY_PATH=...LD library path on the remote host...";
-
-$c3 = array();
-$o3 = array();
-$c3[] = "mpirun --host remotehost hostname";
-$o3[] = "remotehost";
-$c3[] = "mpirun --host remotehost,otherhost hostname";
-$o3[] = "remotehost
-otherhost";
-
-$c4 = array();
-$o4 = array();
-$c4[] = "mpirun --host remotehost,otherhost hello_c";
-$o4[] = "Hello, world, I am 0 of 1, (Open MPI v1.7.5, package: Open MPI jsquyres@builder.cisco.com Distribution, ident: 1.7.5, Mar 20, 2014, 99)
-Hello, world, I am 1 of 1, (Open MPI v1.7.5, package: Open MPI jsquyres@builder.cisco.com Distribution, ident: 1.7.5, Mar 20, 2014, 99)";
-
-$c5 = array();
-$o5 = array();
-$c5[] = "mpirun --host remotehost,otherhost ring_c";
-$o5[] = "Process 0 sending 10 to 0, tag 201 (1 processes in ring)
-Process 0 sent to 0
-Process 0 decremented value: 9
-Process 0 decremented value: 8
-Process 0 decremented value: 7
-Process 0 decremented value: 6
-Process 0 decremented value: 5
-Process 0 decremented value: 4
-Process 0 decremented value: 3
-Process 0 decremented value: 2
-Process 0 decremented value: 1
-Process 0 decremented value: 0
-Process 0 exiting";
-
 $a[] = "In addition to what is mentioned in <a href=\"#missing-prereqs\">this
 FAQ entry</a>, when you are able to run MPI jobs on a single host, but
 fail to run them across multiple hosts, try the following:
@@ -540,7 +525,10 @@ hosts.  For example, if you are using [ssh], try to [ssh] to each
 remote host and ensuring that you are not prompted for a password.
 For example:
 
-" . faqcode($c1, $o1) . "
+<geshi bash>
+shell$ ssh remotehost hostname
+remotehost
+</geshi>
 
 If you are unable to launch across multiple hosts, check that your SSH
 keys are setup properly.  Or, if you are running in a managed
@@ -552,7 +540,11 @@ etc.</li>
 each remote host on which you are trying to run.  For example, with
 [ssh]:
 
-" . faqcode($c2, $o2) . "
+<geshi bash>
+shell$ ssh remotehost env | grep -i path
+PATH=...path on the remote host...
+LD_LIBRARY_PATH=...LD library path on the remote host...
+</geshi>
 
 If your PATH or LD_LIBRARY_PATH are not set properly, see "
 . faqlink("#run-prereqs", "this FAQ entry") . " for the correct
@@ -565,7 +557,13 @@ matters.</li>
 that the Open MPI run-time system is functioning properly across
 multiple hosts.  For example, try running the [hostname] command:
 
-" . faqcode($c3, $o3) . "
+<geshi bash>
+shell$ mpirun --host remotehost hostname
+remotehost
+shell$ mpirun --host remotehost,otherhost hostname
+remotehost
+otherhost
+</geshi>
 
 If you are unable to run non-MPI jobs across multiple hosts, check
 for common problems such as:
@@ -589,7 +587,11 @@ directory in the Open MPI distribution is a good choice.  This
 verifies that the MPI subsystem is able to initialize and terminate
 properly.  For example:
 
-" . faqcode($c4, $o4) . "
+<geshi bash>
+shell$ mpirun --host remotehost,otherhost hello_c
+Hello, world, I am 0 of 1, (Open MPI v$ver_current, package: Open MPI jsquyres@builder.cisco.com Distribution, ident: $ver_current, DATE)
+Hello, world, I am 1 of 1, (Open MPI v$ver_current, package: Open MPI jsquyres@builder.cisco.com Distribution, ident: $ver_current, DATE)
+</geshi>
 
 If you are unable to run simple, non-communication MPI jobs, this can
 indicate that your Open MPI installation is unable to initialize
@@ -602,11 +604,30 @@ some simple MPI communications.  The \"ring_c\" program in the
 This verifies that the MPI subsystem is able to pass MPI traffic
 across your network.  For example:
 
-" . faqcode($c5, $o5) . "
+<geshi bash>
+shell$ mpirun --host remotehost,otherhost ring_c
+Process 0 sending 10 to 0, tag 201 (1 processes in ring)
+Process 0 sent to 0
+Process 0 decremented value: 9
+Process 0 decremented value: 8
+Process 0 decremented value: 7
+Process 0 decremented value: 6
+Process 0 decremented value: 5
+Process 0 decremented value: 4
+Process 0 decremented value: 3
+Process 0 decremented value: 2
+Process 0 decremented value: 1
+Process 0 decremented value: 0
+Process 0 exiting
+</geshi>
 
 If you are unable to run simple MPI jobs across multiple hosts, this
 may indicate a problem with the network(s) that Open MPI is trying to
-use for MPI communications.  Try limiting the networks that it uses, and/or exploring levels 1 through 3 MCA parameters for the communications module that you are using.  For example, if you're using the TCP BTL, see the output of [ompi_info --level 3 --param btl tcp] .</li>
+use for MPI communications.  Try limiting the networks that it uses,
+and/or exploring levels 1 through 3 MCA parameters for the
+communications module that you are using.  For example, if you're
+using the TCP BTL, see the output of [ompi_info --level 3 --param btl
+tcp] .</li>
 
 </ol>";
 
@@ -616,36 +637,18 @@ use for MPI communications.  Try limiting the networks that it uses, and/or expl
 #
 #   orted: error while loading shared libraries: libimf.so: cannot open shared
 #       object file: No such file or directory
-#  
+#
 
 # Compiler => Compiler library linked to orted
 $compilers["Intel"] = "libimf.so";
 $compilers["PGI"] = "libpgc.so";
 $compilers["Pathscale"] = "libmv.so";
 
-foreach (array_keys($compilers) as $compiler) { 
+foreach (array_keys($compilers) as $compiler) {
 
     $dso_library = $compilers[$compiler];
     $compiler_lc = strtolower($compiler);
     $article = get_article($compiler);
-
-    $v1 = array();
-    $v1[] = new faqcode_val("mpirun -np 1 --host node1.example.com mpi_hello",
-     "orted: error while loading shared libraries: $dso_library: cannot open shared object file: No such file or directory
---------------------------------------------------------------------------
-A daemon (pid 11893) died unexpectedly with status 127 while
-attempting to launch so we are aborting.
-[...more error messages...]");
-
-    $v2 = array();
-    $v2[] = new faqcode_val("cd \$HOME");
-    $v2[] = new faqcode_val("mpicc mpi_hello.c -o mpi_hello");
-    $v2[] = new faqcode_val("./mpi_hello", "Hello world, I am 0 of 1.");
-    $v2[] = new faqcode_val("ssh node1.example.com", "Welcome to node1.");
-    $v2[] = new faqcode_val("./mpi_hello", "Hello world, I am 0 of 1.", "node1");
-    $v2[] = new faqcode_val("exit", "", "node1");
-    $v2[] = new faqcode_val("ssh node1.example.com \$HOME/mpi_hello",
-      "mpi_hello: error while loading shared libraries: $dso_library: cannot open shared object file: No such file or directory");
 
     $q[] = "When I build Open MPI with the $compiler compilers, I get warnings
 about \"orted\" or my MPI application not finding $dso_library.  What do I do?";
@@ -656,7 +659,14 @@ about \"orted\" or my MPI application not finding $dso_library.  What do I do?";
     found on the node where Open MPI is attempting to launch an MPI
 executable.  For example:
 
-" . faqcode_object($v1) . "
+<geshi bash>
+shell$ mpirun -np 1 --host node1.example.com mpi_hello
+orted: error while loading shared libraries: $dso_library: cannot open shared object file: No such file or directory
+--------------------------------------------------------------------------
+A daemon (pid 11893) died unexpectedly with status 127 while
+attempting to launch so we are aborting.
+[...more error messages...]
+</geshi>
 
 Open MPI first attempts to launch a \"helper\" daemon
 (<code>orted</code>) on [node1.example.com], but it failed because one
@@ -671,7 +681,21 @@ common error to ensure that the $compiler compiler environment is setup
 properly for _interactive_ logins, but not for
 _non-interactive_ logins.  For example:
 
-" . faqcode_object($v2) . "
+<geshi bash>
+head_node$ cd \$HOME
+head_node$ mpicc mpi_hello.c -o mpi_hello
+head_node$ ./mpi_hello
+Hello world, I am 0 of 1.
+head_node$ ssh node2.example.com
+
+Welcome to node2.
+node2$ ./mpi_hello
+Hello world, I am 0 of 1.
+node2$ exit
+
+head_node$ ssh node2.example.com \$HOME/mpi_hello
+mpi_hello: error while loading shared libraries: $dso_library: cannot open shared object file: No such file or directory
+</geshi>
 
 The above example shows that running a trivial C program compiled by
 the $compiler compilers works fine on both the head node and [node1] when
@@ -695,7 +719,9 @@ our underlying launcher named [orterun] (i.e., the Open Run-Time
 Environment layer in Open MPI, or ORTE).  So you can use [mpirun] and
 [mpiexec] to launch any application.  For example:
 
-" . faqcode("mpirun -np 2 --host a,b uptime") . "
+<geshi bash>
+shell$ mpirun -np 2 --host a,b uptime
+</geshi>
 
 This will launch a copy of the unix command [uptime] on the hosts [a]
 and [b].
@@ -705,24 +731,6 @@ Other questions in the FAQ section deal with the specifics of the
 equally well for MPI and non-MPI applications.";
 
 /////////////////////////////////////////////////////////////////////////
-
-$c1 = array();
-$o1 = array();
-$c1[] = "hostname";
-$o1[] = "my_desktop.secure-cluster.example.com";
-$c1[] = "xhost +";
-$c1[] = "mpirun -np 4 -x DISPLAY=my_desktop.secure-cluster.example.com a.out";
-
-$c2 = array();
-$o2 = array();
-$c2[] = "hostname";
-$o2[] = "my_desktop.secure-cluster.example.com";
-$c2[] = "xhost +compute1 +compute2 +compute3 +compute4";
-$o2[] = "compute1 being added to access control list
-compute2 being added to access control list
-compute3 being added to access control list
-compute4 being added to access control list";
-$c2[] = "mpirun -np 4 -x DISPLAY=my_desktop.secure-cluster.example.com a.out";
 
 $q[] = "Can I run GUI applications with Open MPI?";
 
@@ -738,14 +746,28 @@ target display and set the [DISPLAY] environment variable in all MPI
 process' environments to the target display, perhaps something like
 this:
 
-" . faqcode($c1, $o1) . "
+<geshi bash>
+shell$ hostname
+my_desktop.secure-cluster.example.com
+shell$ xhost +
+shell$ mpirun -np 4 -x DISPLAY=my_desktop.secure-cluster.example.com a.out
+</geshi>
 
 However, this technique is not generally suitable for unsecure
 environments (because it allows anyone to read and write to your
 display).  A slightly more secure way is to only allow X connections
 from the nodes where your application will be running:
 
-" . faqcode($c2, $o2) . "
+<geshi bash>
+shell$ hostname
+my_desktop.secure-cluster.example.com
+shell$ xhost +compute1 +compute2 +compute3 +compute4
+compute1 being added to access control list
+compute2 being added to access control list
+compute3 being added to access control list
+compute4 being added to access control list
+shell$ mpirun -np 4 -x DISPLAY=my_desktop.secure-cluster.example.com a.out
+</geshi>
 
 (assuming that the four nodes you are running on are [compute1]
 through [compute4]).
@@ -808,49 +830,6 @@ variables to the parallel application.</li>
 
 /////////////////////////////////////////////////////////////////////////
 
-$c1 = array();
-$o1 = array();
-$c1[] = "cat my_hostfile";
-$o1[] = "host01.example.com
-host02.example.com";
-$c1[] = "mpirun --hostfile my_hostfile -np 4 my_parallel_application";
-
-$c2 = array();
-$o2 = array();
-$c2[] = "cat my_hosts";
-$o2[] = "node03";
-$c2[] = "mpirun -np 1 --hostfile my_hosts hostname";
-
-$c3 = array();
-$o3 = array();
-$c3[] = "cat my_hosts";
-$o3[] = "node17";
-$c3[] = "mpirun -np 1 --hostfile my_hosts hostname";
-
-$c4 = array();
-$o4 = array();
-$c4[] = "cat my_hosts";
-$o4[] = "node03";
-$c4[] = "mpirun -np 4 --hostfile my_hosts hostname";
-
-$c5 = array();
-$o5 = array();
-$c5[] = "cat my_hosts";
-$o5[] = "node01.example.com
-node02.example.com
-node03.example.com";
-$c5[] = "mpirun -np 3 --hostfile my_hosts hostname";
-
-$c6 = array();
-$o6 = array();
-$c6[] = "cat hostfile_1";
-$o6[] = "node01.example.com";
-$c6[] = "cat hostfile_2";
-$o6[] = "node02.example.com";
-$c6[] = "mpirun -np 1 --hostfile hostfile_1 hostname : -np 1 --hostfile hostfile_2 uptime";
-$o6[] = "node01.example.com
- 06:11:45 up 1 day,  2:32,  0 users,  load average: 21.65, 20.85, 19.84";
-
 $q[] = "How do I use the <code>--hostfile</code> option to <code>mpirun</code>?";
 
 $anchor[] = "mpirun-hostfile";
@@ -869,7 +848,7 @@ of _slots_ to be used on that host (i.e., the number of available
 processors on that host).  Comments are also supported, and blank
 lines are ignored.  For example:
 
-<faqcode>
+<geshi bash>
 # This is an example hostfile.  Comments begin with #
 #
 # The following node is a single processor machine:
@@ -881,14 +860,14 @@ bar.example.com slots=2
 # The following node is a quad-processor machine, and we absolutely
 # want to disallow over-subscribing it:
 yow.example.com slots=4 max-slots=4
-</faqcode>
+</geshi>
 
 _slot_ and _max-slots_ are discussed more
 " . faqlink("#mpirun-scheduling", "in this FAQ entry") . "
 
 Hostfiles works in two different ways:
 
-<ul> 
+<ul>
 
 <li> *Exclusionary:* If a list of hosts to run on has been provided by
 another source (e.g., by a hostfile or a batch scheduler such as
@@ -904,12 +883,20 @@ of hosts to produce a final list of hosts.
 For example, say that a scheduler job contains hosts [node01] through
 [node04].  If you run:
 
-" . faqcode($c2, $o2) . "
+<geshi bash>
+shell$ cat my_hosts
+node03
+shell$ mpirun -np 1 --hostfile my_hosts hostname
+</geshi>
 
 This will run a single copy of [hostname] on the host [node03].
 However, if you run:
 
-" . faqcode($c3, $o3) . "
+<geshi bash>
+shell$ cat my_hosts
+node17
+shell$ mpirun -np 1 --hostfile my_hosts hostname
+</geshi>
 
 This is an error (because [node17] is not listed in [my_hosts]);
 [mpirun] will abort.
@@ -918,7 +905,11 @@ Finally, note that in exclusionary mode, processes will _only_ be
 executed on the hostfile-specified hosts, even if it causes
 oversubscription.  For example:
 
-" . faqcode($c4, $o4) . "
+<geshi bash>
+shell$ cat my_hosts
+node03
+shell$ mpirun -np 4 --hostfile my_hosts hostname
+</geshi>
 
 This will launch 4 copies of [hostname] on host [node03].
 
@@ -931,7 +922,13 @@ In this case, [--hostfile] acts as an inclusionary agent; all
 For example (assume that you are *not* in a scheduling environment
 where a list of nodes is being transparently supplied):
 
-" . faqcode($c5, $o5) . "
+<geshi bash>
+shell$ cat my_hosts
+node01.example.com
+node02.example.com
+node03.example.com
+shell$ mpirun -np 3 --hostfile my_hosts hostname
+</geshi>
 
 This will launch a single copy of [hostname] on the hosts
 [node01.example.com], [node02.example.com], and [node03.example.com].
@@ -941,7 +938,15 @@ Note, too, that [--hostfile] is essentially a per-application switch.
 Hence, if you specify multiple applications (as in an MPMD job),
 [--hostfile] can be specified multiple times:
 
-" .faqcode($c6, $o6) . "
+<geshi bash>
+shell$ cat hostfile_1
+node01.example.com
+shell$ cat hostfile_2
+node02.example.com
+shell$ mpirun -np 1 --hostfile hostfile_1 hostname : -np 1 --hostfile hostfile_2 uptime
+node01.example.com
+ 06:11:45 up 1 day,  2:32,  0 users,  load average: 21.65, 20.85, 19.84
+</geshi>
 
 Notice that [hostname] was launched on [node01.example.com] and
 [uptime] was launched on host02.example.com.";
@@ -955,7 +960,9 @@ $anchor[] = "mpirun-host";
 $a[] = "The [--host] option to [mpirun] takes a comma-delimited list
 of hosts on which to run.  For example:
 
-" . faqcode("mpirun -np 3 --host a,b,c hostname") . "
+<geshi bash>
+shell$ mpirun -np 3 --host a,b,c hostname
+</geshi>
 
 Will launch one copy of [hostname] on hosts [a], [b], and [c].
 
@@ -966,7 +973,7 @@ specify on which hosts to launch MPI processes.
 
 [--host] works in two different ways:
 
-<ul> 
+<ul>
 
 <li> *Exclusionary:* If a list of hosts to run on has been provided by
 another source (e.g., by a hostfile or a batch scheduler such as
@@ -982,12 +989,16 @@ original list of hosts to produce a final list of hosts.
 For example, say that the hostfile [my_hosts] contains the hosts
 [node1] through [node4].  If you run:
 
-" . faqcode("mpirun -np 1 --hostfile my_hosts --host node3 hostname") . "
+<geshi bash>
+shell$ mpirun -np 1 --hostfile my_hosts --host node3 hostname
+</geshi>
 
 This will run a single copy of [hostname] on the host [node3].
 However, if you run:
 
-" . faqcode("mpirun -np 1 --hostfile my_hosts --host node17 hostname") . "
+<geshi bash>
+shell$ mpirun -np 1 --hostfile my_hosts --host node17 hostname
+</geshi>
 
 This is an error (because [node17] is not listed in [my_hosts];
 [mpirun] will abort.
@@ -996,7 +1007,9 @@ Finally, note that in exclusionary mode, processes will _only_ be
 executed on the [--host]-specified hosts, even if it causes
 oversubscription.  For example:
 
-" . faqcode("mpirun -np 4 --host a uptime") . "
+<geshi bash>
+shell$ mpirun -np 4 --host a uptime
+</geshi>
 
 This will launch 4 copies of [uptime] on host [a].
 
@@ -1009,7 +1022,9 @@ In this case, [--host] acts as an inclusionary agent; all
 For example (assume that you are *not* in a scheduling environment
 where a list of nodes is being transparently supplied):
 
-" . faqcode("mpirun -np 3 --host a,b,c hostname") . "
+<geshi bash>
+shell$ mpirun -np 3 --host a,b,c hostname
+</geshi>
 
 This will launch a single copy of [hostname] on the hosts [a], [b],
 and [c].
@@ -1019,41 +1034,13 @@ Note, too, that [--host] is essentially a per-application switch.
 Hence, if you specify multiple applications (as in an MPMD job),
 [--host] can be specified multiple times:
 
-" .faqcode("mpirun -np 1 --host a hostname : -np 1 --host b uptime") . "
+<geshi bash>
+shell$ mpirun -np 1 --host a hostname : -np 1 --host b uptime
+</geshi>
 
 This will launch [hostname] on host [a] and [uptime] on host [b].";
 
 /////////////////////////////////////////////////////////////////////////
-
-$c1 = array();
-$o1 = array();
-$c1[] = "cat my-hosts";
-$o1[] = "node0 slots=2 max_slots=20
-node1 slots=2 max_slots=20";
-$c1[] = "mpirun --hostfile my-hosts -np 8 --byslot | sort";
-$o1[] = "Hello World I am rank 0 of 8 running on node0
-Hello World I am rank 1 of 8 running on node0
-Hello World I am rank 2 of 8 running on node1
-Hello World I am rank 3 of 8 running on node1
-Hello World I am rank 4 of 8 running on node0
-Hello World I am rank 5 of 8 running on node0
-Hello World I am rank 6 of 8 running on node1
-Hello World I am rank 7 of 8 running on node1";
-
-$c2 = array();
-$o2 = array();
-$c2[] = "shell$ cat my-hosts";
-$o2[] = "node0 slots=2 max_slots=20
-node1 slots=2 max_slots=20";
-$c2[] = "mpirun --hostname my-hosts -np 8 --bynode hello | sort";
-$o2[] = "Hello World I am rank 0 of 8 running on node0
-Hello World I am rank 1 of 8 running on node1
-Hello World I am rank 2 of 8 running on node0
-Hello World I am rank 3 of 8 running on node1
-Hello World I am rank 4 of 8 running on node0
-Hello World I am rank 5 of 8 running on node1
-Hello World I am rank 6 of 8 running on node0
-Hello World I am rank 7 of 8 running on node1";
 
 $q[] = "How do I control how my processes are scheduled across nodes?";
 
@@ -1120,7 +1107,20 @@ oversubscribing that host.
 
 For example:
 
-" . faqcode($c1, $o1) . "
+<geshi bash>
+shell$ cat my-hosts
+node0 slots=2 max_slots=20
+node1 slots=2 max_slots=20
+shell$ mpirun --hostfile my-hosts -np 8 --byslot | sort
+Hello World I am rank 0 of 8 running on node0
+Hello World I am rank 1 of 8 running on node0
+Hello World I am rank 2 of 8 running on node1
+Hello World I am rank 3 of 8 running on node1
+Hello World I am rank 4 of 8 running on node0
+Hello World I am rank 5 of 8 running on node0
+Hello World I am rank 6 of 8 running on node1
+Hello World I am rank 7 of 8 running on node1
+</geshi>
 
 <li> *By node:* This policy can be requested either by using the
 [--bynode] option to [mpirun] or by setting the MCA parameter
@@ -1133,7 +1133,20 @@ skipped once their default slot counts are exhausted.
 
 For example:
 
-" . faqcode($c2, $o2) . "
+<geshi bash>
+shell$ cat my-hosts
+node0 slots=2 max_slots=20
+node1 slots=2 max_slots=20
+shell$ mpirun --hostname my-hosts -np 8 --bynode hello | sort
+Hello World I am rank 0 of 8 running on node0
+Hello World I am rank 1 of 8 running on node1
+Hello World I am rank 2 of 8 running on node0
+Hello World I am rank 3 of 8 running on node1
+Hello World I am rank 4 of 8 running on node0
+Hello World I am rank 5 of 8 running on node1
+Hello World I am rank 6 of 8 running on node0
+Hello World I am rank 7 of 8 running on node1
+</geshi>
 
 </ul>
 
@@ -1162,12 +1175,16 @@ get the slot information directly from that entity.  If you are using
 the [--host] parameter to [mpirun], be aware that each instance of a
 hostname bumps up the internal slot count by one.  For example:
 
-" . faqcode("mpirun --host node0,node0,node0,node0 ....") . "
+<geshi bash>
+shell$ mpirun --host node0,node0,node0,node0 ....
+</geshi>
 
 This tells Open MPI that host \"node0\" has a slot count of 4.  This is
 very different than, for example:
 
-" . faqcode("mpirun -np 4 --host node0 a.out") . "
+<geshi bash>
+shell$ mpirun -np 4 --host node0 a.out
+</geshi>
 
 This tells Open MPI that host \"node0\" has a slot count of 1 but you
 are running 4 processes on it.  Specifically, Open MPI assumes that
@@ -1191,18 +1208,6 @@ on oversubscription.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$c1 = array();
-$o1 = array();
-$c1[] = "cat my-hostfile";
-$o1[] = "localhost";
-$c1[] = "mpirun -np 4 --hostfile my-hostfile a.out";
-
-$c2 = array();
-$o2 = array();
-$c2[] = "cat my-hostfile";
-$o2[] = "localhost <font color=red>slots=4</font>";
-$c2[] = "mpirun -np 4 --hostfile my-hostfile a.out";
-
 $q[] = "Can I oversubscribe nodes (run more processes than processors)?";
 
 $anchor[] = "oversubscribing";
@@ -1219,7 +1224,11 @@ processors.</font></strong> For example, if you want to run 4
 processes on a uniprocessor, then indicate that you only have 1 slot
 but want to run 4 processes.  For example:
 
-" . faqcode($c1, $o1) . "
+<geshi bash>
+shell$ cat my-hostfile
+localhost
+shell$ mpirun -np 4 --hostfile my-hostfile a.out
+</geshi>
 
 Specifically: do <strong><font color=red>NOT</font></strong> have a
 hostfile that contains \"[slots = 4]\" (because there is only one
@@ -1254,7 +1263,11 @@ progress).</li>
 
 For example, on a uniprocessor node:
 
-" . faqcode($c2, $o2) . "
+<geshi bash>
+shell$ cat my-hostfile
+localhost slots=4
+shell$ mpirun -np 4 --hostfile my-hostfile a.out
+</geshi>
 
 This would cause all 4 MPI processes to run in _aggressive_ mode
 because Open MPI thinks that there are 4 available processors
@@ -1294,7 +1307,9 @@ $anchor[] = "run-with-tv";
 $a[] = "Generally, you can run Open MPI processes with TotalView as
 follows:
 
-" . faqcode("mpirun --debug ...mpirun arguments...") . "
+<geshi bash>
+shell$ mpirun --debug ...mpirun arguments...
+</geshi>
 
 Assuming that TotalView is the first supported parallel debugger in
 your path, Open MPI will autmoatically invoke the correct underlying
@@ -1305,18 +1320,24 @@ TotalView are compatible.
 
 For reference, this underlying command form is the following:
 
-" . faqcode("totalview mpirun -a ...mpirun arguments...") . "
+<geshi bash>
+shell$ totalview mpirun -a ...mpirun arguments...
+</geshi>
 
 So if you wanted to run a 4-process MPI job of your [a.out]
 executable, it would look like this:
 
-" . faqcode("totalview mpirun -a -np 4 a.out") . "
+<geshi bash>
+shell$ totalview mpirun -a -np 4 a.out
+</geshi>
 
 Alternatively, Open MPI's [mpirun] offers the \"[-tv]\" convenience
 option which does the same thing as TotalView's \"-a\" syntax.  For
 example:
 
-" . faqcode("mpirun -tv -np 4 a.out") . "
+<geshi bash>
+shell$ mpirun -tv -np 4 a.out
+</geshi>
 
 Note that by default, TotalView will stop deep in the machine code of
 [mpirun] itself, which is not what most users want.  It is possible
@@ -1337,25 +1358,30 @@ This file can be either copied to [\$HOME/.tvdrc] or sourced from the
 proper directory name, of course) will use the Open MPI-provided
 startup file:
 
-" . faqcode("source /path/to/openmpi/installation/etc/openmpi-totalview.tcl");
+<geshi text>
+source /path/to/openmpi/installation/etc/openmpi-totalview.tcl
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
-
-$c1 = array();
-$o1 = array();
-$c1[] = "ddt -attach {hostname1:pid} [{hostname2:pid} ...] {exec-name}";
-$o1[] = "# Or";
-$c1[] = "ddt -attach-file {filename of newline separated hostname:pid pairs} {exec-name}";
 
 $q[] = "How do I run with the DDT parallel debugger?";
 
 $anchor[] = "run-with-ddt";
 
-$a[] = "If you've used DDT at least once before (to use the
+$a[] = "As of August 2015, DDT has built-in startup for MPI
+applications within its Alinea Forge GUI product.  You can simply use
+the built-in support to launch, monitor, and kill MPI jobs.
+
+If you are using an older version of DDT that does not have this
+built-in support, keep reading.
+
+If you've used DDT at least once before (to use the
 configuration wizard to setup support for Open MPI), you can start it
 on the command line with:
 
-" . faqcode("mpirun --debug ...mpirun arguments...") . "
+<geshi bash>
+shell$ mpirun --debug ...mpirun arguments...
+</geshi>
 
 Assuming that you are using Open MPI v1.2.4 or later, and assuming
 that DDT is the first supported parallel debugger in your path, Open
@@ -1364,7 +1390,9 @@ your MPI process in the DDT debugger.  For reference (or if you are
 using an earlier version of Open MPI), this underlying command form is
 the following:
 
-" . faqcode("ddt -n {nprocs} -start {exe-name}") . "
+<geshi bash>
+shell$ ddt -n {nprocs} -start {exe-name}
+</geshi>
 
 Note that passing arbitrary arguments to Open MPI's [mpirun] is not
 supported with the DDT debugger.
@@ -1372,7 +1400,11 @@ supported with the DDT debugger.
 You can also attach to already-running proceses with either of the
 following two syntaxes:
 
-" . faqcode($c1, $o1) . "
+<geshi bash>
+shell$ ddt -attach {hostname1:pid} [{hostname2:pid} ...] {exec-name}
+# Or
+shell$ ddt -attach-file {filename of newline separated hostname:pid pairs} {exec-name}
+</geshi>
 
 DDT can even be configured to operate with cluster/resource schedulers
 such that it can run on a local workstation, submit your MPI job via
@@ -1396,7 +1428,7 @@ the most up-to-date information, but as of v1.0, Open MPI supports:
 <li> LoadLeveler scheduler (full support since 1.1.1)</li>
 <li> rsh / ssh</li>
 <li> SLURM</li>
-<li> LSF/li>
+<li> LSF</li>
 <li> XGrid (discontinued starting with OMPI 1.4)</li>
 <li> Yod (Cray XT-3 and XT-4)</li>
 </ul>";
@@ -1428,82 +1460,13 @@ of how to run jobs in PBS/Torque.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$c1 = array();
-$o1 = array();
-$c1[] = "shell$ prstat -p 15301,15303,15305";
-$o1[] = "   PID USERNAME  SIZE   RSS STATE  PRI NICE      TIME  CPU PROCESS/NLWP
- 15305 rolfv     158M   22M cpu1     0    0   0:00:21 5.9% a.out/1
- 15303 rolfv     158M   22M cpu2     0    0   0:00:21 5.9% a.out/1
- 15301 rolfv    8128K 5144K sleep   59    0   0:00:00 0.0% orterun/1";
-$c1[] = "kill -TSTP 15301";
-$c1[] = "prstat -p 15301,15303,15305";
-$o1[] = "   PID USERNAME  SIZE   RSS STATE  PRI NICE      TIME  CPU PROCESS/NLWP
- 15303 rolfv     158M   22M stop    30    0   0:01:44  21% a.out/1
- 15305 rolfv     158M   22M stop    20    0   0:01:44  21% a.out/1
- 15301 rolfv    8128K 5144K sleep   59    0   0:00:00 0.0% orterun/1";
-$c1[] = "kill -CONT 15301";
-$c1[] = "prstat -p 15301,15303,15305";
-$o1[] = "   PID USERNAME  SIZE   RSS STATE  PRI NICE      TIME  CPU PROCESS/NLWP
- 15305 rolfv     158M   22M cpu1     0    0   0:02:06  17% a.out/1
- 15303 rolfv     158M   22M cpu3     0    0   0:02:06  17% a.out/1
- 15301 rolfv    8128K 5144K sleep   59    0   0:00:00 0.0% orterun/1";
-
-$c2 = array();
-$o2 = array();
-$c2[] = "qconf -sq all.q";
-$o2[] = "qname                 all.q
-[...snip...]
-starter_method        NONE
-suspend_method        SIGTSTP
-resume_method         NONE ";
-
-$q[] = "Can I suspend and resume my job?";
+$q[] = "Can I suspend and resume my MPI job?";
 
 $anchor[] = "suspend-resume";
 
-$a[] = "A new feature was added into Open MPI 1.3.1 that supports
-suspend/resume of an MPI job.  To suspend the job, you send a SIGTSTP
-(not SIGSTOP) signal to [mpirun].  [mpirun] will catch this signal and
-forward it to the [a.outs] as a SIGSTOP signal.  To resume the job,
-you send a SIGCONT signal to [mpirun] which will be caught and
-forwarded to the [a.outs].
-
-By default, this feature is not enabled.  This means that both the
-SIGTSTP and SIGCONT signals will simply be consumed by the [mpirun]
-process.  To have them forwarded, you have to run the job with [--mca
-orte_forward_job_control 1].  Here is an example on Solaris.
-
-" . faqcode("mpirun -mca orte_forward_job_control 1 -np 2 a.out") . "
-
-In another window, we suspend and continue the job.
-
-" . faqcode($c1, $o1) . "
-
-Note that all this does is stop the [a.outs].  It does not, for example,
-free any pinned memory when the job is in the suspended state.
-
-To get this to work under the SGE environment, you have to change the
-[suspend_method] entry in the queue.  It has to be set to SIGTSTP.  Here
-is an example of what a queue should look like.
-
-" . faqcode($c2, $o2) . "
-
-Note that if you need to suspend other types of jobs with SIGSTOP
-(instead of SIGTSTP) in this queue then you need to provide a script
-that can implement the correct signals for each job type.";
+$a[] = "See <a href=\"?category=sge#sge-suspend-resume\">this FAQ entry</a>.";
 
 /////////////////////////////////////////////////////////////////////////
-
-$c1 = array();
-$o1 = array();
-$c1[] = "cat job";
-$o1[] = "#@ output  = job.out
-#@ error   = job.err
-#@ job_type = parallel
-#@ node = 3
-#@ tasks_per_node = 4
-mpirun a.out";
-$c1[] = "llsubmit job";
 
 $q[] = "How do I run with LoadLeveler?";
 
@@ -1523,9 +1486,18 @@ job using whatever resource is available (on Linux rsh/ssh is used).
 
 For example:
 
-" . faqcode($c1, $o1) . "
+<geshi bash>
+shell$ cat job
+#@ output  = job.out
+#@ error   = job.err
+#@ job_type = parallel
+#@ node = 3
+#@ tasks_per_node = 4
+mpirun a.out
+shell$ llsubmit job
+</geshi>
 
-This will run 4 MPI process per node on the 3 nodes which were allocated by 
+This will run 4 MPI process per node on the 3 nodes which were allocated by
 LoadLeveler for this job.
 
 <strong><font color=red>For users of Open MPI 1.1
@@ -1551,22 +1523,29 @@ its support components.  These components rely on symbols available in
 components loaded by Open MPI at runtime, [libmpi] must be loaded with
 the [RTLD_GLOBAL] option.
 
-In C/C++, this option is specified as the second parameter to
-[dlopen()].  When using [ctypes] with Python, this can be done with
-the second (optional) parameter to [CDLL()].  For example (shown below
-in Mac OS X, where Open MPI's shared library name ends in \".dylib\";
-other operating systems use other suffixes, such as \".so\")
+In C/C++, this option is specified as the second parameter to the
+POSIX [dlopen(3)] function.
 
-<faqcode>
-  from ctypes import *
-  mpi = CDLL('libmpi.0.dylib', RTLD_GLOBAL)
-  f = pythonapi.Py_GetArgcArgv
-  argc = c_int()
-  argv = POINTER(c_char_p)()
-  f(byref(argc), byref(argv))
-  mpi.MPI_Init(byref(argc), byref(argv))
-  mpi.MPI_Finalize()
-</faqcode>
+When using [ctypes] with Python, this can be done with the second
+(optional) parameter to [CDLL()].  For example (shown below in Mac OS
+X, where Open MPI's shared library name ends in \".dylib\"; other
+operating systems use other suffixes, such as \".so\"):
+
+<geshi python>
+from ctypes import *
+
+mpi = CDLL('libmpi.0.dylib', RTLD_GLOBAL)
+
+f = pythonapi.Py_GetArgcArgv
+argc = c_int()
+argv = POINTER(c_char_p)()
+f(byref(argc), byref(argv))
+mpi.MPI_Init(byref(argc), byref(argv))
+
+# Your MPI program here
+
+mpi.MPI_Finalize()
+</geshi>
 
 Other scripting languages should have similar options when dynamically
 loading shared libraries.";
@@ -1577,24 +1556,32 @@ $q[] = "What MPI environmental variables exist?";
 
 $anchor[] = "mpi-environmental-variables";
 
-$a[] = "Beginning with the 1.3 release, Open MPI provides the following
+$a[] = "Beginning with the v1.3 release, Open MPI provides the following
 environmental variables that will be defined on every
 MPI process:
 
 <ul>
-<li> OMPI_COMM_WORLD_SIZE - the number of processes in this process' MPI Comm_World</li>
-<li> OMPI_COMM_WORLD_RANK - the MPI rank of this process</li>
-<li> OMPI_COMM_WORLD_LOCAL_RANK - the relative rank of this process on this node
-within its job. For example, if four processes in a job share a node, they
-will each be given a local rank ranging from 0 to 3.</li>
-<li> OMPI_UNIVERSE_SIZE - the number of process slots allocated to this job. Note
-that this may be different than the number of processes in the job.</li>
-<li> OMPI_COMM_WORLD_LOCAL_SIZE - the number of ranks from this job that are running on this node.</li>
-<li> OMPI_COMM_WORLD_NODE_RANK - the relative rank of this process on this node
-looking across ALL jobs.</li>
+
+<li> *OMPI_COMM_WORLD_SIZE* - the number of processes in this process'
+MPI_COMM_WORLD</li>
+<li> *OMPI_COMM_WORLD_RANK* - the MPI rank of this process in
+MPI_COMM_WORLD</li>
+<li> *OMPI_COMM_WORLD_LOCAL_RANK* - the relative rank of this process
+on this node within its job. For example, if four processes in a job
+share a node, they will each be given a local rank ranging from 0 to
+3.</li>
+<li> *OMPI_UNIVERSE_SIZE* - the number of process slots allocated to
+this job. Note that this may be different than the number of processes
+in the job.</li>
+<li> *OMPI_COMM_WORLD_LOCAL_SIZE* - the number of ranks from this job
+that are running on this node.</li>
+<li> *OMPI_COMM_WORLD_NODE_RANK* - the relative rank of this process on
+this node looking across ALL jobs.</li>
+
 </ul>
 
-Open MPI guarantees that these variables will remain stable throughout future releases";
+Open MPI guarantees that these variables will remain stable throughout
+future releases";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -1602,13 +1589,14 @@ $q[] = "How do I get my MPI job to wireup its MPI connections right away?";
 
 $anchor[] = "mpi-preconnect";
 
-$a[] = "By default, Open MPI opens MPI connections between processes in a
-\"lazy\" fashion - i.e., the connections are only opened when the MPI process
-actually attempts to send a message to another process for the first time. This is
-done since (a) Open MPI has no idea what connections an application process will
-really use, and (b) creating the connections takes time. Once
-the connection is established, it remains \"connected\" until one of the two
-connected processes terminates, so the creation time cost is paid only once.
+$a[] = "By default, Open MPI opens MPI connections between processes
+in a \"lazy\" fashion - i.e., the connections are only opened when the
+MPI process actually attempts to send a message to another process for
+the first time. This is done since (a) Open MPI has no idea what
+connections an application process will really use, and (b) creating
+the connections takes time. Once the connection is established, it
+remains \"connected\" until one of the two connected processes
+terminates, so the creation time cost is paid only once.
 
 Applications that require a fully connected topology, however, can see
 improved startup time if they automatically \"pre-connect\" all their
@@ -1637,338 +1625,12 @@ $q[] = "What kind of CUDA support exists in Open MPI?";
 
 $anchor[] = "mpi-cuda-support";
 
-$a[] = "Since Open MPI 1.7.0, there is support for sending and receiving CUDA device
-memory directly.  Prior to this support, the programmer would first
-have to stage the data in host memory prior to making the MPI calls.
-Now, the Open MPI library will automatically detect that the pointer
-being passed in is a CUDA device memory pointer and do the right
-thing.   This is referred to as CUDA-aware support.
+$a[] = "See these two FAQ categories:
 
-The use of device pointers is supported in all of the send and receive
-APIs as well as most of the collective APIs.  Neither the collective
-reduction APIs nor the one-sided APIs are supported. Here is the list
-of APIs that currently support sending and receiving CUDA device memory.
-
-_MPI_Send, MPI_Bsend, MPI_Ssend, MPI_Rsend, MPI_Isend, MPI_Ibsend,
- MPI_Issend, MPI_Irsend, MPI_Send_init, MPI_Bsend_init, MPI_Ssend_init,
- MPI_Rsend_init, MPI_Recv, MPI_Irecv, MPI_Recv_init, MPI_Sendrecv,
- MPI_Bcast, MPI_Gather, MPI_Gatherv, MPI_Allgather,
- MPI_Allgatherv, MPI_Alltoall, MPI_Alltoallv, MPI_Scatter, MPI_Scatterv_
-
-Open MPI depends on various features of CUDA 4.0, so one needs to
-have at least the CUDA 4.0 driver and toolkit.  The new features of interest
-are the Unified Virtual Addressing (UVA) so that all pointers within a
-program have unique addresses.  In addition, there is a new API that
-allows one to determine if a pointer is a CUDA device pointer or host
-memory pointer.  This API is used by the library to decide what needs
-to be done with each buffer.  In addition, CUDA 4.1 also provides the
-ability to register host memory with the CUDA driver which can improve
-performance.  CUDA 4.1 also added CUDA IPC support for fast communication
-between GPUs on the same node.
-
-Note that derived datatypes, both contiguous and non-contiguous, are supported.
-However, the non-contiguous datatypes currently have high overhead
-because of the many calls to [cuMemcpy] to copy all the pieces of the
-buffer into the intermediate buffer.
-
-CUDA-aware support is only available in the sm, smcuda, tcp, and openib BTLs.
-The smcuda BTL is an optimized version of the sm BTL that takes advantage
-of the CUDA IPC support for fast GPU transfers.  Much of the other 
-optimizations are built in to the openib BTL.
-
-There is no CUDA-aware support in any of the MTLs.
-
-*Open MPI 1.7.0, Open MPI 1.7.1, Open MPI 1.7.2*
 <ul>
-<li> Basic GPU direct support.
-<li> Support for CUDA IPC between GPUs on a node, but would get error if
-the GPUs did not support CUDA IPC.
-</ul>
-
-*Open MPI 1.7.3 New Features*
-<ul>
-<li> Support for asynchronous copies of larger GPU buffers over
-the openib BTL.  
-<li> Dynamically loads the libcuda.so library so you can configure
-with CUDA-aware support, but run on machines that do not have CUDA installed.
-</ul>
-
-*Open MPI 1.7.4 New Features*
-<ul>
-<li> Removed synchronize point in CUDA IPC when running with CUDA 6.0 or later.
-<li> Utilizes GPU Direct RDMA if it is available. Requires CUDA 6.0 or later.
-<li> Dynamically enable CUDA IPC support between GPUs and back off to copy through
-host memory if it is not available.
-</ul>
-
-*Open MPI 1.8.0 - 1.8.4 New Features*
-<ul>
-<li> Minor error handling fixes.
-<li> Better cleanup of CUDA resources
-</ul>
-
-*Open MPI 1.8.5 New Features*
-<ul>
-<li> Improved on-node GPU to GPU transfers even when CUDA IPC is not supported between the two GPUs.
-<li> Properly handle Unified Memory.  This is done by disabling CUDA IPC and GPU Direct RDMA optimizations on Unified Memory buffers.
-</ul>
-
-*For best results, it is recommended that you use the latest version of Open MPI which as of this writing was Open MPI 1.8.4.*
-
-*Additional Information about CUDA-aware support*
-
-Here are some relevant mca parameters to extract extra information if you
-are having issues. For Open MPI 1.7.3 and later, you can see if the library
-was built with CUDA-aware support.
-
-<faqcode>
- > ./ompi_info --parsable -l 9 --all | grep mpi_built_with_cuda_support:value
- mca:mpi:base:param:mpi_built_with_cuda_support:value:true
-</faqcode>
-
-To get some extra information, there are some verbose flags.  The *opal_cuda_verbose*
-has only one level of verbosity.  (Works on all versions)
-<faqcode>
---mca opal_cuda_verbose 10
-</faqcode>
-
-This *mpi_common_cuda_verbose* flag provides additional information about CUDA-aware related activities.
-This can be set to a variety of different values.  There is really no need to use
-these unless you have strange problems. (Works on all versions)
-<faqcode>
---mca mpi_common_cuda_verbose 10
---mca mpi_common_cuda_verbose 20
---mca mpi_common_cuda_verbose 100
-</faqcode>
-
-There are three new MCA parameters introduced with Open MPI 1.7.4 related to the use
-of CUDA IPC.  By default, CUDA IPC is used where possible.  But the user can now
-turn it off if they want.
-<faqcode>
---mca btl_smcuda_use_cuda_ipc 0
-</faqcode>
-
-In addition, it is assumed that CUDA IPC is possible when running on the same GPU
-and this is typically true.  However, there is the ability to turn it off.
-<faqcode>
---mca btl_smcuda_use_cuda_ipc_same_gpu 0
-</faqcode>
-
-Lastly, to get some insight into whether CUDA IPC is being used, you can turn
-on some verbosity that shows whether CUDA IPC gets enabled between two GPUs.
-<faqcode>
---mca btl_smcuda_cuda_ipc_verbose 100
-</faqcode>
-
-*GPU Direct RDMA Information*
-
-Open MPI 1.7.4 and later have added some support to take advantage of GPU Direct RDMA on Mellanox cards.
-All the details about Mellanox hardware as well as software needed to get things to work can be found at
-<a href=\"http://www.mellanox.com/page/products_dyn?product_family=116&mtag=gpudirect\"> Mellanox web site.</a> 
-Note that to get GPU Direct RDMA support, you also need to configure your Open MPI library
-with CUDA 6.0.
-
-To see if you have GPU Direct RDMA compiled into your library, you can check like this:
-<faqcode>
-> ompi_info --all | grep btl_openib_have_cuda_gdr
-   MCA btl: informational \"btl_openib_have_cuda_gdr\" (current value: \"true\", data source: default, level: 4 tuner/basic, type: bool)
-</faqcode>
-
-To see if your OFED stack has GPU Direct RDMA support, you can check like this.
-<faqcode>
-> ompi_info --all | grep btl_openib_have_driver_gdr
-   MCA btl: informational \"btl_openib_have_driver_gdr\" (current value: \"true\", data source: default, level: 4 tuner/basic, type: bool)
-</faqcode>
-
-To run with GPU Direct RDMA support, you have to enable it as it is off by default.
-<faqcode>
---mca btl_openib_want_cuda_gdr 1
-</faqcode>
-
-*GPU Direct RDMA Implementation Details*
-
-With GPU Direct RDMA support selected, the eager protocol is unused.  This is done to avoid the
-penalty of copying unexpected GPU messages into host memory.  Instead, a rendezvous protocol is used where
-the sender and receiver both register their GPU buffers and make use of GPU Direct RDMA support to
-transfer the data.  This is done for all messages that are less than 30,000 bytes in size.  For larger
-messages, the openib BTL switches to using pipelined buffers as that has better performance at
-larger messages.  So, by default, with GPU Direct RDMA enabled, the underlying protocol usage is like this:
-<faqcode>
-0      < message size < 30,000      GPU Direct RDMA
-30,000 < message size < infinity    Asynchronous copies through host memory
-</faqcode>
-
-You can adjust the point where we switch to asynchronous copes with the *--mca btl_openib_cuda_rdma_limit* value.
-For example, if you want to increase the switchover point to 100,000 bytes, then set it like this.
-<faqcode>
---mca btl_openib_cuda_rdma_limit 100000
-</faqcode>
-
-By default, if we have GPU Direct RDMA, we use it for 1 byte messages on up to the *btl_openib_cuda_rdma_limit* value.
-However, you could use the eager protocol for the smallest messages by setting *--mca btl_openib_cuda_eager_limit*
-value.  _Note: The *btl_openib_cuda_eager_limit* value includes some overhead so you cannot just set it to the payload value.
-It has to be set to the payload plus the extra upper layer extra bytes.  Currently, in Open MPI 1.7.4, this overhead is
-44 bytes, so that has to be the minimum value.  In the table below we are just referring to the size of the payload._
-
-This table tries to show how the various runtime parameters affect what protocols are used in a GPU Direct RDMA.
-<p>
-<center>
-<table border=1 cellpadding=5>
-<tr>
-<th>Message Size Limits</th>
-<th>Protocol</th>
-</tr>
-
-<tr>
-<td>0 < message size < btl_openib_cuda_eager_limit (default=0)</td>
-<td> eager protocol (not used by default)
-</tr>
-
-<tr>
-<td>btl_openib_cuda_eager_limit (default=0) < message size < btl_openib_cuda_rdma_limit (default=30,000)</td>
-<td> rendezvous protocol utilizing GPU Direct RDMA</td>
-</tr>
-
-<tr>
-<td>btl_openib_cuda_rdma_limit (default=30,000) < message size < infinity</td>
-<td> pipelined transfers of size 128K through host memory</td>
-</tr>
-
-</table>
-</center>
-
-*Performance Note*
-The cost of registering the GPU memory with the Mellanox driver is expensive so it is
-best to reuse the same GPU buffer for communication.
-
-*NUMA Node Issues*
-When running on a node that has multiple GPUs, you may want to select the GPU that is
-closest to the process you are running on.  One way to do this is to make use of the
-hwloc library.  Following is a code snippet that can be used in your application to 
-select a GPU that is close.  It will determine which CPU it is running on and then
-look for the closest GPU.  There could be multiple GPUs that are the same distance
-away.  This is dependent on having hwloc somewhere on your system.
-
-<faqcode>
-/**
- * Test program to show the use of hwloc to select the GPU closest to the CPU
- * that the MPI program is running on.  Note that this works even without
- * any libpciacces or libpci support as it keys of the NVIDIA vendor ID.
- * There may be other ways to implement this but this is one way.
- * January 10, 2014
- */
-#include &lt;assert.h&gt;
-#include &lt;stdio.h&gt;
-#include \"cuda.h\"
-#include \"mpi.h\"
-#include \"hwloc.h\"
-
-#define ABORT_ON_ERROR(func)                          \
-  { CUresult res;                                     \
-    res = func;                                       \
-    if (CUDA_SUCCESS != res) {                        \
-        printf(\"%s returned error=%d\\n\", #func, res); \
-        abort();                                      \
-    }                                                 \
-  }                             
-static hwloc_topology_t topology = NULL;
-static int gpuIndex = 0;
-static hwloc_obj_t gpus[16] = {0};
-
-/**
- * This function searches for all the GPUs that are hanging off a NUMA
- * node.  It walks through each of the PCI devices and looks for ones
- * with the NVIDIA vendor ID.  It then stores them into an array.
- * Note that there can be more than one GPU on the NUMA node.
- */
-
-static void find_gpus(hwloc_topology_t topology, hwloc_obj_t parent, hwloc_obj_t child) {
-    hwloc_obj_t pcidev;
-    pcidev = hwloc_get_next_child(topology, parent, child);
-    if (NULL == pcidev) {
-        return;
-    } else if (0 != pcidev->arity) {
-        /* This device has children so need to look recursively at them */
-        find_gpus(topology, pcidev, NULL);
-        find_gpus(topology, parent, pcidev);
-    } else {
-        if (pcidev->attr->pcidev.vendor_id == 0x10de) {
-            gpus[gpuIndex++] = pcidev;
-        }
-        find_gpus(topology, parent, pcidev);
-    }
-}
-int main(int argc, char *argv[])
-{
-    int rank, retval, length;
-    char procname[MPI_MAX_PROCESSOR_NAME+1];
-    const unsigned long flags = HWLOC_TOPOLOGY_FLAG_IO_DEVICES | HWLOC_TOPOLOGY_FLAG_IO_BRIDGES;
-    hwloc_cpuset_t newset;
-    hwloc_obj_t node, bridge;
-    char pciBusId[16];
-    CUdevice dev;
-    char devName[256];
-
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    if (MPI_SUCCESS != MPI_Get_processor_name(procname, &length)) {
-        strcpy(procname, \"unknown\");
-    }
-
-    /* Now decide which GPU to pick.  This requires hwloc to work properly.
-     * We first see which CPU we are bound to, then try and find a GPU nearby.
-     */
-    retval = hwloc_topology_init(&topology);
-    assert(retval == 0);
-    retval = hwloc_topology_set_flags(topology, flags);
-    assert(retval == 0);
-    retval = hwloc_topology_load(topology);
-    assert(retval == 0);
-    newset = hwloc_bitmap_alloc();
-    retval = hwloc_get_last_cpu_location(topology, newset, 0);
-    assert(retval == 0);
-
-    /* Get the object that contains the cpuset */
-    node = hwloc_get_first_largest_obj_inside_cpuset(topology, newset);
-
-    /* Climb up from that object until we find the HWLOC_OBJ_NODE */
-    while (node->type != HWLOC_OBJ_NODE) {
-        node = node->parent;
-    }
-
-    /* Now look for the HWLOC_OBJ_BRIDGE.  All PCI busses hanging off the
-     * node will have one of these */
-    bridge = hwloc_get_next_child(topology, node, NULL);
-    while (bridge->type != HWLOC_OBJ_BRIDGE) {
-        bridge = hwloc_get_next_child(topology, node, bridge);
-    }
-
-    /* Now find all the GPUs on this NUMA node and put them into an array */
-    find_gpus(topology, bridge, NULL);
-
-    ABORT_ON_ERROR(cuInit(0));
-    /* Now select the first GPU that we find */
-    if (gpus[0] == 0) {
-        printf(\"No GPU found\\n\");
-        exit(1);
-    } else {
-        sprintf(pciBusId, \"%.2x:%.2x:%.2x.%x\", gpus[0]->attr->pcidev.domain, gpus[0]->attr->pcidev.bus,
-        gpus[0]->attr->pcidev.dev, gpus[0]->attr->pcidev.func);
-        ABORT_ON_ERROR(cuDeviceGetByPCIBusId(&dev, pciBusId));
-        ABORT_ON_ERROR(cuDeviceGetName(devName, 256, dev));
-        printf(\"rank=%d (%s): Selected GPU=%s, name=%s\\n\", rank, procname, pciBusId, devName);
-    }
-
-    MPI_Finalize();
-    return 0;
-}
-</faqcode>
-
-
-See <a href=\"?category=building#build-cuda\">this FAQ entry</a>
-for detals on how to configure the CUDA support into the library.
-
-";
+<li><a href=\"?category=buildcuda\">Building CUDA-aware support in Open MPI</a></li>
+<li><a href=\"?category=runcuda\">Running with CUDA-aware support in Open MPI</a></li>
+</ul>";
 
 /////////////////////////////////////////////////////////////////////////
 

@@ -33,38 +33,38 @@ and kill processes ([rsh] and/or [ssh] are not required).
 
 For example:
 
-<faqcode>
+<geshi bash>
 # Allocate a SLURM job with 4 nodes
 shell$ salloc -N 4 sh
 # Now run an Open MPI job on all the nodes allocated by SLURM
 # (Note that you need to specify -np for the 1.0 and 1.1 series;
-# the -np value is inferred directly from SLURM starting with the 
+# the -np value is inferred directly from SLURM starting with the
 # v1.2 series)
 shell$ mpirun my_mpi_application
-</faqcode>
+</geshi>
 
 This will run the 4 MPI processes on the nodes that were allocated by
 SLURM.  Equivalently, you can do this:
 
-<faqcode>
+<geshi bash>
 # Allocate a SLURM job with 4 nodes and run your MPI application in it
 shell$ salloc -N 4 mpirun my_mpi_aplication
-</faqcode>
+</geshi>
 
 Or, if submitting a script:
 
-<faqcode>
+<geshi bash>
 shell$ cat my_script.sh
 #!/bin/sh
 mpirun my_mpi_application
 shell$ sbatch -N 4 my_script.sh
 srun: jobid 1234 submitted
 shell$
-</faqcode>";
+</geshi>";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Doe Open MPI support \"srun -n X my_mpi_application\"?";
+$q[] = "Does Open MPI support \"srun -n X my_mpi_application\"?";
 
 $anchor[] = "slurm-direct-srun-mpi-apps";
 
@@ -97,7 +97,7 @@ $q[] = "Any issues with Slurm 2.6.3?";
 $anchor[] = "slurm-2.6.3-issue";
 
 $a[] = "Yes. The Slurm 2.6.3, 14.03 releases have a bug in their PMI-2
-support. 
+support.
 
 For the slurm-2.6 branch, it is recommended to use the latest version
 (2.6.9 as of 2014/4), which is known to work properly with pmi2.
