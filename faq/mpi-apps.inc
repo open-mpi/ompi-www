@@ -64,7 +64,7 @@ $q[] = "Wait -- what is <code>mpifort</code>?  Shouldn't I use
 $anchor[] = "mpifort-vs-mpif77-and-mpif90";
 
 $a[] = "[mpifort] is a new name for the Fortran wrapper compiler that
-debuted in Open MPI v1.7.  
+debuted in Open MPI v1.7.
 
 *It supports compiling all versions of Fortran*, and *utilizing all
 MPI Fortran interfaces* (<code>mpif.h</code>, [use mpi], and [use
@@ -76,7 +76,7 @@ about what dialect it is, nor which MPI Fortran interface it uses.
 Other MPI implementations will also soon support a wrapper compiler
 named [mpifort], so hopefully we can move the whole world to this
 simpler wrapper compiler name, and elminiate the use of [mpif77] and
-[mpif90].  
+[mpif90].
 
 <font color=\"red\"><strong>Specifically: [mpif77] and [mpif90] are
 deprecated as of Open MPI v1.7.</strong></font> Although [mpif77] and
@@ -134,7 +134,7 @@ if you really must use them, [mpif77], [mpif90]).
 Hence, if you need to use some other compiler other than Open MPI's
 wrapper compilers, we advise you to run the appropriate Open MPI
 wrapper compiler with the [--showme] flags to see what Open MPI needs
-to compile / link, and then use those with your compiler.  
+to compile / link, and then use those with your compiler.
 
 <font color = red> *NOTE:* It is _absolutely not sufficient_
 to simply add \"[-lmpi]\" to your link line and assume that you will
@@ -297,7 +297,7 @@ contain, among other things, the flags that are passed to the
 underlying compiler.  These text files are generated automatically for
 Open MPI and are customized for the compiler set that was selected
 when Open MPI was configured; it is _not_ recommended that users edit
-these files.  
+these files.
 
 <blockquote>
 <strong>Note that changing the underlying compiler may not work at
@@ -333,16 +333,16 @@ the wrapper's default values (from the text files):
   </tr>\n " .
         w("Open MPI") .
         c("mpicc", "", "OMPI", "CC", "CPPFLAGS", "CFLAGS") .
-        c("mpic++", "", "OMPI", "CXX", "CPPFLAGS", "CXXFLAGS") . 
-        c("mpiCC", "", "OMPI", "CXX", "CPPFLAGS", "CXXFLAGS") . 
-        c("mpifort", "", "OMPI", "FC", "CPPFLAGS", "FCFLAGS") . 
-        c("mpif77", "deprecated as of v1.7", "OMPI", "F77", "CPPFLAGS", "FFLAGS") . 
+        c("mpic++", "", "OMPI", "CXX", "CPPFLAGS", "CXXFLAGS") .
+        c("mpiCC", "", "OMPI", "CXX", "CPPFLAGS", "CXXFLAGS") .
+        c("mpifort", "", "OMPI", "FC", "CPPFLAGS", "FCFLAGS") .
+        c("mpif77", "deprecated as of v1.7", "OMPI", "F77", "CPPFLAGS", "FFLAGS") .
         c("mpif90", "deprecated as of v1.7", "OMPI", "FC", "CPPFLAGS", "FCFLAGS") .
         w("OpenRTE") .
-        c("ortecc", "", "ORTE", "CC", "CPPFLAGS", "CFLAGS") . 
+        c("ortecc", "", "ORTE", "CC", "CPPFLAGS", "CFLAGS") .
         c("ortec++", "", "ORTE", "CXX", "CPPFLAGS", "CXXFLAGS") .
         w("OPAL") .
-        c("opalcc", "", "OPAL", "CC", "CPPFLAGS", "CFLAGS") . 
+        c("opalcc", "", "OPAL", "CC", "CPPFLAGS", "CFLAGS") .
         c("opalc++", "", "OPAL", "CXX", "CPPFLAGS", "CXXFLAGS") . "
 </table>
 </div>
@@ -467,7 +467,7 @@ shell$ ompi_info --all | grep wrapper
  Wrapper extra CXXFLAGS:
    Wrapper extra FFLAGS:
   Wrapper extra FCFLAGS:
-  Wrapper extra LDFLAGS: 
+  Wrapper extra LDFLAGS:
      Wrapper extra LIBS: -lutil -lnsl -ldl -Wl,--export-dynamic -lm
 </faqcode>
 
@@ -630,7 +630,7 @@ details.</li>
 flags in to the system-wide wrapper compiler default flags through
 Open MPI's configure script.  <a
 href=\"#adding-flags-to-wrappers\">See this FAQ entry</a> for more
-details.</li> 
+details.</li>
 </ol>
 
 You can use one of more of these methods to insert your own flags
@@ -657,7 +657,7 @@ shared object file.  So *all* of Open MPI's code will be contained in
 the static libraries -- even what are normally contained in Open MPI's
 plugins).  Note that some popular Linux libraries do not have static
 versions by default (e.g., libnuma), or require additional RPMs to be
-installed to get the equivalent libraries.</li> 
+installed to get the equivalent libraries.</li>
 
 <li> Open MPI must have been built without a memory manager.  This
 means that Open MPI must have been configured with the
@@ -725,7 +725,7 @@ gcc -I/opt/openmpi/include/openmpi \
 </faqcode>
 
 (or use whatever wrapper compiler is relevant -- the [--showme] flag
-is the important part here) 
+is the important part here)
 
 This example shows the steps for the GNU compiler suite, but other
 compilers will be similar.  This example also assumes that the
@@ -759,7 +759,7 @@ Specifically, these added arguments do the following:
 <li> [-static]: Tell the linker to generate a static executable.</li>
 <li> [-Wl,--whole-archive]: Tell the linker to include the entire
 [ibverbs] library in the executable.</li>
-<li> [\$ofed_root/lib64/infiniband/mthca.a]: Include the Mellanox verbs 
+<li> [\$ofed_root/lib64/infiniband/mthca.a]: Include the Mellanox verbs
 plugin in the executable.</li>
 <li> [-Wl,--no-whole-archive]: Tell the linker the return to the
 default of not including entire libraries in the executable.</li>
@@ -820,8 +820,8 @@ the [Bmake.MPI-SUN4SOL2]; your [Bmake.inc] file may be different.
    COMMLIB = MPI
 
 # The MPIINCdir macro is used to link in mpif.h and
-# must contain the location of Open MPI's mpif.h.  
-# The MPILIBdir and MPILIB macros are irrelevant 
+# must contain the location of Open MPI's mpif.h.
+# The MPILIBdir and MPILIB macros are irrelevant
 # and should be left empty.
 
    MPIdir = /path/to/openmpi-$ver_current
@@ -844,12 +844,12 @@ the [Bmake.MPI-SUN4SOL2]; your [Bmake.inc] file may be different.
 # You may need to specify the full path to
 # mpif77 / mpicc if they aren't already in
 # your path.
- 
+
    F77            = mpif77
-   F77LOADFLAGS   = 
+   F77LOADFLAGS   =
 
    CC             = mpicc
-   CCLOADFLAGS    = 
+   CCLOADFLAGS    =
 </faqcode>
 
 The remainder of the values are fairly obvious and irrelevant to Open
@@ -883,7 +883,7 @@ installed BLACS with Open MPI.
 # as is.
 
    USEMPI        = -DUsingMpiBlacs
-   SMPLIB        = 
+   SMPLIB        =
    BLACSFINIT    = $(BLACSdir)/blacsF77init_MPI-$(PLAT)-$(BLACSDBGLVL).a
    BLACSCINIT    = $(BLACSdir)/blacsCinit_MPI-$(PLAT)-$(BLACSDBGLVL).a
    BLACSLIB      = $(BLACSdir)/blacs_MPI-$(PLAT)-$(BLACSDBGLVL).a
@@ -906,12 +906,12 @@ installed BLACS with Open MPI.
 
 # You may need to specify the full path to mpif77 / mpicc if they
 # aren't already in your path.
- 
+
    F77            = mpif77
-   F77LOADFLAGS   = 
+   F77LOADFLAGS   =
 
    CC             = mpicc
-   CCLOADFLAGS    = 
+   CCLOADFLAGS    =
 </faqcode>
 
 The remainder of the values are fairly obvious and irrelevant to Open
@@ -946,7 +946,7 @@ successfully build and run VASP with Open MPI:
 
 I just compiled the latest VASP v4.6 using Open MPI v1.2.1, ifort
 v9.1, ACML v3.6.0, BLACS with patch-03 and Scalapack v1.7.5 built with
-ACML.  
+ACML.
 
 I configured Open MPI with [--enable-static] flag.
 
