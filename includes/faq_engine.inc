@@ -4,6 +4,7 @@ include_once("$topdir/includes/functions.inc");
 
 include_once("$topdir/includes/mailto.inc");
 include_once("$topdir/includes/code.inc");
+include_once("$topdir/includes/geshi.php");
 
 // Get a reasonable title before we include the header
 $found_category = false;
@@ -31,6 +32,78 @@ if (isset($_REQUEST["category"])) {
         $title = "$short_title:<br />\nUnknown category";
     }
 }
+
+// Setup geshi objects for pre-known parsing types
+$geshi["bash"] = new GeSHi("", "bash");
+$geshi["c"] = new GeSHi("", "c");
+$geshi["make"] = new GeSHi("", "make");
+$geshi["text"] = new GeSHi("", "text");
+$geshi["diff"] = new GeSHi("", "diff");
+
+// NOTE: Got the "2" index from looking at geshi/bash.php.
+$geshi["bash"]->add_keyword(2, "mpicc");
+$geshi["bash"]->add_keyword(2, "mpic++");
+$geshi["bash"]->add_keyword(2, "mpicxx");
+$geshi["bash"]->add_keyword(2, "mpiCC");
+$geshi["bash"]->add_keyword(2, "mpifort");
+$geshi["bash"]->add_keyword(2, "mpif77");
+$geshi["bash"]->add_keyword(2, "mpif90");
+$geshi["bash"]->add_keyword(2, "mpirun");
+$geshi["bash"]->add_keyword(2, "mpiexec");
+$geshi["bash"]->add_keyword(2, "ompi_info");
+
+// Stole a bunch of this CSS from looking at the source of
+// http://qbnz.com/highlighter/geshi-doc.html.  Adding it to $added_css
+// causes header.inc to output it as part of the <style> ... </style>
+// block in the <head> block.
+$added_css = "pre, .geshicode {
+    border: 1px solid #c0e6ff;
+    background-color: #e0e0e0;
+    color: #002;
+    margin:0;
+    font-size: 12px;
+    width:100%;
+}
+.geshicode pre {
+    border:none;
+    background-color:#e0e0e0;
+    font-weight:bold;
+}
+.geshicode .li2 td {
+    background-color:#e0e0e0;
+}
+.geshicode .li1 td {
+    background-color:#e0e0e0;
+}
+.geshicode td td {
+    padding:0 2px;
+}
+.geshicode td, .geshicode table {
+    width: 100%;
+}
+.geshicode td.ln {
+    border-right:2px solid #e0e8ef;
+}
+.geshicode .head {
+    text-align:center;
+    font-weight:bold;
+}
+td.ln {
+    background-color: #e0e0e0;
+}
+pre.de1 {
+    background-color: #e0e0e0;
+}
+";
+
+foreach ($geshi as $key => $value) {
+    $value->enable_classes();
+    $value->set_header_type(GESHI_HEADER_PRE_TABLE);
+    $value->enable_line_numbers(GESHI_NORMAL_LINE_NUMBERS);
+
+    $added_css .= $value->get_stylesheet();
+}
+
 include_once("$topdir/includes/header.inc");
 
 /////////////////////////////////////////////////////////////////////////
@@ -193,6 +266,7 @@ function do_category() {
     global $found_category;
     global $cat_number;
     global $title;
+    global $geshi;
 
     // make the javascript print -- we use the contact() javascript
     // function in one of the answers above, so we need the javascript
@@ -241,8 +315,26 @@ function do_category() {
                 print_code(substr($str, $begin + 9, $end - $begin + 1 - 10));
                 $str = substr($str, $end + 10);
             } else {
-                reg_display($str);
-                break;
+                if (preg_match("@(.*?)<geshi\s+(.+?)>(\n)?(.+?)(\n)?</geshi>(.*)$@ms", $str, $matches)) {
+                    reg_display($matches[1]);
+
+                    // Render the geshi code.  Use one of our
+                    // pre-created geshi objects, if possible.
+                    if (array_key_exists($matches[2], $geshi)) {
+                        $g = $geshi[$matches[2]];
+                        $g->set_source($matches[4]);
+                    } else {
+                        $g = new GeSHi($matches[4], $matches[2]);
+                    }
+                    $rendered = $g->parse_code();
+                    $rendered = preg_replace("/\*\*\*\*(.+?)\*\*\*\*/", "$1", $rendered);
+                    print("<div class=\"geshicode\">$rendered</div>");
+
+                    $str = $matches[6];
+                } else {
+                    reg_display($str);
+                    break;
+                }
             }
         } while ($str != "");
 
