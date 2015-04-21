@@ -591,11 +591,17 @@ flags without ever knowing it.";
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "Why don't the wrapper compilers add \"-rpath\" (or similar)
-flags by default?";
+flags by default? (version v1.7.3 and earlier)";
 
 $anchor[] = "why-no-rpath";
 
-$a[] = "The default installation of Open MPI tries very hard to not
+$a[] = "<strong><font color=\"red\">NOTE:</font></strong> Starting
+with Open MPI v1.7.4, the wrapper compilers _do_ include [-rpath] by
+default.  See <a
+href=\"#wrapper-rpath-behavior-v1.7.4-and-beyond\">this FAQ entry for
+more information</a>.
+
+The default installation of Open MPI tries very hard to not
 include any non-essential flags in the wrapper compilers.  This is the
 most conservative setting and allows the greatest flexability for
 end-users.  If the wrapper compilers started adding flags to support
@@ -634,7 +640,29 @@ details.</li>
 </ol>
 
 You can use one of more of these methods to insert your own flags
-(such as \"-rpath\" or similar).";
+(such as [-rpath] or similar).";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Why do the wrapper compilers add \"-rpath\" (or similar)
+flags by default? (version v1.7.4 and beyond)";
+
+$anchor[] = "wrapper-rpath-behavior-v1.7.4-and-beyond";
+
+$a[] = "Prior to v1.7.4, the Open MPI wrapper compilers did not
+automatically add [-rpath] (or similar) flags when linking MPI
+application executables (for all the reasons <a
+href=\"#why-no-rpath\">in this FAQ entry</a>).
+
+Due to popular user request, Open MPI changed its policy starting with
+v1.7.4: by default on supported systems, Open MPI's wrapper compilers
+_do_ insert [-rpath] (or similar) flags when linking MPI applications.
+You can see the exact flags added by the [-showme] functionality
+described in <a href=\"#default-wrapper-compiler-flags\">this FAQ
+entry</a>.
+
+This behavior can be disabled by configuring Open MPI with the
+[--disable-wrapper-rpath] CLI option.";
 
 /////////////////////////////////////////////////////////////////////////
 
