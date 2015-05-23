@@ -269,6 +269,7 @@ input.buttonred{background	: #C0C0C0 ;
 .quotelev3 {color : #007799}
 .quotelev4 {color : #95c500}
 
+<?php
 /*
 DongInn Kim (dikim@indiana.edu) tried to add the following
 style to make the index pages of ompi mail archives a little
@@ -283,9 +284,10 @@ li a strong { font-style:normal;
 li a { text-decoration: none; }
 td a { text-decoration: none; }
 */
-
+?>
 td.example { background-color : <?php print($osl_std_grey); ?>; }
 <?php
+
 if (isset($added_css)) {
     print("\n$added_css\n\ns");
 }
