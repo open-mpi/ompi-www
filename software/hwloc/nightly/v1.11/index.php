@@ -3,11 +3,11 @@
   include_once("$topdir/includes/force-server.inc");
   force_server("www.open-mpi.org");
 
-  $title = "Hardware Locality (hwloc): v1.7 series nightly snapshot tarballs";
+  $title = "Hardware Locality (hwloc): v1.11 series nightly snapshot tarballs";
   include_once("$topdir/projects/hwloc/nav.inc");
   include_once("$topdir/includes/header.inc");
   include_once("$topdir/includes/downloads.inc");
-  $dir = "$topdir/software/hwloc/nightly/v1.7";
+  $dir = "$topdir/software/hwloc/nightly/v1.11";
 ?>
 
 <h2>These are not stable releases of software packages!</h2>
@@ -19,7 +19,7 @@ print($topdir); ?>/software/hwloc/current/">look here</a>.</p>
 the corresponding branch in the Git repository.  This may be less than
 once a day!</p>
 
-<p>Tarballs are made from the Git v1.7 branch nightly at approximately
+<p>Tarballs are made from the Git v1.11 branch nightly at approximately
 9pm US Indiana time.</p>
 
 <?php
