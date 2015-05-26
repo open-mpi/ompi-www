@@ -86,9 +86,11 @@ on the design of PMIx itself, including the API, is under development on the
 
 <h3>Getting and using pmix</h3>
 
-<p> When generated, the latest PMIx client releases will be available as tarballs on the
+<p> The latest PMIx client releases are available as tarballs on the
+<a href="../../software/pmix/v1.0/">download page</a>. Nightly tarballs
+of the developer master are also available on the nightly
 <a href="../../software/pmix/nightly/">download page</a>.
-Meantime, the Github repository is accessible for
+Finally, the Github repository is accessible for
 <a href="https://github.com/open-mpi/pmix">online browsing</a>
 or checkout</a>.
 
