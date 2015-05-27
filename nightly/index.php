@@ -25,7 +25,10 @@ reached the end of its feature development).  The emphasis of this
 tree is on bug fixes and stability.  <strong>This is the recommended
 series for all users to download and use.</strong></li>
 
-<p> <strong>Current feature series</strong>
+<p> <strong>Upcoming stable release series</strong>
+
+<li><a href="v1.10/"><strong>v1.10 series</strong></a>: These are images from
+the upcoming stable v1.10 series.
 
 <p> <strong>Current development</strong>
 
