@@ -8,7 +8,7 @@ include_once("$topdir/includes/header.inc");
   <p>The Open MPI project has many members, contributors, and partners.
   "Contributors" provide resources to the project such as code (which
   requires having a signed Open MPI 3rd Party Contribution Agreement
-  on file -- see <a href="<? print($topdir);
+  on file -- see <a href="<?php print($topdir);
   ?>/community/contribute/">How to Contribute</a> for details),
   testing, hosting services, etc.  "Members" are contributors who have
   voting rights, which entitles them to help determine the direction

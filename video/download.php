@@ -1,4 +1,4 @@
-<?
+<?php
 # Force a download rather than letting a browser plugin locally render it
 $topdir = "..";
 
