@@ -106,14 +106,14 @@ include_once("$topdir/includes/subscribe-announce.inc");
 
 <p><hr>
 
-<p>netloc is distributed under the <a href="<? print $topdir ?>/projects/netloc/license.php">BSD license</a>.
+<p>netloc is distributed under the <a href="<?php print $topdir ?>/projects/netloc/license.php">BSD license</a>.
 </p>
 
-<P><? print("<a href=\"https://raw.github.com/open-mpi/netloc/$ver_v0_5_dir/NEWS\">"); ?>This
+<P><?php print("<a href=\"https://raw.github.com/open-mpi/netloc/$ver_v0_5_dir/NEWS\">"); ?>This
 file</a> contains a list of changes between the releases in the netloc
-releases in the <? print($ver_v0_5_dir); ?> series</p>
+releases in the <?php print($ver_v0_5_dir); ?> series</p>
 
-<?
+<?php
 $found = 0;
 if (isset($t_stable)) {
     print("<p>Current stable release:</p>\n\n<p>\n<div align=center>\n\n");

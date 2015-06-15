@@ -20,7 +20,7 @@ function pr($name, $url, $comma) {
 
 <h2 align=center>A High Performance Message Passing Library</h2>
 
-<p> The Open MPI Project is an open source <?
+<p> The Open MPI Project is an open source <?php
 print("<a href=\"http://www.mpi-forum.org/\">"); ?>Message Passing Interface</a>
 implementation that is developed and maintained by a consortium of
 academic, research, and industry partners.  Open MPI is therefore able

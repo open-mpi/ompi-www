@@ -106,14 +106,14 @@ include_once("$topdir/includes/subscribe-announce.inc");
 
 <p><hr>
 
-<p>hwloc is distributed under the <a href="<? print $topdir ?>/projects/hwloc/license.php">BSD license</a>.
+<p>hwloc is distributed under the <a href="<?php print $topdir ?>/projects/hwloc/license.php">BSD license</a>.
 </p>
 
-<P><? print("<a href=\"https://raw.github.com/open-mpi/hwloc/$ver_v1_7_dir/NEWS\">"); ?>This
+<P><?php print("<a href=\"https://raw.github.com/open-mpi/hwloc/$ver_v1_7_dir/NEWS\">"); ?>This
 file</a> contains a list of changes between the releases in the hwloc
-releases in the <? print($ver_v1_7_dir); ?> series</p>
+releases in the <?php print($ver_v1_7_dir); ?> series</p>
 
-<?
+<?php
 $found = 0;
 if (isset($t_stable)) {
     print("<p>Current stable release:</p>\n\n<p>\n<div align=center>\n\n");

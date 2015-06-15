@@ -92,7 +92,7 @@ $project = "PLPA";
 include_once("$topdir/projects/plpa/deprecated.inc"); 
 ?>
 
-<P><? $dir = "svn.open-mpi.org/svn/plpa/branches/v1.0/NEWS";
+<P><?php $dir = "svn.open-mpi.org/svn/plpa/branches/v1.0/NEWS";
       print("<a href=\"http://$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the PLPA
 releases in the v1.0 series</p>
@@ -102,7 +102,7 @@ releases in the v1.0 series</p>
 <p>
 <div align="center">
 
-<?
+<?php
 $t_stable->printMe();
 if (isset($t_prerelease)) {
     print("</div>\n\n<p>Prerelease:</p>\n\n<p>\n<div align=center>\n\n");

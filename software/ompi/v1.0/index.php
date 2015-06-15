@@ -61,10 +61,10 @@ include_once("$topdir/includes/subscribe-announce.inc");
 
 <p><strong><font color=red>PLEASE NOTE:</font></strong> The 1.0 series
 of Open MPI is effectively dead.  There was work beyond the last
-stable release (v<? print($ver_v1_0); ?>) in the Subversion repository
+stable release (v<?php print($ver_v1_0); ?>) in the Subversion repository
 that was never released as a stable package (but is available from the
 <code>/branches/v1.0</code> tree in the SVN repository and the <a
-href="<? print($topdir); ?>/nightly/v1.0/">v1.0 snapshot
+href="<?php print($topdir); ?>/nightly/v1.0/">v1.0 snapshot
 tarballs</a>), but very little additional work has occurred on the
 v1.0 branch since then.  As such, there are known bugs and problems
 with the v1.0 series that have been addressed in later versions of
@@ -73,7 +73,7 @@ to a more recent version of Open MPI, if possible.</strong></p>
 
 <p><dv align=center><hr width=50%></div></p>
 
-<P><? $dir = "https://github.com/open-mpi/ompi-release/blob/v1.0/NEWS";
+<P><?php $dir = "https://github.com/open-mpi/ompi-release/blob/v1.0/NEWS";
       print("<a href=\"$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the Open
 MPI v1.0.x series.</p>

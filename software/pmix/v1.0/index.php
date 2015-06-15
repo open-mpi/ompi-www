@@ -122,7 +122,7 @@ information on the chronology of PMIx releases.</p>
 <p>
 <div align="center">
 
-<?
+<?php
 if (isset($t_stable)) {
     print("</div>\n\n<p>Current stable release:</p>\n\n<p>\n<div align=center>\n\n");
     $t_stable->printMe();
