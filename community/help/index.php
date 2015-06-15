@@ -85,7 +85,7 @@ download.  Thanks.
 
       <LI> If you have questions or problems about process affinity /
            binding, send the output from running the "lstopo -v"
-           command from a recent version of <a href="<?
+           command from a recent version of <a href="<?php
            print($topdir); ?>/projects/hwloc/">hwloc</a>.  <em>The
            detailed text output is preferable to a graphical
            output.</em>
@@ -173,12 +173,12 @@ foreach? end");
            <UL>
 
 	   <LI> For Myrinet-based networks, include the information <a
-                href="<? print($topdir);
+                href="<?php print($topdir);
                 ?>/faq/?category=myrinet#myri-troubleshoot">listed
                 in this FAQ entry</a>.</LI>
 
 	   <LI> For InfiniBand-based networks, include the information
-                <a href="<? print($topdir);
+                <a href="<?php print($topdir);
                 ?>/faq/?category=openfabrics#ofa-troubleshoot">listed
                 in this FAQ entry</a>.</LI>
 

@@ -347,7 +347,7 @@ changes to the source code.</P>
 
 <P><B>See you at the tutorial!</B></P>
 
-<?
+<?php
 print("<p><a href=\"$topdir/news/03-14-2006-ompi-workshop.php\">Back to main Workshop page</a></p>\n\n");
 
   include_once("$topdir/includes/footer.inc"); 

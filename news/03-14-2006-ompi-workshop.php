@@ -35,7 +35,7 @@ row("When:", "April 17-20, 2006");
 </dl>
 
 <p><font color=red><strong>The workshop is now over.</strong></font>
-The slides <a href="<? print($topdir); ?>/papers/workshop-2006/">are
+The slides <a href="<?php print($topdir); ?>/papers/workshop-2006/">are
 available here</a>.
 
 <p>This week-long, hands-on workshop is being taught by the Open MPI

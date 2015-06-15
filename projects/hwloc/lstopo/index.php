@@ -145,15 +145,15 @@ If your output is even nicer, please send it together with the XML!
 </p>
 
 <h2>Common Servers</h2>
-<? show_by_section(1); ?>
+<?php show_by_section(1); ?>
 <h2>Servers with I/O devices</h2>
-<? show_by_section(2); ?>
+<?php show_by_section(2); ?>
 <h2>Big platforms (make sure you have a giant screen)</h2>
-<? show_by_section(3); ?>
+<?php show_by_section(3); ?>
 <h2>Unusual platforms (you won't often run hwloc there)</h2>
-<? show_by_section(4); ?>
+<?php show_by_section(4); ?>
 <h2>Miscellaneous</h2>
-<? show_by_section(5); ?>
+<?php show_by_section(5); ?>
 
 <?php
 //}

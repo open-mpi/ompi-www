@@ -77,12 +77,12 @@ $project = "PLPA";
 include_once("$topdir/projects/plpa/deprecated.inc");
 ?>
 
-<P><? $dir = "svn.open-mpi.org/svn/plpa/branches/v$ver_v1_2/NEWS";
+<P><?php $dir = "svn.open-mpi.org/svn/plpa/branches/v$ver_v1_2/NEWS";
       print("<a href=\"http://$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the PLPA
-releases in the v<? print($ver_v1_2); ?> series</p>
+releases in the v<?php print($ver_v1_2); ?> series</p>
 
-<?
+<?php
 if (isset($t_stable)) {
     print("<p>Current stable release:</p>\n\n<p>\n<div align=center>\n\n");
     $t_stable->printMe();
