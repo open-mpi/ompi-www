@@ -104,12 +104,12 @@ exit(0);
 
 <p><hr>
 
-<!-- <P><? $dir = "svn.open-mpi.org/svn/mtt/branches/v3.0/NEWS";
+<!-- <P><?php $dir = "svn.open-mpi.org/svn/mtt/branches/v3.0/NEWS";
       print("<a href=\"http://$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the MTT
 releases in the v3.0 series</p> -->
 
-<?
+<?php
 if (isset($t_stable)) {
     print("<p>Current stable release:</p>\n\n<p>\n<div align=center>\n\n");
     $t_stable->printMe();

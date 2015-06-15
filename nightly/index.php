@@ -6,7 +6,7 @@
 ?>
 
 <p>Before deciding which series to download, be sure to read <a 
-href="<? print($topdir); ?>/software/ompi/versions/">Open MPI's
+href="<?php print($topdir); ?>/software/ompi/versions/">Open MPI's
 philosophy on version numbers</a>.  The short version is that odd
 numbered release series are "feature" series that eventually morph
 into even numbered "super stable" series.</p>

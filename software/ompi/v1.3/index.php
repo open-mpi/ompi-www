@@ -128,7 +128,7 @@ series release</strong>.  All bug fixes are being applied to the v1.4
 
 <p><dv align=center><hr width=50%></div></p>
 
-<P><? $dir = "https://github.com/open-mpi/ompi-release/blob/v1.3/NEWS";
+<P><?php $dir = "https://github.com/open-mpi/ompi-release/blob/v1.3/NEWS";
       print("<a href=\"$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the Open
 MPI releases in the v1.3 series</p>
@@ -140,7 +140,7 @@ information on the chronology of Open MPI releases.</p>
 <p>
 <div align="center">
 
-<?
+<?php
 if (isset($t_stable)) {
     print("</div>\n\n<p>Current stable release:</p>\n\n<p>\n<div align=center>\n\n");
     $t_stable->printMe();
