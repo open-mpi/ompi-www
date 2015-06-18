@@ -38,7 +38,7 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 
 print($blank_line);
 
-$versions = array("v1.10.1", "v1.10.0");
+$versions = array("v1.11.0");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
@@ -70,6 +70,18 @@ if (preg_match("/[a-z]/i", $v) &&
 
     print_docs("Pre-release $v (newest of the new, unstable)",
                "hwloc-v$v-letter.pdf", "hwloc-v$v-a4.pdf", "v$v/");
+}
+
+#########################################################
+
+print($blank_line);
+
+$versions = array("v1.10.1", "v1.10.0");
+$first = 1;
+foreach ($versions as $key => $v) {
+    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
+               "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
+    $first = 0;
 }
 
 #########################################################

@@ -2,10 +2,10 @@
 include_once("$topdir/includes/nav.inc");
 
 $this_dir = "hwloc";
-$this_nav[] = new Nav("Download v1.11 (beta)", "$topdir/software/hwloc/v1.11/");
-$this_nav[] = new Nav("Download v1.10 (stable)", "$topdir/software/hwloc/v1.10/");
-$this_nav[] = new Nav("Download v1.9 (old)", "$topdir/software/hwloc/v1.9/");
-$this_nav[] = new Nav("Download v1.8 (older)", "$topdir/software/hwloc/v1.8/");
+$this_nav[] = new Nav("Download v1.11 (stable)", "$topdir/software/hwloc/v1.11/");
+$this_nav[] = new Nav("Download v1.10 (old)", "$topdir/software/hwloc/v1.10/");
+$this_nav[] = new Nav("Download v1.9 (older)", "$topdir/software/hwloc/v1.9/");
+$this_nav[] = new Nav("Download v1.8 (ancient)", "$topdir/software/hwloc/v1.8/");
 $this_nav[] = new Nav("Download ancient", "$topdir/software/hwloc/ancient/");
 $this_nav[] = new Nav("Documentation", "$topdir/projects/hwloc/doc/");
 $this_nav[] = new Nav("Best of lstopo", "$topdir/projects/hwloc/lstopo/");
