@@ -17,8 +17,8 @@ $sha1 = read_checksums("downloads/sha1sums.txt");
 #
 #############################################################################
 
-$t_stable = new downloadTable("./downloads", "./downloads", 
-			      dirname($_SERVER["PHP_SELF"]));
+$t_stable = new downloadTable("./downloads", "./downloads",
+			      dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_stable)) {
     $src = "Version $ver_v0_9";
@@ -36,7 +36,7 @@ if (isset($t_stable)) {
 #############################################################################
 
 #$t_prerelease = new downloadTable("./downloads", "./downloads",
-#				  dirname($_SERVER["PHP_SELF"]));
+#				  dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_prerelease)) {
     $s = "v0.9 pre-release";
@@ -59,7 +59,7 @@ if (isset($t_prerelease)) {
 #############################################################################
 
 $t_older = new downloadTable("./downloads", "./downloads",
-			     dirname($_SERVER["PHP_SELF"]));
+			     dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_older)) {
     $ver = "0.9.2";
