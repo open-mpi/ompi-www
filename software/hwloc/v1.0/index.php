@@ -17,8 +17,8 @@ $sha1 = read_checksums("downloads/sha1sums.txt");
 #
 #############################################################################
 
-$t_stable = new downloadTable("./downloads", "./downloads", 
-			      dirname($_SERVER["PHP_SELF"]));
+$t_stable = new downloadTable("./downloads", "./downloads",
+			      dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_stable)) {
     $src = "Version $ver_v1_0";
@@ -50,7 +50,7 @@ $v = substr($v, 0, strlen($v) - 1);
 
 if (preg_match("/[a-z]/i", $v)) {
     $t_prerelease = new downloadTable("./downloads", "./downloads",
-                                      dirname($_SERVER["PHP_SELF"]));
+                                      dirname($_SERVER["PHP_SELF"]), 0);
 
     $s = "$v (pre-release)";
     $names = array("hwloc-$v.tar.gz", "hwloc-$v.tar.bz2",
@@ -75,7 +75,7 @@ if (preg_match("/[a-z]/i", $v)) {
 #############################################################################
 
 $t_older = new downloadTable("./downloads", "./downloads",
-			     dirname($_SERVER["PHP_SELF"]));
+			     dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_older)) {
     $versions = array("1.0.2", "1.0.1", "1.0");
