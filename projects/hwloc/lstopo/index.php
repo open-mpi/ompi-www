@@ -12,77 +12,106 @@ $descriptions = array();
 $sections = array();
 
 $files[] = "2XeonE5300.v1.11.png";
-$descriptions[] = "2x Xeon <em>Clovertown</em> E5345 (from 2007), with hwloc v1.11";
+$descriptions[] = "2x Xeon <em>Clovertown</em> E5345 (from 2007, with hwloc v1.11)";
 $sections[] = 1;
 $files[] = "2XeonE5v3.v1.11.png";
-$descriptions[] = "2x Xeon <em>Haswell-EP</em> E5-2683v3 in Cluster-on-Die mode which shows 2 NUMA nodes per package (from 2014), with hwloc v1.11";
+$descriptions[] = "2x Xeon <em>Haswell-EP</em> E5-2683v3 (from 2014, with hwloc v1.11)."
+."<br/>Processors are configured in <em>Cluster-on-Die</em> mode which shows 2 NUMA nodes per package";
 $sections[] = 1;
 $files[] = "4Opteron6200.v1.11.png";
-$descriptions[] = "4x Opteron <em>Magny-Cours</em> 6272 (from 2012), with hwloc v1.11";
+$descriptions[] = "4x Opteron <em>Magny-Cours</em> 6272 (from 2012, with hwloc v1.11)";
 $sections[] = 1;
 $files[] = "8Opteron8400.v1.11.png";
-$descriptions[] = "8x Opteron <em>Istanbul</em> 8439SE (from 2010), with hwloc v1.11";
+$descriptions[] = "8x Opteron <em>Istanbul</em> 8439SE (from 2010, with hwloc v1.11)";
 $sections[] = 1;
 
 $files[] = "2XeonE5+1mic+1ib.v1.11.png";
-$descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2680 + 1x Xeon Phi + 1x InfiniBand HCA (from 2013), with hwloc v1.11";
+$descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2680 + 1x Xeon Phi + 1x InfiniBand HCA (from 2013, with hwloc v1.11)";
 $sections[] = 2;
 $files[] = "2XeonE5v2+2usnic+collapse.v1.11.png";
-$descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2690 + 2x Cisco USNIC with many PCI virtual functions collapsed (from 2013), with hwloc v1.11";
+$descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2690 + 2x Cisco usNIC (from 2013, with hwloc v1.11)."
+."<br/>Many identical unused usNIC PCI virtual functions are collapsed in the graphical output";
 $sections[] = 2;
 $files[] = "2XeonE5+2ocl.v1.11.png";
-$descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2650 + 2x AMD GPUs appearing as OpenCL devices (from 2013), with hwloc v1.11";
+$descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2650 + 2x AMD GPUs (from 2013, with hwloc v1.11)."
+."<br/>GPUs are reported as OpenCL devices";
 $sections[] = 2;
 $files[] = "2XeonE5v2+2cuda+1display_v1.11.png";
-$descriptions[] = "2x Xeon <em>Ivy-Bridge-EP</em> E5-2680v2 + 2x NVIDIA GPUs appearing as CUDA devices and display device :1.0 (from 2013), with hwloc v1.11";
+$descriptions[] = "2x Xeon <em>Ivy-Bridge-EP</em> E5-2680v2 + 2x NVIDIA GPUs (from 2013, with hwloc v1.11)."
+."<br/>GPUs are reported as CUDA devices and X11 display :1.0";
 $sections[] = 2;
 $files[] = "2XeonX5600+8cuda.v1.11.png";
-$descriptions[] = "2x Xeon <em>Westmere-EP</em> X5650 + 8x NVIDIA GPUs appearing as CUDA devices (from 2010), with hwloc v1.11";
+$descriptions[] = "2x Xeon <em>Westmere-EP</em> X5650 + 8x NVIDIA GPUs appearing as CUDA devices (Tyan S7015 from 2010, with hwloc v1.11)";
 $sections[] = 2;
 $files[] = "4XeonE7+iogroup.v1.11.png";
-$descriptions[] = "4x Xeon <em>Westmere-EX</em> E7-4870, with a group for better I/O-affinity (from 2012), with hwloc v1.11";
+$descriptions[] = "4x Xeon <em>Westmere-EX</em> E7-4870 (Dell PowerEdge R910 from 2012, with hwloc v1.11)."
+."<br/>A <em>Group</em> of two packages is used to better report the I/O-affinity of the PCI bus";
 $sections[] = 2;
 $files[] = "2Power8.v1.11.png";
-$descriptions[] = "2x Power8 with 2 NUMA node each + 1x InfiniBand HCA, 20 cores and 160 cores total (from 2015), with hwloc v1.11";
+$descriptions[] = "2x Power8 with 2 NUMA node each + 1x InfiniBand HCA (IBM Power S822L from 2015, with hwloc v1.11)."
+."<br/>20 cores and 160 hardware threads total";
 $sections[] = 2;
 
 $files[] = "16XeonX7400.v1.11.png";
-$descriptions[] = "16x Xeon <em>Dunnington</em> X7460 with IBM NUMA interconnect, 96 cores total (from 2009), with hwloc v1.11";
+$descriptions[] = "16x Xeon <em>Dunnington</em> X7460 with IBM custom NUMA interconnect (IBM x3950 M2 from 2009, with hwloc v1.11)."
+."<br/>96 cores total";
 $sections[] = 3;
 $files[] = "20XeonE7+groups.v1.11.png";
-$descriptions[] = "20x Xeon <em>Westmere-EX</em> E7-8837 with distance-based groups, 160 cores total (from 2012), with hwloc v1.11";
+$descriptions[] = "20x Xeon <em>Westmere-EX</em> E7-8837 (SGI Altix UV 100 from 2012, with hwloc v1.11)."
+."<br/>160 cores total."
+."<br/>The matrix of distances between NUMA nodes is used to improve the topology by creating <em>Groups</em> of two processors, which actually correspond to physical <em>Blades</em>";
 $sections[] = 3;
 $files[] = "64Itanium9100+1NUMA.v1.11.png";
-$descriptions[] = "64x Itanium-2 <em>Montvale</em> 9140N with one additional CPU-less NUMA node, 128 cores total (from 2009, with an old Linux kernel that does not report cache information), with hwloc v1.11";
+$descriptions[] = "64x Itanium-2 <em>Montvale</em> 9140N (HP Superdome SX2000 from 2009, with hwloc v1.11)."
+."<br/>128 cores total, and one additional CPU-less NUMA node."
+."<br/>This old Linux kernel does not report cache information";
 $sections[] = 3;
 $files[] = "128Itanium+groups.v1.11.png";
-$descriptions[] = "128x Itanium-2 <em>Montecito</em> 9150M with 2 levels of distance-based groups, 256 cores total (from 2008, with an old Linux kernel that does not report cache information), with hwloc v1.11";
+$descriptions[] = "128x Itanium-2 <em>Montvale</em> 9150M (SGI Altix 4700 from 2008, with hwloc v1.11)."
+."<br/>256 cores total."
+."<br/>Two levels of <em>Groups</em> are created based on the NUMA distance matrix. They corresponds to SGI racks of 4 <em>IRUs</em> containing 4 <em>Blades</em> each."
+."<br/>This old Linux kernel does not report cache information";
 $sections[] = 3;
 $files[] = "48XeonX7500+groups.v1.11.png";
-$descriptions[] = "48x Xeon <em>Nehalem-EX</em> X7560 with distance-based groups, 384 cores and 768 hyperthreads total (from 2010), with hwloc v1.11";
+$descriptions[] = "48x Xeon <em>Nehalem-EX</em> X7560 with distance-based groups (SGI Altix UV1000 from 2010, with hwloc v1.11)."
+."<br/>384 cores and 768 hyperthreads total";
+$sections[] = 3;
+$files[] = "56XeonE5+2mic+2cuda+cgroup.v1.11.png";
+$descriptions[] = "56x Xeon <em>Sandy-Bridge-EP</em> E5-4640 + 2x NVIDIA GPUs + 2x Xeon Phi (SGI Altix UV2000 from 2014, with hwloc v1.11)."
+."<br/>448 cores and 896 hyperthreads total."
+."<br/>The machine is made of 26 blades of 2 processors (appearing as <em>Group0</em> white boxes),"
+."2 blades with 1 processor and 1 NVIDIA GPU (blue boxes),"
+."and 2 blades with 1 processor and 1 Xeon Phi (pink boxes)."
+."<br/>Red hyperthreads are unavailable to the current user due to Linux cgroups."
+."<br/>Blue and pink blades were colored using the <em>lstopoStyle</em> custom attribute";
 $sections[] = 3;
 $files[] = "16Power7+bugs.v1.11.png";
-$descriptions[] = "16x Power7, 64 cores and 256 hardware threads total (from 2011, with buggy device-tree reporting 8 single-core packages instead of each octo-core package), with hwloc v1.11";
+$descriptions[] = "16x Power7 (IBM Power 780 from 2011, with hwloc v1.11)."
+."<br/>64 cores and 256 hardware threads total."
+."<br/>The buggy hardware <em>Device-Tree</em> reports 8 single-core packages instead of each octo-core package";
 $sections[] = 3;
 
 $files[] = "BlueGeneQ.v1.11.png";
-$descriptions[] = "BlueGene/Q node (from 2013), with hwloc v1.11";
+$descriptions[] = "BlueGene/Q node (from 2013, with hwloc v1.11)";
 $sections[] = 4;
 $files[] = "KNC.v1.11.png";
-$descriptions[] = "Xeon Phi <em>Knights Corner</em> 7120 (from 2014), with hwloc v1.11";
+$descriptions[] = "Xeon Phi <em>Knights Corner</em> 7120 (from 2014, with hwloc v1.11)";
 $sections[] = 4;
 $files[] = "PlayStation3.v1.11.png";
-$descriptions[] = "PlayStation 3 (from 2008, with an old Linux kernel that does not report cache information), with hwloc v1.11";
+$descriptions[] = "PlayStation 3 (from 2008, with hwloc v1.11)."
+."<br/>The old Linux kernel does not report cache information";
 $sections[] = 4;
 $files[] = "ARMv7.v1.11.png";
-$descriptions[] = "ARMv7 (from 2015), with hwloc v1.11";
+$descriptions[] = "ARMv7 (from 2015, with hwloc v1.11)";
 $sections[] = 4;
 $files[] = "IBM-S390+books.v1.11.png";
-$descriptions[] = "IBM/S390 with packages assembled as \"Books\" (from 2010), with hwloc v1.11";
+$descriptions[] = "IBM/S390 (from 2010, with hwloc v1.11)"
+."<br/>Packages are grouped within <em>Books</em> (name of IBM mainframe modular cards)";
 $sections[] = 4;
 
 $files[] = "laptop.ascii.v1.11.png";
-$descriptions[] = "ASCII Art output in case you don't have X11 available (generated with <tt>lstopo -.ascii</tt> with hwloc v1.11, or with <tt>lstopo -.txt</tt> in older releases)";
+$descriptions[] = "ASCII Art output in case you don't have X11 available."
+."<br/>Generated with <tt>lstopo -.ascii</tt> with hwloc v1.11, or with <tt>lstopo -.txt</tt> in older releases";
 $sections[] = 5;
 
 if (count($files) != count($descriptions) or count($files) != count($sections)) {
