@@ -16,4 +16,3 @@ $this_nav[] = new Nav("Version 1.2 (ancient)", "$topdir/software/ompi/v1.2/");
 $this_nav[] = new Nav("Version 1.1 (ancient)", "$topdir/software/ompi/v1.1/");
 $this_nav[] = new Nav("Version 1.0 (ancient)", "$topdir/software/ompi/v1.0/");
 $this_nav[] = new Nav("Nightly snapshots", "$topdir/nightly/");
-$this_nav[] = new Nav("Subversion checkout", "$topdir/svn/");
