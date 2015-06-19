@@ -93,6 +93,9 @@ news("Open MPI v1.8.6 released",
 news("hwloc v1.11.0 published",
      "New feature release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2015/06/0078.php");
+news("PMIx v1.0.0 released",
+     "New feature release",
+     "http://www.open-mpi.org/community/lists/pmix-announce/2015/06/0001.php");
 news("ORCM v0.7.0 released",
      "New preview release",
      "http://www.open-mpi.org/community/lists/orcm-announce/2015/02/0001.php");
