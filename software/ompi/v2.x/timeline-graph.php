@@ -17,7 +17,7 @@ $ts1 = time() + (90 * 24 * 60 * 60);
 # 1 year beyond the first date (this i
 $ts2 = mktime(0, 0, 0, 6, 1, 2016);
 
-$ts = max($ts1, $ts2);
+$ts = (int) max($ts1, $ts2);
 $beyond_end_date = strftime("%Y-%m-%d", $ts);
 
 //////////////////////////////////////////////////////////////////////////
@@ -27,4 +27,4 @@ milestone("branch", "2015-06-20", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
-$graph->Stroke(); 
+$graph->Stroke();
