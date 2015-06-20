@@ -19,7 +19,7 @@ Documentation for the following versions is available:
 <p>
 <ul>
 
-<p> <strong>Current super stable release series</strong>
+<p> <strong>Current release series</strong>
 
 <li><a href="v1.8/"><strong>Open MPI v<?php print($ver_v1_8); ?>
 </strong></a> (stable release series).  This documentation reflects
@@ -29,24 +29,10 @@ emphasis of this tree is on bug fixes and stability.  <strong><font
 color=red>This is the recomended series for users who need a stable,
 mature code base.</font></strong></li>
 
-<p> <strong>Current feature release series</strong>
+<p> <strong>Upcoming release series</strong>
 
-<li> The v1.9 series has not yet been created.</li>
-
-<?php
-$bogus = ' Keep this string around just for the old text -- it 
-will be helpful when the v1.9 series is created.
-
-<li><a href="v1.7/"><strong>Open MPI v<?php print($ver_v1_7); ?>
-</strong></a> (feature series). This documentation reflects the
-latest progression in the 1.7.x series.  The emphasis of this tree is
-on adding features and working towards future stable releases of the
-v1.8 series.  <strong><font color=red>This series is stable, but not
-as mature and time-tested as the v1.6 "super stable" release series.
-This series is recomended for users who want/need new
-features.</font></strong></li>
-';
-?>
+<li> The v1.10 series does not yet have any releases.</li>
+<li> The v2.x series does not yet have any releases.</li>
 
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
