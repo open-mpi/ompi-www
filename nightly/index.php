@@ -30,6 +30,9 @@ series for all users to download and use.</strong></li>
 <li><a href="v1.10/"><strong>v1.10 series</strong></a>: These are images from
 the upcoming stable v1.10 series.
 
+<li><a href="v2.x/"><strong>v2.x series</strong></a>: These are images from
+the upcoming v2.x series.
+
 <p> <strong>Current development</strong>
 
 <li><a href="master/"><strong>Master</strong></a> (development head):
