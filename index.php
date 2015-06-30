@@ -96,9 +96,9 @@ news("hwloc v1.11.0 published",
 news("PMIx v1.0.0 released",
      "New feature release",
      "http://www.open-mpi.org/community/lists/pmix-announce/2015/06/0001.php");
-news("ORCM v0.7.0 released",
+news("ORCM v0.9.0 released",
      "New preview release",
-     "http://www.open-mpi.org/community/lists/orcm-announce/2015/02/0001.php");
+     "http://www.open-mpi.org/community/lists/orcm-announce/2015/06/0002.php");
 news("Performance Benchmarks",
      "New section on performance benchmarks added",
      "http://www.open-mpi.org/performance/");
