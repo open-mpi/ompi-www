@@ -52,7 +52,7 @@ $project = $psave;
 
 <p><hr>
 
-<P><?php $dir = "$topdir/software/orcm/v0/downloads/orcm-0.9.0-release-notes_user-guide.pdf";
+<P><?php $dir = "$topdir/software/orcm/v0/downloads/orcm-release-0.9.0.pdf";
       print("<a href=\"$dir\">"); ?>This
 file</a> contains the release notes and user guide for the 0.9.0 release.</p>
 
