@@ -242,6 +242,7 @@ printsublink("$topurl/projects/user-docs/", "Open MPI User Docs");
 printsublink("$topurl/projects/otpo/", "Open Tool for Parameter Optimization");
 printsublink("$topurl/projects/pmix/", "PMIx");
 printsublink("$topurl/projects/orcm/", "ORCM");
+printsublink("$topurl/projects/glassbottom/", "GlassBottom");
 
 // Community
 printbutton("Community");
