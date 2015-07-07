@@ -253,7 +253,7 @@ add_org("http://www.oracle.com/", "Oracle", "", "oracle.png", $contrib);
 // add_org("http://www.qlogic.com/", "QLogic Corporation", "",
 //         "qlogic.gif", $contrib);
 
-add_org("http://www.rist.or.jp/rist/ehome.html", "RIST",
+add_org("http://www.rist.or.jp/ehome.html", "RIST",
            "Research Organization for Information Science and Technology",
            "rist.png", $member);
 
