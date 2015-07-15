@@ -20,6 +20,7 @@ milestone("v1.8.3", "2014-09-26", $data, $vpos);
 milestone("v1.8.4", "2014-12-19", $data, $vpos);
 milestone("v1.8.5", "2015-05-05", $data, $vpos);
 milestone("v1.8.6", "2015-06-17", $data, $vpos);
+milestone("v1.8.7", "2015-07-15", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
