@@ -79,7 +79,7 @@ host memory if it is not available.
 <li> Support for blocking reduction MPI APIs.
 </ul>
 
-*For best results, it is recommended that you use the latest version of Open MPI which as of this writing was Open MPI 1.8.4.*
+*For best results, it is recommended that you use the latest version of Open MPI which as of this writing was Open MPI 1.8.7.*
 
 *Additional Information about CUDA-aware support*
 
@@ -406,3 +406,49 @@ $a[] = "
 
 ";
 /////////////////////////////////////////////////////////////////////////
+
+$q[] = "Can I tell at compile time or runtime whether I have CUDA-aware support?";
+
+$anchor[] = "mpi-cuda-aware-support";
+
+$a[] = "
+New with Open MPI v2.0.0 we have added a compile time check and a runtime check.
+You can use whichever is the most convenient for your program.  To access them,
+you need to include mpi-ext.h. Note that mpi-ext.h has been around for several
+releases so you can just add it to your include list. The following program
+shows an example of using the CUDA-aware macro and runtime check.
+
+<faqcode>
+/**                                                                                                        
+ * Program that shows the use of CUDA-aware macro and runtime check.                                       
+ * Requires Open MPI v2.0.0 or later.                                                                      
+ */
+#include &lt;stdio.h&gt;
+#include \"cuda.h\"
+#include \"mpi.h\"
+#include \"mpi-ext.h\"  /* Needed for CUDA-aware check */
+
+#if (OMPI_MAJOR_VERSION &lt 2)
+#define CUDA_AWARE -1 /* unknown */
+#else
+#if (MPIX_CUDA_AWARE_SUPPORT == 1)
+#define CUDA_AWARE 1
+#else
+#define CUDA_AWARE 0
+#endif
+#endif
+
+int main(int argc, char *argv[])
+{
+#if OMPI_MAJOR_VERSION &gt= 2
+    if (1 == MPIX_Query_cuda_support()) {
+        printf(\"This Open MPI library has CUDA-aware support.\\n\");
+    } else {
+        printf(\"This Open MPI library does not have CUDA-aware support.\\n\");
+    }
+#endif
+}
+
+</faqcode>
+
+";
