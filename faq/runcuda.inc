@@ -426,12 +426,16 @@ shows an example of using the CUDA-aware macro and runtime check.
 #include &lt;stdio.h&gt;
 #include \"cuda.h\"
 #include \"mpi.h\"
+#ifdef OPEN_MPI
 #include \"mpi-ext.h\"  /* Needed for CUDA-aware check */
+#else
+#define OMPI_MAJOR_VERSION 0 /* Indicates non Open MPI library */
+#endif
 
 #if (OMPI_MAJOR_VERSION &lt 2)
 #define CUDA_AWARE -1 /* unknown */
 #else
-#if (MPIX_CUDA_AWARE_SUPPORT == 1)
+#ifdef MPIX_CUDA_AWARE_SUPPORT
 #define CUDA_AWARE 1
 #else
 #define CUDA_AWARE 0
@@ -440,7 +444,7 @@ shows an example of using the CUDA-aware macro and runtime check.
 
 int main(int argc, char *argv[])
 {
-#if OMPI_MAJOR_VERSION &gt= 2
+#ifdef MPIX_CUDA_AWARE_SUPPORT
     if (1 == MPIX_Query_cuda_support()) {
         printf(\"This Open MPI library has CUDA-aware support.\\n\");
     } else {
