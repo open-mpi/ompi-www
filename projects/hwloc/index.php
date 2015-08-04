@@ -225,7 +225,7 @@ system</a>.</a>
 <h3>Publications</h3>
 
 <p>
- If you are looking for general-purpose hwloc citations, please use thie following one.
+ If you are looking for general-purpose hwloc citations, please use the following one.
  This paper (available <a href="http://hal.inria.fr/inria-00429889">here</a>)
  introduces hwloc, its goals and its implementation.
  It then shows how hwloc may be used by MPI implementations and OpenMP
