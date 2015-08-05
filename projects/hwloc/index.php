@@ -216,9 +216,10 @@ since hwloc gathers topology information from them.  Passing
 <tt>--enable-debug</tt> to <tt>./configure</tt> also enables a lot of
 helpful debugging information.</p>
 
-<p>Also be sure to see the <a
-href="https://git.open-mpi.org/trac/hwloc/">hwloc wiki and bug tracking
-system</a>.</a>
+<p>Also be sure to see the
+ <a href="https://github.com/open-mpi/hwloc/wiki">hwloc wiki</a>
+ and <a href="https://github.com/open-mpi/hwloc/issues">bug tracking system</a>.
+</p>
 
 <!------------------------------------------------------------------------->
 
