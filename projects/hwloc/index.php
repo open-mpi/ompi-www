@@ -155,10 +155,12 @@ ported to it:<ul>
  href="http://padb.pittman.org.uk/">Padb</a></li>
 </ul>
 <li>Runtime systems and compilers</li><ul>
+ <li>The <a href="http://chapel.cray.com/">Chapel Parallel Programming Language</a></li>
  <li>The <a href="http://runtime.bordeaux.inria.fr/StarPU">StarPU</a>
  runtime system for heterogeneous multicore architectures</li>
  <li>The Parallel Runtime Scheduling and Execution Controller
  (<a href="http://icl.cs.utk.edu/parsec">PaRSEC</a>) project</li>
+ <li>The <a href="http://stellar.cct.lsu.edu/projects/hpx/">High Performance ParalleX (HPX)</a> runtime system</li>
  <li>The Qthreads project (<a
  href="http://www.cs.sandia.gov/qthreads/">site 1</a>, <a
  href="http://code.google.com/p/qthreads/">site 2</a>)</li>
