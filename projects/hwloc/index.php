@@ -133,7 +133,14 @@ print($ver_current); ?>).</p>
 The GIT repository is also accessible for
 <a href="https://github.com/open-mpi/hwloc">online browsing</a>
 or <a href="git.php">checkout</a>.
-<br />
+</p>
+
+<p>hwloc is already available as official packages for many Linux distributions
+(at least Debian, Ubuntu, ArchLinux, Fedora, RHEL),
+as well as Cygwin and Mac OS X ports.
+</p>
+
+<p>
 Perl bindings are available from Bernd Kallies
 <a href="http://search.cpan.org/~bka/Sys-Hwloc-0.10/">on CPAN</a>.
 <br />
