@@ -419,40 +419,46 @@ releases so you can just add it to your include list. The following program
 shows an example of using the CUDA-aware macro and runtime check.
 
 <faqcode>
-/**                                                                                                        
- * Program that shows the use of CUDA-aware macro and runtime check.                                       
- * Requires Open MPI v2.0.0 or later.                                                                      
+/*
+ * Program that shows the use of CUDA-aware macro and runtime check.                                                               
+ * Requires Open MPI v2.0.0 or later.                                                                                              
  */
 #include &lt;stdio.h&gt;
 #include \"cuda.h\"
 #include \"mpi.h\"
-#ifdef OPEN_MPI
-#include \"mpi-ext.h\"  /* Needed for CUDA-aware check */
-#else
-#define OMPI_MAJOR_VERSION 0 /* Indicates non Open MPI library */
-#endif
 
-#if (OMPI_MAJOR_VERSION &lt 2)
-#define CUDA_AWARE -1 /* unknown */
+#ifdef OPEN_MPI
+#include \"mpi-ext.h\" /* Needed for CUDA-aware check */
 #else
-#ifdef MPIX_CUDA_AWARE_SUPPORT
-#define CUDA_AWARE 1
-#else
-#define CUDA_AWARE 0
-#endif
+#error \"This test can only owrk on Open MPI libraries.\"
 #endif
 
 int main(int argc, char *argv[])
 {
-#ifdef MPIX_CUDA_AWARE_SUPPORT
+    printf(\"First check:\\n\");
+#if (OMPI_MAJOR_VERSION &gt= 2)
+#if MPIX_CUDA_AWARE_SUPPORT
+    printf(\"This Open MPI library has CUDA-aware support.\\n\");
+#else
+    printf(\"This Open MPI library does not have CUDA-aware support.\\n\");
+#endif
+#else
+    printf(\"This Open MPI library cannot determine if there is CUDA-aware support.\\n\");
+#endif /* OMPI_MAJOR_VERSION */
+
+    printf(\"Second check:\\n\");
+#if (OMPI_MAJOR_VERSION >= 2)
     if (1 == MPIX_Query_cuda_support()) {
         printf(\"This Open MPI library has CUDA-aware support.\\n\");
     } else {
         printf(\"This Open MPI library does not have CUDA-aware support.\\n\");
     }
-#endif
-}
+#else
+    printf(\"This Open MPI library cannot determine if there is CUDA-aware support.\\n\");
+#endif /* OMPI_MAJOR_VERSION */
 
+    return 0;
+}
 </faqcode>
 
 ";
