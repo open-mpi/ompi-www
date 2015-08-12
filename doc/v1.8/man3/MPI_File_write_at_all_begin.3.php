@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_File_write_at_all_begin(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_FILE_WRITE_AT_ALL_BEGIN(3)";
+$title = "MPI_File_write_at_all_begin(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_FILE_WRITE_AT_ALL_BEGIN(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,28 +14,20 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b>MPI_File_write_at_all_begin</b> - Writes a file at explicitly s
-pecified
-offsets; beginning part of a
-split
-collective routine (nonblocking).
+<b>MPI_File_write_at_all_begin</b> - Writes a file at explicitly specified
+offsets; beginning part of a split collective routine (nonblocking).
 <p>
-
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 <br>
 <pre>C Syntax
     #include &lt;mpi.h&gt;
-    int MPI_File_write_at_all_begin(MPI_File fh, MPI_Offset
-offset,
-<tt> </tt>&nbsp;<tt> </tt>&nbsp;      const void *buf, int count, MPI_Datatype dat
-atype)
+    int MPI_File_write_at_all_begin(MPI_File fh, MPI_Offset offset,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;      const void *buf, int count, MPI_Datatype datatype)
 </pre>
 <h2><a name='sect2' href='#toc2'>Fortran Syntax (see FORTRAN 77 NOTES)</a></h2>
 <br>
 <pre>    INCLUDE &rsquo;mpif.h&rsquo;
-    MPI_FILE_WRITE_AT_ALL_BEGIN(FH, OFFSET, BUF,
- COUNT, DATATYPE, IERRO
-R)
+    MPI_FILE_WRITE_AT_ALL_BEGIN(FH, OFFSET, BUF, COUNT, DATATYPE, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;TYPE&gt; BUF(*)
         <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;FH, COUNT, DATATYPE, IERROR
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER(KIND=MPI_OFFSET_KIND) OFFSET
@@ -89,23 +81,17 @@ of elements in buffer (integer). </dd>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
 MPI_File_write_at_all_begin is the beginning part of a split
-colle
-ctive, that is, a nonblocking routine
-that a
-ttempts to write into
-the file associa
-ted with  <i>fh</i> (at the  <i>offset</i>  position) a total number
+collective, that is, a nonblocking routine that attempts to write into
+the file associated with  <i>fh</i> (at the  <i>offset</i>  position) a total number
 of  <i>count</i>  data items having <i>datatype</i>  type from the user&rsquo;s buffer  <i>buf.</i>
-The offset is in etype units relative to the current view. That is
-, holes
+The offset is in etype units relative to the current view. That is, holes
 are not counted when locating an offset. The data is written into those
-parts of t
-he file specified by the current view.
+parts of the file specified by the current view.
 <p>
 <h2><a name='sect8' href='#toc8'>Fortran 77 Notes</a></h2>
-The
-MPI standard prescribes portable Fortran syntax for the <i>OFFSET</i> argument
-only for Fortran 90.  FORTRAN 77 users may use the non-portable syntax <p>
+The MPI
+standard prescribes portable Fortran syntax for the <i>OFFSET</i> argument only
+for Fortran 90.  FORTRAN 77 users may use the non-portable syntax <p>
 <br>
 <pre>     INTEGER*MPI_OFFSET_KIND OFFSET
 </pre><p>
@@ -114,48 +100,23 @@ of the declared integer in bytes.
 <p>
 <h2><a name='sect9' href='#toc9'>Notes</a></h2>
 All the nonblocking collective routines
-for data access are "split
-" into two routines, each with _begin
-or _en
-d
-as a suffix. These split collective
-routines are subject to the semantic
-rules described i
-n Section 9.4.5 of the
- MPI-2 standard.
+for data access are "split" into two routines, each with _begin or _end
+as a suffix. These split collective routines are subject to the semantic
+rules described in Section 9.4.5 of the MPI-2 standard.
 <p>
 <h2><a name='sect10' href='#toc10'>Errors</a></h2>
 Almost all
-MPI routines return an error value; C routines as the v
-alue of the function
-and Fortran routi
-nes in
- the last argument. C++ functions do n
-ot return
-errors. If the default error handler is set
-to MPI::ERRORS_THROW_E
-XCEPTIONS,
-then on error the C
-++ exception m
-echanism will
-be used to throw an MPI::Exception
+MPI routines return an error value; C routines as the value of the function
+and Fortran routines in the last argument. C++ functions do not return errors.
+If the default error handler is set to MPI::ERRORS_THROW_EXCEPTIONS, then
+on error the C++ exception mechanism will be used to throw an MPI::Exception
 object. <p>
 Before the error value is returned, the current MPI error handler
-
-is called. For MPI I/O function errors, the default error handler is
-set
-to MPI_ERRORS_RETURN. The error ha
-ndler
-may be changed with MPI_File_set_errha
-ndler;
-the predefined error handler MPI_ERRORS_ARE_FAT
-AL may be used to make
-
-I/O errors fatal. Note that M
-PI does not gu
-arantee that a
-n MPI program
-can continue past an error.
+is called. For MPI I/O function errors, the default error handler is set
+to MPI_ERRORS_RETURN. The error handler may be changed with <a href="../man3/MPI_File_set_errhandler.3.php">MPI_File_set_errhandler</a>;
+the predefined error handler MPI_ERRORS_ARE_FATAL may be used to make I/O
+errors fatal. Note that MPI does not guarantee that an MPI program can continue
+past an error.
 <p> <p>
 
 <hr><p>

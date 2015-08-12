@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Comm_split_type(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_COMM_SPLIT_TYPE(3)";
+$title = "MPI_Comm_split_type(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_COMM_SPLIT_TYPE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -88,44 +88,21 @@ subcommunicators, each of which can create a shared memory region.
 <p> </dd>
 </dl>
 
-<h2><a name='sect8' href='#toc8'>Notes</a></h2>
-This
-is an extremely powerful mechanism for dividing a single communicating
-group of processes into k subgroups, with k chosen implicitly by the user
-(by the number of colors asserted over all the processes). Each resulting
-communicator will be nonoverlapping. Such a division could be useful for
-defining a hierarchy of computations, such as for multigrid or linear algebra.
+<h2><a name='sect8' href='#toc8'>Errors</a></h2>
+Almost
+all MPI routines return an error value; C routines as the value of the
+function and Fortran routines in the last argument. <p>
+Before the error value
+is returned, the current MPI error handler is called. By default, this error
+handler aborts the MPI job, except for I/O function errors. The error handler
+may be changed with <a href="../man3/MPI_Comm_set_errhandler.3.php">MPI_Comm_set_errhandler</a>; the predefined error handler
+MPI_ERRORS_RETURN may be used to cause error values to be returned. Note
+that MPI does not guarantee that an MPI program can continue past an error.
+
 <p>
-Multiple calls to MPI_Comm_split_type can be used to overcome the requirement
-that any call have no overlap of the resulting communicators (each process
-is of only one color per call). In this way, multiple overlapping communication
-structures can be created. Creative use of the color and key in such splitting
-operations is encouraged. <p>
-Note that keys need not be unique. It is MPI_Comm_split_type&rsquo;s
-responsibility to sort processes in ascending order according to this key,
-and to break ties in a consistent way. If all the keys are specified in
-the same way, then all the processes in a given color will have the relative
-rank order as they did in their parent group. (In general, they will have
-different ranks.) <p>
-Essentially, making the key value zero for all processes
-of a given split_type means that one needn&rsquo;t really pay attention to the
-rank-order of the processes in the new communicator.
+<h2><a name='sect9' href='#toc9'>See Also</a></h2>
 <p>
-<h2><a name='sect9' href='#toc9'>Errors</a></h2>
-Almost all MPI
-routines return an error value; C routines as the value of the function
-and Fortran routines in the last argument. <p>
-Before the error value is returned,
-the current MPI error handler is called. By default, this error handler
-aborts the MPI job, except for I/O function errors. The error handler may
-be changed with <a href="../man3/MPI_Comm_set_errhandler.3.php">MPI_Comm_set_errhandler</a>; the predefined error handler MPI_ERRORS_RETURN
-may be used to cause error values to be returned. Note that MPI does not
-guarantee that an MPI program can continue past an error.
-<p>
-<h2><a name='sect10' href='#toc10'>See Also</a></h2>
-<p>
-<a href="../man3/MPI_Comm_create.3.php">MPI_Comm_create</a>
-<br>
+<a href="../man3/MPI_Comm_create.3.php">MPI_Comm_create</a> <br>
 <a href="../man3/MPI_Intercomm_create.3.php">MPI_Intercomm_create</a> <br>
 <a href="../man3/MPI_Comm_dup.3.php">MPI_Comm_dup</a> <br>
 <a href="../man3/MPI_Comm_free.3.php">MPI_Comm_free</a> <br>
@@ -144,9 +121,8 @@ guarantee that an MPI program can continue past an error.
 <li><a name='toc5' href='#sect5'>Output Parameters</a></li>
 <li><a name='toc6' href='#sect6'>Description</a></li>
 <li><a name='toc7' href='#sect7'>Split Types</a></li>
-<li><a name='toc8' href='#sect8'>Notes</a></li>
-<li><a name='toc9' href='#sect9'>Errors</a></li>
-<li><a name='toc10' href='#sect10'>See Also</a></li>
+<li><a name='toc8' href='#sect8'>Errors</a></li>
+<li><a name='toc9' href='#sect9'>See Also</a></li>
 </ul>
 
 

@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Ineighbor_allgather(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_INEIGHBOR_ALLGATHER(3)";
+$title = "MPI_Ineighbor_allgather(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_INEIGHBOR_ALLGATHER(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -38,7 +38,7 @@ int MPI_Ineighbor_allgather(const void *sendbuf, int  sendcount,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF (*), RECVBUF (*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, COMM,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;IERROR
-<a href="../man3/MPI_Neighbor_allgather.3.php">MPI_NEIGHBOR_ALLGATHER</a>(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,
+MPI_INEIGHBOR_ALLGATHER(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVTYPE, COMM, REQUEST, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF (*), RECVBUF (*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, COMM,

@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Publish_name(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_PUBLISH_NAME(3)";
+$title = "MPI_Publish_name(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_PUBLISH_NAME(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -85,6 +85,10 @@ ompi_global_scope     bool      If set to true, publish the name in
                                 the global scope.  Publish in the local
                                 scope otherwise.  See the NAME SCOPE
                                 section for more details.
+ompi_unique           bool      If set to true, return an error if the
+                                specified service_name already exists.
+                                Default to overwriting any pre-existing
+                                value.
 </pre>
 <p> <p>
 <i>bool</i> info keys are actually strings but are evaluated as follows: if the

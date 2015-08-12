@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Win_lock_all(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_WIN_LOCK_ALL(3)";
+$title = "MPI_Win_lock_all(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_WIN_LOCK_ALL(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -28,7 +28,7 @@ int MPI_Win_lock_all(int assert, MPI_Win win)
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
 <pre>INCLUDE &rsquo;mpif.h&rsquo;
-<a href="../man3/MPI_Win_lock.3.php">MPI_WIN_LOCK</a>(ASSERT, WIN, IERROR)
+MPI_WIN_LOCK_ALL(ASSERT, WIN, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER ASSERT, WIN, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Input Parameters</a></h2>

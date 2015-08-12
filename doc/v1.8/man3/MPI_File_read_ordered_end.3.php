@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_File_read_ordered_end(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_FILE_READ_ORDERED_END(3)";
+$title = "MPI_File_read_ordered_end(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_FILE_READ_ORDERED_END(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

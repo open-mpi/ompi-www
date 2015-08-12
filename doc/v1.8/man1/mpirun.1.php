@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "mpirun(1) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: mpirun(1)";
+$title = "mpirun(1) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: mpirun(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

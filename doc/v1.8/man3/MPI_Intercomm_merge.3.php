@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Intercomm_merge(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_INTERCOMM_MERGE(3)";
+$title = "MPI_Intercomm_merge(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_INTERCOMM_MERGE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -23,7 +23,7 @@ include_once("$topdir/includes/header.inc");
 <br>
 <pre>#include &lt;mpi.h&gt;
 int MPI_Intercomm_merge(MPI_Comm intercomm, int high,
-     MPI_Comm *newintracomm
+     MPI_Comm *newintracomm)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>

@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Barrier(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_BARRIER(3)";
+$title = "MPI_Barrier(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_BARRIER(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,7 +14,7 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b>MPI_Barrier, MPI_Ibcarrier</b> - Synchronization between MPI processes
+<b>MPI_Barrier, <a href="../man3/MPI_Ibarrier.3.php">MPI_Ibarrier</a></b> - Synchronization between MPI processes
 
 <p>in a group
 <p>
@@ -24,15 +24,15 @@ include_once("$topdir/includes/header.inc");
 <br>
 <pre>#include &lt;mpi.h&gt;
 int MPI_Barrier(MPI_Comm comm)
-int <a href="../man3/MPI_Ibarrier.3.php">MPI_Ibarrier</a>(MPI_Comm comm)
+int <a href="../man3/MPI_Ibarrier.3.php">MPI_Ibarrier</a>(MPI_Comm comm, MPI_Request request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
 <pre>INCLUDE &rsquo;mpif.h&rsquo;
 MPI_BARRIER(COMM, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COMM, IERROR
-<a href="../man3/MPI_Ibarrier.3.php">MPI_IBARRIER</a>(COMM, IERROR)
-<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COMM, IERROR
+<a href="../man3/MPI_Ibarrier.3.php">MPI_IBARRIER</a>(COMM, REQUEST, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COMM, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>C++ Syntax</a></h2>
 <br>
