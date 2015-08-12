@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Status_set_elements(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_STATUS_SET_ELEMENTS(3)";
+$title = "MPI_Status_set_elements(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_STATUS_SET_ELEMENTS(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -15,8 +15,7 @@ include_once("$topdir/includes/header.inc");
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
 <b>MPI_Status_set_elements</b>, <b><a href="../man3/MPI_Status_set_elements_x.3.php">MPI_Status_set_elements_x</a></b> - Modifies
-opaque
-part of <i>status</i> to allow <a href="../man3/MPI_Get_elements.3.php">MPI_Get_elements</a> to return <i>count</i>.
+opaque part of <i>status</i> to allow <a href="../man3/MPI_Get_elements.3.php">MPI_Get_elements</a> to return <i>count</i>.
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -25,10 +24,8 @@ Syntax</a></h2>
 <br>
 <pre>#include &lt;mpi.h&gt;
 int MPI_Status_set_elements(MPI_Status *status, MPI_Datatype datatype,
-
 int count)
-int <a href="../man3/MPI_Status_set_elements_x.3.php">MPI_Status_set_elements_x</a>(MPI_Status *status, MPI_Datatype datatype
-P,
+int <a href="../man3/MPI_Status_set_elements_x.3.php">MPI_Status_set_elements_x</a>(MPI_Status *status, MPI_Datatype datatype,
 MPI_Count count)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
@@ -44,8 +41,7 @@ MPI_STATUS_SET_ELEMENTS(STATUS, DATATYPE, COUNT, IERROR)
 <h2><a name='sect4' href='#toc4'>C++ Syntax</a></h2>
 <br>
 <pre>#include &lt;mpi.h&gt;
-void MPI::Status::Set_elements(const MPI::Datatype&amp; datatype, int count
-P)
+void MPI::Status::Set_elements(const MPI::Datatype&amp; datatype, int count)
 </pre>
 <h2><a name='sect5' href='#toc5'>Input/Output Parameter</a></h2>
 
@@ -82,27 +78,20 @@ of elements to associate with <i>status</i> (integer).
 
 <h2><a name='sect8' href='#toc8'>Description</a></h2>
 MPI_Status_set_elements
-modifies the opaque part of <i>status</i> so that a call to
- <a href="../man3/MPI_Get_elements.3.php">MPI_Get_elements</a>
-or <a href="../man3/MPI_Get_elements_x.3.php">MPI_Get_elements_x</a> will return <i>count</i>. <a href="../man3/MPI_Get_count.3.php">MPI_Get_count</a> will return a compatible
+modifies the opaque part of <i>status</i> so that a call to <a href="../man3/MPI_Get_elements.3.php">MPI_Get_elements</a> or
+<a href="../man3/MPI_Get_elements_x.3.php">MPI_Get_elements_x</a> will return <i>count</i>. <a href="../man3/MPI_Get_count.3.php">MPI_Get_count</a> will return a compatible
 value. <p>
-A subsequent call to <a href="../man3/MPI_Get_count.3.php">MPI_Get_count</a>(<i>status, datatype, count</i>), to MPI_Get_elem
-ents(<i>status,
+A subsequent call to <a href="../man3/MPI_Get_count.3.php">MPI_Get_count</a>(<i>status, datatype, count</i>), to <a href="../man3/MPI_Get_elements.3.php">MPI_Get_elements</a>(<i>status,
 datatype, count</i>), or to <a href="../man3/MPI_Get_elements_x.3.php">MPI_Get_elements_x</a>(<i>status, datatype, count</i>) must
 use a data-type argument that has the same type signature as the data-type
-argument
-that was used in the call to M
-PI_Status_set_elements.
+argument that was used in the call to MPI_Status_set_elements.
 <p>
 <h2><a name='sect9' href='#toc9'>Notes</a></h2>
 Users
 are advised not to reuse the status fields for values other than those
-for w
-hich they were intended. Doing so may lead to unexpected results when
+for which they were intended. Doing so may lead to unexpected results when
 using the status object. For example, calling <a href="../man3/MPI_Get_elements.3.php">MPI_Get_elements</a> may cause
-an error if the value is out of range,
-or it may be impossible to det
-ect
+an error if the value is out of range, or it may be impossible to detect
 such an error. The <i>extra_state</i> argument provided with a generalized request
 can be used to return information that does not logically belong in <i>status</i>.
 Furthermore, modifying the values in a status set internally by MPI, such
@@ -111,34 +100,26 @@ as <a href="../man3/MPI_Recv.3.php">MPI_Recv</a>, may lead to unpredictable resu
 <p>
 <h2><a name='sect10' href='#toc10'>Errors</a></h2>
 Almost all MPI routines return an error value; C routines as the
-value of the func
-tion and Fortran routines in the last argument. C++ functions
+value of the function and Fortran routines in the last argument. C++ functions
 do not return errors. If the default error handler is set to MPI::ERRORS_THROW_EXCEPTIONS,
-then on error the C++ excepti
-on mechanism will be used to t
-hrow an MPI::Exception
+then on error the C++ exception mechanism will be used to throw an MPI::Exception
 object. <p>
 Before the error value is returned, the current MPI error handler
 is called. By default, this error handler aborts the MPI job, except for
-I/O function
- errors. The error handler may be changed with <a href="../man3/MPI_Comm_set_errhandler.3.php">MPI_Comm_set_errhandler</a>;
+I/O function errors. The error handler may be changed with <a href="../man3/MPI_Comm_set_errhandler.3.php">MPI_Comm_set_errhandler</a>;
 the predefined error handler MPI_ERRORS_RETURN may be used to cause error
-values to be returned. Note that MPI
- does not guarantee that an MP
-I program
+values to be returned. Note that MPI does not guarantee that an MPI program
 can continue past an error.
 <p>
 <h2><a name='sect11' href='#toc11'>Fortran 77 Notes</a></h2>
 The MPI standard prescribes
-portable Fortran syntax for the <i>COUNT</i> argument o
-f <a href="../man3/MPI_Status_set_elements_x.3.php">MPI_Status_set_elements_x</a>
+portable Fortran syntax for the <i>COUNT</i> argument of <a href="../man3/MPI_Status_set_elements_x.3.php">MPI_Status_set_elements_x</a>
 only for Fortran 90. FORTRAN 77 users may use the non-portable syntax <p>
 <br>
 <pre>     INTEGER*MPI_COUNT_KIND COUNT
 
 where MPI_COUNT_KIND is a constant defined in mpif.h and gives the length
-of the d
-eclared integer in bytes.
+of the declared integer in bytes.
 
 <p> <a href="../">&laquo; Return to documentation listing</a></p>
 <?php

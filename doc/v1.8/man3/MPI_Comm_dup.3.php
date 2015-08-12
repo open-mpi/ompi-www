@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Comm_dup(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_COMM_DUP(3)";
+$title = "MPI_Comm_dup(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_COMM_DUP(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -76,7 +76,8 @@ same properties as the original communicator. This includes any attributes
 MPI-1 Standard). This call is valid even if there are pending point-to-point
 communications involving the communicator comm. A typical call might involve
 an MPI_Comm_dup at the beginning of the parallel call, and an <a href="../man3/MPI_Comm_free.3.php">MPI_Comm_free</a>
-of that duplicated communicator at the end of the call. Other models of
+of that duplicated communicator at the en
+d of the call. Other models of
 communicator management are also possible. <p>
 This call applies to both intra-
 and intercommunicators.

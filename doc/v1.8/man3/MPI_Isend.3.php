@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Isend(3) man page (version 1.8.4)";
-$meta_desc = "Open MPI v1.8.4 man page: MPI_ISEND(3)";
+$title = "MPI_Isend(3) man page (version 1.8.8)";
+$meta_desc = "Open MPI v1.8.8 man page: MPI_ISEND(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -85,8 +85,8 @@ The request can be used later to query the status of the communication
 or wait for its completion.  <p>
 A nonblocking send call indicates that the
 system may start copying data out of the send buffer. The sender should
-not access any part of the send buffer after a nonblocking send operation
-is called, until the send completes.  <p>
+not modify any part of the send buffer after a nonblocking send operation
+is called, until the send completes. <p>
 A send request can be determined being
 completed by calling the <a href="../man3/MPI_Wait.3.php">MPI_Wait</a>, <a href="../man3/MPI_Waitany.3.php">MPI_Waitany</a>, <a href="../man3/MPI_Test.3.php">MPI_Test</a>, or <a href="../man3/MPI_Testany.3.php">MPI_Testany</a>
 with request returned by this function.
