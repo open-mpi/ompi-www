@@ -12,13 +12,13 @@ $a[] = "
 In general, all you need to do is expand the tarball, run the provided
 [configure] script, and then run \"[make all install]\".  For example:
 
-<faqcode>
+<geshi bash>
 shell$ gunzip -c netloc-$ver_current.tar.gz | tar xf -
 shell$ cd netloc-$ver_current
 shell$ ./configure --prefix=/usr/local
 <...lots of output...>
 shell$ make all install
-</faqcode>
+</geshi>
 
 Note that the [configure] script supports a lot of different command
 line options.  For example, the [--prefix] option in the above example

@@ -247,7 +247,9 @@ has a variety of different tunable parameters.  Use the [ompi_info]
 command to see what is available.  You show _all_ available parameters
 with:
 
-" . faqcode("ompi_info --param all all") . "
+<geshi bash>
+shell$ ompi_info --param all all
+</geshi>
 
 NOTE: Starting with Open MPI v1.8, ompi_info categorizes
 its parameter parameters in so-called levels, as defined by
@@ -256,19 +258,29 @@ the MPI_T interface.  You will need to specify [--level 9]
 <a href=\"http://blogs.cisco.com/performance/open-mpi-and-the-mpi-3-mpi_t-interface\">this blog entry</a>
 for further information.
 
-" . faqcode("ompi_info --param all all --level 9") . "
+<geshi bash>
+shell$ ompi_info --param all all --level 9
+</geshi>
+
 or
-" . faqcode("ompi_info --all") . "
+
+<geshi bash>
+shell$ ompi_info --all
+</geshi>
 
 Beware: there are _many_ variables available.  You can limit the
 output by showing all the parameters in a specific framework or in a
 specific plug-in with the command line parameters:
 
-" . faqcode("ompi_info --param btl all --level 9") . "
+<geshi bash>
+shell$ ompi_info --param btl all --level 9
+</geshi>
 
 Shows all the parameters of all BTL components, and:
 
-" . faqcode("ompi_info --param btl tcp --level 9") . "
+<geshi bash>
+shell$ ompi_info --param btl tcp --level 9
+</geshi>
 
 Shows all the parameters of just the [tcp] BTL component.
 
