@@ -1,5 +1,8 @@
 How do I add questions to this FAQ?
 
+*** NOTE: More information is also available at
+    https://github.com/open-mpi/ompi/wiki/OMPIFAQEntries.
+
 It's a quite simple PHP format; it tries to let you focus on content
 rather than be overly clever and difficult to maintain.  Yes, some of
 the work is manual, but 95% of the text herein is content, and that's

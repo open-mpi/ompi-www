@@ -120,86 +120,6 @@ $shell_font = "<font color=\"blue\">";
 $shell = "shell$</font>";
 $cmd_font = "<font color=\"red\">";
 
-function faqcode($cmd, $output = "", $want_empty_prompt_at_end = 0) {
-  $s = gettype($cmd);
-  if ($s == "string") {
-    return faqcode_string($cmd, $output, $want_empty_prompt_at_end);
-  } else if ($s == "array") {
-    return faqcode_array($cmd, $output, $want_empty_prompt_at_end);
-  } else {
-    return "<FONT COLOR=\"RED\">UNKNOWN FAQCODE</FONT>";
-  }
-}
-
-function faqcode_string($cmd, $output, $want_empty_prompt_at_end) {
-  global $shell_font;
-  global $shell;
-  global $cmd_font;
-
-  $str = "<faqcode>$shell_font$shell $cmd_font$cmd</font>\n";
-  if (strlen($output) > 0) {
-    $str .= $output;
-  }
-  if ($want_empty_prompt_at_end) {
-    $str .= $shell;
-  }
-  $str .= "</faqcode>";
-  return $str;
-}
-
-function faqcode_array($cmds, $outputs, $want_empty_prompt_at_end) {
-  global $shell_font;
-  global $shell;
-  global $cmd_font;
-
-  $str = "<faqcode>\n";
-  for ($i = 0; $i < sizeof($cmds); ++$i) {
-    $str .= "$shell_font$shell $cmd_font$cmds[$i]</font>\n";
-    if (array_key_exists($i, $outputs) && strlen($outputs[$i]) > 0) {
-      $str .= $outputs[$i] . "\n";
-    }
-  }
-  if ($want_empty_prompt_at_end) {
-    $str .= $shell;
-  }
-  $str .= "</faqcode>";
-  return $str;
-}
-
-class faqcode_val {
-  public $shell_prefix;
-  public $cmd;
-  public $output;
-  function faqcode_val($c, $o = "", $s = "") {
-    $this->shell_prefix = $s;
-    $this->cmd = $c;
-    $this->output = $o;
-  }
-};
-
-function faqcode_object($out, $want_empty_prompt_at_end = 0) {
-  global $shell_font;
-  global $shell;
-  global $cmd_font;
-
-  $str = "<faqcode>\n";
-  foreach ($out as $val) {
-    $str .= $shell_font;
-    if (strlen($val->shell_prefix) > 0) {
-      $str .= $val->shell_prefix . " ";
-    }
-    $str .= "$shell $cmd_font" . $val->cmd . "</font>\n";
-    if (strlen($val->output) > 0) {
-      $str .= $val->output . "\n";
-    }
-  }
-  if ($want_empty_prompt_at_end) {
-    $str .= $shell;
-  }
-  $str .= "</faqcode>";
-  return $str;
-}
-
 /////////////////////////////////////////////////////////////////////////
 //
 // Menu
@@ -304,37 +224,25 @@ function do_category() {
 
         $str = $a[$i];
         do {
-            // See if we have any <faqcode> blocks
-            $begin = strpos($str, "<faqcode>");
-            $end = strpos($str, "</faqcode>");
-            if ($begin !== false && $end !== false) {
-                if ($begin > 0) {
-                    $temp = substr($str, 0, $begin);
-                    reg_display($temp);
-                }
-                print_code(substr($str, $begin + 9, $end - $begin + 1 - 10));
-                $str = substr($str, $end + 10);
-            } else {
-                if (preg_match("@(.*?)<geshi\s+(.+?)>(\n)?(.+?)(\n)?</geshi>(.*)$@ms", $str, $matches)) {
-                    reg_display($matches[1]);
+            if (preg_match("@(.*?)<geshi\s+(.+?)>(\n)?(.+?)(\n)?</geshi>(.*)$@ms", $str, $matches)) {
+                reg_display($matches[1]);
 
-                    // Render the geshi code.  Use one of our
-                    // pre-created geshi objects, if possible.
-                    if (array_key_exists($matches[2], $geshi)) {
-                        $g = $geshi[$matches[2]];
-                        $g->set_source($matches[4]);
-                    } else {
-                        $g = new GeSHi($matches[4], $matches[2]);
-                    }
-                    $rendered = $g->parse_code();
-                    $rendered = preg_replace("/\*\*\*\*(.+?)\*\*\*\*/", "$1", $rendered);
-                    print("<div class=\"geshicode\">$rendered</div>");
-
-                    $str = $matches[6];
+                // Render the geshi code.  Use one of our
+                // pre-created geshi objects, if possible.
+                if (array_key_exists($matches[2], $geshi)) {
+                    $g = $geshi[$matches[2]];
+                    $g->set_source($matches[4]);
                 } else {
-                    reg_display($str);
-                    break;
+                    $g = new GeSHi($matches[4], $matches[2]);
                 }
+                $rendered = $g->parse_code();
+                $rendered = preg_replace("/\*\*\*\*(.+?)\*\*\*\*/", "$1", $rendered);
+                print("<div class=\"geshicode\">$rendered</div>");
+
+                $str = $matches[6];
+            } else {
+                reg_display($str);
+                break;
             }
         } while ($str != "");
 
