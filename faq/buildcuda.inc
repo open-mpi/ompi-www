@@ -83,3 +83,18 @@ See <a href=\"?category=runcuda\">this FAQ entry</a>
 for detals on how to use the CUDA support.";
 
 /////////////////////////////////////////////////////////////////////////
+
+$q[] = "How do I build Open MPI with CUDA-aware support using PGI?";
+
+$anchor[] = "build-cuda-pgi";
+
+$a[] = "With CUDA 6.5, you can build all versions of CUDA-aware Open MPI
+without doing anything special. However, with CUDA 7.0 and CUDA 7.5, you
+need to pass in some specific compiler flags for things to work correctly.
+Add the following to your configure line.
+
+<geshi bash>
+      CFLAGS=-D__LP64__ --with-wrapper-cflags=\"-D__LP64__ -ta:tesla\"
+</geshi>
+
+";
