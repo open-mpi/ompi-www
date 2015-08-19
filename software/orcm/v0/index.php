@@ -16,6 +16,13 @@ $sha1 = read_checksums("downloads/sha1sums.txt");
 $t = new downloadTable("./downloads", "./downloads",
 		       dirname($_SERVER["PHP_SELF"]));
 
+$src = "v0.11.0 (preview) source code";
+$name = "openrcm-0.11.0.tar";
+$t->addFile($src, "$name.bz2", $md5["$name.bz2"], $sha1["$name.bz2"]);
+$t->addFile($src, "$name.gz", $md5["$name.gz"], $sha1["$name.gz"]);
+$name = "openrcm-0.11.0-1.src.rpm";
+$t->addFile($src, $name, $md5[$name], $sha1[$name]);
+
 $src = "v0.9.0 (preview) source code";
 $name = "openrcm-0.9.0.tar";
 $t->addFile($src, "$name.bz2", $md5["$name.bz2"], $sha1["$name.bz2"]);
@@ -52,9 +59,9 @@ $project = $psave;
 
 <p><hr>
 
-<P><?php $dir = "$topdir/software/orcm/v0/downloads/orcm-release-0.9.0.pdf";
+<P><?php $dir = "$topdir/software/orcm/v0/downloads/orcm-release-0.11.0.pdf";
       print("<a href=\"$dir\">"); ?>This
-file</a> contains the release notes and user guide for the 0.9.0 release.</p>
+file</a> contains the release notes and user guide for the 0.11.0 release.</p>
 
 <p>See the 
 <a href="<?php print($topdir); ?>/software/orcm/versions/timeline.php">version
