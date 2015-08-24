@@ -1,2 +1,2 @@
 <?php
-header("../source/");
+header("Location: ../source/");
