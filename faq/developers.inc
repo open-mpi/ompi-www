@@ -106,16 +106,16 @@ $q[] = "How do I get a copy of the most recent source code?";
 $anchor[] = "svn-checkout";
 
 $a[] = "See the instructions <a
-href=\"$topdir/svn/obtaining.php\">here</a>.";
+href=\"$topdir/source/obtaining.php\">here</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Ok, I got a Subversion checkout.  Now how do I build it?";
+$q[] = "Ok, I got a Git checkout.  Now how do I build it?";
 
 $anchor[] = "svn-build";
 
 $a[] = "See the instructions <a
-href=\"$topdir/svn/building.php\">here</a>.";
+href=\"$topdir/source/building.php\">here</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 

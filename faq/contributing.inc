@@ -14,7 +14,7 @@ There are many ways to contribute to Open MPI.  Here are a few:
 <ul>
 <li>Subscribe to <a href=\"$topdir/community/lists/\">the mailing
 lists</a> and become active in the discussions</li>
-<li>Obtain <a href=\"$topdir/svn/\">a source code checkout</a> of Open
+<li>Obtain <a href=\"$topdir/source/\">a source code checkout</a> of Open
 MPI's code base and start looking through the code (be sure to see <a
 href=\"?category=developers\">the Developers category</a> for
 technical details about the code base)</li>
