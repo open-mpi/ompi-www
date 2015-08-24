@@ -13,8 +13,8 @@ $q[] = "How do I build Open MPI?";
 
 $anchor[] = "easy-build";
 
-$a[] = "If you have obtained a developer's checkout from Subversion, skip this
-FAQ question and <a href=\"$topdir/svn/building.php\">consult these
+$a[] = "If you have obtained a developer's checkout from Git, skip this
+FAQ question and <a href=\"$topdir/source/building.php\">consult these
 directions</a>.
 
 For everyone else, in general, all you need to do is expand the
@@ -71,8 +71,8 @@ $q[] = "What are the default build options for Open MPI?";
 
 $anchor[] = "default-build";
 
-$a[] = "If you have obtained a developer's checkout from Subversion,
-<a href=\"$topdir/svn/\">you must consult these directions</a>.
+$a[] = "If you have obtained a developer's checkout from Git,
+<a href=\"$topdir/source/\">you must consult these directions</a>.
 
 The default options for building an Open MPI tarball are:
 
@@ -468,8 +468,8 @@ $q[] = "How do I build an optimized version of Open MPI?";
 
 $anchor[] = "optimized-build";
 
-$a[] = "If you have obtained a developer's checkout from Subversion
-(or Mercurial), <a href=\"$topdir/svn/\">you must consult these
+$a[] = "If you have obtained a developer's checkout from Git
+(or Mercurial), <a href=\"$topdir/source/\">you must consult these
 directions</a>.
 
 Building Open MPI from a tarball defaults to building an optimized
@@ -522,9 +522,9 @@ compiler, a C++ compiler, and [make].  If you are building the Fortran
 languages as well.  You do _not_ need any special version of the GNU
 \"Auto\" tools (Autoconf, Automake, Libtool).
 
-If you are building Open MPI from a Subversion checkout, you need some
-additional tools.  See <a href=\"$topdir/svn/building.php\">the
-Subversion access pages</a> for more information.";
+If you are building Open MPI from a Git checkout, you need some
+additional tools.  See <a href=\"$topdir/source/building.php\">the
+source code access pages</a> for more information.";
 
 /////////////////////////////////////////////////////////////////////////
 
