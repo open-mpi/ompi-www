@@ -1068,8 +1068,7 @@ Google-able for those still using older compilers.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I build Open MPI with support for Open IB (Infiniband),
-mVAPI (Infiniband), GM (Myrinet), and/or MX (Myrinet)?";
+$q[] = "How do I build Open MPI with support for [my favorite network type]?";
 
 $anchor[] = "build-p2p";
 
@@ -1084,13 +1083,28 @@ You tell [configure] where support libraries are with the appropriate
 [--with] command line switch.  Here is the list of available switches:
 
 <ul>
-<li> *--with-openib=&lt;dir&gt;:* Build support for OpenFabrics
-(previously known as \"Open IB\", for Infiniband and iWARP networks --
-note that iWARP support was added in the v1.3 series).</li>
-<li> *--with-mvapi=&lt;dir&gt;:* Build support for mVAPI (Infiniband
--- note that mVAPI support has been removed in the v1.3 series).</li>
-<li> *--with-gm=&lt;dir&gt;:* Build support for GM (Myrinet).</li>
-<li> *--with-mx=&lt;dir&gt;:* Build support for MX (Myrinet).</li>
+<li> *--with-libfabric=&lt;dir&gt;:* Build support for OpenFabrics
+Interfaces (OFI), commonly known as \"libfabric\" (starting with the
+v1.10 series).</li>
+<li> *--with-mxm=&lt;dir&gt;:* Build support for the Mellanox
+Messaging (MXM) library (starting with the v1.5 series).</li>
+<li> *--with-verbs=&lt;dir&gt;:* Build support for OpenFabrics verbs
+(previously known as \"Open IB\", for Infiniband and iWARP
+networks). *NOTE:* Up through the v1.6.x series, this option was
+previously named *--with-openib*.  In the v1.8.x series, it was
+renamed to be *--with-verbs*.</li>
+<li> *--with-portals4=&lt;dir&gt;:* Build support for the Portals v4
+library (starting with the v1.7 series).</li>
+<li> *--with-psm=&lt;dir&gt;:* Build support for the PSM
+library.</li>
+<li> *--with-psm2=&lt;dir&gt;:* Build support for the PSM 2
+library (starting with the v1.10 series).</li>
+<li> *--with-scif=&lt;dir&gt;:* Build support for the SCIF
+library (starting with the v1.8 series).</li>
+<li> *--with-usnic:* Build support for usNIC networks (starting with
+the v1.8 series).  In the v1.10 series, usNIC support is included in
+the libfabric library, but this option can still be used to ensure
+that usNIC support is specifically available.</li>
 </ul>
 
 For example:
@@ -1123,11 +1137,23 @@ shell$ ompi_info | grep openib
                  MCA btl: openib (MCA v1.0, API v1.0, Component v1.0)
 </geshi>
 
-mVAPI components will be named \"[mvapi]\", GM components will be
-named \"[gm]\", and MX components will be named \"[mx]\".
+Here's some network types that are no longer supported in current
+versions of Open MPI:
 
-Note that the v1.3 series removed the \"[openib]\" mpool component and
-also removed all support for mVAPI.";
+<ul>
+<li> *--with-elan=&lt;dir&gt;:* Build support for Elan. <br />
+ _Last supported in the v1.6.x series._ </li>
+<li> *--with-gm=&lt;dir&gt;:* Build support for GM (Myrinet).  <br />
+_Last supported in the v1.4.x series._ </li>
+<li> *--with-mvapi=&lt;dir&gt;:* Build support for mVAPI (Infiniband). <br />
+_Last supported in the v1.3 series._ </li>
+<li> *--with-mx=&lt;dir&gt;:* Build support for MX (Myrinet).  <br />
+_Last supported in the v1.8.x series._ </li>
+<li> *--with-portals=&lt;dir&gt;:* Build support for the Portals
+library. <br />
+_Last supported in the v1.6.x series._ </li>
+</ul>
+";
 
 /////////////////////////////////////////////////////////////////////////
 
