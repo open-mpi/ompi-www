@@ -163,6 +163,11 @@ $parent_name[] = "";
     $names[] = "perftools";
     $parent_name[] = "tune_parent";
 
+    $titles[] = "Tuning the OMPIO parallel I/O component";
+    $short_titles[] = "Tuning OMPIO";
+    $names[] = "ompio";
+    $parent_name[] = "tune_parent";
+
 $titles[] = "Platform Specific Questions";
 $short_titles[] = "Platform";
 $names[] = "platform_parent";
