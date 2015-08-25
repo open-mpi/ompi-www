@@ -164,7 +164,7 @@ $parent_name[] = "";
     $parent_name[] = "tune_parent";
 
     $titles[] = "Tuning the OMPIO parallel I/O component";
-    $short_titles[] = "Tuning OMPIO";
+    $short_titles[] = "OMPIO";
     $names[] = "ompio";
     $parent_name[] = "tune_parent";
 
