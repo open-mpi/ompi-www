@@ -11,6 +11,7 @@ include_once("$topdir/software/ompi/v1.5/version.inc");
 include_once("$topdir/software/ompi/v1.6/version.inc");
 include_once("$topdir/software/ompi/v1.7/version.inc");
 include_once("$topdir/software/ompi/v1.8/version.inc");
+include_once("$topdir/software/ompi/v1.10/version.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
@@ -21,21 +22,25 @@ Documentation for the following versions is available:
 
 <p> <strong>Current release series</strong>
 
-<li><a href="v1.8/"><strong>Open MPI v<?php print($ver_v1_8); ?>
+<li><a href="v1.10/"><strong>Open MPI v<?php print($ver_v1_10); ?>
 </strong></a> (stable release series).  This documentation reflects
-the latest progression in the 1.8.x series (it used to be the v1.7.x
-feature series, but morphed into the "super stable" series).  The
-emphasis of this tree is on bug fixes and stability.  <strong><font
+the latest progression in the 1.10.x series.  The emphasis of this
+tree is on bug fixes and stability, although it also introduces a few
+new features (compared to the v1.8 series).  <strong><font
 color=red>This is the recomended series for users who need a stable,
 mature code base.</font></strong></li>
 
 <p> <strong>Upcoming release series</strong>
 
-<li> The v1.10 series does not yet have any releases.</li>
 <li> The v2.x series does not yet have any releases.</li>
 
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
+
+<li><a href="v1.8/"><strong>v1.8 series</strong></a> (previous super
+stable series).  This documentation reflects the latest
+progression in the 1.8.x series.  This documentation is unlikely to be
+updated any more.</li>
 
 <li><a href="v1.7/"><strong>v1.7 series</strong></a> (previous feature
 series): This documentation is the latest progression in the feature 1.7.x
