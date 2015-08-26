@@ -48,10 +48,10 @@ function net_table_init()
 {
     return "<div align=\"center\"><table border=1 cellpadding=5>
 <tr>
-<th valign=\"bottom\">Interconnect</th>
+<th valign=\"bottom\">Interconnect / Library stack name</th>
 <th valign=\"bottom\">Support type</th>
-<th valign=\"bottom\">Introduced in<br />Open MPI version</th>
-<th valign=\"bottom\">Removed in<br />Open MPI version</th>
+<th valign=\"bottom\">Introduced in<br />Open MPI series</th>
+<th valign=\"bottom\">Removed after<br />Open MPI series</th>
 </tr>\n";
 }
 
@@ -78,32 +78,32 @@ specifically designed to be easy.
 The list of supported interconnects has changed over time.  You should
 consult your copy of Open MPI to see exactly which interconnects it
 supports.  The table below shows various interconnects and the
-versions in which they were supported in Open MPI:
+versions in which they were supported in Open MPI (in alphabetical
+order):
 
 " . net_table_init() .
-    net_table_row("TCP sockets", "BTL", "1.0", "") .
+    net_table_row("Elan", "BTL", "1.3", "1.6") .
+    net_table_row("Infiniband MXM", "MTL", "1.5", "") .
+    net_table_row("Infiniband / RoCE / iWARP Verbs", "BTL", "1.0", "") .
+    net_table_row("Infiniband mVAPI", "BTL", "1.0", "1.2") .
+    net_table_row("Libfabric", "MTL", "1.10", "") .
+    net_table_row("Loopback (send-to-self)", "BTL", "1.0", "") .
+    net_table_row("Myrinet GM", "BTL", "1.0", "1.4") .
+    net_table_row("Myrinet MX", "BTL", "1.0", "1.6") .
+    net_table_row("Myrinet MX", "MTL", "1.2", "1.8") .
+    net_table_row("Portals", "BTL", "1.0", "1.6") .
+    net_table_row("Portals", "MTL", "1.2", "1.6") .
+    net_table_row("Portals4", "MTL", "1.7", "") .
+    net_table_row("PSM", "MTL", "1.2", "") .
+    net_table_row("PSM2", "MTL", "1.10", "") .
+    net_table_row("SCIF", "BTL", "1.8", "") .
+    net_table_row("SCTP", "BTL", "1.5", "1.6") .
     net_table_row("Shared memory", "BTL", "1.0", "") .
+    net_table_row("TCP sockets", "BTL", "1.0", "") .
+    net_table_row("uDAPL", "BTL", "1.2", "1.6") .
+    net_table_row("uGNI", "BTL", "1.7", "") .
+    net_table_row("usNIC", "BTL", "1.8", "") .
     net_table_finalize() . "
-
-
-<ul>
-<li> TCP sockets</li>
-<li> Shared memory (two different varities)</li>
-<li> Loopback (send-to-self)</li>
-<li> Myrinet / GM (pre-v1.8 only) </li>
-<li> Myrinet / MX (pre-v2.0 only)</li>
-<li> Infiniband / MXM</li>
-<li> Infiniband / OpenFabrics verbs</li>
-<li> Infiniband / mVAPI (pre-v1.8)</li>
-<li> Portals (pre-v1.8)</li>
-<li> Portals4 (v1.8 and later)</li>
-<li> PSM / PSM2 (v2.0 and later)</li>
-<li> RoCE / OpenFabrics verbs</li>
-<li> SCIF</li>
-<li> uDAPL</li>
-<li> uGNI</li>
-<li> usNIC (v1.8 and later)</li>
-</ul>
 
 Is there a network that you'd like to see supported that is not shown
 above?  <a href=\"$topdir/community/lists/\">Contributions are
