@@ -162,36 +162,33 @@ ported to it:<ul>
  href="http://padb.pittman.org.uk/">Padb</a></li>
 </ul>
 <li>Runtime systems and compilers</li><ul>
- <li>The <a href="http://chapel.cray.com/">Chapel Parallel Programming Language</a></li>
+ <li>Cray's <a href="http://chapel.cray.com/">Chapel Parallel Programming Language</a></li>
  <li>The <a href="http://runtime.bordeaux.inria.fr/StarPU">StarPU</a>
  runtime system for heterogeneous multicore architectures</li>
- <li>The Parallel Runtime Scheduling and Execution Controller
- (<a href="http://icl.cs.utk.edu/parsec">PaRSEC</a>) project</li>
+ <li>The <a href="http://icl.cs.utk.edu/parsec">Parallel Runtime Scheduling and Execution Controller (PaRSEC)</a> project</li>
  <li>The <a href="http://stellar.cct.lsu.edu/projects/hpx/">High Performance ParalleX (HPX)</a> runtime system</li>
- <li>The Qthreads project (<a
- href="http://www.cs.sandia.gov/qthreads/">site 1</a>, <a
- href="http://code.google.com/p/qthreads/">site 2</a>)</li>
- <li> The <a href="http://www.rosecompiler.org/">Rose compiler</a></li>
- <li>The <a
- href="http://runtime.bordeaux.inria.fr/forestgomp">ForestGOMP</a>
- OpenMP platform for hierarchical architectures</li>
+ <li>The <a href="http://www.cs.sandia.gov/qthreads/">Qthreads</a> project</li>
+ <li>The <a href="http://www.rosecompiler.org/">Rose compiler</a></li>
+ <li>The <a href="http://portablecl.org/">Portable Computing Language (POCL)</a></li>
+ <li>The former <a href="http://runtime.bordeaux.inria.fr/forestgomp">ForestGOMP</a> OpenMP platform for hierarchical architectures</li>
 </ul>
-<li>Parallel scientific libraries</li><ul>
- <li>The <a href="http://pastix.gforge.inria.fr/">Parallel Sparse matriX</a>
- package (PaStiX)</li>
- <li>The Parallel Linear Algebra for Scalable Multi-core Architectures
- (<a href="http://icl.cs.utk.edu/plasma/">PLASMA</a>) project</li>
+<li>Parallel scientific libraries and toolkits</li><ul>
+ <li>The <a href="http://www.cp2k.org/">CP2K</a> quantum chemistry and solid state physics software package</li>
+ <li>The <a href="http://www.feelpp.org/">Feel++</a> library for partial differential equations</li>
+ <li>The <a href="http://pastix.gforge.inria.fr/">Parallel Sparse matriX (PaStiX)</a> package</li>
+ <li>The <a href="http://icl.cs.utk.edu/plasma/">Parallel Linear Algebra for Scalable Multi-core Architectures (PLASMA)</a> project</li>
+ <li>The <a href="http://www.mcs.anl.gov/petsc">Portable Extensible Toolkit for Scientific Computation (PETSc)</a></li>
 </ul>
 <li>Resource manager and job schedulers</li><ul>
  <li>The <a href="http://gridscheduler.sourceforge.net/">Open Grid Scheduler</a></li>
  <li>The <a href="http://www.adaptivecomputing.com/products/open-source/torque/">TORQUE resource manager</a></li>
- <li>The <a href="http://www.univa.com/products/grid-engine">Univa Grid Engine</a></li>
+ <li>Univa <a href="http://www.univa.com/products/grid-engine">Grid Engine</a></li>
  <li>The <a href="http://arc.liv.ac.uk/trac/SGE/">Son of Grid Engine</a> project</li>
  <li>Altair's <a href="http://www.pbsworks.com/Product.aspx?id=1">PBS Professional</a> solution (part of PBS Works)</li>
 </ul>
 <li>and even more!</li><ul>
  <li>The interactive process viewer <a href="http://htop.sourceforge.net/">htop</a> for Linux</a></li>
- <li><a href="http://trafficserver.apache.org/">Apache Traffic Server</a></li>
+ <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
 </ul></ul></p>
 
 <!------------------------------------------------------------------------->
