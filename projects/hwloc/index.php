@@ -185,8 +185,10 @@ ported to it:<ul>
  <li>Univa <a href="http://www.univa.com/products/grid-engine">Grid Engine</a></li>
  <li>The <a href="http://arc.liv.ac.uk/trac/SGE/">Son of Grid Engine</a> project</li>
  <li>Altair's <a href="http://www.pbsworks.com/Product.aspx?id=1">PBS Professional</a> solution (part of PBS Works)</li>
+ <li>The <a href="https://github.com/open-mpi/orcm">Open Resilient Cluster Manager (ORCM)</a></li>
 </ul>
 <li>and even more!</li><ul>
+ <li><a href="https://github.com/open-mpi/pmix">PMI-Exascale (PMIx)</a></li>
  <li>The interactive process viewer <a href="http://htop.sourceforge.net/">htop</a> for Linux</a></li>
  <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
 </ul></ul></p>
