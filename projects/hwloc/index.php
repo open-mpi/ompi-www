@@ -22,9 +22,9 @@ news("hwloc v1.11.0 published",
 news("The Best of lstopo published",
      "Best lstopo graphical outputs",
      "lstopo");
-news("hwloc v1.10.1 released",
-     "New stable release",
-     "http://www.open-mpi.org/community/lists/hwloc-announce/2015/01/0075.php");
+//news("hwloc v1.10.1 released",
+//     "New stable release",
+//     "http://www.open-mpi.org/community/lists/hwloc-announce/2015/01/0075.php");
 news("Network Locality (netloc)",
      "New hwloc companion",
      "http://blogs.cisco.com/performance/the-network-locality-project-netloc/");
@@ -83,7 +83,7 @@ including Intel Xeon Phi.</li>
 <li>NetBSD</li>
 <li>OSF/1 (a.k.a., Tru64)</li>
 <li>HP-UX</li>
-<li>Microsoft Windows</li>
+<li>Microsoft Windows (either using MinGW or a native Visual Studio solution)</li>
 <li>IBM BlueGene/Q Compute Node Kernel (CNK)</li>
 </ul></p>
 
