@@ -459,47 +459,37 @@ the CUDA-aware macro and runtime check.
  * Requires Open MPI v2.0.0 or later.
  */
 #include <stdio.h>
-#include \"cuda.h\"
 #include \"mpi.h\"
 
-#if defined(OPEN_MPI) && OPEN_MPI && (OMPI_MAJOR_VERSION >= 2)
-#define HAVE_OMPI_CUDA 1
-#else
-#define HAVE_OMPI_CUDA 0
-#endif
-
-#if HAVE_OMPI_CUDA
+#ifdef
 #include \"mpi-ext.h\" /* Needed for CUDA-aware check */
-#else
-#error \"This test can only work on Open MPI libraries.\"
 #endif
 
 int main(int argc, char *argv[])
 {
-    printf(\"First check:\\n\");
-#if OMPI_HAVE_CUDA
-#if MPIX_CUDA_AWARE_SUPPORT
-    printf(\"This Open MPI library has CUDA-aware support.\\n\");
+    printf(\"Compile time check:\\n\");
+#if defined(MPIX_CUDA_AWARE_SUPPORT) && MPIX_CUDA_AWARE_SUPPORT
+    printf(\"This MPI library has CUDA-aware support.\\n\", MPIX_CUDA_AWARE_SUPPORT);
+#elif defined(MPIX_CUDA_AWARE_SUPPORT) && !MPIX_CUDA_AWARE_SUPPORT
+    printf(\"This MPI library does not have CUDA-aware support.\\n\");
 #else
-    printf(\"This Open MPI library does not have CUDA-aware support.\\n\");
-#endif
-#else
-    printf(\"This Open MPI library cannot determine if there is CUDA-aware support.\\n\");
-#endif /* OMPI_MAJOR_VERSION */
+    printf(\"This MPI library cannot determine if there is CUDA-aware support.\\n\");
+#endif /* MPIX_CUDA_AWARE_SUPPORT */
 
-    printf(\"Second check:\\n\");
-#if OMPI_HAVE_CUDE
+    printf(\"Run time check:\\n\");
+#if defined(MPIX_CUDA_AWARE_SUPPORT)
     if (1 == MPIX_Query_cuda_support()) {
-        printf(\"This Open MPI library has CUDA-aware support.\\n\");
+        printf(\"This MPI library has CUDA-aware support.\\n\");
     } else {
-        printf(\"This Open MPI library does not have CUDA-aware support.\\n\");
+        printf(\"This MPI library does not have CUDA-aware support.\\n\");
     }
-#else
-    printf(\"This Open MPI library cannot determine if there is CUDA-aware support.\\n\");
-#endif /* OMPI_HAVE_CUDA */
+#else /* !defined(MPIX_CUDA_AWARE_SUPPORT) */
+    printf(\"This MPI library cannot determine if there is CUDA-aware support.\\n\");
+#endif /* MPIX_CUDA_AWARE_SUPPORT */
 
     return 0;
 }
+
 </geshi>
 
 ";
