@@ -158,8 +158,9 @@ ported to it:<ul>
  href="http://www.mpich.org">MPICH</a>
  process launcher Hydra</li>
  <li><a href="http://mvapich.cse.ohio-state.edu/">MVAPICH2</a></li>
- <li>The parallel job inspector <a
- href="http://padb.pittman.org.uk/">Padb</a></li>
+ <li>CEA and Paratools' <a href="http://mpc.paratools.com/">Multiprocessor Computing framework (MPC)</a></li>
+ <li>The parallel job inspector <a href="http://padb.pittman.org.uk/">Padb</a></li>
+ <li>TACC's MPI Advisor tool</li>
 </ul>
 <li>Runtime systems and compilers</li><ul>
  <li>Cray's <a href="http://chapel.cray.com/">Chapel Parallel Programming Language</a></li>
