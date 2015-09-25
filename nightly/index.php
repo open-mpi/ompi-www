@@ -18,17 +18,11 @@ into even numbered "super stable" series.</p>
 
 <p> <strong>Current super stable release series</strong>
 
-<li><a href="v1.8/"><strong>v1.8 series</strong></a>: These snapshots
-are from the 1.8 branch, which is the current super stable release
-series (i.e., these are snapshots from the renamed v1.7 branch that
-reached the end of its feature development).  The emphasis of this
-tree is on bug fixes and stability.  <strong>This is the recommended
-series for all users to download and use.</strong></li>
+<li><a href="v1.10/"><strong>v1.10 series</strong></a>: These are
+images from the upcoming stable v1.10 series.  <strong>This is the
+recommended series for all users to download and use.</strong></li>
 
 <p> <strong>Upcoming stable release series</strong>
-
-<li><a href="v1.10/"><strong>v1.10 series</strong></a>: These are images from
-the upcoming stable v1.10 series.
 
 <li><a href="v2.x/"><strong>v2.x series</strong></a>: These are images from
 the upcoming v2.x series.
@@ -42,6 +36,10 @@ development code apply.</li>
 
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
+
+<li><a href="v1.8/"><strong>v1.8 series</strong></a> (previous stable
+series): These snapshots are from the 1.8 branch.  This tree is
+unlikely to be updated any more.</li>
 
 <li><a href="v1.7/"><strong>v1.7 series</strong></a> (previous feature
 series): These snapshots are from the 1.7 branch and reflect the
