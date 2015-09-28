@@ -24,7 +24,7 @@ include_once("$topdir/includes/header.inc");
 <br>
 <pre>#include &lt;mpi.h&gt;
 int <a href="../man3/MPI_Barrier.3.php">MPI_Barrier</a>(MPI_Comm comm)
-int MPI_Ibarrier(MPI_Comm comm, MPI_Request request)
+int MPI_Ibarrier(MPI_Comm comm, MPI_Request *request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
