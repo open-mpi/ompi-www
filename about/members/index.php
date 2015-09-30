@@ -205,6 +205,9 @@ add_org("http://www.minet.uni-jena.de/",
 //add_org("", "Grid Technology Research Center",
 //           "AIST", "aist.gif", $contrib);
 
+add_org("http://www.fujitsu.com/",
+        "Fujitsu", "", "fujitsu.jpg", $contrib);
+
 add_org("http://www.hlrs.de/", "High Performance Computing Center
 Stuttgart (HLRS)", "University of Stuttgart", "hlrs.png", $member);
 
