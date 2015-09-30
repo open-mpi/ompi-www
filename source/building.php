@@ -117,6 +117,14 @@ versions that we <em>know</em> work.</p>
 </TR>
 
 <TR>
+<TD>v1.10.x</TD><TD>1.4.16</TD><TD>2.69</TD><TD>1.12.2</TD><TD>2.4.2</TD><TD>2.5.35</TD>
+</TR>
+
+<TR>
+<TD>v2.x</TD><TD>1.4.17</TD><TD>2.69</TD><TD>1.15</TD><TD>2.4.6</TD><TD>2.5.35</TD>
+</TR>
+
+<TR>
     <TD>master</TD><TD>1.4.17</TD><TD>2.69</TD><TD>1.15</TD><TD>2.4.6</TD><TD>2.5.35</TD>
 </TR>
 
