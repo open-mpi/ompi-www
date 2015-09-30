@@ -143,14 +143,6 @@ versions that we <em>know</em> work.</p>
      versions of Autotools for master/development work, and they
      usually work fine.</LI>
 
-<UL>
-<LI> <STRONG>Note that as of December 2014, there is a bug somewhere
-     in the Autotools (possibly in Autoconf) that prevents building
-     Open MPI with Libtool 2.4.3 or higher.  <A
-     HREF="https://github.com/open-mpi/ompi/issues/311">See this
-     Github issue for more details</A>.</STRONG></LI>
-</UL>
-
 <LI> The v1.4 and v1.5 series had their Automake versions updated on
      10 July 2011 (from 1.10.1 to 1.10.3, and 1.11 to 1.11.1,
      respectively) due to CVE-2009-4029.  This applies to all new
