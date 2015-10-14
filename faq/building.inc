@@ -1744,3 +1744,19 @@ href=\"$topdir/community/help/\">Getting Help</a> page -- it details
 how to send a request to the Open MPI mailing lists.";
 
 /////////////////////////////////////////////////////////////////////////
+
+$q[] = "How do I statically link to the libraries of Intel compiler suite?";
+
+$anchor[] = "statically-link-with-intel-libraries";
+
+$a[] = "When compiled with Intel compiler suite, by default Openmpi binaries are
+ dynamically linked against several Intel libraries, this might cause those executalbes
+ to crash if you  install Intel compiler suite on local disk. To statically link to the
+ libraries of Intel compiler suite, pass \"LDFLAGS=-Wc,-static-intel\" to configure like
+ the following:
+
+<geshi bash>
+shell$$./configure CC=icc CXX=icpc FC=ifort LDFLAGS=-Wc,-static-intel ...
+</geshi>
+
+/////////////////////////////////////////////////////////////////////////
