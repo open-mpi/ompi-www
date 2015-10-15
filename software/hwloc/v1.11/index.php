@@ -48,8 +48,8 @@ fclose($fp);
 $v = substr($v, 0, strlen($v) - 1);
 
 if (preg_match("/[a-z]/i", $v)) {
-    $t_prerelease = new downloadTable("./downloads", "./downloads",
-                                      dirname($_SERVER["PHP_SELF"]), 0);
+#    $t_prerelease = new downloadTable("./downloads", "./downloads",
+#                                      dirname($_SERVER["PHP_SELF"]), 0);
 
     $s = "<div align=\"center\">$v<br />(pre-release)</div>";
     $names = array("hwloc-$v.tar.gz", "hwloc-$v.tar.bz2",
@@ -73,11 +73,11 @@ if (preg_match("/[a-z]/i", $v)) {
 #
 #############################################################################
 
-#$t_older = new downloadTable("./downloads", "./downloads",
-#			     dirname($_SERVER["PHP_SELF"]), 0);
+$t_older = new downloadTable("./downloads", "./downloads",
+			     dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_older)) {
-    $versions = array();
+    $versions = array("1.11.0");
 
     foreach ($versions as $key => $ver) {
         $src = "Version $ver";

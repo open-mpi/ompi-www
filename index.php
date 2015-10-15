@@ -90,9 +90,9 @@ information</a></h3>
 news("Open MPI v1.10.0 released",
      "Stable release",
      "http://www.open-mpi.org/community/lists/announce/2015/08/0072.php");
-news("hwloc v1.11.0 published",
-     "New feature release",
-     "http://www.open-mpi.org/community/lists/hwloc-announce/2015/06/0078.php");
+news("hwloc v1.11.1 released",
+     "New bugfix release",
+     "http://www.open-mpi.org/community/lists/hwloc-announce/2015/10/0080.php");
 news("PMIx v1.0.0 released",
      "New feature release",
      "http://www.open-mpi.org/community/lists/pmix-announce/2015/06/0001.php");
