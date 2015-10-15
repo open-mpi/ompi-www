@@ -111,7 +111,8 @@ Functions</h2></td></tr>
 <table class="fieldtable">
 <tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a class="anchor" id="ggada025d3ec20b4b420f8038d23d6e7bdea129b4fea1300be22bbaf0bb0958994c8"></a>HWLOC_TOPOLOGY_FLAG_WHOLE_SYSTEM&#160;</td><td class="fielddoc">
 <p>Detect the whole system, ignore reservations and offline settings. </p>
-<p>Gather all resources, even if some were disabled by the administrator. For instance, ignore Linux Cgroup/Cpusets and gather all processors and memory nodes, and ignore the fact that some resources may be offline. </p>
+<p>Gather all resources, even if some were disabled by the administrator. For instance, ignore Linux Cgroup/Cpusets and gather all processors and memory nodes, and ignore the fact that some resources may be offline.</p>
+<p>When this flag is not set, PUs that are disallowed are not added to the topology. Parent objects (package, core, cache, etc.) are added only if some of their children are allowed. NUMA nodes are always added but their available memory is set to 0 when disallowed. </p>
 </td></tr>
 <tr><td class="fieldname"><a class="anchor" id="ggada025d3ec20b4b420f8038d23d6e7bdea6ecb6abc6a0bb75e81564f8bca85783b"></a>HWLOC_TOPOLOGY_FLAG_IS_THISSYSTEM&#160;</td><td class="fielddoc">
 <p>Assume that the selected backend provides the topology for the system on which we are running. </p>

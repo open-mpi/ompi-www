@@ -167,7 +167,7 @@ include_once("$topdir/includes/code.inc");
 <div class="line"><a name="l00379"></a><span class="lineno">  379</span>&#160;    <span class="keyword">static</span> <span class="keywordtype">int</span> verboseenv_value = 0;</div>
 <div class="line"><a name="l00380"></a><span class="lineno">  380</span>&#160;    <span class="keywordflow">if</span> (!verboseenv_checked) {</div>
 <div class="line"><a name="l00381"></a><span class="lineno">  381</span>&#160;      <span class="keyword">const</span> <span class="keywordtype">char</span> *verboseenv = getenv(<span class="stringliteral">&quot;HWLOC_PLUGINS_VERBOSE&quot;</span>);</div>
-<div class="line"><a name="l00382"></a><span class="lineno">  382</span>&#160;      verboseenv_value = atoi(verboseenv);</div>
+<div class="line"><a name="l00382"></a><span class="lineno">  382</span>&#160;      verboseenv_value = verboseenv ? atoi(verboseenv) : 0;</div>
 <div class="line"><a name="l00383"></a><span class="lineno">  383</span>&#160;      verboseenv_checked = 1;</div>
 <div class="line"><a name="l00384"></a><span class="lineno">  384</span>&#160;    }</div>
 <div class="line"><a name="l00385"></a><span class="lineno">  385</span>&#160;    <span class="keywordflow">if</span> (verboseenv_value)</div>
