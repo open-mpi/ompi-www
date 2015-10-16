@@ -1754,8 +1754,10 @@ $a[] = "The Intel compiler suite, by default, dynamically links its runtime
  if the Intel compiler libraries are installed in non-standard locations. 
  For example, you might get errors like:
  
+ <geshi text>
  error while loading shared libraries: libimf.so: cannot open shared object file:
  No such file or directory
+ </geshi>
  
  To avoid such problems, you can pass flags to Open MPI's configure script that
  instruct the Intel compiler suite to statically link its runtime libraries with
