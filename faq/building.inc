@@ -1744,3 +1744,26 @@ href=\"$topdir/community/help/\">Getting Help</a> page -- it details
 how to send a request to the Open MPI mailing lists.";
 
 /////////////////////////////////////////////////////////////////////////
+
+$q[] = "How do I statically link to the libraries of Intel compiler suite?";
+
+$anchor[] = "statically-link-with-intel-libraries";
+
+$a[] = "The Intel compiler suite, by default, dynamically links its runtime libraries 
+against the Open MPI binaries and libraries. This can cause problems if the Intel 
+compiler libraries are installed in non-standard locations. For example, you might 
+get errors like:
+ 
+<blockquote>
+error while loading shared libraries: libimf.so: cannot open shared object file: 
+No such file or directory
+</blockquote>
+ 
+To avoid such problems, you can pass flags to Open MPI's configure script that instruct 
+the Intel compiler suite to statically link its runtime libraries with Open MPI:
+
+<geshi bash>
+shell$ ./configure CC=icc CXX=icpc FC=ifort LDFLAGS=-Wc,-static-intel ...
+</geshi>";
+
+/////////////////////////////////////////////////////////////////////////
