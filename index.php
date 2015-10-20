@@ -87,8 +87,8 @@ information</a></h3>
 
 <?php
 # Lists are not mirrored - use an absolute URL
-news("SC'15 State of the Union BOF",
-     "Submit your questions ahead of time for the SC'15 Open MPI SotU BOF",
+news("SC'15 OMPI State of the Union and PMIx BOFs",
+     "Submit your questions ahead of time for the SC'15 BOFs",
      "sc15/");
 news("Open MPI v1.10.0 released",
      "Stable release",
@@ -99,9 +99,6 @@ news("hwloc v1.11.1 released",
 news("PMIx v1.0.0 released",
      "New feature release",
      "http://www.open-mpi.org/community/lists/pmix-announce/2015/06/0001.php");
-news("ORCM v0.9.0 released",
-     "New preview release",
-     "http://www.open-mpi.org/community/lists/orcm-announce/2015/06/0002.php");
 news("Performance Benchmarks",
      "New section on performance benchmarks added",
      "http://www.open-mpi.org/performance/");
@@ -112,5 +109,5 @@ news("Performance Benchmarks",
 </tr>
 </table>
 
-<?php 
-include_once("$topdir/includes/footer.inc"); 
+<?php
+include_once("$topdir/includes/footer.inc");
