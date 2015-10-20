@@ -22,7 +22,7 @@ take a few minutes and submit your questions in advance.</p>
 
 <br />
 
-<li><strong>Program Management Interface - Exascale (PMIx)</strong>
+<li><strong>Process Management Interface - Exascale (PMIx)</strong>
 <ul>
 <li><a href="http://sc15.supercomputing.org/schedule/event_detail?evid=bof122">12:15-1:15pm, Thursday, November 19th, 2015, room 15</a>.</li>
 <li><a href="pmix/">Submit your question for the PMIx BOF here</a></li>
