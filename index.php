@@ -39,7 +39,7 @@ include:</p>
 <td valign=top>
 <ul>
 
-<li> Full MPI-3 standards conformance
+<li> Full MPI-3.1 standards conformance
 <li> Thread safety and concurrency
 <li> Dynamic process spawning
 <li> Network and process fault tolerance
@@ -85,8 +85,11 @@ information</a></h3>
 
 <td valign=top>
 
-<?php 
+<?php
 # Lists are not mirrored - use an absolute URL
+news("SC'15 State of the Union BOF",
+     "Submit your questions ahead of time for the SC'15 Open MPI SotU BOF",
+     "sc15/");
 news("Open MPI v1.10.0 released",
      "Stable release",
      "http://www.open-mpi.org/community/lists/announce/2015/08/0072.php");
