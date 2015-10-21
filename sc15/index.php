@@ -31,6 +31,6 @@ take a few minutes and submit your questions in advance.</p>
 </p>
 
 <br />
-Further information on PMIx can be found <a href="https://github.com/open-mpi/pmix/wiki">here</a> and <a href="http://open-mpi.github.io/pmix/">here</a>
+Further information on PMIx can be found on the project's <a href="https://github.com/open-mpi/pmix/wiki">wiki</a> and <a href="http://open-mpi.github.io/pmix/">web site</a>
 <?php
   include_once("$topdir/includes/footer.inc");
