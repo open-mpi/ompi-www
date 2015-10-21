@@ -25,10 +25,12 @@ take a few minutes and submit your questions in advance.</p>
 <li><strong>Process Management Interface - Exascale (PMIx)</strong>
 <ul>
 <li><a href="http://sc15.supercomputing.org/schedule/event_detail?evid=bof122">12:15-1:15pm, Thursday, November 19th, 2015, room 15</a>.</li>
-<li><a href="pmix/">Submit your question for the PMIx BOF here</a></li>
+<li><a href="pmix/">Submit your question for the PMIx BOF, and take our survey on v2.x features, here</a></li>
 </ul></li>
 </ul>
 </p>
 
+<br />
+Further information on PMIx can be found <a href="https://github.com/open-mpi/pmix/wiki">here</a> and <a href="http://open-mpi.github.io/pmix/">here</a>
 <?php
   include_once("$topdir/includes/footer.inc");
