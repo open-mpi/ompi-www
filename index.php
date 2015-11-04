@@ -90,9 +90,9 @@ information</a></h3>
 news("SC'15 OMPI State of the Union and PMIx BOFs",
      "Submit your questions ahead of time for the SC'15 BOFs",
      "sc15/");
-news("Open MPI v1.10.0 released",
+news("Open MPI v1.10.1 released",
      "Stable release",
-     "http://www.open-mpi.org/community/lists/announce/2015/08/0072.php");
+     "http://www.open-mpi.org/community/lists/announce/2015/11/0076.php");
 news("hwloc v1.11.1 released",
      "New bugfix release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2015/10/0080.php");
