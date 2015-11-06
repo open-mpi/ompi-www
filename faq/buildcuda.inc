@@ -97,4 +97,6 @@ Add the following to your configure line.
       CFLAGS=-D__LP64__ --with-wrapper-cflags=\"-D__LP64__ -ta:tesla\"
 </geshi>
 
+*Update:* With PGI 15.9 and later compilers, the CFLAGS=-D__LP64__ is no longer needed.
+
 ";
