@@ -19,10 +19,8 @@ include_once("$topdir/includes/header.inc");
 <li><a href='mtt.php'>MPI Testing Tool (MTT)-related lists</a></li>
 <li><a href="otpo.php">Open Tool for Parameter Optimization (OTPO)-related
     lists</a></li>
-<li><a href="orcm.php">Open Resillient Cluster Manager (ORCM)-related
+<li><a href="orcm.php">Open Resilient Cluster Manager (ORCM)-related
     lists</a></li>
-<li><a href="pmix.php">PMI Exascale (PMIx)-related lists</a></li>
-<li><a href="glassbottom.php">GlassBottom-related lists</a></li>
 </ul>
 </p>
 

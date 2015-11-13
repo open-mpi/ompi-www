@@ -78,7 +78,7 @@ function printtoplink($link, $text, $class) {
     print("\">\n");
     print("                  $text\n");
     print("                 </TD>\n");
-    
+
     print("              </TR>\n");
 }
 
@@ -102,7 +102,7 @@ function printsublink($link, $text, $a_modifier = "") {
 
     $b = basename($link);
     if ((isset($this_dir) && $b == $this_dir) ||
-        (isset($this_absdir) && 
+        (isset($this_absdir) &&
          ($link == "$topdir$this_absdir" || $link == "$topdir$this_absdir/"))) {
         for ($i = 0; $i < sizeof($this_nav); $i++) {
             print("              <TR>\n");
@@ -112,7 +112,7 @@ function printsublink($link, $text, $a_modifier = "") {
                 print("                  &nbsp;&nbsp;&nbsp;&nbsp;" . $this_nav[$i]->name ."\n");
             } else {
                 print("                <TD class=\"navbarsub2\">\n");
-                print("                  &nbsp;&nbsp;&nbsp;&nbsp;" . 
+                print("                  &nbsp;&nbsp;&nbsp;&nbsp;" .
                       "<A HREF=\"" . $this_nav[$i]->link . "\" CLASS=\"navbarsub2\">" .
                       $this_nav[$i]->name . "</A>\n");
             }
@@ -121,13 +121,13 @@ function printsublink($link, $text, $a_modifier = "") {
             for($j = 0; $j < sizeof($this_nav[$i]->children); $j++) {
                 print("              <TR>\n");
                 print("                <TD class=\"navbarsub3\">\n");
-                print("                  &nbsp;&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp;&nbsp;" . 
+                print("                  &nbsp;&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp;&nbsp;" .
                       "<A HREF=\"" . $this_nav[$i]->children[$j]->link . "\" CLASS=\"navbarsub3\">" .
                       $this_nav[$i]->children[$j]->name . "</A>\n");
                 print("                </TD>\n");
                 print("              </TR>\n");
             }
-            
+
     }
   }
 }
@@ -150,7 +150,7 @@ print("</HEAD>\n<BODY>\n");
     <TD class="logobox" VALIGN="center" ALIGN="center" ROWSPAN="2" <?php left_width_1(); ?>>
       <A HREF="<?php print("$logo_url");?>/"><?php
 $size = GetImageSize("$topdir/$logo");
-print("<IMG SRC=\"$topurl/$logo\" " . $size[3] . 
+print("<IMG SRC=\"$topurl/$logo\" " . $size[3] .
       " ALT=\"$project logo\" BORDER=\"0\">");
 ?></A>
     </TD>
@@ -186,7 +186,7 @@ print("      <H1 CLASS=\"doctitle\">$title</H1>\n");
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
 	<A HREF="<?php print("$topurl"); ?>/community/help/" CLASS="quickbar"><font color=red>Support</font></A>
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
-	<A HREF="<?php print("$topurl"); ?>/faq/" CLASS="quickbar">FAQ</A> 
+	<A HREF="<?php print("$topurl"); ?>/faq/" CLASS="quickbar">FAQ</A>
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
 	<?php nav_search_make(); ?>
        </TD>
@@ -242,7 +242,6 @@ printsublink("$topurl/projects/user-docs/", "Open MPI User Docs");
 printsublink("$topurl/projects/otpo/", "Open Tool for Parameter Optimization");
 printsublink("$topurl/projects/pmix/", "PMIx");
 printsublink("$topurl/projects/orcm/", "ORCM");
-printsublink("$topurl/projects/glassbottom/", "GlassBottom");
 
 // Community
 printbutton("Community");
