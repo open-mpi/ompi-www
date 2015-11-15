@@ -11,7 +11,10 @@ likely to find new uses beyond traditional HPC applications.";
 $q[] = "What MPI coverage is provided by the Java interface?";
 $anchor[] = "java_cover";
 
-$a[] = "Almost full MPI-3 coverage.";
+$a[] = "Complete MPI-3.1 coverage is provided with a few exceptions. 
+The bindings for the MPI_Neighbor_alltoallw and MPI_Ineighbor_alltoallw 
+functions are planned for release v2.1. Also excluded are functions that 
+incorporate the concepts of explicit virtual memory addressing.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -19,7 +22,8 @@ $q[] = "What releases contain the Java interface?";
 $anchor[] = "java_rels";
 
 $a[] = "The Java bindings are integrated into Open MPI starting from
-the v1.7 series.";
+the v1.7 series. Beginning with the v2.0 series, the Java bindings 
+include coverage of MPI-3.1.";
 
 /////////////////////////////////////////////////////////////////////////
 
