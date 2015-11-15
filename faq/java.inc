@@ -13,8 +13,9 @@ $anchor[] = "java_cover";
 
 $a[] = "Complete MPI-3.1 coverage is provided with a few exceptions. 
 The bindings for the MPI_Neighbor_alltoallw and MPI_Ineighbor_alltoallw 
-functions are planned for release v2.1. Also excluded are functions that 
-incorporate the concepts of explicit virtual memory addressing.";
+functions are planned for release after v2.0.0. Also excluded are functions 
+that incorporate the concepts of explicit virtual memory addressing, such
+as MPI_Win_shared_query.";
 
 /////////////////////////////////////////////////////////////////////////
 
