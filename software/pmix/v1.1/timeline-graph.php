@@ -14,6 +14,7 @@ $beyond_end_date = strftime("%Y-%m-%d", time() + (90 * 24 * 60 * 60));
 series("v1.1 series", "2015-05-01", $beyond_end_date, $data, $vpos, $graph);
 milestone("branch", "2015-11-12", $data, $vpos);
 milestone("v1.1.0", "2015-11-12", $data, $vpos);
+milestone("v1.1.1", "2015-11-15", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
