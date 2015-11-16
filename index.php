@@ -96,9 +96,9 @@ news("Open MPI v1.10.1 released",
 news("hwloc v1.11.1 released",
      "New bugfix release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2015/10/0080.php");
-news("PMIx v1.1.0 released",
+news("PMIx v1.1.1 released",
      "New production release",
-     "https://groups.google.com/forum/#!category-topic/pmix/Eo4BEmdrFIE");
+     "https://groups.google.com/forum/#!category-topic/pmix/CaQNm9aPGcI");
 news("Performance Benchmarks",
      "New section on performance benchmarks added",
      "http://www.open-mpi.org/performance/");
