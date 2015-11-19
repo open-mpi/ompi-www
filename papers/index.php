@@ -35,6 +35,7 @@ href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.ps">ps</a>]
 <ul>
 <?php
 print_papers(array("sc-2015",
+                   "sc-2015-pmix",
                    "versioning-update-2015",
                    "controls-2015"));
 ?>
