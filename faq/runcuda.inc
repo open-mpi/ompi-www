@@ -80,7 +80,7 @@ host memory if it is not available.
 </ul>
 
 *For best results, it is recommended that you use the latest version
- of Open MPI which as of this writing was Open MPI v1.8.7.*
+ of Open MPI which as of this writing was Open MPI v1.10.1.*
 
 *Additional Information about CUDA-aware support*
 
@@ -492,4 +492,32 @@ int main(int argc, char *argv[])
 
 </geshi>
 
+";
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "How do I limit how much CUDA IPC memory is held in the registration cache?";
+
+$anchor[] = "mpi-cuda-limit-ipc";
+
+$a[] = "
+As mentioned earlier, the Open MPI library will make use of CUDA IPC support where
+possible to move the GPU data quickly between GPUs that are on the same node and
+same PCI root complex. The library holds on to registrations even after the data
+transfer is complete as it is expensive to make some of the CUDA IPC registration
+calls. If you want to limit how much memory is registered, you can use the
+mpool_rgpusm_rcache_size_limit MCA parameter. For example, this sets the limit
+to 1000000 bytes.
+<geshi bash>
+shell$ --mca mpool_rgpusm_rcache_size_limit 1000000
+</geshi>
+
+When the cache reaches this size, it will kick out the least recently used until
+it can fit the new registration in.  
+
+In Open MPI 1.10.2 and later, there also is the ability to have the cache empty
+itself out when the limit is reached. To do this, just set the MCA parameter as
+shown in this example.
+<geshi bash>
+shell$ --mca mpool_rgpusm_rcache_empty_cache 1
+</geshi>
 ";
