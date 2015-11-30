@@ -56,7 +56,7 @@ Note that only the specified item will be returned by the PMIx_Get call - the fl
 </ul>
 
 <h3>Server Implementation</h3>
-<p>We have chosen not to provide a standalone server implementation as the required messaging library would be an unnecessary encumbrance for existing resource managers and MPI implementations. Accordingly, we are providing a reference implementation of the PMIx server system as part of the Open MPI run-time environment (ORTE) and the related Open Resilient Cluster Manager (<a href="../../projects/orcm/">ORCM</a>). Features of the server include:
+<p>We have chosen not to provide a standalone server implementation as the required messaging library would be an unnecessary encumbrance for existing resource managers and MPI implementations. Accordingly, we are providing a reference implementation of the PMIx server system as part of the Open MPI run-time environment (ORTE) and the related Open Resilient Cluster Manager (<a href="https://github.com/orcmteam/orcm">ORCM</a>). Features of the server include:
 </p>
 
 <ul>
@@ -79,7 +79,7 @@ Users, of course, may have difficulty deciding on the best data distribution met
     years, including the one
 <a href="http://www.mcs.anl.gov/papers/P1760.pdf">available here</a>. Detailed documentation
 on the design of PMIx itself, including the API, is under development on the
-<a href="https://github.com/open-mpi/pmix/wiki">PMIx wiki page</a>.
+<a href="https://github.com/pmix/master/wiki">PMIx wiki page</a>.
 </p>
 
 <!------------------------------------------------------------------------->
@@ -87,11 +87,11 @@ on the design of PMIx itself, including the API, is under development on the
 <h3>Getting and using pmix</h3>
 
 <p> The latest PMIx client releases are available as tarballs on the
-<a href="../../software/pmix/v1.0/">download page</a>. Nightly tarballs
+<a href="https://pmix.github.io/master">web page</a>. Nightly tarballs
 of the developer master are also available on the nightly
 <a href="../../software/pmix/nightly/">download page</a>.
-Finally, the Github repository is accessible for
-<a href="https://github.com/open-mpi/pmix">online browsing</a>
+Finally, the Github developer repository is accessible for
+<a href="https://github.com/pmix/master">online browsing</a>
 or checkout</a>.
 
 <!------------------------------------------------------------------------->
@@ -101,8 +101,8 @@ or checkout</a>.
 </a>
 
 <p> Questions, comments, and bugs should be sent to the <a
-href="../../community/lists/pmix.php">pmix mailing lists</a>, and/or
-submitted to the PMIx <a href="https://github.com/open-mpi/pmix/issues">bug tracking
+href="https://groups.google.com/forum/#!forum/pmix">pmix mailing lists</a>, and/or
+submitted to the PMIx <a href="https://github.com/pmix/master/issues">bug tracking
 system</a>.
 
 <?php
