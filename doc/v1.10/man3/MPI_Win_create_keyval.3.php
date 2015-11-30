@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Win_create_keyval(3) man page (version 1.10.0)";
-$meta_desc = "Open MPI v1.10.0 man page: MPI_WIN_CREATE_KEYVAL(3)";
+$title = "MPI_Win_create_keyval(3) man page (version 1.10.1)";
+$meta_desc = "Open MPI v1.10.1 man page: MPI_WIN_CREATE_KEYVAL(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
