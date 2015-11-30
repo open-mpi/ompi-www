@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "mpirun(1) man page (version 1.10.0)";
-$meta_desc = "Open MPI v1.10.0 man page: mpirun(1)";
+$title = "mpirun(1) man page (version 1.10.1)";
+$meta_desc = "Open MPI v1.10.1 man page: mpirun(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -15,19 +15,21 @@ include_once("$topdir/includes/header.inc");
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
  orterun, mpirun, mpiexec - Execute serial and parallel jobs
-in Open MPI.
-<p> <b>Note:</b> <i>mpirun</i>, <i>mpiexec</i>, and <i>orterun</i> are all synonyms for each
-other.  Using any of the names will produce the same behavior.
+in Open MPI. oshrun, shmemrun - Execute serial and parallel jobs in Open
+SHMEM.
+<p> <b>Note:</b> <i>mpirun</i>, <i>mpiexec</i>, and <i>orterun</i> are all synonyms for each other
+as well as <i>oshrun</i>, <i>shmemrun</i> in case Open SHMEM is installed. Using any of
+the names will produce the same behavior.
 <h2><a name='sect1' href='#toc1'>Synopsis</a></h2>
+ <p>
+Single Process Multiple
+Data (SPMD) Model:
+<p> <b>mpirun</b> [ options ] <b>&lt;program&gt;</b> [ &lt;args&gt; ] <p>
 
-<p>
-Single Process Multiple Data (SPMD) Model:
-<p> <b>mpirun</b> [ options ] <b>&lt;program&gt;</b>
-[ &lt;args&gt; ] <p>
-
-<p> Multiple Instruction Multiple Data (MIMD) Model:
-<p> <b>mpirun</b> [ global_options
-]        [ local_options1 ]<br>
+<p> Multiple Instruction
+Multiple Data (MIMD) Model:
+<p> <b>mpirun</b> [ global_options ]        [ local_options1
+]<br>
  <b>&lt;program1&gt;</b> [ &lt;args1&gt; ] :        [ local_options2 ]<br>
  <b>&lt;program2&gt;</b> [ &lt;args2&gt; ] :        ... :<br>
         [ local_optionsN ]<br>
@@ -105,43 +107,63 @@ messages from orterun during application execution.   </dd>
 <dt><b>-V, --version</b> </dt>
 <dd>Print version number.  If no other arguments are given, this
 will also cause orterun to exit.     </dd>
+
+<dt><b>-display-map, --display-map</b> </dt>
+<dd>Display a table
+showing the mapped location of each process prior to launch.    </dd>
+
+<dt><b>-display-devel-map,
+--display-devel-map</b> </dt>
+<dd>Display a more detailed table showing the mapped location
+of each process prior to launch (usually of interest to developers).
+</dd>
+
+<dt><b>-display-allocation, --display-allocation</b> </dt>
+<dd>Display the detected resource allocation.
+   </dd>
 </dl>
 <p>
-Use one of the following options to
-specify which hosts (nodes) of the cluster to run on. Note that as of the
-start of the v1.8 release, mpirun will launch a daemon onto each host in
-the allocation (as modified by the following options) at the very beginning
-of execution, regardless of whether or not application processes will eventually
-be mapped to execute there. This is done to allow collection of hardware
-topology information from the remote nodes, thus allowing us to map processes
-against known topology. However, it is a change from the behavior in prior
-releases where daemons were only launched after mapping was complete, and
-thus only occurred on nodes where application processes would actually
-be executing.
+Use one of the following options to specify which hosts (nodes) of the
+cluster to run on. Note that as of the start of the v1.8 release, mpirun
+will launch a daemon onto each host in the allocation (as modified by the
+following options) at the very beginning of execution, regardless of whether
+or not application processes will eventually be mapped to execute there.
+This is done to allow collection of hardware topology information from
+the remote nodes, thus allowing us to map processes against known topology.
+However, it is a change from the behavior in prior releases where daemons
+were only launched after mapping was complete, and thus only occurred on
+nodes where application processes would actually be executing.
 <dl>
 
-<dt><b>-H, -host, --host &lt;host1,host2,...,hostN&gt;</b> </dt>
-<dd>List of hosts on which
-to invoke processes.   </dd>
+<dt><b>-H, -host,
+--host &lt;host1,host2,...,hostN&gt;</b> </dt>
+<dd>List of hosts on which to invoke processes.   </dd>
 
-<dt><b></b> -hostfile, --hostfile &lt;hostfile&gt; </dt>
-<dd>Provide a hostfile to
-use.    </dd>
+<dt><b></b> -hostfile,
+--hostfile &lt;hostfile&gt; </dt>
+<dd>Provide a hostfile to use.    </dd>
 
-<dt><b>-machinefile, --machinefile &lt;machinefile&gt;</b> </dt>
+<dt><b>-machinefile, --machinefile
+&lt;machinefile&gt;</b> </dt>
 <dd>Synonym for <i>-hostfile</i>.     </dd>
+
+<dt><b>-cpu-set, --cpu-set</b> </dt>
+<dd>Restrict launched processes
+to the specified logical cpus on each node. Note that the binding options
+will still apply within the specified envelope - e.g., you can elect to bind
+each process to only one cpu within the specified cpu set.    </dd>
 </dl>
 <p>
-The
-following options specify the number of processes to launch. Note that none
-of the options imply a particular binding policy - e.g., requesting N processes
-for each socket does not imply that the processes will be bound to the
-socket.
+The following
+options specify the number of processes to launch. Note that none of the
+options imply a particular binding policy - e.g., requesting N processes for
+each socket does not imply that the processes will be bound to the socket.
+
 <dl>
 
 <dt><b>-c, -n, --n, -np &lt;#&gt;</b> </dt>
-<dd>Run this many copies of the program on the given
-nodes.  This option indicates that the specified file is an executable program
+<dd>Run this many copies of the program on the given nodes.
+ This option indicates that the specified file is an executable program
 and not an application context. If no value is provided for the number of
 copies to execute (i.e., neither the "-np" nor its synonyms are provided on
 the command line), Open MPI will automatically execute a copy of the program

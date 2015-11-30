@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Fetch_and_op(3) man page (version 1.10.0)";
-$meta_desc = "Open MPI v1.10.0 man page: MPI_FETCH_AND_OP(3)";
+$title = "MPI_Fetch_and_op(3) man page (version 1.10.1)";
+$meta_desc = "Open MPI v1.10.1 man page: MPI_FETCH_AND_OP(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -23,8 +23,8 @@ with that of a target buffer and returns the target buffer value.
 Syntax</a></h2>
 <br>
 <pre>#include &lt;mpi.h&gt;
-int MPI_Fetch_and_op(const void *origin_addr, void *esult_addr,
-<tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype atatype, int target_rank, MPI_Aint target_disp,
+int MPI_Fetch_and_op(const void *origin_addr, void *result_addr,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype datatype, int target_rank, MPI_Aint target_disp,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Op op, MPI_Win win)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax (see FORTRAN 77 NOTES)</a></h2>

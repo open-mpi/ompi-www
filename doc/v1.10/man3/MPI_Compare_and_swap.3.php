@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Compare_and_swap(3) man page (version 1.10.0)";
-$meta_desc = "Open MPI v1.10.0 man page: MPI_COMPARE_AND_SWAP(3)";
+$title = "MPI_Compare_and_swap(3) man page (version 1.10.1)";
+$meta_desc = "Open MPI v1.10.1 man page: MPI_COMPARE_AND_SWAP(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -22,7 +22,7 @@ include_once("$topdir/includes/header.inc");
 <br>
 <pre>#include &lt;mpi.h&gt;
 int MPI_Compare_and_swap(const void *origin_addr, const void *compar_addr,
-<tt> </tt>&nbsp;<tt> </tt>&nbsp;void *esult_addr, MPI_Datatype atatype, int target_rank,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;void *result_addr, MPI_Datatype datatype, int target_rank,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Aint target_disp, MPI_Win win)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax (see FORTRAN 77 NOTES)</a></h2>
