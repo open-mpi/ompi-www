@@ -164,6 +164,7 @@ ported to it:<ul>
  <li>The <a href="http://runtime.bordeaux.inria.fr/StarPU">StarPU</a>
  runtime system for heterogeneous multicore architectures</li>
  <li>The <a href="http://icl.cs.utk.edu/parsec">Parallel Runtime Scheduling and Execution Controller (PaRSEC)</a> project</li>
+ <li>The <a href="https://pm.bsc.es/projects/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss-bsc">OmpSs</a></li>
  <li>The <a href="http://stellar.cct.lsu.edu/projects/hpx/">High Performance ParalleX (HPX)</a> runtime system</li>
  <li>The <a href="http://www.cs.sandia.gov/qthreads/">Qthreads</a> project</li>
  <li>The <a href="http://www.rosecompiler.org/">Rose compiler</a></li>
