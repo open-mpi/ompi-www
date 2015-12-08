@@ -767,12 +767,12 @@ compile and link your application, adding the following hilighted
 arguments:
 
 <geshi bash>
-shell$ gcc ***--static*** -I/opt/openmpi/include/openmpi \
+shell$ gcc --static -I/opt/openmpi/include/openmpi \
   -I/opt/openmpi/include -pthread ring.c -o ring \
   -L/usr/local/ofed/lib -L/usr/local/ofed/lib64/infiniband \
   -L/usr/local/ofed/lib64 -L/opt/openmpi/lib -lmpi -lopen-rte \
-  -lopen-pal <strong><font color=red>-Wl,--whole-archive</font></strong> -libverbs <strong><font color=red>/usr/local/ofed/lib64/infiniband/mthca.a \
-  -Wl,--no-whole-archive</font></strong> -lrt -Wl,--export-dynamic -lnsl -lutil \
+  -lopen-pal -Wl,--whole-archive -libverbs /usr/local/ofed/lib64/infiniband/mthca.a \
+  -Wl,--no-whole-archive -lrt -Wl,--export-dynamic -lnsl -lutil \
   -lm -ldl
 </geshi>
 
