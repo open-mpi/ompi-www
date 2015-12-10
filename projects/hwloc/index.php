@@ -16,6 +16,9 @@ include_once("$topdir/includes/code.inc");
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
 <?php
 # Lists are not mirrored - use an absolute URL
+news("hwloc v1.11.2rc1 released",
+     "New release candidate",
+     "http://www.open-mpi.org/community/lists/hwloc-announce/2015/12/0081.php");
 news("hwloc v1.11.1 released",
      "New bugfix release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2015/10/0080.php");
