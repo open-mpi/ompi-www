@@ -1998,7 +1998,7 @@ Routable RoCE is supported in Open MPI starting v1.8.8.
 
 In order to use it, RRoCE needs to be enabled from the command line.
 <geshi bash>
-shell$ mpirun --mca pml ob1 --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm \"--mca btl_openib_rroce_enable 1\" ...
+shell$ mpirun --mca pml ob1 --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm ****--mca btl_openib_rroce_enable 1**** ...
 </geshi>
 
 *How does MXM run on top of RoCE?*
