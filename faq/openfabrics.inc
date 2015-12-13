@@ -1992,6 +1992,15 @@ shell$ mpirun --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm ...
 (or set these MCA parameters <a
 href=\"./?category=tuning#setting-mca-params\">in other ways</a>)
 
+*How does Open MPI run with Routable RoCE (RoCEv2)?*
+
+Routable RoCE is supported in Open MPI starting v1.8.8.
+
+In order to use it, RRoCE needs to be enabled from the command line.
+<geshi bash>
+shell$ mpirun --mca pml ob1 --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm \"--mca btl_openib_rroce_enable 1\" ...
+</geshi>
+
 *How does MXM run on top of RoCE?*
 
 In order to use RoCE with <a href=\"#mxm\">MXM</a>, the Ethernet port
@@ -2014,6 +2023,13 @@ parameter:
 
 <geshi bash>
 shell$ mpirun --mca pml cm -mca mtl mxm -x MXM_RDMA_PORTS=mlx4_0:2 -x MXM_TLS=self,shm,ud ...
+</geshi>
+
+*How does MXM run with Routable RoCE (RoCEv2)?*
+
+In order to use RRoCE when running with MXM, the following environment parameters need to be set:
+<geshi bash>
+shell$ mpirun --mca pml yalla -x MXM_RDMA_PORTS=mlx4_0:2 -x MXM_IB_GID_INDEX=1 ...
 </geshi>
 
 
