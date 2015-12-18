@@ -1,8 +1,8 @@
 <?php
 $topdir = "../../..";
 
-include_once("$topdir/software/ompi/v1.10/version.inc");
-$title = "Open MPI: Version $ver_v1_10";
+include_once("$topdir/software/ompi/v2.x/version.inc");
+$title = "Open MPI: Version $ver_v2_x";
 
 include_once("$topdir/software/ompi/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -22,11 +22,11 @@ $notes = "<a href=\"srpm.php\">SRPM notes</a>";
 $t_stable = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
 
 if (isset($t_stable)) {
-    $src = "Version $ver_v1_10<br>$notes";
+    $src = "Version $ver_v2_10<br>$notes";
 
-    $n[] = "openmpi-$ver_v1_10.tar.bz2";
-    $n[] = "openmpi-$ver_v1_10.tar.gz";
-    $n[] = "openmpi-$ver_v1_10-1.src.rpm";
+    $n[] = "openmpi-$ver_v2_x.tar.bz2";
+    $n[] = "openmpi-$ver_v2_x.tar.gz";
+    $n[] = "openmpi-$ver_v2_x-1.src.rpm";
 
     foreach ($n as $name) {
         if (file_exists("downloads/$name")) {
@@ -90,12 +90,7 @@ $t_older = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP
 
 if (isset($t_older)) {
     $versions = array();
-    $versions[] = "1.10.5";
-    $versions[] = "1.10.4";
-    $versions[] = "1.10.3";
-    $versions[] = "1.10.2";
-    $versions[] = "1.10.1";
-    $versions[] = "1.10";
+    #$versions[] = "1.10";
 
     foreach ($versions as $v) {
         $n = array();
@@ -121,16 +116,16 @@ if (isset($t_older)) {
 
 $project = "Open MPI";
 $list_name = "announce";
-$prev_describe = "the v$ver_v1_8 download page";
+$prev_describe = "the v$ver_v1_10 download page";
 include_once("$topdir/includes/subscribe-announce.inc");
 ?>
 
 <p><hr>
 
-<P><?php $dir = "https://github.com/open-mpi/ompi-release/blob/v1.10/NEWS";
+<P><?php $dir = "https://github.com/open-mpi/ompi-release/blob/v2.x/NEWS";
       print("<a href=\"$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the Open
-MPI releases in the v1.10 series</p>
+MPI releases in the v2.x series</p>
 
 <p>See the <a href="<?php print($topdir);
 ?>/software/ompi/versions/timeline.php">version timeline</a> for
