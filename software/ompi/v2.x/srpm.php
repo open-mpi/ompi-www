@@ -1,15 +1,15 @@
 <?php
   $topdir = "../../..";
-  include_once("$topdir/software/ompi/v1.10/version.inc");
+  include_once("$topdir/software/ompi/v2.x/version.inc");
 
-  $title = "Open MPI: Version $ver_v1_10 Source RPM Notes";
+  $title = "Open MPI: Version $ver_v2_x Source RPM Notes";
   include_once("$topdir/software/ompi/nav.inc");
   include_once("$topdir/includes/header.inc");
   include_once("$topdir/includes/curl_get.inc");
 
   include_once("$topdir/includes/downloads.inc");
 
-  $ver = "v1.10";
+  $ver = "v2.x";
   $base_url = "https://github.com/open-mpi/ompi-release/tree";
   $rawbase_url = "https://raw.githubusercontent.com/open-mpi/ompi-release";
   $linux_dir = "$ver/contrib/dist/linux";
