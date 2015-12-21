@@ -39,7 +39,7 @@ $q[] = "How can I use OMPIO?";
 $anchor[] = "how-can-i-use-omio";
 
 $a[] = "OMPIO is included in all Open MPI releases starting from version
-1.7. Note, that in the 1.7 and 1.8 series it is however not the default
+1.7. Note, that in the 1.7, 1.8, and 1.10 series it is however not the default
 library used for parallel I/O operations, and thus has to be explicitely
 requested by the end-user, e.g.
 
@@ -49,8 +49,8 @@ mpirun --mca io ompio -np 64 ./myapplication
 
 OMPIO is the default MPI I/O library used by Open MPI in the current nightly
 builts and is scheduled to be the default MPI I/O library in the upcoming 
-2.x release of Open MPI. Note, that the version of OMPIO available in the 1.7
-and 1.8 series is known to have some limitations. ";
+2.x release of Open MPI. Note, that the version of OMPIO available in the 1.7, 1.8
+and 1.10 series is known to have some limitations. ";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -148,6 +148,10 @@ selection logic of OMPIO.  Tuning this parameter has a very high impact on the
 performance of collective operations (See recommendations for tuning
 collective operations below). </li>
 
+<li> [io_ompio_grouping_option]: 
+algorithm used to automatically decide the number of aggregators
+used. Applications working with regular 2-D or 3-D data decomposition
+can try changing this parameter to 4 (hybrid) algorithm.
 </ul>";
 
 /////////////////////////////////////////////////////////////////////////
@@ -323,3 +327,19 @@ indexes. The fourth row lists all the values and the fifth row gives the row
 index. A row index represents the position in the value array where a new row
 starts.</li>
 </ul>";
+
+/////////////////////////////////////////////////////////////////////////
+$q[] = "Known limitations";
+
+$anchor[] = "ompio-known-limitations";
+
+$a[] = "OMPIO in version 2.x of Open MPI implements most of the I/O
+functionality of the MPI specification. There are however two not very
+commonly used functions that are not implemented as of today:
+<ul>
+<li> switching from the relaxed consistency semantics of MPI to stricter, sequential
+consistency through the MPI_File_set_atomiticity functions</li>
+<li> Using user defined data representations are not supported</li>
+</ul>";
+
+
