@@ -148,6 +148,9 @@ Python bindings are available from Guy Streeter
 as <a href="http://people.redhat.com/streeter/">Fedora RPM and tarball</a>
 or within their <a href="git://git.fedorahosted.org/python-hwloc.git">git tree</a>
 (<a href="http://git.fedorahosted.org/git/python-hwloc.git">html</a>).
+<br />
+Rust bindings are available from Michael Nitschinger
+<a href="https://github.com/daschl/hwloc-rs">on GitHub</a>.
 </p>
 
 <p> The following software already benefit from hwloc or are being
