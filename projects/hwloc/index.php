@@ -19,9 +19,6 @@ include_once("$topdir/includes/code.inc");
 news("hwloc v1.11.2 released",
      "New release",
      "http://www.open-mpi.org/community/lists/hwloc-announce/2015/12/0082.php");
-news("hwloc v1.11.1 released",
-     "New bugfix release",
-     "http://www.open-mpi.org/community/lists/hwloc-announce/2015/10/0080.php");
 news("The Best of lstopo published",
      "Best lstopo graphical outputs",
      "lstopo");
@@ -120,7 +117,7 @@ outputs</a> and an <a href="doc/v<?php print($ver_current);
 ?>/#interface">API interface example</a> (these links are for v<?php
 print($ver_current); ?>).</p>
 
-<p>The materials from several hwloc tutorials is
+<p>The materials from several hwloc tutorials are
 <a href="<?php print "$topdir/projects/hwloc/tutorials" ?>">available online</a>.
 </p>
 
@@ -233,6 +230,9 @@ helpful debugging information.</p>
 <p>Also be sure to see the
  <a href="https://github.com/open-mpi/hwloc/wiki">hwloc wiki</a>
  and <a href="https://github.com/open-mpi/hwloc/issues">bug tracking system</a>.
+</p>
+
+<p>There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</tt>).
 </p>
 
 <!------------------------------------------------------------------------->
