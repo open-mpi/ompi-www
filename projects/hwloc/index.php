@@ -143,8 +143,7 @@ Perl bindings are available from Bernd Kallies
 <br />
 Python bindings are available from Guy Streeter
 as <a href="http://people.redhat.com/streeter/">Fedora RPM and tarball</a>
-or within their <a href="git://git.fedorahosted.org/python-hwloc.git">git tree</a>
-(<a href="http://git.fedorahosted.org/git/python-hwloc.git">html</a>).
+or within their <a href="http://git.fedorahosted.org/git/python-hwloc.git">git tree</a>.
 <br />
 Rust bindings are available from Michael Nitschinger
 <a href="https://github.com/daschl/hwloc-rs">on GitHub</a>.
@@ -190,7 +189,7 @@ ported to it:<ul>
  <li>The <a href="https://github.com/open-mpi/orcm">Open Resilient Cluster Manager (ORCM)</a></li>
 </ul>
 <li>and even more!</li><ul>
- <li><a href="https://github.com/open-mpi/pmix">PMI-Exascale (PMIx)</a></li>
+ <li><a href="http://www.open-mpi.org/projects/pmix">PMI-Exascale (PMIx)</a></li>
  <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a></li>
  <li>The interactive process viewer <a href="http://htop.sourceforge.net/">htop</a> for Linux</a></li>
  <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
