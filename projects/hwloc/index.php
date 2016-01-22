@@ -32,24 +32,20 @@ news("Network Locality (netloc)",
 </div>
 
 <p> The Portable Hardware Locality (hwloc) software package provides a
-portable abstraction (across OS, versions, architectures, ...)  of the
-hierarchical topology of modern architectures, including NUMA memory
+<b>portable abstraction</b> (across OS, versions, architectures, ...)  of the
+<b>hierarchical topology of modern architectures</b>, including NUMA memory
 nodes, sockets, shared caches, cores and simultaneous
 multithreading. It also gathers various system attributes such as
 cache and memory information as well as the locality of I/O devices
 such as network interfaces, InfiniBand HCAs or GPUs.
-It primarily aims at helping
-applications with gathering information about modern computing
-hardware so as to exploit it accordingly and efficiently.</p>
+</p>
 
-<p> The democratization of multicore processors and NUMA architectures
-leads to the spreading of complex hardware topologies into the whole server world.
-Nodaways every single cluster node may contain tens of cores, hierarchical caches,
-and multiple memory nodes, making its topology far from flat.
-Such complex and hierarchical topologies have strong impact of the application performance.
-The developer must take hardware affinities into account when trying to exploit
-the actual hardware performance. For instance, two tasks that tightly cooperate
-should probably rather be placed onto cores sharing a cache.
+<p>
+hwloc primarily aims at helping
+applications with <b>gathering information about increasingly complex
+parallel computing platforms so as to exploit them accordingly and efficiently</b>.
+For instance, two tasks that tightly cooperate
+should probably be placed onto cores sharing a cache.
 However, two independent memory-intensive tasks should better be spread out
 onto different sockets so as to maximize their memory throughput.
 As described in <a href="http://hal.inria.fr/inria-00496295">this paper</a>,
@@ -61,10 +57,9 @@ communication strategies to the network locality as described in
 or <a href="http://hal.inria.fr/inria-00566246">this one</a>.
 </p>
 
-
 <!------------------------------------------------------------------------->
 
-<h3>Portability and support</h3>
+<h1>Portability and support</h1>
 
 <p> hwloc supports the following operating systems:</p>
 
@@ -73,13 +68,9 @@ or <a href="http://hal.inria.fr/inria-00566246">this one</a>.
 information, with knowledge of cgroups, offline CPUs, ScaleMP vSMP,
 and NumaScale NumaConnect) on all supported hardware,
 including Intel Xeon Phi.</li>
-<li>Solaris</li>
-<li>AIX</li>
+<li>Solaris, AIX, HP-UX and OSF/1 (a.k.a., Tru64)</li>
+<li>NetBSD, FreeBSD and kFreeBSD/GNU</li>
 <li>Darwin / OS X</li>
-<li>FreeBSD and its variants (such as kFreeBSD/GNU)</li>
-<li>NetBSD</li>
-<li>OSF/1 (a.k.a., Tru64)</li>
-<li>HP-UX</li>
 <li>Microsoft Windows (either using MinGW or a native Visual Studio solution)</li>
 <li>IBM BlueGene/Q Compute Node Kernel (CNK)</li>
 </ul></p>
@@ -108,7 +99,7 @@ about the hardware, bind processes, and much more.</p>
 
 <!------------------------------------------------------------------------->
 
-<h3>Documentation</h3>
+<h1>Documentation</h1>
 
 <p> More details are available in the <a href="doc/">Documentation</a>
 (in both PDF and HTML).  The documentation for each version contains
@@ -123,10 +114,15 @@ print($ver_current); ?>).</p>
 
 <!------------------------------------------------------------------------->
 
-<h3>Getting and using hwloc</h3>
+<h1>Getting and using hwloc</h1>
 
-<p> The latest hwloc releases are available on the
-<a href="../../software/hwloc/<?php print($ver_current_dir); ?>/">download page</a>.
+<p><b>
+hwloc is open-source, available under the
+<a href="<?php print "$topdir/projects/hwloc/license.php" ?>">BSD license</a>.
+</b></p>
+
+<p> The latest <b>hwloc releases are available on the
+<a href="../../software/hwloc/<?php print($ver_current_dir); ?>/">download page</a>.</b>
 The GIT repository is also accessible for
 <a href="https://github.com/open-mpi/hwloc">online browsing</a>
 or <a href="git.php">checkout</a>.
@@ -149,7 +145,7 @@ Rust bindings are available from Michael Nitschinger
 <a href="https://github.com/daschl/hwloc-rs">on GitHub</a>.
 </p>
 
-<p> The following software already benefit from hwloc or are being
+<p><b>The following software already benefit from hwloc</b> or are being
 ported to it:<ul>
 <li>MPI implementations and tools</li><ul>
  <li><a href="http://www.open-mpi.org">Open MPI</a></li>
@@ -197,21 +193,8 @@ ported to it:<ul>
 
 <!------------------------------------------------------------------------->
 
-<h3>How do you pronounce "hwloc"?</h3>
-
-<p> When in doubt, say "hardware locality."</p>
-
-<p> Some of the core developers say "H. W. Loke"; others say
-"H. W. Lock".  We've heard several other pronunciations as well.  We
-don't really have a strong preference for <em>how</em> you say it; we
-chose the name for its Google-ability, not its pronunciation.</p>
-
-<p>  But now at least you know how <em>we</em> pronounce it.  :-)</p>
-
-<!------------------------------------------------------------------------->
-
 <a name=help>
-<h3>Questions and bugs</h3>
+<h1>Questions and bugs</h1>
 </a>
 
 <p> Questions, comments, and bugs should be sent to <a
@@ -274,7 +257,7 @@ helpful debugging information.</p>
 
 <!------------------------------------------------------------------------->
 
-<h3>History / credits</h3>
+<h1>History / credits</h1>
 
 <p>hwloc is the evolution and merger of the libtopology and
 <a href="../plpa/">Portable Linux Processor Affinity (PLPA)</a> projects.
@@ -294,6 +277,19 @@ So libtopology was extracted from Marcel and became an independent library.
 <p>Portability tests are performed thanks to
 the Inria <a href="https://ci.inria.fr/hwloc/">Continuous Integration</a> platform.
 </p>
+
+<!------------------------------------------------------------------------->
+
+<h1>How do you pronounce "hwloc"?</h1>
+
+<p> When in doubt, say "hardware locality."</p>
+
+<p> Some of the core developers say "H. W. Loke"; others say
+"H. W. Lock".  We've heard several other pronunciations as well.  We
+don't really have a strong preference for <em>how</em> you say it; we
+chose the name for its Google-ability, not its pronunciation.</p>
+
+<p>  But now at least you know how <em>we</em> pronounce it.  :-)</p>
 
 <?php
 include_once("$topdir/includes/footer.inc");
