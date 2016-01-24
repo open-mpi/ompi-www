@@ -129,8 +129,8 @@ or <a href="git.php">checkout</a>.
 </p>
 
 <p>hwloc is already available as official packages for many Linux distributions
-(at least Debian, Ubuntu, ArchLinux, Fedora, RHEL),
-as well as Cygwin and Mac OS X ports.
+(at least Debian/Ubuntu, Fedora/RHEL, SUSE, ArchLinux, Slackware, Gentoo and their derivatives),
+as well as NetBSD, FreeBSD, Cygwin and Mac OS X ports.
 </p>
 
 <p>
