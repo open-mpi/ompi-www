@@ -5,6 +5,14 @@
   include_once("$topdir/includes/header.inc");
 ?>
 
+<br/>
+<p style="font-size: 18px">
+ <b>netloc development moved to the hwloc git tree.
+ You may want to look at <a href="../../../software/hwloc/nightly/">hwloc nightly snapshots</a> instead.</b>
+</p>
+<br/>
+<br/>
+
 The following versions are available as nightly snapshots:
 
 <p>
@@ -30,7 +38,7 @@ prime time consumption yet.</strong></li>
  */
 ?>
 
-<p> <strong>Current development</strong>
+<p> <strong>Current development (obsolete)</strong>
 
 <li><a href="master/"><strong>Master</strong></a> (development head):
 These snapshots are from the git master branch and reflect the current

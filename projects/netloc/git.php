@@ -9,7 +9,16 @@ include_once("$topdir/includes/code.inc");
 
 <!- ------------------------------------------------------------------ -->
 
-<h2>Git checkout</h2>
+<br/>
+<p style="font-size: 18px">
+ <b>netloc development moved to the <a href="../../projects/hwloc/git.php">hwloc git tree</a>
+ (master branch only).</b>
+ The Git repository below is not updated anymore.
+</p>
+<br/>
+<br/>
+
+<h2>Git checkout (obsolete)</h2>
 
 <p>
 The Git repository may be checked out with:
@@ -20,7 +29,7 @@ The Git repository may be checked out with:
 
 <!- ------------------------------------------------------------------ -->
 
-<h2>Online browsing</h2>
+<h2>Online browsing (obsolete)</h2>
 
 <p>
  The Git repository may be
@@ -29,7 +38,7 @@ The Git repository may be checked out with:
 
 <!- ------------------------------------------------------------------ -->
 
-<h2>Branches and tags</h2>
+<h2>Branches and tags (obsolete)</h2>
 
 <p>There are three general areas of the source code repository that
 will interest most users:
