@@ -106,6 +106,11 @@ include_once("$topdir/includes/subscribe-announce.inc");
 
 <p><hr>
 
+<p style="font-size: 16px">
+ <b>v0.5 is the only standalone netloc release series.</b>
+ Next netloc releases will be included in hwloc (starting with hwloc 2.0).
+</p>
+
 <p>netloc is distributed under the <a href="<?php print $topdir ?>/projects/netloc/license.php">BSD license</a>.
 </p>
 

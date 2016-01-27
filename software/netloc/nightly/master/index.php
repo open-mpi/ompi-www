@@ -10,6 +10,14 @@
   $dir = "$topdir/software/netloc/nightly/master";
 ?>
 
+<br/>
+<p style="font-size: 18px">
+ <b>netloc development moved to the hwloc git tree.
+ The netloc repository is not updated anymore, no useful nightly snapshot is available here.</b>
+</p>
+<br/>
+<br/>
+
 <h2>These are not stable releases of software packages!</h2>
 
 <p>Users looking for latest stable releases should <a href="<?php

@@ -38,7 +38,10 @@ href="../hwloc/">Portable Hardware Locality (hwloc)</a> package. These
 two software packages work together to provide a comprehensive view of
 the HPC system topology, spanning from the processor cores in one
 server to the cores in another – including the complex network(s) in
-between.</p>
+between.
+<b>Starting with hwloc 2.0, both netloc and hwloc are distributed in
+hwloc releases.</b>
+</p>
 
 <p>Towards this end, netloc is divided into three components:<p>
 
@@ -99,6 +102,15 @@ networks.</p>
 
 <!------------------------------------------------------------------------->
 
+<a name=help>
+<h3>Questions and bugs</h3>
+</a>
+
+<p> Questions, comments, and bugs should be sent to <a
+href="../../community/lists/netloc.php">netloc mailing lists</a>.
+
+<!------------------------------------------------------------------------->
+
 <h3>How do you pronounce "netloc"?</h3>
 
 <p> When in doubt, say "network locality."</p>
@@ -110,31 +122,6 @@ chose the name for its Google-ability and similarity to hwloc, not its
 pronunciation.</p>
 
 <p>  But now at least you know how <em>we</em> pronounce it.  :-)</p>
-
-<!------------------------------------------------------------------------->
-
-<a name=help>
-<h3>Questions and bugs</h3>
-</a>
-
-<p> Questions, comments, and bugs should be sent to <a
-href="../../community/lists/netloc.php">netloc mailing lists</a>.
-
-<p>Also be sure to see the <a
-href="https://git.open-mpi.org/trac/netloc/">netloc wiki and bug tracking
-system</a>.</a>
-
-<!------------------------------------------------------------------------->
-
-<h3>History / credits</h3>
-
-<p>netloc is the natural evolution of the <a href="../hwloc/">hwloc
-project</a>.  The authors of hwloc have long-since wanted to extend
-locality information to include networking resources.  However, after
-examining hwloc and the requirements needed to expose network locality
-information, it was determined that netloc should be a standalone
-project -- extending hwloc wouldn't be the right abstraction.  As
-such, netloc <em>uses</em> hwloc, but is a new system on its own.</p>
 
 <?php
 include_once("$topdir/includes/footer.inc");
