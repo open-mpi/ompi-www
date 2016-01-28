@@ -43,7 +43,7 @@ include_once("$topdir/includes/code.inc");
 <div class="line"><a name="l00011"></a><span class="lineno">   11</span>&#160;<span class="comment"> *         ------------------------------------------------</span></div>
 <div class="line"><a name="l00012"></a><span class="lineno">   12</span>&#160;<span class="comment"> *               $tarball_directory/doc/doxygen-doc/</span></div>
 <div class="line"><a name="l00013"></a><span class="lineno">   13</span>&#160;<span class="comment"> *                                or</span></div>
-<div class="line"><a name="l00014"></a><span class="lineno">   14</span>&#160;<span class="comment"> *           http://www.open-mpi.org/projects/hwloc/doc/</span></div>
+<div class="line"><a name="l00014"></a><span class="lineno">   14</span>&#160;<span class="comment"> *           https://www.open-mpi.org/projects/hwloc/doc/</span></div>
 <div class="line"><a name="l00015"></a><span class="lineno">   15</span>&#160;<span class="comment"> *=====================================================================</span></div>
 <div class="line"><a name="l00016"></a><span class="lineno">   16</span>&#160;<span class="comment"> *</span></div>
 <div class="line"><a name="l00017"></a><span class="lineno">   17</span>&#160;<span class="comment"> * FAIR WARNING: Do NOT expect to be able to figure out all the</span></div>

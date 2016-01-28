@@ -94,7 +94,7 @@ this point other than a fairly lengthy e-mail that Brian Barrett wrote
 on the Open MPI user's mailing list:
 
 <div align=center>
-<a href=\"http://www.open-mpi.org/community/lists/users/2006/01/0539.php\">http://www.open-mpi.org/community/lists/users/2006/01/0539.php</a>
+<a href=\"https://www.open-mpi.org/community/lists/users/2006/01/0539.php\">https://www.open-mpi.org/community/lists/users/2006/01/0539.php</a>
 </div>
 
 Since Open MPI 1.1.2, we also support authentication using Kerberos.
@@ -157,7 +157,7 @@ your newly-installed Open MPI, not the OS X-installed Open MPI.  For
 example:
 
 <geshi bash>
-shell$ wget http://www.open-mpi.org/.../open-mpi....
+shell$ wget https://www.open-mpi.org/.../open-mpi....
 shell$ tar xf openmpi-<version>.tar.bz2
 shell$ cd openmpi-<version>
 shell$ ./configure --prefix=/opt/openmpi 2>&1 | tee config.out

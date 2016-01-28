@@ -35,6 +35,6 @@ $bibtex = "@inproceedings{hoefler-parsim-06,
   month     = {September},
   publisher = {Springer-Verlag},
   series = {Lecture Notes in Computer Science},
-  source = {http://www.open-mpi.org/papers/},
+  source = {https://www.open-mpi.org/papers/},
 }";
 

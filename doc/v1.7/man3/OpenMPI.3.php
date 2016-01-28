@@ -32,7 +32,7 @@ as the MPI Standard, was first published in 1993; its most recent version
 and MPI 2-compliant routines. <p>
 For more information about Open MPI, see the
 following URL: <br>
-<pre>   http://www.open-mpi.org
+<pre>   https://www.open-mpi.org
 </pre><p>
 The MPI standards are available at the following URL: <br>
 <pre>    http://www.mpi-forum.org
@@ -54,7 +54,7 @@ orterun.1 man page. <p>
 For a complete listing of MCA parameters and their descriptions,
 issue the command <i>ompi_info -h</i> or <i>ompi_info -param all all</i>. This information
 also appears in the FAQ on the Open MPI web site at: <br>
-<pre>   http://www.open-mpi.org/faq/?category=tuning#mca-params
+<pre>   https://www.open-mpi.org/faq/?category=tuning#mca-params
 </pre>
 <p>
 <h2><a name='sect4' href='#toc4'>Errors</a></h2>

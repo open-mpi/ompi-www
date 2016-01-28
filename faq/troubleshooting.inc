@@ -81,7 +81,7 @@ handle = dlopen(\"libmpi.so\", RTLD_NOW | RTLD_LOCAL);
 
 This is due to some deep run time linker voodoo -- it is discussed
 towards the end of <a
-href=\"http://www.open-mpi.org/community/lists/devel/2010/05/7931.php\">this
+href=\"https://www.open-mpi.org/community/lists/devel/2010/05/7931.php\">this
 post to the Open MPI developer's list</a>.  Briefly, the issue is
 this:
 
@@ -295,7 +295,7 @@ As far as we know, this affects both Open MPI v1.4.4 (and later) and
 v1.5.4 (and later).
 
 <a
-href=\"http://www.open-mpi.org/community/lists/users/2011/12/17993.php\">Here's
+href=\"https://www.open-mpi.org/community/lists/users/2011/12/17993.php\">Here's
 one example of a user reporting this to the Open MPI User's list</a>.
 
 The cause of the problem has turned out to be a bug in early versions

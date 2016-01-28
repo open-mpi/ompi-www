@@ -243,12 +243,12 @@ running this test, which is its default value).  The value of
 *io_ompio_bytes_per_agg* could be set by system administrators
 into the system wide Open MPI configuration file, or by users
 individually. See ". 
-"<a HREF=\"http://www.open-mpi.org/faq/?category=tuning#setting-mca-params\">"
+"<a HREF=\"https://www.open-mpi.org/faq/?category=tuning#setting-mca-params\">"
 ." the FAQ entry </A> on setting MCA parameters. for all details.
 
 For more exhaustive tuning of I/O parameters, we recommend the
 utilization of the " . "<A
-HREF=\"http://www.open-mpi.org/projects/otpo/\">" ." Open Tool for Parameter
+HREF=\"https://www.open-mpi.org/projects/otpo/\">" ." Open Tool for Parameter
 Optimization (OTPO)</A> a tool specifically designed to explore the
 MCA parameter space of Open MPI.";
 

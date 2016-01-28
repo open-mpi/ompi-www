@@ -16,7 +16,7 @@ project.
 hwloc project announcements <a
 href=\"http://blogs.cisco.com/ciscotalk/performance/comments/announcing_hwloc_portable_hardware_locality_open_source_software/\">here</a>
 and <a
-href=\"http://www.open-mpi.org/community/lists/hwloc-announce/2009/09/0000.php\">here</a>.
+href=\"https://www.open-mpi.org/community/lists/hwloc-announce/2009/09/0000.php\">here</a>.
 
 The first release of hwloc won't contain all of the PLPA
 functionality; the ideas of PLPA are being slowly imported into hwloc

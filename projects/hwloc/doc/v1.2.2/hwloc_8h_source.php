@@ -46,7 +46,7 @@ include_once("$topdir/includes/code.inc");
 <a name="l00011"></a>00011 <span class="comment"> *         ------------------------------------------------</span>
 <a name="l00012"></a>00012 <span class="comment"> *               $tarball_directory/doc/doxygen-doc/</span>
 <a name="l00013"></a>00013 <span class="comment"> *                                or                            </span>
-<a name="l00014"></a>00014 <span class="comment"> *           http://www.open-mpi.org/projects/hwloc/doc/</span>
+<a name="l00014"></a>00014 <span class="comment"> *           https://www.open-mpi.org/projects/hwloc/doc/</span>
 <a name="l00015"></a>00015 <span class="comment"> *=====================================================================</span>
 <a name="l00016"></a>00016 <span class="comment"> *</span>
 <a name="l00017"></a>00017 <span class="comment"> * FAIR WARNING: Do NOT expect to be able to figure out all the</span>

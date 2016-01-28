@@ -43,7 +43,7 @@ $a[] = "
 <b>The following only applies to netloc v0.5 since next releases will
 be included in hwloc releases</b>.
 
-netloc requires a <a href=\"http://www.open-mpi.org/projects/hwloc/\">hwloc</a>
+netloc requires a <a href=\"https://www.open-mpi.org/projects/hwloc/\">hwloc</a>
 version of 1.4.2 or later. There are some addtional features in hwloc 1.8 and
 later that netloc can take advantage of as well (e.g., topology compression).
 ";

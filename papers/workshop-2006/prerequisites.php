@@ -314,7 +314,7 @@ build is complete and ready for testing.
 <P>For now, we can just use a simple Hello, World example to make sure
 that Open MPI is operating correctly (<A HREF="hello.c">hello.c</A>).
 Make sure Open MPI is in your path according to the FAQ item on <A
-HREF="http://www.open-mpi.org/faq/?category=running#adding-ompi-to-path">shell
+HREF="https://www.open-mpi.org/faq/?category=running#adding-ompi-to-path">shell
 configuation</A>.  The compile and execution output should look like
 that below.</P>
 

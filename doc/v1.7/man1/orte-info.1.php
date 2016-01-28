@@ -25,7 +25,7 @@ ORTE installation.  It can be useful for at least three common scenarios:
 <p>
 1. Checking local configuration and seeing how ORTE was installed. <p>
 2. Submitting
-bug reports / help requests to the ORTE community (see  <i>http://www.open-mpi.org/community/help/</i>)
+bug reports / help requests to the ORTE community (see  <i>https://www.open-mpi.org/community/help/</i>)
 <p>
 3. Seeing a list of installed ORTE plugins and querying what  MCA parameters
 they support.

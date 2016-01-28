@@ -17,14 +17,14 @@ function print_link($name, $dir) {
             // than a single message showing up N times (i.e., once on
             // each mirror).
 
-            print("<a href=\"http://www.open-mpi.org/community/lists/$dir/\">Archives</a> | \n");
+            print("<a href=\"https://www.open-mpi.org/community/lists/$dir/\">Archives</a> | \n");
         } else {
             print("<a href=\"$dir/\">Archives</a> | \n");
         }
     }
 
     // Mailman is not mirrored, of course -- must link to the original page
-    print("<a href=\"http://www.open-mpi.org/mailman/listinfo.cgi/$dir\">Subscribe, unsubscribe, or change options</a> ]
+    print("<a href=\"https://www.open-mpi.org/mailman/listinfo.cgi/$dir\">Subscribe, unsubscribe, or change options</a> ]
 ");
 }
 
