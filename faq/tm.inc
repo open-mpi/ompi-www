@@ -7,7 +7,7 @@ $anchor[] = "tm-run-jobs";
 
 $a[] = "The short answer is just to use [mpirun] as normal.
 
-Open MPI automatically obtains both the list of hosts and how many
+When properly configured, Open MPI obtains both the list of hosts and how many
 processes to start on each host from Torque / PBS Pro directly.
 Hence, it is unnecessary to specify the [--hostfile], [--host], or
 [-np] options to [mpirun].  Open MPI will use PBS/Torque-native
@@ -110,4 +110,29 @@ As of v1.3, Open MPI can use the [--hostfile] and [--host] options in
 conjunction with TM jobs.";
 
 /////////////////////////////////////////////////////////////////////////
+
+$q[] = "How do I determine if Open MPI is configured for Torque/PBS Pro?";
+
+$anchor[] = "tm-configure-ompi";
+
+$a[] = "If you configuring and installing Open MPI yourself, and you want
+to insure that you are building the components of Open MPI required for
+Torque/PBS Pro support, include the [--with-tm] option on the configure
+command line.  Run [./configure --help] for further information about this
+configure option.
+
+The [ompi_info] command can be used to determine whether or not an
+installed Open MPI includes Torque/PBS Pro support:
+
+<geshi bash>
+shell$ ompi_info | grep ras
+</geshi>
+
+If the Open MPI installation includes support for Torque/PBS Pro, you
+should see a line similar to that below. Note the MCA version information
+varies depending on which version of Open MPI is installed.
+
+<geshi bash>
+      MCA ras: tm (MCA v2.1.0, API v2.0.0, Component v3.0.0)
+</geshi>";
 
