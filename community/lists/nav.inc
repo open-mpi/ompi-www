@@ -6,7 +6,7 @@ $this_dir = "lists";
 // List archives are not mirrored (don't want the same results showing up
 // in Google multiple times, for example)
 
-$base = "http://www.open-mpi.org";
+$base = "https://www.open-mpi.org";
 
 include_once("ompi.inc");
 include_once("hwloc.inc");

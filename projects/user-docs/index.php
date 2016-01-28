@@ -34,11 +34,11 @@ href="<?php print($topdir); ?>/community/contribute/">Open MPI 3rd
 Party Contribution Form</a>.</li>
 
 <li> <a
-href="http://www.open-mpi.org/mailman/listinfo.cgi/docs">Subscribe or
+href="https://www.open-mpi.org/mailman/listinfo.cgi/docs">Subscribe or
 unsubscribe</a> to the "ompi-docs" mailing list, where discussions
 about the user documentation project take place.</li>
 
-<li> See the <a href="http://www.open-mpi.org/community/lists/docs/">archives of the "ompi-docs" mailing list</a>.</li>
+<li> See the <a href="https://www.open-mpi.org/community/lists/docs/">archives of the "ompi-docs" mailing list</a>.</li>
 
 </ul>
 </p>

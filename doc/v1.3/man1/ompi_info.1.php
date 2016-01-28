@@ -25,7 +25,7 @@ include_once("$topdir/includes/header.inc");
        1. Checking local configuration and seeing how Open MPI was  installed.
 
        2.  Submitting  bug  reports  / help requests to the Open MPI community
-       (see <I>http://www.open-mpi.org/community/help/</I>)
+       (see <I>https://www.open-mpi.org/community/help/</I>)
 
        3. Seeing a list of installed Open MPI plugins and  querying  what  MCA
        parameters they support.

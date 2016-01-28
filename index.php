@@ -92,16 +92,16 @@ news("SC'15 OMPI State of the Union and PMIx BOFs",
      "sc15/");
 news("Open MPI v1.10.2 released",
      "Stable release",
-     "http://www.open-mpi.org/community/lists/announce/2016/01/0082.php");
+     "https://www.open-mpi.org/community/lists/announce/2016/01/0082.php");
 news("hwloc v1.11.2 released",
      "New release",
-     "http://www.open-mpi.org/community/lists/hwloc-announce/2015/12/0082.php");
+     "https://www.open-mpi.org/community/lists/hwloc-announce/2015/12/0082.php");
 news("PMIx v1.1.1 released",
      "New production release",
      "https://groups.google.com/forum/#!category-topic/pmix/CaQNm9aPGcI");
 news("Performance Benchmarks",
      "New section on performance benchmarks added",
-     "http://www.open-mpi.org/performance/");
+     "https://www.open-mpi.org/performance/");
 
 ?>
 

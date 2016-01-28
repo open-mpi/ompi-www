@@ -67,7 +67,7 @@ Remote machine simulation through the gathering of Linux sysfs topology files </
 </div><div class="section" id="installation">
  <h2><a class="anchor" id="installation">
 Installation</a></h2>
-<p>hwloc (<a href="http://www.open-mpi.org/projects/hwloc/">http://www.open-mpi.org/projects/hwloc/</a>) is available under the BSD license. It is hosted as a sub-project of the overall Open MPI project (<a href="http://www.open-mpi.org/">http://www.open-mpi.org/</a>). Note that hwloc does not require any functionality from Open MPI -- it is a wholly separate (and much smaller!) project and code base. It just happens to be hosted as part of the overall Open MPI project.</p>
+<p>hwloc (<a href="https://www.open-mpi.org/projects/hwloc/">https://www.open-mpi.org/projects/hwloc/</a>) is available under the BSD license. It is hosted as a sub-project of the overall Open MPI project (<a href="https://www.open-mpi.org/">https://www.open-mpi.org/</a>). Note that hwloc does not require any functionality from Open MPI -- it is a wholly separate (and much smaller!) project and code base. It just happens to be hosted as part of the overall Open MPI project.</p>
 <p>Nightly development snapshots are available on the web site. Additionally, the code can be directly checked out of Subversion:</p>
 <div class="fragment"><pre class="fragment">shell$ svn checkout http:<span class="comment">//svn.open-mpi.org/svn/hwloc/trunk hwloc-trunk</span>
 shell$ cd hwloc-trunk
@@ -539,14 +539,14 @@ shell$
 </div><div class="section" id="bugs">
  <h2><a class="anchor" id="bugs">
 Questions and Bugs</a></h2>
-<p>Questions should be sent to the devel mailing list (<a href="http://www.open-mpi.org/community/lists/hwloc.php">http://www.open-mpi.org/community/lists/hwloc.php</a>). Bug reports should be reported in the tracker (<a href="https://svn.open-mpi.org/trac/hwloc/">https://svn.open-mpi.org/trac/hwloc/</a>).</p>
+<p>Questions should be sent to the devel mailing list (<a href="https://www.open-mpi.org/community/lists/hwloc.php">https://www.open-mpi.org/community/lists/hwloc.php</a>). Bug reports should be reported in the tracker (<a href="https://svn.open-mpi.org/trac/hwloc/">https://svn.open-mpi.org/trac/hwloc/</a>).</p>
 <p>If hwloc discovers an incorrect topology for your machine, the very first thing you should check is to ensure that you have the most recent updates installed for your operating system. Indeed, most of hwloc topology discovery relies on hardware information retrieved through the operation system (e.g., via the /sys virtual filesystem of the Linux kernel). If upgrading your OS or Linux kernel does not solve your problem, you may also want to ensure that you are running the most recent version of the BIOS for your machine.</p>
 <p>If those things fail, contact us on the mailing list for additional help. Please attach the output of lstopo after having given the --enable-debug option to ./configure and rebuilt completely, to get debugging output.</p>
  
 </div><div class="section" id="credits">
  <h2><a class="anchor" id="history">
 History / Credits</a></h2>
-<p>hwloc is the evolution and merger of the libtopology (<a href="http://runtime.bordeaux.inria.fr/libtopology/">http://runtime.bordeaux.inria.fr/libtopology/</a>) project and the Portable Linux Processor Affinity (PLPA) (<a href="http://www.open-mpi.org/projects/plpa/">http://www.open-mpi.org/projects/plpa/</a>) project. Because of functional and ideological overlap, these two code bases and ideas were merged and released under the name "hwloc" as an Open MPI sub-project.</p>
+<p>hwloc is the evolution and merger of the libtopology (<a href="http://runtime.bordeaux.inria.fr/libtopology/">http://runtime.bordeaux.inria.fr/libtopology/</a>) project and the Portable Linux Processor Affinity (PLPA) (<a href="https://www.open-mpi.org/projects/plpa/">https://www.open-mpi.org/projects/plpa/</a>) project. Because of functional and ideological overlap, these two code bases and ideas were merged and released under the name "hwloc" as an Open MPI sub-project.</p>
 <p>libtopology was initially developed by the INRIA Runtime Team-Project (<a href="http://runtime.bordeaux.inria.fr/">http://runtime.bordeaux.inria.fr/</a>) (headed by Raymond Namyst (<a href="http://dept-info.labri.fr/~namyst/">http://dept-info.labri.fr/~namyst/</a>). PLPA was initially developed by the Open MPI development team as a sub-project. Both are now deprecated in favor of hwloc, which is distributed as an Open MPI sub-project.</p>
  
 </div>

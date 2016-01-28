@@ -7,7 +7,7 @@ include_once("$topdir/includes/header.inc");
 
 # Constants
 
-$url = "http://www.open-mpi.org/mailman/subscribe.cgi/$list_name";
+$url = "https://www.open-mpi.org/mailman/subscribe.cgi/$list_name";
 $method = "POST";
 $data = "email=" . $_POST['email'] . "&email-button=Subscribe";
 

@@ -40,7 +40,7 @@ $q[] = "What ABI guarantees does Open MPI provide?";
 $anchor[] = "abi-guarantees";
 
 $a[] = "Open MPI's versioning and ABI scheme <a
-href=\"http://www.open-mpi.org/software/ompi/versions/\">is described
+href=\"https://www.open-mpi.org/software/ompi/versions/\">is described
 here</a>, but is summarized here in this FAQ entry for convenience.
 
 
@@ -87,9 +87,9 @@ MPI releases.
 
 Starting with v1.3.2, Open MPI provides forward ABI compatibility --
 with respect to the MPI API only -- in all versions of a given <a
-href=\"http://www.open-mpi.org/software/ompi/versions/\">feature
+href=\"https://www.open-mpi.org/software/ompi/versions/\">feature
 release series</a> and its corresponding <a
-href=\"http://www.open-mpi.org/software/ompi/versions/\">super stable
+href=\"https://www.open-mpi.org/software/ompi/versions/\">super stable
 series</a>.  For example, on a single platform, an MPI application
 linked against Open MPI v1.3.2 shared libraries can be updated to
 point to the shared libraries in any successive v1.3.x or v1.4 release
@@ -1246,7 +1246,7 @@ mode (i.e., more processes are running than there are processors
 available), MPI processes will automatically run in _degraded_ mode
 and frequently yield the processor to its peers, thereby allowing all
 processes to make progress (be sure to see <a
-href=\"http://www.open-mpi.org/faq/?category=tuning#using-paffinity\">this
+href=\"https://www.open-mpi.org/faq/?category=tuning#using-paffinity\">this
 FAQ entry</a> that describes how degraded mode affects processor and
 memory affinity).</li>
 

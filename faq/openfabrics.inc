@@ -6,7 +6,7 @@ $note = "*<font color=red>NOTE:</font>*";
 
 $mlp = "$note The [mpi_leave_pinned] parameter was
 broken in Open MPI v1.3 and v1.3.1 (<a
-href=\"http://www.open-mpi.org/community/lists/announce/2009/03/0029.php\">see
+href=\"https://www.open-mpi.org/community/lists/announce/2009/03/0029.php\">see
 this announcement</a>).  [mpi_leave_pinned] functionality was fixed in v1.3.2.";
 
 #
@@ -391,7 +391,7 @@ physical memory on your machine.
 See this Open MPI FAQ item for more information on these Linux kernel
 module parameters:
 
-    http://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages
+    https://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages
 
   Local host:              node02
   Registerable memory:     32768 MiB
@@ -446,7 +446,7 @@ You may need to consult with your system administrator to get this
 problem fixed.  This FAQ entry on the Open MPI web site may also be
 helpful:
 
-    http://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages
+    https://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages
 </geshi></li>
 
 <li><geshi text>
@@ -567,7 +567,7 @@ $q[] = "I'm <em>still</em> getting errors about \"error registering openib memor
 
 $anchor[] = "ib-locked-pages-more";
 
-$url = "http://www.open-mpi.org/community/lists/users/2006/02/0724.php";
+$url = "https://www.open-mpi.org/community/lists/users/2006/02/0724.php";
 
 $a[] = "Ensure that the limits you've set (see <a
 href=\"#ib-locked-pages\">this FAQ entry</a>) are actually being
@@ -926,7 +926,7 @@ data\" errors; what is this, and how do I fix it?";
 
 $anchor[] = "ibv_create_qp_equals_0";
 
-$url = "http://www.open-mpi.org/community/lists/users/2006/03/0737.php";
+$url = "https://www.open-mpi.org/community/lists/users/2006/03/0737.php";
 
 $a[] = "Prior to Open MPI v1.0.2, the OpenFabrics (then known as
 \"OpenIB\") verbs BTL component did not check for where the OpenIB API

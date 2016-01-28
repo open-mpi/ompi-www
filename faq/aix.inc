@@ -26,7 +26,7 @@ $q[] = "Does Open MPI work on AIX?";
 
 $anchor[] = "does-it-work";
 
-$url = "http://www.open-mpi.org/community/lists/users/2007/03/2898.php";
+$url = "https://www.open-mpi.org/community/lists/users/2007/03/2898.php";
 
 $a[] = "There have been reports from random users that a small number
 of changes are required to the Open MPI code base to make it work

@@ -28,7 +28,7 @@ this page</a> and ensure that your server shows the same content that
 is displayed on the main Open MPI web site).
 
 <li>Please join the <a
-href="http://www.open-mpi.org/mailman/listinfo.cgi/mirrors">Open MPI
+href="https://www.open-mpi.org/mailman/listinfo.cgi/mirrors">Open MPI
 mirrors mailing list</a>.  This is a very low-volume mailing list that
 we use for sending out announcements, problems with mirror sites, etc.
 Questions, comments, and suggestions about the mirroring process can

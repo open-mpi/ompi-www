@@ -18,7 +18,7 @@ include_once("$topdir/includes/code.inc");
 # Lists are not mirrored - use an absolute URL
 news("hwloc v1.11.2 released",
      "New release",
-     "http://www.open-mpi.org/community/lists/hwloc-announce/2015/12/0082.php");
+     "https://www.open-mpi.org/community/lists/hwloc-announce/2015/12/0082.php");
 news("The Best of lstopo published",
      "Best lstopo graphical outputs",
      "lstopo");
@@ -148,7 +148,7 @@ Rust bindings are available from Michael Nitschinger
 <p><b>The following software already benefit from hwloc</b> or are being
 ported to it:<ul>
 <li>MPI implementations and tools</li><ul>
- <li><a href="http://www.open-mpi.org">Open MPI</a></li>
+ <li><a href="https://www.open-mpi.org">Open MPI</a></li>
  <li>The <a
  href="http://www.mpich.org">MPICH</a>
  process launcher Hydra</li>
@@ -185,7 +185,7 @@ ported to it:<ul>
  <li>The <a href="https://github.com/open-mpi/orcm">Open Resilient Cluster Manager (ORCM)</a></li>
 </ul>
 <li>and even more!</li><ul>
- <li><a href="http://www.open-mpi.org/projects/pmix">PMI-Exascale (PMIx)</a></li>
+ <li><a href="https://www.open-mpi.org/projects/pmix">PMI-Exascale (PMIx)</a></li>
  <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a></li>
  <li>The interactive process viewer <a href="http://htop.sourceforge.net/">htop</a> for Linux</a></li>
  <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
@@ -252,7 +252,7 @@ helpful debugging information.</p>
 
 <p>
  See also the
- <a href="http://www.open-mpi.org/papers/">Open MPI publication list</a>.
+ <a href="https://www.open-mpi.org/papers/">Open MPI publication list</a>.
 </p>
 
 <!------------------------------------------------------------------------->

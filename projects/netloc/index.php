@@ -25,7 +25,7 @@ include_once("$topdir/includes/code.inc");
 # Lists are not mirrored - use an absolute URL
 news("Network Locality announced",
      "w00t!",
-     "http://www.open-mpi.org/community/lists/netloc-announce/2013/11/0001.php");
+     "https://www.open-mpi.org/community/lists/netloc-announce/2013/11/0001.php");
 </div>
 */
 ?>

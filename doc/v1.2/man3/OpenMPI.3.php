@@ -31,7 +31,7 @@ include_once("$topdir/includes/header.inc");
 
        For more information about Open MPI, see the following URL:
 
-          http://www.open-mpi.org
+          https://www.open-mpi.org
 
        The MPI standards are available at the following URL:
 
@@ -57,7 +57,7 @@ include_once("$topdir/includes/header.inc");
        the command <I>ompi</I><B>_</B><I>info</I> <I>-h</I> or <I>ompi</I><B>_</B><I>info</I> <I>-param</I> <I>all</I> <I>all</I>. This  information
        also appears in the FAQ on the Open MPI web site at:
 
-          http://www.open-mpi.org/faq/?category=tuning#mca-params
+          https://www.open-mpi.org/faq/?category=tuning#mca-params
 
 </PRE>
 <H2>ERRORS</H2><PRE>

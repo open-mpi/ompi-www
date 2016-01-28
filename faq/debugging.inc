@@ -260,7 +260,7 @@ may not be suitable.</li>
 
 <li> Some operating systems default to disabling the X11 server from
 listening for remote/network traffic.  For example, see <a
-href=\"http://www.open-mpi.org/community/lists/users/2008/02/4995.php\">this
+href=\"https://www.open-mpi.org/community/lists/users/2008/02/4995.php\">this
 post on the user's mailing list</a>, describing how to enable network
 access to the X11 on Fedora Linux.</li>
 

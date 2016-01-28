@@ -58,7 +58,7 @@ certifications, and gain choice in network fabric types."
 
 <p><strong><em>About Open MPI</em></strong>
 
-<p>Open MPI (<a href="http://www.open-mpi.org/">www.open-mpi.org</a>) is
+<p>Open MPI (<a href="https://www.open-mpi.org/">www.open-mpi.org</a>) is
 a project combining the technologies and resources from several other
 projects (FT-MPI from the University of Tennessee, LA-MPI from Los
 Alamos National Laboratory, LAM/MPI from Indiana University, and

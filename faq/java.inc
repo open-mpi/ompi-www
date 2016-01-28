@@ -126,5 +126,5 @@ the results are satisfactory (having a slight overhead with respect to
 C/Fortran code).
 
 We suggest users experiencing performance problems to contact the
-<a href=\"http://www.open-mpi.org/community/lists/ompi.php\">
+<a href=\"https://www.open-mpi.org/community/lists/ompi.php\">
 OMPI users mailing list</a>.";

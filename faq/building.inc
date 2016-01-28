@@ -1239,8 +1239,8 @@ this version of Torque changed other things that require upgrading
 Open MPI to 1.0.3 or higher (as of this writing, v1.0.3 has not yet
 been released -- nightly snapshot tarballs of what will become 1.0.3
 are available at " .
-"<a href=\"http://www.open-mpi.org/nightly/v1.0/\">" .
-"http://www.open-mpi.org/nightly/v1.0/</a>).
+"<a href=\"https://www.open-mpi.org/nightly/v1.0/\">" .
+"https://www.open-mpi.org/nightly/v1.0/</a>).
 
 <strong><font color=red>NOTE:</font></strong> As of this writing
 (October 2006), Open PBS, and PBS Pro do not (i.e., they only include
