@@ -2296,3 +2296,61 @@ for any number of MPI processes, run the following command:
 shell$ mpirun --mca mtl_mxm_np 0 ...
 </geshi>
 ";
+/////////////////////////////////////////////////////////////////////////
+$q[] = "What is <code>cpu-set</code>?";
+$anchor[] = "cpu-set";
+$a[] = "
+The --cpu-set parameter allows you to specify the logical CPUs to use in an MPI job.
+
+From 'mpirun --help':
+Comma-separated list of ranges specifying logical cpus allocated to this job.
+
+<geshi bash>
+shell$ mpirun -cpu-set 0,1,2,3 ...
+</geshi>
+
+The hwloc package can be used to get information about the topology on your host.
+More information about hwloc is available <a href=\"https://www.open-mpi.org/projects/hwloc\">here</a>.
+
+Here is a usage example with 'hwloc-ls'.<br>
+Consider the following command line:
+<geshi bash>
+shell$ mpirun --report-bindings -n 4 --oversubscribe --cpu-set 14,15,0,1 --bind-to hwthread --map-by hwthread  hostname
+</geshi><br>
+The output of the --report-bindings is:
+<geshi bash>
+[clx-orion-001:25028] MCW rank 0 bound to socket 0[core 0[hwt 0]]: [B./../../../../../../../../../../../../..][../../../../../../../../../../../../../..]
+[clx-orion-001:25028] MCW rank 1 bound to socket 0[core 0[hwt 1]]: [.B/../../../../../../../../../../../../..][../../../../../../../../../../../../../..]
+[clx-orion-001:25028] MCW rank 2 bound to socket 0[core 7[hwt 0]]: [../../../../../../../B./../../../../../..][../../../../../../../../../../../../../..]
+[clx-orion-001:25028] MCW rank 3 bound to socket 0[core 7[hwt 1]]: [../../../../../../../.B/../../../../../..][../../../../../../../../../../../../../..]
+</geshi>
+
+The explanation is as follows.
+When 'hwloc-ls' is run, the output will show the mappings of physical cores to logical ones.<br>
+As per the example in the command line, the logical PUs 0,1,14,15 match the physical cores - 0 and 7. (as shown in the map above)
+
+<pre>
+    NUMANode L#0 (P#0 128GB)
+        Socket L#0 + L3 L#0 (35MB)
+          L2 L#0 (256KB) + L1d L#0 (32KB) + Core <b>L#0</b>
+            PU L#0 (P#0)
+            PU L#1 (P#28)
+        ...
+        ...
+          L2 L#7 (256KB) + L1d L#7 (32KB) + Core <b>L#7</b>
+            PU L#14 (P#7)
+            PU L#15 (P#35)
+
+</pre>
+
+It is also possible to use 'hwloc-calc'. The following command line will show all the available logical CPUs on the host:
+<geshi bash>
+hwloc-calc all -I pu
+</geshi>
+
+The following will show two specific hwthreads specified by phys ids 0 and 1:
+<geshi bash>
+hwloc-calc -I pu --physical-input pu:0 pu:1
+</geshi>
+
+";
