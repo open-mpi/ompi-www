@@ -17,7 +17,7 @@ Contributor License Agreement form.  It is available in two formats:
 <ul>
 
 <li> <?php
-print("<a href=\"open-mpi-individual-contributor-agrement.doc\">");
+print("<a href=\"open-mpi-individual-contributor-agrement.docx\">");
 ?>Microsoft Word</a></li>
 
 <li> <?php
