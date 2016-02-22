@@ -189,6 +189,7 @@ ported to it:<ul>
  <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a></li>
  <li>The interactive process viewer <a href="http://htop.sourceforge.net/">htop</a> for Linux</a></li>
  <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
+ <li>The <a href="http://www.scylladb.com">Scylla</a> NoSQL server.</li>
 </ul></ul></p>
 
 <!------------------------------------------------------------------------->
