@@ -183,6 +183,7 @@ ported to it:<ul>
  <li>The <a href="http://arc.liv.ac.uk/trac/SGE/">Son of Grid Engine</a> project</li>
  <li>Altair's <a href="http://www.pbsworks.com/Product.aspx?id=1">PBS Professional</a> solution (part of PBS Works)</li>
  <li>The <a href="https://github.com/open-mpi/orcm">Open Resilient Cluster Manager (ORCM)</a></li>
+ <li><a href="http://www-03.ibm.com/systems/platformcomputing/products/lsf/">IBM Platform LSF</a> workload management platform</li>
 </ul>
 <li>and even more!</li><ul>
  <li><a href="https://www.open-mpi.org/projects/pmix">PMI-Exascale (PMIx)</a></li>
