@@ -2175,7 +2175,9 @@ shell$ mpirun --mca btl openib... --mca btl_openib_receive_queues X,128,256,192,
 </geshi>
 
 $note the [rdmacm] CPC is not supported with
-XRC. Also, XRC cannot be used when [btls_per_lid] &gt; 1.";
+XRC. Also, XRC cannot be used when [btls_per_lid] &gt; 1.</br>
+$note the [rdmacm] CPC cannot be used unless the first QP is per-peer.";
+
 
 /////////////////////////////////////////////////////////////////////////
 $q[] = "Does Open MPI support <code>FCA</code>?";
