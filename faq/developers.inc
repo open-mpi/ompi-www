@@ -103,10 +103,10 @@ into libraries (e.g., [libmpi]).";
 
 $q[] = "How do I get a copy of the most recent source code?";
 
-$anchor[] = "svn-checkout";
+$anchor[] = "git-checkout";
 
 $a[] = "See the instructions <a
-href=\"$topdir/source/obtaining.php\">here</a>.";
+href=\"$topdir/source/git.php\">here</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
