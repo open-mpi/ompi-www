@@ -319,6 +319,8 @@ add_individual("", "Amit Saha", "", $contrib);
 
 add_individual("", "Alex Brick", "", $contrib);
 
+add_individual("", "Karol Mroz", "", $contrib);
+
 print_contribs();
 
 ?>
