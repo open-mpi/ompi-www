@@ -2362,7 +2362,7 @@ $anchor[] = "ib-router";
 $a[] = "Yes.
 
 When using InfiniBand, Open MPI supports host communication between separate subnets using the Mellanox IB-Router.<br>
-The support for IB-Router is available starting with Open MPI v1.10.<br>
+The support for IB-Router is available starting with Open MPI v1.10.3.<br>
 
 To enable routing over IB please follow these steps:
 <ol>
