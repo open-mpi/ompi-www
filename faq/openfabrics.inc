@@ -2356,3 +2356,29 @@ hwloc-calc -I pu --physical-input pu:0 pu:1
 </geshi>
 
 ";
+/////////////////////////////////////////////////////////////////////////
+$q[] = "Does Open MPI support connecting hosts from different subnets?";
+$anchor[] = "ib-router";
+$a[] = "Yes.
+
+When using InfiniBand, Open MPI supports host communication between separate subnets using the Mellanox IB-Router.<br>
+The support for IB-Router is available starting with Open MPI v1.10.<br>
+
+To enable routing over IB please follow these steps:
+<ol>
+<li> Configure OMPI with <code>--enable-openib-rdmacm-ibaddr</code>. The Open MPI package in <a href=\"http://www.mellanox.com/page/products_dyn?product_family=189&mtag=hpc-x\">HPC-X</a> is compiled with this flag.</li>
+<li> Open SM with support for IB-Router is available in MLNX_OFED starting version 3.3.</li>
+<li> Use rdmacm with openib btl from the command line.</li>
+<li> Set the btl_openib_allow_different_subnets parameter to 1. It is 0 by default.</li>
+<li> Set the btl_openib_gid_index parameter to 1.</li>
+</ol>
+
+For example - to run the IMB benchmark on host1 and host2 which are on separate subents, i.e. have different subnet_prefix, use the following command line:<br><br>
+<geshi bash>
+shell$ mpirun -np 2 --display-map --map-by node -H host1,host2 -mca pml ob1 -mca btl self,sm,openib --mca btl_openib_cpc_include rdmacm -mca btl_openib_if_include mlx5_0:1 -mca btl_openib_gid_index 1 -mca btl_openib_allow_different_subnets 1  ./IMB/src/IMB-MPI1 pingpong
+</geshi>
+
+$note The rdmacm CPC cannot be used unless the first QP is per-peer. If the default value of btl_openib_receive_queues is to use only SRQ QPs, please set the first QP in the list to a per-peer QP.<br> 
+Please see <a href=\"#ib-receive-queues\">this FAQ entry</a> for more information on this mca parameter.
+
+";
