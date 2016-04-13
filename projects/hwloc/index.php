@@ -16,6 +16,9 @@ include_once("$topdir/includes/code.inc");
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
 <?php
 # Lists are not mirrored - use an absolute URL
+news("hwloc v1.11.3rc1 released",
+     "New release candidate",
+     "https://www.open-mpi.org/community/lists/hwloc-announce/2016/04/0084.php");
 news("hwloc v1.11.2 released",
      "New release",
      "https://www.open-mpi.org/community/lists/hwloc-announce/2015/12/0082.php");
@@ -131,6 +134,7 @@ or <a href="git.php">checkout</a>.
 <p>hwloc is already available as official packages for many Linux distributions
 (at least Debian/Ubuntu, Fedora/RHEL, SUSE, ArchLinux, Slackware, Gentoo and their derivatives),
 as well as NetBSD, FreeBSD, Cygwin and Mac OS X ports.
+It is also available as EasyBuild and Spack packages
 </p>
 
 <p>
