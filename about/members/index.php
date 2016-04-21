@@ -165,7 +165,7 @@ add_org("http://www.amd.com/", "AMD", "", "amd.png", $contrib);
 
 add_org("http://www.linaro.org/", "Linaro", "", "linaro.png", $contrib);
 
-add_org("http://www.auburn.edu/", "Auburn University", "", 
+add_org("http://www.auburn.edu/", "Auburn University", "",
         "auburn.jpg", $contrib);
 
 add_org("http://www.lanl.gov/", "Los Alamos National Laboratory", "",
@@ -186,18 +186,18 @@ add_org("http://www.cs.uh.edu/", "Department of Computer Science",
              "University of Houston", "uh.jpg", $member);
 
 // Removed by JMS 30 Oct 2013: this company no longer exists
-//add_org("http://www.evergrid.com/", "Evergrid", "", 
+//add_org("http://www.evergrid.com/", "Evergrid", "",
 //           "evergrid.jpg", $contrib);
 
 add_org("http://www.hft-stuttgart.de", "HFT Stuttgart",
         "University of Applied Science",
         "hft-stuttgart.jpg", $contrib);
 
-add_org("http://www.inria.fr/index.en.html", "Inria", 
-           "The French National Institute for Research in Computer Science and Control", 
+add_org("http://www.inria.fr/index.en.html", "Inria",
+           "The French National Institute for Research in Computer Science and Control",
            "inria.jpg", $member);
 
-add_org("http://www.minet.uni-jena.de/", 
+add_org("http://www.minet.uni-jena.de/",
            "Friedrich-Schiller-Universitat Jena", "", "jena.jpg", $contrib);
 
 // Removed by JMS 30 Oct 2013: cannot find any reference to them on
@@ -222,10 +222,10 @@ Tennessee", "utk-icl.gif", $member);
 add_org("http://www.llnl.gov", "Lawrence Livermore National Laboratory",
            "", "llnl.png", $contrib);
 
-add_org("http://www.mellanox.com/", "Mellanox Technologies", "", 
+add_org("http://www.mellanox.com/", "Mellanox Technologies", "",
              "mellanox.gif", $member);
 
-add_org("http://www.myricom.com/", "Myricom, Inc.", "", 
+add_org("http://www.myricom.com/", "Myricom, Inc.", "",
              "myricom.gif", $contrib);
 
 add_org("http://www.nvidia.com/", "Nvidia", "",
@@ -236,12 +236,12 @@ add_org("http://www.ornl.gov/", "Oak Ridge National Laboratory",
              "ornl.jpg", $member);
 
 add_org("http://www.osl.iu.edu/", "Open Systems Laboratory",
-             "Pervasive Technologies Lab at Indiana University", 
+             "Pervasive Technologies Lab at Indiana University",
              "iu-ptl.gif", $member);
 
-add_org("http://www.cs.ubc.ca/labs/dsg/mpi-sctp/", 
+add_org("http://www.cs.ubc.ca/labs/dsg/mpi-sctp/",
            "Distributed Systems Group",
-           "Computer Science Department, University of British Columbia", 
+           "Computer Science Department, University of British Columbia",
            "ubc.jpg", $contrib);
 
 add_org("http://www.oracle.com/", "Oracle", "", "oracle.png", $contrib);
@@ -264,26 +264,29 @@ add_org("http://www.sandia.gov/", "Sandia National Laboratories",
            "", "sandia.jpg", $member);
 
 add_org("http://www.tu-chemnitz.de/informatik/RA/",
-           "Computer Architecture Group", 
+           "Computer Architecture Group",
            "Technische Universtaet Chemnitz", "tuc.jpg", $contrib);
 
-add_org("http://www.tu-dresden.de/zih", "Center for Information 
+add_org("http://www.tu-dresden.de/zih", "Center for Information
 Services and High Performance Computing (ZIH)",
            "Technische Universitaet Dresden", "zih-logo-en.png", $member);
 
 add_org("http://www.cs.uwlax.edu/", "Computer Science Department",
         "University of Wisconsin-La Crosse", "uwlax.jpg", $contrib);
 
-add_org("http://www.wattsys.com/", 
+add_org("http://www.wattsys.com/",
         "Watt Systems Systems Technologies, Inc.", "",
         "wattsys.jpg", $contrib);
 
-add_org("http://hpcc.kpi.ua/", "High Performance Computing Center", 
+add_org("http://hpcc.kpi.ua/", "High Performance Computing Center",
         "National Technical University of Ukraine \"KPI\"",
         "ntuu_kpi.png", $contrib);
 
 add_org("http://www.hs-esslingen.de/", "Hochschule Esslingen",
         "University of Applied Sciences", "hs-esslingen.png", $contrib);
+
+add_org("http://www.cs.rutgers.edu/", "Rutgers University",
+        "Department of Computer Science", "rutgers.png", $contrib);
 
 add_individual("https://www.clarkson.edu/math/faculty_pages/black.html",
                "Kelly Black", "", $contrib);
@@ -329,7 +332,7 @@ print_contribs();
 </center>
 </p>
 
-<?php 
+<?php
 print "<p>Totals:<br>
 
 <ul>
@@ -342,4 +345,4 @@ print "<p>Totals:<br>
 </ul>
 </p>\n";
 
-  include_once("$topdir/includes/footer.inc"); 
+  include_once("$topdir/includes/footer.inc");
