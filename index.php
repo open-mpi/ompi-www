@@ -93,9 +93,9 @@ news("SC'15 OMPI State of the Union and PMIx BOFs",
 news("Open MPI v1.10.2 released",
      "Stable release",
      "https://www.open-mpi.org/community/lists/announce/2016/01/0082.php");
-news("hwloc v1.11.2 released",
+news("hwloc v1.11.3 released",
      "New release",
-     "https://www.open-mpi.org/community/lists/hwloc-announce/2015/12/0082.php");
+     "https://www.open-mpi.org/community/lists/hwloc-announce/2016/04/0085.php");
 news("PMIx v1.1.1 released",
      "New production release",
      "https://groups.google.com/forum/#!category-topic/pmix/CaQNm9aPGcI");
