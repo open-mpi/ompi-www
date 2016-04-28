@@ -22,7 +22,7 @@ $notes = "<a href=\"srpm.php\">SRPM notes</a>";
 $t_stable = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
 
 if (isset($t_stable)) {
-    $src = "Version $ver_v2_10<br>$notes";
+    $src = "Version $ver_v2_x<br>$notes";
 
     $n[] = "openmpi-$ver_v2_x.tar.bz2";
     $n[] = "openmpi-$ver_v2_x.tar.gz";
