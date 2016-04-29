@@ -285,8 +285,8 @@ add_org("http://hpcc.kpi.ua/", "High Performance Computing Center",
 add_org("http://www.hs-esslingen.de/", "Hochschule Esslingen",
         "University of Applied Sciences", "hs-esslingen.png", $contrib);
 
-add_org("http://www.cs.rutgers.edu/", "Rutgers University",
-        "Department of Computer Science", "rutgers.png", $contrib);
+add_org("http://radical.rutgers.edu/", "Rutgers University",
+        "RADICAL / Department of Electrical and Computer Engineering (ECE)", "rutgers.png", $contrib);
 
 add_individual("https://www.clarkson.edu/math/faculty_pages/black.html",
                "Kelly Black", "", $contrib);
