@@ -57,6 +57,13 @@ communication strategies to the network locality as described in
 or <a href="http://hal.inria.fr/inria-00566246">this one</a>.
 </p>
 
+<p>
+hwloc may also help many applications just by providing
+<b>a portable CPU and memory binding API</b>
+and a reliable way to
+<b>find out how many cores and/or hardware threads</b> are available.
+</p>
+
 <!------------------------------------------------------------------------->
 
 <h1>Portability and support</h1>
@@ -222,7 +229,7 @@ helpful debugging information.</p>
 
 <!------------------------------------------------------------------------->
 
-<h3>Publications</h3>
+<h1>Publications</h1>
 
 <p>
  If you are looking for general-purpose hwloc citations, please use the following one.
