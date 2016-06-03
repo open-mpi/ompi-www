@@ -5,8 +5,8 @@ if (function_exists("date_default_timezone_set")) {
     date_default_timezone_set('America/Indiana/Indianapolis');
 }
 
-# Display this notice until 11:30am US Eastern time, Tuesday, Jan 21, 2014
-if (time() < mktime(11, 30, 0, 1, 21, 2014)) {
+# Display this notice until 8:00am US Eastern time, Monday, Jun 6, 2016
+if (time() < mktime(8, 00, 0, 6, 6, 2016)) {
 ?>
 <div align=center>
 
@@ -15,9 +15,9 @@ if (time() < mktime(11, 30, 0, 1, 21, 2014)) {
 <p><font color=red>--- NOTICE -- NOTICE -- NOTICE ---</font></p>
 
 <p> Open MPI's main web site and mailing lists will be down
-for scheduled maintenance from 11-11:30am US Eastern time on <font color="red">
-Tuesday,
-January 21</font>, 2014.</p>
+for scheduled maintenance from 7-8:00am US Eastern time on <font color="red">
+Monday,
+June 6</font>, 2016.</p>
 
 <p><font color=red>--- NOTICE -- NOTICE -- NOTICE ---</font></p>
 
