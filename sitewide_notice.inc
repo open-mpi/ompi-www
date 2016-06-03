@@ -6,7 +6,7 @@ if (function_exists("date_default_timezone_set")) {
 }
 
 # Display this notice until 8:00am US Eastern time, Monday, Jun 6, 2016
-if (time() < mktime(8, 00, 0, 6, 6, 2016)) {
+if (time() < mktime(8, 0, 0, 6, 6, 2016)) {
 ?>
 <div align=center>
 
