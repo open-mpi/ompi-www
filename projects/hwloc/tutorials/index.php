@@ -12,6 +12,11 @@ include_once("$topdir/includes/code.inc");
 
 <ul>
 <li>
+ 2016/06/06 &mdash; 2,5 hours Tutorial (PRACE Advance Training Centre course, Saclay, France)
+ &mdash; <a href="20160606-PATC-hwloc-tutorial.pdf">Slides</a>
+ &mdash; <a href="20160606-PATC-hwloc-tutorial.tar.bz2">Material</a>
+</li>
+<li>
  2015/09/21 &mdash; 3 hours Tutorial (EuroMPI, Bordeaux, France)
  &mdash; <a href="20150921-EuroMPI-hwloc-tutorial.pdf">Slides</a>
  &mdash; <a href="20150921-EuroMPI-hwloc-tutorial.tar.bz2">Material</a>
