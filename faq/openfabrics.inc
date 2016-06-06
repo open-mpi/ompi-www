@@ -2366,7 +2366,7 @@ The support for IB-Router is available starting with Open MPI v1.10.3.<br>
 
 To enable routing over IB please follow these steps:
 <ol>
-<li> Configure OMPI with <code>--enable-openib-rdmacm-ibaddr</code>. The Open MPI package in <a href=\"http://www.mellanox.com/page/products_dyn?product_family=189&mtag=hpc-x\">HPC-X</a> is compiled with this flag.</li>
+<li> Configure OMPI with <code>--enable-openib-rdmacm-ibaddr</code>. </li>
 <li> Open SM with support for IB-Router is available in MLNX_OFED starting version 3.3.</li>
 <li> Use rdmacm with openib btl from the command line.</li>
 <li> Set the btl_openib_allow_different_subnets parameter to 1. It is 0 by default.</li>
