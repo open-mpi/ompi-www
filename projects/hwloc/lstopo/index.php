@@ -123,8 +123,12 @@ function show_by_section($section) {
   global $sections, $files, $descriptions;
   for ($i = 0; $i < count($files) && $i < count($descriptions) && $i < count($sections); $i++) {
     if ($sections[$i] == $section) {
-      echo " <p>\n";
-      echo "  <h3>".$descriptions[$i].":</h3>\n";
+      echo " <p id=\"".$files[$i]."\">\n";
+      echo "  <table width=\"100%\"><tbody><tr><td>\n";
+      echo "   <h3>".$descriptions[$i].":</h3>\n";
+      echo "  </td><td align=\"right\">\n";
+      echo "   <a href=\"#".$files[$i]."\">(link to here)</a>\n";
+      echo "  </td></tr></tbody></table>\n";
       echo "  <a href=\"images/".$files[$i]."\"><img src=\"images/thumb.".$files[$i]."\"/></a>\n";
 //      echo "  <a href=\"?index=$i\"><img src=\"images/thumb.".$files[$i]."\"/></a><br/>\n";
       echo " <br/><br/></p>\n";
