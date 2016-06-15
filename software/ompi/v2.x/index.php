@@ -23,6 +23,7 @@ $t_stable = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PH
 
 if (isset($t_stable)) {
     $src = "Version $ver_v2_x<br>$notes";
+    $check = False;
 
     $n[] = "openmpi-$ver_v2_x.tar.bz2";
     $n[] = "openmpi-$ver_v2_x.tar.gz";
@@ -31,14 +32,17 @@ if (isset($t_stable)) {
     foreach ($n as $name) {
         if (file_exists("downloads/$name")) {
             $t_stable->addFile($src, $name, $md5[$name], $sha1[$name]);
+            $check = True;
         }
     }
 
-    $t_stable->addLink("Cygwin support", 
-		       "Precompiled Open MPI packages for Cygwin",
-		       date("Y"),
-		       "http://cygwin.com/cgi-bin2/package-grep.cgi?grep=openmpi"
-		       );
+    if ($check) { 
+        $t_stable->addLink("Cygwin support", 
+		           "Precompiled Open MPI packages for Cygwin",
+		           date("Y"),
+		           "http://cygwin.com/cgi-bin2/package-grep.cgi?grep=openmpi"
+		           );
+    }
 }
 
 #############################################################################
