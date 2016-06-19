@@ -261,6 +261,18 @@ helpful debugging information.</p>
 </blockquote>
 
 <p>
+ If you are looking for a citation about how hwloc deals with new heterogeneous memory hierarchies
+ (Knights Landing's MCDRAM, high-bandwidth memory (HBM), non-volatile memory (NVDIMM), etc),
+ use this paper (available <a href="https://hal.inria.fr/hal-01330194">here</a>):
+</p>
+<blockquote>
+ Brice Goglin.
+ <b>Exposing the Locality of Heterogeneous Memory Architectures to HPC Applications.</b>
+ In <em>Proceedings of the First ACM International Symposium on Memory Systems (MEMSYS16)</em>,
+ Washington, DC, USA, October 2016.
+</blockquote>
+
+<p>
  See also the
  <a href="https://www.open-mpi.org/papers/">Open MPI publication list</a>.
 </p>
