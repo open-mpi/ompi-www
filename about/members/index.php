@@ -163,6 +163,9 @@ add_org("http://www.arm.com/", "ARM", "", "ARM_Corp_RGB.gif", $contrib);
 
 add_org("http://www.amd.com/", "AMD", "", "amd.png", $contrib);
 
+add_org("http://www.broadcom.com", "Broadcom Limited", "",
+        "broadcom.png", $contrib);
+
 add_org("http://www.linaro.org/", "Linaro", "", "linaro.png", $contrib);
 
 add_org("http://www.auburn.edu/", "Auburn University", "",
