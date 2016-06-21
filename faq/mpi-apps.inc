@@ -904,7 +904,7 @@ installed BLACS with Open MPI.
 # Make sure you follow the instructions to build BLACS with Open MPI,
 # and put its location in the following.
 
-   BLACSdir      = &lt;path where you installed BLACS&gt;
+   BLACSdir      = ...path where you installed BLACS...
 
 # The MPI section is commented out.  Uncomment it. The wrapper
 # compiler will handle SMPLIB, so make it blank. The rest are correct
