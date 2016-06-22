@@ -52,6 +52,12 @@ $descriptions[] = "2x Power8 with 2 NUMA node each + 1x InfiniBand HCA (IBM Powe
 ."<br/>20 cores and 160 hardware threads total";
 $sections[] = 2;
 
+$files[] = "KNL.SNC4.H50.v1.11.png";
+$descriptions[] = "Intel Knights Landing."
+."<br/>MCDRAM is configured in <em>Hybrid</em> mode (half as a memory-side cache, half as an additional high-bandwidth NUMA node)."
+."<br/>SubNUMA clustering (SNC-4) is also enabled, for a total of 8 NUMA nodes."
+."<br/>72 cores and 288 threads";
+$sections[] = 3;
 $files[] = "16XeonX7400.v1.11.png";
 $descriptions[] = "16x Xeon <em>Dunnington</em> X7460 with IBM custom NUMA interconnect (IBM x3950 M2 from 2009, with hwloc v1.11)."
 ."<br/>96 cores total";
