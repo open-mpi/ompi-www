@@ -79,8 +79,7 @@ URL (specifically, it is what is returned by PHP's
 
 <p>
 
-<li> Obtain a copy of the Open MPI web site.  There are two main
-mechanisms to obtain / update your mirror: Git and rsync.
+<li> Obtain a copy of the Open MPI web site.
 
 <p>
 <ol>
@@ -161,36 +160,11 @@ print_code($git_script);
 <p>
 <li> <strong> Using <code>rsync</code> </strong>
 
-<p> The web pages can be anonymously obtained via rsync:
+<p> <font color="red">This method is no longer supported.</font> The
+Open MPI web site is maintained in Git.</p>
 
-<?php 
-
-$rsync_command = "rsync -r -p -t -L -H --copy-unsafe-links --delete --delete-excluded \\\n  --delete-after --ignore-errors --force www.open-mpi.org::ompi_web /your/local/docroot";
-print_code("shell$ $rsync_command"); ?>
-
-<p> Create an automated process to run this <code>rsync</code> command
-at whatever frequency you want (see the guidelines, above).  This will
-keep you web pages up to date.  An easy way to do this is to add a
-crontab entry for a user who has write permissions in the Open MPI
-docroot tree.  The follow sample crontab entry updates the tree at
-4:23am every morning:</p>
-
-<?php print_code("23 4 * * * $rsync_command"); ?>
-
-<p> Alternatively, a slightly more elegant mechanism to update and
-mail someone only if there are errors would be to use essentially the
-same script that is listed in the Git method (above) but
-replace the "<code>svn up</code>" command with the "<code>rsync
-...</code>" command:
-
-<?php
-$rsync_script = $base_script;
-$rsync_script = preg_replace("/@METHOD@/", "rsync synchronization", 
-                             $base_script);
-$rsync_script = preg_replace("/@COMMAND@/", $rsync_command, $rsync_script);
-$rsync_script = preg_replace("/@SHORT_COMMAND@/", "rsync", $rsync_script);
-$rsync_script = preg_replace("@/your/local/docroot@", "\"\$docroot\"", $rsync_script);
-print_code($rsync_script); ?>
+<p>If you were previously using rsync, please switch to using
+Git.</p>
 
 </li>
 
