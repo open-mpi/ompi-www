@@ -57,7 +57,7 @@ function read_mirrors() {
     while (($line = fgets($f, 1024)) != false) {
         $line = trim($line);
         if (substr($line, 0, 1) != "#") {
-            $parts = split("\!", $line);
+            $parts = explode("\!", $line);
             $mirrors[] = new mirror($parts[0], $parts[1], $parts[2],
                                     $parts[3], $parts[4], $parts[5],
                                     $parts[6]);
