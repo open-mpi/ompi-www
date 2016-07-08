@@ -27,9 +27,9 @@ function print_mirror() {
     for ($i = 0; $i < count($mirrors); ++$i) {
         if ($server_hostname == $mirrors[$i]->get_server()) {
             $server_flag = $mirrors[$i]->get_flag();
-            $server_location = ereg_replace(' ', '&nbsp;',
+            $server_location = preg_replace('/ /', '&nbsp;',
                                             $mirrors[$i]->get_location());
-            $server_tagline = ereg_replace(' ', '&nbsp;',
+            $server_tagline = preg_replace('/ /', '&nbsp;',
                                            $mirrors[$i]->get_name());
             break;
         }
@@ -49,7 +49,7 @@ function print_mirror() {
         print("<TABLE BORDER=\"<?php print($table_border); ?>\">\n<TR>\n<TD VALIGN=\"MIDDLE\" CLASS=\"footer\">");
         print_flag("jolly-roger.jpg");
         print("</TD>\n<TD VALIGN=\"MIDDLE\" CLASS=\"footer\">" .
-              ereg_replace(' ', '&nbsp;',
+              preg_replace('/ /', '&nbsp;',
                            "This is an unregistered mirror site.") .
               "</TD>\n</TR>\n</TABLE>\n\n");
     }
