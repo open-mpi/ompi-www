@@ -9,7 +9,7 @@
 ?>
 
 <p>The Open MPI Team greatly appreciates any new mirror site.
-There are four main steps to becoming an official Open MPI 
+There are four main steps to becoming an official Open MPI
 mirror site:</p>
 
 <p>
@@ -104,7 +104,7 @@ MPI docroot tree.  The follow sample crontab entry updates the tree at
 mail someone only if there are errors would be to use the following
 script:</p>
 
-<?php 
+<?php
 $base_script = "#!/bin/sh
 
 # Open MPI web site mirroring script: @METHOD@
@@ -145,9 +145,9 @@ EOF
 fi
 
 rm -f \"\$stdout\" \"\$stderr\"
-exit 0"; 
+exit 0";
 
-$git_script = preg_replace("/@METHOD@/", "Git synchronization", 
+$git_script = preg_replace("/@METHOD@/", "Git synchronization",
                            $base_script);
 $git_script = preg_replace("/@COMMAND@/", "git pull", $git_script);
 $git_script = preg_replace("/@SHORT_COMMAND@/", "\"git pull\"", $git_script);
@@ -188,7 +188,7 @@ Git.</p>
 
 <li> The first time you mirror the OMPI web site, a black
 skull-nand-crossbones flag will appear in the lower left of all your
-web pages.  <strong>This is normal!</strong> 
+web pages.  <strong>This is normal!</strong>
 
 <ol>
 
@@ -200,7 +200,7 @@ flag to appear in the lower left instead of the Jolly Roger.</li>
 <li> Let an automatic update occur to get the PHP change.  If all of
 this goes well, let us know, and we'll update the PHP again to display
 your mirror in the <a href="./">official listing</a> (which all sites
-will pick up via the normal mirror updating mechanisms).</li> 
+will pick up via the normal mirror updating mechanisms).</li>
 </ol>
 
 <p>
@@ -230,4 +230,4 @@ can use PHP code in the file.</li>
 <p>Thanks!</p>
 
 <?php
-  include_once("$topdir/includes/footer.inc"); 
+  include_once("$topdir/includes/footer.inc");
