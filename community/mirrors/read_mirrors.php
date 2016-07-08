@@ -7,7 +7,7 @@ $mirror_dir = "/community/mirrors";
 //
 class mirror {
     var $name, $region, $location, $flag, $url, $server, $display;
-    
+
     function mirror($n, $r, $l, $f, $disp, $s, $u) {
         $this->name = $n;
         $this->region = $r;
@@ -17,7 +17,7 @@ class mirror {
         $this->server = $s;
         $this->url = $u;
     }
-    
+
     function get_name() { return $this->name; }
     function get_region() { return $this->region; }
     function get_location() { return $this->location; }
@@ -52,7 +52,7 @@ function mirror_cmp($a, $b) {
 
 function read_mirrors() {
     global $topdir;
-    
+
     $f = fopen("$topdir/community/mirrors/mirrors.txt", "r");
     while (($line = fgets($f, 1024)) != false) {
         $line = trim($line);
@@ -63,7 +63,7 @@ function read_mirrors() {
                                     $parts[6]);
         }
     }
-    
+
     usort($mirrors, "mirror_cmp");
     return $mirrors;
 }
