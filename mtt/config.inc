@@ -21,7 +21,7 @@ if (array_key_exists("SERVER_NAME", $_SERVER) &&
 
 ###########################################################################
 
-# If you are tracking MTT usaging through Google Analytics, fill in 
+# If you are tracking MTT usaging through Google Analytics, fill in
 # your account number here.
 $mtt_google_analytics_account = "";
 
