@@ -10,7 +10,8 @@ $server_dir = "/";
 # the mirroring stuff).
 if (array_key_exists("SERVER_NAME", $_SERVER) &&
     0 != strncmp($_SERVER["SERVER_NAME"], $mother_site, strlen($mother_site)) ) {
-    $equiv_dir = ereg_replace("^$server_dir", '', $_SERVER["REQUEST_URI"]);
+    $equiv_dir = preg_replace("/^$server_dir/", '',
+          $_SERVER["REQUEST_URI"]);
     print "Sorry, this page is not mirrored.  " .
            "Please see the <a href=\"http://$mother_site/$equiv_dir\">" .
            "original version of this page</a> " .

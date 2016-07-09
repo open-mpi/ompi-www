@@ -52,7 +52,8 @@ function deny_mirror() {
     global $server_dir;
 
     if ($is_mirror) {
-        $equiv_dir = ereg_replace("^$server_dir", '', $_SERVER["REQUEST_URI"]);
+        $equiv_dir = preg_replace("/^$server_dir/", '',
+            $_SERVER["REQUEST_URI"]);
         print("Sorry, this page is not mirrored.  Please see the <A HREF=\"https://www.open-mpi.org/$equiv_dir\">original version of this page</A> on the main Open MPI web site.\n");
         include_once("$topdir/includes/footer.inc");
         exit();

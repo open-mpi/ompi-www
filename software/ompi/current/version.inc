@@ -25,7 +25,7 @@ $dir = "v1.10";
 # This part is automatic and should get the variables and stuff them
 # into $current_ver and $current_ver_dir.
 include_once("$topdir/software/ompi/$dir/version.inc");
-$name = ereg_replace("\.", "_", $dir);
+$name = preg_replace("/\./", "_", $dir);
 
 $str = "\$ver_current = \$ver_$name;";
 eval($str);
