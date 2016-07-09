@@ -2,8 +2,8 @@
 # The output of this file is two variables:
 #
 # $ver_current: the version number of the current release
-# $ver_current_dir: the directory of the current release version 
-# (relative to $topdir/software) 
+# $ver_current_dir: the directory of the current release version
+# (relative to $topdir/software)
 #
 # Fill in the $dir variable with the directory of the current release line
 # (e.g., "v0.9", "v1.0", "v1.1", "v2.0", etc.  This tree should have a
