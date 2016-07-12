@@ -22,17 +22,29 @@ Documentation for the following versions is available:
 
 <p> <strong>Current release series</strong>
 
+<li><a href="v2.0/"><strong>Open MPI v<?php print($ver_v2_0); ?>
+</strong></a>.  This documentation reflects
+the latest progression in the 2.0.x series.  The emphasis of this
+tree is on bug fixes and stability, although it also introduces a few
+new features (compared to the v1.10 series).  <strong><font
+color=red><?php
+  $t = mktime(0, 0, 0, 9, 1, 2016);
+  if (time() < $t) {
+          printf("This stable series is relatively new.  Please upgrade with caution and test your codes thoroughly.");
+  } else {
+          printf("This is the recommended series for all users to download and use.");
+  }
+?></font></strong></li>
+
+<p> <strong>Prior stable release series</strong>
+
 <li><a href="v1.10/"><strong>Open MPI v<?php print($ver_v1_10); ?>
-</strong></a> (stable release series).  This documentation reflects
+</strong></a> (prior stable release series).  This documentation reflects
 the latest progression in the 1.10.x series.  The emphasis of this
 tree is on bug fixes and stability, although it also introduces a few
 new features (compared to the v1.8 series).  <strong><font
-color=red>This is the recomended series for users who need a stable,
-mature code base.</font></strong></li>
-
-<p> <strong>Upcoming release series</strong>
-
-<li> The v2.x series does not yet have any releases.</li>
+color=red>This code base is still supported, but is in "bug fix only"
+mode.</font></strong></li>
 
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>

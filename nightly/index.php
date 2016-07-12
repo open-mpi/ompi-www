@@ -16,16 +16,24 @@ into even numbered "super stable" series.</p>
 <p>
 <ul>
 
-<p> <strong>Current super stable release series</strong>
+<p> <strong>Current release series</strong>
+
+<li><a href="v2.0/"><strong>v2.0 series</strong></a>: These are images from
+the stable v2.0 series.  <strong><font color="red"><?php
+  $t = mktime(0, 0, 0, 9, 1, 2016);
+  if (time() < $t) {
+          printf("This stable series is relatively new.  Please upgrade with caution and test your codes thoroughly.");
+  } else {
+          printf("This is the recommended series for all users to download and use.");
+  }
+?></font></strong></li>
+
+<p> <strong>Prior stable release series</strong>
 
 <li><a href="v1.10/"><strong>v1.10 series</strong></a>: These are
-images from the upcoming stable v1.10 series.  <strong>This is the
-recommended series for all users to download and use.</strong></li>
-
-<p> <strong>Upcoming stable release series</strong>
-
-<li><a href="v2.x/"><strong>v2.x series</strong></a>: These are images from
-the upcoming v2.x series.
+images from the stable v1.10 series.  <strong><font color="red">This
+code base is still supported, but is in "bug fix only"
+mode.</font></strong></li>
 
 <p> <strong>Current development</strong>
 
