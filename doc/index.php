@@ -12,6 +12,7 @@ include_once("$topdir/software/ompi/v1.6/version.inc");
 include_once("$topdir/software/ompi/v1.7/version.inc");
 include_once("$topdir/software/ompi/v1.8/version.inc");
 include_once("$topdir/software/ompi/v1.10/version.inc");
+include_once("$topdir/software/ompi/v2.0/version.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
