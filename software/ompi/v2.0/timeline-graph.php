@@ -21,8 +21,8 @@ $ts = (int) max($ts1, $ts2);
 $beyond_end_date = strftime("%Y-%m-%d", $ts);
 
 //////////////////////////////////////////////////////////////////////////
-// v2.x release series
-series("v2.x series", "2015-06-01", $beyond_end_date, $data, $vpos, $graph);
+// v2.0 release series
+series("v2.0 series", "2015-06-01", $beyond_end_date, $data, $vpos, $graph);
 milestone("branch", "2015-06-20", $data, $vpos);
 milestone("v2.0.0", "2016-07-12", $data, $vpos);
 

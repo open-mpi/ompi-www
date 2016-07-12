@@ -3,7 +3,7 @@ include_once("$topdir/includes/nav.inc");
 
 $this_dir = "software";
 $this_nav[] = new Nav("Current");
-$this_nav[] = new Nav("Version 2.x ", "$topdir/software/ompi/v2.x/");
+$this_nav[] = new Nav("Version 2.0 ", "$topdir/software/ompi/v2.0/");
 $this_nav[] = new Nav("Still supported");
 $this_nav[] = new Nav("Version 1.10", "$topdir/software/ompi/v1.10/");
 $this_nav[] = new Nav("Older versions");

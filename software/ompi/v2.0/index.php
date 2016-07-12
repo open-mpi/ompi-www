@@ -1,8 +1,8 @@
 <?php
 $topdir = "../../..";
 
-include_once("$topdir/software/ompi/v2.x/version.inc");
-$title = "Open MPI: Version $ver_v2_x";
+include_once("$topdir/software/ompi/v2.0/version.inc");
+$title = "Open MPI: Version $ver_v2_0";
 
 include_once("$topdir/software/ompi/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -22,12 +22,12 @@ $notes = "<a href=\"srpm.php\">SRPM notes</a>";
 $t_stable = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
 
 if (isset($t_stable)) {
-    $src = "Version $ver_v2_x<br>$notes";
+    $src = "Version $ver_v2_0<br>$notes";
     $check = False;
 
-    $n[] = "openmpi-$ver_v2_x.tar.bz2";
-    $n[] = "openmpi-$ver_v2_x.tar.gz";
-    $n[] = "openmpi-$ver_v2_x-1.src.rpm";
+    $n[] = "openmpi-$ver_v2_0.tar.bz2";
+    $n[] = "openmpi-$ver_v2_0.tar.gz";
+    $n[] = "openmpi-$ver_v2_0-1.src.rpm";
 
     foreach ($n as $name) {
         if (file_exists("downloads/$name")) {
@@ -129,7 +129,7 @@ include_once("$topdir/includes/subscribe-announce.inc");
 <P><?php $dir = "https://github.com/open-mpi/ompi-release/blob/v2.x/NEWS";
       print("<a href=\"$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the Open
-MPI releases in the v2.x series</p>
+MPI releases in the v2.0 series</p>
 
 <p>See the <a href="<?php print($topdir);
 ?>/software/ompi/versions/timeline.php">version timeline</a> for
