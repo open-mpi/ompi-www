@@ -3,11 +3,11 @@
   include_once("$topdir/includes/force-server.inc");
   force_server("www.open-mpi.org");
 
-  $title = "Open MPI: v2.x nightly snapshot tarballs";
+  $title = "Open MPI: v2.0 nightly snapshot tarballs";
   include_once("$topdir/software/ompi/nav.inc");
   include_once("$topdir/includes/header.inc");
   include_once("$topdir/includes/downloads.inc");
-  $dir = "$topdir/nightly/v2.x";
+  $dir = "$topdir/nightly/v2.0";
 ?>
 
 <h2>These are not stable releases of software packages!</h2>
