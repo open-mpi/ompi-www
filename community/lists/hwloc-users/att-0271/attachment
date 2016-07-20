@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="Content-Type">
+  <title></title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Le 09/02/2011 16:53, Hendryk Bockelmann a &eacute;crit&nbsp;:
+<blockquote cite="mid:4D52B874.60409@dkrz.de" type="cite">Since I am
+new to hwloc there might be a misunderstanding from my side, but I have
+a problem getting the cpuset of MPI tasks. I just want to run a simple
+MPI program to see on which cores (or CPUs in case of hyperthreading or
+SMT) the tasks run, so that I can arrange my MPI communicators.
+  <br>
+  <br>
+For the program below I get the following output:
+  <br>
+  <br>
+Process 0 of 2 on tide
+  <br>
+Process 1 of 2 on tide
+  <br>
+--&gt; cpuset of process 0 is 0x0000000f
+  <br>
+--&gt; cpuset of process 0 after singlify is 0x00000001
+  <br>
+--&gt; cpuset of process 1 is 0x0000000f
+  <br>
+--&gt; cpuset of process 1 after singlify is 0x00000001
+  <br>
+  <br>
+So why do both MPI tasks report the same cpuset?<br>
+</blockquote>
+<br>
+Hello Hendryk,<br>
+<br>
+Your processes are not bound, there may run anywhere they want.
+hwloc_get_cpubind() tells you where they are bound. That's why the
+cpuset is 0x0000f first (all the existing logical processors in the
+machine).<br>
+<br>
+You want to know where they actually run. It's different from where
+there are bound. The former is included in the latter. The former is a
+single processor, while the later may be any combination of any
+processors).<br>
+<br>
+hwloc cannot tell you where a task run. But I am looking at
+implementing it. I actually sent a patch to hwloc-devel about it
+yesterday [1]. You would just have to replace get_cpubind with
+get_cpuexec (or whatever the final function name is).<br>
+<br>
+You should note that such a function would not be guaranteed to return
+something true since the process may migrate to another processor in
+the meantime.<br>
+<br>
+Also note that hwloc_bitmap_singlify is usually used to "simplify" a
+cpuset (to avoid migration between multiple SMT for instance) before
+binding a task (calling set_cpubind). It's useless in your code above.<br>
+<br>
+Brice<br>
+<br>
+[1] <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/hwloc-devel/2011/02/1915.php">http://www.open-mpi.org/community/lists/hwloc-devel/2011/02/1915.php</a><br>
+<br>
+<br>
+<br>
+<blockquote cite="mid:4D52B874.60409@dkrz.de" type="cite">Here is the
+program (attached you find the output of hwloc-gather-topology.sh):
+  <br>
+  <br>
+#include &lt;stdio.h&gt;
+  <br>
+#include &lt;string.h&gt;
+  <br>
+#include "hwloc.h"
+  <br>
+#include "mpi.h"
+  <br>
+  <br>
+int main(int argc, char* argv[]) {
+  <br>
+  <br>
+&nbsp;&nbsp; hwloc_topology_t topology;
+  <br>
+&nbsp;&nbsp; hwloc_bitmap_t cpuset;
+  <br>
+&nbsp;&nbsp; char *str = NULL;
+  <br>
+&nbsp;&nbsp; int myid, numprocs, namelen;
+  <br>
+&nbsp;&nbsp; char procname[MPI_MAX_PROCESSOR_NAME];
+  <br>
+  <br>
+&nbsp;&nbsp; MPI_Init(&amp;argc,&amp;argv);
+  <br>
+&nbsp;&nbsp; MPI_Comm_size(MPI_COMM_WORLD,&amp;numprocs);
+  <br>
+&nbsp;&nbsp; MPI_Comm_rank(MPI_COMM_WORLD,&amp;myid);
+  <br>
+&nbsp;&nbsp; MPI_Get_processor_name(procname,&amp;namelen);
+  <br>
+  <br>
+&nbsp;&nbsp; printf("Process %d of %d on %s\n", myid, numprocs, procname);
+  <br>
+  <br>
+&nbsp;&nbsp; hwloc_topology_init(&amp;topology);
+  <br>
+&nbsp;&nbsp; hwloc_topology_load(topology);
+  <br>
+  <br>
+&nbsp;&nbsp; /* get native cpuset of this process */
+  <br>
+&nbsp;&nbsp; cpuset = hwloc_bitmap_alloc();
+  <br>
+&nbsp;&nbsp; hwloc_get_cpubind(topology, cpuset, 0);
+  <br>
+&nbsp;&nbsp; hwloc_bitmap_asprintf(&amp;str, cpuset);
+  <br>
+&nbsp;&nbsp; printf("--&gt; cpuset of process %d is %s\n", myid, str);
+  <br>
+&nbsp;&nbsp; free(str);
+  <br>
+&nbsp;&nbsp; hwloc_bitmap_singlify(cpuset);
+  <br>
+&nbsp;&nbsp; hwloc_bitmap_asprintf(&amp;str, cpuset);
+  <br>
+&nbsp;&nbsp; printf("--&gt; cpuset of process %d after singlify is %s\n", myid,
+str);
+  <br>
+&nbsp;&nbsp; free(str);
+  <br>
+  <br>
+&nbsp;&nbsp; hwloc_bitmap_free(cpuset);
+  <br>
+&nbsp;&nbsp; hwloc_topology_destroy(topology);
+  <br>
+  <br>
+&nbsp;&nbsp; MPI_Finalize();
+  <br>
+&nbsp;&nbsp; return 0;
+  <br>
+}
+  <br>
+  <br>
+  <pre wrap="">
+<fieldset class="mimeAttachmentHeader"></fieldset>
+_______________________________________________
+hwloc-users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a>
+  </pre>
+</blockquote>
+<br>
+</body>
+</html>
+
