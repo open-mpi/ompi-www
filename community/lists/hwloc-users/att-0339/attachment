@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+    I think both codes are equivalent and correct on this machine.
+    hwloc_get_obj_by_type() returns logically-index ojects, that what's
+    you want for consecutive binding. There's one hyperthread/PU per
+    Core on your machine. So binding on core #3 is equivalent to binding
+    on PU #3 (they should have the same cpusets here). No physical index
+    is ever involved in this code.<br>
+    <br>
+    If you ever want to support SMT machines as well:<br>
+    * if you still want one process per core, use the code with
+    HWLOC_OBJ_CORE<br>
+    * if you want one process per hyperthread, use the code with
+    HWLOC_OBJ_PU<br>
+    <br>
+    Brice<br>
+    <br>
+    <br>
+    <br>
+    Le 29/07/2011 13:33, Gabriele Fatigati a &eacute;crit&nbsp;:
+    <blockquote
+cite="mid:CAJNPZUX9sQJn=CdOpzpMnaHQ3kYbS6woyw5JhB_Gvj8KMcnveA@mail.gmail.com"
+      type="cite">Sorry,&nbsp;
+      <div><br>
+      </div>
+      <div>I forgot to tell you these code block is inside a parallel
+        OpenMP region. This is the complete code:
+        <div><br>
+        </div>
+        <div>
+          <div>#pragma omp parallel num_threads(6)</div>
+          <div>{</div>
+          <div>int tid = omp_get_thread_num();</div>
+          <div><br>
+          </div>
+          <div>
+            <div>hwloc_obj_t core =
+              hwloc_get_obj_by_type(topology,&nbsp;HWLOC_OBJ_CORE, tid);</div>
+            <div>hwloc_cpuset_t set = hwloc_bitmap_dup(core-&gt;cpuset);</div>
+            <div>hwloc_bitmap_singlify(set);</div>
+          </div>
+          <div><br>
+          </div>
+          <div>
+            <div>hwloc_set_cpubind(topology, set,
+              &nbsp;HWLOC_CPUBIND_THREAD);</div>
+            <div><br>
+            </div>
+            <div>hwloc_bitmap_free(set);</div>
+          </div>
+          <div><br>
+          </div>
+          <div>}</div>
+          <div><br>
+          </div>
+          <div>and other code block is:</div>
+          <div><br>
+          </div>
+          <div>
+            <meta http-equiv="content-type" content="text/html;
+              charset=ISO-8859-1">
+            <div>#pragma omp parallel num_threads(6)</div>
+            <div>{</div>
+            <div>int tid = omp_get_thread_num();</div>
+            <div><br>
+            </div>
+            <div>
+              <div>hwloc_obj_t core = hwloc_get_obj_by_type(topology,
+                HWLOC_OBJ_PU, tid);</div>
+              <div>hwloc_cpuset_t set =
+                hwloc_bitmap_dup(core-&gt;cpuset);</div>
+              <div>hwloc_bitmap_singlify(set);</div>
+            </div>
+            <div><br>
+            </div>
+            <div>
+              <div>hwloc_set_cpubind(topology, set,
+                &nbsp;HWLOC_CPUBIND_THREAD);</div>
+              <div><br>
+              </div>
+              <div>hwloc_bitmap_free(set);</div>
+            </div>
+            <div><br>
+            </div>
+            <div>}</div>
+          </div>
+          <div><br>
+          </div>
+          <div><br>
+          </div>
+          <div>The goal is physically bind threads as near as possible,
+            one thread per core. Since core ids reported on &nbsp;<span
+              class="Apple-style-span" style="border-collapse: collapse;
+              font-family: arial,sans-serif; font-size: 14px;">hwloc-hello.c
+              are not consecutive and not exclusive, I suppose is better
+              and more sure to use PU id. Or not?</span></div>
+          <meta http-equiv="content-type" content="text/html;
+            charset=ISO-8859-1">
+          <div><br>
+          </div>
+          <div><br>
+          </div>
+          <br>
+          <div class="gmail_quote">2011/7/29 Samuel Thibault <span
+              dir="ltr">&lt;<a moz-do-not-send="true"
+                href="mailto:samuel.thibault@inria.fr">samuel.thibault@inria.fr</a>&gt;</span><br>
+            <blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt
+              0.8ex; border-left: 1px solid rgb(204, 204, 204);
+              padding-left: 1ex;">Gabriele Fatigati, le Fri 29 Jul 2011
+              13:24:17 +0200, a &eacute;crit :<br>
+              <div class="im">&gt; yhanks for yout quick reply!<br>
+                &gt;<br>
+                &gt; But i have a litte doubt. in a non SMT machine, Is
+                it better use this:<br>
+                &gt;<br>
+                &gt; hwloc_obj_t core = hwloc_get_obj_by_type(topology,
+                HWLOC_OBJ_CORE, tid);<br>
+                &gt; hwloc_cpuset_t set =
+                hwloc_bitmap_dup(core-&gt;cpuset);<br>
+                &gt; hwloc_bitmap_singlify(set);<br>
+              </div>
+              <div class="im">&gt; hwloc_set_cpubind(topology, set,
+                &nbsp;HWLOC_CPUBIND_THREAD);<br>
+                &gt;<br>
+              </div>
+              <div class="im">&gt; or:<br>
+                &gt;<br>
+                &gt; hwloc_obj_t core =
+                hwloc_get_obj_by_type(topology,&nbsp;HWLOC_OBJ_PU, tid);<br>
+                &gt; hwloc_cpuset_t set =
+                hwloc_bitmap_dup(core-&gt;cpuset);<br>
+                &gt; hwloc_bitmap_singlify(set);<br>
+              </div>
+              <div class="im">&gt; hwloc_set_cpubind(topology, set,
+                &nbsp;HWLOC_CPUBIND_THREAD);<br>
+                &gt;<br>
+              </div>
+              <div class="im">&gt; because work in the same way( i
+                suppose).<br>
+                <br>
+              </div>
+              They'll both work about the same way on SMT too, since in
+              the end it'll<br>
+              pick up only one thread. Whether you want to assign
+              threads to cores or<br>
+              threads then depends on your application: do you want to
+              let its threads<br>
+              share a core or not.<br>
+              <div>
+                <div class="h5"><br>
+                  Samuel<br>
+                  _______________________________________________<br>
+                  hwloc-users mailing list<br>
+                  <a moz-do-not-send="true"
+                    href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a><br>
+                  <a moz-do-not-send="true"
+                    href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users"
+                    target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a><br>
+                </div>
+              </div>
+            </blockquote>
+          </div>
+          <br>
+          <br clear="all">
+          <br>
+          -- <br>
+          Ing. Gabriele Fatigati<br>
+          <br>
+          Parallel programmer<br>
+          <br>
+          CINECA Systems &amp; Tecnologies Department<br>
+          <br>
+          Supercomputing Group<br>
+          <br>
+          Via Magnanelli 6/3, Casalecchio di Reno (BO) Italy<br>
+          <br>
+          <a moz-do-not-send="true" href="http://www.cineca.it">www.cineca.it</a>&nbsp;
+          &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Tel:&nbsp;&nbsp; +39 051 6171722<br>
+          <br>
+          g.fatigati [AT] <a moz-do-not-send="true"
+            href="http://cineca.it">cineca.it</a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; <br>
+        </div>
+      </div>
+      <pre wrap="">
+<fieldset class="mimeAttachmentHeader"></fieldset>
+_______________________________________________
+hwloc-users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

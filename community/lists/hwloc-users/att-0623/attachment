@@ -1,0 +1,152 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    On 23/04/2012 16:13, Vlad wrote:
+    <blockquote
+      cite="mid:951A4FC2-0F40-4F82-B8DE-A83FBC818661@demoninsight.com"
+      type="cite">This one seems fine, too.
+      <div><br>
+      </div>
+      <div>Note that it should always be possible to read at least the
+        current thread's /proc data.</div>
+    </blockquote>
+    <br>
+    This code also works when the task reading the cpubinding/location
+    is not part of the process it looks at.<br>
+    <br>
+    Brice<br>
+    <br>
+    <blockquote
+      cite="mid:951A4FC2-0F40-4F82-B8DE-A83FBC818661@demoninsight.com"
+      type="cite">
+      <div> In my workaround, should I run out of retries I default to
+        hwloc_get_last_cpu_location(... HWLOC_CPUBIND_THREAD) -- since
+        presumably that can't fail and the result is technically valid
+        given hwloc_get_last_cpu_location() semantics (it reads state
+        that's inherently transient).&nbsp;</div>
+      <div><br>
+        <div>
+          <div>On Apr 23, 2012, at 7:53 AM, Brice Goglin wrote:</div>
+          <br class="Apple-interchange-newline">
+          <blockquote type="cite">
+            <meta content="text/html; charset=ISO-8859-1"
+              http-equiv="Content-Type">
+            <div bgcolor="#FFFFFF" text="#000000"> On 21/04/2012 23:36,
+              Vlad wrote:
+              <blockquote
+                cite="mid:31C8565E-206F-4C52-B865-8BFC9F9F9F1E@demoninsight.com"
+                type="cite">
+                <div><br>
+                </div>
+                <br>
+                <div>
+                  <div>On Apr 21, 2012, at 5:26 PM, Brice Goglin wrote:</div>
+                  <br class="Apple-interchange-newline">
+                  <blockquote type="cite">
+                    <meta content="text/html; charset=ISO-8859-1"
+                      http-equiv="Content-Type">
+                    <div bgcolor="#FFFFFF" text="#000000"> On 21/04/2012
+                      23:08, Vlad wrote:
+                      <blockquote
+                        cite="mid:18CA9B93-9B52-494C-8331-87147816C21A@demoninsight.com"
+                        type="cite">Greetings,
+                        <div><br>
+                        </div>
+                        <div><span class="Apple-tab-span"
+                            style="white-space: pre; "> </span>I use
+                          hwloc-1.4.1 stable on Red Hat 5 and am seeing
+                          a possible concurrency issue not covered by
+                          the "Thread Safety" guidelines:</div>
+                        <div><br>
+                        </div>
+                        <div>- I start a small number (4) of
+                          threads,&nbsp;&nbsp;each of which does some work and
+                          periodically executes
+                          hwloc_get_last_cpu_location() with
+                          HWLOC_CPUBIND_PROCESS</div>
+                        <div>- occasionally, one or two of those threads
+                          will see the call fail with ENOSYS (even
+                          though the same call has already executed
+                          successfully a number of times)</div>
+                        <div><br>
+                        </div>
+                        <div>These errors are transient and seem to
+                          occur only when some of the threads in the
+                          group are terminating. I've skimmed through
+                          the implementation in topology-linux.c and it
+                          seems plausible to me that the errors could be
+                          caused by failure to read /proc state
+                          "atomically" in the presence of concurrent
+                          thread starts/exits.</div>
+                        <div><br>
+                        </div>
+                        <div>Of course, the latter is hard (impossible
+                          ?) to do because the state always changes and
+                          a snapshot can only be obtained with a single
+                          read() (which in turn would require knowing
+                          how many thread entries to expect in advance).
+                          However, returning ENOSYS in such cases does
+                          not seems intended but rather a flaw in retry
+                          logic. Similar issues may be present with
+                          other API methods that rely on&nbsp;<span
+                            class="Apple-style-span"
+                            style="border-collapse: collapse;
+                            font-family: monospace; font-size: 11px; ">hwloc_linux_foreach_proc_tid()&nbsp;</span>or<span
+                            class="Apple-style-span"
+                            style="border-collapse: collapse;
+                            font-family: monospace; font-size: 11px; ">&nbsp;</span><span
+                            class="Apple-style-span"
+                            style="border-collapse: collapse;
+                            font-family: monospace; font-size: 11px; ">hwloc_linux_get_proc_tids().</span></div>
+                      </blockquote>
+                      <br>
+                      Can you try the attached patch? It doesn't abort
+                      the loop immediately on per-tid errors anymore.
+                      This may work better when threads disappear. I
+                      don't remember if the retry logic was written
+                      while thinking about adding threads only or about
+                      adding and removing threads.<br>
+                      <br>
+                      If the patch doesn't help, can you send your code
+                      to help debug things?<br>
+                    </div>
+                  </blockquote>
+                  <div><br>
+                  </div>
+                  <div>Will try this within a day or two. At the moment
+                    I am simply using a retry loop on ENOSYS and usually
+                    no more than one retry is needed.</div>
+                  <br>
+                </div>
+              </blockquote>
+              <br>
+              Here's a possibly better patch. It lets the retry logic
+              happen before checking whether we should return ENOSYS and
+              friends.<br>
+              <br>
+              Brice<br>
+              <br>
+            </div>
+            <span>&lt;fix_tids.patch&gt;</span>_______________________________________________<br>
+            hwloc-users mailing list<br>
+            <a moz-do-not-send="true"
+              href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a><br>
+            <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a></blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+hwloc-users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

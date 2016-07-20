@@ -1,0 +1,246 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Le 06/02/2014 21:31, Brock Palen a
+      &eacute;crit&nbsp;:<br>
+    </div>
+    <blockquote
+      cite="mid:2CD4A816-A4EE-4020-9B95-AB7CEA739BC2@umich.edu"
+      type="cite">
+      <pre wrap="">Actually that did turn out to help. The nvml# devices appear to be numbered in the way that CUDA_VISABLE_DEVICES sees them, while the cuda# devices are in the order that PBS and nvidia-smi see them.
+
+      PCIBridge
+        PCIBridge
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#2 "cuda0"
+              GPU L#3 "nvml2"
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#4 "cuda1"
+              GPU L#5 "nvml3"
+      PCIBridge
+        PCIBridge
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#6 "cuda2"
+              GPU L#7 "nvml0"
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#8 "cuda3"
+              GPU L#9 "nvml1"
+
+
+Right now I am trying to create a python script that will take the XML output of lstopo and give me just the cuda and nvml devices in order. 
+
+I dont' know if some value are deterministic though.  Could I  ignore the CoProc line and just use the:
+
+              GPU L#3 "nvml2"
+              GPU L#5 "nvml3"
+              GPU L#7 "nvml0"
+              GPU L#9 "nvml1"
+
+Is the L# always going to be in the oder I would expect?  Because then I already have my map then. </pre>
+    </blockquote>
+    <br>
+    I am surprised that the CUDA and NVML orders are different here. I
+    was told that CUDA was reordering by computing power, but your GPUs
+    appear to be identical models. So CUDA may be reordering based on
+    another criteria.<br>
+    <br>
+    Just found this in the nvml doc "The <span class="highlight
+      selected">order</span> in which NVML enumerates units has no
+    guarantees of consistency between reboots. For that reason it is
+    recommended that devices be looked up by their PCI ids or board
+    serial numbers. See nvmlDeviceGetHandleBySerial() and
+    nvmlDeviceGetHandleByPciBusId()."<br>
+    <br>
+    At least, is the NVML order following the PCI bus order?<br>
+    <br>
+    We may want to talk to NVIDIA to get a clarification about all this.<br>
+    <br>
+    Brice<br>
+    <br>
+    <br>
+    <br>
+    <blockquote
+      cite="mid:2CD4A816-A4EE-4020-9B95-AB7CEA739BC2@umich.edu"
+      type="cite">
+      <pre wrap="">
+
+Brock Palen
+<a class="moz-txt-link-abbreviated" href="http://www.umich.edu/~brockp">www.umich.edu/~brockp</a>
+CAEN Advanced Computing
+XSEDE Campus Champion
+<a class="moz-txt-link-abbreviated" href="mailto:brockp@umich.edu">brockp@umich.edu</a>
+(734)936-1985
+
+
+
+On Feb 5, 2014, at 1:19 AM, Brice Goglin <a class="moz-txt-link-rfc2396E" href="mailto:Brice.Goglin@inria.fr">&lt;Brice.Goglin@inria.fr&gt;</a> wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Hello Brock,
+
+Some people reported the same issue in the past and that's why we added the "nvml" objects. CUDA reorders devices by "performance". Batch-schedulers are somehow supposed to use "nvml" for managing GPUs without actually using them with CUDA directly. And the "nvml" order is the "normal" order.
+
+You need "tdk" (<a class="moz-txt-link-freetext" href="https://developer.nvidia.com/tesla-deployment-kit">https://developer.nvidia.com/tesla-deployment-kit</a>) to get nvml library and development headers installed. Then hwloc can build its "nvml" backend. Once ready, you'll see a hwloc "cudaX" and a hwloc "nvmlY" object in each NVIDIA PCI devices, and you can get their locality as usual.
+
+Does this help?
+
+Brice
+
+
+
+Le 05/02/2014 05:25, Brock Palen a &eacute;crit :
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">We are trying to build a system to mask users to the GPU's they were assigned by our batch system (torque).
+
+The batch system sets the GPU's into thread exclusive mode when assigned to a job, so we want the GPU that the batch system assigns to be the one set in CUDA_VISIBLE_DEVICES,
+
+Problem is on our nodes what the batch system sees as gpu 0  is not the same GPU that CUDA_VISIBLE_DEVICES sees as 0.   Actually 0  is 2.
+
+You can see this behavior is you run 
+
+nvidia-smi  and look at the PCI ID's of the devices.  You can then look at the PCI ID's outputed by deviceQuery from the SDK examples and see they are in a different order.
+
+The ID's you would set in CUDA_VISIBLE_DEVICES matches the order that deviceQuery sees, not the order that nvida-smi sees.
+
+Example (All values turned to decimal to match deviceQuery):
+
+nvidia-smi order: 9, 10, 13, 14, 40, 43, 48, 51
+dviceQuery order: 13, 14, 9, 10, 40, 43, 48, 51
+
+
+Can hwloc help me with this?  Right now I am hacking a script based on the output of the two commands, and making a map, between the two and then set CUDA_VISIBLE_DEVICES
+
+Any ideas would be great. Later as we currently also use CPU sets, we want to pass GPU locality information to the scheduler to make decisions to match GPU-&gt; CPU Socket information, as performance of threads across QPI domains is very poor. 
+
+Thanks
+
+Machine (64GB)
+  NUMANode L#0 (P#0 32GB)
+    Socket L#0 + L3 L#0 (20MB)
+      L2 L#0 (256KB) + L1d L#0 (32KB) + L1i L#0 (32KB) + Core L#0 + PU L#0 (P#0)
+      L2 L#1 (256KB) + L1d L#1 (32KB) + L1i L#1 (32KB) + Core L#1 + PU L#1 (P#1)
+      L2 L#2 (256KB) + L1d L#2 (32KB) + L1i L#2 (32KB) + Core L#2 + PU L#2 (P#2)
+      L2 L#3 (256KB) + L1d L#3 (32KB) + L1i L#3 (32KB) + Core L#3 + PU L#3 (P#3)
+      L2 L#4 (256KB) + L1d L#4 (32KB) + L1i L#4 (32KB) + Core L#4 + PU L#4 (P#4)
+      L2 L#5 (256KB) + L1d L#5 (32KB) + L1i L#5 (32KB) + Core L#5 + PU L#5 (P#5)
+      L2 L#6 (256KB) + L1d L#6 (32KB) + L1i L#6 (32KB) + Core L#6 + PU L#6 (P#6)
+      L2 L#7 (256KB) + L1d L#7 (32KB) + L1i L#7 (32KB) + Core L#7 + PU L#7 (P#7)
+    HostBridge L#0
+      PCIBridge
+        PCI 1000:0087
+          Block L#0 "sda"
+          Block L#1 "sdb"
+      PCIBridge
+        PCIBridge
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#2 "cuda0"
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#3 "cuda1"
+      PCIBridge
+        PCIBridge
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#4 "cuda2"
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#5 "cuda3"
+      PCIBridge
+        PCI 8086:1521
+          Net L#6 "eth0"
+        PCI 8086:1521
+          Net L#7 "eth1"
+      PCIBridge
+        PCI 102b:0533
+      PCI 8086:1d02
+  NUMANode L#1 (P#1 32GB)
+    Socket L#1 + L3 L#1 (20MB)
+      L2 L#8 (256KB) + L1d L#8 (32KB) + L1i L#8 (32KB) + Core L#8 + PU L#8 (P#8)
+      L2 L#9 (256KB) + L1d L#9 (32KB) + L1i L#9 (32KB) + Core L#9 + PU L#9 (P#9)
+      L2 L#10 (256KB) + L1d L#10 (32KB) + L1i L#10 (32KB) + Core L#10 + PU L#10 (P#10)
+      L2 L#11 (256KB) + L1d L#11 (32KB) + L1i L#11 (32KB) + Core L#11 + PU L#11 (P#11)
+      L2 L#12 (256KB) + L1d L#12 (32KB) + L1i L#12 (32KB) + Core L#12 + PU L#12 (P#12)
+      L2 L#13 (256KB) + L1d L#13 (32KB) + L1i L#13 (32KB) + Core L#13 + PU L#13 (P#13)
+      L2 L#14 (256KB) + L1d L#14 (32KB) + L1i L#14 (32KB) + Core L#14 + PU L#14 (P#14)
+      L2 L#15 (256KB) + L1d L#15 (32KB) + L1i L#15 (32KB) + Core L#15 + PU L#15 (P#15)
+    HostBridge L#12
+      PCIBridge
+        PCIBridge
+          PCIBridge
+            PCI 15b3:1003
+              Net L#8 "eth2"
+              Net L#9 "ib0"
+              Net L#10 "eoib0"
+              OpenFabrics L#11 "mlx4_0"
+      PCIBridge
+        PCIBridge
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#12 "cuda4"
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#13 "cuda5"
+      PCIBridge
+        PCIBridge
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#14 "cuda6"
+          PCIBridge
+            PCI 10de:1021
+              CoProc L#15 "cuda7"
+
+
+Brock Palen
+
+<a class="moz-txt-link-abbreviated" href="http://www.umich.edu/~brockp">www.umich.edu/~brockp</a>
+
+CAEN Advanced Computing
+XSEDE Campus Champion
+
+<a class="moz-txt-link-abbreviated" href="mailto:brockp@umich.edu">brockp@umich.edu</a>
+
+(734)936-1985
+
+
+
+
+
+
+_______________________________________________
+hwloc-users mailing list
+
+<a class="moz-txt-link-abbreviated" href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+_______________________________________________
+hwloc-users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+hwloc-users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+
