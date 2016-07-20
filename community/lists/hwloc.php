@@ -9,6 +9,11 @@ include_once("$topdir/includes/mailto.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
+<h1><center><?php red("20 July 2016: LISTS TEMPORARILY DISABLED DUE TO MIGRATION TO A NEW HOSTING PROVIDER");
+?></center></h1>
+
+<hr>
+
 <p><center><?php red("YOU MUST BE SUBSCRIBED IN ORDER TO POST!");
 ?></center></p>
 
