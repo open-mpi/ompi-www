@@ -10,6 +10,4 @@ $base = "https://www.open-mpi.org";
 
 include_once("ompi.inc");
 include_once("hwloc.inc");
-include_once("netloc.inc");
 include_once("mtt.inc");
-include_once("orcm.inc");
