@@ -199,6 +199,7 @@ ported to it:<ul>
  <li>The interactive process viewer <a href="http://htop.sourceforge.net/">htop</a> for Linux</a></li>
  <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
  <li>The <a href="http://www.scylladb.com">Scylla</a> NoSQL server.</li>
+ <li><a href="http://geopm.github.io/geopm/">Global Energy Optimization Power Management (GEOPM)</a>.</li>
 </ul></ul></p>
 
 <!------------------------------------------------------------------------->
