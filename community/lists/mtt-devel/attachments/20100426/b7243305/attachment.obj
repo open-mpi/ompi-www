@@ -1,0 +1,353 @@
+Index: lib/MTT/Test/Build.pm
+===================================================================
+--- lib/MTT/Test/Build.pm	(revision 1360)
++++ lib/MTT/Test/Build.pm	(working copy)
+@@ -2,7 +2,7 @@
+ #
+ # Copyright (c) 2005-2006 The Trustees of Indiana University.
+ #                         All rights reserved.
+-# Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.
++# Copyright (c) 2006-2010 Cisco Systems, Inc.  All rights reserved.
+ # Copyright (c) 2007-2009 Sun Microsystems, Inc.  All rights reserved.
+ # Copyright (c) 2008      Mellanox Technologies.  All rights reserved.
+ # $COPYRIGHT$
+@@ -554,12 +554,11 @@
+ 
+         # Save it
+         $MTT::Test::builds->{$mpi_install->{mpi_get_simple_section_name}}->{$mpi_install->{mpi_version}}->{$mpi_install->{simple_section_name}}->{$simple_section} = $ret;
+-        MTT::Test::SaveBuilds($build_base,
+-            $MTT::Globals::Internals->{mpi_get_name} . "." .
+-            $MTT::Globals::Internals->{mpi_install_name} . "." .
+-            $MTT::Globals::Internals->{test_get_name} . "." .
+-            $MTT::Globals::Internals->{test_build_name}
+-        );
++        MTT::Test::SaveBuilds($build_base, 
++            $mpi_install->{mpi_get_simple_section_name},
++            $mpi_install->{mpi_version},
++            $mpi_install->{simple_section_name},
++            $simple_section);
+         
+         # Print
+         if (MTT::Values::PASS == $ret->{test_result}) {
+Index: lib/MTT/Test/Get.pm
+===================================================================
+--- lib/MTT/Test/Get.pm	(revision 1360)
++++ lib/MTT/Test/Get.pm	(working copy)
+@@ -2,7 +2,7 @@
+ #
+ # Copyright (c) 2005-2006 The Trustees of Indiana University.
+ #                         All rights reserved.
+-# Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.
++# Copyright (c) 2006-2010 Cisco Systems, Inc.  All rights reserved.
+ # Copyright (c) 2007      Sun Microsystems, Inc.  All rights reserved.
+ # $COPYRIGHT$
+ # 
+@@ -129,7 +129,9 @@
+             $MTT::Test::sources->{$simple_section} = $ret;
+             
+             # Save the data file recording all the sources
+-            MTT::Test::SaveSources($source_dir, $MTT::Globals::Internals->{test_get_name});
++            MTT::Test::SaveSources($source_dir, 
++                                   $MTT::Globals::Internals->{test_get_name},
++                                   $MTT::Globals::Internals->{test_get_name});
+         } else {
+             Verbose("   No new test sources\n");
+         }
+Index: lib/MTT/MPI/Install.pm
+===================================================================
+--- lib/MTT/MPI/Install.pm	(revision 1360)
++++ lib/MTT/MPI/Install.pm	(working copy)
+@@ -2,7 +2,7 @@
+ #
+ # Copyright (c) 2005-2006 The Trustees of Indiana University.
+ #                         All rights reserved.
+-# Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.
++# Copyright (c) 2006-2010 Cisco Systems, Inc.  All rights reserved.
+ # Copyright (c) 2007-2009 Sun Microsystems, Inc.  All rights reserved.
+ # $COPYRIGHT$
+ # 
+@@ -795,7 +795,8 @@
+         }
+ 
+         MTT::MPI::SaveInstalls($install_base,
+-            $MTT::Globals::Internals->{mpi_get_name} . "." .
++            $MTT::Globals::Internals->{mpi_get_name},
++            $mpi_get->{version},
+             $MTT::Globals::Internals->{mpi_install_name});
+ 
+         # Successful build?
+Index: lib/MTT/MPI/Get.pm
+===================================================================
+--- lib/MTT/MPI/Get.pm	(revision 1360)
++++ lib/MTT/MPI/Get.pm	(working copy)
+@@ -2,7 +2,7 @@
+ #
+ # Copyright (c) 2005-2006 The Trustees of Indiana University.
+ #                         All rights reserved.
+-# Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.
++# Copyright (c) 2006-2010 Cisco Systems, Inc.  All rights reserved.
+ # Copyright (c) 2007-2009 Sun Microsystems, Inc.  All rights reserved.
+ # $COPYRIGHT$
+ # 
+@@ -187,7 +187,10 @@
+             $MTT::MPI::sources->{$simple_section}->{$ret->{version}} = $ret;
+ 
+             # Save the data file recording all the sources
+-            MTT::MPI::SaveSources($source_dir, $MTT::Globals::Internals->{mpi_get_name});
++            MTT::MPI::SaveSources($source_dir, 
++                                  $MTT::Globals::Internals->{mpi_get_name},
++                                  $MTT::Globals::Internals->{mpi_get_name} .
++                                  "." . $ret->{version});
+         } else {
+             Verbose("   No new MPI sources\n");
+         }
+Index: lib/MTT/Test.pm
+===================================================================
+--- lib/MTT/Test.pm	(revision 1362)
++++ lib/MTT/Test.pm	(working copy)
+@@ -59,7 +59,7 @@
+ 
+     # Explicitly delete/replace anything that was there
+     $MTT::Test::sources = 
+-        MTT::Files::load_dumpfiles(glob("$dir/$sources_data_filename-*.$data_filename_extension"));
++        MTT::Files::load_dumpfiles(1, glob("$dir/$sources_data_filename-*.$data_filename_extension"));
+ 
+     # Rebuild the refcounts
+     foreach my $test_key (keys(%{$MTT::Test::sources})) {
+@@ -73,14 +73,14 @@
+ #--------------------------------------------------------------------------
+ 
+ sub SaveSources {
+-    my ($dir, $name) = @_;
++    my ($dir, $key, $name) = @_;
+ 
+     # We write individual dump files for each section so that multiple
+     # readers / writers can be active in the scratch tree
+     # simultaneously.  So write *just the desired section* to the dump
+     # file.
+     my $d;
+-    $d->{$name} = $MTT::Test::sources->{$name};
++    $d->{$key} = $MTT::Test::sources->{$key};
+ 
+     my $file = "$dir/$sources_data_filename-$name.$data_filename_extension";
+     MTT::Files::save_dumpfile($file, $d);
+@@ -93,7 +93,7 @@
+ 
+     # Explicitly delete/replace anything that was there
+     $MTT::Test::builds = 
+-        MTT::Files::load_dumpfiles(glob("$dir/$builds_data_filename-*.$data_filename_extension"));
++        MTT::Files::load_dumpfiles(4, glob("$dir/$builds_data_filename-*.$data_filename_extension"));
+ 
+     # Rebuild the refcounts
+     foreach my $get_key (keys(%{$MTT::Test::builds})) {
+@@ -131,21 +131,18 @@
+ #--------------------------------------------------------------------------
+ 
+ sub SaveBuilds {
+-    my ($dir, $name) = @_;
++    my ($dir, $mpi_name, $mpi_version, $install_name, $test_name) = @_;
+ 
+     # We write individual dump files for each section so that multiple
+     # readers / writers can be active in the scratch tree
+     # simultaneously.  So write *just the desired section* to the dump
+     # file.
+     my $d;
+-    $d->{$name} = $MTT::Test::builds->{$name};
++    $d->{$mpi_name}->{$mpi_version}->{$install_name}->{$test_name} = 
++        $MTT::Test::builds->{$mpi_name}->{$mpi_version}->{$install_name}->{$test_name};
+ 
+-    # We write the entire Test::builds hash to file, even
+-    # though the filename indicates a single INI section
+-    # MTT::Util::hashes_merge will take care of duplicate
+-    # hash keys. The reason for splitting up the .dump files
+-    # is to keep them read and write safe across INI sections
+-    my $file = "$dir/$builds_data_filename-$name.$data_filename_extension";
++    my $f = "$mpi_name.$mpi_version.$install_name.$test_name";
++    my $file = "$dir/$builds_data_filename-$f.$data_filename_extension";
+     MTT::Files::save_dumpfile($file, $d);
+ }
+ 
+Index: lib/MTT/MPI.pm
+===================================================================
+--- lib/MTT/MPI.pm	(revision 1362)
++++ lib/MTT/MPI.pm	(working copy)
+@@ -46,7 +46,7 @@
+ 
+     # Explicitly delete/replace anything that was there
+     $MTT::MPI::sources = 
+-        MTT::Files::load_dumpfiles(glob("$dir/$sources_data_filename-*.$data_filename_extension"));
++        MTT::Files::load_dumpfiles(2, glob("$dir/$sources_data_filename-*.$data_filename_extension"));
+ 
+     # Rebuild the refcounts
+     foreach my $get_key (keys(%{$MTT::MPI::sources})) {
+@@ -63,14 +63,14 @@
+ #--------------------------------------------------------------------------
+ 
+ sub SaveSources {
+-    my ($dir, $name) = @_;
++    my ($dir, $key, $name) = @_;
+ 
+     # We write individual dump files for each section so that multiple
+     # readers / writers can be active in the scratch tree
+     # simultaneously.  So write *just the desired section* to the dump
+     # file.
+     my $d;
+-    $d->{$name} = $MTT::MPI::sources->{$name};
++    $d->{$key} = $MTT::MPI::sources->{$key};
+ 
+     my $file = "$dir/$sources_data_filename-$name.$data_filename_extension";
+     MTT::Files::save_dumpfile($file, $d);
+@@ -83,7 +83,7 @@
+ 
+     # Explicitly delete/replace anything that was there
+     $MTT::MPI::installs = 
+-        MTT::Files::load_dumpfiles(glob("$dir/$installs_data_filename-*.$data_filename_extension"));
++        MTT::Files::load_dumpfiles(3, glob("$dir/$installs_data_filename-*.$data_filename_extension"));
+ 
+     # Rebuild the refcounts
+     foreach my $get_key (keys(%{$MTT::MPI::installs})) {
+@@ -110,16 +110,18 @@
+ #--------------------------------------------------------------------------
+ 
+ sub SaveInstalls {
+-    my ($dir, $name) = @_;
++    my ($dir, $mpi_name, $mpi_version, $install_name) = @_;
+ 
+     # We write individual dump files for each section so that multiple
+     # readers / writers can be active in the scratch tree
+     # simultaneously.  So write *just the desired section* to the dump
+     # file.
+     my $d;
+-    $d->{$name} = $MTT::MPI::installs->{$name};
++    $d->{$mpi_name}->{$mpi_version}->{$install_name} = 
++        $MTT::MPI::installs->{$mpi_name}->{$mpi_version}->{$install_name};
+ 
+-    my $file = "$dir/$installs_data_filename-$name.$data_filename_extension";
++    my $f = "$mpi_name.$mpi_version.$install_name";
++    my $file = "$dir/$installs_data_filename-$f.$data_filename_extension";
+     MTT::Files::save_dumpfile($file, $d);
+ }
+ 
+Index: lib/MTT/Files.pm
+===================================================================
+--- lib/MTT/Files.pm	(revision 1362)
++++ lib/MTT/Files.pm	(working copy)
+@@ -455,10 +455,13 @@
+ 
+ #--------------------------------------------------------------------------
+ 
++our $s = 0;
++
+ sub load_dumpfiles {
++    my $unique_depth = shift;
+     my @files = @_;
+ 
+-    my $all;
++    my $all = undef;
+     my $i = 1;
+     foreach my $f (@files) {
+         # If the file exists, read it in
+@@ -467,19 +470,96 @@
+         ++$i;
+ 
+         load_dumpfile($f, \$data);
+-        my @keys = keys(%{$data->{"VAR1"}});
+-        my $k = $keys[0];
+-        Debug("Found dump key: $k\n");
+ 
+-        Error("An identical key already exists in memory when MTT tried to read the file $f.  This should not happen.  It likely indicates that multiple MTT clients are incorrectly operating in the same scratch tree.")
+-            if (exists($all->{$k}));
+-        $all->{$k} = $data->{"VAR1"}->{$k};
++        # Skip the "VAR1" key -- all dump files have that at the top.
++        $data = $data->{VAR1}
++            if (exists($data->{VAR1}));
++        if ($s) {
++            Verbose("READ IN FILE: ");
++            DebugDump($data);
++        }
++
++        # These dump files are structured to have the "interesting"
++        # data several keys deep.  That is, there will be several
++        # "outer" keys before any real data is stored in a hash.  For
++        # example: $foo->{bar}->{baz}->...real_data...  The "outer"
++        # keys are defines as having exactly one sub key.  The file
++        # that was just read in must have a unique queue in the target
++        # hash at the specific depth $unique_depth.  If we don't have
++        # a unique key there, Badness has happened.  However, keys
++        # above this depth may well be non-unique.
++        if (defined($all)) {
++            _merge_hash($f, $unique_depth - 1, \$all, \$data);
++        } else {
++            $all = $data;
++        }
+     }
+ 
+-    Debug("Read in dump file keys: " . join(" ", keys(%{$all})) . "\n");
+     $all;
+ }
+ 
++sub _merge_hash {
++    my ($file, $depth, $a, $b) = @_;
++
++    if ($s) {
++        Verbose("=========================================\n");
++        Verbose("MERGING: depth=$depth\n");
++        Verbose("a = ");
++        DebugDump($$a);
++        Verbose("-----------------------------------------\n");
++        Verbose("b = ");
++        DebugDump($$b);
++        Verbose("-----------------------------------------\n");
++    }
++
++    # If our depth is < 0, we don't care about uniqueness, so just copy
++    if ($depth < 0) {
++        $$a = $$b;
++    }
++
++    # Otherwise, we need to examine individual keys.
++    else {
++        # This function is only ever called with 2 hashes, so we know
++        # we can traverse keys of both $a and $b.
++        foreach my $k (keys(%{$$b})) {
++            Verbose("Got key: $k\n")
++                if ($s);
++            # Key collision!
++            if (exists(${$a}->{$k})) {
++                Verbose("Collision\n")
++                    if ($s);
++
++                # If we're at 0 depth, then this is the level where
++                # uniqueness matters -- so error out because we got a
++                # collision.
++                if (0 == $depth) {
++                    Error("An identical key already exists in memory when MTT tried to read the file $file (key=$k).  This should not happen.  It likely indicates that multiple MTT clients are incorrectly operating in the same scratch tree.");
++                }
++
++                # Otherwise we try to copy.  If both are hashes, recurse.
++                if (ref(${$a}->{$k}) =~ /hash/i && 
++                    ref(${$b}->{$k}) =~ /hash/i) {
++                    _merge_hash($file, $depth - 1, \${$a}->{$k}, \${$b}->{$k});
++                }
++                # Otherwise, $a wins
++            } 
++
++            # No collision, so just copy $b->{$k} over
++            else {
++                Verbose("No collision\n")
++                    if ($s);
++                ${$a}->{$k} = ${$b}->{$k};
++            }
++        }
++    }
++
++    if ($s) {
++        Verbose("MERGED: depth=$depth\n");
++        DebugDump($a);
++        Verbose("-----------------------------------------\n");
++    }
++}
++
+ #--------------------------------------------------------------------------
+ 
+ sub save_dumpfile {
