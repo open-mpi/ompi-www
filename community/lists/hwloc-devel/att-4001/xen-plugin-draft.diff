@@ -1,0 +1,117 @@
+commit 9496db36ee8f37dac2dd5c2b7a23c391c8653638
+Author: Brice Goglin <Brice.Goglin@inria.fr>
+Date:   Tue Dec 31 16:52:18 2013 +0100
+
+    xen plugin
+
+diff --git a/config/hwloc.m4 b/config/hwloc.m4
+index 600d596..e626442 100644
+--- a/config/hwloc.m4
++++ b/config/hwloc.m4
+@@ -932,6 +932,7 @@ EOF])
+       AC_DEFINE([HWLOC_HAVE_XEN], [1], [Define to 1 if you have the `XEN' library.])
+       AC_SUBST([HWLOC_HAVE_XEN], [1])
+       hwloc_components="$hwloc_components xen"
++      hwloc_xen_component_maybeplugin=1
+       hwloc_xen=yes
+     else
+       AC_SUBST([HWLOC_HAVE_XEN], [0])
+@@ -1151,6 +1152,10 @@ EOF])
+           [HWLOC_LIBS="$HWLOC_LIBS $HWLOC_GL_LIBS"
+            HWLOC_CFLAGS="$HWLOC_CFLAGS $HWLOC_GL_CFLAGS"
+            HWLOC_REQUIRES="$HWLOC_GL_REQUIRES $HWLOC_REQUIRES"])
++    AS_IF([test "$hwloc_xen_component" = "static"],
++          [HWLOC_LIBS="$HWLOC_LIBS $HWLOC_XEN_LIBS"
++           HWLOC_CFLAGS="$HWLOC_CFLAGS $HWLOC_XEN_CFLAGS"
++           HWLOC_REQUIRES="$HWLOC_XEN_REQUIRES $HWLOC_REQUIRES"])
+     AS_IF([test "$hwloc_xml_libxml_component" = "static"],
+           [HWLOC_LIBS="$HWLOC_LIBS $HWLOC_LIBXML2_LIBS"
+            HWLOC_CFLAGS="$HWLOC_CFLAGS $HWLOC_LIBXML2_CFLAGS"
+@@ -1274,6 +1279,7 @@ AC_DEFUN([HWLOC_DO_AM_CONDITIONALS],[
+         AM_CONDITIONAL([HWLOC_CUDA_BUILD_STATIC], [test "x$hwloc_cuda_component" = "xstatic"])
+         AM_CONDITIONAL([HWLOC_NVML_BUILD_STATIC], [test "x$hwloc_nvml_component" = "xstatic"])
+         AM_CONDITIONAL([HWLOC_GL_BUILD_STATIC], [test "x$hwloc_gl_component" = "xstatic"])
++        AM_CONDITIONAL([HWLOC_XEN_BUILD_STATIC], [test "x$hwloc_xen_component" = "xstatic"])
+         AM_CONDITIONAL([HWLOC_XML_LIBXML_BUILD_STATIC], [test "x$hwloc_xml_libxml_component" = "xstatic"])
+ 
+         AM_CONDITIONAL([HWLOC_HAVE_CXX], [test "x$hwloc_have_cxx" = "xyes"])
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 11dd6a2..76e11ed 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -162,8 +162,14 @@ sources += topology-x86.c
+ endif HWLOC_HAVE_CPUID
+ 
+ if HWLOC_HAVE_XEN
++if HWLOC_XEN_BUILD_STATIC
+ sources += topology-xen.c
+-ldflags += $(HWLOC_XEN_LIBS)
++else
++plugins_LTLIBRARIES += hwloc_xen.la
++hwloc_xen_la_SOURCES = topology-xen.c
++hwloc_xen_la_CFLAGS = $(AM_CFLAGS) $(HWLOC_XEN_CFLAGS) -DHWLOC_INSIDE_PLUGIN
++hwloc_xen_la_LDFLAGS = $(plugins_ldflags) $(HWLOC_XEN_LIBS)
++endif
+ endif HWLOC_HAVE_XEN
+ 
+ if HWLOC_HAVE_GCC
+diff --git a/src/topology-xen.c b/src/topology-xen.c
+index 28526fe..5c05f0b 100644
+--- a/src/topology-xen.c
++++ b/src/topology-xen.c
+@@ -4,8 +4,15 @@
+  */
+ 
+ #include <private/autogen/config.h>
+-#include <private/private.h>
+ #include <hwloc.h>
++#include <hwloc/plugins.h>
++
++/* private headers allowed for convenience because this plugin is built within hwloc */
++#include <private/debug.h>
++#include <private/misc.h>
++
++/* HACK to be removed for proper plugin support */
++#include <private/private.h>
+ 
+ #include <inttypes.h>
+ #include <assert.h>
+@@ -156,7 +163,7 @@ hwloc_xen_discover(struct hwloc_backend *backend)
+   hwloc_bitmap_t each_socket, each_node, each_core;
+   uint32_t i, z;
+ 
+-  if (topology->levels[0][0]->cpuset)
++  if (hwloc_get_root_obj(topology)->cpuset)
+     return 0;
+ 
+   hwloc_debug("Discovering Xen topology\n");
+@@ -180,7 +187,7 @@ hwloc_xen_discover(struct hwloc_backend *backend)
+       hwloc_debug("  node[%3"PRIu32"], size %"PRIu64", free %"PRIu64"\n",
+                   z, data->node_to_memsize[z], data->node_to_memfree[z]);
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_obj_cpusets(hwloc_get_root_obj(topology));
+   hwloc_setup_pu_level(topology, data->max_cpu_id+1);
+ 
+   /* Socket information */
+@@ -258,7 +265,7 @@ hwloc_xen_discover(struct hwloc_backend *backend)
+   hwloc_bitmap_free(each_node);
+ 
+ 
+-  hwloc_obj_add_info(topology->levels[0][0], "Backend", "Xen");
++  hwloc_obj_add_info(hwloc_get_root_obj(topology), "Backend", "Xen");
+ 
+   free_xen_info(data);
+ 
+@@ -336,6 +343,10 @@ static struct hwloc_disc_component hwloc_xen_disc_component = {
+   NULL
+ };
+ 
++#ifdef HWLOC_INSIDE_PLUGIN
++HWLOC_DECLSPEC extern const struct hwloc_component hwloc_xen_component;
++#endif
++
+ const struct hwloc_component hwloc_xen_component = {
+   HWLOC_COMPONENT_ABI,
+   HWLOC_COMPONENT_TYPE_DISC,
+

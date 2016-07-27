@@ -1,0 +1,62 @@
+diff -rupN hwloc-trunk_orig_2013_Sep_18/include/hwloc/helper.h hwloc-trunk/include/hwloc/helper.h
+--- hwloc-trunk_orig_2013_Sep_18/include/hwloc/helper.h	2013-09-18 13:41:30.514687497 +0200
++++ hwloc-trunk/include/hwloc/helper.h	2013-09-18 13:43:22.533207537 +0200
+@@ -667,8 +667,8 @@ hwloc_distribute(hwloc_topology_t topolo
+   unsigned i;
+   if (!root->arity || n == 1 || root->depth >= until) {
+     /* Got to the bottom, we can't split any more, put everything there.  */
+-    for (i=0; i<n; i++)
+-      set[i] = hwloc_bitmap_dup(root->cpuset);
++    for (i=n; i>0; --i)
++      set[i-1] = hwloc_bitmap_dup(root->cpuset);
+     return;
+   }
+   hwloc_distributev(topology, root->children, root->arity, set, n, until);
+@@ -689,15 +689,15 @@ hwloc_distributev(hwloc_topology_t topol
+   hwloc_cpuset_t *cpusetp = set;
+ 
+   tot_weight = 0;
+-  for (i = 0; i < n_roots; i++)
+-    if (roots[i]->cpuset)
+-      tot_weight += hwloc_bitmap_weight(roots[i]->cpuset);
++  for (i = n_roots; i > 0; --i)
++    if (roots[i-1]->cpuset)
++      tot_weight += hwloc_bitmap_weight(roots[i-1]->cpuset);
+ 
+-  for (i = 0; i < n_roots && tot_weight; i++) {
++  for (i = n_roots; i > 0 && tot_weight; --i) {
+     /* Give to roots[i] a portion proportional to its weight */
+-    unsigned weight = roots[i]->cpuset ? hwloc_bitmap_weight(roots[i]->cpuset) : 0;
++    unsigned weight = roots[i-1]->cpuset ? hwloc_bitmap_weight(roots[i-1]->cpuset) : 0;
+     unsigned chunk = (n * weight + tot_weight-1) / tot_weight;
+-    hwloc_distribute(topology, roots[i], cpusetp, chunk, until);
++    hwloc_distribute(topology, roots[i-1], cpusetp, chunk, until);
+     cpusetp += chunk;
+     tot_weight -= weight;
+     n -= chunk;
+diff -rupN hwloc-trunk_orig_2013_Sep_18/src/bitmap.c hwloc-trunk/src/bitmap.c
+--- hwloc-trunk_orig_2013_Sep_18/src/bitmap.c	2013-09-18 13:41:30.921689421 +0200
++++ hwloc-trunk/src/bitmap.c	2013-09-18 13:42:51.716066264 +0200
+@@ -1073,16 +1073,16 @@ void hwloc_bitmap_singlify(struct hwloc_
+ 
+ 	HWLOC__BITMAP_CHECK(set);
+ 
+-	for(i=0; i<set->ulongs_count; i++) {
++	for(i=set->ulongs_count; i>0; --i) {
+ 		if (found) {
+-			set->ulongs[i] = HWLOC_SUBBITMAP_ZERO;
++			set->ulongs[i-1] = HWLOC_SUBBITMAP_ZERO;
+ 			continue;
+ 		} else {
+ 			/* subsets are unsigned longs, use ffsl */
+-			unsigned long w = set->ulongs[i];
++			unsigned long w = set->ulongs[i-1];
+ 			if (w) {
+-				int _ffs = hwloc_ffsl(w);
+-				set->ulongs[i] = HWLOC_SUBBITMAP_CPU(_ffs-1);
++				int _fls = hwloc_flsl(w);
++				set->ulongs[i-1] = HWLOC_SUBBITMAP_CPU(_fls-1);
+ 				found = 1;
+ 			}
+ 		}
+Binary files hwloc-trunk_orig_2013_Sep_18/.svn/wc.db and hwloc-trunk/.svn/wc.db differ

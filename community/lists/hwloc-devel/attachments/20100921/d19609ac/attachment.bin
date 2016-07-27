@@ -1,0 +1,302 @@
+Index: src/topology-linux.c
+===================================================================
+--- src/topology-linux.c	(revision 2443)
++++ src/topology-linux.c	(working copy)
+@@ -95,6 +95,9 @@
+ #    endif
+ #endif
+ 
++/* Added for ntohl() */
++#include <arpa/inet.h>
++
+ #ifdef HAVE_OPENAT
+ /* Use our own filesystem functions if we have openat */
+ 
+@@ -1391,6 +1394,261 @@
+   *found = nbnodes;
+ }
+ 
++/* Reads the entire file and returns bytes read if bytes_read != NULL */
++static void * 
++hwloc_read_raw(const char *p, const char *p1, size_t *bytes_read, int root_fd)
++{
++  char fname[strlen(p) + 1 + strlen(p1) + 1];
++  char *ret = NULL;
++
++  snprintf(fname, sizeof(fname), "%s/%s", p, p1);
++  struct stat fs = {0};
++  if (0 != stat(fname, &fs))
++    return NULL;
++
++  FILE *file = hwloc_fopen(fname, "r", root_fd);
++  if (NULL == file)
++    return NULL;
++  ret = (char *) malloc(fs.st_size);
++  if (NULL != ret) {
++    size_t cb = fread(ret, 1, fs.st_size, file);
++    if (NULL != bytes_read)
++      *bytes_read = cb;
++  }
++  fclose(file);
++  return ret;
++}
++
++static char *
++hwloc_read_str(const char *p, const char *p1, int root_fd)
++{
++  size_t cb = 0;
++  char *ret = (char *) hwloc_read_raw(p, p1, &cb, root_fd);
++  if ((NULL != ret) && (0 < cb))
++    ret[cb-1] = 0;
++  return ret;
++}
++
++/* Reads first 32bit bigendian value */
++static size_t 
++hwloc_read_unit32be(const char *p, const char *p1, uint32_t *buf, int root_fd)
++{
++  size_t cb = 0;
++  void *tmp = hwloc_read_raw(p, p1, &cb, root_fd);
++  if (sizeof(*buf) != cb)
++    return -1;
++  *buf = htonl(*(uint32_t *)tmp);
++  return sizeof(*buf);
++}
++
++typedef struct {
++  unsigned int n, allocated;
++  struct {
++    hwloc_cpuset_t cpuset;
++    uint32_t ibm_phandle;
++    uint32_t l2_cache;
++    char *name;
++  } *p;
++} device_tree_cpus_t;
++
++static void
++add_device_tree_cpus_node(device_tree_cpus_t *cpus, hwloc_cpuset_t cpuset,
++    uint32_t l2_cache, uint32_t ibm_phandle, const char *name)
++{
++  if (cpus->n == cpus->allocated) {
++    cpus->allocated += 64;
++    cpus->p = realloc(cpus->p, cpus->allocated * sizeof(cpus->p[0]));
++  }
++  cpus->p[cpus->n].ibm_phandle = ibm_phandle;
++  cpus->p[cpus->n].cpuset = (NULL == cpuset)?NULL:hwloc_cpuset_dup(cpuset);
++  cpus->p[cpus->n].l2_cache = l2_cache;
++  cpus->p[cpus->n].name = strdup(name);
++  ++cpus->n;
++}
++
++/* Walks over the cache list in order to detect nested caches and CPU mask for each */
++static int
++look_powerpc_device_tree_discover_cache(device_tree_cpus_t *cpus,
++    uint32_t ibm_phandle, unsigned int *level, hwloc_cpuset_t cpuset)
++{
++  int ret = -1;
++  if ((NULL == level) || (NULL == cpuset))
++    return ret;
++  for (unsigned int i = 0; i < cpus->n; ++i) {
++    if (ibm_phandle != cpus->p[i].l2_cache)
++      continue;
++    if (NULL != cpus->p[i].cpuset) {
++      hwloc_cpuset_or(cpuset, cpuset, cpus->p[i].cpuset);
++      ret = 0;
++    } else {
++      ++(*level);
++      if (0 == look_powerpc_device_tree_discover_cache(cpus,
++            cpus->p[i].ibm_phandle, level, cpuset))
++        ret = 0;
++    }
++  }
++  return ret;
++}
++
++/* 
++ * Discovers L1/L2/L3 cache information on IBM PowerPC systems for old kernels (RHEL5.*)
++ * which provide NUMA nodes information without any details
++ */
++static void
++look_powerpc_device_tree(struct hwloc_topology *topology)
++{
++  device_tree_cpus_t cpus = { 0 };
++  const char ofroot[] = "/proc/device-tree/cpus";
++
++  int root_fd = topology->backend_params.sysfs.root_fd;
++  DIR *dt = hwloc_opendir(ofroot, root_fd);
++  if (NULL == dt)
++    return;
++
++  struct dirent *dirent;
++  while (NULL != (dirent = readdir(dt))) {
++
++    if (('.' == dirent->d_name[0]) || (0 == (dirent->d_type & DT_DIR)))
++      continue;
++
++    char cpu[sizeof(ofroot) + 1 + strlen(dirent->d_name) + 1];
++    snprintf(cpu, sizeof(cpu), "%s/%s", ofroot, dirent->d_name);
++    
++    char *device_type = hwloc_read_str(cpu, "device_type", root_fd);
++    if (NULL == device_type)
++      continue;
++
++    uint32_t reg = -1, l2_cache = -1, ibm_phandle = -1;
++    hwloc_read_unit32be(cpu, "reg", &reg, root_fd);
++    hwloc_read_unit32be(cpu, "l2-cache", &l2_cache, root_fd);
++    hwloc_read_unit32be(cpu, "ibm,phandle", &ibm_phandle, root_fd);
++
++    if (0 == strcmp(device_type, "cache")) {
++      add_device_tree_cpus_node(&cpus, NULL, l2_cache, ibm_phandle, dirent->d_name); 
++    }
++    else if (0 == strcmp(device_type, "cpu")) {
++      /* Found CPU */
++      hwloc_cpuset_t cpuset = NULL;
++      size_t cb = 0;
++      uint32_t *threads = hwloc_read_raw(cpu, "ibm,ppc-interrupt-server#s", &cb, root_fd);
++      uint32_t nthreads = cb / sizeof(threads[0]);
++
++      if (NULL != threads) {
++        cpuset = hwloc_cpuset_alloc();
++        for (unsigned int i = 0; i < nthreads; ++i) {
++          hwloc_cpuset_set(cpuset, ntohl(threads[i]));
++        }
++        free(threads);
++      } else if ((unsigned int)-1 != reg) {
++        cpuset = hwloc_cpuset_alloc();
++        hwloc_cpuset_set(cpuset, reg);
++      }
++
++      if (NULL == cpuset) {
++        hwloc_debug("%s has no \"reg\" property, skipping\n", cpu);
++      } else {
++        add_device_tree_cpus_node(&cpus, cpuset, l2_cache, ibm_phandle, dirent->d_name); 
++
++        /* Add core */
++        struct hwloc_obj *core = hwloc_alloc_setup_object(HWLOC_OBJ_CORE, reg);
++        core->cpuset = hwloc_cpuset_dup(cpuset);
++        hwloc_insert_object_by_cpuset(topology, core);
++
++        /* Add socket */
++        /* -1 - to discuss */
++        struct hwloc_obj *socket = hwloc_alloc_setup_object(HWLOC_OBJ_SOCKET, -1);
++        socket->cpuset = hwloc_cpuset_dup(cpuset);
++        hwloc_insert_object_by_cpuset(topology, socket);
++
++        /* Add L1 cache */
++        /* Ignore Instruction caches */
++
++        /* d-cache-block-size - ignore */
++        /* d-cache-line-size - to read, in bytes */
++        /* d-cache-sets - ignore */
++        /* d-cache-size - to read, in bytes */ 
++        /* d-tlb-sets - ignore */
++        /* d-tlb-size - ignore, always 0 on power6 */
++        /* i-cache-* and i-tlb-* represent instruction cache, ignore */
++        uint32_t d_cache_line_size = -1, d_cache_size = -1;
++        if ( (0 != hwloc_read_unit32be(cpu, "d-cache-line-size", &d_cache_line_size, root_fd)) &&
++            (0 != hwloc_read_unit32be(cpu, "d-cache-size", &d_cache_size, root_fd))  ) {
++          struct hwloc_obj *cache =
++              hwloc_alloc_setup_object(HWLOC_OBJ_CACHE, -1);
++          cache->attr->cache.size = d_cache_size;
++          cache->attr->cache.depth = 1;
++          cache->attr->cache.linesize = d_cache_line_size;
++          cache->cpuset = hwloc_cpuset_dup(cpuset);
++          hwloc_debug_cpuset("cache depth 1 has cpuset %s\n", cache->cpuset);
++          hwloc_insert_object_by_cpuset(topology, cache);
++        }
++        hwloc_cpuset_free(cpuset);
++      }
++      free(device_type);
++    }
++  }
++  closedir(dt);
++
++  /* No cores and L2 cache were found, exiting */
++  if (0 == cpus.n) {
++    hwloc_debug("No cores and L2 cache were found in %s, exiting\n", ofroot);
++    return;
++  }
++
++#ifdef HWLOC_DEBUG
++  for (unsigned int i = 0; i < cpus.n; ++i) {
++    hwloc_debug("%i: %s  ibm,phandle=%08X l2_cache=%08X ",
++      i, cpus.p[i].name, cpus.p[i].ibm_phandle, cpus.p[i].l2_cache);
++    if (NULL == cpus.p[i].cpuset) {
++      hwloc_debug("%s\n", "no cpuset");
++    } else {
++      hwloc_debug_cpuset("cpuset %s\n", cpus.p[i].cpuset);
++    }
++  }
++#endif
++
++  /* Scan L2/L3/... caches */
++  for (unsigned int i = 0; i < cpus.n; ++i) {
++    /* Skip real CPUs */
++    if (NULL != cpus.p[i].cpuset)
++      continue;
++
++    /* Calculate cache level and CPU mask */
++    unsigned int level = 2;
++    hwloc_cpuset_t cpuset = hwloc_cpuset_alloc();
++    if (0 == look_powerpc_device_tree_discover_cache(&cpus,
++          cpus.p[i].ibm_phandle, &level, cpuset)) {
++      /* Check for "cache-unified" - if it is present, CPU has unified L1 cache */
++      /* d-cache-line-size - to read, in bytes */
++      /* d-cache-sets - ignore */
++      /* d-cache-size - to read, in bytes */ 
++      /* i-cache-* represent instruction cache, ignore */
++      uint32_t d_cache_line_size = 0, d_cache_size = 0;
++      char cpu[sizeof(ofroot) + 1 + strlen(cpus.p[i].name) + 1];
++      snprintf(cpu, sizeof(cpu), "%s/%s", ofroot, cpus.p[i].name);
++
++      if ( (0 != hwloc_read_unit32be(cpu, "d-cache-line-size", &d_cache_line_size, root_fd)) &&
++          (0 != hwloc_read_unit32be(cpu, "d-cache-size", &d_cache_size, root_fd)) ) {
++        struct hwloc_obj *c = hwloc_alloc_setup_object(HWLOC_OBJ_CACHE, -1);
++        c->attr->cache.size = d_cache_size;
++        c->attr->cache.depth = level;
++        c->attr->cache.linesize = d_cache_line_size;
++        c->cpuset = hwloc_cpuset_dup(cpuset);
++        hwloc_debug_1arg_cpuset("cache depth %d has cpuset %s\n", level, c->cpuset);
++        hwloc_insert_object_by_cpuset(topology, c);
++      }
++    }
++    hwloc_cpuset_free(cpuset);
++  }
++
++  /* Do cleanup */
++  for (unsigned int i = 0; i < cpus.n; ++i) {
++    hwloc_cpuset_free(cpus.p[i].cpuset);
++    free(cpus.p[i].name);
++  }
++  free(cpus.p);
++}
++
+ /* Look at Linux' /sys/devices/system/cpu/cpu%d/topology/ */
+ static void
+ look_sysfscpu(struct hwloc_topology *topology, const char *path)
+@@ -1453,6 +1711,7 @@
+   hwloc_debug_1arg_cpuset("found %d cpu topologies, cpuset %s\n",
+ 	     hwloc_cpuset_weight(cpuset), cpuset);
+ 
++  unsigned caches_added = 0;
+   hwloc_cpuset_foreach_begin(i, cpuset)
+     {
+       struct hwloc_obj *socket, *core, *thread;
+@@ -1580,6 +1839,7 @@
+             hwloc_debug_1arg_cpuset("cache depth %d has cpuset %s\n",
+                        depth, cacheset);
+             hwloc_insert_object_by_cpuset(topology, cache);
++            ++caches_added;
+           } else
+             hwloc_cpuset_free(cacheset);
+         }
+@@ -1587,6 +1847,9 @@
+     }
+   hwloc_cpuset_foreach_end();
+ 
++  if (0 == caches_added)
++    look_powerpc_device_tree(topology);
++
+   hwloc_cpuset_free(cpuset);
+ }
+ 

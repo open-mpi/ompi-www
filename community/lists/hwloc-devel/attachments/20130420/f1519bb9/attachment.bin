@@ -1,0 +1,61 @@
+commit 22c1822dd57fd73cc230f959c7f400ac813f9ded
+Author: bgoglin <bgoglin@4b44e086-7f34-40ce-a3bd-00e031736276>
+Date:   Sat Apr 20 07:50:38 2013 +0000
+
+    Backport trunk commit r5552 into v1.7 branch:
+    * gl: Fix build with old nvctrl which doesn't have NV_CTRL_PCI_DOMAIN
+      Make the domain 0 in this case, just like we did for old cuda,
+      x86 machines (always?) use domain = 0 anyway.
+      Thanks to Jirka Hladky for the report.
+      And by the way, remove the duplicate NV_CTRL_PCI_DOMAIN use.
+    
+    
+    
+    git-svn-id: https://svn.open-mpi.org/svn/hwloc/branches/v1.7@5553 4b44e086-7f34-40ce-a3bd-00e031736276
+
+diff --git a/NEWS b/NEWS
+index 2ea4a43..c5593d9 100644
+--- a/NEWS
++++ b/NEWS
+@@ -19,6 +19,8 @@ in v0.9.1).
+ 
+ Version 1.7.1
+ -------------
++* Fix GL component build with old NVCtrl releases.
++  Thanks to Jirka Hladky for reporting the problem.
+ * Add a FAQ entry "How to get useful topology information on NetBSD?"
+   in the documentation.
+ 
+diff --git a/src/topology-gl.c b/src/topology-gl.c
+index 0896c78..34cfb39 100644
+--- a/src/topology-gl.c
++++ b/src/topology-gl.c
+@@ -85,12 +85,16 @@ hwloc_gl_query_devices(struct hwloc_gl_backend_data_s *data)
+       gpu_number = ptr_binary_data[1];
+       free(ptr_binary_data);
+ 
++#ifdef NV_CTRL_PCI_DOMAIN
+       /* Gets the ID's of the GPU defined by gpu_number
+        * For further details, see the <NVCtrl/NVCtrlLib.h> */
+       err = XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, gpu_number, 0,
+                                         NV_CTRL_PCI_DOMAIN, &nv_ctrl_pci_domain);
+       if (!err)
+         continue;
++#else
++      nv_ctrl_pci_domain = 0;
++#endif
+ 
+       err = XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, gpu_number, 0,
+                                         NV_CTRL_PCI_BUS, &nv_ctrl_pci_bus);
+@@ -103,11 +107,6 @@ hwloc_gl_query_devices(struct hwloc_gl_backend_data_s *data)
+         continue;
+ 
+       err = XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, gpu_number, 0,
+-                                        NV_CTRL_PCI_DOMAIN, &nv_ctrl_pci_domain);
+-      if (!err)
+-        continue;
+-
+-      err = XNVCTRLQueryTargetAttribute(display, NV_CTRL_TARGET_TYPE_GPU, gpu_number, 0,
+                                         NV_CTRL_PCI_FUNCTION, &nv_ctrl_pci_func);
+       if (!err)
+         continue;

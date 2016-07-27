@@ -1,0 +1,331 @@
+Index: src/Makefile.am
+===================================================================
+--- src/Makefile.am	(révision 4846)
++++ src/Makefile.am	(copie de travail)
+@@ -75,6 +75,11 @@
+ 
+ if HWLOC_HAVE_LINUX
+ sources += topology-linux.c
++plugins_LTLIBRARIES += core_linuxx86.la
++core_linuxx86_la_SOURCES = topology-linux-x86.c
++core_linuxx86_la_CPPFLAGS = $(AM_CPPFLAGS) -DHWLOC_BUILD_PLUGIN
++core_linuxx86_la_CFLAGS = $(AM_CFLAGS)
++core_linuxx86_la_LDFLAGS = $(plugins_ldflags)
+ endif HWLOC_HAVE_LINUX
+ 
+ if HWLOC_HAVE_AIX
+Index: src/topology-linux-x86.c
+===================================================================
+--- src/topology-linux-x86.c	(révision 0)
++++ src/topology-linux-x86.c	(révision 0)
+@@ -0,0 +1,62 @@
++/*
++ * Copyright © 2012 Université Bordeaux 1
++ * See COPYING in top-level directory.
++ */
++
++#include <private/autogen/config.h>
++#include <hwloc.h>
++#include <hwloc/linux.h>
++#include <private/misc.h>
++#include <private/private.h>
++
++#include <stdio.h>
++#include <fcntl.h>
++#include <errno.h>
++#include <assert.h>
++
++#if defined(HWLOC_HAVE_CPUID)
++static int
++hwloc_look_linux_x86(struct hwloc_topology *topology)
++{
++  unsigned nbprocs = hwloc_fallback_nbprocessors(topology);
++
++  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_setup_pu_level(topology, nbprocs);
++  hwloc_set_linux_hooks(topology);
++  hwloc_look_x86(topology, nbprocs);
++
++  return 1;
++}
++
++static int
++hwloc_linux_x86_component_instantiate(struct hwloc_topology *topology,
++				      struct hwloc_core_component *component,
++				      const void *_data1,
++				      const void *_data2 __hwloc_attribute_unused,
++				      const void *_data3 __hwloc_attribute_unused)
++{
++  struct hwloc_backend *backend = _hwloc_linux_component_instantiate(topology, component, _data1, _data2, _data3);
++  if (backend) {
++    backend->discover = hwloc_look_linux_x86;
++    hwloc_backend_enable(topology, backend);
++    return 0;
++  }
++  return -1;
++}
++
++static struct hwloc_core_component hwloc_linuxx86_core_component = {
++  HWLOC_CORE_COMPONENT_TYPE_OS,
++  "linuxx86",
++  hwloc_linux_x86_component_instantiate,
++  hwloc_set_linux_hooks,
++  10,
++  NULL
++};
++
++const struct hwloc_component hwloc_core_linuxx86_component = {
++  HWLOC_COMPONENT_ABI,
++  HWLOC_COMPONENT_TYPE_CORE,
++  0,
++  &hwloc_linuxx86_core_component
++};
++#endif
+Index: src/topology-linux.c
+===================================================================
+--- src/topology-linux.c	(révision 4846)
++++ src/topology-linux.c	(copie de travail)
+@@ -3341,8 +3341,8 @@
+   return 1;
+ }
+ 
+-static void
+-hwloc_set_linuxfs_hooks(struct hwloc_topology *topology)
++void
++hwloc_set_linux_hooks(struct hwloc_topology *topology)
+ {
+   topology->set_thisthread_cpubind = hwloc_linux_set_thisthread_cpubind;
+   topology->get_thisthread_cpubind = hwloc_linux_get_thisthread_cpubind;
+@@ -3647,7 +3647,7 @@
+   return res;
+ }
+ 
+-static int
++int
+ hwloc_linux_backend_notify_new_object(struct hwloc_topology *topology, struct hwloc_obj *obj)
+ {
+   struct hwloc_linux_backend_data_s *data = topology->backend->private_data;
+@@ -3678,7 +3678,7 @@
+   return res;
+ }
+ 
+-static int
++int
+ hwloc_linux_backend_get_obj_cpuset(struct hwloc_topology *topology,
+ 				   struct hwloc_obj *obj, hwloc_bitmap_t cpuset)
+ {
+@@ -3713,7 +3713,7 @@
+   return -1;
+ }
+ 
+-static void
++void
+ hwloc_linux_backend_disable(struct hwloc_topology *topology __hwloc_attribute_unused,
+ 			    struct hwloc_backend *backend)
+ {
+@@ -3726,8 +3726,8 @@
+   free(data);
+ }
+ 
+-static int
+-hwloc_linux_component_instantiate(struct hwloc_topology *topology,
++struct hwloc_backend *
++_hwloc_linux_component_instantiate(struct hwloc_topology *topology,
+ 				  struct hwloc_core_component *component,
+ 				  const void *_data1,
+ 				  const void *_data2 __hwloc_attribute_unused,
+@@ -3774,14 +3774,29 @@
+ #endif
+   data->root_fd = root;
+ 
+-  hwloc_backend_enable(topology, backend);
+-  return 0;
++  return backend;
+ 
+  out_with_data:
+   free(data);
+  out_with_backend:
+   free(backend);
+  out:
++  return NULL;
++}
++
++static int
++hwloc_linux_component_instantiate(struct hwloc_topology *topology,
++				  struct hwloc_core_component *component,
++				  const void *_data1,
++				  const void *_data2 __hwloc_attribute_unused,
++				  const void *_data3 __hwloc_attribute_unused)
++{
++  struct hwloc_backend *backend = _hwloc_linux_component_instantiate(topology, component, _data1, _data2, _data3);
++
++  if (backend) {
++    hwloc_backend_enable(topology, backend);
++    return 0;
++  }
+   return -1;
+ }
+ 
+@@ -3789,7 +3804,7 @@
+   HWLOC_CORE_COMPONENT_TYPE_OS,
+   "linux",
+   hwloc_linux_component_instantiate,
+-  hwloc_set_linuxfs_hooks,
++  hwloc_set_linux_hooks,
+   10,
+   NULL
+ };
+Index: src/topology.c
+===================================================================
+--- src/topology.c	(révision 4846)
++++ src/topology.c	(copie de travail)
+@@ -2690,6 +2690,29 @@
+       hwloc_topology_set_xml(topology, xmlpath_env);
+   }
+ 
++  {
++    char *components = getenv("HWLOC_PLUGINS");
++    size_t s;
++    char *c;
++    if (components) {
++      while (*components) {
++        s = strcspn(components, ",");
++        if (s) {
++          struct hwloc_core_component *comp;
++          c = strndup(components, s);
++          comp = hwloc_core_component_find(-1, c);
++          if (comp)
++            comp->instantiate(topology, comp, NULL, NULL, NULL);
++          free(c);
++        }
++        components += s;
++        if (*components)
++          /* Skip comma */
++          components++;
++      }
++    }
++  }
++
+   /* always apply non-FORCE THISSYSTEM since it was explicitly designed to override setups from other backends */
+   local_env = getenv("HWLOC_THISSYSTEM");
+   if (local_env)
+Index: config/hwloc.m4
+===================================================================
+--- config/hwloc.m4	(révision 4846)
++++ config/hwloc.m4	(copie de travail)
+@@ -176,7 +176,8 @@
+         AC_DEFINE(HWLOC_LINUX_SYS, 1, [Define to 1 on Linux])
+         hwloc_linux=yes
+         AC_MSG_RESULT([Linux])
+-        hwloc_components="$hwloc_components core_linux"
++        hwloc_components="$hwloc_components core_linux core_linuxx86"
++        hwloc_core_linuxx86_component_maybeplugin=1
+         ;;
+       *-*-irix*)
+         AC_DEFINE(HWLOC_IRIX_SYS, 1, [Define to 1 on Irix])
+Index: doc/hwloc.doxy
+===================================================================
+--- doc/hwloc.doxy	(révision 4846)
++++ doc/hwloc.doxy	(copie de travail)
+@@ -1,7 +1,7 @@
+ /*
+  * Copyright © 2009 CNRS
+  * Copyright © 2009-2012 Inria.  All rights reserved.
+- * Copyright © 2009-2011 Université Bordeaux 1
++ * Copyright © 2009-2012 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+  */
+@@ -977,6 +977,12 @@
+   The variable may contain several colon-separated directories.
+   </dd>
+ 
++<dt>HWLOC_PLUGINS=plugin1,...</dt>
++  <dd>explicitly loads these plugins
++  By default, only a few plugins are loaded. This permits to load other plugins,
++  and notably to replace the default OS core detection support.
++  </dd>
++
+ <dt>HWLOC_PLUGINS_VERBOSE=1</dt>
+   <dd>display verbose information about plugins.
+   List which directories are scanned, which files are loaded,
+Index: include/private/private.h
+===================================================================
+--- include/private/private.h	(révision 4846)
++++ include/private/private.h	(copie de travail)
+@@ -131,18 +131,31 @@
+   struct hwloc_backend * additional_backends; /* higher priority first. libpci has priority 10. */
+ };
+ 
+-extern void hwloc_alloc_obj_cpusets(hwloc_obj_t obj);
+-extern void hwloc_setup_pu_level(struct hwloc_topology *topology, unsigned nb_pus);
++HWLOC_DECLSPEC extern void hwloc_alloc_obj_cpusets(hwloc_obj_t obj);
++HWLOC_DECLSPEC extern void hwloc_setup_pu_level(struct hwloc_topology *topology, unsigned nb_pus);
+ extern int hwloc_get_sysctlbyname(const char *name, int64_t *n);
+ extern int hwloc_get_sysctl(int name[], unsigned namelen, int *n);
+-extern unsigned hwloc_fallback_nbprocessors(struct hwloc_topology *topology);
++HWLOC_DECLSPEC extern unsigned hwloc_fallback_nbprocessors(struct hwloc_topology *topology);
+ extern void hwloc_connect_children(hwloc_obj_t obj);
+ extern int hwloc_connect_levels(hwloc_topology_t topology);
+ 
+ extern void hwloc_topology_setup_defaults(struct hwloc_topology *topology);
+ extern void hwloc_topology_clear(struct hwloc_topology *topology);
+ 
+-extern void hwloc_look_x86(struct hwloc_topology *topology, unsigned nbprocs);
++HWLOC_DECLSPEC extern void hwloc_look_x86(struct hwloc_topology *topology, unsigned nbprocs);
++#ifdef HWLOC_LINUX_SYS
++HWLOC_DECLSPEC extern void hwloc_set_linux_hooks(struct hwloc_topology *topology);
++HWLOC_DECLSPEC extern int hwloc_linux_backend_notify_new_object(struct hwloc_topology *topology, struct hwloc_obj *obj);
++HWLOC_DECLSPEC extern int hwloc_linux_backend_get_obj_cpuset(struct hwloc_topology *topology,
++				   struct hwloc_obj *obj, hwloc_bitmap_t cpuset);
++HWLOC_DECLSPEC extern void hwloc_linux_backend_disable(struct hwloc_topology *topology __hwloc_attribute_unused,
++			    struct hwloc_backend *backend);
++HWLOC_DECLSPEC extern struct hwloc_backend *_hwloc_linux_component_instantiate(struct hwloc_topology *topology,
++				  struct hwloc_core_component *component,
++				  const void *_data1,
++				  const void *_data2 __hwloc_attribute_unused,
++				  const void *_data3 __hwloc_attribute_unused);
++#endif
+ 
+ /*
+  * Add an object to the topology.
+Index: include/private/components.h
+===================================================================
+--- include/private/components.h	(révision 4846)
++++ include/private/components.h	(copie de travail)
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright © 2012 Inria.  All rights reserved.
++ * Copyright © 2012 Université Bordeaux 1
+  * See COPYING in top-level directory.
+  */
+ 
+@@ -133,6 +134,7 @@
+ 
+ #if defined(HWLOC_LINUX_SYS)
+ HWLOC_DECLSPEC extern const struct hwloc_component hwloc_core_linux_component;
++HWLOC_DECLSPEC extern const struct hwloc_component hwloc_core_linuxx86_component;
+ #endif /* HWLOC_LINUX_SYS */
+ 
+ HWLOC_DECLSPEC extern const struct hwloc_component hwloc_core_xml_component;
+Index: include/hwloc/rename.h
+===================================================================
+--- include/hwloc/rename.h	(révision 4846)
++++ include/hwloc/rename.h	(copie de travail)
+@@ -1,6 +1,7 @@
+ /*
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  * Copyright © 2010-2012 Inria.  All rights reserved.
++ * Copyright © 2012 Université Bordeaux 1
+  * See COPYING in top-level directory.
+  */
+ 
+@@ -460,6 +461,7 @@
+ #define hwloc_component HWLOC_NAME(component)
+ 
+ #define hwloc_core_linux_component HWLOC_NAME(core_linux_component)
++#define hwloc_core_linuxx86_component HWLOC_NAME(core_linuxx86_component)
+ #define hwloc_core_xml_component HWLOC_NAME(core_xml_component)
+ #define hwloc_core_solaris_component HWLOC_NAME(core_solaris_component)
+ #define hwloc_core_aix_component HWLOC_NAME(core_aix_component)
+

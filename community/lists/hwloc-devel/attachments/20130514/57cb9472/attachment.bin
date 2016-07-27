@@ -1,0 +1,143 @@
+diff --git a/config/hwloc.m4 b/config/hwloc.m4
+index 818fcc6..0a28a92 100644
+--- a/config/hwloc.m4
++++ b/config/hwloc.m4
+@@ -1041,6 +1041,19 @@ EOF])
+       [AC_MSG_WARN([Plugins not supported on non-native Windows build, plugins support cannot be enabled.])
+        AC_MSG_ERROR([Cannot continue])])
+ 
++    # If we want plugins, look for ltdl.h and libltdl
++    if test "x$hwloc_have_plugins" = xyes; then
++      AC_CHECK_HEADER([ltdl.h], [],
++	[AC_MSG_WARN([Plugin support requested, but could not find ltdl.h])
++	 AC_MSG_ERROR([Cannot continue])])
++      AC_CHECK_LIB([ltdl], [lt_dlopenext],
++	[HWLOC_LIBS="$HWLOC_LIBS -lltdl"],
++	[AC_MSG_WARN([Plugin support requested, but could not find libltdl])
++	 AC_MSG_ERROR([Cannot continue])])
++      # Add libltdl static-build dependencies to hwloc.pc
++      HWLOC_CHECK_LTDL_DEPS
++    fi
++
+     AC_ARG_WITH([hwloc-plugins-path],
+ 		AC_HELP_STRING([--with-hwloc-plugins-path=dir:...],
+                                [Colon-separated list of plugin directories. Default: "$prefix/lib/hwloc". Plugins will be installed in the first directory. They will be loaded from all of them, in order.]),
+@@ -1277,3 +1290,72 @@ AC_DEFUN([_HWLOC_CHECK_DECLS], [
+     [Define to 1 if you have the declaration of `$1', and to 0 if you don't])
+ ])
+ 
++#-----------------------------------------------------------------------
++
++dnl HWLOC_CHECK_LTDL_DEPS
++dnl
++dnl Add ltdl dependencies to HWLOC_LIBS_PRIVATE
++AC_DEFUN([HWLOC_CHECK_LTDL_DEPS], [
++  # save variables that we'll modify below
++  save_lt_cv_dlopen="$lt_cv_dlopen"
++  save_lt_cv_dlopen_libs="$lt_cv_dlopen_libs"
++  save_lt_cv_dlopen_self="$lt_cv_dlopen_self"
++  ###########################################################
++  # code stolen from LT_SYS_DLOPEN_SELF in libtool.m4
++  case $host_os in
++  beos*)
++    lt_cv_dlopen="load_add_on"
++    lt_cv_dlopen_libs=
++    lt_cv_dlopen_self=yes
++    ;;
++
++  mingw* | pw32* | cegcc*)
++    lt_cv_dlopen="LoadLibrary"
++    lt_cv_dlopen_libs=
++    ;;
++
++  cygwin*)
++    lt_cv_dlopen="dlopen"
++    lt_cv_dlopen_libs=
++    ;;
++
++  darwin*)
++  # if libdl is installed we need to link against it
++    AC_CHECK_LIB([dl], [dlopen],
++                [lt_cv_dlopen="dlopen" lt_cv_dlopen_libs="-ldl"],[
++    lt_cv_dlopen="dyld"
++    lt_cv_dlopen_libs=
++    lt_cv_dlopen_self=yes
++    ])
++    ;;
++
++  *)
++    AC_CHECK_FUNC([shl_load],
++          [lt_cv_dlopen="shl_load"],
++      [AC_CHECK_LIB([dld], [shl_load],
++            [lt_cv_dlopen="shl_load" lt_cv_dlopen_libs="-ldld"],
++        [AC_CHECK_FUNC([dlopen],
++              [lt_cv_dlopen="dlopen"],
++          [AC_CHECK_LIB([dl], [dlopen],
++                [lt_cv_dlopen="dlopen" lt_cv_dlopen_libs="-ldl"],
++            [AC_CHECK_LIB([svld], [dlopen],
++                  [lt_cv_dlopen="dlopen" lt_cv_dlopen_libs="-lsvld"],
++              [AC_CHECK_LIB([dld], [dld_link],
++                    [lt_cv_dlopen="dld_link" lt_cv_dlopen_libs="-ldld"])
++              ])
++            ])
++          ])
++        ])
++      ])
++    ;;
++  esac
++  # end of code stolen from LT_SYS_DLOPEN_SELF in libtool.m4
++  ###########################################################
++
++  HWLOC_LIBS_PRIVATE="$HWLOC_LIBS_PRIVATE $lt_cv_dlopen_libs"
++
++  # restore modified variable in case the actual libtool code uses them
++  lt_cv_dlopen="$save_lt_cv_dlopen"
++  lt_cv_dlopen_libs="$save_lt_cv_dlopen_libs"
++  lt_cv_dlopen_self="$save_lt_cv_dlopen_self"
++])
+\ No newline at end of file
+diff --git a/configure.ac b/configure.ac
+index a71a8e9..bd78f92 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -168,27 +168,7 @@ AM_ENABLE_SHARED
+ AM_DISABLE_STATIC
+ AM_PROG_LIBTOOL([dlopen win32-dll])
+ LT_LANG([C])
+-LT_CONFIG_LTDL_DIR([src/libltdl])
+-LTDL_INIT([recursive convenience])
+-AC_CONFIG_FILES([src/libltdl/Makefile])
+-
+-# Workarounds for libtool LT_CONFIG_H bug
+-#CPPFLAGS="$CPPFLAGS -I$HWLOC_top_builddir"
+-AC_CONFIG_COMMANDS_PRE([LT_CONFIG_H=`expr "$LT_CONFIG_H" : '.*/\(.*\)'`])
+-
+-# Add libltdl static-build dependencies to hwloc.pc
+-if test "x$hwloc_have_plugins" = xyes; then
+-  if test "x$with_included_ltdl" = xno; then
+-    HWLOC_LIBS_PRIVATE="$HWLOC_LIBS_PRIVATE $LIBLTDL"
+-  fi
+-  HWLOC_LIBS_PRIVATE="$HWLOC_LIBS_PRIVATE $lt_cv_dlopen_libs"
+-fi
+ 
+-# Is ltdl included?
+-HWLOC_LTDL_SUBDIR=
+-AS_IF([test "x$with_included_ltdl" = xyes],
+-      [HWLOC_LIBLTDL_SUBDIR=libltdl])
+-AC_SUBST(HWLOC_LIBLTDL_SUBDIR)
+ 
+ 
+ # Party on
+diff --git a/src/Makefile.am b/src/Makefile.am
+index f428149..fc91214 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -207,8 +207,6 @@ if HWLOC_HAVE_PLUGINS
+ AM_CPPFLAGS += $(LTDLINCL)
+ libhwloc_la_LDFLAGS += -export-dynamic
+ libhwloc_la_LIBADD = $(LIBLTDL)
+-libhwloc_la_DEPENDENCIES = $(LTDLDEPS)
+-SUBDIRS = $(HWLOC_LIBLTDL_SUBDIR)
+ endif
+ 
+ # Embedded library (note the lack of a .so version number -- that

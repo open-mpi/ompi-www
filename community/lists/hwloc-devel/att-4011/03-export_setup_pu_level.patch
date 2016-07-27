@@ -1,0 +1,106 @@
+commit d454aeb932a6973ca818ee351e845d540d9d481e
+Author: Brice Goglin <Brice.Goglin@inria.fr>
+Date:   Mon Jan 6 13:09:19 2014 +0100
+
+    plugins: cleanup hwloc_setup_pu_level() and export it to plugins
+    
+    Xen needs it.
+
+diff --git a/NEWS b/NEWS
+index 5e0d78a..8b136f5 100644
+--- a/NEWS
++++ b/NEWS
+@@ -29,7 +29,8 @@ Version 1.9.0
+     or Sockets instead of Caches when possible.
+   + Add -e as a synonym to --get-last-cpu-location in hwloc-bind.
+ * Plugins
+-  + Add the new hwloc_alloc_root_sets() function for plugins that discover CPUs.
++  + Add hwloc_alloc_root_sets() and hwloc_setup_pu_level() functions for
++    plugins that discover CPUs.
+ 
+ 
+ Version 1.8.0
+diff --git a/include/hwloc/plugins.h b/include/hwloc/plugins.h
+index 964da66..52db2e3 100644
+--- a/include/hwloc/plugins.h
++++ b/include/hwloc/plugins.h
+@@ -311,6 +311,12 @@ HWLOC_DECLSPEC int hwloc_fill_object_sets(hwloc_obj_t obj);
+  */
+ HWLOC_DECLSPEC int hwloc_alloc_root_sets(struct hwloc_topology *topology);
+ 
++/** \brief Create a level of \p nb PU objects starting from index 0.
++ *
++ * Used for creating PU objects when there are no holes in the index list.
++ */
++HWLOC_DECLSPEC int hwloc_setup_pu_level(struct hwloc_topology *topology, unsigned nb);
++
+ /** \brief Insert a list of PCI devices and bridges in the backend topology.
+  *
+  * Insert a list of objects (either PCI device or bridges) starting at first_obj
+diff --git a/include/hwloc/rename.h b/include/hwloc/rename.h
+index 424a3e9..4f682e5 100644
+--- a/include/hwloc/rename.h
++++ b/include/hwloc/rename.h
+@@ -486,6 +486,7 @@ extern "C" {
+ #define hwloc_alloc_setup_object HWLOC_NAME(alloc_setup_object)
+ #define hwloc_fill_object_sets HWLOC_NAME(fill_object_sets)
+ #define hwloc_alloc_root_sets HWLOC_NAME(alloc_root_sets)
++#define hwloc_setup_pu_level HWLOC_NAME(setup_pu_level)
+ 
+ #define hwloc_insert_pci_device_list HWLOC_NAME(insert_pci_device_list)
+ #define hwloc_pci_find_cap HWLOC_NAME(pci_find_cap)
+diff --git a/include/private/private.h b/include/private/private.h
+index 3c28683..5fb268c 100644
+--- a/include/private/private.h
++++ b/include/private/private.h
+@@ -128,7 +128,6 @@ struct hwloc_topology {
+   struct hwloc_backend * backends;
+ };
+ 
+-extern void hwloc_setup_pu_level(struct hwloc_topology *topology, unsigned nb_pus);
+ extern int hwloc_get_sysctlbyname(const char *name, int64_t *n);
+ extern int hwloc_get_sysctl(int name[], unsigned namelen, int *n);
+ extern unsigned hwloc_fallback_nbprocessors(struct hwloc_topology *topology);
+diff --git a/src/topology.c b/src/topology.c
+index 8a45b9b..cee7526 100644
+--- a/src/topology.c
++++ b/src/topology.c
+@@ -174,29 +174,28 @@ hwloc_fallback_nbprocessors(struct hwloc_topology *topology) {
+ }
+ 
+ /*
+- * Use the given number of processors and the optional online cpuset if given
+- * to set a PU level.
++ * Use the given number of processors to set a PU level.
+  */
+-void
++int
+ hwloc_setup_pu_level(struct hwloc_topology *topology,
+ 		     unsigned nb_pus)
+ {
+   struct hwloc_obj *obj;
+-  unsigned oscpu,cpu;
++  unsigned oscpu;
+ 
+   hwloc_debug("%s", "\n\n * CPU cpusets *\n\n");
+-  for (cpu=0,oscpu=0; cpu<nb_pus; oscpu++)
++  for (oscpu=0; oscpu<nb_pus; oscpu++)
+     {
+       obj = hwloc_alloc_setup_object(HWLOC_OBJ_PU, oscpu);
+       obj->cpuset = hwloc_bitmap_alloc();
+       hwloc_bitmap_only(obj->cpuset, oscpu);
+ 
+-      hwloc_debug_2args_bitmap("cpu %u (os %u) has cpuset %s\n",
+-		 cpu, oscpu, obj->cpuset);
++      hwloc_debug_1arg_bitmap("OS cpu %u has cpuset %s\n",
++			      oscpu, obj->cpuset);
+       hwloc_insert_object_by_cpuset(topology, obj);
+-
+-      cpu++;
+     }
++
++  return 0;
+ }
+ 
+ static void
+
