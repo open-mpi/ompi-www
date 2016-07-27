@@ -1,0 +1,228 @@
+Index: server/gds/auth/__init__.py
+===================================================================
+--- server/gds/auth/__init__.py	(revision 1346)
++++ server/gds/auth/__init__.py	(working copy)
+@@ -2,6 +2,7 @@
+ 
+ #
+ # Copyright (c) 2009 Voltaire
++# Copyright (c) 2010 Cisco Systems, Inc.  All rights reserved.
+ # $COPYRIGHT$
+ #
+ # Additional copyrights may follow
+@@ -103,25 +104,13 @@
+     logging.debug('add_user: %s' % str(credential))
+ 
+     user = None
+-    email_re = re.compile(r'[\w\d\.\-\+]+@[\w\d\.\-\+]+\.[\w\d\.\-\+]+')
+-    if (not credential.has_key('email') or 
+-        not email_re.match(credential['email'])):
+-        logging.error("Invalid email = '%s'" % (credential['email']))
+-        return user
+-        
+     query = db.Query(User)
+     query_users = query.filter('username =', credential['username'])
+     if query_users.count()>1:
+-        logging.error("There are several users with username = '%s' and email = '%s'" % (credential['username'], credential['email']))
++        logging.error("There is already a user = '%s'" % (credential['username']))
+         user = query_users.get()   
+-    elif (credential.has_key('username') and 
+-          credential.has_key('password')):
+-        user = User(username = credential['username'],
+-                    email = credential['email']
+-                    )
+-        user.set_password(credential['password'])
+-        if (credential.has_key('first_name')): user.first_name = credential['first_name']
+-        if (credential.has_key('last_name')): user.last_name = credential['last_name']
++    elif (credential.has_key('username'))
++        user = User(username = credential['username'])
+         if (credential.has_key('is_superuser') and
+             credential['is_superuser'].lower() in ('yes', 'true')): user.is_superuser = True
+         else:
+Index: server/gds/auth/models.py
+===================================================================
+--- server/gds/auth/models.py	(revision 1346)
++++ server/gds/auth/models.py	(working copy)
+@@ -2,6 +2,7 @@
+ 
+ #
+ # Copyright (c) 2009 Voltaire
++# Copyright (c) 2010 Cisco Systems, Inc.  All rights reserved.
+ # $COPYRIGHT$
+ #
+ # Additional copyrights may follow
+@@ -21,10 +22,6 @@
+ 
+ class User(db.Model):
+     username     = db.StringProperty(required=True)
+-    password     = db.StringProperty()
+-    email        = db.EmailProperty(required=True)
+-    first_name   = db.StringProperty()
+-    last_name    = db.StringProperty()
+     is_superuser = db.BooleanProperty(default=False)
+     is_active    = db.BooleanProperty(default=True)
+     last_login   = db.DateTimeProperty()
+@@ -39,20 +36,21 @@
+ 
+     def get_full_name(self):
+         "Returns the first_name plus the last_name, with a space in between."
+-        full_name = '%s %s' % (self.first_name, self.last_name)
+-        return full_name.strip()
++        # How to get the name from the Google account?
++        #full_name = '%s %s' % (self.first_name, self.last_name)
++        #return full_name.strip()
++        return "I don't know yet :-)"
+        
+-    def set_password(self, raw_password):
+-        import sha, random
+-        
+-        algorithm = 'sha1'
+-        salt = sha.new(str(random.random())).hexdigest()[:5]
+-        hash = sha.new(salt+raw_password).hexdigest()
+-            
+-        self.password = '|'.join((algorithm, hash, salt))
+-       
+     def check_password(self, raw_password, password):
+-        import sha
+-              
+-        (algorithm, hash, salt) = self.password.split('|')
+-        return hash == sha.new(salt + raw_password).hexdigest()
++        request_body = urllib.urlencode({'Email': username,
++                                         'Passwd': raw_password,
++                                         'accountType': 'HOSTED_OR_GOOGLE',
++                                         'service': 'ah',
++                                         'source': 'test'})
++        auth_response = urlfetch.fetch('https://www.google.com/accounts/ClientLogin',
++                                       method=urlfetch.POST,
++                                       headers={'Content-type':'application/x-www-form-urlencoded',
++                                                'Content-Length':
++                                                    str(len(request_body))},
++                                       payload=request_body)
++        return auth_response.status_code
+Index: server/gds/admin/admin.py
+===================================================================
+--- server/gds/admin/admin.py	(revision 1346)
++++ server/gds/admin/admin.py	(working copy)
+@@ -2,6 +2,7 @@
+ 
+ #
+ # Copyright (c) 2009 Voltaire
++# Copyright (c) 2010 Cisco Systems, Inc.  All rights reserved.
+ # $COPYRIGHT$
+ #
+ # Additional copyrights may follow
+@@ -69,10 +70,6 @@
+             status = 401
+         else:
+             user = auth.add_user(username = self.request.get('username_'),
+-                                 password = self.request.get('password_'),
+-                                 email = self.request.get('email_'),
+-                                 first_name = self.request.get('first_name_'),
+-                                 last_name = self.request.get('last_name_'),
+                                  is_superuser = self.request.get('is_superuser_')
+                                  )
+             
+Index: server/gds/templates/admin.html
+===================================================================
+--- server/gds/templates/admin.html	(revision 1346)
++++ server/gds/templates/admin.html	(working copy)
+@@ -44,33 +44,10 @@
+ 	            <h2>Add a new user</h2>
+ 	        </td>
+ 	    </tr>
+-	    <tr>
+-	        <td nowrap="nowrap" valign="top">
+-	            First name:
+-	        </td>
+-	        <td>
+-	            <input  type="text" name="first_name_"  id="first_name_id" size="30" value="" maxlength="255" class="editbox"/>
+-	        </td>
+-	    </tr>
+-	    <tr>
+-	        <td nowrap="nowrap" valign="top">
+-	            Last name:
+-	        </td>
+-	        <td>
+-	            <input  type="text" name="last_name_"  id="last_name_id" size="30" value="" maxlength="255" class="editbox"/>
+-	        </td>
+-	    </tr>
+         <tr>
+-            <td nowrap="nowrap" valign="top">
+-                E-mail:
+-            </td>
+-            <td>
+-                <input  type="text" name="email_"  id="email_id" size="30" value="" maxlength="255" class="editbox"/>
+-            </td>
+-        </tr>
+ 	    <tr>
+-	        <td nowrap="nowrap" valign="top">
+-	            User name (login):
++	        <td nowrap="nowrap" valign="top" width="1%" nowrap="nowrap">
++	            User name (Google account):
+ 	        </td>
+ 	        <td valign="top">
+ 	            <table cellpadding="0" bgcolor="#ffffff" cellspacing="0" border="0">
+@@ -84,7 +61,7 @@
+ 	                    <td align='left' >
+ 	                        <font size="-1">
+ 	                        <input  type="checkbox" name="is_superuser_" id="is_superuser_id" value="true"/>
+-	                        Is user an administrator  
++	                        Is this user an MTT administrator?
+ 	                        </font>
+ 	                    </td>
+ 	                </tr>
+@@ -93,29 +70,6 @@
+ 	        </td>
+ 	    </tr>
+ 	    <tr>
+-	        <td valign="top" width="1%" nowrap="nowrap">
+-	            Password:&nbsp;&nbsp;
+-	        </td>
+-	        <td valign="top">
+-	            <table cellpadding="0" bgcolor="#ffffff" cellspacing="0" border="0">
+-	            <tbody>
+-	                <tr>
+-	                    <td valign="top">
+-	                        <input  type="password" name="password_" id="password_id" size="30" maxlength="255" class="editbox"/>
+-	                    </td>
+-	                </tr>
+-	                <tr>
+-	                    <td valign="top">
+-	                        <font size="-2" face="arial,sans-serif" color="#6f6f6f">
+-	                        Minimum length - 8 letters.
+-	                        </font>
+-	                    </td>
+-	                </tr>
+-	            </tbody>
+-	            </table>
+-	        </td>
+-	    </tr>
+-	    <tr>
+ 	        <td>
+ 	            &nbsp;
+ 	        </td>
+@@ -128,7 +82,9 @@
+ 	    </tr>
+ 	</table>
+ 	<p>
+-	To modify users data (view/edit/delete) you should use Dashboard service from the main page, select "Data Viewer" and "User" kind. 
++	To modify users data (view/edit/delete), you should use the
++	Dashboard service from the main page; select "Data Viewer" and
++	then the "User" kind. 
+ 	</p>
+ </form>
+ 
+Index: server/gds/templates/login.html
+===================================================================
+--- server/gds/templates/login.html	(revision 1346)
++++ server/gds/templates/login.html	(working copy)
+@@ -41,7 +41,7 @@
+ 	<table cellspacing="0" cellpadding="5" width="100%" bgcolor="#ffffff" border="0">
+         <tr>
+             <td valign="top" nowrap="nowrap">
+-                User name (login):
++                User name (Google account):
+             </td>
+             <td valign="top">
+                 <input  type="text" name="username_"  id="username_id" size="30" value="" maxlength="255" class="editbox"/>
+
