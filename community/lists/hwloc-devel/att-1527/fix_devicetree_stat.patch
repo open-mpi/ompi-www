@@ -1,0 +1,57 @@
+diff --git a/src/topology-linux.c b/src/topology-linux.c
+index 9cdc82a..c91ae57 100644
+--- a/src/topology-linux.c
++++ b/src/topology-linux.c
+@@ -2042,12 +2042,18 @@ look_powerpc_device_tree(struct hwloc_topology *topology)
+   struct dirent *dirent;
+   while (NULL != (dirent = readdir(dt))) {
+ 
+-    if (('.' == dirent->d_name[0]) || (0 == (dirent->d_type & DT_DIR)))
++    if ('.' == dirent->d_name[0])
+       continue;
+ 
+     char cpu[sizeof(ofroot) + 1 + strlen(dirent->d_name) + 1];
+     snprintf(cpu, sizeof(cpu), "%s/%s", ofroot, dirent->d_name);
+-    
++    struct stat statbuf;
++    int err;
++
++    err = hwloc_stat(cpu, &statbuf, root_fd);
++    if (err < 0 || !S_ISDIR(statbuf.st_mode))
++      continue;
++
+     char *device_type = hwloc_read_str(cpu, "device_type", root_fd);
+     if (NULL == device_type)
+       continue;
+@@ -2642,8 +2648,10 @@ hwloc_look_linux(struct hwloc_topology *topology)
+ 
+     /* Gather the list of cpus now */
+     if (getenv("HWLOC_LINUX_USE_CPUINFO")
+-	|| hwloc_access("/sys/devices/system/cpu/cpu0/topology", R_OK, topology->backend_params.sysfs.root_fd) < 0) {
+-	/* revert to reading cpuinfo only if /sys/.../topology unavailable (before 2.6.16) */
++	|| (hwloc_access("/sys/devices/system/cpu/cpu0/topology/core_siblings", R_OK, topology->backend_params.sysfs.root_fd) < 0
++	    && hwloc_access("/sys/devices/system/cpu/cpu0/topology/thread_siblings", R_OK, topology->backend_params.sysfs.root_fd) < 0)) {
++	/* revert to reading cpuinfo only if /sys/.../topology unavailable (before 2.6.16)
++	 * or not containing anything interesting */
+       err = look_cpuinfo(topology, "/proc/cpuinfo", topology->levels[0][0]->online_cpuset);
+       if (err < 0) {
+         if (topology->is_thissystem)
+diff --git a/tests/linux/hwloc-gather-topology.sh.in b/tests/linux/hwloc-gather-topology.sh.in
+index 022b30e..536c0fc 100755
+--- a/tests/linux/hwloc-gather-topology.sh.in
++++ b/tests/linux/hwloc-gather-topology.sh.in
+@@ -45,8 +45,12 @@ destdir=`mktemp -d`
+ savepath() {
+   local dest="$1"
+   local path="$2"
++  # gather all directories, including empty ones
++  find "$path" -type d 2>/dev/null | while read dir ; do	\
++    mkdir -p "$dest/$dir" 2>/dev/null ;		\
++  done
++  # gather all files now
+   find "$path" -type f 2>/dev/null | while read file ; do	\
+-    mkdir -p "$dest/"`dirname $file` ;		\
+     cat "$file" > "$dest/$file" 2>/dev/null ;	\
+   done
+ }
+

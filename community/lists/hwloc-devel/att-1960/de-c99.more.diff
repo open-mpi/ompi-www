@@ -1,0 +1,480 @@
+diff -u b/config/hwloc_internal.m4 b/config/hwloc_internal.m4
+--- b/config/hwloc_internal.m4
++++ b/config/hwloc_internal.m4
+@@ -210,18 +210,6 @@
+ 
+     hwloc_build_utils=yes
+ 
+-    # The utils require C99 support
+-    hwloc_CC_save=$CC
+-    hwloc_CFLAGS_save=$CFLAGS
+-    AC_PROG_CC_C99
+-    AS_IF([test "$ac_cv_prog_cc_c99" = no],
+-          [AC_MSG_WARN([C99 support is required by the hwloc utils])
+-           AC_MSG_ERROR([Cannot continue])])
+-    HWLOC_C99_FLAGS=`echo $CC | sed -e "s;^$hwloc_CC_save;;"`
+-    AC_SUBST(HWLOC_C99_FLAGS)
+-    CC=$hwloc_CC_save
+-    CFLAGS=$hwloc_CFLAGS_save
+-
+     # Cairo support
+     if test "x$enable_cairo" != "xno"; then
+       HWLOC_PKG_CHECK_MODULES([CAIRO], [cairo], [cairo_fill], [:], [enable_cairo=no])
+diff -u b/utils/Makefile.am b/utils/Makefile.am
+--- b/utils/Makefile.am
++++ b/utils/Makefile.am
+@@ -4,7 +4,7 @@
+ #
+ # See COPYING in top-level directory.
+ 
+-AM_CFLAGS = $(HWLOC_CFLAGS) $(HWLOC_C99_FLAGS)
++AM_CFLAGS = $(HWLOC_CFLAGS)
+ AM_CPPFLAGS = $(HWLOC_CPPFLAGS)
+ AM_LDFLAGS = $(HWLOC_LDFLAGS)
+ 
+diff -u b/utils/lstopo-draw.c b/utils/lstopo-draw.c
+--- b/utils/lstopo-draw.c
++++ b/utils/lstopo-draw.c
+@@ -91,11 +91,11 @@
+ static void null_text(void *output __hwloc_attribute_unused, int r __hwloc_attribute_unused, int g __hwloc_attribute_unused, int b __hwloc_attribute_unused, int size __hwloc_attribute_unused, unsigned depth __hwloc_attribute_unused, unsigned x __hwloc_attribute_unused, unsigned y __hwloc_attribute_unused, const char *text __hwloc_attribute_unused) { }
+ 
+ static struct draw_methods null_draw_methods = {
+-  .start = null_start,
+-  .declare_color = null_declare_color,
+-  .box = null_box,
+-  .line = null_line,
+-  .text = null_text,
++  null_start,
++  null_declare_color,
++  null_box,
++  null_line,
++  null_text,
+ };
+ 
+ /*
+@@ -787,17 +787,17 @@
+ }
+ 
+ static struct draw_methods getmax_draw_methods = {
+-  .start = null_start,
+-  .declare_color = null_declare_color,
+-  .box = getmax_box,
+-  .line = getmax_line,
+-  .text = null_text,
++  null_start,
++  null_declare_color,
++  getmax_box,
++  getmax_line,
++  null_text,
+ };
+ 
+ void *
+ output_draw_start(struct draw_methods *methods, int logical, int legend, hwloc_topology_t topology, void *output)
+ {
+-  struct coords coords = { .x = 0, .y = 0};
++  struct coords coords = { 0, 0 };
+   fig(topology, &getmax_draw_methods, logical, legend, hwloc_get_root_obj(topology), &coords, 100, 0, 0);
+   output = methods->start(output, coords.x, coords.y);
+   methods->declare_color(output, 0, 0, 0);
+only in patch2:
+unchanged:
+--- a/utils/hwloc-calc.h
++++ b/utils/hwloc-calc.h
+@@ -24,7 +24,7 @@ typedef enum hwloc_mask_append_mode_e {
+   HWLOC_MASK_APPEND_ADD,
+   HWLOC_MASK_APPEND_CLR,
+   HWLOC_MASK_APPEND_AND,
+-  HWLOC_MASK_APPEND_XOR,
++  HWLOC_MASK_APPEND_XOR
+ } hwloc_mask_append_mode_t;
+ 
+ static inline int
+only in patch2:
+unchanged:
+--- a/utils/hwloc-distrib.c
++++ b/utils/hwloc-distrib.c
+@@ -155,7 +155,9 @@ int main(int argc, char *argv[])
+     unsigned i;
+     int from_depth, to_depth;
+     unsigned chunks;
+-    hwloc_bitmap_t cpuset[n];
++    hwloc_bitmap_t *cpuset;
++
++    cpuset = malloc(n * sizeof(hwloc_bitmap_t));
+ 
+     if (input)
+       hwloc_utils_enable_input_format(topology, input, input_format, verbose, callname);
+@@ -189,7 +191,9 @@ int main(int argc, char *argv[])
+ 
+     chunks =  hwloc_get_nbobjs_by_depth(topology, from_depth);
+     {
+-      hwloc_obj_t roots[chunks];
++      hwloc_obj_t *roots;
++
++      roots = malloc(chunks * sizeof(hwloc_obj_t));
+ 
+       for (i = 0; i < chunks; i++)
+         roots[i] = hwloc_get_obj_by_depth(topology, from_depth, i);
+@@ -208,7 +212,11 @@ int main(int argc, char *argv[])
+ 	free(str);
+ 	hwloc_bitmap_free(cpuset[i]);
+       }
++
++      free(roots);
+     }
++
++   free(cpuset);
+   }
+ 
+   hwloc_topology_destroy(topology);
+only in patch2:
+unchanged:
+--- a/utils/hwloc-ps.c
++++ b/utils/hwloc-ps.c
+@@ -100,13 +100,16 @@ int main(int argc, char *argv[])
+ 
+ #ifdef HWLOC_LINUX_SYS
+     {
+-      char path[6 + strlen(dirent->d_name) + 1 + 7 + 1];
++      char *path;
+       int file;
+       ssize_t n;
+ 
++      path = malloc(6 + strlen(dirent->d_name) + 1 + 7 + 1);
+       snprintf(path, sizeof(path), "/proc/%s/cmdline", dirent->d_name);
++      file = open(path, O_RDONLY);
++      free(path);
+ 
+-      if ((file = open(path, O_RDONLY)) >= 0) {
++      if (file >= 0) {
+         n = read(file, name, sizeof(name) - 1);
+         close(file);
+ 
+only in patch2:
+unchanged:
+--- a/utils/lstopo-cairo.c
++++ b/utils/lstopo-cairo.c
+@@ -191,11 +191,11 @@ x11_start(void *output __hwloc_attribute_unused, int width, int height)
+ }
+ 
+ static struct draw_methods x11_draw_methods = {
+-  .start = x11_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  x11_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ /** Clip coordinates of the visible part. */
+@@ -379,11 +379,11 @@ png_start(void *output __hwloc_attribute_unused, int width, int height)
+ }
+ 
+ static struct draw_methods png_draw_methods = {
+-  .start = png_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  png_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ void
+@@ -416,11 +416,11 @@ pdf_start(void *output, int width, int height)
+ }
+ 
+ static struct draw_methods pdf_draw_methods = {
+-  .start = pdf_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  pdf_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ void
+@@ -453,11 +453,11 @@ ps_start(void *output, int width, int height)
+ }
+ 
+ static struct draw_methods ps_draw_methods = {
+-  .start = ps_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  ps_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ void
+@@ -490,11 +490,11 @@ svg_start(void *output, int width, int height)
+ }
+ 
+ static struct draw_methods svg_draw_methods = {
+-  .start = svg_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  svg_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ void
+only in patch2:
+unchanged:
+--- a/utils/lstopo-fig.c
++++ b/utils/lstopo-fig.c
+@@ -108,11 +108,11 @@ fig_text(void *output_, int r, int g, int b, int size, unsigned depth, unsigned
+ }
+ 
+ static struct draw_methods fig_draw_methods = {
+-  .start = fig_start,
+-  .declare_color = fig_declare_color,
+-  .box = fig_box,
+-  .line = fig_line,
+-  .text = fig_text,
++  fig_start,
++  fig_declare_color,
++  fig_box,
++  fig_line,
++  fig_text,
+ };
+ 
+ void
+only in patch2:
+unchanged:
+--- a/utils/lstopo-text.c
++++ b/utils/lstopo-text.c
+@@ -472,47 +472,45 @@ from_directions(struct display *disp, int direction)
+ {
+ #ifdef HAVE_PUTWC
+   if (disp->utf8) {
+-    static const wchar_t chars[] = {
+-      [down|right]	= L'\x250c',
+-      [down|left]	= L'\x2510',
+-      [up|right]	= L'\x2514',
+-      [up|left]		= L'\x2518',
+-      [left|right]	= L'\x2500',
+-      [down|up]		= L'\x2502',
+-      [down]		= L'\x2577',
+-      [up]		= L'\x2575',
+-      [right]		= L'\x2576',
+-      [left]		= L'\x2574',
+-      [down|up|right]	= L'\x251c',
+-      [down|up|left]	= L'\x2524',
+-      [down|left|right]	= L'\x252c',
+-      [up|left|right]	= L'\x2534',
+-      [down|up|left|right]	= L'\x253c',
+-      [0]		= L' ',
++    switch (direction) {
++    case down|right:		return L'\x250c';
++    case down|left:		return L'\x2510';
++    case up|right:		return L'\x2514';
++    case up|left:		return L'\x2518';
++    case left|right:		return L'\x2500';
++    case down|up:		return L'\x2502';
++    case down:			return L'\x2577';
++    case up:			return L'\x2575';
++    case right:			return L'\x2576';
++    case left:			return L'\x2574';
++    case down|up|right:		return L'\x251c';
++    case down|up|left:		return L'\x2524';
++    case down|left|right:	return L'\x252c';
++    case up|left|right:		return L'\x2534';
++    case down|up|left|right:	return L'\x253c';
++    default:			return L' ';
+     };
+-    return chars[direction];
+   } else
+ #endif /* HAVE_PUTWC */
+   {
+-    static const char chars[] = {
+-      [down|right]	= '/',
+-      [down|left]	= '\\',
+-      [up|right]	= '\\',
+-      [up|left]		= '/',
+-      [left|right]	= '-',
+-      [down|up]		= '|',
+-      [down]		= '|',
+-      [up]		= '|',
+-      [right]		= '-',
+-      [left]		= '-',
+-      [down|up|right]	= '+',
+-      [down|up|left]	= '+',
+-      [down|left|right]	= '+',
+-      [up|left|right]	= '+',
+-      [down|up|left|right]	= '+',
+-      [0]		= ' ',
++    switch (direction) {
++    case down|right:		return '/';
++    case down|left:		return '\\';
++    case up|right:		return '\\';
++    case up|left:		return '/';
++    case left|right:		return '-';
++    case down|up:		return '|';
++    case down:			return '|';
++    case up:			return '|';
++    case right:			return '-';
++    case left:			return '-';
++    case down|up|right:		return '+';
++    case down|up|left:		return '+';
++    case down|left|right:	return '+';
++    case up|left|right:		return '+';
++    case down|up|left|right:	return '+';
++    default:			return ' ';
+     };
+-    return chars[direction];
+   }
+ }
+ 
+@@ -521,12 +519,13 @@ static void
+ merge(struct display *disp, int x, int y, int or, int andnot, int r, int g, int b)
+ {
+   character current;
++  int directions;
+   if (x >= disp->width || y >= disp->height) {
+     /* fprintf(stderr, "|%x &~%x overflowed to (%d,%d)\n", or, andnot, x, y); */
+     return;
+   }
+   current = disp->cells[y][x].c;
+-  int directions = (to_directions(disp, current) & ~andnot) | or;
++  directions = (to_directions(disp, current) & ~andnot) | or;
+   put(disp, x, y, from_directions(disp, directions), -1, -1, -1, r, g, b);
+ }
+ 
+@@ -630,11 +629,11 @@ text_text(void *output, int r, int g, int b, int size __hwloc_attribute_unused,
+ }
+ 
+ static struct draw_methods text_draw_methods = {
+-  .start = text_start,
+-  .declare_color = text_declare_color,
+-  .box = text_box,
+-  .line = text_line,
+-  .text = text_text,
++  text_start,
++  text_declare_color,
++  text_box,
++  text_line,
++  text_text,
+ };
+ 
+ void output_text(hwloc_topology_t topology, const char *filename, int logical, int legend, int verbose_mode __hwloc_attribute_unused)
+only in patch2:
+unchanged:
+--- a/utils/lstopo-windows.c
++++ b/utils/lstopo-windows.c
+@@ -279,11 +279,11 @@ windows_text(void *output, int r, int g, int b, int size, unsigned depth __hwloc
+ }
+ 
+ struct draw_methods windows_draw_methods = {
+-  .start = windows_start,
+-  .declare_color = windows_declare_color,
+-  .box = windows_box,
+-  .line = windows_line,
+-  .text = windows_text,
++  windows_start,
++  windows_declare_color,
++  windows_box,
++  windows_line,
++  windows_text,
+ };
+ 
+ void
+only in patch2:
+unchanged:
+--- a/utils/lstopo.c
++++ b/utils/lstopo.c
+@@ -100,14 +100,17 @@ static void add_process_objects(hwloc_topology_t topology)
+ #ifdef HWLOC_LINUX_SYS
+     {
+       /* Get the process name */
+-      char path[6 + strlen(dirent->d_name) + 1 + 7 + 1];
++      char *path;
+       char cmd[64], *c;
+       int file;
+       ssize_t n;
+ 
++      path = malloc(6 + strlen(dirent->d_name) + 1 + 7 + 1);
+       snprintf(path, sizeof(path), "/proc/%s/cmdline", dirent->d_name);
++      file = open(path, O_RDONLY);
++      free(path);
+ 
+-      if ((file = open(path, O_RDONLY)) >= 0) {
++      if (file >= 0) {
+         n = read(file, cmd, sizeof(cmd) - 1);
+         close(file);
+ 
+@@ -124,13 +127,16 @@ static void add_process_objects(hwloc_topology_t topology)
+ 
+     {
+       /* Get threads */
+-      char path[6+strlen(dirent->d_name) + 1 + 4 + 1];
++      char *path;
+       DIR *task_dir;
+       struct dirent *task_dirent;
+ 
++      path = malloc(6+strlen(dirent->d_name) + 1 + 4 + 1);
+       snprintf(path, sizeof(path), "/proc/%s/task", dirent->d_name);
++      task_dir = opendir(path);
++      free(path);
+ 
+-      if ((task_dir = opendir(path))) {
++      if (task_dir) {
+         while ((task_dirent = readdir(task_dir))) {
+           long local_tid;
+           char *task_end;
+diff --git a/include/hwloc/glibc-sched.h b/include/hwloc/glibc-sched.h
+index 250ad98..a44fbce 100644
+--- a/include/hwloc/glibc-sched.h
++++ b/include/hwloc/glibc-sched.h
+@@ -77,9 +77,11 @@ static __hwloc_inline int
+ hwloc_cpuset_from_glibc_sched_affinity(hwloc_topology_t topology __hwloc_attribute_unused, hwloc_cpuset_t hwlocset,
+                                        const cpu_set_t *schedset, size_t schedsetsize)
+ {
+-  hwloc_bitmap_zero(hwlocset);
+ #ifdef CPU_ZERO_S
+   int cpu, count;
++#endif
++  hwloc_bitmap_zero(hwlocset);
++#ifdef CPU_ZERO_S
+   count = CPU_COUNT_S(schedsetsize, schedset);
+   cpu = 0;
+   while (count) {
+diff --git a/tests/hwloc_bitmap_string.c b/tests/hwloc_bitmap_string.c
+index e2a334c..34d0472 100644
+--- a/tests/hwloc_bitmap_string.c
++++ b/tests/hwloc_bitmap_string.c
+@@ -162,13 +162,6 @@ int main(void)
+   check_cpuset(obj->cpuset, NULL);
+   printf("last cpu cpuset converted back and forth, ok\n");
+ 
+-//  hwloc_bitmap_sscanf(set, "1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,2,4,8,10,20\n");
+-//  char *s;
+-//  hwloc_bitmap_asprintf(&s, &set);
+-//  printf("%s\n", s);
+-//  free(s);
+-//  will be truncated after ",4," since it's too large
+-
+   free(string);
+ 
+   hwloc_topology_destroy(topology);
+

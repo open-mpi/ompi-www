@@ -1,0 +1,110 @@
+Index: include/hwloc.h
+===================================================================
+--- include/hwloc.h	(révision 3167)
++++ include/hwloc.h	(copie de travail)
+@@ -1096,6 +1096,26 @@
+ HWLOC_DECLSPEC int hwloc_get_thread_cpubind(hwloc_topology_t topology, hwloc_thread_t tid, hwloc_cpuset_t set, int flags);
+ #endif
+ 
++/** \brief Get the CPU where the current process or thread runs.
++ *
++ * The operating may move some tasks from one processor
++ * to another at any time according to their binding,
++ * so this function may return something that is already
++ * outdated.
++ */
++HWLOC_DECLSPEC int hwloc_get_cpuexec(hwloc_topology_t topology, hwloc_cpuset_t set, int flags);
++
++/** \brief Get the CPU where a process currently runs.
++ *
++ * The operating may move some tasks from one processor
++ * to another at any time according to their binding,
++ * so this function may return something that is already
++ * outdated.
++ *
++ * \note HWLOC_CPUBIND_THREAD can not be used in \p flags.
++ */
++HWLOC_DECLSPEC int hwloc_get_proc_cpuexec(hwloc_topology_t topology, hwloc_pid_t pid, hwloc_cpuset_t set, int flags);
++
+ /** @} */
+ 
+ 
+Index: src/bind.c
+===================================================================
+--- src/bind.c	(révision 3167)
++++ src/bind.c	(copie de travail)
+@@ -16,7 +16,9 @@
+ #ifdef HAVE_MALLOC_H
+ #  include <malloc.h>
+ #endif
+-
++#ifdef HWLOC_HAVE_GET_PROC_STATS
++#  include <proc/readproc.h>
++#endif
+ #include <unistd.h>
+ #include <stdlib.h>
+ #include <errno.h>
+@@ -152,6 +154,24 @@
+ }
+ #endif
+ 
++int
++hwloc_get_proc_cpuexec(hwloc_topology_t topology, hwloc_pid_t pid, hwloc_bitmap_t set, int flags)
++{
++#ifdef HWLOC_HAVE_GET_PROC_STATS
++  proc_t myproc;
++  if (get_proc_stats(pid, &myproc)) {
++    hwloc_bitmap_zero(set);
++    hwloc_bitmap_set(set, myproc.processor);
++    return 0;
++  } else {
++    return -1;
++  }
++#else
++  errno = ENOSYS;
++  return -1;
++#endif
++}
++
+ static hwloc_const_nodeset_t
+ hwloc_fix_membind(hwloc_topology_t topology, hwloc_const_nodeset_t nodeset)
+ {
+Index: src/Makefile.am
+===================================================================
+--- src/Makefile.am	(révision 3167)
++++ src/Makefile.am	(copie de travail)
+@@ -100,13 +100,13 @@
+ # Installable library
+ 
+ libhwloc_la_SOURCES = $(sources)
+-libhwloc_la_LDFLAGS = $(ldflags) -version-number $(libhwloc_so_version) $(HWLOC_XML_LIBS) $(HWLOC_LINUX_LIBNUMA_LIBS)
++libhwloc_la_LDFLAGS = $(ldflags) -version-number $(libhwloc_so_version) $(HWLOC_XML_LIBS) $(HWLOC_LINUX_LIBNUMA_LIBS) $(HWLOC_PROCPS_LIBS)
+ 
+ # Embedded library (note the lack of a .so version number -- that
+ # intentionally only appears in the installable library)
+ 
+ libhwloc_embedded_la_SOURCES = $(sources)
+-libhwloc_embedded_la_LDFLAGS = $(ldflags) $(HWLOC_XML_LIBS) $(HWLOC_LINUX_LIBNUMA_LIBS)
++libhwloc_embedded_la_LDFLAGS = $(ldflags) $(HWLOC_XML_LIBS) $(HWLOC_LINUX_LIBNUMA_LIBS) $(HWLOC_PROCPS_LIBS)
+ 
+ # XML data (only install if we're building in standalone mode)
+ 
+Index: config/hwloc.m4
+===================================================================
+--- config/hwloc.m4	(révision 3167)
++++ config/hwloc.m4	(copie de travail)
+@@ -525,6 +525,14 @@
+       ])
+     ])
+ 
++    AC_CHECK_HEADERS([proc/readproc.h], [
++      AC_CHECK_LIB([proc], [get_proc_stats], [
++	enable_get_proc_stats=yes
++	AC_SUBST([HWLOC_PROCPS_LIBS], ["-lproc"])
++	AC_DEFINE([HWLOC_HAVE_GET_PROC_STATS], [1], [Define to 1 if get_proc_stats is available.])
++      ])
++    ])
++
+     AC_CHECK_HEADERS([pthread_np.h])
+     AC_CHECK_DECLS([pthread_setaffinity_np],,[:],[[
+       #include <pthread.h>

@@ -1,0 +1,56 @@
+The machine is back in working order.<br>I tried this patch and it works great: I get cpus and my whole program runs as expected.<br>I&#39;m now looking into what failed in look_sysfscpu.<br><br><div class="gmail_quote">On Sun, Mar 25, 2012 at 2:43 AM, Brice Goglin <span dir="ltr">&lt;<a href="mailto:Brice.Goglin@inria.fr">Brice.Goglin@inria.fr</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Le 24/03/2012 23:04, Daniel Ibanez a écrit :<br>
+<div class="im">&gt; The fundamental difference is in<br>
+&gt;<br>
+&gt; src/topology-linux.c:3251<br>
+&gt;<br>
+&gt; when this if statement is true, hwloc_setup_pu_level<br>
+&gt; finds the PU objects.<br>
+&gt; When it is false, it fails with empty topology.<br>
+&gt;<br>
+&gt; I checked HWLOC_LINUX_USE_CPUINFO,<br>
+&gt; and it is not detected even when I set it from the front end.<br>
+&gt;<br>
+&gt; That means the difference is whether hwloc can access<br>
+&gt; the various /sys/devices and /sys/bus files.<br>
+&gt;<br>
+&gt; Additional printfs confirm that with MPI in the code,<br>
+&gt; hwloc_accessat succeeds on the various /sys/ directories,<br>
+&gt; but the overall procedure for getting PUs from these fails.<br>
+&gt; Without MPI, access to /sys/ directories fails but<br>
+&gt; the fallback hwloc_setup_pu_level works.<br>
+<br>
+</div>If I understand correctly, in the MPI case, look_sysfscpu() ends up<br>
+being called. There are two instances of it because of a possible<br>
+renaming of /sys/devices/system/cpu in the future, so it&#39;s expected that<br>
+the one succeeds and the other fails. Can you check whether both fail ?<br>
+Or just try the attached patch which adds a fallback for this case.<br>
+<br>
+But it&#39;d be good to understand what&#39;s going on in /sys on this machine.<br>
+And I still don&#39;t understand why MPI changes things here.<br>
+<br>
+Brice<br>
+<br>
+--- src/topology-linux.c        (révision 4420)<br>
++++ src/topology-linux.c        (copie de travail)<br>
+@@ -3270,7 +3270,15 @@<br>
+       if (numprocs &lt;= 0)<br>
+        Lprocs = NULL;<br>
+       if (look_sysfscpu(topology, &quot;/sys/bus/cpu/devices&quot;, Lprocs, numprocs) &lt; 0)<br>
+-        look_sysfscpu(topology, &quot;/sys/devices/system/cpu&quot;, Lprocs, numprocs);<br>
++        if (look_sysfscpu(topology, &quot;/sys/devices/system/cpu&quot;, Lprocs, numprocs) &lt; 0) {<br>
++         /* sysfs but we failed to read cpu topology, fallback */<br>
++          if (topology-&gt;is_thissystem)<br>
++            hwloc_setup_pu_level(topology, hwloc_fallback_nbprocessors(topology));<br>
++          else<br>
++            /* fsys-root but not this system, no way, assume there&#39;s just 1<br>
++             * processor :/ */<br>
++            hwloc_setup_pu_level(topology, 1);<br>
++        }<br>
+       if (Lprocs)<br>
+        hwloc_linux_free_cpuinfo(Lprocs, numprocs);<br>
+     }<br>
+<br>
+<br>
+</blockquote></div><br><br clear="all"><br>-- <br><br>Dan Ibanez<br>
+

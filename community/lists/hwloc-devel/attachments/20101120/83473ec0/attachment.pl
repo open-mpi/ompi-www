@@ -1,0 +1,171 @@
+Making check in src
+make[1]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/src'
+  CC     topology.lo
+  CC     traversal.lo
+  CC     topology-synthetic.lo
+  CC     bind.lo
+  CC     cpuset.lo
+  CC     misc.lo
+  CC     topology-xml.lo
+  CC     topology-linux.lo
+topology-linux.c: In function 'hwloc_linux_set_thisthread_membind':
+topology-linux.c:1010: warning: implicit declaration of function 'migrate_pages'
+  CCLD   libhwloc.la
+make[1]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/src'
+Making check in include
+make[1]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/include'
+make[1]: Nothing to be done for `check'.
+make[1]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/include'
+Making check in utils
+make[1]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/utils'
+  CC     lstopo-lstopo.o
+  CC     lstopo-lstopo-color.o
+  CC     lstopo-lstopo-text.o
+  CC     lstopo-lstopo-draw.o
+  CC     lstopo-lstopo-fig.o
+  CC     lstopo-lstopo-cairo.o
+  CC     lstopo-lstopo-xml.o
+  CCLD   lstopo
+  CC     hwloc-calc.o
+  CCLD   hwloc-calc
+  CC     hwloc-bind.o
+  CCLD   hwloc-bind
+  CC     hwloc-distrib.o
+  CCLD   hwloc-distrib
+  CC     hwloc-ps.o
+  CCLD   hwloc-ps
+Creating hwloc.7 man page...
+Creating lstopo.1 man page...
+Creating hwloc-bind.1 man page...
+Creating hwloc-distrib.1 man page...
+Creating hwloc-calc.1 man page...
+Creating hwloc-ps.1 man page...
+make  check-TESTS
+make[2]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/utils'
+PASS: test-hwloc-distrib.sh
+=============
+1 test passed
+=============
+make[2]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/utils'
+make[1]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/utils'
+Making check in tests
+make[1]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/tests'
+Making check in ports
+make[2]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/tests/ports'
+make  libhwloc-ports.la
+make[3]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/tests/ports'
+  CC     libhwloc_ports_la-topology.lo
+  CC     libhwloc_ports_la-traversal.lo
+  CC     libhwloc_ports_la-topology-synthetic.lo
+  CC     libhwloc_ports_la-topology-solaris.lo
+  CC     libhwloc_ports_la-topology-aix.lo
+  CC     libhwloc_ports_la-topology-osf.lo
+  CC     libhwloc_ports_la-topology-windows.lo
+topology-windows.c: In function 'hwloc_win_get_VirtualAllocExNumaProc':
+topology-windows.c:214: warning: assignment from incompatible pointer type
+topology-windows.c:219: warning: assignment from incompatible pointer type
+  CC     libhwloc_ports_la-topology-darwin.lo
+  CC     libhwloc_ports_la-topology-freebsd.lo
+topology-freebsd.c: In function 'hwloc_freebsd_set_thread_cpubind':
+topology-freebsd.c:125: warning: passing argument 3 of 'pthread_setaffinity_np' from incompatible pointer type
+topology-freebsd.c: In function 'hwloc_freebsd_get_thread_cpubind':
+topology-freebsd.c:149: warning: passing argument 3 of 'pthread_getaffinity_np' from incompatible pointer type
+  CC     libhwloc_ports_la-topology-hpux.lo
+  CCLD   libhwloc-ports.la
+make[3]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/tests/ports'
+make[2]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/tests/ports'
+Making check in xml
+make[2]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/tests/xml'
+make  check-TESTS
+make[3]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/tests/xml'
+PASS: 16amd64-8n2c-cpusets.xml
+PASS: 16em64t-4s2c2t.xml
+PASS: 16em64t-4s2c2t-offlines.xml
+PASS: 8em64t-2mi2ma2c.xml
+==================
+All 4 tests passed
+==================
+make[3]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/tests/xml'
+make[2]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/tests/xml'
+Making check in linux
+make[2]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/tests/linux'
+Making check in gather
+make[3]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/tests/linux/gather'
+make  check-TESTS
+make[4]: Entering directory `/tmp/hwloc/hwloc-1.1rc2/tests/linux/gather'
+Saving current system topology to XML...
+Saving current system topology to a tarball...
+Hierarchy gathered in /tmp/tmp.HznAQg9426/save.tar.bz2 and kept in /tmp/tmp.rnuQJn9445/save/
+Expected topology output stored in /tmp/tmp.HznAQg9426/save.output
+Extracting tarball...
+Saving tarball topology to XML...
+Comparing XML outputs...
+--- save.xml	2010-11-20 14:09:39.000000000 +1100
++++ save2.xml	2010-11-20 14:09:43.000000000 +1100
+@@ -4,44 +4,16 @@
+   <object type="Machine" os_level="-1" os_index="0" cpuset="0x000000ff" complete_cpuset="0x000000ff" online_cpuset="0x000000ff" allowed_cpuset="0x000000ff" nodeset="0x00000003" complete_nodeset="0x00000003" allowed_nodeset="0x00000003">
+     <info name="Backend" value="Linux"/>
+     <object type="NUMANode" os_level="-1" os_index="0" cpuset="0x0000000f" complete_cpuset="0x0000000f" online_cpuset="0x0000000f" allowed_cpuset="0x0000000f" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001" local_memory="8053063680">
+-      <object type="Cache" os_level="-1" cpuset="0x0000000f" complete_cpuset="0x0000000f" online_cpuset="0x0000000f" allowed_cpuset="0x0000000f" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001" cache_size="33554432" depth="4" cache_linesize="128">
+-        <object type="Cache" os_level="-1" cpuset="0x00000003" complete_cpuset="0x00000003" online_cpuset="0x00000003" allowed_cpuset="0x00000003" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001" cache_size="4194304" depth="2" cache_linesize="128">
+-          <object type="Cache" os_level="-1" cpuset="0x00000003" complete_cpuset="0x00000003" online_cpuset="0x00000003" allowed_cpuset="0x00000003" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001" cache_size="65536" depth="1" cache_linesize="128">
+-            <object type="Core" os_level="-1" os_index="0" cpuset="0x00000003" complete_cpuset="0x00000003" online_cpuset="0x00000003" allowed_cpuset="0x00000003" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001">
+-              <object type="PU" os_level="-1" os_index="0" cpuset="0x00000001" complete_cpuset="0x00000001" online_cpuset="0x00000001" allowed_cpuset="0x00000001" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001"/>
+-              <object type="PU" os_level="-1" os_index="1" cpuset="0x00000002" complete_cpuset="0x00000002" online_cpuset="0x00000002" allowed_cpuset="0x00000002" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001"/>
+-            </object>
+-          </object>
+-        </object>
+-        <object type="Cache" os_level="-1" cpuset="0x0000000c" complete_cpuset="0x0000000c" online_cpuset="0x0000000c" allowed_cpuset="0x0000000c" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001" cache_size="4194304" depth="2" cache_linesize="128">
+-          <object type="Cache" os_level="-1" cpuset="0x0000000c" complete_cpuset="0x0000000c" online_cpuset="0x0000000c" allowed_cpuset="0x0000000c" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001" cache_size="65536" depth="1" cache_linesize="128">
+-            <object type="Core" os_level="-1" os_index="2" cpuset="0x0000000c" complete_cpuset="0x0000000c" online_cpuset="0x0000000c" allowed_cpuset="0x0000000c" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001">
+-              <object type="PU" os_level="-1" os_index="2" cpuset="0x00000004" complete_cpuset="0x00000004" online_cpuset="0x00000004" allowed_cpuset="0x00000004" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001"/>
+-              <object type="PU" os_level="-1" os_index="3" cpuset="0x00000008" complete_cpuset="0x00000008" online_cpuset="0x00000008" allowed_cpuset="0x00000008" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001"/>
+-            </object>
+-          </object>
+-        </object>
+-      </object>
++      <object type="PU" os_level="-1" os_index="0" cpuset="0x00000001" complete_cpuset="0x00000001" online_cpuset="0x00000001" allowed_cpuset="0x00000001" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001"/>
++      <object type="PU" os_level="-1" os_index="1" cpuset="0x00000002" complete_cpuset="0x00000002" online_cpuset="0x00000002" allowed_cpuset="0x00000002" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001"/>
++      <object type="PU" os_level="-1" os_index="2" cpuset="0x00000004" complete_cpuset="0x00000004" online_cpuset="0x00000004" allowed_cpuset="0x00000004" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001"/>
++      <object type="PU" os_level="-1" os_index="3" cpuset="0x00000008" complete_cpuset="0x00000008" online_cpuset="0x00000008" allowed_cpuset="0x00000008" nodeset="0x00000001" complete_nodeset="0x00000001" allowed_nodeset="0x00000001"/>
+     </object>
+     <object type="NUMANode" os_level="-1" os_index="1" cpuset="0x000000f0" complete_cpuset="0x000000f0" online_cpuset="0x000000f0" allowed_cpuset="0x000000f0" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002" local_memory="8388608000">
+-      <object type="Cache" os_level="-1" cpuset="0x000000f0" complete_cpuset="0x000000f0" online_cpuset="0x000000f0" allowed_cpuset="0x000000f0" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002" cache_size="33554432" depth="4" cache_linesize="128">
+-        <object type="Cache" os_level="-1" cpuset="0x00000030" complete_cpuset="0x00000030" online_cpuset="0x00000030" allowed_cpuset="0x00000030" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002" cache_size="4194304" depth="2" cache_linesize="128">
+-          <object type="Cache" os_level="-1" cpuset="0x00000030" complete_cpuset="0x00000030" online_cpuset="0x00000030" allowed_cpuset="0x00000030" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002" cache_size="65536" depth="1" cache_linesize="128">
+-            <object type="Core" os_level="-1" os_index="4" cpuset="0x00000030" complete_cpuset="0x00000030" online_cpuset="0x00000030" allowed_cpuset="0x00000030" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002">
+-              <object type="PU" os_level="-1" os_index="4" cpuset="0x00000010" complete_cpuset="0x00000010" online_cpuset="0x00000010" allowed_cpuset="0x00000010" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002"/>
+-              <object type="PU" os_level="-1" os_index="5" cpuset="0x00000020" complete_cpuset="0x00000020" online_cpuset="0x00000020" allowed_cpuset="0x00000020" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002"/>
+-            </object>
+-          </object>
+-        </object>
+-        <object type="Cache" os_level="-1" cpuset="0x000000c0" complete_cpuset="0x000000c0" online_cpuset="0x000000c0" allowed_cpuset="0x000000c0" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002" cache_size="4194304" depth="2" cache_linesize="128">
+-          <object type="Cache" os_level="-1" cpuset="0x000000c0" complete_cpuset="0x000000c0" online_cpuset="0x000000c0" allowed_cpuset="0x000000c0" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002" cache_size="65536" depth="1" cache_linesize="128">
+-            <object type="Core" os_level="-1" os_index="6" cpuset="0x000000c0" complete_cpuset="0x000000c0" online_cpuset="0x000000c0" allowed_cpuset="0x000000c0" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002">
+-              <object type="PU" os_level="-1" os_index="6" cpuset="0x00000040" complete_cpuset="0x00000040" online_cpuset="0x00000040" allowed_cpuset="0x00000040" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002"/>
+-              <object type="PU" os_level="-1" os_index="7" cpuset="0x00000080" complete_cpuset="0x00000080" online_cpuset="0x00000080" allowed_cpuset="0x00000080" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002"/>
+-            </object>
+-          </object>
+-        </object>
+-      </object>
++      <object type="PU" os_level="-1" os_index="4" cpuset="0x00000010" complete_cpuset="0x00000010" online_cpuset="0x00000010" allowed_cpuset="0x00000010" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002"/>
++      <object type="PU" os_level="-1" os_index="5" cpuset="0x00000020" complete_cpuset="0x00000020" online_cpuset="0x00000020" allowed_cpuset="0x00000020" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002"/>
++      <object type="PU" os_level="-1" os_index="6" cpuset="0x00000040" complete_cpuset="0x00000040" online_cpuset="0x00000040" allowed_cpuset="0x00000040" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002"/>
++      <object type="PU" os_level="-1" os_index="7" cpuset="0x00000080" complete_cpuset="0x00000080" online_cpuset="0x00000080" allowed_cpuset="0x00000080" nodeset="0x00000002" complete_nodeset="0x00000002" allowed_nodeset="0x00000002"/>
+     </object>
+   </object>
+ </topology>
+FAIL: test-gather-topology.sh
+========================================================
+1 of 1 test failed
+Please report to http://www.open-mpi.org/community/help/
+========================================================
+make[4]: *** [check-TESTS] Error 1
+make[4]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/tests/linux/gather'
+make[3]: *** [check-am] Error 2
+make[3]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/tests/linux/gather'
+make[2]: *** [check-recursive] Error 1
+make[2]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/tests/linux'
+make[1]: *** [check-recursive] Error 1
+make[1]: Leaving directory `/tmp/hwloc/hwloc-1.1rc2/tests'
+make: *** [check-recursive] Error 1

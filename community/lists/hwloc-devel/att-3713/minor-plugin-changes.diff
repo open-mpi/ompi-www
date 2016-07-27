@@ -1,0 +1,79 @@
+Index: config/hwloc.m4
+===================================================================
+--- config/hwloc.m4	(revision 5603)
++++ config/hwloc.m4	(working copy)
+@@ -1026,6 +1026,12 @@
+     AC_MSG_CHECKING([if plugin support is enabled])
+     # Plugins (even core support) are totally disabled by default
+     AS_IF([test "x$enable_plugins" = "x"], [enable_plugins=no])
++    AS_IF([test "x$enable_plugins" != "xno"], [hwloc_have_plugins=yes], [hwloc_have_plugins=no])
++    AC_MSG_RESULT([$hwloc_have_plugins])
++    AS_IF([test "x$hwloc_have_plugins" = "xyes"],
++          [AC_DEFINE([HWLOC_HAVE_PLUGINS], 1, [Define to 1 if the hwloc library should support dynamically-loaded plugins])])
++
++    # Some sanity checks about plugins
+     # libltdl doesn't work on AIX as of 2.4.2
+     AS_IF([test "x$enable_plugins" = "xyes" -a "x$hwloc_aix" = "xyes"],
+       [AC_MSG_WARN([libltdl does not work on AIX, plugins support cannot be enabled.])
+@@ -1034,12 +1040,13 @@
+     AS_IF([test "x$enable_plugins" = "xyes" -a "x$hwloc_windows" = "xyes"],
+       [AC_MSG_WARN([Plugins not supported on non-native Windows build, plugins support cannot be enabled.])
+        AC_MSG_ERROR([Cannot continue])])
++    # pluins are not supported in embedded mode (indeed, all the LTDL
++    # setup stuff is up in hwloc's private configure.ac -- not down
++    # here in hwloc.m4)
++    AS_IF([test "x$enable_plugins" = "xyes" -a "$hwloc_mode" = "embedded"],
++          [AC_MSG_WARN([Embedded mode not supported with plugins])
++           AC_MSG_ERROR([Cannot continue])])
+ 
+-    AS_IF([test "x$enable_plugins" != "xno"], [hwloc_have_plugins=yes], [hwloc_have_plugins=no])
+-    AC_MSG_RESULT([$hwloc_have_plugins])
+-    AS_IF([test "x$hwloc_have_plugins" = "xyes"],
+-          [AC_DEFINE([HWLOC_HAVE_PLUGINS], 1, [Define to 1 if the hwloc library should support dynamically-loaded plugins])])
+-
+     AC_ARG_WITH([hwloc-plugins-path],
+ 		AC_HELP_STRING([--with-hwloc-plugins-path=dir:...],
+                                [Colon-separated list of plugin directories. Default: "$prefix/lib/hwloc". Plugins will be installed in the first directory. They will be loaded from all of them, in order.]),
+Index: configure.ac
+===================================================================
+--- configure.ac	(revision 5603)
++++ configure.ac	(working copy)
+@@ -166,6 +166,9 @@
+ # Compiler support -- we don't need that stuff.
+ AM_ENABLE_SHARED
+ AM_DISABLE_STATIC
++FC=no
++F77=no
++CXX=no
+ AM_PROG_LIBTOOL([dlopen win32-dll])
+ LT_LANG([C])
+ LT_CONFIG_LTDL_DIR([src/libltdl])
+@@ -185,7 +188,11 @@
+ fi
+ 
+ # Is ltdl included?
+-AM_CONDITIONAL([HWLOC_LTDL_INCLUDED], [test "x$with_included_ltdl" = xyes])
++HWLOC_LTDL_SUBDIR=
++AS_IF([test "x$with_included_ltdl" = xyes],
++      [HWLOC_LIBLTDL_SUBDIR=libltdl])
++AC_SUBST(HWLOC_LIBLTDL_SUBDIR)
++dnl AM_CONDITIONAL([HWLOC_LTDL_INCLUDED], [test "x$with_included_ltdl" = xyes])
+ 
+ 
+ # Party on
+Index: src/Makefile.am
+===================================================================
+--- src/Makefile.am	(revision 5603)
++++ src/Makefile.am	(working copy)
+@@ -208,10 +208,8 @@
+ libhwloc_la_LDFLAGS += -export-dynamic
+ libhwloc_la_LIBADD = $(LIBLTDL)
+ libhwloc_la_DEPENDENCIES = $(LTDLDEPS)
+-if HWLOC_LTDL_INCLUDED
+-SUBDIRS = libltdl
+ endif
+-endif
++SUBDIRS = $(HWLOC_LTDL_SUBDIR)
+ 
+ # Embedded library (note the lack of a .so version number -- that
+ # intentionally only appears in the installable library).  Also note

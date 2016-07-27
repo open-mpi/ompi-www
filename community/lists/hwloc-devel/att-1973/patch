@@ -1,0 +1,88 @@
+diff -r ee28fe933eed include/hwloc.h
+--- a/include/hwloc.h	Fri Feb 18 11:55:48 2011 -0500
++++ b/include/hwloc.h	Fri Feb 18 18:46:38 2011 +0100
+@@ -139,7 +139,7 @@
+        WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+ 
+        If new enum values are added here, you MUST also go update the
+-       obj_type_order[] and obj_order_type[] arrays in src/topology.h.
++       obj_type_order[] and obj_order_type[] arrays in src/topology.c.
+ 
+        WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+        *************************************************************** */
+@@ -200,7 +200,7 @@
+        WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+ 
+        If new enum values are added here, you MUST also go update the
+-       obj_type_order[] and obj_order_type[] arrays in src/topology.h.
++       obj_type_order[] and obj_order_type[] arrays in src/topology.c.
+ 
+        WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+        *************************************************************** */
+diff -r ee28fe933eed src/distances.c
+--- a/src/distances.c	Fri Feb 18 11:55:48 2011 -0500
++++ b/src/distances.c	Fri Feb 18 18:46:38 2011 +0100
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright © 2010-2011 INRIA
++ * Copyright © 2011 Université Bordeaux 1
+  * Copyright © 2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+  */
+@@ -365,7 +366,7 @@
+   unsigned i,j,k;
+   unsigned skipped = 0;
+ 
+-#define DISTANCE(i, j) _distances[i * nbobjs + j]
++#define DISTANCE(i, j) _distances[(i) * nbobjs + (j)]
+ 
+   memset(groupids, 0, nbobjs*sizeof(*groupids));
+ 
+diff -r ee28fe933eed src/topology-linux.c
+--- a/src/topology-linux.c	Fri Feb 18 11:55:48 2011 -0500
++++ b/src/topology-linux.c	Fri Feb 18 18:46:38 2011 +0100
+@@ -2201,17 +2201,17 @@
+     len = sizeof(ofroot) + 1 + strlen(dirent->d_name) + 1;
+     cpu = malloc(len);
+     if (NULL == cpu) {
+-        return;
++      continue;
+     }
+     snprintf(cpu, len, "%s/%s", ofroot, dirent->d_name);
+ 
+     err = hwloc_stat(cpu, &statbuf, root_fd);
+     if (err < 0 || !S_ISDIR(statbuf.st_mode))
+-      continue;
++      goto cont;
+ 
+     device_type = hwloc_read_str(cpu, "device_type", root_fd);
+     if (NULL == device_type)
+-      continue;
++      goto cont;
+ 
+     hwloc_read_unit32be(cpu, "reg", &reg, root_fd);
+     if (hwloc_read_unit32be(cpu, "next-level-cache", &l2_cache, root_fd) == -1)
+@@ -2260,6 +2260,7 @@
+       }
+       free(device_type);
+     }
++cont:
+     free(cpu);
+   }
+   closedir(dt);
+@@ -2594,12 +2595,14 @@
+ 	  {								\
+             hwloc_debug("%s", "no number in "field" field of /proc/cpuinfo\n"); \
+             hwloc_bitmap_free(cpuset);					\
++            free(str);							\
+             return -1;							\
+ 	  }								\
+ 	else if (var==ULONG_MAX)						\
+ 	  {								\
+             hwloc_debug("%s", "too big "field" number in /proc/cpuinfo\n"); \
+             hwloc_bitmap_free(cpuset);					\
++            free(str);							\
+             return -1;							\
+ 	  }								\
+ 	hwloc_debug(field " %lu\n", var)
+

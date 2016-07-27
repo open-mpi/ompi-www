@@ -1,0 +1,19 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <hwloc.h>
+
+main()
+{
+	hwloc_bitmap_t set;
+	char *string;
+	set = hwloc_bitmap_alloc_full();
+	hwloc_bitmap_asprintf(&string, set);
+	printf("full: %s\n", string);
+	free(string);
+	hwloc_bitmap_from_ith_ulong(set, 1, 0xdeadbeef);
+	hwloc_bitmap_asprintf(&string, set);
+	printf("ith:  %s\n", string);
+
+	return 0;
+}
+

@@ -1,0 +1,31 @@
+<div dir="ltr"><br><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Apr 23, 2013 at 10:21 PM, Brice Goglin <span dir="ltr">&lt;<a href="mailto:Brice.Goglin@inria.fr" target="_blank">Brice.Goglin@inria.fr</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">Le 24/04/2013 00:35, Paul Hargrove a écrit :<br>
+&gt; I took a look at libtool.m4 and find that<br>
+&gt; the sys_lib_dlsearch_path_spec value is HARDCODED as part of  big<br>
+&gt; &quot;case $host_os in&quot;.  That is why the autoreconf resolves the problem -<br>
+&gt; the distro maintainers have customized libtool.m4 appropriately.<br>
+&gt;<br>
+&gt; Other than instructing folks to autoreconf, I don&#39;t see a &quot;clean&quot; fix<br>
+&gt; for this issue.<br>
+&gt;<br>
+<br>
+Ok, thanks. So our configure indeed generates libtool script that<br>
+depends on where the tarball was generated. That&#39;s a bit disturbing.<br></blockquote><div style>[snip]</div><div style><br></div><div><br></div><div style>It is not quite as you describe because I was talking about Fedora&#39;s libtool.m4 doing the hardcoding.</div>
+<div style>The libtool.m4 logic that is distributed with hwloc *tries* to perform a configure probe to determine the dynamic lib search path.</div><div style>Unfortunately, that probe isn&#39;t smart enough to get the right answer on all Linux distros.</div>
+<div style>So, the libtool.m4 from Fedora is the one I see hardcoding the correct answer.</div><div style>Again: libtool in the official tarball of hwloc-1.7 does NOT do something as horrible as hardcode the wrong answer from the distro where one built the tarball (but it probably would it you built the tarball on Fedora).</div>
+<div style><br></div><div style><br></div><div style>It appears somebody has been bugging the libtool developers about this since June 2010:</div><div style>    <a href="http://lists.gnu.org/archive/html/libtool-patches/2010-06/msg00141.html">http://lists.gnu.org/archive/html/libtool-patches/2010-06/msg00141.html</a></div>
+<div style>If you read to the end you&#39;ll see hwloc was the package in question then too!</div><div style><br></div><div style>If you follow one of the links in that thread, there is a patch against libtool-1.5:</div><div style>
+   <a href="http://article.gmane.org/gmane.comp.gnu.libtool.general/8345">http://article.gmane.org/gmane.comp.gnu.libtool.general/8345</a></div><div style>which I&#39;ve just now updated for libtool-2.4.x (and corrected) to get the desired/correct behavior.</div>
+<div style><br></div><div style>In my testing on Fedora 17, the patch below applied to hwloc-1.7 produces an accurate sys_lib_dlsearch_path_spec</div><div style><br></div><div style>-Paul</div><div style><br></div><div style>
+<div><font face="courier new, monospace" size="1">--- config/libtool.m4~ 2013-04-07 16:29:21.000000000 -0700</font></div><div><font face="courier new, monospace" size="1">+++ config/libtool.m4  2013-04-23 22:43:52.882000000 -0700</font></div>
+<div><font face="courier new, monospace" size="1">@@ -2669,10 +2669,10 @@</font></div><div><font face="courier new, monospace" size="1">   # before this can be enabled.</font></div><div><font face="courier new, monospace" size="1">   hardcode_into_libs=yes</font></div>
+<div><font face="courier new, monospace" size="1"> </font></div><div><font face="courier new, monospace" size="1">-  # Append ld.so.conf contents to the search path</font></div><div><font face="courier new, monospace" size="1">-  if test -f /etc/ld.so.conf; then</font></div>
+<div><font face="courier new, monospace" size="1">-    lt_ld_extra=`awk &#39;/^include / { system(sprintf(&quot;cd /etc; cat %s 2&gt;/dev/null&quot;, \[$]2)); skip = 1; } { if (!skip) print \[$]0; skip = 0; }&#39; &lt; /etc/ld.so.conf | $SED -e &#39;s/#.*//;/^[        ]*hwcap[        ]/d;s/[:,   ]/ /g;s/=[^=]*$//;s/=[^= ]* / /g;s/&quot;//g;/^$/d&#39; | tr &#39;\n&#39; &#39; &#39;`</font></div>
+<div><font face="courier new, monospace" size="1">-    sys_lib_dlsearch_path_spec=&quot;/lib /usr/lib $lt_ld_extra&quot;</font></div><div><font face="courier new, monospace" size="1">+  # Extract search path from ldconfig</font></div>
+<div><font face="courier new, monospace" size="1">+  ldconfig_search_path=`/sbin/ldconfig -N -X -v 2&gt;/dev/null|$SED &#39;s,^\(/.*\):\( (.*)\)\?$,\1,p;d&#39;|tr &#39;\012&#39; &#39; &#39;`</font></div><div><font face="courier new, monospace" size="1">+  if test -n &quot;$ldconfig_search_path&quot;; then</font></div>
+<div><font face="courier new, monospace" size="1">+    sys_lib_dlsearch_path_spec=$ldconfig_search_path</font></div><div><font face="courier new, monospace" size="1">   fi</font></div><div><font face="courier new, monospace" size="1"> </font></div>
+<div><font face="courier new, monospace" size="1">   # We used to test for /lib/ld.so.1 and disable shared libraries on</font></div><div><br></div></div><div style><br></div><div style><br></div></div><div><br></div>-- <br>
+<font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: +1-510-495-2352</div>
+<div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font>
+</div></div>
+

@@ -1,0 +1,106 @@
+<div dir="ltr">Hi Brice,<div>hi Samuel,</div><div><br></div><div>hopefully you still remember discussion we had regarding a proposed new option <br><div class="gmail_extra">--reverse_direction</div><div class="gmail_extra">
+or perhaps better</div><div class="gmail_extra">--start_from_last_object</div><div class="gmail_extra"><br></div><div class="gmail_extra">which would force hwloc-distrib to start assigning PUs from the last object (rather than from PU#0 as the default)</div>
+<div class="gmail_extra"><br></div><div class="gmail_extra">I have now implemented the change on the latest trunk. </div><div class="gmail_extra"><br></div><div class="gmail_extra">svn co <a href="http://svn.open-mpi.org/svn/hwloc/trunk">http://svn.open-mpi.org/svn/hwloc/trunk</a> hwloc-trunk<br>
+</div><div class="gmail_extra"><br></div><div class="gmail_extra">I had to modify only three functions</div><div class="gmail_extra"><div><ul><li><font face="courier new, monospace">hwloc_distributev</font> in helper.h<br>
+</li><li><font face="courier new, monospace">hwloc_distribute</font> in helper.h<br></li><li><font face="courier new, monospace">hwloc_bitmap_singlify</font> in bitmap.c<br></li></ul><div>The change is trivial. In helper.h I had to only change the direction of loops, ie from</div>
+</div><div><br></div><div><font face="courier new, monospace">for(i=0;i&lt;N;++i) {</font></div><div><font face="courier new, monospace">  anything[i] = </font></div><div>to</div><div><font face="courier new, monospace">for(i=N;i&gt;0;--i)</font></div>
+<div><font face="courier new, monospace">  anything[<span style="background-color:rgb(255,0,0)">i-1</span>] = </font></div><br></div><div class="gmail_extra">(Please be careful here as &quot;<font face="courier new, monospace">i</font>&quot; is<font face="courier new, monospace"> unsigned int</font> and it will wrap around when doing <font face="courier new, monospace">i--</font> for <font face="courier new, monospace">i == 0</font> . Alternative code would be</div>
+<div class="gmail_extra"><pre class=""><code><font face="courier new, monospace"><span class="">for</span><span class=""> </span><span class="">(</span><span class="">size_t</span><span class=""> i </span><span class="">=</span><span class=""> n</span><span class="">-</span><span class="">1</span><span class="">;</span><span class=""> i </span><span class="">&lt;</span><span class=""> n </span><span class="">;</span><span class=""> </span><span class="">--</span><span class="">i</span><span class="">)</span><span class=""> </span><span class="">{</span><span class=""> </span><span class="">...</span><span class=""> </span><span class="">}</span></font></code></pre>
+<pre class=""><code><span class=""><font face="arial, helvetica, sans-serif">which has the benefit that you don&#39;t need to change </font><font face="courier new, monospace">i</font><font face="arial, helvetica, sans-serif"> to </font><font face="courier new, monospace">i-1</font><font face="arial, helvetica, sans-serif"> in the loop body but it&#39;s </font><font face="courier new, monospace">for</font><font face="arial, helvetica, sans-serif"> statement is less readable)</font></span></code></pre>
+<div class="gmail_extra">In <font face="courier new, monospace">hwloc_bitmap_singlify</font> I had to</div><div class="gmail_extra"><div><ul><li>again change to loop direction</li><li>replace </li></ul><span style="font-family:&#39;courier new&#39;,monospace">int _ffs = <span style="background-color:rgb(255,0,0)">hwloc_ffsl(w)</span>;</span></div>
+<div><span style="font-family:&#39;courier new&#39;,monospace">set-&gt;ulongs[i] = HWLOC_SUBBITMAP_CPU(_ffs-1);</span><br><ul></ul><font face="arial, helvetica, sans-serif">with</font><br><ul></ul><span style="font-family:&#39;courier new&#39;,monospace">int _fls = <span style="background-color:rgb(255,0,0)">hwloc_flsl(w)</span>;</span></div>
+<div><span style="font-family:&#39;courier new&#39;,monospace">set-&gt;ulongs[i-1] = HWLOC_SUBBITMAP_CPU(_fls-1);</span></div><div><span style="font-family:&#39;courier new&#39;,monospace"><br></span></div><span style="background-color:rgb(0,255,0)">The patch file is attached. </span></div>
+<div class="gmail_extra"><br></div><div class="gmail_extra">Could you please review it if you agree to add it to the 1.8?</div><div class="gmail_extra"><br></div><div class="gmail_extra">Other changes would require:</div>
+<div class="gmail_extra"><div><ul><li>add the new command line option to <font face="courier new, monospace">hwloc-distrib</font></li><li>clone functions <font face="courier new, monospace">hwloc_distributev, hwloc_distribute, hwloc_bitmap_singlify</font> to <font face="courier new, monospace">hwloc_distributev_reverse, hwloc_distribute_reverse, hwloc_bitmap_singlify_reverse</font> and when a command line option is specified, call these new functions</li>
+</ul><div>I have tested the new code on 4 Socket system with 15 cores per socket and 30 PUs per socket and it works as expected:</div></div><div><br></div><div>utils/hwloc-distrib --single --taskset 64<br></div><div><div>
+0x800000000000000000000000000000</div><div>0x400000000000000000000000000000</div><div>0x100000000000000000000000000</div><div>0x20000000000000000000000</div><div>0x4000000000000000000</div></div><div><br></div><div>It will assign the jobs in this order</div>
+<div><ol><li>last PU on the last core on Socket #4<br></li><li>last PU on the last core Socket #3<br></li><li>last PU on the last core Socket #2<br></li><li>last PU on the last core Socket #1<br></li><li>last PU on the second last core on Socket #4<br>
+</li></ol></div><div>Please let me know what you think about it. I would really appreciate if you can include it into the official code.</div><div><br></div><div>Thanks a lot!</div><div>Jirka</div><div><br></div><div><br>
+</div><br></div><br><div class="gmail_quote">On Thu, Aug 29, 2013 at 9:58 AM, Brice Goglin <span dir="ltr">&lt;<a href="mailto:Brice.Goglin@inria.fr" target="_blank">Brice.Goglin@inria.fr</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+
+  
+    
+  
+  <div text="#000000" bgcolor="#FFFFFF">
+    <div>Le 28/08/2013 16:20, Jiri Hladky a
+      écrit :<br>
+    </div><div class="im">
+    <blockquote type="cite">
+      <div dir="ltr">
+        <div class="gmail_extra">
+          <div class="gmail_quote">I got your point. On the other hand I
+            think that hwloc-distrib is at the moment not flexible
+            enough to handle such case. I believe that the current
+            strategy - start from the first object - is not the best
+            one. From my experience, core 0 is always most used by the
+            system so it seems that better strategy would to allocate
+            the cores from the last one.</div>
+        </div>
+      </div>
+    </blockquote>
+    <br></div>
+    Most people expect their jobs to be launched in order: process0 on
+    first cores, process1 on next cores, etc.<br>
+    <br>
+    Again, you don&#39;t want to reverse the output, you want to ignore
+    first core/socket if possible.<div class="im"><br>
+    <br>
+    <blockquote type="cite">
+      <div dir="ltr">
+        <div class="gmail_extra">
+          <div class="gmail_quote">I was looking at the source code of
+            the hwloc-distrib and I believe that only this part of the
+            code would be affected:
+            <div><br>
+            </div>
+            <div>
+              <div>      for (i = 0; i &lt; chunks; i++)</div>
+              <div>        roots[i] = hwloc_get_obj_by_depth(topology,
+                from_depth, i); <span style="background-color:rgb(255,0,0)"> =&gt; change
+                  this to roots[i] = hwloc_get_obj_by_depth(topology,
+                  from_depth, MAX_COUNT - i);</span></div>
+              <div><br>
+              </div>
+              <div>      hwloc_distributev(topology, roots, chunks,
+                cpuset, n, to_depth); <span style="background-color:rgb(255,0,0)">=&gt; rewrite
+                  this to iterate in the reverse direction</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </blockquote>
+    <br></div>
+    You can do the exact same thing by reversing your loop in the
+    caller.<br>
+    <br>
+    Anyway, reversing the loop just move the core you don&#39;t want to the
+    end of the list. But if you use the entire list, you end up using
+    the exact same cores. You just reordered the processes among these
+    cores.<div class="im"><br>
+    <br>
+    <blockquote type="cite">
+      <div dir="ltr">
+        <div class="gmail_extra">
+          <div class="gmail_quote">Am I missing something? In case of
+            infinite bitmap hwloc-distrib will error out. This should
+            solve the problems with hwloc_bitmap_singlify.</div>
+        </div>
+      </div>
+    </blockquote>
+    <br></div>
+    We need a new singlify() above, one that doesn&#39;t use the first bit.
+    That&#39;s what will make you use a core that is not the first one in
+    each socket.<br>
+    <br>
+    Problems with infinite bitmaps are unrelated with hwloc-distrib, but
+    they need to be handled in that new bitmap API anyway.<span class=""><font color="#888888"><br>
+    <br>
+    Brice<br>
+    <br>
+  </font></span></div>
+
+<br>_______________________________________________<br>
+hwloc-devel mailing list<br>
+<a href="mailto:hwloc-devel@open-mpi.org">hwloc-devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-devel</a><br></blockquote></div><br></div></div></div>
+

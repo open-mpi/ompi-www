@@ -1,0 +1,108 @@
+diff --git a/utils/Makefile.am b/utils/Makefile.am
+index b140f27..0f00a5a 100644
+--- a/utils/Makefile.am
++++ b/utils/Makefile.am
+@@ -17,11 +17,17 @@ noinst_HEADERS = misc.h
+ # Only build the utilities if we're building in standalone mode
+ if HWLOC_BUILD_UTILS
+ bin_PROGRAMS = lstopo hwloc-assembler hwloc-calc hwloc-bind hwloc-distances hwloc-distrib hwloc-ps
++if !HWLOC_HAVE_WINDOWS
++bin_PROGRAMS += lstopo-nox
+ endif
++endif
++
++lstopo_core_SOURCES = lstopo.h lstopo.c lstopo-color.c lstopo-text.c lstopo-draw.c lstopo-fig.c lstopo-xml.c
+ 
+-lstopo_SOURCES = lstopo.h lstopo.c lstopo-color.c lstopo-text.c lstopo-draw.c lstopo-fig.c lstopo-xml.c
++lstopo_SOURCES = $(lstopo_core_SOURCES)
+ if HWLOC_HAVE_CAIRO
+ lstopo_SOURCES += lstopo-cairo.c
++lstopo_CPPFLAGS = $(AM_CPPFLAGS) -DLSTOPO_HAVE_CAIRO=1
+ endif
+ if HWLOC_HAVE_WINDOWS
+ lstopo_SOURCES += lstopo-windows.c
+@@ -31,12 +37,16 @@ lstopo_LDADD = $(LDADD) $(HWLOC_CAIRO_LIBS) -lm $(HWLOC_TERMCAP_LIBS) $(HWLOC_X1
+ if HWLOC_BUILD_UTILS
+ if HWLOC_HAVE_WINDOWS
+ bin_PROGRAMS += lstopo-win
+-lstopo_win_SOURCES = $(lstopo_SOURCES)
++lstopo_win_SOURCES = $(lstopo_core_SOURCES)
+ lstopo_win_CFLAGS = $(lstopo_CFLAGS) -mwindows
+ lstopo_win_LDADD = $(lstopo_LDADD)
+ endif
+ endif
+ 
++lstopo_nox_SOURCES = $(lstopo_core_SOURCES)
++lstopo_nox_CFLAGS = $(HWLOC_LIBXML2_CFLAGS) $(HWLOC_PCI_CFLAGS)
++lstopo_nox_LDADD = $(LDADD) -lm $(HWLOC_TERMCAP_LIBS)
++
+ hwloc_calc_SOURCES = hwloc-calc.c hwloc-calc.h
+ 
+ bin_SCRIPTS = hwloc-assembler-remote
+diff --git a/utils/lstopo.c b/utils/lstopo.c
+index 23dfe96..2568ef5 100644
+--- a/utils/lstopo.c
++++ b/utils/lstopo.c
+@@ -19,7 +19,7 @@
+ #include <fcntl.h>
+ #include <assert.h>
+ 
+-#ifdef HWLOC_HAVE_CAIRO
++#ifdef LSTOPO_HAVE_CAIRO
+ #include <cairo.h>
+ #endif
+ 
+@@ -211,7 +211,7 @@ void usage(const char *name, FILE *where)
+   fprintf (where, "Usage: %s [ options ] ... [ filename.format ]\n\n", name);
+   fprintf (where, "See lstopo(1) for more details.\n\n");
+   fprintf (where, "Supported output file formats: console, txt, fig"
+-#ifdef HWLOC_HAVE_CAIRO
++#ifdef LSTOPO_HAVE_CAIRO
+ #if CAIRO_HAS_PDF_SURFACE
+ 		  ", pdf"
+ #endif /* CAIRO_HAS_PDF_SURFACE */
+@@ -224,7 +224,7 @@ void usage(const char *name, FILE *where)
+ #if CAIRO_HAS_SVG_SURFACE
+ 		  ", svg"
+ #endif /* CAIRO_HAS_SVG_SURFACE */
+-#endif /* HWLOC_HAVE_CAIRO */
++#endif /* LSTOPO_HAVE_CAIRO */
+ 		  ", xml, synthetic"
+ 		  "\n");
+   fprintf (where, "\nFormatting options:\n");
+@@ -591,7 +591,7 @@ main (int argc, char *argv[])
+ 
+   switch (output_format) {
+     case LSTOPO_OUTPUT_DEFAULT:
+-#ifdef HWLOC_HAVE_CAIRO
++#ifdef LSTOPO_HAVE_CAIRO
+ #if CAIRO_HAS_XLIB_SURFACE && defined HWLOC_HAVE_X11
+       if (getenv("DISPLAY")) {
+         if (logical == -1)
+@@ -599,7 +599,7 @@ main (int argc, char *argv[])
+         output_x11(topology, NULL, logical, legend, verbose_mode);
+       } else
+ #endif /* CAIRO_HAS_XLIB_SURFACE */
+-#endif /* HWLOC_HAVE_CAIRO */
++#endif /* LSTOPO_HAVE_CAIRO */
+ #ifdef HWLOC_WIN_SYS
+       {
+         if (logical == -1)
+@@ -627,7 +627,7 @@ main (int argc, char *argv[])
+     case LSTOPO_OUTPUT_FIG:
+       output_fig(topology, filename, logical, legend, verbose_mode);
+       break;
+-#ifdef HWLOC_HAVE_CAIRO
++#ifdef LSTOPO_HAVE_CAIRO
+ # if CAIRO_HAS_PNG_FUNCTIONS
+     case LSTOPO_OUTPUT_PNG:
+       output_png(topology, filename, logical, legend, verbose_mode);
+@@ -648,7 +648,7 @@ main (int argc, char *argv[])
+       output_svg(topology, filename, logical, legend, verbose_mode);
+       break;
+ #endif /* CAIRO_HAS_SVG_SURFACE */
+-#endif /* HWLOC_HAVE_CAIRO */
++#endif /* LSTOPO_HAVE_CAIRO */
+     case LSTOPO_OUTPUT_XML:
+       output_xml(topology, filename, logical, legend, verbose_mode);
+       break;

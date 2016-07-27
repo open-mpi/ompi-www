@@ -1,0 +1,27 @@
+<div dir="ltr">Hi Brice,<div>Hi Samuel,</div><div><br></div><div>it seems I have done poor job explaining how I&#39;m using hwloc-distrib. Let me repair it.</div><div><br></div><div>On 128 core system for example, we do run series of parallel jobs:</div>
+<div><br></div><div>1 job </div><div>2 jobs</div><div>4 jobs</div><div>8 jobs</div><div>12 jobs</div><div>and so on upto 128 jobs.</div><div><br></div><div>Parallel jobs are synchronized via semaphores and we measure the total runtime for each serie and watch how linux job scheduler perform. We do run jobs using</div>
+<div>* no restrictions at all</div><div>* bound to a CPU via taskset</div><div>* bound to a NUMA node via numactl</div><div><br></div><div>We compare the results again each other and also against different versions of Linux kernel. We use hwloc-distrib to distribute the jobs the best possible way for the taskset command. The idea is that Linux scheduler should distribute the jobs to get the same performance as achieved by hwloc-distrib &amp; taskset</div>
+<div><br></div><div>So we run series of hwloc-distrib commands</div><div><br></div><font face="courier new, monospace">hwloc-distrib --single --taskset 1<br>hwloc-distrib --single --taskset 2<br>hwloc-distrib --single --taskset 4<br>
+hwloc-distrib --single --taskset 8</font><div><br></div><div> and so on. We do always use the full output of hwloc-distrib command to start the jobs via taskset.  Right now, on a 8 socket server we are getting this output</div>
+<div><br></div><div><div>hwloc-distrib --single --taskset 1 =&gt; Socket0, core 0</div><div>hwloc-distrib --single --taskset 2 =&gt;Socket0, core 0 &amp; Socket1, core 0</div><div>hwloc-distrib --single --taskset 4 =&gt; Socket0, core 0 &amp; Socket1, core 0 &amp; Socket3, core 0, &amp; Socket4, core 0</div>
+<div>hwloc-distrib --single --taskset 8 =&gt; Socket0, core 0 &amp; Socket1, core 0 &amp; Socket3, core 0, &amp; Socket4, core 0 &amp; Socket5, core 0 &amp; Socket6, core 0 &amp; Socket7, core 0, &amp; Socket8, core 0</div>
+</div><div><br></div><div>This is not optimal since core#0 is always the one used by OS at most. With proposed --reverse option I expect to get this output:</div><div><div>hwloc-distrib --single --taskset 1 =&gt; <span style="background-color:rgb(255,0,0)">Socket7, core 7</span></div>
+<div>hwloc-distrib --single --taskset 2 =&gt; <span style="background-color:rgb(255,0,0)">Socket7, core 7 &amp; Socket6, core 7</span></div><div>hwloc-distrib --single --taskset 4 =&gt; <span style="background-color:rgb(255,0,0)">Socket7, core 7 &amp; Socket6, core 7 &amp; Socket5, core 7, &amp; Socket4, core 7</span></div>
+</div><div><br></div><div>I do not care about the order in which hwloc-distrib sorts the results. For example, the two possible outputs of hwloc-distrib --single --taskset 2 </div><div>Socket7, core 7 &amp; Socket6, core 7<br>
+</div><div>and</div><div>Socket6, core 7 &amp; Socket7, core 7<br></div><div><br></div><div>are equival for me. </div><div><br></div><div>What do I need is that hwloc-distrib starts from the last Socket and last core in that Socket when distributing the jobs. Right now it starts from Socket0, core0.</div>
+<div><br></div><div>I have attached the /proc/interrupts for that server. It has 8 sockets, each socket has 8 physical cores, 16 PUs with HT. Please see the peaks for interrupts for CORE 0, 8, 16, 24, 32, 40, 48,56. It corresponds to CORE#0 in each Socket. Please be sure to turn off the line wrapping when inspecting that file.</div>
+<div><br></div><div><div>Hopefully you got the point. Please let me know if you have questions.</div><div><br></div><div>What do think about this? Does it make sense to you?</div></div><div><br></div><div>Thanks!</div><div>
+Jirka</div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Thu, Aug 29, 2013 at 10:20 AM, Samuel Thibault <span dir="ltr">&lt;<a href="mailto:samuel.thibault@inria.fr" target="_blank">samuel.thibault@inria.fr</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Brice Goglin, le Thu 29 Aug 2013 09:58:17 +0200, a écrit :<br>
+<div class="im">&gt; Anyway, reversing the loop just move the core you don&#39;t want to the end of the<br>
+&gt; list. But if you use the entire list, you end up using the exact same cores.<br>
+<br>
+</div>He wants that, yes.<br>
+<span class="HOEnZb"><font color="#888888"><br>
+Samuel<br>
+</font></span><div class="HOEnZb"><div class="h5">_______________________________________________<br>
+hwloc-devel mailing list<br>
+<a href="mailto:hwloc-devel@open-mpi.org">hwloc-devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-devel</a><br>
+</div></div></blockquote></div><br></div>
+
