@@ -6,9 +6,10 @@
 <p> You can still navigate around this archive, but know that no new mails
 have been added to it since July of 2016.</p>
 
-<p>Click here to be taken to the new web archives of this list; it includes
-all the mails that are in this frozen archive plus all new mails that
-have been sent to the list since it was migrated to the new archives.</p>
+<?php
+print("<p><a href=\"https://mail-archive.com/$this_list@lists.open-mpi.org/\">Click here to be taken to the new web archives of this list</a>;\n");
+?>
+it includes all the mails that are in this frozen archive plus all new
+mails that have been sent to the list since it was migrated to the new
+archives.</p>
 </div>
-
-<hr>
