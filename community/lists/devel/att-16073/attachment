@@ -1,0 +1,141 @@
+<div dir="ltr">The first variable can probably be moved to opal pretty easily. That is used when we need to fully shutdown the BTLs and re-init them on continue. We do not have to do that for tcp (since we leave the sockets open), but do have to do that for IB, for example.<div><br></div><div>The second call is a bit tricky since this is leaving a &#39;note&#39; about a file that needs to be created (touch&#39;ed) on restart in order for the sm BTL component to restart properly. For sm we leave the share memory file open and inplace when we checkpoint since on &#39;continue&#39; we just keep using it. But on restart the file will no longer be there and can cause the process to crash when restarted. So just before restart we touch the file, then cleanup the old reference and the old (newly touch&#39;ed) file during the restart INC when the process is being rebuilt.</div><div><br></div><div>So that is what that call is doing, just writing the name of the file into the metadata for the snapshot. Then opal_restart will touch the file just before calling the CRS component to restart the process. So we just need to replace it with a call that sets this data in the metadata file. Take a look in the CRS components and the CR infrastructure to see how they are writing to the snapshot metadata (they might do it directly).</div><div><br></div><div>Unfortunately, I have been away from that code long enough to not easily remember how to do it. Let me know if that gives you enough to move forward on.</div><div><br></div><div>Thanks,</div><div>Josh</div><div><br></div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Fri, Oct 17, 2014 at 9:15 AM, Adrian Reber <span dir="ltr">&lt;<a href="mailto:adrian@lisas.de" target="_blank">adrian@lisas.de</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Josh,<br>
+<br>
+I had a look at the code (e.g., opal/mca/btl/sm/btl_sm.c) and there are<br>
+two uses of orte code:<br>
+<br>
+if (orte_cr_continue_like_restart)<br>
+<br>
+and<br>
+<br>
+ /* On restart we need the old file names to exist (not necessarily<br>
+  * contain content) so the CRS component does not fail when  searching<br>
+  * for these old file handles. The restart procedure will make sure<br>
+  * these files get cleaned up appropriately.<br>
+  */<br>
+ orte_sstore.set_attr(orte_sstore_handle_current,<br>
+                      SSTORE_METADATA_LOCAL_TOUCH,<br>
+                      mca_btl_sm_component.sm_seg-&gt;shmem_ds.seg_name);<br>
+<br>
+<br>
+Do you have an idea how to fix those two? The first variable<br>
+orte_cr_continue_like_restart could probably be moved but I am not sure<br>
+how to handle the sstore call.<br>
+<br>
+                Adrian<br>
+<div><div class="h5"><br>
+<br>
+On Sat, Aug 09, 2014 at 08:46:31AM -0500, Josh Hursey wrote:<br>
+&gt; Those calls should be protected with the CR FT #define - If I remember<br>
+&gt; correctly. We were using the sstore to track the shared memory file names<br>
+&gt; so we could clean them up on restart.<br>
+&gt;<br>
+&gt; I&#39;m not sure if the sstore framework is necessary in this location, since<br>
+&gt; we should be able to tell opal_crs and it will do the right thing. I can<br>
+&gt; try to look at it early next week if someone doesn&#39;t get to it before then.<br>
+&gt;<br>
+&gt; -- Josh<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; On Sat, Aug 9, 2014 at 7:06 AM, Jeff Squyres (jsquyres) &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;<br>
+&gt; wrote:<br>
+&gt;<br>
+&gt; &gt; I think you&#39;re making a joke, right...?<br>
+&gt; &gt;<br>
+&gt; &gt; I see direct calls to ORTE sstore functionality in all three.<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; On Aug 8, 2014, at 5:42 PM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu">bosilca@icl.utk.edu</a>&gt; wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; These are harmless. They are only used when FT is enabled which should<br>
+&gt; &gt; rarely be the case.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;   George.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; On Fri, Aug 8, 2014 at 4:36 PM, Jeff Squyres (jsquyres) &lt;<br>
+&gt; &gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+&gt; &gt; &gt; Here&#39;s a few ORTE headers in OPAL source -- can respective owners clean<br>
+&gt; &gt; these up?  Thanks.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; -----<br>
+&gt; &gt; &gt; mca/btl/smcuda/btl_smcuda.c<br>
+&gt; &gt; &gt; 63:#include &quot;orte/mca/sstore/sstore.h&quot;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; mca/btl/sm/btl_sm.c<br>
+&gt; &gt; &gt; 62:#include &quot;orte/mca/sstore/sstore.h&quot;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; mca/mpool/sm/mpool_sm_module.c<br>
+&gt; &gt; &gt; 34:#include &quot;orte/mca/sstore/sstore.h&quot;<br>
+&gt; &gt; &gt; -----<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; --<br>
+&gt; &gt; &gt; Jeff Squyres<br>
+&gt; &gt; &gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; &gt; &gt; For corporate legal information go to:<br>
+&gt; &gt; <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; devel mailing list<br>
+&gt; &gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; &gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt; &gt; Link to this post:<br>
+&gt; &gt; <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15570.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15570.php</a><br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; devel mailing list<br>
+&gt; &gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; &gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt; &gt; Link to this post:<br>
+&gt; &gt; <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15571.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15571.php</a><br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; --<br>
+&gt; &gt; Jeff Squyres<br>
+&gt; &gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; &gt; For corporate legal information go to:<br>
+&gt; &gt; <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; devel mailing list<br>
+&gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt; Link to this post:<br>
+&gt; &gt; <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15587.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15587.php</a><br>
+&gt; &gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Joshua Hursey<br>
+&gt; Assistant Professor of Computer Science<br>
+&gt; University of Wisconsin-La Crosse<br>
+&gt; <a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a><br>
+<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div>&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15588.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15588.php</a><br>
+<span class=""><br>
+<br>
+                Adrian<br>
+<br>
+--<br>
+Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt;            <a href="http://lisas.de/~adrian/" target="_blank">http://lisas.de/~adrian/</a><br>
+</span>ink, n.:<br>
+        A villainous compound of tannogallate of iron, gum-arabic,<br>
+        and water, chiefly used to facilitate the infection of<br>
+        idiocy and promote intellectual crime.<br>
+                -- H.L. Mencken<br>
+<span class="">_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</span>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/10/16061.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/10/16061.php</a><br>
+</blockquote></div><br><br clear="all"><div><br></div>-- <br>Joshua Hursey<br>Assistant Professor of Computer Science<br>University of Wisconsin-La Crosse<br><a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a>
+</div>
+

@@ -1,0 +1,292 @@
+Index: opal/mca/paffinity/linux/paffinity_linux_module.c
+===================================================================
+--- opal/mca/paffinity/linux/paffinity_linux_module.c	(revision 17442)
++++ opal/mca/paffinity/linux/paffinity_linux_module.c	(working copy)
+@@ -45,9 +45,9 @@
+ static int linux_module_get(opal_paffinity_base_cpu_set_t *cpumask);
+ static int linux_module_map_to_processor_id(int socket, int core, int *processor_id);
+ static int linux_module_map_to_socket_core(int processor_id, int *socket, int *core);
+-static int linux_module_max_processor_id(int *max_processor_id);
+-static int linux_module_max_socket(int *max_socket);
+-static int linux_module_max_core(int socket, int *max_core);
++static int linux_module_get_processor_info(int *num_processors, int *max_processor_id);
++static int linux_module_get_socket_info(int *num_sockets, int *max_socket_num);
++static int linux_module_get_core_info(int socket, int *num_cores, int *max_core_num);
+ 
+ /*
+  * Linux paffinity module
+@@ -64,9 +64,9 @@
+     linux_module_get,
+     linux_module_map_to_processor_id,
+     linux_module_map_to_socket_core,
+-    linux_module_max_processor_id,
+-    linux_module_max_socket,
+-    linux_module_max_core,
++    linux_module_get_processor_info,
++    linux_module_get_socket_info,
++    linux_module_get_core_info,
+     NULL
+ };
+ 
+@@ -168,18 +168,18 @@
+    return opal_paffinity_linux_plpa_map_to_socket_core(processor_id, socket, core);
+ }
+ 
+-static int linux_module_max_processor_id(int *max_processor_id)
++static int linux_module_get_processor_info(int *num_processors, int *max_processor_id)
+ {
+-   return opal_paffinity_linux_plpa_max_processor_id(max_processor_id);
++   return opal_paffinity_linux_plpa_get_processor_info(num_processors, max_processor_id);
+ }
+ 
+-static int linux_module_max_socket(int *max_socket)
++static int linux_module_get_socket_info(int *num_sockets, int *max_socket_num)
+ {
+-   return opal_paffinity_linux_plpa_max_socket(max_socket);
++   return opal_paffinity_linux_plpa_get_socket_info(num_sockets, max_socket_num);
+ }
+ 
+-static int linux_module_max_core(int socket, int *max_core)
++static int linux_module_get_core_info(int socket, int *num_cores, int *max_core_num)
+ {
+-   return opal_paffinity_linux_plpa_max_core(socket, max_core);
++   return opal_paffinity_linux_plpa_get_core_info(socket, num_cores, max_core_num);
+ }
+ 
+Index: opal/mca/paffinity/paffinity.h
+===================================================================
+--- opal/mca/paffinity/paffinity.h	(revision 17442)
++++ opal/mca/paffinity/paffinity.h	(working copy)
+@@ -194,7 +194,7 @@
+  * return OPAL_SUCCESS or OPAL_ERR_NOT_SUPPORTED if not
+  * supporeted (solaris, windows, etc...)
+  */
+-typedef int (*opal_paffinity_base_module_max_processor_id_fn_t)(int *max_processor_id);
++typedef int (*opal_paffinity_base_module_get_processor_info_fn_t)(int *num_processors, int *max_processor_id);
+ 
+ /**
+  * Provides the number of sockets in a host. currently supported
+@@ -203,7 +203,7 @@
+  * return OPAL_SUCCESS or OPAL_ERR_NOT_SUPPORTED if not
+  * supporeted (solaris, windows, etc...)
+  */
+-typedef int (*opal_paffinity_base_module_max_socket_fn_t)(int *max_socket);
++typedef int (*opal_paffinity_base_module_get_socket_info_fn_t)(int *num_sockets, int *max_socket_num);
+ 
+ /**
+  * Provides the number of cores in a socket. currently supported
+@@ -212,7 +212,7 @@
+  * return OPAL_SUCCESS or OPAL_ERR_NOT_SUPPORTED if not
+  * supporeted (solaris, windows, etc...)
+  */
+-typedef int (*opal_paffinity_base_module_max_core)(int socket, int *max_core);
++typedef int (*opal_paffinity_base_module_get_core_info_fn_t)(int socket, int *num_cores, int *max_core_num);
+ 
+ 
+ /**
+@@ -262,13 +262,13 @@
+     opal_paffinity_base_module_map_to_socket_core_fn_t  paff_map_to_socket_core;
+ 
+     /** Return the max processor ID */
+-    opal_paffinity_base_module_max_processor_id_fn_t paff_max_processor_id;
++    opal_paffinity_base_module_get_processor_info_fn_t paff_get_processor_info;
+ 
+     /** Return the max socket number */
+-    opal_paffinity_base_module_max_socket_fn_t paff_max_socket;
++    opal_paffinity_base_module_get_socket_info_fn_t paff_get_socket_info;
+ 
+     /** Return the max core number */
+-    opal_paffinity_base_module_max_core paff_max_core;
++    opal_paffinity_base_module_get_core_info_fn_t paff_get_core_info;
+ 
+     /** Shut down this module */
+     opal_paffinity_base_module_finalize_fn_t paff_module_finalize;
+Index: opal/mca/paffinity/base/base.h
+===================================================================
+--- opal/mca/paffinity/base/base.h	(revision 17442)
++++ opal/mca/paffinity/base/base.h	(working copy)
+@@ -167,7 +167,7 @@
+      * @return int - OPAL_SUCCESS or OPAL_ERR_NOT_SUPPORTED if not
+      *         supported
+      */
+-    OPAL_DECLSPEC int opal_paffinity_base_max_processor_id(int *max_processor_id);
++    OPAL_DECLSPEC int opal_paffinity_base_get_processor_info(int *num_processors, int *max_processor_id);
+ 
+     /**
+      * Return the max socket number
+@@ -177,7 +177,7 @@
+      * @return int - OPAL_SUCCESS or OPAL_ERR_NOT_SUPPORTED if not
+      *         supported
+      */
+-    OPAL_DECLSPEC int opal_paffinity_base_max_socket(int *max_socket);
++    OPAL_DECLSPEC int opal_paffinity_base_get_socket_info(int *num_sockets, int *max_socket_num);
+ 
+     /**
+      * Return the max core number for a given socket
+@@ -188,7 +188,7 @@
+      * @return int - OPAL_SUCCESS or OPAL_ERR_NOT_SUPPORTED if not
+      *         supported
+      */
+-    OPAL_DECLSPEC int opal_paffinity_base_max_core(int socket, int *max_core);
++    OPAL_DECLSPEC int opal_paffinity_base_get_core_info(int socket, int *num_cores, int *max_core_num);
+ 
+     /**
+      * Indication of whether a component was successfully selected or
+Index: opal/mca/paffinity/base/paffinity_base_wrappers.c
+===================================================================
+--- opal/mca/paffinity/base/paffinity_base_wrappers.c	(revision 17442)
++++ opal/mca/paffinity/base/paffinity_base_wrappers.c	(working copy)
+@@ -63,27 +63,28 @@
+     return opal_paffinity_base_module->paff_map_to_socket_core(processor_id, socket, core);
+ }
+ 
+-int opal_paffinity_base_max_processor_id(int *max_processor_id)
++
++int opal_paffinity_base_get_processor_info(int *num_processors, int *max_processor_id)
+ {
+     if (!opal_paffinity_base_selected) {
+         return OPAL_ERR_NOT_FOUND;
+     }
+-    return opal_paffinity_base_module->paff_max_processor_id(max_processor_id);
++    return opal_paffinity_base_module->paff_get_processor_info(num_processors, max_processor_id);
+ }
+ 
+-int opal_paffinity_base_max_socket(int *max_socket)
++int opal_paffinity_base_get_socket_info(int *num_sockets, int *max_socket_num)
+ {
+     if (!opal_paffinity_base_selected) {
+         return OPAL_ERR_NOT_FOUND;
+     }
+-    return opal_paffinity_base_module->paff_max_socket(max_socket);
++    return opal_paffinity_base_module->paff_get_socket_info(num_sockets, max_socket_num);
+ }
+ 
+-int opal_paffinity_base_max_core(int socket, int *max_core)
++int opal_paffinity_base_get_core_info(int socket, int *num_cores, int *max_core_num)
+ {
+     if (!opal_paffinity_base_selected) {
+         return OPAL_ERR_NOT_FOUND;
+     }
+-    return opal_paffinity_base_module->paff_max_core(socket, max_core);
++    return opal_paffinity_base_module->paff_get_core_info(socket, num_cores, max_core_num);
+ }
+ 
+Index: opal/mca/paffinity/windows/paffinity_windows_module.c
+===================================================================
+--- opal/mca/paffinity/windows/paffinity_windows_module.c	(revision 17442)
++++ opal/mca/paffinity/windows/paffinity_windows_module.c	(working copy)
+@@ -34,9 +34,9 @@
+ static int windows_module_get(opal_paffinity_base_cpu_set_t *cpumask);
+ static int windows_module_map_to_processor_id(int socket, int core, int *processor_id);
+ static int windows_module_map_to_socket_core(int processor_id, int *socket, int *core);
+-static int windows_module_max_processor_id(int *max_processor_id);
+-static int windows_module_max_socket(int *max_socket);
+-static int windows_module_max_core(int socket, int *max_core);
++static int windows_module_get_processor_info(int *num_processors, int *max_processor_id);
++static int windows_module_get_socket_info(int *num_sockets, int *max_socket_num);        
++static int windows_module_get_core_info(int socket, int *num_cores, int *max_core_num);  
+ 
+ static SYSTEM_INFO sys_info;
+ 
+@@ -54,9 +54,9 @@
+     windows_module_get,
+     windows_module_map_to_processor_id,
+     windows_module_map_to_socket_core,
+-    windows_module_max_processor_id,
+-    windows_module_max_socket,
+-    windows_module_max_core,
++    windows_module_get_processor_info,
++    windows_module_get_socket_info,
++    windows_module_get_core_info,
+     windows_module_finalize
+ };
+ 
+@@ -134,17 +134,17 @@
+     return OPAL_ERR_NOT_SUPPORTED;
+ }
+ 
+-static int windows_module_max_processor_id(int *max_processor_id)
++static int windows_module_get_processor_info(int *num_processors, int *max_processor_id);
+ {
+     return OPAL_ERR_NOT_SUPPORTED;
+ }
+ 
+-static int windows_module_max_socket(int *max_socket)
++static int windows_module_get_socket_info(int *num_sockets, int *max_socket_num);        
+ {
+     return OPAL_ERR_NOT_SUPPORTED;
+ }
+ 
+-static int windows_module_max_core(int socket, int *max_core)
++static int windows_module_get_core_info(int socket, int *num_cores, int *max_core_num);  
+ {
+     return OPAL_ERR_NOT_SUPPORTED;
+ }
+Index: opal/mca/paffinity/solaris/paffinity_solaris_module.c
+===================================================================
+--- opal/mca/paffinity/solaris/paffinity_solaris_module.c	(revision 17442)
++++ opal/mca/paffinity/solaris/paffinity_solaris_module.c	(working copy)
+@@ -45,9 +45,9 @@
+ static int cpumask_to_id(opal_paffinity_base_cpu_set_t cpumask);
+ static int solaris_module_map_to_processor_id(int socket, int core, int *processor_id);
+ static int solaris_module_map_to_socket_core(int processor_id, int *socket, int *core);
+-static int solaris_module_max_processor_id(int *max_processor_id);
+-static int solaris_module_max_socket(int *max_socket);
+-static int solaris_module_max_core(int socket, int *max_core);
++static int solaris_module_get_processor_info(int *num_processors, int *max_processor_id);
++static int solaris_module_get_socket_info(int *num_sockets, int *max_socket_num);        
++static int solaris_module_get_core_info(int socket, int *num_cores, int *max_core_num);  
+ 
+ /*
+  * Solaris paffinity module
+@@ -64,9 +64,9 @@
+     solaris_module_get,
+     solaris_module_map_to_processor_id,
+     solaris_module_map_to_socket_core,
+-    solaris_module_max_processor_id,
+-    solaris_module_max_socket,
+-    solaris_module_max_core,
++    solaris_module_get_processor_info,
++    solaris_module_get_socket_info,
++    solaris_module_get_core_info,
+     solaris_module_finalize
+ };
+ 
+@@ -173,17 +173,17 @@
+     return OPAL_ERR_NOT_SUPPORTED;
+ }
+ 
+-static int solaris_module_max_processor_id(int *max_processor_id)
++static int solaris_module_get_processor_info(int *num_processors, int *max_processor_id);
+ {
+     return OPAL_ERR_NOT_SUPPORTED;
+ }
+ 
+-static int solaris_module_max_socket(int *max_socket)
++static int solaris_module_get_socket_info(int *num_sockets, int *max_socket_num);        
+ {
+     return OPAL_ERR_NOT_SUPPORTED;
+ }
+ 
+-static int solaris_module_max_core(int socket, int *max_core)
++static int solaris_module_get_core_info(int socket, int *num_cores, int *max_core_num);  
+ {
+     return OPAL_ERR_NOT_SUPPORTED;
+ }
+Index: ompi/mca/btl/openib/btl_openib_component.c
+===================================================================
+--- ompi/mca/btl/openib/btl_openib_component.c	(revision 17442)
++++ ompi/mca/btl/openib/btl_openib_component.c	(working copy)
+@@ -1175,10 +1175,10 @@
+ {
+     opal_paffinity_base_cpu_set_t cpus;
+     opal_carto_base_node_t *hca_node;
+-    int min_distance = -1, i, max_proc_id;
++    int min_distance = -1, i, max_proc_id, num_processors;
+     const char *hca = ibv_get_device_name(dev);
+ 
+-    if(opal_paffinity_base_max_processor_id(&max_proc_id) != OMPI_SUCCESS)
++    if(opal_paffinity_base_get_processor_info(&num_processors, &max_proc_id) != OMPI_SUCCESS)
+         max_proc_id = 100; /* Choose something big enough */
+ 
+     hca_node = carto_base_find_node(host_topo, hca);

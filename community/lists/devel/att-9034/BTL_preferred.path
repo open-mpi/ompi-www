@@ -1,0 +1,229 @@
+diff -r 486ca4bfca95 ompi/mca/bml/bml.h
+--- a/ompi/mca/bml/bml.h	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/bml/bml.h	Tue Mar 08 15:50:13 2011 +0100
+@@ -291,6 +291,17 @@ static inline int mca_bml_base_send_stat
+     return btl->btl_send(btl, bml_btl->btl_endpoint, des, tag);
+ }
+ 
++static inline int mca_bml_base_preferred_protocol( mca_bml_base_btl_t* bml_btl, size_t size)
++{
++    mca_btl_base_module_t* btl = bml_btl->btl;
++    /* On selected btl, if btl_preferred_protocol() is defined, use it */
++    if(btl->btl_preferred_protocol != NULL)
++	    return btl->btl_preferred_protocol( bml_btl->btl, bml_btl->btl_endpoint, size);
++    else
++	    /* No preferred protocol. Protocol must be selected from device capabilities only */
++	    return MCA_BTL_FLAGS_NONE; 
++}
++
+ static inline int  mca_bml_base_sendi( mca_bml_base_btl_t* bml_btl,
+                                        struct opal_convertor_t* convertor,
+                                        void* header,
+diff -r 486ca4bfca95 ompi/mca/btl/btl.h
+--- a/ompi/mca/btl/btl.h	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/btl.h	Tue Mar 08 15:50:13 2011 +0100
+@@ -169,6 +169,7 @@ typedef uint8_t mca_btl_base_tag_t;
+ #define MCA_BTL_TAG_UDAPL             (MCA_BTL_TAG_BTL + 1)
+ 
+ /* prefered protocol */
++#define MCA_BTL_FLAGS_NONE            0x0000
+ #define MCA_BTL_FLAGS_SEND            0x0001
+ #define MCA_BTL_FLAGS_PUT             0x0002
+ #define MCA_BTL_FLAGS_GET             0x0004
+@@ -752,6 +753,16 @@ typedef void (*mca_btl_base_module_dump_
+     int verbose
+ );
+ 
++/** 
++ * query preferred_protocol for current message
++*/
++
++typedef int (*mca_btl_base_module_preferred_protocol_fn_t)(
++	struct mca_btl_base_module_t* btl,
++	struct mca_btl_base_endpoint_t* endpoint,
++	size_t size
++);
++
+ /**
+  * Fault Tolerance Event Notification Function
+  * @param state Checkpoint Status
+@@ -792,6 +803,7 @@ struct mca_btl_base_module_t {
+     mca_btl_base_module_put_fn_t            btl_put;
+     mca_btl_base_module_get_fn_t            btl_get;
+     mca_btl_base_module_dump_fn_t           btl_dump; 
++    mca_btl_base_module_preferred_protocol_fn_t     btl_preferred_protocol; 
+    
+     /** the mpool associated with this btl (optional) */ 
+     mca_mpool_base_module_t*             btl_mpool; 
+diff -r 486ca4bfca95 ompi/mca/btl/elan/btl_elan.c
+--- a/ompi/mca/btl/elan/btl_elan.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/elan/btl_elan.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -654,6 +654,7 @@ mca_btl_elan_module_t mca_btl_elan_modul
+         mca_btl_elan_put,
+         mca_btl_elan_get,
+         mca_btl_elan_dump,
++	NULL, /* preferred protocol */
+         NULL, /* mpool */
+         mca_btl_elan_register_error, /* register error cb */
+         mca_btl_elan_ft_event /* mca_btl_elan_ft_event*/
+diff -r 486ca4bfca95 ompi/mca/btl/gm/btl_gm.c
+--- a/ompi/mca/btl/gm/btl_gm.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/gm/btl_gm.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -87,6 +87,7 @@ mca_btl_gm_module_t mca_btl_gm_module = 
+         mca_btl_gm_get_nl,
+ #endif
+         mca_btl_base_dump,
++	NULL, /* preferred protocol */
+         NULL, /* mpool */
+         mca_btl_gm_register_error_cb,
+         mca_btl_gm_ft_event
+diff -r 486ca4bfca95 ompi/mca/btl/ofud/btl_ofud.c
+--- a/ompi/mca/btl/ofud/btl_ofud.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/ofud/btl_ofud.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -65,6 +65,7 @@ mca_btl_ud_module_t mca_btl_ofud_module 
+         NULL, /*mca_btl_ud_put */
+         NULL, /*mca_btl_ud_get */
+         mca_btl_base_dump,
++	NULL, /* preferred protocol */
+         NULL, /* mpool */
+         NULL, /* register error */
+         mca_btl_ud_ft_event
+diff -r 486ca4bfca95 ompi/mca/btl/openib/btl_openib.c
+--- a/ompi/mca/btl/openib/btl_openib.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/openib/btl_openib.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -98,6 +98,7 @@ mca_btl_openib_module_t mca_btl_openib_m
+         mca_btl_openib_put,
+         mca_btl_openib_get,
+         mca_btl_base_dump,
++	NULL, /* preferred protocol */
+         NULL, /* mpool */
+         mca_btl_openib_register_error_cb, /* error call back registration */
+         mca_btl_openib_ft_event
+diff -r 486ca4bfca95 ompi/mca/btl/portals/btl_portals.c
+--- a/ompi/mca/btl/portals/btl_portals.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/portals/btl_portals.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -68,6 +68,7 @@ mca_btl_portals_module_t mca_btl_portals
+         mca_btl_portals_put,
+         mca_btl_portals_get,
+         mca_btl_base_dump,
++	NULL, /* preferred protocol */
+         NULL, /* mpool */
+         NULL, /* register error */
+         NULL
+diff -r 486ca4bfca95 ompi/mca/btl/sctp/btl_sctp.c
+--- a/ompi/mca/btl/sctp/btl_sctp.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/sctp/btl_sctp.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -57,6 +57,7 @@ mca_btl_sctp_module_t mca_btl_sctp_modul
+         mca_btl_sctp_put,
+         NULL, /* get */ 
+         mca_btl_base_dump,
++	NULL, /* preferred protocol */
+         NULL, /* mpool */
+         NULL /* register error */
+     }
+diff -r 486ca4bfca95 ompi/mca/btl/self/btl_self.c
+--- a/ompi/mca/btl/self/btl_self.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/self/btl_self.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -59,6 +59,7 @@ mca_btl_base_module_t mca_btl_self = {
+     mca_btl_self_rdma,  /* put */
+     mca_btl_self_rdma,  /* get */
+     mca_btl_base_dump,
++    NULL, /* preferred protocol */
+     NULL, /* mpool */
+     NULL, /* register error cb */
+     mca_btl_self_ft_event
+diff -r 486ca4bfca95 ompi/mca/btl/sm/btl_sm.c
+--- a/ompi/mca/btl/sm/btl_sm.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/sm/btl_sm.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -92,6 +93,7 @@ mca_btl_sm_t mca_btl_sm = {
+         NULL,  /* put */
+         NULL,  /* get -- optionally filled during initialization */
+         mca_btl_base_dump,
++	NULL,  /* preferred protocol */
+         NULL, /* mpool */
+         mca_btl_sm_register_error_cb, /* register error */
+         mca_btl_sm_ft_event
+diff -r 486ca4bfca95 ompi/mca/btl/tcp/btl_tcp.c
+--- a/ompi/mca/btl/tcp/btl_tcp.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/tcp/btl_tcp.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -59,6 +59,7 @@ mca_btl_tcp_module_t mca_btl_tcp_module 
+         mca_btl_tcp_put,
+         NULL, /* get */ 
+         mca_btl_base_dump,
++	NULL, /* preferred_protocol */
+         NULL, /* mpool */
+         NULL, /* register error */
+         mca_btl_tcp_ft_event
+diff -r 486ca4bfca95 ompi/mca/btl/template/btl_template.c
+--- a/ompi/mca/btl/template/btl_template.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/template/btl_template.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -56,6 +56,7 @@ mca_btl_template_module_t mca_btl_templa
+         mca_btl_template_put,
+         NULL, /* get */ 
+         NULL, /*dump */
++	NULL, /* preferred_protocol */
+         NULL, /* mpool */
+         NULL, /* register error cb */
+         mca_btl_template_ft_event
+diff -r 486ca4bfca95 ompi/mca/btl/udapl/btl_udapl.c
+--- a/ompi/mca/btl/udapl/btl_udapl.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/btl/udapl/btl_udapl.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -73,6 +73,7 @@ mca_btl_udapl_module_t mca_btl_udapl_mod
+         mca_btl_udapl_put,
+         NULL, /* get */ 
+         mca_btl_base_dump,
++	NULL, /* preferred_protocol */
+         NULL, /* mpool */
+         NULL, /* register error cb */
+         mca_btl_udapl_ft_event
+diff -r 486ca4bfca95 ompi/mca/pml/ob1/pml_ob1_rdma.c
+--- a/ompi/mca/pml/ob1/pml_ob1_rdma.c	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/pml/ob1/pml_ob1_rdma.c	Tue Mar 08 15:50:13 2011 +0100
+@@ -115,3 +115,18 @@ size_t mca_pml_ob1_rdma_pipeline_btls( m
+ 
+     return i;
+ }
++
++/**
++ *  
++ *  query preferred_protocol for current message.
++ */
++
++inline int mca_pml_ob1_preferred_protocol( mca_bml_base_btl_t* bml_btl, size_t size )
++{
++    /*
++     *query refered_protocol for current message. 
++     */
++
++    return mca_bml_base_preferred_protocol(bml_btl,size);
++}
++
+diff -r 486ca4bfca95 ompi/mca/pml/ob1/pml_ob1_rdma.h
+--- a/ompi/mca/pml/ob1/pml_ob1_rdma.h	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/pml/ob1/pml_ob1_rdma.h	Tue Mar 08 15:50:13 2011 +0100
+@@ -37,5 +37,10 @@ size_t mca_pml_ob1_rdma_btls(struct mca_
+  * bandwidth */
+ size_t mca_pml_ob1_rdma_pipeline_btls(struct mca_bml_base_endpoint_t* endpoint,
+                 size_t size, mca_pml_ob1_com_btl_t* rdma_btls);
++
++/* query preferred protocol for current message 
++*/
++int  mca_pml_ob1_preferred_protocol( mca_bml_base_btl_t* bml_btl, size_t size );
++
+ #endif
+ 
+diff -r 486ca4bfca95 ompi/mca/pml/ob1/pml_ob1_sendreq.h
+--- a/ompi/mca/pml/ob1/pml_ob1_sendreq.h	Mon Feb 07 15:40:31 2011 +0100
++++ b/ompi/mca/pml/ob1/pml_ob1_sendreq.h	Tue Mar 08 15:50:13 2011 +0100
+@@ -375,7 +375,9 @@ mca_pml_ob1_send_request_start_btl( mca_
+         if(sendreq->req_send.req_send_mode == MCA_PML_BASE_SEND_BUFFERED) {
+             rc = mca_pml_ob1_send_request_start_buffered(sendreq, bml_btl, size);
+         } else if
+-                (opal_convertor_need_buffers(&sendreq->req_send.req_base.req_convertor) == false) {
++                (opal_convertor_need_buffers(&sendreq->req_send.req_base.req_convertor) == false &&
++                MCA_BTL_FLAGS_SEND != mca_pml_ob1_preferred_protocol(bml_btl,sendreq->req_send.req_bytes_packed)
++                ) {
+             unsigned char *base;
+             opal_convertor_get_current_pointer( &sendreq->req_send.req_base.req_convertor, (void**)&base );
+             
+

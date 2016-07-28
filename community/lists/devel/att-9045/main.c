@@ -1,0 +1,44 @@
+#include <stdio.h>
+#include <omp.h>
+#include <mpi.h>
+#include <string.h>  /* memset */
+
+
+#define N 10000
+int main(int argc, char **argv) {
+  int np, me, buf[2][N], provided;
+
+  /* init some stuff */
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+  MPI_Comm_size(MPI_COMM_WORLD,&np);
+  MPI_Comm_rank(MPI_COMM_WORLD,&me);
+  if ( provided < MPI_THREAD_MULTIPLE ) MPI_Abort(MPI_COMM_WORLD,-1);
+
+  /* initialize the buffers */
+  memset(buf[0], 0, N * sizeof(int));
+  memset(buf[1], 0, N * sizeof(int));
+
+  /* test */
+  #pragma omp parallel num_threads(2)
+  {
+    int id = omp_get_thread_num();
+    MPI_Status st;
+    printf("%d %d in parallel region\n", me, id); fflush(stdout);
+
+    /* pingpong */
+    if ( me == 0 ) {
+      MPI_Send(buf[id],N,MPI_INT,1,7+id,MPI_COMM_WORLD    ); printf("%d %d sent\n",me,id); fflush(stdout);
+      MPI_Recv(buf[id],N,MPI_INT,1,7+id,MPI_COMM_WORLD,&st); printf("%d %d recd\n",me,id); fflush(stdout);
+    } else {
+      MPI_Recv(buf[id],N,MPI_INT,0,7+id,MPI_COMM_WORLD,&st); printf("%d %d recd\n",me,id); fflush(stdout);
+      MPI_Send(buf[id],N,MPI_INT,0,7+id,MPI_COMM_WORLD    ); printf("%d %d sent\n",me,id); fflush(stdout);
+    }
+  }
+
+  MPI_Finalize();
+
+  return 0;
+}
+
+
+

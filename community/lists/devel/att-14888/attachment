@@ -1,0 +1,78 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><br><div><div>On May 28, 2014, at 1:18 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@gmail.com">gilles.gouaillardet@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div dir="ltr"><div><div><div><div><div><div><div><div>i finally got it :-)<br></div></div></div></div></div></div></div></div></div></blockquote><div><br></div>Hooray! Thanks for digging deeper.</div><div><br><blockquote type="cite"><div dir="ltr"><div><div><div><div><div><div><div><div><br></div><div>/* i previously got it "almost" right ... */<br><br></div>here is what happens on job 2 (with trunk) :<br></div>MPI_Intercomm_create calls ompi_comm_get_rprocs that calls ompi_proc_unpack<br>
+</div>=&gt; ompi_proc_unpack store job 3 info into opal_dstore_peer<br></div><br><br>then ompi_comm_get_rprocs calls ompi_proc_set_locality(job 3)<br></div>=&gt; ompi_proc_set_locality fetch information job 3 info from opal_dstore_internal (not found) and then opal_dstore_nonpeer (not found again) and then fails.<br>
+</div>this is just the consequence of ompi_proc_unpack stored job 3 info in opal_dstore_peer and not in opal_dstore_nonpeer</div></div></div></blockquote><blockquote type="cite"><div dir="ltr"><div><div><br></div>i do not understand which of opal_dstore_peer and opal_dstore_nonpeer should be used</div></div></blockquote><div><br></div>Neither do I, frankly - all I can do is hope that someone actually uses the requested multi-store capability as it definitely makes it harder to know what should be going where...</div><div><br><blockquote type="cite"><div dir="ltr"><div>and when, so i wrote a defensive patch (fetch both opal_dstore_nonpeer and then opal_dstore_peer if not previously found).<br>
+<br></div><div>please someone review this and comment/fix it if needed<br></div><div>(for example, store in opal_dstore_nonpeer instead of opal_dstore_peer<br></div><div>*or*<br></div><div>fetch in opal_dstore_peer instead of opal_dstore_nonpeer<br>
+</div><div>and/or something else )<br></div></div></blockquote><div><br></div>It looks fine as written - again, thanks for finding it.</div><div><br></div><div><br><blockquote type="cite"><div dir="ltr"><div><br></div>and then, locality is correctly set, coll ml receives correct information and this does not<br>hang any more if mpirun is invoked without --mca coll ^ml and on a single node single socket VM)<br>
+<div><div><br></div><div>bottom line, job 2 *did* receive information of job 3 but failed to store/fetch it in the right opal_store !<br><br></div><div>v1.8 is unaffected since there is only one dstore<br>
+<br></div><div>Cheers,<br><br>Gilles<br></div></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, May 28, 2014 at 4:51 AM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hmmm...I did some digging, and the best I can tell is that root cause is that the second job ("b" in the test program) is never actually calling connect_accept! &nbsp;This looks like a change may have occurred in Intercomm_create that is causing it to not recognize the need to do so.<br>
+
+<br>
+Anyone confirm that diagnosis?<br>
+<br>
+FWIW: job 1 clearly receives and has all the required info in the correct places - it is ready to provide it to job 2, if/when job 2 actually calls connect_accept.<br>
+<div><div class="h5"><br>
+On May 27, 2014, at 10:13 AM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+<br>
+&gt; Hi Gilles<br>
+&gt;<br>
+&gt; I concur on the typo and fixed it - thanks for catching it. I'll have to look into the problem you reported as it has been fixed in the past, and was working last I checked it. The info required for this 3-way connect/accept is supposed to be in the modex provided by the common communicator.<br>
+
+&gt;<br>
+&gt; On May 27, 2014, at 3:51 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@gmail.com">gilles.gouaillardet@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; Folks,<br>
+&gt;&gt;<br>
+&gt;&gt; while debugging the dynamic/intercomm_create from the ibm test suite, i found something odd.<br>
+&gt;&gt;<br>
+&gt;&gt; i ran *without* any batch manager on a VM (one socket and four cpus)<br>
+&gt;&gt; mpirun -np 1 ./dynamic/intercomm_create<br>
+&gt;&gt;<br>
+&gt;&gt; it hangs by default<br>
+&gt;&gt; it works with --mca coll ^ml<br>
+&gt;&gt;<br>
+&gt;&gt; basically :<br>
+&gt;&gt; - task 0 spawns task 1<br>
+&gt;&gt; - task 0 spawns task 2<br>
+&gt;&gt; - a communicator is created for the 3 tasks via MPI_Intercomm_create()<br>
+&gt;&gt;<br>
+&gt;&gt; MPI_Intercomm_create() calls ompi_comm_get_rprocs() which calls ompi_proc_set_locality()<br>
+&gt;&gt;<br>
+&gt;&gt; then, on task 1, ompi_proc_set_locality() calls<br>
+&gt;&gt; opal_dstore.fetch(opal_dstore_internal, "task 2"-&gt;proc_name, ...) which fails and this is OK<br>
+&gt;&gt; then<br>
+&gt;&gt; opal_dstore_fetch(opal_dstore_nonpeer, "task 2"-&gt;proc_name, ...) which fails and this is *not* OK<br>
+&gt;&gt;<br>
+&gt;&gt; /* on task 2, the first fetch for "task 1" fails but the second success */<br>
+&gt;&gt;<br>
+&gt;&gt; my analysis is that when task 2 was created, it updated its opal_dstore_nonpeer with info from "task 1" which was previously spawned by task 0.<br>
+&gt;&gt; when task 1 was spawned, task 2 did not exist yet and hence opal_dstore_nonpeer contains no reference to task 2.<br>
+&gt;&gt; but when task 2 was spawned, opal_dstore_nonpeer of task 1 has not been updated, hence the failure<br>
+&gt;&gt;<br>
+&gt;&gt; (on task 1, proc_flags of task 2 has incorrect locality, this likely confuses coll ml and hang the test)<br>
+&gt;&gt;<br>
+&gt;&gt; should task1 have received new information when task 2 was spawned ?<br>
+&gt;&gt; shoud task2 have sent information to task1 when it was spawned ?<br>
+&gt;&gt; should task1 have (tried to) get fresh information before invoking MPI_Intercomm_create() ?<br>
+&gt;&gt;<br>
+&gt;&gt; incidentally, i found ompi_proc_set_locality calls opal_dstore.store with<br>
+&gt;&gt; identifier &amp;proc (the argument is &amp;proc-&gt;proc_name everywhere else, so this<br>
+&gt;&gt; is likely a bug/typo. the attached patch fixes this.<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks in advance for your feedback,<br>
+&gt;&gt;<br>
+&gt;&gt; Gilles<br>
+&gt;&gt; &lt;proc.patch&gt;_______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/05/14848.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/05/14848.php</a><br>
+&gt;<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/05/14861.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/05/14861.php</a><br>
+</blockquote></div><br></div>
+<span>&lt;proc.patch&gt;</span>_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/devel<br>Link to this post: http://www.open-mpi.org/community/lists/devel/2014/05/14882.php</blockquote></div><br></body></html>

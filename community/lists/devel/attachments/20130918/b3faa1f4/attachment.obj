@@ -1,0 +1,502 @@
+Index: ompi/proc/proc.c
+===================================================================
+--- ompi/proc/proc.c	(revision 29151)
++++ ompi/proc/proc.c	(working copy)
+@@ -31,6 +31,7 @@
+ #include "opal/dss/dss.h"
+ #include "opal/util/arch.h"
+ #include "opal/util/show_help.h"
++#include "opal/mca/db/db.h"
+ 
+ #include "ompi/proc/proc.h"
+ #include "ompi/datatype/ompi_datatype.h"
+@@ -431,7 +432,9 @@
+ }
+ 
+ int
+-ompi_proc_pack(ompi_proc_t **proclist, int proclistsize, opal_buffer_t* buf)
++ompi_proc_pack(ompi_proc_t **proclist, int proclistsize,
++               bool full_info,
++               opal_buffer_t* buf)
+ {
+     int i, rc;
+     
+@@ -456,18 +459,70 @@
+             OPAL_THREAD_UNLOCK(&ompi_proc_lock);
+             return rc;
+         }
+-        rc = opal_dss.pack(buf, &(proclist[i]->proc_arch), 1, OPAL_UINT32);
+-        if(rc != OPAL_SUCCESS) {
+-            OMPI_ERROR_LOG(rc);
+-            OPAL_THREAD_UNLOCK(&ompi_proc_lock);
+-            return rc;
++        if( full_info ) {
++            int32_t num_entries;
++            opal_value_t *kv;
++            opal_list_t data;
++            opal_list_item_t *item, *next;
++
++            /* fetch what we know about the peer */
++            OBJ_CONSTRUCT(&data, opal_list_t);
++            rc = opal_db.fetch_multiple((opal_identifier_t*)&proclist[i]->proc_name, NULL, &data);
++            if (OPAL_SUCCESS != rc) {
++                OMPI_ERROR_LOG(rc);
++                num_entries = 0;
++                goto save_and_continue;
++            }
++
++            /* count the number of entries we will send, purging the rest */
++            num_entries = 0;
++            item = opal_list_get_first(&data);
++            while (item != opal_list_get_end(&data)) {
++                kv = (opal_value_t*)item;
++                next = opal_list_get_next(item);
++                /* if this is an entry we get from the nidmap, then don't include it here */
++                if (0 == strcmp(kv->key, ORTE_DB_NODERANK) ||
++                    0 == strcmp(kv->key, ORTE_DB_LOCALRANK) ||
++                    0 == strcmp(kv->key, ORTE_DB_CPUSET)) {
++                    opal_list_remove_item(&data, item);
++                } else {
++                    num_entries++;
++                }
++                item = next;
++            }
++
++        save_and_continue:
++            /* put the number of entries into the buffer */
++            rc = opal_dss.pack(buf, &num_entries, 1, OPAL_INT32);
++            if (OPAL_SUCCESS != rc) {
++                OMPI_ERROR_LOG(rc);
++                break;
++            }
++    
++            /* if there are entries, store them */
++            while (NULL != (kv = (opal_value_t*)opal_list_remove_first(&data))) {
++                if (OPAL_SUCCESS != (rc = opal_dss.pack(buf, &kv, 1, OPAL_VALUE))) {
++                    OMPI_ERROR_LOG(rc);
++                    break;
++                }
++                OBJ_RELEASE(kv);
++            }
++            OBJ_DESTRUCT(&data);
++
++        } else {
++            rc = opal_dss.pack(buf, &(proclist[i]->proc_arch), 1, OPAL_UINT32);
++            if(rc != OPAL_SUCCESS) {
++                OMPI_ERROR_LOG(rc);
++                OPAL_THREAD_UNLOCK(&ompi_proc_lock);
++                return rc;
++            }
++            rc = opal_dss.pack(buf, &(proclist[i]->proc_hostname), 1, OPAL_STRING);
++            if(rc != OPAL_SUCCESS) {
++                OMPI_ERROR_LOG(rc);
++                OPAL_THREAD_UNLOCK(&ompi_proc_lock);
++                return rc;
++            }
+         }
+-        rc = opal_dss.pack(buf, &(proclist[i]->proc_hostname), 1, OPAL_STRING);
+-        if(rc != OPAL_SUCCESS) {
+-            OMPI_ERROR_LOG(rc);
+-            OPAL_THREAD_UNLOCK(&ompi_proc_lock);
+-            return rc;
+-        }
+     }
+     OPAL_THREAD_UNLOCK(&ompi_proc_lock);
+     return OMPI_SUCCESS;
+@@ -515,14 +570,15 @@
+ int
+ ompi_proc_unpack(opal_buffer_t* buf, 
+                  int proclistsize, ompi_proc_t ***proclist,
++                 bool full_info,
+                  int *newproclistsize, ompi_proc_t ***newproclist)
+ {
+     int i;
+     size_t newprocs_len = 0;
+     ompi_proc_t **plist=NULL, **newprocs = NULL;
+-    
++
+     /* do not free plist *ever*, since it is used in the remote group
+-        structure of a communicator */
++       structure of a communicator */
+     plist = (ompi_proc_t **) calloc (proclistsize, sizeof (ompi_proc_t *));
+     if ( NULL == plist ) {
+         return OMPI_ERR_OUT_OF_RESOURCE;
+@@ -533,7 +589,7 @@
+         free(plist);
+         return OMPI_ERR_OUT_OF_RESOURCE;
+     }
+-    
++
+     /* cycle through the array of provided procs and unpack
+      * their info - as packed by ompi_proc_pack
+      */
+@@ -544,7 +600,7 @@
+         char *new_hostname;
+         bool isnew = false;
+         int rc;
+-        
++
+         rc = opal_dss.unpack(buf, &new_name, &count, OMPI_NAME);
+         if (rc != OPAL_SUCCESS) {
+             OMPI_ERROR_LOG(rc);
+@@ -552,21 +608,22 @@
+             free(newprocs);
+             return rc;
+         }
+-        rc = opal_dss.unpack(buf, &new_arch, &count, OPAL_UINT32);
+-        if (rc != OPAL_SUCCESS) {
+-            OMPI_ERROR_LOG(rc);
+-            free(plist);
+-            free(newprocs);
+-            return rc;
++        if(!full_info) {
++            rc = opal_dss.unpack(buf, &new_arch, &count, OPAL_UINT32);
++            if (rc != OPAL_SUCCESS) {
++                OMPI_ERROR_LOG(rc);
++                free(plist);
++                free(newprocs);
++                return rc;
++            }
++            rc = opal_dss.unpack(buf, &new_hostname, &count, OPAL_STRING);
++            if (rc != OPAL_SUCCESS) {
++                OMPI_ERROR_LOG(rc);
++                free(plist);
++                free(newprocs);
++                return rc;
++            }
+         }
+-        rc = opal_dss.unpack(buf, &new_hostname, &count, OPAL_STRING);
+-        if (rc != OPAL_SUCCESS) {
+-            OMPI_ERROR_LOG(rc);
+-            free(plist);
+-            free(newprocs);
+-            return rc;
+-        }
+-        
+         /* see if this proc is already on our ompi_proc_list */
+         plist[i] = ompi_proc_find_and_add(&new_name, &isnew);
+         if (isnew) {
+@@ -575,7 +632,55 @@
+              * to us
+              */
+             newprocs[newprocs_len++] = plist[i];
+-            
++
++            if( full_info ) {
++                int32_t num_recvd_entries;
++                orte_std_cntr_t cnt;
++                orte_std_cntr_t j;
++
++                /* unpack the number of entries for this proc */
++                cnt = 1;
++                if (OPAL_SUCCESS != (rc = opal_dss.unpack(buf, &num_recvd_entries, &cnt, OPAL_INT32))) {
++                    OMPI_ERROR_LOG(rc);
++                    break;
++                }
++    
++                /*
++                 * Extract the attribute names and values
++                 */
++                for (j = 0; j < num_recvd_entries; j++) {
++                    opal_value_t *kv;
++                    cnt = 1;
++                    if (OPAL_SUCCESS != (rc = opal_dss.unpack(buf, &kv, &cnt, OPAL_VALUE))) {
++                        OMPI_ERROR_LOG(rc);
++                        break;
++                    }
++                    /* if this is me, dump the data - we already have it in the db */
++                    if (OPAL_EQUAL == ompi_rte_compare_name_fields(OMPI_RTE_CMP_ALL,
++                                                                   OMPI_PROC_MY_NAME, &new_name)) {
++                        OBJ_RELEASE(kv);
++                    } else {
++                        opal_output(0, "store %s for proc %s\n", kv->key, OMPI_NAME_PRINT(&new_name));
++                        /* store it in the database */
++                        if (OPAL_SUCCESS != (rc = opal_db.store_pointer((opal_identifier_t*)&new_name,
++                                                                        OPAL_DB_GLOBAL, kv))) {
++                            OMPI_ERROR_LOG(rc);
++                            OBJ_RELEASE(kv);
++                        }
++                        /* do not release the kv - the db holds that pointer */
++                    }
++                }
++                rc = opal_db.fetch((opal_identifier_t*)&new_name, "OMPI_ARCH",
++                                   (void**)&new_arch, OPAL_UINT32);
++                if( OPAL_SUCCESS != rc ) {
++                    new_arch = opal_local_arch;
++                }
++                rc = opal_db.fetch_pointer((opal_identifier_t*)&new_name, ORTE_DB_HOSTNAME,
++                                           (void**)&new_hostname, OPAL_STRING);
++                if( OPAL_SUCCESS != rc ) {
++                    new_hostname = NULL;
++                }
++            }
+             /* update all the values */
+             plist[i]->proc_arch = new_arch;
+             /* if arch is different than mine, create a new convertor for this proc */
+@@ -594,21 +699,42 @@
+                 return OMPI_ERR_NOT_SUPPORTED;
+ #endif
+             }
+-            if (0 == strcmp(ompi_proc_local_proc->proc_hostname,new_hostname)) {
++
++            if (0 == strcmp(ompi_proc_local_proc->proc_hostname, new_hostname)) {
+                 plist[i]->proc_flags |= (OPAL_PROC_ON_NODE | OPAL_PROC_ON_CU | OPAL_PROC_ON_CLUSTER);
+             }
+-            
++
+             /* Save the hostname */
+             plist[i]->proc_hostname = new_hostname;
+-            
++
+             /* eventually, we will update the orte/mca/ess framework's data
+              * to contain the info for the new proc. For now, we ignore
+              * this step since the MPI layer already has all the info
+              * it requires
+              */
++        } else {
++            if( full_info ) {
++                int32_t num_recvd_entries;
++                orte_std_cntr_t j, cnt;
++
++                /* discard all keys: they are already locally known */
++                cnt = 1;
++                if (OPAL_SUCCESS == (rc = opal_dss.unpack(buf, &num_recvd_entries, &cnt, OPAL_INT32))) {
++                    for (j = 0; j < num_recvd_entries; j++) {
++                        opal_value_t *kv;
++                        cnt = 1;
++                        if (OPAL_SUCCESS != (rc = opal_dss.unpack(buf, &kv, &cnt, OPAL_VALUE))) {
++                            OMPI_ERROR_LOG(rc);
++                        }
++                        OBJ_RELEASE(kv);
++                    }
++                } else {
++                    OMPI_ERROR_LOG(rc);
++                }
++            }    
+         }
+     }
+-    
++
+     if (NULL != newproclistsize) *newproclistsize = newprocs_len;
+     if (NULL != newproclist) {
+         *newproclist = newprocs;
+@@ -615,7 +741,7 @@
+     } else if (newprocs != NULL) {
+         free(newprocs);
+     }
+-    
++
+     *proclist = plist;
+     return OMPI_SUCCESS;
+ }
+Index: ompi/proc/proc.h
+===================================================================
+--- ompi/proc/proc.h	(revision 29151)
++++ ompi/proc/proc.h	(working copy)
+@@ -254,6 +254,7 @@
+  * @retval OMPI_ERROR      Unspecified error
+  */
+ OMPI_DECLSPEC int ompi_proc_pack(ompi_proc_t **proclist, int proclistsize,
++                                 bool full_info,
+                                  opal_buffer_t *buf);
+ 
+ 
+@@ -298,6 +299,7 @@
+  */
+ OMPI_DECLSPEC int ompi_proc_unpack(opal_buffer_t *buf, 
+                                    int proclistsize, ompi_proc_t ***proclist,
++                                   bool full_info,
+                                    int *newproclistsize, ompi_proc_t ***newproclist);
+ 
+ /**
+Index: ompi/communicator/comm.c
+===================================================================
+--- ompi/communicator/comm.c	(revision 29151)
++++ ompi/communicator/comm.c	(working copy)
+@@ -1204,9 +1204,9 @@
+     char *recvbuf;
+     ompi_proc_t **proc_list=NULL;
+     int i;
+-    
++
+     local_rank = ompi_comm_rank (local_comm);
+-    local_size = ompi_comm_size (local_comm);    
++    local_size = ompi_comm_size (local_comm);
+ 
+     if (local_rank == local_leader) {
+         sbuf = OBJ_NEW(opal_buffer_t);
+@@ -1213,18 +1213,18 @@
+         if (NULL == sbuf) {
+             rc = OMPI_ERROR;
+             goto err_exit;
+-        } 
++        }
+         if(OMPI_GROUP_IS_DENSE(local_comm->c_local_group)) {
+-            rc = ompi_proc_pack(local_comm->c_local_group->grp_proc_pointers, 
+-                                local_size, sbuf);
++            rc = ompi_proc_pack(local_comm->c_local_group->grp_proc_pointers,
++                                local_size, true, sbuf);
+         }
+         /* get the proc list for the sparse implementations */
+-        else { 
+-            proc_list = (ompi_proc_t **) calloc (local_comm->c_local_group->grp_proc_count, 
++        else {
++            proc_list = (ompi_proc_t **) calloc (local_comm->c_local_group->grp_proc_count,
+                                                  sizeof (ompi_proc_t *));
+             for(i=0 ; i<local_comm->c_local_group->grp_proc_count ; i++)
+                 proc_list[i] = ompi_group_peer_lookup(local_comm->c_local_group,i);
+-            rc = ompi_proc_pack (proc_list, local_size, sbuf);
++            rc = ompi_proc_pack (proc_list, local_size, true, sbuf);
+         }
+         if ( OMPI_SUCCESS != rc ) {
+             goto err_exit;
+@@ -1232,7 +1232,7 @@
+         if (OPAL_SUCCESS != (rc = opal_dss.unload(sbuf, &sendbuf, &size_len))) {
+             goto err_exit;
+         }
+-    
++
+         /* send the remote_leader the length of the buffer */
+         rc = MCA_PML_CALL(irecv (&rlen, 1, MPI_INT, remote_leader, tag,
+                                  bridge_comm, &req ));
+@@ -1240,8 +1240,8 @@
+             goto err_exit;
+         }
+         int_len = (int)size_len;
+-        
+-        rc = MCA_PML_CALL(send (&int_len, 1, MPI_INT, remote_leader, tag, 
++
++        rc = MCA_PML_CALL(send (&int_len, 1, MPI_INT, remote_leader, tag,
+                                 MCA_PML_BASE_SEND_STANDARD, bridge_comm ));
+         if ( OMPI_SUCCESS != rc ) {
+             goto err_exit;
+@@ -1250,17 +1250,16 @@
+         if ( OMPI_SUCCESS != rc ) {
+             goto err_exit;
+         }
+-        
+     }
+-    
++
+     /* broadcast buffer length to all processes in local_comm */
+-    rc = local_comm->c_coll.coll_bcast( &rlen, 1, MPI_INT, 
++    rc = local_comm->c_coll.coll_bcast( &rlen, 1, MPI_INT,
+                                         local_leader, local_comm,
+                                         local_comm->c_coll.coll_bcast_module );
+     if ( OMPI_SUCCESS != rc ) {
+         goto err_exit;
+     }
+-    
++
+     /* Allocate temporary buffer */
+     recvbuf = (char *)malloc(rlen);
+     if ( NULL == recvbuf ) {
+@@ -1274,7 +1273,7 @@
+         if ( OMPI_SUCCESS != rc ) {
+             goto err_exit;
+         }
+-        rc = MCA_PML_CALL(send(sendbuf, int_len, MPI_BYTE, remote_leader, tag, 
++        rc = MCA_PML_CALL(send(sendbuf, int_len, MPI_BYTE, remote_leader, tag,
+                                MCA_PML_BASE_SEND_STANDARD, bridge_comm ));
+         if ( OMPI_SUCCESS != rc ) {
+             goto err_exit;
+@@ -1288,7 +1287,7 @@
+     }
+ 
+     /* broadcast name list to all proceses in local_comm */
+-    rc = local_comm->c_coll.coll_bcast( recvbuf, rlen, MPI_BYTE, 
++    rc = local_comm->c_coll.coll_bcast( recvbuf, rlen, MPI_BYTE,
+                                         local_leader, local_comm,
+                                         local_comm->c_coll.coll_bcast_module);
+     if ( OMPI_SUCCESS != rc ) {
+@@ -1300,19 +1299,24 @@
+         rc = OMPI_ERROR;
+         goto err_exit;
+     }
+-    
++
+     if (OMPI_SUCCESS != (rc = opal_dss.load(rbuf, recvbuf, rlen))) {
+         goto err_exit;
+     }
+-    
+-    /* decode the names into a proc-list -- will never add a new proc
+-       as the result of this operation, so no need to get the newprocs
+-       list or call PML add_procs(). */
+-    rc = ompi_proc_unpack(rbuf, rsize, &rprocs, NULL, NULL);
++
++    /* decode the names into a proc-list */
++    rc = ompi_proc_unpack(rbuf, rsize, &rprocs, true, NULL, NULL);
+     OBJ_RELEASE(rbuf);
+-    
++
++    /* And now add the information into the database */
++    /* Store the remote processes into the opal_db */
++    if (OMPI_SUCCESS != (rc = MCA_PML_CALL(add_procs(rprocs, rsize)))) {
++        ORTE_ERROR_LOG(rc);
++        goto err_exit;
++    }
++
+  err_exit:
+-    /* rprocs isn't freed unless we have an error, 
++    /* rprocs isn't freed unless we have an error,
+        since it is used in the communicator */
+     if ( OMPI_SUCCESS != rc ) {
+         opal_output(0, "%d: Error in ompi_get_rprocs\n", local_rank);
+@@ -1331,7 +1335,7 @@
+     if ( NULL != proc_list ) {
+         free ( proc_list );
+     }
+-        
++
+     return rprocs;
+ }
+ /**********************************************************************/
+Index: ompi/mca/dpm/orte/dpm_orte.c
+===================================================================
+--- ompi/mca/dpm/orte/dpm_orte.c	(revision 29151)
++++ ompi/mca/dpm/orte/dpm_orte.c	(working copy)
+@@ -285,7 +285,7 @@
+         }
+         
+         if (OMPI_GROUP_IS_DENSE(group)) {
+-            ompi_proc_pack(group->grp_proc_pointers, size, nbuf);
++            ompi_proc_pack(group->grp_proc_pointers, size, false, nbuf);
+         } else {
+             proc_list = (ompi_proc_t **) calloc (group->grp_proc_count, 
+                                                  sizeof (ompi_proc_t *));
+@@ -301,7 +301,7 @@
+                                      ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+                                      ORTE_NAME_PRINT(&proc_list[i]->proc_name)));
+             }
+-            ompi_proc_pack(proc_list, size, nbuf);
++            ompi_proc_pack(proc_list, size, false, nbuf);
+         }
+         
+         /* pack wireup info - this is required so that all involved parties can
+@@ -432,7 +432,7 @@
+         goto exit;
+     }
+ 
+-    rc = ompi_proc_unpack(nrbuf, rsize, &rprocs, &new_proc_len, &new_proc_list);
++    rc = ompi_proc_unpack(nrbuf, rsize, &rprocs, false, &new_proc_len, &new_proc_list);
+     if ( OMPI_SUCCESS != rc ) {
+         goto exit;
+     }
+@@ -1634,7 +1634,7 @@
+     int rc;
+ 
+     /* pack the MPI info */
+-    ompi_proc_pack(group->grp_proc_pointers, 1, buf);
++    ompi_proc_pack(group->grp_proc_pointers, 1, false, buf);
+ 
+     /* pack our hostname */
+     if (ORTE_SUCCESS != (rc = opal_dss.pack(buf, &orte_process_info.nodename, 1, OPAL_STRING))) {
+@@ -1708,7 +1708,7 @@
+     }
+ 
+     /* unpack the proc info */
+-    if (OMPI_SUCCESS != (rc = ompi_proc_unpack(buffer, 1, &rprocs, &new_proc_len, &new_proc_list))) {
++    if (OMPI_SUCCESS != (rc = ompi_proc_unpack(buffer, 1, &rprocs, false, &new_proc_len, &new_proc_list))) {
+         ORTE_ERROR_LOG(rc);
+         return;
+     }

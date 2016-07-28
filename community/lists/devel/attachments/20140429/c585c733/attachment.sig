@@ -1,0 +1,8 @@
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.9 (MingW32)
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+
+iF4EAREIAAYFAlNfqLQACgkQ9LpsPlCRMyX+/AD9GAdeKaxQLAxbJaxqT5foqZ0u
+cH358oFn3FweI0RmXR0A/jz8PXnapJguvhz6uUjOeUhXaxhM9fjpTLxmS6fd2Pvr
+=DwMJ
+-----END PGP SIGNATURE-----

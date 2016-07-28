@@ -1,0 +1,173 @@
+<div dir="ltr">As they don&#39;t even compile why are we keeping them around?<div><br></div><div>  George.</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Wed, Sep 16, 2015 at 12:05 PM, Nathan Hjelm <span dir="ltr">&lt;<a href="mailto:hjelmn@lanl.gov" target="_blank">hjelmn@lanl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+iboffload and bfo are opal ignored by default. Neither exists in the<br>
+release branch.<br>
+<br>
+-Nathan<br>
+<div><div class="h5"><br>
+On Wed, Sep 16, 2015 at 12:02:29PM -0400, George Bosilca wrote:<br>
+&gt;    While looking into a possible fix for this problem we should also cleanup<br>
+&gt;    in the trunk the leftover from the OMPI_FREE_LIST.<br>
+&gt;    $find . -name &quot;*.[ch]&quot; -exec grep -Hn OMPI_FREE_LIST_GET_MT {} +<br>
+&gt;    ./opal/mca/btl/usnic/btl_usnic_compat.h:161:<br>
+&gt;     OMPI_FREE_LIST_GET_MT(list, (item))<br>
+&gt;    ./ompi/mca/pml/bfo/pml_bfo_recvreq.h:89:<br>
+&gt;    OMPI_FREE_LIST_GET_MT(&amp;mca_pml_base_recv_requests, item);          \<br>
+&gt;    ./ompi/mca/bcol/iboffload/bcol_iboffload_task.h:149:<br>
+&gt;     OMPI_FREE_LIST_GET_MT(&amp;cm-&gt;tasks_free, item);<br>
+&gt;    ./ompi/mca/bcol/iboffload/bcol_iboffload_task.h:206:<br>
+&gt;     OMPI_FREE_LIST_GET_MT(task_list, item);<br>
+&gt;    ./ompi/mca/bcol/iboffload/bcol_iboffload_frag.c:107:<br>
+&gt;     OMPI_FREE_LIST_GET_MT(&amp;device-&gt;frags_free[qp_index], item);<br>
+&gt;    ./ompi/mca/bcol/iboffload/bcol_iboffload_frag.c:146:<br>
+&gt;     OMPI_FREE_LIST_GET_MT(&amp;device-&gt;frags_free[qp_index], item);<br>
+&gt;    ./ompi/mca/bcol/iboffload/bcol_iboffload_frag.c:208:<br>
+&gt;     OMPI_FREE_LIST_GET_MT(&amp;iboffload-&gt;device-&gt;frags_free[qp_index], item);<br>
+&gt;    ./ompi/mca/bcol/iboffload/bcol_iboffload_qp_info.c:156:<br>
+&gt;     OMPI_FREE_LIST_GET_MT(&amp;device-&gt;frags_free[qp_index], item);<br>
+&gt;    ./ompi/mca/bcol/iboffload/bcol_iboffload_collfrag.h:130:<br>
+&gt;     OMPI_FREE_LIST_GET_MT(&amp;cm-&gt;collfrags_free, item);<br>
+&gt;    ./ompi/mca/bcol/iboffload/bcol_iboffload_frag.h:115:<br>
+&gt;     OMPI_FREE_LIST_GET_MT(&amp;cm-&gt;ml_frags_free, item);<br>
+&gt;    I wonder how these are even compiling ...<br>
+&gt;      George.<br>
+&gt;    On Wed, Sep 16, 2015 at 11:59 AM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu">bosilca@icl.utk.edu</a>&gt;<br>
+&gt;    wrote:<br>
+&gt;<br>
+&gt;      Alexey,<br>
+&gt;      This is not necessarily the fix for all cases. Most of the internal uses<br>
+&gt;      of the free_list can easily accommodate to the fact that no more<br>
+&gt;      elements are available. Based on your description of the problem I would<br>
+&gt;      assume you encounter this problem once the<br>
+&gt;      MCA_PML_OB1_RECV_REQUEST_ALLOC is called. In this particular case the<br>
+&gt;      problem is that fact that we call OMPI_FREE_LIST_GET_MT and that the<br>
+&gt;      upper level is unable to correctly deal with the case where the returned<br>
+&gt;      item is NULL. In this particular case the real fix is to use the<br>
+&gt;      blocking version of the free_list accessor (similar to the case for<br>
+&gt;      send) OMPI_FREE_LIST_WAIT_MT.<br>
+&gt;      It is also possible that I misunderstood your problem. IF the solution<br>
+&gt;      above doesn&#39;t work can you describe exactly where the NULL return of the<br>
+&gt;      OMPI_FREE_LIST_GET_MT is creating an issue?<br>
+&gt;      George.<br>
+</div></div>&gt;      On Wed, Sep 16, 2015 at 9:03 AM, Aleksej Ryzhih<br>
+<div><div class="h5">&gt;      &lt;<a href="mailto:avryzhikh@compcenter.org">avryzhikh@compcenter.org</a>&gt; wrote:<br>
+&gt;<br>
+&gt;        Hi all,<br>
+&gt;<br>
+&gt;        We experimented with MPI+OpenMP hybrid application<br>
+&gt;        (MPI_THREAD_MULTIPLE support level)  where several threads submits a<br>
+&gt;        lot of MPI_Irecv() requests simultaneously and encountered an<br>
+&gt;        intermittent bug OMPI_ERR_TEMP_OUT_OF_RESOURCE after<br>
+&gt;        MCA_PML_OB1_RECV_REQUEST_ALLOC()  because  OMPI_FREE_LIST_GET_MT()<br>
+&gt;         returned NULL.  Investigating this bug we found that sometimes the<br>
+&gt;        thread calling ompi_free_list_grow()  don&#39;t have any free items in<br>
+&gt;        LIFO list at exit because other threads  retrieved  all new items at<br>
+&gt;        opal_atomic_lifo_pop()<br>
+&gt;<br>
+&gt;        So we suggest to change OMPI_FREE_LIST_GET_MT() as below:<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;        #define OMPI_FREE_LIST_GET_MT(fl,<br>
+&gt;        item)                                                                \<br>
+&gt;<br>
+&gt;<br>
+&gt;        {<br>
+&gt;                                  \<br>
+&gt;<br>
+&gt;                item = (ompi_free_list_item_t*)<br>
+&gt;        opal_atomic_lifo_pop(&amp;((fl)-&gt;super));             \<br>
+&gt;<br>
+&gt;                if( OPAL_UNLIKELY(NULL == item) )<br>
+&gt;        {                                               \<br>
+&gt;<br>
+&gt;                    if(opal_using_threads())<br>
+&gt;        {                                                    \<br>
+&gt;<br>
+&gt;                        int rc;<br>
+&gt;                                  \<br>
+&gt;<br>
+&gt;<br>
+&gt;        opal_mutex_lock(&amp;((fl)-&gt;fl_lock));<br>
+&gt;        \<br>
+&gt;<br>
+&gt;<br>
+&gt;        do<br>
+&gt;        \<br>
+&gt;<br>
+&gt;                        {<br>
+&gt;                                                      \<br>
+&gt;<br>
+&gt;                            rc = ompi_free_list_grow((fl),<br>
+&gt;        (fl)-&gt;fl_num_per_alloc);               \<br>
+&gt;<br>
+&gt;                            if( OPAL_UNLIKELY(rc != OMPI_SUCCESS))<br>
+&gt;        break;                         \<br>
+&gt;<br>
+&gt;<br>
+&gt;                                                                          \<br>
+&gt;<br>
+&gt;                            item = (ompi_free_list_item_t*)<br>
+&gt;        opal_atomic_lifo_pop(&amp;((fl)-&gt;super)); \<br>
+&gt;<br>
+&gt;<br>
+&gt;        \<br>
+&gt;<br>
+&gt;                        } while<br>
+&gt;        (!item);                                                          \<br>
+&gt;<br>
+&gt;<br>
+&gt;        opal_mutex_unlock(&amp;((fl)-&gt;fl_lock));<br>
+&gt;        \<br>
+&gt;<br>
+&gt;                    } else<br>
+&gt;        {<br>
+&gt;                      \<br>
+&gt;<br>
+&gt;                        ompi_free_list_grow((fl),<br>
+&gt;        (fl)-&gt;fl_num_per_alloc);                        \<br>
+&gt;<br>
+&gt;                        item = (ompi_free_list_item_t*)<br>
+&gt;        opal_atomic_lifo_pop(&amp;((fl)-&gt;super));     \<br>
+&gt;<br>
+&gt;                    } /* opal_using_threads() */<br>
+&gt;                                          \<br>
+&gt;<br>
+&gt;                } /* NULL == item<br>
+&gt;        */                                                              \<br>
+&gt;<br>
+&gt;            }<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;        Another workaround is to increase the value of  pml_ob1_free_list_inc<br>
+&gt;        parameter.<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;        Regards,<br>
+&gt;<br>
+&gt;        Alexey<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;        _______________________________________________<br>
+&gt;        devel mailing list<br>
+&gt;        <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;        Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;        Link to this post:<br>
+&gt;        <a href="http://www.open-mpi.org/community/lists/devel/2015/09/18039.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/09/18039.php</a><br>
+<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div>&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/09/18046.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/09/18046.php</a><br>
+<br>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/09/18048.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/09/18048.php</a><br></blockquote></div><br></div>
+

@@ -1,0 +1,198 @@
+<div dir="ltr"><br>Thanks for comment.<br>fixed it.<br><br><div class="gmail_quote">On Mon, Aug 8, 2011 at 6:28 PM, Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">Mike --<br>
+<br>
+Does mxm_init() do Reasonable Things to check to see if the local OpenFabrics-capable devices are unsuitable for MXM?  E.g., does it check to see if the local OpenFabrics devices are MXM-capable, and if not, fail gracefully?<br>
+
+
+<br>
+Also, I would suggest NOT showing a show_help message if there are OF devices available such that CM/MXM can (probably) fail over to OB1/openib.  I.e., only show a show_help message if devices are available for MXM, but an actual error occurs during the MXM initialization.<br>
+
+
+<br>
+Otherwise, if I mpirun (with the MXM MTL installed) on a system with only RoCE or iWARP devices present, MXM will complain but then fail over to OB1/openib.  That would probably be confusing.<br>
+<br>
+<br>
+<br>
+On Aug 7, 2011, at 8:06 AM, <a href="mailto:miked@osl.iu.edu">miked@osl.iu.edu</a> wrote:<br>
+<br>
+&gt; Author: miked<br>
+&gt; Date: 2011-08-07 08:06:49 EDT (Sun, 07 Aug 2011)<br>
+&gt; New Revision: 25005<br>
+&gt; URL: <a href="https://svn.open-mpi.org/trac/ompi/changeset/25005" target="_blank">https://svn.open-mpi.org/trac/ompi/changeset/25005</a><br>
+&gt;<br>
+&gt; Log:<br>
+&gt; better mxm selection mechanism, some refactoring<br>
+&gt; Text files modified:<br>
+&gt;   trunk/ompi/mca/mtl/mxm/mtl_mxm_cancel.c    |     4 ++--<br>
+&gt;   trunk/ompi/mca/mtl/mxm/mtl_mxm_component.c |    32 ++++++++++++++------------------<br>
+&gt;   trunk/ompi/mca/mtl/mxm/mtl_mxm_recv.c      |     6 +++---<br>
+&gt;   trunk/ompi/mca/mtl/mxm/mtl_mxm_request.h   |     6 +++++-<br>
+&gt;   trunk/ompi/mca/mtl/mxm/mtl_mxm_send.c      |     4 ++--<br>
+&gt;   5 files changed, 26 insertions(+), 26 deletions(-)<br>
+&gt;<br>
+&gt; Modified: trunk/ompi/mca/mtl/mxm/mtl_mxm_cancel.c<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/ompi/mca/mtl/mxm/mtl_mxm_cancel.c   (original)<br>
+&gt; +++ trunk/ompi/mca/mtl/mxm/mtl_mxm_cancel.c   2011-08-07 08:06:49 EDT (Sun, 07 Aug 2011)<br>
+&gt; @@ -18,9 +18,9 @@<br>
+&gt;     mxm_error_t err;<br>
+&gt;     mca_mtl_mxm_request_t *mtl_mxm_request = (mca_mtl_mxm_request_t*) mtl_request;<br>
+&gt;<br>
+&gt; -    err = mxm_req_cancel(mtl_mxm_request-&gt;mxm_base_request);<br>
+&gt; +    err = mxm_req_cancel(&amp;mtl_mxm_request-&gt;mxm.base);<br>
+&gt;     if (MXM_OK == err) {<br>
+&gt; -        err = mxm_req_test(mtl_mxm_request-&gt;mxm_base_request);<br>
+&gt; +        err = mxm_req_test(&amp;mtl_mxm_request-&gt;mxm.base);<br>
+&gt;         if (MXM_OK == err) {<br>
+&gt;             mtl_request-&gt;ompi_req-&gt;req_status._cancelled = true;<br>
+&gt;             mtl_mxm_request-&gt;super.completion_callback(&amp;mtl_mxm_request-&gt;super);<br>
+&gt;<br>
+&gt; Modified: trunk/ompi/mca/mtl/mxm/mtl_mxm_component.c<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/ompi/mca/mtl/mxm/mtl_mxm_component.c        (original)<br>
+&gt; +++ trunk/ompi/mca/mtl/mxm/mtl_mxm_component.c        2011-08-07 08:06:49 EDT (Sun, 07 Aug 2011)<br>
+&gt; @@ -72,18 +72,27 @@<br>
+&gt;<br>
+&gt; static int ompi_mtl_mxm_component_open(void)<br>
+&gt; {<br>
+&gt; -    struct stat st;<br>
+&gt;<br>
+&gt; -    /* Component available only if IB hardware is present */<br>
+&gt; -    if (0 == stat(&quot;/dev/infiniband/uverbs0&quot;, &amp;st)) {<br>
+&gt; -        return OMPI_SUCCESS;<br>
+&gt; -    } else {<br>
+&gt; +    mxm_context_opts_t mxm_opts;<br>
+&gt; +    mxm_error_t err;<br>
+&gt; +<br>
+&gt; +    mca_mtl_mxm_output = opal_output_open(NULL);<br>
+&gt; +    opal_output_set_verbosity(mca_mtl_mxm_output, ompi_mtl_mxm.verbose);<br>
+&gt; +<br>
+&gt; +    mxm_fill_context_opts(&amp;mxm_opts);<br>
+&gt; +    err = mxm_init(&amp;mxm_opts, &amp;ompi_mtl_mxm.mxm_context);<br>
+&gt; +    if (MXM_OK != err) {<br>
+&gt; +        orte_show_help(&quot;help-mtl-mxm.txt&quot;, &quot;mxm init&quot;, true,<br>
+&gt; +                       mxm_error_string(err));<br>
+&gt;         return OPAL_ERR_NOT_AVAILABLE;<br>
+&gt;     }<br>
+&gt; +    return OMPI_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int ompi_mtl_mxm_component_close(void)<br>
+&gt; {<br>
+&gt; +    mxm_cleanup(ompi_mtl_mxm.mxm_context);<br>
+&gt; +    ompi_mtl_mxm.mxm_context = NULL;<br>
+&gt;     return OMPI_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; @@ -91,21 +100,8 @@<br>
+&gt; ompi_mtl_mxm_component_init(bool enable_progress_threads,<br>
+&gt;                             bool enable_mpi_threads)<br>
+&gt; {<br>
+&gt; -    mxm_context_opts_t mxm_opts;<br>
+&gt; -    mxm_error_t err;<br>
+&gt;     int rc;<br>
+&gt;<br>
+&gt; -    mca_mtl_mxm_output = opal_output_open(NULL);<br>
+&gt; -    opal_output_set_verbosity(mca_mtl_mxm_output, ompi_mtl_mxm.verbose);<br>
+&gt; -<br>
+&gt; -    mxm_fill_context_opts(&amp;mxm_opts);<br>
+&gt; -    err = mxm_init(&amp;mxm_opts, &amp;ompi_mtl_mxm.mxm_context);<br>
+&gt; -    if (MXM_OK != err) {<br>
+&gt; -        orte_show_help(&quot;help-mtl-mxm.txt&quot;, &quot;mxm init&quot;, true,<br>
+&gt; -                       mxm_error_string(err));<br>
+&gt; -        return NULL;<br>
+&gt; -    }<br>
+&gt; -<br>
+&gt;     rc = ompi_mtl_mxm_module_init();<br>
+&gt;     if (OMPI_SUCCESS != rc) {<br>
+&gt;       return NULL;<br>
+&gt;<br>
+&gt; Modified: trunk/ompi/mca/mtl/mxm/mtl_mxm_recv.c<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/ompi/mca/mtl/mxm/mtl_mxm_recv.c     (original)<br>
+&gt; +++ trunk/ompi/mca/mtl/mxm/mtl_mxm_recv.c     2011-08-07 08:06:49 EDT (Sun, 07 Aug 2011)<br>
+&gt; @@ -22,12 +22,12 @@<br>
+&gt; {<br>
+&gt;       mca_mtl_mxm_request_t *req = (mca_mtl_mxm_request_t *) context;<br>
+&gt;     struct ompi_request_t *ompi_req = req-&gt;super.ompi_req;<br>
+&gt; -    mxm_recv_req_t *mxm_recv_req = (mxm_recv_req_t *)req-&gt;mxm_base_request;<br>
+&gt; +    mxm_recv_req_t *mxm_recv_req = &amp;req-&gt;mxm.recv;<br>
+&gt;<br>
+&gt;     /* Set completion status and envelope */<br>
+&gt;     ompi_req-&gt;req_status.MPI_TAG    = mxm_recv_req-&gt;completion.sender_tag;<br>
+&gt;     ompi_req-&gt;req_status.MPI_SOURCE = mxm_recv_req-&gt;completion.sender_imm;<br>
+&gt; -    ompi_req-&gt;req_status.MPI_ERROR  = ompi_mtl_mxm_to_mpi_status(req-&gt;mxm_base_request-&gt;error);<br>
+&gt; +    ompi_req-&gt;req_status.MPI_ERROR  = ompi_mtl_mxm_to_mpi_status(mxm_recv_req-&gt;base.error);<br>
+&gt;     ompi_req-&gt;req_status._ucount    = mxm_recv_req-&gt;completion.actual_len;<br>
+&gt;<br>
+&gt;     /* Copy data */<br>
+&gt; @@ -63,7 +63,7 @@<br>
+&gt;         return ret;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    mxm_recv_req = (mxm_recv_req_t *)mtl_mxm_request-&gt;mxm_base_request;<br>
+&gt; +    mxm_recv_req = &amp;mtl_mxm_request-&gt;mxm.recv;<br>
+&gt;<br>
+&gt;     /* prepare a receive request embedded in the MTL request */<br>
+&gt;     mxm_recv_req-&gt;base.state    = MXM_REQ_NEW;<br>
+&gt;<br>
+&gt; Modified: trunk/ompi/mca/mtl/mxm/mtl_mxm_request.h<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/ompi/mca/mtl/mxm/mtl_mxm_request.h  (original)<br>
+&gt; +++ trunk/ompi/mca/mtl/mxm/mtl_mxm_request.h  2011-08-07 08:06:49 EDT (Sun, 07 Aug 2011)<br>
+&gt; @@ -16,7 +16,11 @@<br>
+&gt;<br>
+&gt; struct mca_mtl_mxm_request_t {<br>
+&gt;     struct mca_mtl_request_t super;<br>
+&gt; -    mxm_req_base_t *mxm_base_request;<br>
+&gt; +    union {<br>
+&gt; +     mxm_req_base_t base;<br>
+&gt; +     mxm_send_req_t send;<br>
+&gt; +     mxm_recv_req_t recv;<br>
+&gt; +    } mxm;<br>
+&gt;     /* mxm_segment_t mxm_segment[1]; */<br>
+&gt;     void *buf;<br>
+&gt;     size_t length;<br>
+&gt;<br>
+&gt; Modified: trunk/ompi/mca/mtl/mxm/mtl_mxm_send.c<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/ompi/mca/mtl/mxm/mtl_mxm_send.c     (original)<br>
+&gt; +++ trunk/ompi/mca/mtl/mxm/mtl_mxm_send.c     2011-08-07 08:06:49 EDT (Sun, 07 Aug 2011)<br>
+&gt; @@ -25,7 +25,7 @@<br>
+&gt;         free(mtl_mxm_request-&gt;buf);<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    mtl_mxm_request-&gt;super.ompi_req-&gt;req_status.MPI_ERROR  = ompi_mtl_mxm_to_mpi_status(mtl_mxm_request-&gt;mxm_base_request-&gt;error);<br>
+&gt; +    mtl_mxm_request-&gt;super.ompi_req-&gt;req_status.MPI_ERROR  = ompi_mtl_mxm_to_mpi_status(mtl_mxm_request-&gt;mxm.base.error);<br>
+&gt;<br>
+&gt;     mtl_mxm_request-&gt;super.completion_callback(&amp;mtl_mxm_request-&gt;super);<br>
+&gt; }<br>
+&gt; @@ -93,7 +93,7 @@<br>
+&gt;         return ret;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    mxm_send_req = (mxm_send_req_t *) mtl_mxm_request-&gt;mxm_base_request;<br>
+&gt; +    mxm_send_req = &amp;mtl_mxm_request-&gt;mxm.send;<br>
+&gt;<br>
+&gt;     /* prepare a send request embedded in the MTL request */<br>
+&gt;     mxm_send_req-&gt;base.state                  = MXM_REQ_NEW;<br>
+&gt; _______________________________________________<br>
+&gt; svn-full mailing list<br>
+&gt; <a href="mailto:svn-full@open-mpi.org">svn-full@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/svn-full" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/svn-full</a><br>
+<br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to:<br>
+<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote></div><br></div>
+

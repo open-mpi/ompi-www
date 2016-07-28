@@ -1,0 +1,190 @@
+Index: ompi/mca/coll/self/coll_self_alltoall.c
+===================================================================
+--- ompi/mca/coll/self/coll_self_alltoall.c	(revision 29185)
++++ ompi/mca/coll/self/coll_self_alltoall.c	(working copy)
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2013      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -37,6 +38,10 @@
+                                  struct ompi_communicator_t *comm,
+                                  mca_coll_base_module_t *module)
+ {
++    if (MPI_IN_PLACE == sbuf) {
++        return MPI_SUCCESS;
++    }
++
+     return ompi_datatype_sndrcv(sbuf, scount, sdtype,
+                            rbuf, rcount, rdtype);
+ }
+Index: ompi/mca/coll/self/coll_self_alltoallv.c
+===================================================================
+--- ompi/mca/coll/self/coll_self_alltoallv.c	(revision 29185)
++++ ompi/mca/coll/self/coll_self_alltoallv.c	(working copy)
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2013      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -40,6 +41,11 @@
+ {
+     int err;        
+     ptrdiff_t lb, rextent, sextent;
++
++    if (MPI_IN_PLACE == sbuf) {
++        return MPI_SUCCESS;
++    }
++
+     err = ompi_datatype_get_extent(sdtype, &lb, &sextent);
+     if (OMPI_SUCCESS != err) {
+         return OMPI_ERROR;
+Index: ompi/mca/coll/self/coll_self_alltoallw.c
+===================================================================
+--- ompi/mca/coll/self/coll_self_alltoallw.c	(revision 29185)
++++ ompi/mca/coll/self/coll_self_alltoallw.c	(working copy)
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2013      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -39,6 +40,11 @@
+ {
+     int err;        
+     ptrdiff_t lb, rextent, sextent;
++
++    if (MPI_IN_PLACE == sbuf) {
++        return MPI_SUCCESS;
++    }
++
+     err = ompi_datatype_get_extent(sdtypes[0], &lb, &sextent);
+     if (OMPI_SUCCESS != err) {
+         return OMPI_ERROR;
+Index: ompi/mca/coll/basic/coll_basic_alltoallv.c
+===================================================================
+--- ompi/mca/coll/basic/coll_basic_alltoallv.c	(revision 29185)
++++ ompi/mca/coll/basic/coll_basic_alltoallv.c	(working copy)
+@@ -12,6 +12,7 @@
+  *                         All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC. All rights
+  *                         reserved.
++ * Copyright (c) 2013      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -56,7 +57,7 @@
+     /* Find the largest receive amount */
+     ompi_datatype_type_extent (rdtype, &ext);
+     for (i = 0, max_size = 0 ; i < size ; ++i) {
+-        size_t size = ext * rcounts[rank];
++        size_t size = ext * rcounts[i];
+ 
+         max_size = size > max_size ? size : max_size;
+     }
+@@ -76,11 +77,11 @@
+             if (i == rank && rcounts[j]) {
+                 /* Copy the data into the temporary buffer */
+                 err = ompi_datatype_copy_content_same_ddt (rdtype, rcounts[j],
+-                                                           tmp_buffer, (char *) rbuf + rdisps[j]);
++                                                           tmp_buffer, (char *) rbuf + rdisps[j] * ext);
+                 if (MPI_SUCCESS != err) { goto error_hndl; }
+ 
+                 /* Exchange data with the peer */
+-                err = MCA_PML_CALL(irecv ((char *) rbuf + rdisps[j], rcounts[j], rdtype,
++                err = MCA_PML_CALL(irecv ((char *) rbuf + rdisps[j] * ext, rcounts[j], rdtype,
+                                           j, MCA_COLL_BASE_TAG_ALLTOALLV, comm, preq++));
+                 if (MPI_SUCCESS != err) { goto error_hndl; }
+ 
+@@ -91,11 +92,11 @@
+             } else if (j == rank && rcounts[i]) {
+                 /* Copy the data into the temporary buffer */
+                 err = ompi_datatype_copy_content_same_ddt (rdtype, rcounts[i],
+-                                                           tmp_buffer, (char *) rbuf + rdisps[i]);
++                                                           tmp_buffer, (char *) rbuf + rdisps[i] * ext);
+                 if (MPI_SUCCESS != err) { goto error_hndl; }
+ 
+                 /* Exchange data with the peer */
+-                err = MCA_PML_CALL(irecv ((char *) rbuf + rdisps[i], rcounts[i], rdtype,
++                err = MCA_PML_CALL(irecv ((char *) rbuf + rdisps[i] * ext, rcounts[i], rdtype,
+                                           i, MCA_COLL_BASE_TAG_ALLTOALLV, comm, preq++));
+                 if (MPI_SUCCESS != err) { goto error_hndl; }
+ 
+Index: ompi/mca/coll/basic/coll_basic_alltoallw.c
+===================================================================
+--- ompi/mca/coll/basic/coll_basic_alltoallw.c	(revision 29185)
++++ ompi/mca/coll/basic/coll_basic_alltoallw.c	(working copy)
+@@ -13,6 +13,7 @@
+  * Copyright (c) 2012      Oak Ridge National Labs.  All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC. All rights
+  *                         reserved.
++ * Copyright (c) 2013      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -56,7 +57,7 @@
+     /* Find the largest receive amount */
+     for (i = 0, max_size = 0 ; i < size ; ++i) {
+         ompi_datatype_type_extent (rdtypes[i], &ext);
+-        ext *= rcounts[rank];
++        ext *= rcounts[i];
+ 
+         max_size = ext > max_size ? ext : max_size;
+     }
+Index: ompi/mca/coll/tuned/coll_tuned_alltoallv.c
+===================================================================
+--- ompi/mca/coll/tuned/coll_tuned_alltoallv.c	(revision 29185)
++++ ompi/mca/coll/tuned/coll_tuned_alltoallv.c	(working copy)
+@@ -13,6 +13,7 @@
+  * Copyright (c) 2008      Sun Microsystems, Inc.  All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC. All Rights
+  *                         reserved.
++ * Copyright (c) 2013      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -71,7 +72,7 @@
+     /* Find the largest receive amount */
+     ompi_datatype_type_extent (rdtype, &ext);
+     for (i = 0, max_size = 0 ; i < size ; ++i) {
+-        size_t size = ext * rcounts[rank];
++        size_t size = ext * rcounts[i];
+ 
+         max_size = size > max_size ? size : max_size;
+     }
+@@ -91,11 +92,11 @@
+             if (i == rank && rcounts[j]) {
+                 /* Copy the data into the temporary buffer */
+                 err = ompi_datatype_copy_content_same_ddt (rdtype, rcounts[j],
+-                                                           tmp_buffer, (char *) rbuf + rdisps[j]);
++                                                           tmp_buffer, (char *) rbuf + rdisps[j] * ext);
+                 if (MPI_SUCCESS != err) { goto error_hndl; }
+ 
+                 /* Exchange data with the peer */
+-                err = MCA_PML_CALL(irecv ((char *) rbuf + rdisps[j], rcounts[j], rdtype,
++                err = MCA_PML_CALL(irecv ((char *) rbuf + rdisps[j] * ext, rcounts[j], rdtype,
+                                           j, MCA_COLL_BASE_TAG_ALLTOALLV, comm, preq++));
+                 if (MPI_SUCCESS != err) { goto error_hndl; }
+ 
+@@ -106,11 +107,11 @@
+             } else if (j == rank && rcounts[i]) {
+                 /* Copy the data into the temporary buffer */
+                 err = ompi_datatype_copy_content_same_ddt (rdtype, rcounts[i],
+-                                                           tmp_buffer, (char *) rbuf + rdisps[i]);
++                                                           tmp_buffer, (char *) rbuf + rdisps[i] * ext);
+                 if (MPI_SUCCESS != err) { goto error_hndl; }
+ 
+                 /* Exchange data with the peer */
+-                err = MCA_PML_CALL(irecv ((char *) rbuf + rdisps[i], rcounts[i], rdtype,
++                err = MCA_PML_CALL(irecv ((char *) rbuf + rdisps[i] * ext, rcounts[i], rdtype,
+                                           i, MCA_COLL_BASE_TAG_ALLTOALLV, comm, preq++));
+                 if (MPI_SUCCESS != err) { goto error_hndl; }
+ 

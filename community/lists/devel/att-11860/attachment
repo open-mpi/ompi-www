@@ -1,0 +1,74 @@
+<html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-text-html" lang="x-unicode"> Hi.<br>
+      <br>
+      I have an issue with understanding  <i>ompi_mpi_init() </i>logic.
+      Could you please tell me if you have any guesses about following
+      behavior.<br>
+      <br>
+      I wonder if I understand ringh, there is a block in <i>ompi_mpi_init()
+
+      </i>function for exchanging procs information between processes
+      (denote this block 'modex'):<br>
+      <blockquote>    coll = OBJ_NEW(orte_grpcomm_collective_t);<br>
+            coll-&gt;id = orte_process_info.peer_modex;<br>
+            if (ORTE_SUCCESS != (ret = orte_grpcomm.modex(coll))) {<br>
+                error = "orte_grpcomm_modex failed";<br>
+                goto error;<br>
+            }<br>
+            /* wait for modex to complete - this may be moved anywhere
+        in mpi_init<br>
+             * so long as it occurs prior to calling a function that
+        needs<br>
+             * the modex info!<br>
+             */<br>
+            while (coll-&gt;active) {<br>
+                opal_progress();  /* block in progress pending events */<br>
+            }<br>
+            OBJ_RELEASE(coll);<br>
+      </blockquote>
+      and several instructions after this there is a block for processes
+      synchronization (denote this block 'barrier'):<br>
+      <blockquote>    coll = OBJ_NEW(orte_grpcomm_collective_t);<br>
+            coll-&gt;id = orte_process_info.peer_init_barrier;<br>
+            if (ORTE_SUCCESS != (ret = orte_grpcomm.barrier(coll))) {<br>
+                error = "orte_grpcomm_barrier failed";<br>
+                goto error;<br>
+            }<br>
+            /* wait for barrier to complete */<br>
+            while (coll-&gt;active) {<br>
+                opal_progress();  /* block in progress pending events */<br>
+            }<br>
+            OBJ_RELEASE(coll);<br>
+      </blockquote>
+      So,<i> </i>initially<i> </i><i>ompi_mpi_init()</i> has following
+      structure:<br>
+      <blockquote>...<br>
+        'modex' block;<br>
+        ...<br>
+        'barrier' block;<br>
+        ...<br>
+      </blockquote>
+      I made several experiments with this code and the following one is
+      of interest: if I add sequence of two additional blocks, 'barrier'
+      and 'modex', right after 'modex' block, then<i> </i><i>ompi_mpi_init()
+
+      </i>hangs in <i>opal_progress()</i> of the last 'modex' block.<br>
+      <blockquote>...<br>
+        'modex' block;<br>
+        'barrier' block;<br>
+        'modex' block; &lt;- hangs<br>
+        ...<br>
+        'barrier' block;<br>
+        ...<br>
+      </blockquote>
+      Thanks,<br>
+      Victor Kocheganov.<br>
+    </div>
+  </body>
+</html>
+

@@ -1,0 +1,119 @@
+diff -r 85c512f975a6 ompi/mca/btl/sm/btl_sm.c
+--- a/ompi/mca/btl/sm/btl_sm.c	Tue Mar 08 16:11:08 2011 +0100
++++ b/ompi/mca/btl/sm/btl_sm.c	Tue Mar 08 17:18:50 2011 +0100
+@@ -47,6 +47,7 @@
+ 
+ #if OMPI_BTL_SM_HAVE_KNEM
+ #include <knem_io.h>
++#include "ompi/mca/hitopo/hitopo.h"
+ #endif
+ 
+ #if OPAL_ENABLE_FT_CR    == 1
+@@ -92,7 +93,7 @@ mca_btl_sm_t mca_btl_sm = {
+         NULL,  /* put */
+         NULL,  /* get -- optionally filled during initialization */
+         mca_btl_base_dump,
+-	NULL,  /* preferred protocol */
++	mca_btl_sm_preferred_protocol,  /* preferred protocol */
+         NULL, /* mpool */
+         mca_btl_sm_register_error_cb, /* register error */
+         mca_btl_sm_ft_event
+@@ -402,6 +403,7 @@ create_sm_endpoint(int local_proc, struc
+     if(NULL == ep)
+         return NULL;
+     ep->peer_smp_rank = local_proc + mca_btl_sm_component.num_smp_procs;
++    ep->proc=proc;
+ 
+     OBJ_CONSTRUCT(&ep->pending_sends, opal_list_t);
+ #if OPAL_ENABLE_PROGRESS_THREADS == 1
+@@ -1092,6 +1094,37 @@ int mca_btl_sm_get_async(struct mca_btl_
+         return OMPI_ERROR;
+     }
+ }
++
++inline int mca_btl_sm_on_same_socket(ompi_proc_t* my_proc, ompi_proc_t* peer_proc)
++{
++    hitopo_int_t *my_hitopo_addr,*peer_hitopo_addr;
++
++    my_hitopo_addr=ompi_hitopo_getaddr(&(ompi_mpi_comm_world.comm),my_proc->proc_name.vpid);
++    peer_hitopo_addr=ompi_hitopo_getaddr(&(ompi_mpi_comm_world.comm),peer_proc->proc_name.vpid);
++    if(my_hitopo_addr && peer_hitopo_addr)
++	    if(my_hitopo_addr[HITOPO_ADDR_STAGE_SOCKET]==peer_hitopo_addr[HITOPO_ADDR_STAGE_SOCKET])
++		    return true;
++    return false;
++}
++
++
++int mca_btl_sm_preferred_protocol( struct mca_btl_base_module_t* btl, struct mca_btl_base_endpoint_t* endpoint,	size_t size)
++{
++
++    if(mca_btl_sm_component.knem_intra_socket==0)
++    {
++        if(mca_btl_sm_on_same_socket(ompi_proc_local(),endpoint->proc)==true)
++                /* intra socket msg detected , so MCA_BTL_FLAGS_SEND is the fastest protocol */
++		return MCA_BTL_FLAGS_SEND;
++        else
++		/* inter socket msg detected , so MCA_BTL_FLAGS_RDMA is the fastest protocol */
++	        return MCA_BTL_FLAGS_RDMA;
++    }
++    
++    /* If knem_intra_socket optization is not used, used RDMA by default  */
++    return MCA_BTL_FLAGS_RDMA;    
++}
++
+ #endif
+ 
+ 
+diff -r 85c512f975a6 ompi/mca/btl/sm/btl_sm.h
+--- a/ompi/mca/btl/sm/btl_sm.h	Tue Mar 08 16:11:08 2011 +0100
++++ b/ompi/mca/btl/sm/btl_sm.h	Tue Mar 08 17:18:50 2011 +0100
+@@ -217,6 +217,9 @@ struct mca_btl_sm_component_t {
+     /** Disable warning */
+     int knem_disable_warning;
+ 
++    /** MCA: should we be using knem on intra socket massage or not ? */
++    int knem_intra_socket;
++
+     /** MCA: minimal message size (bytes) to offload on DMA engine
+         when using knem */
+     uint32_t knem_dma_min;
+@@ -550,6 +553,11 @@ extern struct mca_btl_base_descriptor_t*
+ 		size_t reserve,
+ 		size_t* size,
+ 		uint32_t flags);
++
++extern int mca_btl_sm_preferred_protocol( 
++	struct mca_btl_base_module_t* btl,
++	struct mca_btl_base_endpoint_t* endpoint,
++        size_t size);
+ #endif
+ 
+ /**
+diff -r 85c512f975a6 ompi/mca/btl/sm/btl_sm_component.c
+--- a/ompi/mca/btl/sm/btl_sm_component.c	Tue Mar 08 16:11:08 2011 +0100
++++ b/ompi/mca/btl/sm/btl_sm_component.c	Tue Mar 08 17:18:50 2011 +0100
+@@ -176,6 +176,13 @@ static int sm_register(void)
+                            false, false, 0,
+                            &mca_btl_sm_component.knem_max_simultaneous);
+ 
++    /* knem_intra_socket */
++     mca_base_param_reg_int(&mca_btl_sm_component.super.btl_version,
++			"knem_intra_socket",
++			"Enable KNEM on intra socket message(1=true,0=false)",
++			false,false,1,
++			&mca_btl_sm_component.knem_intra_socket);
++
+     /* register SM component parameters */
+     mca_btl_sm_component.sm_free_list_num =
+         mca_btl_sm_param_register_int("free_list_num", 8);
+diff -r 85c512f975a6 ompi/mca/btl/sm/btl_sm_endpoint.h
+--- a/ompi/mca/btl/sm/btl_sm_endpoint.h	Tue Mar 08 16:11:08 2011 +0100
++++ b/ompi/mca/btl/sm/btl_sm_endpoint.h	Tue Mar 08 17:18:50 2011 +0100
+@@ -37,6 +37,7 @@ struct mca_btl_base_endpoint_t {
+                          *   SMP specfic data structures. */
+     int peer_smp_rank;  /**< My peer's SMP process rank.  Used for accessing
+                          *   SMP specfic data structures. */
++    struct ompi_proc_t *proc; /** call back **/
+ #if OPAL_ENABLE_PROGRESS_THREADS == 1
+     int fifo_fd;        /**< pipe/fifo used to signal endpoint that data is queued */
+ #endif

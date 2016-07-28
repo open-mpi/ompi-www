@@ -1,0 +1,51 @@
+#include <stdio.h>
+#include <mpi.h>
+
+
+
+
+int main(int argc, char* argv[]) {
+
+    MPI_Comm comm;
+    int comm_rank = 0;
+    int comm_size = 1;
+    MPI_File fh;
+    MPI_Status status;
+    MPI_Offset disp;
+    MPI_Datatype etype;
+    MPI_Datatype filetype;
+    char datarep[] = "external32";
+
+    int rc;
+    int i;
+    char filename[] = "mpi-io-external32.dat";
+    printf("Output file: %s\n", filename);
+    int N = -30;
+    double d = 16.25;
+
+    MPI_Init(&argc, &argv);
+    comm = MPI_COMM_WORLD;
+    MPI_Comm_rank(comm, &comm_rank);
+    MPI_Comm_size(comm, &comm_size);
+    //printf("Hello %d/%d\n", comm_rank, comm_size);
+
+    rc = MPI_File_open(comm, filename, MPI_MODE_CREATE | MPI_MODE_RDWR, MPI_INFO_NULL, &fh);
+    if(rc != MPI_SUCCESS) {
+        printf("Error %d when opening file %s\n", rc, filename);
+    }
+    rc = MPI_File_set_view(fh, 0, MPI_INT, MPI_INT, datarep, MPI_INFO_NULL);
+    if(rc != MPI_SUCCESS) {
+        printf("Error %d when setting file view\n", rc);
+    }
+    if(comm_rank == 0) {
+        //printf("Rank %d writing data...\n", comm_rank);
+        MPI_File_write_shared(fh, &N, 1, MPI_INT, &status);
+        MPI_File_write_shared(fh, &d, 1, MPI_DOUBLE, &status);
+    }
+    MPI_Barrier(comm);
+
+
+    MPI_File_close(&fh);
+    MPI_Finalize();
+    return 0;
+}

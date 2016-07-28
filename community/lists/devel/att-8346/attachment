@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+With respect to the warnings with atomic.h, we have been down this road
+before.<br>
+Here is the ticket with the background information.<br>
+<br>
+<a class="moz-txt-link-freetext" href="https://svn.open-mpi.org/trac/ompi/ticket/1500">https://svn.open-mpi.org/trac/ompi/ticket/1500</a><br>
+<br>
+Eventually, we decided to just live with the warnings.&nbsp; However, I will
+take a look at George's two suggestions.<br>
+<br>
+Rolf<br>
+<br>
+<br>
+<br>
+On 08/24/10 21:28, George Bosilca wrote:
+<blockquote cite="mid:45611483-58B6-4A0B-976D-5E130F9B8E85@eecs.utk.edu"
+ type="cite">
+  <pre wrap="">On Aug 24, 2010, at 20:40 , Paul H. Hargrove wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">"../../../openmpi-1.5rc5/opal/include/opal/sys/ia32/atomic.h", line 170: warning: impossible constraint for "%1" asm operand
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+   __asm__ __volatile__(
+                        SMPLOCK "addl %1,%0"
+                        :"=m" (*v)
+                        :"ir" (i), "m" (*v));
+
+The problem seems to come from the "ir". Based on a Sun blog about the gcc style asm inlining support (<a class="moz-txt-link-freetext" href="http://blogs.sun.com/x86be/entry/gcc_style_asm_inlining_support">http://blogs.sun.com/x86be/entry/gcc_style_asm_inlining_support</a>) it appears that i (any size integer immediate constraint) and r (any registers in rax, rbx, rcx, rdx, rbp, rsi, rdi, rsp, r8 - r15). As we don't only apply our atomics on immediate I think we should drop the "i".
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">"../../../openmpi-1.5rc5/opal/include/opal/sys/ia32/atomic.h", line 170: warning: parameter in inline asm statement unused: %2
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+This one is more trickier. Because of the %2 I suspect that the second (*v) on the inputs is not matched to the first (*v) on the outputs. While this might be significantly bad under some circumstances, in this case I think it can be safely ignored.
+
+However I would like to try the following asm code instead with the SUN compiler:
+
+   __asm__ __volatile__(
+                        SMPLOCK "addl %1,%0"
+                        :"+m" (*v)
+                        :"r" (i));
+
+  Thanks,
+    george.
+
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">"../../../openmpi-1.5rc5/opal/include/opal/sys/ia32/atomic.h", line 187: warning: impossible constraint for "%1" asm operand
+"../../../openmpi-1.5rc5/opal/include/opal/sys/ia32/atomic.h", line 187: warning: parameter in inline asm statement unused: %2
+
+../../../../openmpi-1.5rc5/ompi/mpi/cxx/file.cc", line 145: Warning (Anachronism): Formal argument read_conversion_fn of type extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*) in call to MPI_Register_datarep(char*, extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(ompi_datatype_t*,int*,void*), void*) is being passed int(*)(void*,ompi_datatype_t*,int,void*,long long,void*).
+"../../../../openmpi-1.5rc5/ompi/mpi/cxx/file.cc", line 146: Warning (Anachronism): Formal argument write_conversion_fn of type extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*) in call to MPI_Register_datarep(char*, extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(ompi_datatype_t*,int*,void*), void*) is being passed int(*)(void*,ompi_datatype_t*,int,void*,long long,void*).
+"../../../../openmpi-1.5rc5/ompi/mpi/cxx/file.cc", line 147: Warning (Anachronism): Formal argument dtype_file_extent_fn of type extern "C" int(*)(ompi_datatype_t*,int*,void*) in call to MPI_Register_datarep(char*, extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(ompi_datatype_t*,int*,void*), void*) is being passed int(*)(ompi_datatype_t*,int*,void*).
+"../../../../openmpi-1.5rc5/ompi/mpi/cxx/file.cc", line 172: Warning (Anachronism): Formal argument write_conversion_fn of type extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*) in call to MPI_Register_datarep(char*, extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(ompi_datatype_t*,int*,void*), void*) is being passed int(*)(void*,ompi_datatype_t*,int,void*,long long,void*).
+"../../../../openmpi-1.5rc5/ompi/mpi/cxx/file.cc", line 173: Warning (Anachronism): Formal argument dtype_file_extent_fn of type extern "C" int(*)(ompi_datatype_t*,int*,void*) in call to MPI_Register_datarep(char*, extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(ompi_datatype_t*,int*,void*), void*) is being passed int(*)(ompi_datatype_t*,int*,void*).
+"../../../../openmpi-1.5rc5/ompi/mpi/cxx/file.cc", line 197: Warning (Anachronism): Formal argument read_conversion_fn of type extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*) in call to MPI_Register_datarep(char*, extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(ompi_datatype_t*,int*,void*), void*) is being passed int(*)(void*,ompi_datatype_t*,int,void*,long long,void*).
+"../../../../openmpi-1.5rc5/ompi/mpi/cxx/file.cc", line 199: Warning (Anachronism): Formal argument dtype_file_extent_fn of type extern "C" int(*)(ompi_datatype_t*,int*,void*) in call to MPI_Register_datarep(char*, extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(ompi_datatype_t*,int*,void*), void*) is being passed int(*)(ompi_datatype_t*,int*,void*).
+"../../../../openmpi-1.5rc5/ompi/mpi/cxx/file.cc", line 224: Warning (Anachronism): Formal argument dtype_file_extent_fn of type extern "C" int(*)(ompi_datatype_t*,int*,void*) in call to MPI_Register_datarep(char*, extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(void*,ompi_datatype_t*,int,void*,long long,void*), extern "C" int(*)(ompi_datatype_t*,int*,void*), void*) is being passed int(*)(ompi_datatype_t*,int*,void*).
+[Though line numbers differ very slightly]
+
+
+NEW, not seen with 1.4.3rc1, warnings:
+
+Many instances of the following:
+
+"../../../../openmpi-1.5rc5/orte/mca/ess/ess.h", line 61: warning: attribute "noreturn" may not be applied to variable, ignored
+"../../../../openmpi-1.5rc5/orte/mca/errmgr/errmgr.h", line 138: warning: attribute "noreturn" may not be applied to variable, ignored
+[Due to applying __opal_attribute_noreturn__ to a function pointer]
+
+Single instances of the following:
+
+"../../../../../openmpi-1.5rc5/opal/mca/crs/none/crs_none_module.c", line 136: warning: statement not reached
+"../../../../openmpi-1.5rc5/orte/mca/plm/base/plm_base_rsh_support.c", line 462: warning: implicit function declaration: rindex
+"../../../../openmpi-1.5rc5/orte/mca/plm/base/plm_base_rsh_support.c", line 462: warning: improper pointer/integer combination: op "="
+"../../../../openmpi-1.5rc5/orte/mca/plm/base/plm_base_rsh_support.c", line 565: warning: improper pointer/integer combination: op "="
+"../../../../../openmpi-1.5rc5/orte/mca/rmcast/tcp/rmcast_tcp.c", line 982: warning: assignment type mismatch:
+"../../../../../openmpi-1.5rc5/orte/mca/rmcast/tcp/rmcast_tcp.c", line 1023: warning: assignment type mismatch:
+"../../../../../openmpi-1.5rc5/orte/mca/rmcast/udp/rmcast_udp.c", line 877: warning: assignment type mismatch:
+"../../../../../openmpi-1.5rc5/orte/mca/rmcast/udp/rmcast_udp.c", line 918: warning: assignment type mismatch:
+"../../../../openmpi-1.5rc5/orte/tools/orte-ps/orte-ps.c", line 288: warning: initializer does not fit or is out of range: 0xfffffffe
+"../../../../openmpi-1.5rc5/orte/tools/orte-ps/orte-ps.c", line 289: warning: initializer does not fit or is out of range: 0xfffffffe
+"
+"../../../../../openmpi-1.5rc5/ompi/mca/common/sm/common_sm_mmap.c", line 110: warning: improper pointer/integer combination: arg #3
+"../../../../../openmpi-1.5rc5/ompi/mca/common/sm/common_sm_mmap.c", line 135: warning: improper pointer/integer combination: arg #3
+"../../../../../openmpi-1.5rc5/ompi/mca/common/sm/common_sm_mmap.c", line 201: warning: assignment type mismatch:
+      pointer to char "=" pointer to int
+"../../../../../openmpi-1.5rc5/ompi/mca/common/sm/common_sm_mmap.c", line 207: warning: assignment type mismatch:
+      pointer to char "=" pointer to int
+"../../../../../openmpi-1.5rc5/ompi/mca/common/sm/common_sm_mmap.c", line 280: warning: argument #1 is incompatible with prototype:
+      prototype: pointer to char : "/usr/include/sys/mman.h", line 238
+      argument : pointer to struct mca_common_sm_mmap_t {struct opal_list_item_t {..} map_item, pointer to struct mca_common_sm_file_header_t {..} map_seg, pointer to unsigned char map_addr, pointer to unsigned char data_addr, unsigned int map_size, array[1025] of char map_path}
+
+
+-Paul
+
+-- 
+Paul H. Hargrove                          <a class="moz-txt-link-abbreviated" href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>
+Future Technologies Group
+HPC Research Department                   Tel: +1-510-495-2352
+Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+  </pre>
+</blockquote>
+<br>
+</body>
+</html>
+

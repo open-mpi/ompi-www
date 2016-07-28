@@ -1,0 +1,791 @@
+<div dir="ltr">(Sorry for the delay, just catching up on email after the holidays)<br><div><br></div><div>I agree with Ralph. You can remove the old function signatures, but keep the places where you replace a blocking send/recv with a non-blocking version. Then I think it is good.</div>
+<div><br></div><div>Thanks,</div><div>Josh</div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, Dec 18, 2013 at 9:52 AM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi Adrian<br>
+<br>
+No point in keeping the old code for those places where you update the syntax of a non-blocking recv (i.e., you remove the no-longer-reqd extra param). I would only keep it where you have to replace a blocking recv with a non-blocking one as that is where the behavior will change.<br>
+
+<br>
+Other than that, it looks fine to me.<br>
+<div class="HOEnZb"><div class="h5"><br>
+On Dec 18, 2013, at 6:42 AM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+<br>
+&gt; From: Adrian Reber &lt;<a href="mailto:adrian.reber@hs-esslingen.de">adrian.reber@hs-esslingen.de</a>&gt;<br>
+&gt;<br>
+&gt; This patch changes all recv/recv_buffer occurrences in the C/R code<br>
+&gt; to recv_nb/recv_buffer_nb.<br>
+&gt; The old code is still there but disabled using ifdefs (ENABLE_FT_FIXED).<br>
+&gt; The new code compiles but does not work.<br>
+&gt;<br>
+&gt; Changes from V1:<br>
+&gt; * #ifdef out the code (so it is preserved for later re-design)<br>
+&gt; * marked the broken C/R code with ENABLE_FT_FIXED<br>
+&gt;<br>
+&gt; Signed-off-by: Adrian Reber &lt;<a href="mailto:adrian.reber@hs-esslingen.de">adrian.reber@hs-esslingen.de</a>&gt;<br>
+&gt; ---<br>
+&gt; ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c            | 19 ++++++<br>
+&gt; orte/mca/errmgr/base/errmgr_base_tool.c         |  6 +-<br>
+&gt; orte/mca/rml/ftrm/rml_ftrm.h                    | 27 ++-------<br>
+&gt; orte/mca/rml/ftrm/rml_ftrm_component.c          |  2 -<br>
+&gt; orte/mca/rml/ftrm/rml_ftrm_module.c             | 78 +++----------------------<br>
+&gt; orte/mca/snapc/full/snapc_full_app.c            | 12 ++++<br>
+&gt; orte/mca/snapc/full/snapc_full_global.c         | 25 ++++----<br>
+&gt; orte/mca/snapc/full/snapc_full_local.c          | 24 ++++----<br>
+&gt; orte/mca/sstore/central/sstore_central_app.c    |  6 ++<br>
+&gt; orte/mca/sstore/central/sstore_central_global.c | 11 ++--<br>
+&gt; orte/mca/sstore/central/sstore_central_local.c  | 11 ++--<br>
+&gt; orte/mca/sstore/stage/sstore_stage_app.c        |  5 ++<br>
+&gt; orte/mca/sstore/stage/sstore_stage_global.c     | 11 ++--<br>
+&gt; orte/mca/sstore/stage/sstore_stage_local.c      | 11 ++--<br>
+&gt; orte/tools/orte-checkpoint/orte-checkpoint.c    |  9 ++-<br>
+&gt; orte/tools/orte-migrate/orte-migrate.c          |  9 ++-<br>
+&gt; 16 files changed, 124 insertions(+), 142 deletions(-)<br>
+&gt;<br>
+&gt; diff --git a/ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c b/ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c<br>
+&gt; index 5d4005f..cba7586 100644<br>
+&gt; --- a/ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c<br>
+&gt; +++ b/ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c<br>
+&gt; @@ -4739,6 +4739,8 @@ static int ft_event_post_drain_acks(void)<br>
+&gt;         drain_msg_ack = (ompi_crcp_bkmrk_pml_drain_message_ack_ref_t*)item;<br>
+&gt;<br>
+&gt;         /* Post the receive */<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +        /* This is the old, now broken code */<br>
+&gt;         if( OMPI_SUCCESS != (ret = ompi_rte_recv_buffer_nb( &amp;drain_msg_ack-&gt;peer,<br>
+&gt;                                                             OMPI_CRCP_COORD_BOOKMARK_TAG,<br>
+&gt;                                                             0,<br>
+&gt; @@ -4750,6 +4752,9 @@ static int ft_event_post_drain_acks(void)<br>
+&gt;                         OMPI_NAME_PRINT(&amp;(drain_msg_ack-&gt;peer)));<br>
+&gt;             return ret;<br>
+&gt;         }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +        ompi_rte_recv_buffer_nb(&amp;drain_msg_ack-&gt;peer, OMPI_CRCP_COORD_BOOKMARK_TAG,<br>
+&gt; +                                0, drain_message_ack_cbfunc, NULL);<br>
+&gt;     }<br>
+&gt;<br>
+&gt;     return OMPI_SUCCESS;<br>
+&gt; @@ -5330,6 +5335,8 @@ static int recv_bookmarks(int peer_idx)<br>
+&gt;     peer_name.jobid  = OMPI_PROC_MY_NAME-&gt;jobid;<br>
+&gt;     peer_name.vpid   = peer_idx;<br>
+&gt;<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if ( 0 &gt; (ret = ompi_rte_recv_buffer_nb(&amp;peer_name,<br>
+&gt;                                             OMPI_CRCP_COORD_BOOKMARK_TAG,<br>
+&gt;                                             0,<br>
+&gt; @@ -5342,6 +5349,9 @@ static int recv_bookmarks(int peer_idx)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    ompi_rte_recv_buffer_nb(&amp;peer_name, OMPI_CRCP_COORD_BOOKMARK_TAG,<br>
+&gt; +                           0, recv_bookmarks_cbfunc, NULL);<br>
+&gt;<br>
+&gt;     ++total_recv_bookmarks;<br>
+&gt;<br>
+&gt; @@ -5616,6 +5626,8 @@ static int do_send_msg_detail(ompi_crcp_bkmrk_pml_peer_ref_t *peer_ref,<br>
+&gt;     /*<br>
+&gt;      * Recv the ACK msg<br>
+&gt;      */<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if ( 0 &gt; (ret = ompi_rte_recv_buffer(&amp;peer_ref-&gt;proc_name, buffer,<br>
+&gt;                                          OMPI_CRCP_COORD_BOOKMARK_TAG, 0) ) ) {<br>
+&gt;         opal_output(mca_crcp_bkmrk_component.super.output_handle,<br>
+&gt; @@ -5626,6 +5638,9 @@ static int do_send_msg_detail(ompi_crcp_bkmrk_pml_peer_ref_t *peer_ref,<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    ompi_rte_recv_buffer_nb(&amp;peer_ref-&gt;proc_name, OMPI_CRCP_COORD_BOOKMARK_TAG, 0,<br>
+&gt; +                            orte_rml_recv_callback, NULL);<br>
+&gt;<br>
+&gt;     UNPACK_BUFFER(buffer, recv_response, 1, OPAL_UINT32,<br>
+&gt;                   &quot;crcp:bkmrk: send_msg_details: Failed to unpack the ACK from peer buffer.&quot;);<br>
+&gt; @@ -5790,6 +5805,8 @@ static int do_recv_msg_detail(ompi_crcp_bkmrk_pml_peer_ref_t *peer_ref,<br>
+&gt;     /*<br>
+&gt;      * Recv the msg<br>
+&gt;      */<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if ( 0 &gt; (ret = ompi_rte_recv_buffer(&amp;peer_ref-&gt;proc_name, buffer, OMPI_CRCP_COORD_BOOKMARK_TAG, 0) ) ) {<br>
+&gt;         opal_output(mca_crcp_bkmrk_component.super.output_handle,<br>
+&gt;                     &quot;crcp:bkmrk: do_recv_msg_detail: %s &lt;-- %s Failed to receive buffer from peer. Return %d\n&quot;,<br>
+&gt; @@ -5799,6 +5816,8 @@ static int do_recv_msg_detail(ompi_crcp_bkmrk_pml_peer_ref_t *peer_ref,<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    ompi_rte_recv_buffer_nb(&amp;peer_ref-&gt;proc_name, OMPI_CRCP_COORD_BOOKMARK_TAG, 0, orte_rml_recv_callback, NULL);<br>
+&gt;<br>
+&gt;     /* Pull out the communicator ID */<br>
+&gt;     UNPACK_BUFFER(buffer, (*comm_id), 1, OPAL_UINT32,<br>
+&gt; diff --git a/orte/mca/errmgr/base/errmgr_base_tool.c b/orte/mca/errmgr/base/errmgr_base_tool.c<br>
+&gt; index 20d76e5..b982e46 100644<br>
+&gt; --- a/orte/mca/errmgr/base/errmgr_base_tool.c<br>
+&gt; +++ b/orte/mca/errmgr/base/errmgr_base_tool.c<br>
+&gt; @@ -262,6 +262,8 @@ static int errmgr_base_tool_start_cmdline_listener(void)<br>
+&gt;      */<br>
+&gt;     errmgr_cmdline_sender.jobid = ORTE_JOBID_INVALID;<br>
+&gt;     errmgr_cmdline_sender.vpid  = ORTE_VPID_INVALID;<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt;                                                        ORTE_RML_TAG_MIGRATE,<br>
+&gt;                                                        0,<br>
+&gt; @@ -271,10 +273,12 @@ static int errmgr_base_tool_start_cmdline_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_MIGRATE,<br>
+&gt; +                            0, errmgr_base_tool_cmdline_recv, NULL);<br>
+&gt;<br>
+&gt;     errmgr_cmdline_recv_issued = true;<br>
+&gt;<br>
+&gt; - cleanup:<br>
+&gt;     return exit_status;<br>
+&gt; }<br>
+&gt;<br>
+&gt; diff --git a/orte/mca/rml/ftrm/rml_ftrm.h b/orte/mca/rml/ftrm/rml_ftrm.h<br>
+&gt; index a1bd48a..055c891 100644<br>
+&gt; --- a/orte/mca/rml/ftrm/rml_ftrm.h<br>
+&gt; +++ b/orte/mca/rml/ftrm/rml_ftrm.h<br>
+&gt; @@ -109,39 +109,20 @@ BEGIN_C_DECLS<br>
+&gt;                                      void* cbdata);<br>
+&gt;<br>
+&gt;     /*<br>
+&gt; -     * Recv<br>
+&gt; -     */<br>
+&gt; -    int orte_rml_ftrm_recv(orte_process_name_t* peer,<br>
+&gt; -                           struct iovec *msg,<br>
+&gt; -                           int count,<br>
+&gt; -                           orte_rml_tag_t tag,<br>
+&gt; -                           int flags);<br>
+&gt; -<br>
+&gt; -    /*<br>
+&gt;      * Recv Non-blocking<br>
+&gt;      */<br>
+&gt; -    int orte_rml_ftrm_recv_nb(orte_process_name_t* peer,<br>
+&gt; -                              struct iovec* msg,<br>
+&gt; -                              int count,<br>
+&gt; +    void orte_rml_ftrm_recv_nb(orte_process_name_t* peer,<br>
+&gt;                               orte_rml_tag_t tag,<br>
+&gt; -                              int flags,<br>
+&gt; +                              bool persistent,<br>
+&gt;                               orte_rml_callback_fn_t cbfunc,<br>
+&gt;                               void* cbdata);<br>
+&gt;<br>
+&gt;     /*<br>
+&gt; -     * Recv Buffer<br>
+&gt; -     */<br>
+&gt; -    int orte_rml_ftrm_recv_buffer(orte_process_name_t* peer,<br>
+&gt; -                                  opal_buffer_t *buf,<br>
+&gt; -                                  orte_rml_tag_t tag,<br>
+&gt; -                                  int flags);<br>
+&gt; -<br>
+&gt; -    /*<br>
+&gt;      * Recv Buffer Non-blocking<br>
+&gt;      */<br>
+&gt; -    int orte_rml_ftrm_recv_buffer_nb(orte_process_name_t* peer,<br>
+&gt; +    void orte_rml_ftrm_recv_buffer_nb(orte_process_name_t* peer,<br>
+&gt;                                      orte_rml_tag_t tag,<br>
+&gt; -                                     int flags,<br>
+&gt; +                                     bool persistent,<br>
+&gt;                                      orte_rml_buffer_callback_fn_t cbfunc,<br>
+&gt;                                      void* cbdata);<br>
+&gt;<br>
+&gt; diff --git a/orte/mca/rml/ftrm/rml_ftrm_component.c b/orte/mca/rml/ftrm/rml_ftrm_component.c<br>
+&gt; index 6923c44..0ffa79c 100644<br>
+&gt; --- a/orte/mca/rml/ftrm/rml_ftrm_component.c<br>
+&gt; +++ b/orte/mca/rml/ftrm/rml_ftrm_component.c<br>
+&gt; @@ -73,9 +73,7 @@ orte_rml_module_t orte_rml_ftrm_module = {<br>
+&gt;     orte_rml_ftrm_send_buffer,<br>
+&gt;     orte_rml_ftrm_send_buffer_nb,<br>
+&gt;<br>
+&gt; -    orte_rml_ftrm_recv,<br>
+&gt;     orte_rml_ftrm_recv_nb,<br>
+&gt; -    orte_rml_ftrm_recv_buffer,<br>
+&gt;     orte_rml_ftrm_recv_buffer_nb,<br>
+&gt;     orte_rml_ftrm_recv_cancel,<br>
+&gt;<br>
+&gt; diff --git a/orte/mca/rml/ftrm/rml_ftrm_module.c b/orte/mca/rml/ftrm/rml_ftrm_module.c<br>
+&gt; index 85b288e..4ba6f2d 100644<br>
+&gt; --- a/orte/mca/rml/ftrm/rml_ftrm_module.c<br>
+&gt; +++ b/orte/mca/rml/ftrm/rml_ftrm_module.c<br>
+&gt; @@ -224,101 +224,41 @@ int orte_rml_ftrm_send_buffer_nb(orte_process_name_t* peer,<br>
+&gt; }<br>
+&gt;<br>
+&gt;<br>
+&gt; -/*<br>
+&gt; - * Recv<br>
+&gt; - */<br>
+&gt; -int orte_rml_ftrm_recv(orte_process_name_t* peer,<br>
+&gt; -                       struct iovec *msg,<br>
+&gt; -                       int count,<br>
+&gt; -                       orte_rml_tag_t tag,<br>
+&gt; -                       int flags)<br>
+&gt; -{<br>
+&gt; -    int ret;<br>
+&gt; -<br>
+&gt; -    opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt; -                        &quot;orte_rml_ftrm: recv(%s, %d, %d, %d )&quot;,<br>
+&gt; -                        ORTE_NAME_PRINT(peer), count, tag, flags);<br>
+&gt; -<br>
+&gt; -    if( NULL != orte_rml_ftrm_wrapped_module.recv ) {<br>
+&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.recv(peer, msg, count, tag, flags) ) ) {<br>
+&gt; -            return ret;<br>
+&gt; -        }<br>
+&gt; -    }<br>
+&gt; -<br>
+&gt; -    return ORTE_SUCCESS;<br>
+&gt; -}<br>
+&gt;<br>
+&gt; /*<br>
+&gt;  * Recv Non-blocking<br>
+&gt;  */<br>
+&gt; -int orte_rml_ftrm_recv_nb(orte_process_name_t* peer,<br>
+&gt; -                          struct iovec* msg,<br>
+&gt; -                          int count,<br>
+&gt; +void orte_rml_ftrm_recv_nb(orte_process_name_t* peer,<br>
+&gt;                           orte_rml_tag_t tag,<br>
+&gt; -                          int flags,<br>
+&gt; +                       bool persistent,<br>
+&gt;                           orte_rml_callback_fn_t cbfunc,<br>
+&gt;                           void* cbdata)<br>
+&gt; {<br>
+&gt; -    int ret;<br>
+&gt; -<br>
+&gt;     opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt; -                        &quot;orte_rml_ftrm: recv_nb(%s, %d, %d, %d )&quot;,<br>
+&gt; -                        ORTE_NAME_PRINT(peer), count, tag, flags);<br>
+&gt; +                        &quot;orte_rml_ftrm: recv_nb(%s, %d, %d )&quot;,<br>
+&gt; +                        ORTE_NAME_PRINT(peer), tag, persistent);<br>
+&gt;<br>
+&gt;     if( NULL != orte_rml_ftrm_wrapped_module.recv_nb ) {<br>
+&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.recv_nb(peer, msg, count, tag, flags, cbfunc, cbdata) ) ) {<br>
+&gt; -            return ret;<br>
+&gt; -        }<br>
+&gt; +        orte_rml_ftrm_wrapped_module.recv_nb(peer, tag, persistent, cbfunc, cbdata);<br>
+&gt;     }<br>
+&gt; -<br>
+&gt; -    return ORTE_SUCCESS;<br>
+&gt; -}<br>
+&gt; -<br>
+&gt; -/*<br>
+&gt; - * Recv Buffer<br>
+&gt; - */<br>
+&gt; -int orte_rml_ftrm_recv_buffer(orte_process_name_t* peer,<br>
+&gt; -                              opal_buffer_t *buf,<br>
+&gt; -                              orte_rml_tag_t tag,<br>
+&gt; -                              int flags)<br>
+&gt; -{<br>
+&gt; -    int ret;<br>
+&gt; -<br>
+&gt; -    opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt; -                        &quot;orte_rml_ftrm: recv_buffer(%s, %d )&quot;,<br>
+&gt; -                        ORTE_NAME_PRINT(peer), tag);<br>
+&gt; -<br>
+&gt; -    if( NULL != orte_rml_ftrm_wrapped_module.recv_buffer ) {<br>
+&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.recv_buffer(peer, buf, tag, flags) ) ) {<br>
+&gt; -            return ret;<br>
+&gt; -        }<br>
+&gt; -    }<br>
+&gt; -<br>
+&gt; -    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; /*<br>
+&gt;  * Recv Buffer Non-blocking<br>
+&gt;  */<br>
+&gt; -int orte_rml_ftrm_recv_buffer_nb(orte_process_name_t* peer,<br>
+&gt; +void orte_rml_ftrm_recv_buffer_nb(orte_process_name_t* peer,<br>
+&gt;                                  orte_rml_tag_t tag,<br>
+&gt; -                                 int flags,<br>
+&gt; +                                 bool persistent,<br>
+&gt;                                  orte_rml_buffer_callback_fn_t cbfunc,<br>
+&gt;                                  void* cbdata)<br>
+&gt; {<br>
+&gt; -    int ret;<br>
+&gt; -<br>
+&gt;     opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt;                         &quot;orte_rml_ftrm: recv_buffer_nb(%s, %d, %d)&quot;,<br>
+&gt; -                        ORTE_NAME_PRINT(peer), tag, flags);<br>
+&gt; +                        ORTE_NAME_PRINT(peer), tag, persistent);<br>
+&gt;<br>
+&gt;     if( NULL != orte_rml_ftrm_wrapped_module.recv_buffer_nb ) {<br>
+&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.recv_buffer_nb(peer, tag, flags, cbfunc, cbdata) ) ) {<br>
+&gt; -            return ret;<br>
+&gt; -        }<br>
+&gt; +        orte_rml_ftrm_wrapped_module.recv_buffer_nb(peer, tag, persistent, cbfunc, cbdata);<br>
+&gt;     }<br>
+&gt; -<br>
+&gt; -    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; /*<br>
+&gt; diff --git a/orte/mca/snapc/full/snapc_full_app.c b/orte/mca/snapc/full/snapc_full_app.c<br>
+&gt; index c7438f1..862c9be 100644<br>
+&gt; --- a/orte/mca/snapc/full/snapc_full_app.c<br>
+&gt; +++ b/orte/mca/snapc/full/snapc_full_app.c<br>
+&gt; @@ -289,12 +289,16 @@ int app_coord_finalize()<br>
+&gt;          * need to wait until the checkpoint is finished before finishing.<br>
+&gt;          */<br>
+&gt;         OBJ_CONSTRUCT(&amp;buffer, opal_buffer_t);<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +        /* This is the old, now broken code */<br>
+&gt;         if (0 &gt; (ret = orte_rml.recv_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt;             ORTE_ERROR_LOG(ret);<br>
+&gt;             exit_status = ret;<br>
+&gt;             OBJ_DESTRUCT(&amp;buffer);<br>
+&gt;             goto cleanup;<br>
+&gt;         }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +        orte_rml.recv_buffer_nb(ORTE_PROC_MY_HNP, ORTE_RML_TAG_SNAPC_FULL, 0, snapc_full_app_callback_recv, NULL);<br>
+&gt;<br>
+&gt;         count = 1;<br>
+&gt;         if (ORTE_SUCCESS != (ret = opal_dss.unpack(&amp;buffer, &amp;command, &amp;count, ORTE_SNAPC_FULL_CMD))) {<br>
+&gt; @@ -1534,12 +1538,16 @@ int app_coord_request_op(orte_snapc_base_request_op_t *datum)<br>
+&gt;             /*<br>
+&gt;              * Wait for a response regarding completion<br>
+&gt;              */<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +            /* This is the old, now broken code */<br>
+&gt;             if (0 &gt; (ret = orte_rml.recv_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt;                 ORTE_ERROR_LOG(ret);<br>
+&gt;                 exit_status = ret;<br>
+&gt;                 OBJ_DESTRUCT(&amp;buffer);<br>
+&gt;                 goto cleanup;<br>
+&gt;             }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +            orte_rml.recv_buffer_nb(ORTE_PROC_MY_HNP, ORTE_RML_TAG_SNAPC_FULL, 0, snapc_full_app_callback_recv, NULL);<br>
+&gt;<br>
+&gt;             count = 1;<br>
+&gt;             if (ORTE_SUCCESS != (ret = opal_dss.unpack(&amp;buffer, &amp;command, &amp;count, ORTE_SNAPC_FULL_CMD))) {<br>
+&gt; @@ -1604,12 +1612,16 @@ int app_coord_request_op(orte_snapc_base_request_op_t *datum)<br>
+&gt;             /*<br>
+&gt;              * Wait for a response regarding completion<br>
+&gt;              */<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +            /* This is the old, now broken code */<br>
+&gt;             if (0 &gt; (ret = orte_rml.recv_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt;                 ORTE_ERROR_LOG(ret);<br>
+&gt;                 exit_status = ret;<br>
+&gt;                 OBJ_DESTRUCT(&amp;buffer);<br>
+&gt;                 goto cleanup;<br>
+&gt;             }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +            orte_rml.recv_buffer_nb(ORTE_PROC_MY_HNP, ORTE_RML_TAG_SNAPC_FULL, 0, snapc_full_app_callback_recv, NULL);<br>
+&gt;<br>
+&gt;             count = 1;<br>
+&gt;             if (ORTE_SUCCESS != (ret = opal_dss.unpack(&amp;buffer, &amp;command, &amp;count, ORTE_SNAPC_FULL_CMD))) {<br>
+&gt; diff --git a/orte/mca/snapc/full/snapc_full_global.c b/orte/mca/snapc/full/snapc_full_global.c<br>
+&gt; index 9f6da34..efd202d 100644<br>
+&gt; --- a/orte/mca/snapc/full/snapc_full_global.c<br>
+&gt; +++ b/orte/mca/snapc/full/snapc_full_global.c<br>
+&gt; @@ -875,18 +875,18 @@ static int global_refresh_job_structs(void)<br>
+&gt;  *****************/<br>
+&gt; static int snapc_full_global_start_listener(void)<br>
+&gt; {<br>
+&gt; -    int ret, exit_status = ORTE_SUCCESS;<br>
+&gt; -<br>
+&gt;     if (snapc_orted_recv_issued &amp;&amp; ORTE_PROC_IS_HNP) {<br>
+&gt;         return ORTE_SUCCESS;<br>
+&gt;     }<br>
+&gt; -<br>
+&gt; +<br>
+&gt;     OPAL_OUTPUT_VERBOSE((5, mca_snapc_full_component.super.output_handle,<br>
+&gt;                          &quot;Global) Startup Coordinator Channel&quot;));<br>
+&gt;<br>
+&gt;     /*<br>
+&gt;      * Coordinator command listener<br>
+&gt;      */<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt;                                                        ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt;                                                        ORTE_RML_PERSISTENT,<br>
+&gt; @@ -896,11 +896,13 @@ static int snapc_full_global_start_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt; +                            ORTE_RML_PERSISTENT, snapc_full_global_orted_recv, NULL);<br>
+&gt;<br>
+&gt;     snapc_orted_recv_issued = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int snapc_full_global_stop_listener(void)<br>
+&gt; @@ -920,8 +922,6 @@ static int snapc_full_global_stop_listener(void)<br>
+&gt;<br>
+&gt; static int snapc_full_global_start_cmdline_listener(void)<br>
+&gt; {<br>
+&gt; -    int ret, exit_status = ORTE_SUCCESS;<br>
+&gt; -<br>
+&gt;     if (snapc_cmdline_recv_issued &amp;&amp; ORTE_PROC_IS_HNP) {<br>
+&gt;         return ORTE_SUCCESS;<br>
+&gt;     }<br>
+&gt; @@ -932,6 +932,8 @@ static int snapc_full_global_start_cmdline_listener(void)<br>
+&gt;     /*<br>
+&gt;      * Coordinator command listener<br>
+&gt;      */<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt;                                                        ORTE_RML_TAG_CKPT,<br>
+&gt;                                                        0,<br>
+&gt; @@ -941,11 +943,12 @@ static int snapc_full_global_start_cmdline_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_CKPT, 0,<br>
+&gt; +                            snapc_full_global_cmdline_recv, NULL);<br>
+&gt;<br>
+&gt;     snapc_cmdline_recv_issued = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int snapc_full_global_stop_cmdline_listener(void)<br>
+&gt; diff --git a/orte/mca/snapc/full/snapc_full_local.c b/orte/mca/snapc/full/snapc_full_local.c<br>
+&gt; index b13fce9..6413413 100644<br>
+&gt; --- a/orte/mca/snapc/full/snapc_full_local.c<br>
+&gt; +++ b/orte/mca/snapc/full/snapc_full_local.c<br>
+&gt; @@ -341,8 +341,6 @@ int local_coord_release_job(orte_jobid_t jobid)<br>
+&gt;  ******************/<br>
+&gt; static int snapc_full_local_start_hnp_listener(void)<br>
+&gt; {<br>
+&gt; -    int ret, exit_status = ORTE_SUCCESS;<br>
+&gt; -<br>
+&gt;     /*<br>
+&gt;      * Global Coordinator: Do not register a Local listener<br>
+&gt;      */<br>
+&gt; @@ -360,6 +358,8 @@ static int snapc_full_local_start_hnp_listener(void)<br>
+&gt;     /*<br>
+&gt;      * Coordinator command listener<br>
+&gt;      */<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt;                                                        ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt;                                                        ORTE_RML_PERSISTENT,<br>
+&gt; @@ -369,11 +369,13 @@ static int snapc_full_local_start_hnp_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt; +                            ORTE_RML_PERSISTENT, snapc_full_local_hnp_cmd_recv, NULL);<br>
+&gt;<br>
+&gt;     snapc_local_hnp_recv_issued = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int snapc_full_local_stop_hnp_listener(void)<br>
+&gt; @@ -400,8 +402,6 @@ static int snapc_full_local_stop_hnp_listener(void)<br>
+&gt;<br>
+&gt; static int snapc_full_local_start_app_listener(void)<br>
+&gt; {<br>
+&gt; -    int ret, exit_status = ORTE_SUCCESS;<br>
+&gt; -<br>
+&gt;     if (snapc_local_app_recv_issued) {<br>
+&gt;         return ORTE_SUCCESS;<br>
+&gt;     }<br>
+&gt; @@ -412,6 +412,8 @@ static int snapc_full_local_start_app_listener(void)<br>
+&gt;     /*<br>
+&gt;      * Coordinator command listener<br>
+&gt;      */<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt;                                                        ORTE_RML_TAG_SNAPC,<br>
+&gt;                                                        ORTE_RML_PERSISTENT,<br>
+&gt; @@ -421,11 +423,13 @@ static int snapc_full_local_start_app_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_SNAPC,<br>
+&gt; +                            ORTE_RML_PERSISTENT, snapc_full_local_app_cmd_recv,<br>
+&gt; +                            NULL);<br>
+&gt;<br>
+&gt;     snapc_local_app_recv_issued = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int snapc_full_local_stop_app_listener(void)<br>
+&gt; diff --git a/orte/mca/sstore/central/sstore_central_app.c b/orte/mca/sstore/central/sstore_central_app.c<br>
+&gt; index e717065..a7d6689 100644<br>
+&gt; --- a/orte/mca/sstore/central/sstore_central_app.c<br>
+&gt; +++ b/orte/mca/sstore/central/sstore_central_app.c<br>
+&gt; @@ -477,6 +477,8 @@ static int pull_handle_info(orte_sstore_central_app_snapshot_info_t *handle_info<br>
+&gt;                          &quot;sstore:central:(app): pull() from %s -&gt; %s&quot;,<br>
+&gt;                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),<br>
+&gt;                          ORTE_NAME_PRINT(ORTE_PROC_MY_DAEMON)));<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if( ORTE_SUCCESS != (ret = orte_rml.recv_buffer(ORTE_PROC_MY_DAEMON,<br>
+&gt;                                                     &amp;buffer,<br>
+&gt;                                                     ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; @@ -485,6 +487,10 @@ static int pull_handle_info(orte_sstore_central_app_snapshot_info_t *handle_info<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_PROC_MY_DAEMON, ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                            0, orte_rml_recv_callback, NULL);<br>
+&gt;<br>
+&gt;     count = 1;<br>
+&gt;     if (ORTE_SUCCESS != (ret = opal_dss.unpack(&amp;buffer, &amp;command, &amp;count, ORTE_SSTORE_CENTRAL_CMD))) {<br>
+&gt; diff --git a/orte/mca/sstore/central/sstore_central_global.c b/orte/mca/sstore/central/sstore_central_global.c<br>
+&gt; index 935b6fe..2685a55 100644<br>
+&gt; --- a/orte/mca/sstore/central/sstore_central_global.c<br>
+&gt; +++ b/orte/mca/sstore/central/sstore_central_global.c<br>
+&gt; @@ -800,12 +800,12 @@ static orte_sstore_central_global_snapshot_info_t *find_handle_info_from_ref(cha<br>
+&gt;<br>
+&gt; static int sstore_central_global_start_listener(void)<br>
+&gt; {<br>
+&gt; -    int ret, exit_status = ORTE_SUCCESS;<br>
+&gt; -<br>
+&gt;     if( is_global_listener_active ) {<br>
+&gt;         return ORTE_SUCCESS;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt;                                                        ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt;                                                        ORTE_RML_PERSISTENT,<br>
+&gt; @@ -815,11 +815,12 @@ static int sstore_central_global_start_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                            ORTE_RML_PERSISTENT, sstore_central_global_recv, NULL);<br>
+&gt;<br>
+&gt;     is_global_listener_active = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int sstore_central_global_stop_listener(void)<br>
+&gt; diff --git a/orte/mca/sstore/central/sstore_central_local.c b/orte/mca/sstore/central/sstore_central_local.c<br>
+&gt; index 35ef518..0393107 100644<br>
+&gt; --- a/orte/mca/sstore/central/sstore_central_local.c<br>
+&gt; +++ b/orte/mca/sstore/central/sstore_central_local.c<br>
+&gt; @@ -619,12 +619,12 @@ static orte_sstore_central_local_app_snapshot_info_t *find_app_handle_info(orte_<br>
+&gt;<br>
+&gt; static int sstore_central_local_start_listener(void)<br>
+&gt; {<br>
+&gt; -    int ret, exit_status = ORTE_SUCCESS;<br>
+&gt; -<br>
+&gt;     if( is_global_listener_active ) {<br>
+&gt;         return ORTE_SUCCESS;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt;                                                        ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt;                                                        ORTE_RML_PERSISTENT,<br>
+&gt; @@ -634,11 +634,12 @@ static int sstore_central_local_start_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                            ORTE_RML_PERSISTENT, orte_sstore_central_local_recv, NULL);<br>
+&gt;<br>
+&gt;     is_global_listener_active = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int sstore_central_local_stop_listener(void)<br>
+&gt; diff --git a/orte/mca/sstore/stage/sstore_stage_app.c b/orte/mca/sstore/stage/sstore_stage_app.c<br>
+&gt; index 10d38ad..88b6484 100644<br>
+&gt; --- a/orte/mca/sstore/stage/sstore_stage_app.c<br>
+&gt; +++ b/orte/mca/sstore/stage/sstore_stage_app.c<br>
+&gt; @@ -466,6 +466,8 @@ static int pull_handle_info(orte_sstore_stage_app_snapshot_info_t *handle_info )<br>
+&gt;                          &quot;sstore:stage:(app): pull() from %s -&gt; %s&quot;,<br>
+&gt;                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),<br>
+&gt;                          ORTE_NAME_PRINT(ORTE_PROC_MY_DAEMON)));<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if( ORTE_SUCCESS != (ret = orte_rml.recv_buffer(ORTE_PROC_MY_DAEMON,<br>
+&gt;                                                     &amp;buffer,<br>
+&gt;                                                     ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; @@ -475,6 +477,9 @@ static int pull_handle_info(orte_sstore_stage_app_snapshot_info_t *handle_info )<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_PROC_MY_DAEMON, ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                            0, orte_rml_recv_callback, NULL);<br>
+&gt;     count = 1;<br>
+&gt;     if (ORTE_SUCCESS != (ret = opal_dss.unpack(&amp;buffer, &amp;command, &amp;count, ORTE_SSTORE_STAGE_CMD))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt; diff --git a/orte/mca/sstore/stage/sstore_stage_global.c b/orte/mca/sstore/stage/sstore_stage_global.c<br>
+&gt; index 1c8847a..1c94845 100644<br>
+&gt; --- a/orte/mca/sstore/stage/sstore_stage_global.c<br>
+&gt; +++ b/orte/mca/sstore/stage/sstore_stage_global.c<br>
+&gt; @@ -992,12 +992,12 @@ static orte_sstore_stage_global_snapshot_info_t *find_handle_info(orte_sstore_ba<br>
+&gt;<br>
+&gt; static int sstore_stage_global_start_listener(void)<br>
+&gt; {<br>
+&gt; -    int ret, exit_status = ORTE_SUCCESS;<br>
+&gt; -<br>
+&gt;     if( is_global_listener_active ) {<br>
+&gt;         return ORTE_SUCCESS;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt;                                                        ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt;                                                        ORTE_RML_PERSISTENT,<br>
+&gt; @@ -1007,11 +1007,12 @@ static int sstore_stage_global_start_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                            ORTE_RML_PERSISTENT, sstore_stage_global_recv, NULL);<br>
+&gt;<br>
+&gt;     is_global_listener_active = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int sstore_stage_global_stop_listener(void)<br>
+&gt; diff --git a/orte/mca/sstore/stage/sstore_stage_local.c b/orte/mca/sstore/stage/sstore_stage_local.c<br>
+&gt; index 792c1a2..88ded55 100644<br>
+&gt; --- a/orte/mca/sstore/stage/sstore_stage_local.c<br>
+&gt; +++ b/orte/mca/sstore/stage/sstore_stage_local.c<br>
+&gt; @@ -1043,12 +1043,12 @@ static orte_sstore_stage_local_app_snapshot_info_t *find_app_handle_info(orte_ss<br>
+&gt;<br>
+&gt; static int sstore_stage_local_start_listener(void)<br>
+&gt; {<br>
+&gt; -    int ret, exit_status = ORTE_SUCCESS;<br>
+&gt; -<br>
+&gt;     if( is_global_listener_active ) {<br>
+&gt;         return ORTE_SUCCESS;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt;                                                        ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt;                                                        ORTE_RML_PERSISTENT,<br>
+&gt; @@ -1058,11 +1058,12 @@ static int sstore_stage_local_start_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                            ORTE_RML_PERSISTENT, sstore_stage_local_recv, NULL);<br>
+&gt;<br>
+&gt;     is_global_listener_active = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int sstore_stage_local_stop_listener(void)<br>
+&gt; diff --git a/orte/tools/orte-checkpoint/orte-checkpoint.c b/orte/tools/orte-checkpoint/orte-checkpoint.c<br>
+&gt; index caa5949..62cb651 100644<br>
+&gt; --- a/orte/tools/orte-checkpoint/orte-checkpoint.c<br>
+&gt; +++ b/orte/tools/orte-checkpoint/orte-checkpoint.c<br>
+&gt; @@ -652,6 +652,8 @@ static int ckpt_finalize(void) {<br>
+&gt;<br>
+&gt; static int start_listener(void)<br>
+&gt; {<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     int ret, exit_status = ORTE_SUCCESS;<br>
+&gt;<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt; @@ -662,11 +664,12 @@ static int start_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_CKPT,<br>
+&gt; +                            ORTE_RML_PERSISTENT, hnp_receiver, NULL);<br>
+&gt;<br>
+&gt;     listener_started = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int stop_listener(void)<br>
+&gt; diff --git a/orte/tools/orte-migrate/orte-migrate.c b/orte/tools/orte-migrate/orte-migrate.c<br>
+&gt; index 7ba2074..fe6f32e 100644<br>
+&gt; --- a/orte/tools/orte-migrate/orte-migrate.c<br>
+&gt; +++ b/orte/tools/orte-migrate/orte-migrate.c<br>
+&gt; @@ -513,6 +513,8 @@ static int tool_finalize(void) {<br>
+&gt;<br>
+&gt; static int start_listener(void)<br>
+&gt; {<br>
+&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt; +    /* This is the old, now broken code */<br>
+&gt;     int ret, exit_status = ORTE_SUCCESS;<br>
+&gt;<br>
+&gt;     if (ORTE_SUCCESS != (ret = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,<br>
+&gt; @@ -523,11 +525,12 @@ static int start_listener(void)<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt; +    orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_MIGRATE,<br>
+&gt; +                            ORTE_RML_PERSISTENT, hnp_receiver, NULL);<br>
+&gt;<br>
+&gt;     listener_started = true;<br>
+&gt; -<br>
+&gt; - cleanup:<br>
+&gt; -    return exit_status;<br>
+&gt; +    return ORTE_SUCCESS;<br>
+&gt; }<br>
+&gt;<br>
+&gt; static int stop_listener(void)<br>
+&gt; --<br>
+&gt; 1.8.4.2<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Joshua Hursey<br>Assistant Professor of Computer Science<br>University of Wisconsin-La Crosse<br><a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a>
+</div>
+

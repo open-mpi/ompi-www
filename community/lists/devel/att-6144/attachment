@@ -1,0 +1,91 @@
+I agree with Terry here about being careful in pursuing this path. What I wouldn&#39;t want to have happen is to force anyone wanting to be notified of error events to have to also turn on peruse, which impacts the non-error code path.<br>
+<br>Again, I&#39;m not entirely sure what you are trying to do here. As I understood the original RFC, it sounded like you wanted to track errors but only report them when they occurred a controlled number of times (as opposed to every time). I think this would better be done outside of peruse.<br>
+<br>If you are trying to track normal performance (e.g., trying to alert sys admins when networks aren&#39;t running as fast as they should), then that probably should be done inside of peruse. However, that definitely will impact the critical code path, so Terry&#39;s caution is definitely a concern.<br>
+<br><br><div class="gmail_quote">On Thu, May 28, 2009 at 12:55 AM, Nadia Derbey <span dir="ltr">&lt;<a href="mailto:Nadia.Derbey@bull.net">Nadia.Derbey@bull.net</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<div class="im">On Wed, 2009-05-27 at 14:25 -0400, Jeff Squyres wrote:<br>
+&gt; Excellent points; Ralph and I chatted about this on the phone today --<br>
+&gt; we concur with George.<br>
+&gt;<br>
+&gt; Bull -- would peruse work for you?  I think you mentioned before that<br>
+&gt; it didn&#39;t seem attractive to you.<br>
+<br>
+</div>Well, it didn&#39;t because from what I understood, the MPI program need to<br>
+be changed (register a callback routine for the event, activate the<br>
+event, etc), and this is something we wanted to avoid.<br>
+<br>
+Now, if we are allowed to<br>
+1. define new &quot;internal&quot; PERUSE events,<br>
+2. internally set the associated callback routines<br>
+why not using peruse? This combined with the orte notifier framework,<br>
+could do the job I think.<br>
+<br>
+Regards,<br>
+Nadia<br>
+<div><div></div><div class="h5"><br>
+&gt;   I think George&#39;s point is that we<br>
+&gt; already have lots of hooks in place in the PML -- and they&#39;re called<br>
+&gt; peruse.  So if we could use those hooks, then a) they&#39;re run-time<br>
+&gt; selectable already, and b) there&#39;s no additional cost in performance<br>
+&gt; critical/not-critical code paths (for the case where these stats are<br>
+&gt; not being collected) because PERUSE has been in the code base for a<br>
+&gt; long time.<br>
+&gt;<br>
+&gt; I think the idea is that your callbacks could be invoked by the peruse<br>
+&gt; hooks and then they can do whatever they want -- increment counters,<br>
+&gt; conditionally invoke the ORTE notifier system, etc.<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; On May 27, 2009, at 11:34 AM, George Bosilca wrote:<br>
+&gt;<br>
+&gt; &gt; What is a generic threshold? And what is a counter? We have a policy<br>
+&gt; &gt; against such coding standards, and to be honest I would like to stick<br>
+&gt; &gt; to it. The reason is that the PML is a very complex piece of code, and<br>
+&gt; &gt; I would like to keep it as easy to understand as possible. If people<br>
+&gt; &gt; start adding #if/#endif all over the code, we diverging from this<br>
+&gt; &gt; goal.<br>
+&gt; &gt;<br>
+&gt; &gt; The only way to make this work is to call the notifier or some other<br>
+&gt; &gt; framework in this &quot;slow path&quot; and let this other framework do it&#39;s own<br>
+&gt; &gt; logic to determine what and when to print. Of course the cost of this<br>
+&gt; &gt; is a function call plus an atomic operation (which is already not<br>
+&gt; &gt; cheap). It&#39;s starting to get expensive, even for a &quot;slow path&quot;, which<br>
+&gt; &gt; in this particular context is just one insertion in an atomic FIFO.<br>
+&gt; &gt;<br>
+&gt; &gt; If instead of counting in number of times we try to send the fragment,<br>
+&gt; &gt; and switch to a time base approach, this can be solved with the PERUSE<br>
+&gt; &gt; calls. There is a callback when the request is created, and another<br>
+&gt; &gt; callback when the first fragment is pushed successfully into the<br>
+&gt; &gt; network. Computing the time between these two, allow a tool to figure<br>
+&gt; &gt; out how much time the request was waiting in some internal queues, and<br>
+&gt; &gt; therefore how much delay this added to the execution time.<br>
+&gt; &gt;<br>
+&gt; &gt;    george.<br>
+&gt; &gt;<br>
+&gt; &gt; On May 27, 2009, at 06:59 , Ralph Castain wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; ORTE_NOTIFIER_VERBOSE(api, counter, threshold,...)<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; #if WANT_NOTIFIER_VERBOSE<br>
+&gt; &gt; &gt; opal_atomic_increment(counter);<br>
+&gt; &gt; &gt; if (counter &gt; threshold) {<br>
+&gt; &gt; &gt;     orte_notifier.api(.....)<br>
+&gt; &gt; &gt; }<br>
+&gt; &gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; devel mailing list<br>
+&gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt;<br>
+&gt;<br>
+&gt;<br>
+--<br>
+</div></div><font color="#888888">Nadia Derbey &lt;<a href="mailto:Nadia.Derbey@bull.net">Nadia.Derbey@bull.net</a>&gt;<br>
+</font><div><div></div><div class="h5"><br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br>
+

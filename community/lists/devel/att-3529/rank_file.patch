@@ -1,0 +1,1733 @@
+Index: opal/runtime/opal_params.c
+===================================================================
+--- opal/runtime/opal_params.c	(revision 17974)
++++ opal/runtime/opal_params.c	(working copy)
+@@ -33,6 +33,8 @@
+ #include "opal/mca/base/mca_base_param.h"
+ #include "opal/threads/mutex.h"
+ 
++bool opal_debug_flag = false;
++
+ int opal_register_params(void)
+ {
+     /*
+@@ -40,7 +42,7 @@
+      */
+     {
+         char *string = NULL;
+-        int j;
++        int j, value;
+         int signals[] = {
+ #ifdef SIGABRT
+             SIGABRT,
+@@ -70,6 +72,20 @@
+         mca_base_param_reg_string_name("opal", "signal", 
+                                        "If a signal is received, display the stack trace frame",
+                                        false, false, string, NULL);
++        
++        mca_base_param_reg_string_name("opal","paffinity_slot_list",
++                                       "Used to set list of slots to be bind to",
++                                       false,false, NULL, NULL);
++
++        mca_base_param_reg_int_name("opal", "paffinity_alone",
++                                    "If nonzero, assume that this job is the only (set of) process(es) running on each node and bind processes to processors, starting with processor ID 0",
++                                    false, false, (int)false, 0);
++        
++        mca_base_param_reg_int_name("opal", "debug",
++                                    "Top-level OPAL debug switch (default verbosity: 1)",
++                                    false, false, (int)false, &value);
++
++        opal_debug_flag = OPAL_INT_TO_BOOL(value);
+         free(string);
+     }
+ 
+Index: opal/runtime/opal.h
+===================================================================
+--- opal/runtime/opal.h	(revision 17974)
++++ opal/runtime/opal.h	(working copy)
+@@ -76,6 +76,11 @@
+  */
+ OPAL_DECLSPEC int opal_register_params(void);
+ 
++/**
++ * OPAL geneal debug flag
++ */
++OPAL_DECLSPEC extern bool opal_debug_flag;
++
+ #if defined(c_plusplus) || defined(__cplusplus)
+ }
+ #endif
+Index: opal/mca/paffinity/base/base.h
+===================================================================
+--- opal/mca/paffinity/base/base.h	(revision 17974)
++++ opal/mca/paffinity/base/base.h	(working copy)
+@@ -219,7 +219,13 @@
+      */
+     OPAL_DECLSPEC extern opal_list_t opal_paffinity_base_components_opened;
+ 
++
+     /**
++     * Assigning slot_list to proccess 
++     */
++    OPAL_DECLSPEC int opal_paffinity_slot_list_set(char *slot_str, long rank);
++
++    /**
+      * Debugging output stream
+      */
+     extern int opal_paffinity_base_output;
+Index: opal/mca/paffinity/base/Makefile.am
+===================================================================
+--- opal/mca/paffinity/base/Makefile.am	(revision 17974)
++++ opal/mca/paffinity/base/Makefile.am	(working copy)
+@@ -23,4 +23,5 @@
+         base/paffinity_base_close.c \
+         base/paffinity_base_select.c \
+         base/paffinity_base_open.c \
+-        base/paffinity_base_wrappers.c
++        base/paffinity_base_wrappers.c \
++        base/paffinity_base_service.c
+Index: ompi/runtime/params.h
+===================================================================
+--- ompi/runtime/params.h	(revision 17974)
++++ ompi/runtime/params.h	(working copy)
+@@ -94,16 +94,8 @@
+ OMPI_DECLSPEC extern char * ompi_mpi_show_mca_params_file;
+ 
+ /**
+- * If this value is true, assume that this ORTE job is the only job
+- * running on the nodes that have been allocated to it, and bind
+- * processes to processors (starting with processor 0).
+- */
+-OMPI_DECLSPEC extern bool ompi_mpi_paffinity_alone;
+-
+-/**
+  * If this value is true, we can check process binding to CPU 
+  */
+-OMPI_DECLSPEC extern bool rmaps_rank_file_debug;
+ 
+ /**
+  * Whether we should keep the string hostnames of all the MPI
+@@ -165,7 +157,12 @@
+  */
+ OMPI_DECLSPEC int ompi_mpi_register_params(void);
+ 
++/**
++ * general debug flag for ompi debuging
++ */
++OMPI_DECLSPEC extern bool ompi_debug_flag;
+ 
++
+ /**
+  * Display all MCA parameters used 
+  * 
+Index: ompi/runtime/ompi_mpi_init.c
+===================================================================
+--- ompi/runtime/ompi_mpi_init.c	(revision 17974)
++++ ompi/runtime/ompi_mpi_init.c	(working copy)
+@@ -88,7 +88,6 @@
+ #endif
+ #include "ompi/runtime/ompi_cr.h"
+ 
+-static int slot_list_to_cpu_set(char *slot_str);
+ #include "orte/runtime/orte_globals.h"
+ /*
+  * Global variables and symbols for the MPI layer
+@@ -299,45 +298,21 @@
+     }
+ 
+     /* Setup process affinity */
+-    if ( NULL != ( slot_list = getenv("slot_list"))) {
+-        if (ORTE_SUCCESS != (ret = slot_list_to_cpu_set(slot_list))){
+-            error = "ompi_mpi_init: error slot_list assigning";
+-            goto error;
+-        }       
+-    }
+-
+-    if (ompi_mpi_paffinity_alone) {
+-        bool set = false;
+-        param = mca_base_param_find("mpi", NULL, "paffinity_processor");
+-        if (param >= 0) {
+-            if (OMPI_SUCCESS == mca_base_param_lookup_int(param, &value)) {
+-                if (value >= 0) {
+-                    opal_paffinity_base_cpu_set_t mpi_cpumask;
+-                    OPAL_PAFFINITY_CPU_ZERO(mpi_cpumask);
+-                    OPAL_PAFFINITY_CPU_SET(value,mpi_cpumask);
+-                    if (OPAL_SUCCESS == opal_paffinity_base_set(mpi_cpumask)) {
+-                         set = true;
+-                    }
++    param = mca_base_param_find("opal", NULL, "paffinity_slot_list");
++    if (param >= 0) {
++        if (OMPI_SUCCESS == mca_base_param_lookup_string(param, &slot_list)) {
++            if (NULL != slot_list) {
++                if (OMPI_SUCCESS != (ret = opal_paffinity_slot_list_set(slot_list, (long)ORTE_PROC_MY_NAME->vpid))){
++                    error = "ompi_mpi_init: error slot_list assigning";
++                    goto error;
+                 }
+             }
+-            if (!set) {
+-                char *vpid;
+-                orte_util_convert_vpid_to_string(&vpid, ORTE_PROC_MY_NAME->vpid);
+-                opal_show_help("help-mpi-runtime",
+-                               "mpi_init:startup:paffinity-unavailable",
+-                               true, vpid);
+-                free(vpid);
+-            }
+-            
+-            /* If we were able to set processor affinity, try setting
+-               up memory affinity */
+-
+-            else {
+-                if (OPAL_SUCCESS == opal_maffinity_base_open() &&
+-                    OPAL_SUCCESS == opal_maffinity_base_select()) {
+-                    ompi_mpi_maffinity_setup = true;
+-                }
+-            }
++        } 
++        /* If we were able to set processor affinity, try setting
++           up memory affinity */
++        if (OPAL_SUCCESS == opal_maffinity_base_open() &&
++            OPAL_SUCCESS == opal_maffinity_base_select()) {
++                ompi_mpi_maffinity_setup = true;
+         }
+     }
+ 
+@@ -759,14 +734,15 @@
+        the user's code.  Setup the connections between procs and warm
+        them up with simple sends, if requested */
+ 
+- error:
++error:
+     if (ret != OMPI_SUCCESS) {
+         const char *err_msg = opal_strerror(ret);
+         opal_show_help("help-mpi-runtime",
+-                       "mpi_init:startup:internal-failure", true,
+-                       "MPI_INIT", "MPI_INIT", error, err_msg, ret);
++                        "mpi_init:startup:internal-failure", true,
++                        "MPI_INIT", "MPI_INIT", error, err_msg, ret);
+         return ret;
+     }
++        
+ 
+     /* Initialize the registered datarep list to be empty */
+ 
+@@ -791,383 +767,3 @@
+     return MPI_SUCCESS;
+ }
+ 
+-/**
+-  *  This function receives a slot string ant translate it to
+-  *  cpu_set (long bitmap) using the PLPA module.
+-  */
+-
+-static int socket_to_cpu_set(char **socket_list, int socket_cnt)
+-{
+-    int i;
+-    char **range;
+-    int range_cnt;
+-    int lower_range, upper_range;
+-    int processor_id, num_processors;
+-    int max_processor_id;
+-    int rc;
+-    opal_paffinity_base_cpu_set_t cpumask;
+-
+-    if (OPAL_SUCCESS != (rc = opal_paffinity_base_get_processor_info(&num_processors, &max_processor_id))) {
+-        ORTE_ERROR_LOG(rc);
+-        return ORTE_ERROR;
+-    }
+-    OPAL_PAFFINITY_CPU_ZERO(cpumask);
+-    for (i=0; i<socket_cnt; i++) {
+-        if (0 == strcmp("*", socket_list[i])) {
+-            for ( processor_id=0; processor_id<=max_processor_id; processor_id++) {
+-                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                if (OPAL_SUCCESS != ( rc = opal_paffinity_base_set(cpumask))) {
+-                    ORTE_ERROR_LOG(rc);
+-                    return ORTE_ERROR;
+-                }
+-                if (rmaps_rank_file_debug) {
+-                    opal_output(0,"rank %ld runon cpu #%d (any socket)",(long)ORTE_PROC_MY_NAME->vpid, processor_id);
+-                }
+-            }
+-            continue;
+-        }
+-        range = opal_argv_split(socket_list[i],'-');
+-        range_cnt = opal_argv_count(range);
+-        switch (range_cnt) {
+-            case 1:
+-                processor_id = atoi(range[0]);
+-                if (max_processor_id < processor_id) {
+-                    opal_output(0, "ERROR !!! max_processor_id (%d) < processor_id(%d), modify rankfile and run again\n",max_processor_id, processor_id);
+-                    ORTE_ERROR_LOG(OPAL_ERR_BAD_PARAM);
+-                    return ORTE_ERROR;
+-                }
+-                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                if (OPAL_SUCCESS != ( rc = opal_paffinity_base_set(cpumask))) {
+-                    ORTE_ERROR_LOG(rc);
+-                    return ORTE_ERROR;
+-                }
+-                if (rmaps_rank_file_debug) {
+-                    opal_output(0,"rank %ld runs on cpu #%d", (long)ORTE_PROC_MY_NAME->vpid, processor_id);
+-                }
+-                break;
+-            case 2:
+-                lower_range = atoi(range[0]);
+-                upper_range = atoi(range[1]);
+-                if (max_processor_id < upper_range || lower_range >= upper_range ) {
+-                    opal_output(0,"Error !!! Check your boundaries %d < %d(max_cpu) < %d , modify rankfile and run again\n",lower_range, max_processor_id, upper_range);
+-                    ORTE_ERROR_LOG(OPAL_ERR_BAD_PARAM);
+-                    return ORTE_ERROR;
+-                }
+-                for (processor_id=lower_range; processor_id<=upper_range; processor_id++) {
+-                    OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                    if (OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+-                        ORTE_ERROR_LOG(rc);
+-                        return ORTE_ERROR;
+-                    }
+-                    if (rmaps_rank_file_debug) {
+-                        opal_output(0,"rank %ld runs on cpu #%d (%d-%d)",
+-                                    (long)ORTE_PROC_MY_NAME->vpid, processor_id, lower_range, upper_range);
+-                    }
+-                }
+-                break;
+-            default:
+-                opal_argv_free(range);
+-                ORTE_ERROR_LOG(ORTE_ERROR);
+-                return ORTE_ERROR;
+-        }
+-        opal_argv_free(range);
+-    }
+-    return ORTE_SUCCESS;
+-}
+-
+-static int socket_core_to_cpu_set(char **socket_core_list, int socket_core_list_cnt)
+-{
+-        int rc, i;
+-        char **socket_core;
+-        int socket_core_cnt;
+-        char **range;
+-        int range_cnt;
+-        int lower_range, upper_range;
+-        int socket, core, processor_id ;
+-        int max_socket_num, max_core_num;
+-        int num_sockets, num_cores;
+-        opal_paffinity_base_cpu_set_t cpumask;
+-        
+-        socket_core = opal_argv_split (socket_core_list[0], ':');
+-        socket_core_cnt = opal_argv_count(socket_core);
+-        OPAL_PAFFINITY_CPU_ZERO(cpumask);
+-        socket = atoi(socket_core[0]);
+-        
+-        if ( OPAL_SUCCESS != ( rc = opal_paffinity_base_get_socket_info(&num_sockets, &max_socket_num))) {
+-            ORTE_ERROR_LOG(rc);
+-            return ORTE_ERROR;
+-        }
+-        
+-        if ( max_socket_num < socket) {
+-            opal_output(0,"ERROR !!! socket(%d) > max_socket_num(%d), modify rankfile and run again", socket, max_socket_num);
+-            return ORTE_ERROR;
+-        }
+-        if ( OPAL_SUCCESS != ( rc = opal_paffinity_base_get_core_info(socket, &num_cores, &max_core_num))) {
+-            opal_output(0,"Error !!! Invalid socket number (%d) in rankfile, modify rankfile and run again\n", socket);
+-            ORTE_ERROR_LOG(OPAL_ERR_BAD_PARAM);
+-            return ORTE_ERROR;
+-        }
+-        
+-        if (0 == strcmp("*",socket_core[1])) {
+-            for (core = 0; core <= max_core_num; core++) {
+-                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+-                    ORTE_ERROR_LOG(rc);
+-                    return ORTE_ERROR;
+-                }
+-                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                if (OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+-                    ORTE_ERROR_LOG(rc);
+-                    return ORTE_ERROR;
+-                }
+-                if (rmaps_rank_file_debug) {
+-                    opal_output(0,"rank %ld runs on pair %d:%d (cpu #%d)",
+-                                (long)ORTE_PROC_MY_NAME->vpid, socket, core, processor_id);
+-               }
+-            }
+-        } else {
+-            range = opal_argv_split(socket_core[1], '-');
+-            range_cnt = opal_argv_count(range);
+-            switch (range_cnt) {
+-                case 1:
+-                    core = atoi(range[0]);
+-                    if ( max_core_num < core ) {
+-                        opal_output(0,"Error !!! core(%d) > max_core (%d) on socket %d, modify rankfile and run again\n",
+-                                core, max_core_num, socket);
+-                        ORTE_ERROR_LOG(OPAL_ERR_BAD_PARAM);
+-                        return ORTE_ERROR;
+-                    }
+-                    if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+-                        ORTE_ERROR_LOG(rc);
+-                        return ORTE_ERROR;
+-                    }
+-                    OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                    if (OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+-                        ORTE_ERROR_LOG(rc);
+-                        return ORTE_ERROR;
+-                    }
+-                    if (rmaps_rank_file_debug) {
+-                        opal_output(0,"rank %ld runs on pair %d:%d (cpu #%d)",
+-                                (long)ORTE_PROC_MY_NAME->vpid, socket, core, processor_id);
+-                    }
+-                    break;
+-                case 2:
+-                    lower_range = atoi(range[0]);
+-                    upper_range = atoi(range[1]);
+-                    if ( 0 > lower_range || max_core_num < upper_range || lower_range >= upper_range ) {
+-                        opal_output(0,"Error !!! Check your boundaries %d < %d(max_core) < %d ,modify rankfile and run again\n",
+-                                lower_range, max_core_num, upper_range);
+-                        ORTE_ERROR_LOG(OPAL_ERR_BAD_PARAM);
+-                        return ORTE_ERROR;
+-                    }
+-                    for (core=lower_range; core<=upper_range; core++) {
+-                        if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+-                            ORTE_ERROR_LOG(rc);
+-                            return ORTE_ERROR;
+-                        }
+-                        OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                        if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+-                            ORTE_ERROR_LOG(rc);
+-                            return ORTE_ERROR;
+-                        }
+-                        if (rmaps_rank_file_debug) {
+-                            opal_output(0,"rank %ld runs on pair %d:%d (cpu #%d)",
+-                                        (long)ORTE_PROC_MY_NAME->vpid, socket, core, processor_id);
+-                        }
+-                    }
+-                    break;
+-                default:
+-                    opal_argv_free(range);
+-                    opal_argv_free(socket_core);
+-                    ORTE_ERROR_LOG(ORTE_ERROR);
+-                    return ORTE_ERROR;
+-            }
+-            opal_argv_free(range);
+-            opal_argv_free(socket_core);
+-        }
+-        for (i=1; i<socket_core_list_cnt; i++) {
+-            socket_core = opal_argv_split (socket_core_list[i], ':');
+-            socket_core_cnt = opal_argv_count(socket_core);
+-            switch (socket_core_cnt) {
+-                case 1:
+-                    range = opal_argv_split(socket_core[0], '-');
+-                    range_cnt = opal_argv_count(range);
+-                    switch (range_cnt) {
+-                        case 1:
+-                            core = atoi(range[0]);
+-                            /* use PLPA to construct the child->cpu_set */
+-                            if ( max_core_num < core ) {
+-                                opal_output(0,"Error !!! max_core(%d) < core(%d), modify rankfile and run again\n",max_core_num, core);
+-                                ORTE_ERROR_LOG(OPAL_ERR_BAD_PARAM);
+-                                return ORTE_ERROR;
+-                            }
+-                            if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+-                                opal_output(0,"Error !!! Invalid socket : core pair ( #%d : %d), modify rankfile and run again\n",socket, core);
+-                                ORTE_ERROR_LOG(rc);
+-                                return ORTE_ERROR;
+-                            }
+-                            OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                            if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+-                                ORTE_ERROR_LOG(rc);
+-                                return ORTE_ERROR;
+-                            }
+-                            if (rmaps_rank_file_debug) {
+-                                opal_output(0,"rank %ld runs on pair %d:%d (cpu #%d)",
+-                                            (long)ORTE_PROC_MY_NAME->vpid, socket, core, processor_id);                                    
+-                            }
+-                            break;
+-                        case 2:
+-                            lower_range = atoi(range[0]);
+-                            upper_range = atoi(range[1]);
+-                            if ( 0 > lower_range || max_core_num < upper_range || lower_range >= upper_range) {
+-                                opal_output(0,"Error !!! Check your boundaries %d < %d(max_core) < %d, modify rankfile and run again\n",
+-                                        lower_range, max_core_num, upper_range);
+-                                ORTE_ERROR_LOG(OPAL_ERR_BAD_PARAM);
+-                                return ORTE_ERROR;
+-                            }
+-                            for (core=lower_range; core<=upper_range; core++) {
+-                                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+-                                    ORTE_ERROR_LOG(rc);
+-                                    return ORTE_ERROR;
+-                                }
+-                                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+-                                    ORTE_ERROR_LOG(rc);
+-                                    return ORTE_ERROR;
+-                                }
+-                                if (rmaps_rank_file_debug) {
+-                                    opal_output(0,"rank %ld runs on pair %d:%d (cpu #%d)",           
+-                                                (long)ORTE_PROC_MY_NAME->vpid, socket, core, processor_id);
+-                                } 
+-                            }
+-                            break;
+-                        default:
+-                            opal_argv_free(range);
+-                            opal_argv_free(socket_core);
+-                            ORTE_ERROR_LOG(ORTE_ERROR);
+-                            return ORTE_ERROR;
+-                    }
+-                    opal_argv_free(range);
+-                    break;
+-                case 2:
+-                    socket = atoi(socket_core[0]);
+-                    if (0 == strcmp("*",socket_core[1])) {
+-                        for (core=0; core<=max_core_num; core++) {
+-                            if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id ( socket, core, &processor_id))) {
+-                                ORTE_ERROR_LOG(rc);
+-                                return ORTE_ERROR;
+-                            }
+-                            OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                            if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+-                                ORTE_ERROR_LOG(rc);
+-                                return ORTE_ERROR;
+-                            }
+-                            if (rmaps_rank_file_debug) {
+-                                opal_output(0,"rank %ld runs on pair %d:%d (cpu #%d)",
+-                                            (long)ORTE_PROC_MY_NAME->vpid, socket, core, processor_id);
+-                            }
+-                        }
+-                    } else {
+-                        range = opal_argv_split(socket_core[1], '-');
+-                        range_cnt = opal_argv_count(range);
+-                        socket = atoi(socket_core[0]);
+-                        switch (range_cnt) {
+-                            case 1:
+-                                core = atoi(range[0]);
+-                                if ( max_core_num < core ) {
+-                                    opal_output(0,"Error !!! max_core(%d) < core(%d), modify rankfile and run again\n", max_core_num, core);
+-                                    ORTE_ERROR_LOG(OPAL_ERR_BAD_PARAM);
+-                                    return ORTE_ERROR;
+-                                }
+-                                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+-                                    ORTE_ERROR_LOG(rc);
+-                                    return ORTE_ERROR;
+-                                }
+-                                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+-                                    ORTE_ERROR_LOG(rc);
+-                                    return ORTE_ERROR;
+-                                }
+-                                if (rmaps_rank_file_debug) {
+-                                    opal_output(0,"rank %ld runs on pair %d:%d (cpu #%d)",
+-                                                (long)ORTE_PROC_MY_NAME->vpid, socket, core, processor_id);
+-                                }
+-                                break;
+-                            case 2:
+-                                lower_range = atoi(range[0]);
+-                                upper_range = atoi(range[1]);
+-                                if ( 0 > lower_range || max_core_num < upper_range || lower_range > upper_range) {
+-                                    opal_output(0,"Error !!! Check your boundaries %d < %d(max_core) < %d, modify rankfile and run again\n",
+-                                            lower_range, max_core_num, upper_range);
+-                                    ORTE_ERROR_LOG(OPAL_ERR_BAD_PARAM);
+-                                    return ORTE_ERROR;
+-                                }
+-                                for ( core = lower_range; core <= upper_range; core++) {
+-                                    if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+-                                        ORTE_ERROR_LOG(rc);
+-                                        return ORTE_ERROR;
+-                                    }
+-                                    OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+-                                    if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+-                                        ORTE_ERROR_LOG(rc);
+-                                        return ORTE_ERROR;
+-                                    }
+-                                    if (rmaps_rank_file_debug) {
+-                                        opal_output(0,"rank %ld runs on pair %d:%d (cpu #%d)",
+-                                                    (long)ORTE_PROC_MY_NAME->vpid, socket, core, processor_id);
+-                                    }
+-                                }
+-                                break;
+-                            default:
+-                                opal_argv_free(range);
+-                                opal_argv_free(socket_core);
+-                                ORTE_ERROR_LOG(ORTE_ERROR);
+-                                return ORTE_ERROR;
+-                        }
+-                        opal_argv_free(range);
+-                    }
+-                    break;
+-                default:
+-                    opal_argv_free(socket_core);
+-                    ORTE_ERROR_LOG(ORTE_ERROR);
+-                    return ORTE_ERROR;
+-            }
+-            opal_argv_free(socket_core);
+-        }
+-        return ORTE_SUCCESS;
+-}
+-
+-static int slot_list_to_cpu_set(char *slot_str)
+-{
+-        char **item;
+-        char **socket_core;
+-        orte_std_cntr_t item_cnt, socket_core_cnt;
+-        int rc;
+-
+-        item = opal_argv_split (slot_str, ',');
+-        item_cnt = opal_argv_count (item);
+-        socket_core = opal_argv_split (item[0], ':');
+-        socket_core_cnt = opal_argv_count(socket_core);
+-        opal_argv_free(socket_core);
+-    
+-        switch (socket_core_cnt) {
+-            case 1:
+-                if (ORTE_SUCCESS != (rc = socket_to_cpu_set(item, item_cnt))) {
+-                    opal_argv_free(item);
+-                    ORTE_ERROR_LOG(rc);
+-                    return ORTE_ERROR;
+-                }
+-                break;
+-            case 2:
+-                if (ORTE_SUCCESS != (rc = socket_core_to_cpu_set(item, item_cnt))) {
+-                    opal_argv_free(item);
+-                    ORTE_ERROR_LOG(rc);
+-                    return ORTE_ERROR;
+-                }
+-                break;
+-            default:
+-                opal_argv_free(item);
+-                return ORTE_ERROR;
+-        }
+-        opal_argv_free(item);
+-        return ORTE_SUCCESS;
+-}
+Index: ompi/runtime/ompi_mpi_params.c
+===================================================================
+--- ompi/runtime/ompi_mpi_params.c	(revision 17974)
++++ ompi/runtime/ompi_mpi_params.c	(working copy)
+@@ -48,8 +48,6 @@
+ bool ompi_debug_no_free_handles = false;
+ bool ompi_mpi_show_mca_params = false;
+ char *ompi_mpi_show_mca_params_file = NULL;
+-bool ompi_mpi_paffinity_alone = false;
+-bool rmaps_rank_file_debug = false;
+ bool ompi_mpi_abort_print_stack = false;
+ int ompi_mpi_abort_delay = 0;
+ bool ompi_mpi_keep_peer_hostnames = true;
+@@ -58,8 +56,8 @@
+ bool ompi_mpi_leave_pinned_pipeline = false;
+ bool ompi_have_sparse_group_storage = OPAL_INT_TO_BOOL(OMPI_GROUP_SPARSE);
+ bool ompi_use_sparse_group_storage = OPAL_INT_TO_BOOL(OMPI_GROUP_SPARSE);
++bool ompi_debug_flag = false;
+ 
+-
+ int ompi_mpi_register_params(void)
+ {
+     int value;
+@@ -148,33 +146,7 @@
+                                    "", &ompi_mpi_show_mca_params_file);
+     
+     /* User-level process pinning controls */
+-    mca_base_param_reg_int_name("mpi", "paffinity_alone",
+-                                "If nonzero, assume that this job is the only (set of) process(es) running on each node and bind processes to processors, starting with processor ID 0",
+-                                false, false, 
+-                                (int) ompi_mpi_paffinity_alone, &value);
+-    ompi_mpi_paffinity_alone = OPAL_INT_TO_BOOL(value);
+-    
+-    if ( ompi_mpi_paffinity_alone ){
+-        char *rank_file_path;
+-        mca_base_param_reg_string_name("rmaps","rank_file_path", 
+-                                        "The path to the rank mapping file",
+-                                        false, false, NULL, &rank_file_path);
+-        if (NULL != rank_file_path) {
+-            opal_output(0, "WARNING: Rankfile component can't be set with paffinity_alone, paffinity_alone set to 0");
+-            ompi_mpi_paffinity_alone = 0;
+-        }
+-    }
+-    mca_base_param_reg_int_name("mpi", "paffinity_processor",
+-                                "If set, pin this process to the processor number indicated by the value",
+-                                true, false, 
+-                                -1, NULL);
+ 
+-   mca_base_param_reg_int_name("rmaps", "rank_file_debug",
+-                       "If nonzero, prints binding to processors ",
+-                        false, false,
+-                        (int) rmaps_rank_file_debug, &value);
+-   rmaps_rank_file_debug = OPAL_INT_TO_BOOL(value);
+-   
+     /* Do we want to save hostnames for debugging messages?  This can
+        eat quite a bit of memory... */
+ 
+@@ -285,6 +257,11 @@
+         }
+     }
+ 
++    mca_base_param_reg_int_name("mpi", "debug",
++                                "Top-level OMPI debug switch (default verbosity: 1)",
++                                 false, false, (int)false, &value);
++    ompi_debug_flag = OPAL_INT_TO_BOOL(value);
++
+     /* The ddt engine has a few parameters */
+ 
+     return ompi_ddt_register_params();
+Index: orte/mca/odls/base/odls_base_default_fns.c
+===================================================================
+--- orte/mca/odls/base/odls_base_default_fns.c	(revision 17974)
++++ orte/mca/odls/base/odls_base_default_fns.c	(working copy)
+@@ -690,7 +690,7 @@
+     opal_list_item_t *item;
+     orte_app_context_t *app;
+     orte_odls_child_t *child;
+-    int i, num_processors;
++    int i, num_processors, int_value;
+     bool want_processor, oversubscribed;
+     int rc=ORTE_SUCCESS, ret;
+     bool launch_failed=true;
+@@ -931,25 +931,33 @@
+          */
+         opal_setenv("OMPI_COMM_WORLD_LOCAL_RANK", value, true, &app->env);
+         free(value);
+-        if (want_processor) {
+-            param = mca_base_param_environ_variable("mpi", NULL,
+-                                                    "paffinity_processor");
+-            asprintf(&value, "%lu", (unsigned long) proc_rank);
++
++        {   /* unset paffinity_slot_list environment */
++            param = mca_base_param_environ_variable("opal", NULL, "paffinity_slot_list");
++            opal_unsetenv(param, &app->env);
++            free (param);
++        }
++        if ( NULL != child->slot_list ) {
++            param = mca_base_param_environ_variable("opal", NULL, "paffinity_slot_list");
++            asprintf(&value, "%s", child->slot_list);
+             opal_setenv(param, value, true, &app->env);
+-            free(param);
++            free (param);
+             free(value);
+-        } else {
+-            param = mca_base_param_environ_variable("mpi", NULL,
+-                                                    "paffinity_processor");
+-            opal_unsetenv(param, &app->env);
+-            free(param);
++        } else if (want_processor) { /* setting paffinity_alone */
++            param = mca_base_param_find("opal", NULL, "paffinity_alone");
++            if ( param >=0 ) {
++                int_value = 0;
++                mca_base_param_lookup_int(param, &int_value);
++                if ( int_value ){
++                    param = mca_base_param_environ_variable("opal", NULL, "paffinity_slot_list");
++                    asprintf(&value, "%lu", (unsigned long) proc_rank);
++                    opal_setenv(param, value, true, &app->env);
++                    free(value);
++                    free(param);
++                }
++            }
+         }
+ 
+-        if ( NULL != child->slot_list ) {
+-           opal_setenv("slot_list", child->slot_list, true, &app->env);
+-        }else{
+-           opal_unsetenv("slot_list", &app->env);
+-        }
+         /* must unlock prior to fork to keep things clean in the
+          * event library
+          */
+Index: orte/mca/rmaps/rank_file/Makefile.am
+===================================================================
+--- orte/mca/rmaps/rank_file/Makefile.am	(revision 17974)
++++ orte/mca/rmaps/rank_file/Makefile.am	(working copy)
+@@ -18,16 +18,16 @@
+ # $HEADER$
+ #
+ 
+-AM_LFLAGS = -Prank_file_
+-LEX_OUTPUT_ROOT = lex.rank_file_
+-dist_pkgdata_DATA = help-orte-rmaps-rf.txt
++AM_LFLAGS = -Porte_rmaps_rank_file_
++LEX_OUTPUT_ROOT = lex.orte_rmaps_rank_file_
++dist_pkgdata_DATA = help-rmaps_rank_file.txt
+ 
+ sources = \
+-        rmaps_rf.c \
+-        rmaps_rf.h \
+-        rmaps_rf_component.c \
+-        rankfile_lex.l \
+-        rankfile_lex.h
++        rmaps_rank_file.c \
++        rmaps_rank_file.h \
++        rmaps_rank_file_component.c \
++        rmaps_rank_file_lex.l \
++        rmaps_rank_file_lex.h
+ 
+ # Make the output library in this directory, and name it either
+ # mca_<type>_<name>.la (for DSO builds) or libmca_<type>_<name>.la
+@@ -37,7 +37,7 @@
+ component_noinst =
+ component_install = mca_rmaps_rank_file.la
+ else
+-component_noinst = libmca_rmaps_rank_file.la
++component_noinst = libmca_mca_rank_file.la
+ component_install =
+ endif
+ 
+@@ -46,6 +46,7 @@
+ mca_rmaps_rank_file_la_SOURCES = $(sources)
+ mca_rmaps_rank_file_la_LDFLAGS = -module -avoid-version
+ 
+-noinst_LTLIBRARIES = $(component_noinst)
+-libmca_rmaps_rank_file_la_SOURCES =$(sources)
+-libmca_rmaps_rank_file_la_LDFLAGS = -module -avoid-version
++#noinst_LTLIBRARIES = $(component_noinst)
++#libmca_rmaps_rank_file_la_SOURCES =$(sources)
++#libmca_rmaps_rank_file_la_LDFLAGS = -module -avoid-version
++
+--- rankfile_lex.h	2008-03-25 18:26:55.000000000 +0200
++++ rmaps_rank_file_lex.h	2008-03-26 11:13:51.000000000 +0200
+@@ -38,13 +38,13 @@
+ typedef union {
+     int ival;
+     char* sval;
+-} rank_file_value_t;
++} orte_rmaps_rank_file_value_t;
+ 
+-extern int   rank_file_lex(void);
+-extern FILE *rank_file_in;
+-extern int   rank_file_line;
+-extern bool  rank_file_done;
+-extern rank_file_value_t  rank_file_value;
++extern int   orte_rmaps_rank_file_lex(void);
++extern FILE *orte_rmaps_rank_file_in;
++extern int   orte_rmaps_rank_file_line;
++extern bool  orte_rmaps_rank_file_done;
++extern orte_rmaps_rank_file_value_t orte_rmaps_rank_file_value;
+ 
+ /*
+  * Make lex-generated files not issue compiler warnings
+@@ -63,9 +63,6 @@ extern rank_file_value_t  rank_file_valu
+ #define ORTE_RANKFILE_INT            4
+ #define ORTE_RANKFILE_STRING         5
+ #define ORTE_RANKFILE_RANK           6
+-#define ORTE_RANKFILE_COUNT          7
+-#define ORTE_RANKFILE_SLOTS          8
+-#define ORTE_RANKFILE_SLOTS_MAX      9
+ #define ORTE_RANKFILE_USERNAME       10
+ #define ORTE_RANKFILE_IPV4           11
+ #define ORTE_RANKFILE_HOSTNAME       12
+--- help-orte-rmaps-rf.txt	2008-03-26 11:04:44.000000000 +0200
++++ help-rmaps_rank_file.txt	2008-03-26 10:55:37.000000000 +0200
+@@ -71,6 +71,12 @@ Error, Invalid rank (%d) in the rankfile
+ [bad-assign]
+ Error, rank %d is already assigned to %s, check %s
+ 
++[bad-syntax]
++Error, invalid syntax in the rankfil
++syntax must be the fallowing
++rank i=host_i slot=string
++ex: rank 1=host1 slot=1:0,1
++
+ [orte-rmaps-rf:multi-apps-and-zero-np]
+ RMAPS found multiple applications to be launched, with
+ at least one that failed to specify the number of processes to execute.
+@@ -101,5 +107,3 @@ Either request fewer processes/node, or 
+ You have specified a rank-to-node/slot mapping, but failed to provide
+ the number of processes to be executed. This information is critical for Rank
+ Mapping component.
+-
+-
+--- rankfile_lex.l	2008-03-25 18:26:55.000000000 +0200
++++ rmaps_rank_file_lex.l	2008-03-23 16:25:21.000000000 +0200
+@@ -24,7 +24,7 @@
+ #if HAVE_UNISTD_H
+ #include <unistd.h>
+ #endif
+-#include "rankfile_lex.h"
++#include "orte/mca/rmaps/rank_file/rmaps_rank_file_lex.h"
+ 
+ /*
+  * local functions
+@@ -33,25 +33,23 @@
+ extern "C" {
+ #endif  /* defined(c_plusplus) || defined(__cplusplus) */
+ 
+-/*int rank_file_wrap(void);*/
+-
+ #if defined(c_plusplus) || defined(__cplusplus)
+ }
+ #endif  /* defined(c_plusplus) || defined(__cplusplus) */
+ 
+-
+-int rank_file_wrap(void)
++int orte_rmaps_rank_file_wrap(void)
+ {
+-    rank_file_done = true;
++    orte_rmaps_rank_file_done = true;
+     return 1;
+ }
+ 
++
+ /*
+  * global variables
+  */
+-int rank_file_line=1;
+-rank_file_value_t rank_file_value;
+-bool rank_file_done = false;
++int orte_rmaps_rank_file_line=1;
++orte_rmaps_rank_file_value_t orte_rmaps_rank_file_value;
++bool orte_rmaps_rank_file_done = false;
+ 
+ %}
+ 
+@@ -61,42 +59,42 @@ WHITE       [\f\t\v ]
+ 
+ %%
+ 
+-{WHITE}*\n         { rank_file_line++; 
++{WHITE}*\n         { orte_rmaps_rank_file_line++; 
+                      return ORTE_RANKFILE_NEWLINE; }
+-#.*\n              { rank_file_line++; 
++#.*\n              { orte_rmaps_rank_file_line++; 
+                      return ORTE_RANKFILE_NEWLINE; }
+-"//".*\n           { rank_file_line++; 
++"//".*\n           { orte_rmaps_rank_file_line++; 
+                      return ORTE_RANKFILE_NEWLINE; }
+ 
+ "/*"               { BEGIN(comment);
+                      return ORTE_RANKFILE_NEWLINE; }
+ <comment>[^*\n]*       ; /* Eat up non '*'s */
+ <comment>"*"+[^*/\n]*  ; /* Eat '*'s not followed by a '/' */
+-<comment>\n        { rank_file_line++;
++<comment>\n        { orte_rmaps_rank_file_line++;
+                      return ORTE_RANKFILE_NEWLINE; } 
+ <comment>"*"+"/"   { BEGIN(INITIAL); /* Done with Block Comment */
+                      return ORTE_RANKFILE_NEWLINE; }
+ 
+-\"[^\"]*\"         { rank_file_value.sval = yytext; 
++\"[^\"]*\"         { orte_rmaps_rank_file_value.sval = yytext; 
+                      return ORTE_RANKFILE_QUOTED_STRING; }
+ 
+ {WHITE}+           ;			
+ 
+ "="                { return ORTE_RANKFILE_EQUAL; }
+ 
+-rank                { rank_file_value.sval = yytext; 
++rank                { orte_rmaps_rank_file_value.sval = yytext; 
+                      return ORTE_RANKFILE_RANK; }
+-slot               { rank_file_value.sval = yytext; 
++slot               { orte_rmaps_rank_file_value.sval = yytext; 
+                      return ORTE_RANKFILE_SLOT; }
+ 
+-username           { rank_file_value.sval = yytext;
++username           { orte_rmaps_rank_file_value.sval = yytext;
+                      return ORTE_RANKFILE_USERNAME; }
+-"user-name"        { rank_file_value.sval = yytext;
++"user-name"        { orte_rmaps_rank_file_value.sval = yytext;
+                      return ORTE_RANKFILE_USERNAME; }
+-"user_name"        { rank_file_value.sval = yytext;
++"user_name"        { orte_rmaps_rank_file_value.sval = yytext;
+                      return ORTE_RANKFILE_USERNAME; }
+ 
+-[0-9]+             { rank_file_value.ival = atol(yytext); 
++[0-9]+             { orte_rmaps_rank_file_value.ival = atol(yytext); 
+                      return ORTE_RANKFILE_INT; }
+ %{ /* First detect hosts as standard Strings (but without ".")
+     * then username@IPv4 or IPV4, then username@IPv6 or IPv6,
+@@ -104,22 +102,22 @@ username           { rank_file_value.sva
+     */
+ %}
+ 
+-[A-za-z0-9_\-,:*@]*  { rank_file_value.sval = yytext;
++[A-za-z0-9_\-,:*@]*  { orte_rmaps_rank_file_value.sval = yytext;
+                      return ORTE_RANKFILE_STRING; }
+ 
+ ([A-Za-z0-9][A-Za-z0-9_\-]*"@")?([0-9]{1,3}"."){3}[0-9]{1,3} {
+-                      rank_file_value.sval = yytext;
++                      orte_rmaps_rank_file_value.sval = yytext;
+                       return ORTE_RANKFILE_IPV4; }
+ 
+ ([A-Za-z0-9][A-Za-z0-9_\-]*"@")?([A-Fa-f0-9]{0,4}":")+[":"]*([A-Fa-f0-9]{0,4}":")+[A-Fa-f0-9]{1,4} {
+-                      rank_file_value.sval = yytext;
++                      orte_rmaps_rank_file_value.sval = yytext;
+                       return ORTE_RANKFILE_IPV6; }
+ 
+ ([A-Za-z0-9][A-Za-z0-9_\-]*"@")?[A-Za-z][A-Za-z0-9_\-\.]*  {
+-                     rank_file_value.sval = yytext; 
++                     orte_rmaps_rank_file_value.sval = yytext; 
+                      return ORTE_RANKFILE_HOSTNAME; }
+ 
+-.                  { rank_file_value.sval = yytext; 
++.                  { orte_rmaps_rank_file_value.sval = yytext; 
+                      return ORTE_RANKFILE_ERROR; }
+ 
+ %%
+--- rmaps_rf.c	2008-03-26 11:04:44.000000000 +0200
++++ rmaps_rank_file.c	2008-03-26 10:53:52.000000000 +0200
+@@ -43,16 +43,17 @@
+ 
+ #include "orte/mca/rmaps/base/rmaps_private.h"
+ #include "orte/mca/rmaps/base/base.h"
+-#include "rmaps_rf.h"
+-#include "orte/mca/rmaps/rank_file/rankfile_lex.h"
++#include "orte/mca/rmaps/rank_file/rmaps_rank_file.h"
++#include "orte/mca/rmaps/rank_file/rmaps_rank_file_lex.h"
+ #include "orte/runtime/orte_globals.h"
+ #include "orte/mca/ras/ras_types.h"
+ 
+ static int orte_rmaps_rank_file_parse(const char *, int);
+-static char *rankfile_parse_string_or_int(void);
+-char *rank_file_path = NULL;
+-static const char *cur_rankfile_name = NULL;
+-static opal_mutex_t rankfile_mutex;
++static char *orte_rmaps_rank_file_parse_string_or_int(void);
++char *orte_rmaps_rank_file_path = NULL;
++static const char *orte_rmaps_rank_file_name_cur = NULL;
++static opal_mutex_t orte_rmaps_rank_file_mutex;
++char *orte_rmaps_rank_file_slot_list;
+ 
+ /*
+  * Local variable
+@@ -81,7 +82,7 @@ static int map_app_by_user_map(
+     * used) as we cycle through the loop */
+         if(0 >= opal_list_get_size(nodes) ) {
+             /* No more nodes to allocate :( */
+-            opal_show_help("help-orte-rmaps-rf.txt", "orte-rmaps-rf:alloc-error",
++            opal_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:alloc-error",
+                             true, app->num_procs, app->app);
+             return ORTE_ERR_SILENT;
+         }
+@@ -102,7 +103,7 @@ static int map_app_by_user_map(
+                 node = (orte_node_t*) cur_node_item;
+                 cur_node_item = next;
+                 if ( round_cnt == 2 ) {
+-                    opal_show_help("help-orte-rmaps-rf.txt","bad-host", true,rankmap[num_alloc+vpid_start].node_name);
++                    opal_show_help("help-rmaps_rank_file.txt","bad-host", true,rankmap[num_alloc+vpid_start].node_name);
+                     ORTE_ERROR_LOG(ORTE_ERR_BAD_PARAM);
+                     return ORTE_ERR_BAD_PARAM; 
+                 }
+@@ -176,7 +177,7 @@ static int map_app_by_node(
+          * used) as we cycle through the loop */
+         if(0 >= opal_list_get_size(nodes) ) {
+             /* No more nodes to allocate :( */
+-            opal_show_help("help-orte-rmaps-rf.txt", "orte-rmaps-rf:alloc-error",
++            opal_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:alloc-error",
+                            true, app->num_procs, app->app);
+             return ORTE_ERR_SILENT;
+         }
+@@ -192,6 +193,12 @@ static int map_app_by_node(
+         }
+         /* Allocate a slot on this node */
+         node = (orte_node_t*) cur_node_item;
++        if ( NULL != orte_mca_rmaps_rank_file_slot_list){
++            node->slot_list = (char*) malloc(64*sizeof(char));
++            if ( NULL != node->slot_list ) {
++                strcpy(node->slot_list, orte_mca_rmaps_rank_file_slot_list);
++            }
++        }
+         if (ORTE_SUCCESS != (rc = orte_rmaps_base_claim_slot(jdata, node, vpid_start + num_alloc, app->idx,
+                                              nodes, jdata->map->oversubscribe))) {
+             /** if the code is ORTE_ERR_NODE_FULLY_USED, then we know this
+@@ -241,7 +248,7 @@ static int map_app_by_slot(
+         * used) as we cycle through the loop */
+         if(0 >= opal_list_get_size(nodes) ) {
+             /* Everything is at max usage! :( */
+-            opal_show_help("help-orte-rmaps-rf.txt", "orte-rmaps-rf:alloc-error",
++            opal_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:alloc-error",
+                            true, app->num_procs, app->app);
+             return ORTE_ERR_SILENT;
+         }
+@@ -297,6 +304,12 @@ static int map_app_by_slot(
+                 ++num_alloc;
+                 continue;
+             }
++            if ( NULL != orte_mca_rmaps_rank_file_slot_list){
++                node->slot_list = (char*) malloc(64*sizeof(char));
++                if ( NULL != node->slot_list ) {
++                    strcpy(node->slot_list, orte_mca_rmaps_rank_file_slot_list);
++                }
++            }
+             if (ORTE_SUCCESS != (rc = orte_rmaps_base_claim_slot(jdata, node, vpid_start + num_alloc, app->idx,
+                                                  nodes, jdata->map->oversubscribe))) {
+                 /** if the code is ORTE_ERR_NODE_FULLY_USED, then we know this
+@@ -369,7 +382,7 @@ static int orte_rmaps_rf_map(orte_job_t 
+          * all available slots. We'll double-check the single app_context rule first
+          */
+         if (0 == app->num_procs && 1 < jdata->num_apps) {
+-            opal_show_help("help-orte-rmaps-rf.txt", "orte-rmaps-rf:multi-apps-and-zero-np",
++            opal_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:multi-apps-and-zero-np",
+                            true, jdata->num_apps, NULL);
+             rc = ORTE_ERR_SILENT;
+             goto error;
+@@ -392,11 +405,13 @@ static int orte_rmaps_rf_map(orte_job_t 
+         rankmap[j].rank = -1;
+         rankmap[j].slot_list = (char *)malloc(64*sizeof(char));
+     }
+-    if ( ORTE_SUCCESS != (rc = orte_rmaps_rank_file_parse(rank_file_path, app->num_procs))) {
+-        ORTE_ERROR_LOG(rc);
+-        goto error;
++   
++    if ( NULL != orte_rmaps_rank_file_path ) {
++        if ( ORTE_SUCCESS != (rc = orte_rmaps_rank_file_parse(orte_rmaps_rank_file_path, app->num_procs))) {
++            ORTE_ERROR_LOG(rc);
++            goto error;
++        }
+     }
+-
+         /* if a bookmark exists from some prior mapping, set us to start there */
+         if (NULL != jdata->bookmark) {
+             cur_node_item = NULL;
+@@ -431,7 +446,7 @@ static int orte_rmaps_rf_map(orte_job_t 
+             if (0 == app->num_procs) {
+                 app->num_procs = num_nodes;
+             } else if (app->num_procs > num_nodes) {
+-                opal_show_help("help-orte-rmaps-rf.txt", "orte-rmaps-rf:per-node-and-too-many-procs",
++                opal_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:per-node-and-too-many-procs",
+                                true, app->num_procs, num_nodes, NULL);
+                 rc = ORTE_ERR_SILENT;
+                 goto error;
+@@ -442,7 +457,7 @@ static int orte_rmaps_rf_map(orte_job_t 
+              */
+             slots_per_node = num_slots / num_nodes;
+             if (map->npernode > slots_per_node) {
+-                opal_show_help("help-orte-rmaps-rf.txt", "orte-rmaps-rf:n-per-node-and-not-enough-slots",
++                opal_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:n-per-node-and-not-enough-slots",
+                                true, map->npernode, slots_per_node, NULL);
+                 rc = ORTE_ERR_SILENT;
+                 goto error;
+@@ -458,7 +473,7 @@ static int orte_rmaps_rf_map(orte_job_t 
+                 /* set the num_procs to equal the specified num/node * the number of nodes */
+                 app->num_procs = map->npernode * num_nodes;
+             } else if (app->num_procs > (map->npernode * num_nodes)) {
+-                opal_show_help("help-orte-rmaps-rf.txt", "orte-rmaps-rf:n-per-node-and-too-many-procs",
++                opal_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:n-per-node-and-too-many-procs",
+                                true, app->num_procs, map->npernode, num_nodes, num_slots, NULL);
+                 rc = ORTE_ERR_SILENT;
+                 goto error;
+@@ -467,7 +482,7 @@ static int orte_rmaps_rf_map(orte_job_t 
+                 /* we can't handle this - it should have been set when we got
+                  * the map info. If it wasn't, then we can only error out
+                  */
+-                opal_show_help("help-orte-rmaps-rf.txt", "orte-rmaps-rf:no-np-and-user-map",
++                opal_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:no-np-and-user-map",
+                                true, app->num_procs, map->npernode, num_nodes, num_slots, NULL);
+                 rc = ORTE_ERR_SILENT;
+                 goto error;
+@@ -476,7 +491,9 @@ static int orte_rmaps_rf_map(orte_job_t 
+         jdata->num_procs += app->num_procs;
+ 
+         /* Make assignments */
+-        rc = map_app_by_user_map(app, jdata, vpid_start, &node_list, &procs);
++        if ( ORTE_SUCCESS != (rc = map_app_by_user_map(app, jdata, vpid_start, &node_list, &procs))) {
++                goto error;
++        }
+ 
+         /* assign unassigned ranks by map policy */
+         if (map->policy == ORTE_RMAPS_BYNODE) {
+@@ -559,21 +576,21 @@ static int orte_rmaps_rank_file_parse(co
+ 
+    OPAL_THREAD_LOCK(&rankfile_mutex);
+ 
+-   cur_rankfile_name = rankfile;
+-   rank_file_done = false;
+-   rank_file_in = fopen(rankfile, "r");
++   orte_rmaps_rank_file_name_cur = rankfile;
++   orte_rmaps_rank_file_done = false;
++   orte_rmaps_rank_file_in = fopen(rankfile, "r");
+ 
+-   if ( NULL == rank_file_in) {
+-       opal_show_help("help-orte-rmaps-rf.txt", "no-rankfile", true, rankfile, np);
++   if (NULL == orte_rmaps_rank_file_in) {
++       opal_show_help("help-rmaps_rank_file.txt", "no-rankfile", true, rankfile, np);
+        rc = OPAL_ERR_NOT_FOUND;
+        goto unlock;
+    }
+ 
+-    while (!rank_file_done) {
+-        token = rank_file_lex();
++    while (!orte_rmaps_rank_file_done) {
++        token = orte_rmaps_rank_file_lex();
+         switch (token) {
+             case ORTE_RANKFILE_DONE:
+-                rank_file_done = true;
++                orte_rmaps_rank_file_done = true;
+                 break;
+             case ORTE_RANKFILE_NEWLINE:
+                 line_number++;
+@@ -581,13 +598,13 @@ static int orte_rmaps_rank_file_parse(co
+             case ORTE_RANKFILE_RANK:
+                 break;
+             case ORTE_RANKFILE_EQUAL:
+-                ival = rank_file_value.ival;
++                ival = orte_rmaps_rank_file_value.ival;
+                 if ( ival > (np-1) ) {
+-                    opal_show_help("help-orte-rmaps-rf.txt", "bad-rankfile", true, ival, rankfile);
++                    opal_show_help("help-rmaps_rank_file.txt", "bad-rankfile", true, ival, rankfile);
+                     rc = ORTE_ERR_BAD_PARAM;
+                     goto unlock;
+                 }                    
+-                token = rank_file_lex();
++                token = orte_rmaps_rank_file_lex();
+                 switch (token) {
+                     case ORTE_RANKFILE_HOSTNAME:
+                     case ORTE_RANKFILE_IPV4:
+@@ -595,10 +612,10 @@ static int orte_rmaps_rank_file_parse(co
+                     case ORTE_RANKFILE_STRING:
+                     case ORTE_RANKFILE_INT:
+                     if(ORTE_RANKFILE_INT == token) {
+-                        sprintf(buff,"%d", rank_file_value.ival);
++                        sprintf(buff,"%d", orte_rmaps_rank_file_value.ival);
+                         value = buff;
+                     } else {
+-                        value = rank_file_value.sval;
++                        value = orte_rmaps_rank_file_value.sval;
+                     }
+                     argv = opal_argv_split (value, '@');
+                     cnt = opal_argv_count (argv);
+@@ -609,7 +626,9 @@ static int orte_rmaps_rank_file_parse(co
+                         node_name = strdup(argv[1]);
+                     }
+                     else {
+-                        opal_output(0, "WARNING: Unhandled user@host-combination\n"); /* XXX */
++                        opal_show_help("help-rmaps_rank_file.txt", "bad-syntax", true);
++                        rc = ORTE_ERR_BAD_PARAM;
++                        goto unlock;
+                     }
+                     opal_argv_free (argv);
+                     rankmap[ival].rank = ival;
+@@ -622,35 +641,35 @@ static int orte_rmaps_rank_file_parse(co
+                 }
+                 break;
+             case ORTE_RANKFILE_SLOT:
+-            rankmap[ival].slot_list = strdup(rankfile_parse_string_or_int());
++            rankmap[ival].slot_list = strdup(orte_rmaps_rank_file_parse_string_or_int());
+         break;
+         }
+      }
+-    fclose(rank_file_in);
+-    rank_file_in = NULL;
++    fclose(orte_rmaps_rank_file_in);
++    orte_rmaps_rank_file_in = NULL;
+ 
+ unlock:
+-    cur_rankfile_name = NULL;
+-    OPAL_THREAD_UNLOCK(&rankfile_mutex);
++    orte_rmaps_rank_file_name_cur = NULL;
++    OPAL_THREAD_UNLOCK(&orte_rmaps_rank_file_mutex);
+     return rc;
+ }
+ 
+ 
+-static char *rankfile_parse_string_or_int(void)
++static char *orte_rmaps_rank_file_parse_string_or_int(void)
+ {
+   int rc;
+   char tmp_str[64];
+ 
+-  if (ORTE_RANKFILE_EQUAL != rank_file_lex()){
++  if (ORTE_RANKFILE_EQUAL != orte_rmaps_rank_file_lex()){
+       return NULL;
+   }
+ 
+-  rc = rank_file_lex();
++  rc = orte_rmaps_rank_file_lex();
+   switch (rc) {
+   case ORTE_RANKFILE_STRING:
+-      return strdup(rank_file_value.sval);
++      return strdup(orte_rmaps_rank_file_value.sval);
+   case ORTE_RANKFILE_INT:
+-      sprintf(tmp_str,"%d",rank_file_value.ival);
++      sprintf(tmp_str,"%d",orte_rmaps_rank_file_value.ival);
+       return strdup(tmp_str);
+   default:
+       return NULL;
+@@ -658,4 +677,3 @@ static char *rankfile_parse_string_or_in
+   }
+ 
+ }
+-
+--- rmaps_rf.h	2008-03-26 11:04:44.000000000 +0200
++++ rmaps_rank_file.h	2008-03-25 18:16:03.000000000 +0200
+@@ -25,7 +25,7 @@
+ 
+ 
+ #include "opal_config.h"
+-
++#include "opal/util/argv.h"
+ #include "opal/mca/paffinity/paffinity.h"
+ 
+ #ifndef ORTE_RMAPS_RF_H
+@@ -48,9 +48,10 @@ typedef struct orte_rmaps_rank_file_comp
+ 
+ ORTE_MODULE_DECLSPEC extern orte_rmaps_rank_file_component_t mca_rmaps_rank_file_component;
+ extern orte_rmaps_base_module_t orte_rmaps_rank_file_module;
++extern char *orte_mca_rmaps_rank_file_slot_list;
+ 
+ 
+-extern char *rank_file_path;
++extern char *orte_rmaps_rank_file_path;
+ 
+ typedef struct cpu_socket_t cpu_socket_t;
+ 
+@@ -61,7 +62,6 @@ struct orte_rmaps_rank_file_map_t {
+ };
+ typedef struct orte_rmaps_rank_file_map_t orte_rmaps_rank_file_map_t;
+ 
+-
+ ORTE_DECLSPEC OBJ_CLASS_DECLARATION(orte_rmaps_rank_file_map_t);
+ 
+ #if defined(c_plusplus) || defined(__cplusplus)
+--- rmaps_rf_component.c	2008-03-26 11:04:44.000000000 +0200
++++ rmaps_rank_file_component.c	2008-03-25 18:16:14.000000000 +0200
+@@ -29,8 +29,8 @@
+ #include "opal/util/output.h"
+ 
+ #include "orte/mca/rmaps/base/rmaps_private.h"
+-#include "rmaps_rf.h"
+-#include "orte/mca/rmaps/rank_file/rankfile_lex.h"
++#include "orte/mca/rmaps/rank_file/rmaps_rank_file.h"
++#include "orte/mca/rmaps/rank_file/rmaps_rank_file_lex.h"
+ 
+ /*
+  * Local functions
+@@ -39,6 +39,7 @@
+ static int orte_rmaps_rank_file_open(void);
+ static int orte_rmaps_rank_file_close(void);
+ static orte_rmaps_base_module_t* orte_rmaps_rank_file_init(int* priority);
++char *orte_mca_rmaps_rank_file_slot_list = NULL;
+ 
+ orte_rmaps_rank_file_component_t mca_rmaps_rank_file_component = {
+     {
+@@ -75,13 +76,8 @@ orte_rmaps_rank_file_component_t mca_rma
+   */
+ static int orte_rmaps_rank_file_open(void)
+ {
+-    int index;
++    int index, paffinity_alone;
+ 
+-    mca_base_param_reg_int(&mca_rmaps_rank_file_component.super.rmaps_version, "debug",
+-                           "Toggle debug output for Rank File RMAPS component",
+-                           false, false, 0, 
+-                           &mca_rmaps_rank_file_component.debug);
+-    
+     mca_base_param_reg_int(&mca_rmaps_rank_file_component.super.rmaps_version, "priority",
+                            "Selection priority for Rank File RMAPS component",
+                            false, false, 1,
+@@ -90,18 +86,39 @@ static int orte_rmaps_rank_file_open(voi
+     mca_base_param_reg_string(&mca_rmaps_rank_file_component.super.rmaps_version,
+                               "path",
+                               "The path to the rank mapping file",
+-                              false, false, NULL, &rank_file_path);
+-    if (NULL != rank_file_path) {
++                              false, false, NULL, &orte_rmaps_rank_file_path);
++    if (NULL != orte_rmaps_rank_file_path) {
+         index = mca_base_param_find("rank_file",NULL,NULL); 
+         if ( OPAL_ERROR != index) {
+             mca_base_param_set_string(index,"rank_file");
+         }
+-        mca_base_param_lookup_string(index, &rank_file_path);
++        mca_base_param_lookup_string(index, &orte_rmaps_rank_file_path);
+         /* if rankfile path is present than set higher priority to this component */
+         mca_rmaps_rank_file_component.priority = 1000000;
+     } else {
+         mca_rmaps_rank_file_component.priority = 0;
+     }
++
++    index = mca_base_param_find("opal", NULL, "paffinity_slot_list");
++    if (index >= 0) {
++        if (OPAL_SUCCESS == mca_base_param_lookup_string(index, &orte_mca_rmaps_rank_file_slot_list)) {
++            if (NULL != orte_mca_rmaps_rank_file_slot_list) {
++                mca_rmaps_rank_file_component.priority = 1000000;
++            }
++        }
++    } else {
++        mca_rmaps_rank_file_component.priority = 0;
++    }
++
++    index = mca_base_param_find("opal", NULL, "paffinity_alone");
++    if (index >= 0) { 
++        if (OPAL_SUCCESS == mca_base_param_lookup_int(index, &paffinity_alone)) {
++            if ( 1000000 == mca_rmaps_rank_file_component.priority && paffinity_alone ){
++                 opal_output(0, "WARNING: paffinity_alone cannot be set with paffinity_slot_list or rank_file\nTherefor mca_rmaps_rank_file_component.priority set to 0\n");
++                mca_rmaps_rank_file_component.priority = 0;
++            }
++        }
++    }
+     return ORTE_SUCCESS;
+ }
+ 
+
+
+
+
+
+
+
+
+/* New introduced file */
+
+opal/mca/paffinity/base/paffinity_base_service.c
+
+
+
+/*
+ * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+ *                         University Research and Technology
+ *                         Corporation.  All rights reserved.
+ * Copyright (c) 2004-2006 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
+ *                         University of Stuttgart.  All rights reserved.
+ * Copyright (c) 2004-2005 The Regents of the University of California.
+ *                         All rights reserved.
+ * Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.
+ *
+ * Copyright (c) 2008      Voltaire. All rights reserved
+ *
+ * $COPYRIGHT$
+ * 
+ * Additional copyrights may follow
+ * 
+ * $HEADER$
+ */
+
+#include "opal_config.h"
+#include "opal/util/argv.h"
+#include "opal/constants.h"
+#include "opal/mca/paffinity/paffinity.h"
+#include "opal/mca/paffinity/base/base.h"
+#include "opal/runtime/opal.h"
+
+static int slot_list_to_cpu_set(char *, long);
+
+static int socket_to_cpu_set(char **socket_list, int socket_cnt, long rank)
+{
+    int i;
+    char **range;
+    int range_cnt;
+    int lower_range, upper_range;
+    int processor_id, num_processors;
+    int max_processor_id;
+    int rc;
+    opal_paffinity_base_cpu_set_t cpumask;
+
+    if (OPAL_SUCCESS != (rc = opal_paffinity_base_get_processor_info(&num_processors, &max_processor_id))) {
+        return OPAL_ERROR;
+    }
+    OPAL_PAFFINITY_CPU_ZERO(cpumask);
+    for (i=0; i<socket_cnt; i++) {
+        if (0 == strcmp("*", socket_list[i])) {
+            for ( processor_id=0; processor_id<=max_processor_id; processor_id++) {
+                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                if (OPAL_SUCCESS != ( rc = opal_paffinity_base_set(cpumask))) {
+                    return OPAL_ERROR;
+                }
+                if (opal_debug_flag) {
+                    opal_output(0,"rank %ld runon cpu #%d (any socket)",rank, processor_id);
+                }
+            }
+            continue;
+        }
+        range = opal_argv_split(socket_list[i],'-');
+        range_cnt = opal_argv_count(range);
+        switch (range_cnt) {
+            case 1:
+                processor_id = atoi(range[0]);
+                if (processor_id > max_processor_id) {
+                    opal_output(0, "ERROR !!! processor_id (%d) > max_processor_id(%d), modify rankfile and run again\n",processor_id, max_processor_id);
+                    return OPAL_ERROR;
+                }
+                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                if (OPAL_SUCCESS != ( rc = opal_paffinity_base_set(cpumask))) {
+                    return OPAL_ERROR;
+                }
+                if (opal_debug_flag) {
+                    opal_output(0,"rank %ld runs on cpu #%d", rank, processor_id);
+                }
+                break;
+            case 2:
+                lower_range = atoi(range[0]);
+                upper_range = atoi(range[1]);
+                if (max_processor_id < upper_range || lower_range >= upper_range ) {
+                    opal_output(0,"Error !!! Check your boundaries %d < %d(max_cpu) < %d , modify rankfile and run again\n",lower_range, max_processor_id, upper_range);
+                    return OPAL_ERROR;
+                }
+                for (processor_id=lower_range; processor_id<=upper_range; processor_id++) {
+                    OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                    if (OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+                        return OPAL_ERROR;
+                    }
+                    if (opal_debug_flag) {
+                        opal_output(0,"rank %ld runs on cpu #%d (%d-%d)",
+                                    rank, processor_id, lower_range, upper_range);
+                    }
+                }
+                break;
+            default:
+                opal_argv_free(range);
+                return OPAL_ERROR;
+        }
+        opal_argv_free(range);
+    }
+    return OPAL_SUCCESS;
+}
+
+static int socket_core_to_cpu_set(char **socket_core_list, int socket_core_list_cnt, long rank)
+{
+        int rc, i;
+        char **socket_core;
+        int socket_core_cnt;
+        char **range;
+        int range_cnt;
+        int lower_range, upper_range;
+        int socket, core, processor_id ;
+        int max_socket_num, max_core_num;
+        int num_sockets, num_cores;
+        opal_paffinity_base_cpu_set_t cpumask;
+        
+        socket_core = opal_argv_split (socket_core_list[0], ':');
+        socket_core_cnt = opal_argv_count(socket_core);
+        OPAL_PAFFINITY_CPU_ZERO(cpumask);
+        socket = atoi(socket_core[0]);
+        
+        if ( OPAL_SUCCESS != ( rc = opal_paffinity_base_get_socket_info(&num_sockets, &max_socket_num))) {
+            return OPAL_ERROR;
+        }
+        
+        if ( socket > max_socket_num) {
+            opal_output(0,"ERROR !!! socket(%d) > max_socket_num(%d), modify rankfile and run again",
+                        socket, max_socket_num);
+            return OPAL_ERROR;
+        }
+        if ( OPAL_SUCCESS != ( rc = opal_paffinity_base_get_core_info(socket, &num_cores, &max_core_num))) {
+            opal_output(0,"Error !!! Invalid socket number (%d) in rankfile, modify rankfile and run again\n",
+                           socket);
+            return OPAL_ERROR;
+        }
+        
+        if (0 == strcmp("*",socket_core[1])) {
+            for (core = 0; core <= max_core_num; core++) {
+                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+                    return OPAL_ERROR;
+                }
+                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                if (OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+                    return OPAL_ERROR;
+                }
+                if (opal_debug_flag) {
+                    opal_output(0,"rank %ld runs on cpu #%d (%d:%d)",
+                                rank, processor_id, socket, core);
+               }
+            }
+        } else {
+            range = opal_argv_split(socket_core[1], '-');
+            range_cnt = opal_argv_count(range);
+            switch (range_cnt) {
+                case 1:
+                    core = atoi(range[0]);
+                    if ( core > max_core_num  ) {
+                        opal_output(0,"Error!!! core(%d)>max_core(%d) on socket %d, modify rankfile and run again\n",
+                                core, max_core_num, socket);
+                        return OPAL_ERROR;
+                    }
+                    if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+                        return OPAL_ERROR;
+                    }
+                    OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                    if (OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+                        return OPAL_ERROR;
+                    }
+                    if (opal_debug_flag) {
+                        opal_output(0,"rank %ld runs on cpu #%d (%d:%d)",
+                                rank, processor_id, socket, core);
+                    }
+                    break;
+                case 2:
+                    lower_range = atoi(range[0]);
+                    upper_range = atoi(range[1]);
+                    if ( 0 > lower_range || max_core_num < upper_range || lower_range >= upper_range ) {
+                        opal_output(0,"Error !!! Check your boundaries %d < %d(max_core) < %d ,modify rankfile and run again\n",
+                                lower_range, max_core_num, upper_range);
+                        return OPAL_ERROR;
+                    }
+                    for (core=lower_range; core<=upper_range; core++) {
+                        if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+                            return OPAL_ERROR;
+                        }
+                        OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                        if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+                            return OPAL_ERROR;
+                        }
+                        if (opal_debug_flag) {
+                            opal_output(0,"rank %ld runs on cpu #%d (%d:%d)",
+                                        rank, processor_id, socket, core);
+                        }
+                    }
+                    break;
+                default:
+                    opal_argv_free(range);
+                    opal_argv_free(socket_core);
+                    return OPAL_ERROR;
+            }
+            opal_argv_free(range);
+            opal_argv_free(socket_core);
+        }
+        for (i=1; i<socket_core_list_cnt; i++) {
+            socket_core = opal_argv_split (socket_core_list[i], ':');
+            socket_core_cnt = opal_argv_count(socket_core);
+            switch (socket_core_cnt) {
+                case 1:
+                    range = opal_argv_split(socket_core[0], '-');
+                    range_cnt = opal_argv_count(range);
+                    switch (range_cnt) {
+                        case 1:
+                            core = atoi(range[0]);
+                            /* use PLPA to construct the child->cpu_set */
+                            if ( core > max_core_num ) {
+                                opal_output(0,"Error !!! core(%d) > max_core(%d), modify rankfile and run again\n",
+                                            core, max_core_num);
+                                return OPAL_ERROR;
+                            }
+                            if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+                                opal_output(0,"Error !!! Invalid socket:core pair (%d:%d), modify rankfile and run again\n",socket, core);
+                                return OPAL_ERROR;
+                            }
+                            OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                            if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+                                return OPAL_ERROR;
+                            }
+                            if (opal_debug_flag) {
+                                opal_output(0,"rank %ld runs on cpu #%d (%d:%d)",
+                                            rank, processor_id, socket, core);
+                            }
+                            break;
+                        case 2:
+                            lower_range = atoi(range[0]);
+                            upper_range = atoi(range[1]);
+                            if ( 0 > lower_range || max_core_num < upper_range || lower_range >= upper_range) {
+                                opal_output(0,"Error !!! Check your boundaries %d < %d(max_core) < %d, modify rankfile and run again\n",
+                                        lower_range, max_core_num, upper_range);
+                                return OPAL_ERROR;
+                            }
+                            for (core=lower_range; core<=upper_range; core++) {
+                                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+                                    return OPAL_ERROR;
+                                }
+                                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+                                    return OPAL_ERROR;
+                                }
+                                if (opal_debug_flag) {
+                                    opal_output(0,"rank %ld runs on cpu #%d (%d:%d)", 
+                                                rank, processor_id, socket, core);
+                                }
+                            }
+                            break;
+                        default:
+                            opal_argv_free(range);
+                            opal_argv_free(socket_core);
+                            return OPAL_ERROR;
+                    }
+                    opal_argv_free(range);
+                    break;
+                case 2:
+                    socket = atoi(socket_core[0]);
+                    if (0 == strcmp("*",socket_core[1])) {
+                        for (core=0; core<=max_core_num; core++) {
+                            if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id ( socket, core, &processor_id))) {
+                                return OPAL_ERROR;
+                            }
+                            OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                            if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+                                return OPAL_ERROR;
+                            }
+                            if (opal_debug_flag) {
+                                opal_output(0,"rank %ld runs on cpu #%d (%d:%d)",
+                                            rank, processor_id, socket, core);
+                            }
+                        }
+                    } else {
+                        range = opal_argv_split(socket_core[1], '-');
+                        range_cnt = opal_argv_count(range);
+                        socket = atoi(socket_core[0]);
+                        switch (range_cnt) {
+                            case 1:
+                                core = atoi(range[0]);
+                                if ( core > max_core_num ) {
+                                    opal_output(0,"Error !!! max_core(%d) < core(%d), modify rankfile and run again\n", 
+                                                core, max_core_num);
+                                    return OPAL_ERROR;
+                                }
+                                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+                                    return OPAL_ERROR;
+                                }
+                                OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                                if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+                                    return OPAL_ERROR;
+                                }
+                                if (opal_debug_flag) {
+                                    opal_output(0,"rank %ld runs on cpu #%d (%d:%d)",
+                                                rank, processor_id, socket, core);
+                                }
+                                break;
+                            case 2:
+                                lower_range = atoi(range[0]);
+                                upper_range = atoi(range[1]);
+                                if ( 0 > lower_range || max_core_num < upper_range || lower_range > upper_range) {
+                                    opal_output(0,"Error !!! Check your boundaries %d < %d(max_core) < %d, modify rankfile and run again\n",
+                                            lower_range, max_core_num, upper_range);
+                                    return OPAL_ERROR;
+                                }
+                                for ( core = lower_range; core <= upper_range; core++) {
+                                    if ( OPAL_SUCCESS != (rc = opal_paffinity_base_map_to_processor_id (socket, core, &processor_id))) {
+                                        return OPAL_ERROR;
+                                    }
+                                    OPAL_PAFFINITY_CPU_SET(processor_id, cpumask);
+                                    if ( OPAL_SUCCESS != (rc = opal_paffinity_base_set(cpumask))) {
+                                        return OPAL_ERROR;
+                                    }
+                                    if (opal_debug_flag) {
+                                        opal_output(0,"rank %ld runs on cpu #%d (%d:%d)",
+                                                    rank, processor_id, socket, core);
+                                    }
+                                }
+                                break;
+                            default:
+                                opal_argv_free(range);
+                                opal_argv_free(socket_core);
+                                return OPAL_ERROR;
+                        }
+                        opal_argv_free(range);
+                    }
+                    break;
+                default:
+                    opal_argv_free(socket_core);
+                    return OPAL_ERROR;
+            }
+            opal_argv_free(socket_core);
+        }
+        return OPAL_SUCCESS;
+}
+
+int opal_paffinity_slot_list_set(char *slot_str, long rank)
+{
+        char **item;
+        char **socket_core;
+        int item_cnt, socket_core_cnt, rc;
+
+        item = opal_argv_split (slot_str, ',');
+        item_cnt = opal_argv_count (item);
+        socket_core = opal_argv_split (item[0], ':');
+        socket_core_cnt = opal_argv_count(socket_core);
+        opal_argv_free(socket_core);
+        switch (socket_core_cnt) {
+            case 1:
+                if (OPAL_SUCCESS != (rc = socket_to_cpu_set(item, item_cnt, rank))) {
+                    opal_argv_free(item);
+                    return OPAL_ERROR;
+                }
+                break;
+            case 2:
+                if (OPAL_SUCCESS != (rc = socket_core_to_cpu_set(item, item_cnt, rank))) {
+                    opal_argv_free(item);
+                    return OPAL_ERROR;
+                }
+                break;
+            default:
+                opal_argv_free(item);
+                return OPAL_ERROR;
+        }
+        opal_argv_free(item);
+        return OPAL_SUCCESS;
+}

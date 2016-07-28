@@ -1,0 +1,153 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Jeff Squyres a &eacute;crit&nbsp;:
+<blockquote cite="mid:A4EED636-412F-4088-84B1-D421926A7767@cisco.com"
+ type="cite">
+  <pre wrap="">On Dec 16, 2010, at 3:31 AM, Pascal Deveze wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">I got the assert every time with the following "trivial" code:
+#include "mpi.h"
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+Good; let's add this trivial test to ompi-tests.  Do you guys have a set of ROMIO / IO test cases that you run?  I don't think we have many in ompi-tests.
+  </pre>
+</blockquote>
+I use the tests under romio/test. Does anyone know other tests ?<br>
+<br>
+<blockquote cite="mid:A4EED636-412F-4088-84B1-D421926A7767@cisco.com"
+ type="cite">
+  <pre wrap="">
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">int main(int argc, char **argv) {
+  MPI_File fh;
+  MPI_Info info, info_used;
+
+  MPI_Init(&amp;argc,&amp;argv);
+
+  MPI_File_open(MPI_COMM_WORLD, "/tmp/A", MPI_MODE_CREATE | MPI_MODE_RDWR, MPI_INFO_NULL, &amp;fh);
+  MPI_File_close(&amp;fh);
+
+  MPI_File_open(MPI_COMM_WORLD, "/tmp/A", MPI_MODE_CREATE | MPI_MODE_RDWR, MPI_INFO_NULL, &amp;fh);
+  MPI_File_close(&amp;fh);
+
+  MPI_Finalize();
+}
+
+I run this programon one process : salloc -p debug  -n1 mpirun -np 1 ./a.out
+And I get teh assertion error:
+
+a.out: attribute/attribute.c:763: ompi_attr_delete: Assertion `((0xdeafbeedULL &lt;&lt; 32) + 0xdeafbeedULL) == ((opal_object_t *) (keyval))-&gt;obj_magic_id' failed.
+[cuzco10:24785] *** Process received signal ***
+[cuzco10:24785] Signal: Aborted (6)
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+Ok.
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">I saw that there is a problem with an MPI_COMM_SELF communicator.
+
+The problem disappears (and all ROMIO tests are OK) when I comment line 89 in the file ompi/mca/io/romio/romio/adio/common/ad_close.c :
+     // MPI_Comm_free(&amp;(fd-&gt;comm));
+
+The problem disappears (and all ROMIO tests are OK) when I comment line 425 in the file ompi/mca/io/romio/romio/adio/common/cb_config_list.c :
+   //  MPI_Keyval_free(&amp;keyval);
+
+The problem also disappears (but only 50% of the ROMIO tests are OK) when I comment line 133 in the file ompi/runtime/ompi_mpi_finalize.c:
+      // ompi_attr_delete_all(COMM_ATTR, &amp;ompi_mpi_comm_self,
+     //                             ompi_mpi_comm_self.comm.c_keyhash);
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+It sounds like there's a problem with the ordering of shutdown of things in MPI_FINALIZE w.r.t. ROMIO.
+
+FWIW: ROMIO violates some of our abstractions, but it's the price we pay for using a 3rd party package.  One very, very important abstraction that we have is that no top-level MPI API functions are not allowed to call any other MPI API functions.  E.g., MPI_Send (i.e., ompi/mpi/c/send.c) cannot call MPI_Isend (i.e., ompi/mpi/c/isend.c).  MPI_Send *can* call the same back-end implementation functions that isend does -- it's just not allowed to call MPI_&lt;foo&gt;.
+
+The reason is that the top-level MPI API functions do things like check for whether MPI_INIT / MPI_FINALIZE have been called, etc.  The back-end functions do not do this.  Additionally, top-level MPI API functions may be overridden via PMPI kinds of things.  We wouldn't want our internal library calls to get intercepted by user code.
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">I am not very familiar with the OBJ_RELEASE/OBJ_RETAIN mechanism and till now I do not understand what is the real origin of that problem.
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+RETAIN/RELEASE is part of OMPI's "poor man's C++" design.  Waaaay back in the beginning of the project, we debated whether to use C or C++ for developing the code.  There was a desire to use some of the basic object functionality of C++ (e.g., derived classes, constructors, destructors, etc.), but we wanted to stay as portable as possible.  So we ended up going with C, but with a few macros that emulate some C++-like functionality.  This led to OMPI's OBJ system that is used all over the place.  
+
+The OBJ system does several things:
+
+- allows you to have "constructor"- and "destructor"-like behavior for structs
+- works for both stack and heap memory
+- reference counting
+
+The reference counting is perhaps the most-used function of OBJ.  Here's a sample scenario:
+
+/* allocate some memory, call the some_object_type "constructor",
+   and set the reference count of "foo" to 1 */
+foo = OBJ_NEW(some_object_type);
+
+/* increment the reference count of foo (to 2) */
+OBJ_RETAIN(foo);
+
+/* increment the reference count of foo (to 3) */
+OBJ_RETAIN(foo);
+
+/* decrement the reference count of foo (to 1) */
+OBJ_RELEASE(foo);
+OBJ_RELEASE(foo);
+
+/* decrement the reference count of foo to 0 -- which will
+   call foo's "destructor" and then free the memory */
+OBJ_RELEASE(foo);
+
+The same principle works for structs on the stack -- we do the same constructor / destructor behavior, but just don't free the memory.  For example:
+
+/* Instantiate the memory and call its "constructor" and set the
+   ref count to 1 */
+some_object_type foo;
+OBJ_CONSTRUCT(&amp;foo, some_object_type);
+
+/* Increment and decrement the ref count */
+OBJ_RETAIN(&amp;foo);
+OBJ_RETAIN(&amp;foo);
+OBJ_RELEASE(&amp;foo);
+OBJ_RELEASE(&amp;foo);
+
+/* The last RELEASE will call the destructor, but won't actually
+   free the memory, because the memory was not allocated with 
+   OBJ_NEW */
+OBJ_RELEASE(&amp;foo);
+
+When the destructor is called, the OBJ system sets the magic number in the obj's memory to a sentinel value so that we know that the destructor has been called on this particular struct.  Hence, if we call OBJ_RELEASE *again* on a struct that has already had its ref count go to 0 (and therefore already had its destructor called), we get the assert error that you're seeing.
+
+So to be totally clear: the assert error you're seeing is because some OBJ is (effectively) getting its ref count decremented below zero.  Which means it's trying to get destroyed twice.  Which means the ordering sequence of stuff in the ROMIO shutdown / MPI_FINALIZE is likely not right.
+  </pre>
+</blockquote>
+<br>
+Thanks for these explanations. That is what I suspected: I have to dive
+more in that code ...<br>
+<blockquote cite="mid:A4EED636-412F-4088-84B1-D421926A7767@cisco.com"
+ type="cite">
+  <pre wrap="">
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">That problem appears only with the debug mode activated (that is activated if you have the .hg directory).
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+It most likely also happens when debug is not activated, but you don't get an assert failure.  That is, the same problem still occurs (i.e., you're writing to bad memory, or an object is getting RELEASE'ed that no longer exists), but you're just getting lucky that it doesn't trigger a segv or some other fatal process error.
+
+  </pre>
+</blockquote>
+<br>
+</body>
+</html>
+

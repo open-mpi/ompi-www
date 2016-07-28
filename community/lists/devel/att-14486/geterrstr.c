@@ -1,0 +1,28 @@
+#include <stdio.h>
+#include <mpi.h>
+int main(int argc, char *argv[]) {
+  int ierr;
+  int errclasses[] = {
+    MPI_SUCCESS,
+    MPI_ERR_RMA_RANGE,
+    MPI_ERR_RMA_ATTACH,
+    MPI_ERR_RMA_FLAVOR,
+    MPI_ERR_RMA_SHARED
+  };
+  int resultlen = 0;
+  char errstring[MPI_MAX_ERROR_STRING];
+  int i, n = sizeof(errclasses)/sizeof(int);
+
+  MPI_Init(0,0);
+  MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN);
+  for (i=0; i<n; i++) {
+    printf("Test for error class: %d\n", errclasses[i]);
+    ierr = MPI_Error_string(errclasses[i], errstring, &resultlen);
+    if (ierr == MPI_SUCCESS) {
+      printf("error string: %s\n", errstring);
+    } else {
+      printf("MPI_Error_string() failed with code %d!!!\n",ierr);
+    }
+  }
+  MPI_Finalize();
+}

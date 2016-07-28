@@ -1,0 +1,225 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=windows-1252"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">Nadia,<div><br></div><div>I guess the revisions mentioned are from HG? If I’m not mistaken the change you mentioned corresponds to r29285. I’m not sure if they are related, as r29285 is about positioning a convertor, and this is only used in the case of multi-fragments messages. As this is not the case for your example, I don’t think they are related.</div><div><br></div><div>I guess we should look at all the patches in the opal/datatype and ompi/datatype over the last 13 months (the starting point of the 1.6.3).</div><div><br></div><div>&nbsp; George.</div><div><br></div><div><br><div><div>On Nov 25, 2013, at 14:10 , Nadia Derbey &lt;<a href="mailto:Nadia.Derbey@bull.net">Nadia.Derbey@bull.net</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">
+  
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type">
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    <div class="moz-cite-prefix"><tt>George,<br>
+        <br>
+        Thx for the detailed answer!<br>
+        I did my tests on a v1.6.2 (changeset: 141b22222759).<br>
+        After you told me it worked for you with earlier releases, I
+        looked at the changesets applied since that time. I guess
+        28fd94d282a3</tt><tt> is the one that fixes my issue?</tt><br>
+      <tt><br>
+      </tt><tt>Regards,</tt><tt><br>
+      </tt><tt>Nadia</tt><br>
+      <br>
+      On 25/11/2013 13:36, George Bosilca wrote:<br>
+    </div>
+    <blockquote cite="mid:86159EFC-807B-43C3-9BB7-F8A207C1B410@icl.utk.edu" type="cite">
+      <meta http-equiv="Content-Type" content="text/html;
+        charset=ISO-8859-1">
+      Nadia,
+      <div><br>
+      </div>
+      <div>Which version of Open MPI are you using? I tried with the
+        nightly r29751, the current 1.6 and the current 1.7 and I
+        __always__ got the expected output.</div>
+      <div><br>
+      </div>
+      <div>There is a simple way to show what the datatype engine is
+        doing. You can set the MCA parameters</div>
+      <div>mpi_ddt_unpack_debug and mpi_ddt_pack_debug to get more info.
+        If you only want to see how the datatype looks after the
+        MPI_Commit step you can call directly ompi_datatype_dump(ddt).
+        This will show the internals of the datatype, converted in
+        predefined types.</div>
+      <div><br>
+      </div>
+      <div>As an example I took the application you provided and build
+        the following picture of what is send and what is received
+        (original buffer, send datatype, packed buffer, recv datatype,
+        resulting buffer).</div>
+      <div><br>
+      </div>
+      <div><span>&lt;Mail Attachment.png&gt;</span></div>
+      <div><br>
+      </div>
+      <div>Now using the ompi_datatype_dump, I see the recv and the send
+        datatypes as:</div>
+      <div><br>
+      </div>
+      <div>-cC---P-DB-[---][---]&nbsp;&nbsp; &nbsp;&nbsp;OPAL_UINT1 count 8 disp 0x0 (0)
+        extent 1 (size 8)<br>
+        -cC---P-DB-[---][---]&nbsp;&nbsp; &nbsp;&nbsp;OPAL_UINT1 count 8 disp 0x10 (16)
+        extent 1 (size 8)<br>
+        -cC—P-DB-[—][—]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;OPAL_INT4 count 4 disp 0x30 (48)
+        extent 4 (size 16)<br>
+        ———————-G—[—][—]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; OPAL_END_LOOP pref 3 elements first
+        elem displacement 0 size of data 32</div>
+      <div><br>
+      </div>
+      <div>-cC---P-DB-[---][---]&nbsp;&nbsp; &nbsp;&nbsp;OPAL_UINT1 count 24 disp 0x10 (16)
+        extent 1 (size 24)<br>
+        -cC---P-DB-[---][---]&nbsp;&nbsp; &nbsp;&nbsp;OPAL_UINT1 count 8 disp 0x30 (48)
+        extent 1 (size 8)<br>
+        ———G---[---][---]&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;OPAL_END_LOOP prev 2 elements first
+        elem displacement 16 size of data 32<br>
+        <br>
+      </div>
+      <div>This match perfectly to the datatype drawn by hand.</div>
+      <div><br>
+      </div>
+      <div>&nbsp; George.</div>
+      <div><br>
+      </div>
+      <div><br>
+      </div>
+      <div><br>
+        <div>
+          <div>On Nov 25, 2013, at 11:40 , Nadia Derbey &lt;<a moz-do-not-send="true" href="mailto:Nadia.Derbey@bull.net">Nadia.Derbey@bull.net</a>&gt;
+            wrote:</div>
+          <br class="Apple-interchange-newline">
+          <blockquote type="cite">
+            <div bgcolor="#FFFFFF" text="#000000"> <font face="monospace">Hi,<br>
+                <br>
+                I'm currently working on a bug occuring at the client
+                site with openmpi when calling MPI_Sendreceive() on
+                datatypes built by the application.<br>
+                I think I've found where the bug comes from (it is
+                located in opal_generic_simple_pack_function() - file
+                opal/datatype/opal_datatype_pack.c). But this code is so
+                complicated that I'm more than unsure of my fix. What I
+                can say is that it fixes things for me, but I need some
+                advices from the datatypes specialists.<br>
+                <br>
+                ---------------<br>
+                <br>
+                You will find in attachment the reproducer provided by
+                the client, as well as the resulting output.<br>
+                datatypes.c : reproducer<br>
+                to run the binary: salloc --exclusive -p B510 -N 1 -n 1
+                mpirun ./datatypes<br>
+                trc_ko: traces got without the patch applied<br>
+                trc_ok: traces got with the patch applied.<br>
+                <br>
+                ---------------<br>
+                <br>
+                The proposed patch is the following: (Note that the very
+                first change in this patch was enough in my case, but I
+                thought all the "source_base" settings should follow
+                this model.)<br>
+                <br>
+                -------------------------<br>
+                opal_generic_simple_pack_function: add the datatype lb
+                when progressing in the input buffer<br>
+                <br>
+                diff -r cb23c2f07e1f opal/datatype/opal_datatype_pack.c<br>
+                --- a/opal/datatype/opal_datatype_pack.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Sun Nov
+                24 17:06:51 2013 +0000<br>
+                +++ b/opal/datatype/opal_datatype_pack.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Mon Nov
+                25 10:48:00 2013 +0100<br>
+                @@ -301,7 +301,7 @@ opal_generic_simple_pack_function(
+                opal_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PACK_PREDEFINED_DATATYPE( pConvertor,
+                pElem, count_desc,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base,
+                destination, iov_len_local );<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if( 0 == count_desc ) {&nbsp; /* completed
+                */<br>
+                -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base =
+                pConvertor-&gt;pBaseBuf + pStack-&gt;disp;<br>
+                +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base =
+                pConvertor-&gt;pBaseBuf + pStack-&gt;disp +
+                pData-&gt;lb;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pos_desc++;&nbsp; /* advance to the next
+                data */<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; UPDATE_INTERNAL_COUNTERS(
+                description, pos_desc, pElem, count_desc );<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; continue;<br>
+                @@ -333,7 +333,7 @@ opal_generic_simple_pack_function(
+                opal_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pStack-&gt;disp +=
+                description[pStack-&gt;index].loop.extent;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br>
+                -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+                pStack-&gt;disp;<br>
+                +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+                pStack-&gt;disp + pData-&gt;lb;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; UPDATE_INTERNAL_COUNTERS( description,
+                pos_desc, pElem, count_desc );<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DO_DEBUG( opal_output( 0, "pack
+                new_loop count %d stack_pos %d pos_desc %d disp %ld
+                space %lu\n",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                (int)pStack-&gt;count, pConvertor-&gt;stack_pos,
+                pos_desc, (long)pStack-&gt;disp, (unsigned
+                long)iov_len_local ); );<br>
+                @@ -354,7 +354,7 @@ opal_generic_simple_pack_function(
+                opal_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pStack-&gt;disp +
+                local_disp);<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pos_desc++;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; update_loop_description:&nbsp; /* update the
+                current state */<br>
+                -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+                pStack-&gt;disp;<br>
+                +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+                pStack-&gt;disp + pData-&gt;lb;<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; UPDATE_INTERNAL_COUNTERS( description,
+                pos_desc, pElem, count_desc );<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DDT_DUMP_STACK( pConvertor-&gt;pStack,
+                pConvertor-&gt;stack_pos, pElem, "advance loop" );<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; continue;<br>
+                @@ -374,7 +374,7 @@ opal_generic_simple_pack_function(
+                opal_<br>
+                &nbsp;&nbsp;&nbsp;&nbsp; }<br>
+                &nbsp;&nbsp;&nbsp;&nbsp; /* I complete an element, next step I should go to
+                the next one */<br>
+                &nbsp;&nbsp;&nbsp;&nbsp; PUSH_STACK( pStack, pConvertor-&gt;stack_pos,
+                pos_desc, OPAL_DATATYPE_INT8, count_desc,<br>
+                -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base - pStack-&gt;disp -
+                pConvertor-&gt;pBaseBuf );<br>
+                +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base - pStack-&gt;disp -
+                pConvertor-&gt;pBaseBuf - pData-&gt;lb );<br>
+                &nbsp;&nbsp;&nbsp;&nbsp; DO_DEBUG( opal_output( 0, "pack save stack
+                stack_pos %d pos_desc %d count_desc %d disp %ld\n",<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pConvertor-&gt;stack_pos,
+                pStack-&gt;index, (int)pStack-&gt;count,
+                (long)pStack-&gt;disp ); );<br>
+                &nbsp;&nbsp;&nbsp;&nbsp; return 0;<br>
+                <br>
+                -------------------------------<br>
+                <br>
+                Regards,<br>
+                Nadia</font>
+              <pre class="moz-signature" cols="72">-- 
+Nadia Derbey
+Bull, Architect of an Open World
+<a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.bull.com/">http://www.bull.com</a></pre>
+            </div>
+            <span>&lt;datatypes.c&gt;</span><span>&lt;trc_ko.txt&gt;</span><span>&lt;trc_ok.txt&gt;</span>_______________________________________________<br>
+            devel mailing list<br>
+            <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+            <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></pre>
+    </blockquote>
+    <br>
+    <br>
+    <pre class="moz-signature" cols="72">-- 
+Nadia Derbey
+Bull, Architect of an Open World
+<a class="moz-txt-link-freetext" href="http://www.bull.com/">http://www.bull.com</a></pre>
+  </div>
+
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/devel</blockquote></div><br></div></body></html>

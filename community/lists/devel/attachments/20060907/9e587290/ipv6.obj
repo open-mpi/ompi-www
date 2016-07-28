@@ -1,0 +1,62 @@
+Index: configure.ac
+===================================================================
+--- configure.ac	(revision 11554)
++++ configure.ac	(working copy)
+@@ -642,6 +642,12 @@
+ #include <netinet/in.h>
+ #endif])
+ 
++# Do we have IPv6 support?
++AC_CHECK_TYPES([struct sockaddr_in6], [], [], [AC_INCLUDES_DEFAULT
++#ifdef HAVE_NETINET_IN_H
++#include <netinet/in.h>
++#endif])
++
+ # SA_RESTART in signal.h
+ AC_MSG_CHECKING([if SA_RESTART defined in signal.h])
+ AC_EGREP_CPP(yes, [
+Index: config/ompi_configure_options.m4
+===================================================================
+--- config/ompi_configure_options.m4	(revision 11554)
++++ config/ompi_configure_options.m4	(working copy)
+@@ -499,4 +499,20 @@
+         [Build and install binaries required for Open MPI, such as the wrapper compilers.   Useful for multi-lib installations.  (default: enabled)])])
+ AM_CONDITIONAL([OMPI_INSTALL_BINARIES], [test "$enable_binaries" != "no"])
+ 
++#
++# Do we want to disable IPv6 support?
++#
++AC_MSG_CHECKING([if want IPv6 support])
++AC_ARG_ENABLE([ipv6],
++    [AC_HELP_STRING([--disable-ipv6],
++        [Disable IPv6 support (default: enabled, but only if the underlying system supports it)])])
++if test "$enable_ipv6" = "no"; then
++    AC_MSG_RESULT([no])
++    ompi_want_ipv6=0
++else
++    AC_MSG_RESULT([yes (if underlying system supports it)])
++    ompi_want_ipv6=1
++fi
++AC_DEFINE_UNQUOTED([OMPI_ENABLE_IPV6], [$ompi_want_ipv6],
++                   [Enable IPv6 support, but only if the underlying system supports it])
+ ])
+Index: opal/include/opal_config_bottom.h
+===================================================================
+--- opal/include/opal_config_bottom.h	(revision 11554)
++++ opal/include/opal_config_bottom.h	(working copy)
+@@ -341,4 +341,15 @@
+ #  define OPAL_INT_TO_BOOL(VALUE)  (bool)(VALUE)
+ #endif  /* defined(__WINDOWS__) */
+ 
++/**
++ * Top level define to check 2 things: a) if we want ipv6 support, and
++ * b) the underlying system supports ipv6.  Having one #define for
++ * this makes it simpler to check throughout the code base.
++ */
++#if OMPI_ENABLE_IPV6 && defined(HAVE_STRUCT_SOCKADDR_IN6)
++#define OMPI_WANT_IPV6 1
++#else
++#define OMPI_WANT_IPV6 0
++#endif
++
+ #endif /* OMPI_BUILDING */

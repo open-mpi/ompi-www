@@ -1,0 +1,224 @@
+Index: ompi/mca/topo/base/topo_base_dist_graph_create.c
+===================================================================
+--- ompi/mca/topo/base/topo_base_dist_graph_create.c	(revision 32823)
++++ ompi/mca/topo/base/topo_base_dist_graph_create.c	(working copy)
+@@ -304,26 +304,69 @@
+ {
+     int err;
+ 
+-    if( OMPI_SUCCESS != (err = ompi_comm_create(comm_old,
+-                                                comm_old->c_local_group,
+-                                                newcomm)) ) {
+-        OBJ_RELEASE(module);
+-        return err;
++    ompi_proc_t **topo_procs = NULL;
++    int num_procs, ret, rank, i;
++    ompi_communicator_t *new_comm;
++    mca_topo_base_comm_dist_graph_2_1_0_t* topo;
++    num_procs = ompi_comm_size(comm_old);
++    rank = ompi_comm_rank(comm_old);
++    topo_procs = (ompi_proc_t**)malloc(num_procs * sizeof(ompi_proc_t *));
++    if(OMPI_GROUP_IS_DENSE(comm_old->c_local_group)) {
++        memcpy(topo_procs, 
++               comm_old->c_local_group->grp_proc_pointers,
++               num_procs * sizeof(ompi_proc_t *));
++    } else {
++        for(i = 0 ; i < num_procs; i++) {
++            topo_procs[i] = ompi_group_peer_lookup(comm_old->c_local_group,i);
++        }
+     }
+-
+-    assert(NULL == (*newcomm)->c_topo);
+-    (*newcomm)->c_topo             = module;
+-    (*newcomm)->c_topo->reorder    = reorder;
+-    (*newcomm)->c_flags           |= OMPI_COMM_DIST_GRAPH;
+-
++    new_comm = ompi_comm_allocate(num_procs, 0);
++    if (NULL == new_comm) {
++        free(topo_procs);
++        return OMPI_ERR_OUT_OF_RESOURCE;
++    }
+     err = mca_topo_base_dist_graph_distribute(module,
+-                                              *newcomm, 
++                                              comm_old, 
+                                               n, nodes,
+                                               degrees, targets, 
+                                               weights,
+-                                              &((*newcomm)->c_topo->mtc.dist_graph));
++                                              &topo);
+     if( OMPI_SUCCESS != err ) {
++        free(topo_procs);
+         ompi_comm_free(newcomm);
++        return err;
+     }
+-    return err;
++
++    assert(NULL == new_comm->c_topo);
++    new_comm->c_topo             = module;
++    new_comm->c_topo->reorder    = reorder;
++    new_comm->c_flags           |= OMPI_COMM_DIST_GRAPH;
++    new_comm->c_topo->mtc.dist_graph = topo;
++
++    ret = ompi_comm_enable(comm_old, new_comm,
++                           rank, num_procs, topo_procs);
++    if (OMPI_SUCCESS != ret) {
++        if ( NULL != topo->in ) {
++            free(topo->in);
++        }
++        if ( NULL != topo->out ) {
++            free(topo->out);
++        }
++        if ( NULL != topo->inw ) {
++            free(topo->inw);
++        }
++        if ( NULL != topo->outw ) {
++            free(topo->outw);
++        }
++        free(topo);
++        free(topo_procs);
++        new_comm->c_topo             = NULL;
++        new_comm->c_flags           &= ~OMPI_COMM_DIST_GRAPH;
++        new_comm->c_topo->mtc.dist_graph = NULL;
++        ompi_comm_free (&new_comm);
++        return ret;
++    }
++    *newcomm = new_comm;
++
++    return OMPI_SUCCESS;
+ }
+Index: ompi/mca/topo/base/topo_base_cart_create.c
+===================================================================
+--- ompi/mca/topo/base/topo_base_cart_create.c	(revision 32823)
++++ ompi/mca/topo/base/topo_base_cart_create.c	(working copy)
+@@ -163,10 +163,18 @@
+         return MPI_ERR_INTERN;
+     }
+ 
++    assert(NULL == new_comm->c_topo);
++    assert(!(new_comm->c_flags & OMPI_COMM_CART));
++    new_comm->c_topo           = topo;
++    new_comm->c_topo->mtc.cart = cart;
++    new_comm->c_topo->reorder  = reorder;
++    new_comm->c_flags         |= OMPI_COMM_CART;
+     ret = ompi_comm_enable(old_comm, new_comm,
+                            new_rank, num_procs, topo_procs);
+     if (OMPI_SUCCESS != ret) {
+         /* something wrong happened during setting the communicator */
++        new_comm->c_topo = NULL;
++        new_comm->c_flags &= ~OMPI_COMM_CART;
+         ompi_comm_free (&new_comm);
+         free(topo_procs);
+         if(NULL != cart->periods) free(cart->periods);
+@@ -176,10 +184,6 @@
+         return ret;
+     }
+ 
+-    new_comm->c_topo           = topo;
+-    new_comm->c_topo->mtc.cart = cart;
+-    new_comm->c_topo->reorder  = reorder;
+-    new_comm->c_flags         |= OMPI_COMM_CART;
+     *comm_topo = new_comm;
+ 
+     if( MPI_UNDEFINED == new_rank ) {
+Index: ompi/mca/topo/base/topo_base_graph_create.c
+===================================================================
+--- ompi/mca/topo/base/topo_base_graph_create.c	(revision 32823)
++++ ompi/mca/topo/base/topo_base_graph_create.c	(working copy)
+@@ -10,6 +10,8 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2014 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -121,9 +123,16 @@
+         return OMPI_ERR_OUT_OF_RESOURCE;
+     }
+ 
++    new_comm->c_topo            = topo;
++    new_comm->c_topo->mtc.graph = graph;
++    new_comm->c_flags          |= OMPI_COMM_GRAPH;
++    new_comm->c_topo->reorder   = reorder;
++
+     ret = ompi_comm_enable(old_comm, new_comm,
+                            new_rank, num_procs, topo_procs);
+     if (OMPI_SUCCESS != ret) {
++        new_comm->c_topo            = NULL;
++        new_comm->c_flags          &= ~OMPI_COMM_GRAPH;
+         free(topo_procs);
+         free(graph->edges);
+         free(graph->index);
+@@ -132,10 +141,6 @@
+         return ret;
+     }
+     
+-    new_comm->c_topo            = topo;
+-    new_comm->c_topo->mtc.graph = graph;
+-    new_comm->c_flags          |= OMPI_COMM_GRAPH;
+-    new_comm->c_topo->reorder   = reorder;
+     *comm_topo = new_comm;
+ 
+     if( MPI_UNDEFINED == new_rank ) {
+Index: ompi/mca/coll/basic/coll_basic_module.c
+===================================================================
+--- ompi/mca/coll/basic/coll_basic_module.c	(revision 32823)
++++ ompi/mca/coll/basic/coll_basic_module.c	(working copy)
+@@ -13,6 +13,8 @@
+  * Copyright (c) 2012      Sandia National Laboratories. All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC. All rights
+  *                         reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -28,6 +30,8 @@
+ #include "mpi.h"
+ #include "ompi/mca/coll/coll.h"
+ #include "ompi/mca/coll/base/base.h"
++#include "ompi/mca/topo/topo.h"
++#include "ompi/mca/topo/base/base.h"
+ #include "coll_basic.h"
+ 
+ 
+@@ -70,7 +74,36 @@
+     } else {
+         size = ompi_comm_size(comm);
+     }
+-    basic_module->mccb_num_reqs = size * 2;
++    size *= 2;
++    if (OMPI_COMM_IS_CART(comm)) {
++        int cart_size;
++        mca_topo_base_comm_cart_2_1_0_t *cart;
++        assert (NULL != comm->c_topo);
++        cart = comm->c_topo->mtc.cart;
++        cart_size = cart->ndims * 4;
++        if (cart_size > size) {
++            size = cart_size;
++        }
++    } else if (OMPI_COMM_IS_GRAPH(comm)) {
++        int rank, degree;
++        assert (NULL != comm->c_topo);
++        rank = ompi_comm_rank (comm);
++        mca_topo_base_graph_neighbors_count (comm, rank, &degree);
++        degree *= 2;
++        if (degree > size) {
++            size = degree;
++        }
++    } else if (OMPI_COMM_IS_DIST_GRAPH(comm)) {
++        int dist_graph_size;
++        mca_topo_base_comm_dist_graph_2_1_0_t *dist_graph;
++        assert (NULL != comm->c_topo);
++        dist_graph = comm->c_topo->mtc.dist_graph;
++        dist_graph_size = dist_graph->indegree + dist_graph->outdegree;
++        if (dist_graph_size > size) {
++            size = dist_graph_size;
++        }
++    }
++    basic_module->mccb_num_reqs = size;
+     basic_module->mccb_reqs = (ompi_request_t**) 
+         malloc(sizeof(ompi_request_t *) * basic_module->mccb_num_reqs);
+ 
+

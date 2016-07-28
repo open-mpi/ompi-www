@@ -1,0 +1,173 @@
+Hello @ll.<div><br></div><div>I&#39;m reviving this topic because i&#39;ve done things as you propose, and i still can&#39;t catch the error mentioned before. I will put here some pieces of code to contextualize. </div><div>
+
+<br></div><div>I&#39;ve set the error handler:</div><blockquote style="margin:0 0 0 40px;border:none;padding:0px"><div><i>MPI_Errhandler_set(MPI_COMM_WORLD,MPI_ERRORS_RETURN);</i></div></blockquote>
+<div><br></div><div>Then do a send like this:</div><blockquote style="margin:0 0 0 40px;border:none;padding:0px"><div><div><i>ierr = MPI_Send(b, task.msize*task.msize, MPI_DOUBLE, 1, 152, MPI_COMM_WORLD);</i></div>
+</div><div><div><span style="white-space:pre-wrap"><i>	</i></span></div><i>if (ierr != MPI_SUCCESS) {</i></div><div><div><span style="white-space:pre-wrap"><i>		</i></span></div><i>printf(&quot;ERROR %d \n&quot;,ierr);</i></div>
+
+<div><div><span style="white-space:pre-wrap">	</span></div>}</div></blockquote><div><div><br></div><div>This send, as i mentioned before is made at the beginning of a master/worker application by the master. When the send is made process 1 resides in Node1, but then node1 fails and the process 1 is restarted on node2. Process 1 post the recv when in node2, but here the execution stops without showing an error. I&#39;m thinking that this kind of failures are not noticed. </div>
+
+<div><br></div><div>I&#39;ve noticed that the execution stops in ompi/request/req_wait.c in ompi_request_wait_completion(req). </div><div><br></div></div><blockquote style="margin:0 0 0 40px;border:none;padding:0px">
+<div><div><div><i>int ompi_request_default_wait(</i></div></div></div><div><div><div><i>    ompi_request_t ** req_ptr,</i></div></div></div><div><div><div><i>    ompi_status_public_t * status)</i></div></div></div><div><div>
+
+<div><i>{</i></div></div></div><div><div><div><i>    ompi_request_t *req = *req_ptr;</i></div></div></div><div><div><div><i>    <b>ompi_request_wait_completion(req);</b></i></div></div></div><div><div><i>.........</i></div>
+
+</div></blockquote><div><div>The code is not returning from that sentence, and no handler is catching the error. Someone know where can i search for a variable o something that is set when and endpoint gets broken, or something similar?</div>
+
+<div><br></div><div>Thanks in advance.</div><div><br></div><div>Hugo Meyer</div><div><br></div><div><br></div><div class="gmail_quote">2011/12/20 Hugo Daniel Meyer <span dir="ltr">&lt;<a href="mailto:meyer.hugo@gmail.com" target="_blank">meyer.hugo@gmail.com</a>&gt;</span><br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div>Sorry for the delay.</div><div>I will try with the MPI_ERRORS_RETURN handler, maybe that is my problem. Thanks a lot for your help.</div>
+
+<div><br></div><div>I&#39;ll let you know how it goes.</div><div><br></div><div>
+Best regards.</div><span><font color="#888888"><div><br></div><div>Hugo</div></font></span><div><div><br><div class="gmail_quote">2011/12/16 George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;</span><br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Setting the error handler to MPI_ERRORS_RETURN is the right solution for mechanism using the PMPI interface. Hugo is one software layer below the MPI interface, so the error handler is not affecting his code. However, once he reacts to an error, he should reset the error (in the status attached to the request) to MPI_SUCCESS, in order to avoid triggering the error handler on the way back to the MPI layer.<br>
+
+
+
+<span><font color="#888888"><br>
+  george.<br>
+</font></span><div><div><br>
+On Dec 16, 2011, at 09:09 , Jeff Squyres wrote:<br>
+<br>
+&gt; I&#39;m jumping into the middle of this conversation and probably don&#39;t have all the right context, so forgive me if this is a stupid question: did you set MPI_ERRORS_RETURN on the communicator in question?<br>
+&gt;<br>
+&gt;<br>
+&gt; On Dec 14, 2011, at 10:43 AM, Hugo Daniel Meyer wrote:<br>
+&gt;<br>
+&gt;&gt; Hello George and @ll.<br>
+&gt;&gt;<br>
+&gt;&gt; Sorry for the late answer, but i was doing some trace to see where is set the MPI_ERROR. I took a look to ompi_request_default_wait and try to see what happen with request.<br>
+&gt;&gt;<br>
+&gt;&gt; Well, i&#39;ve noticed that all requests that are not inmediately solved go to ompi_request_wait_completion. But i don&#39;t know exactly where the execution jumps when i inject a failure to the receiver of the message. After the failure, the sender does not return from ompi_request_wait_completion to ompi_request_default_wait, and i don&#39;t know where to catch when the req-&gt;req_status.MPI_ERROR is set. Do you know where jumps the execution? or at least in which error handler?<br>
+
+
+
+&gt;&gt;<br>
+&gt;&gt; Thanks in advance.<br>
+&gt;&gt;<br>
+&gt;&gt; Hugo<br>
+&gt;&gt;<br>
+&gt;&gt; 2011/12/9 George Bosilca &lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On Dec 9, 2011, at 06:59 , Hugo Daniel Meyer wrote:<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; Hello George and all.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I&#39;ve been adapting some of the code to copy the request, and now i think that it is working ok. I&#39;m storing the request as you do on the pessimist, but i&#39;m only logging received messages, as my approach is a pessimist log based on the receiver.<br>
+
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I do have a question about how you detect when you have to resend a message, or at least repost it?<br>
+&gt;&gt;<br>
+&gt;&gt; The error in the status attached to the request will be set in case of failure. As the MPI error handler is triggered right before returning above the MPI layer, at the level where you placed your interception you have all the freedom you need to handle the faults.<br>
+
+
+
+&gt;&gt;<br>
+&gt;&gt;  george.<br>
+&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thanks for the help.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Hugo<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 2011/11/19 Hugo Daniel Meyer &lt;<a href="mailto:meyer.hugo@gmail.com" target="_blank">meyer.hugo@gmail.com</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 2011/11/18 George Bosilca &lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; On Nov 18, 2011, at 11:50 , Hugo Daniel Meyer wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; 2011/11/18 George Bosilca &lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; On Nov 18, 2011, at 11:14 , Hugo Daniel Meyer wrote:<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; 2011/11/18 George Bosilca &lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; On Nov 18, 2011, at 07:29 , Hugo Daniel Meyer wrote:<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Hello again.<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; I was doing some trace into de PML_OB1 files. I start to follow a MPI_Ssend() trying to find where a message is stored (in the sender) if it is not send until the receiver post the recv, but i didn&#39;t find that place.<br>
+
+
+
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Right, you can&#39;t find this as the message is not stored on the sender. The pointer to the send request is sent encapsulated in the matching header, and the receiver will provide it back once the message has been matched (this means the data is now ready to flow).<br>
+
+
+
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; So, what you&#39;re saying is that the sender only sends the header, so when the receiver post the recv will send again the header so the sender starts with the data sent? am i getting it right?  If this is ok, the data stays in the sender, but where it is stored?<br>
+
+
+
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; If we consider rendez-vous messages the data is remains in the sender buffer (aka the buffer provided by the upper level to the MPI_Send function).<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Yes, so i will only need to save the headears of the messages (where the status is incomplete), and then maybe just call again the upper level MP_Send. A question here, the headers are not marked as pending (at least i think so), so, my only approach might be to create a list of pending headers and store there the pointer to the send, then try to identify its corresponding upper level MPI_Send and retries it in case of failure, is this a correct approach?<br>
+
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Look in the mca/vprotocol/base to see how we deal with the send requests in our message logging protocol. We hijack the send request list, and replace them with our own, allowing us to chain all active requests. This make the tracking of chive requests very simple, and minimize the impact on the overall code.<br>
+
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;  george.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Ok George.<br>
+&gt;&gt;&gt; I will take a look there and then let you know how it goes.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thanks.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Hugo<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Jeff Squyres<br>
+&gt; <a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+&gt; For corporate legal information go to:<br>
+&gt; <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br>
+</div></div></blockquote></div><br></div>
+

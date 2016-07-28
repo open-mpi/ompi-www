@@ -1,0 +1,118 @@
+<div dir="ltr">It looks now like the very first line of ORTE_CHECK_ALPS is actually the one that is preventing $1_CPPFLAGS from getting set for any caller other than the first:<div><div>    if test -z &quot;$orte_check_alps_happy&quot;; then</div>
+</div><div><br></div><div style>So, my previous patch (tested by editing configure directly) didn&#39;t do the job.</div><div><br></div><div style>Again, this probably slipped past Nathan because under CLE4 the alps headers are under /usr/include and therefore the missing CPPFLAGS were not actually required.</div>
+<div><br></div><div style>-Paul</div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Jan 28, 2013 at 7:05 PM, Paul Hargrove <span dir="ltr">&lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div>Ralph and Nathan,</div><div><br></div>As I said, the results I see fail to match the actual ALPS header locations on both CLE4 and CLE5 systems at NERSC.<br>
+<div>However, the CLE4 system &quot;just works&quot; because the actual location (/usr/include) gets searched no matter what value configure picks for $orte_check_alps_dir.  I suspect that this is why you didn&#39;t see any errors on LANL&#39;s system.</div>
+
+<div><br></div><div>Regardless of the defaults, there is still an additional issue with orte_check_alps.m4 that occurs when I give an explicit with-alps=/opt/cray/alps/default in the platform file, which the following bit of config.log confirms:</div>
+
+<div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">configure:99227: checking --with-alps value<br>
+configure:99247: result: sanity check ok (/opt/cray/alps/default)<br>configure:99329: checking for alps libraries in &quot;/opt/cray/alps/default/lib64&quot;<br>configure:99334: result: found</blockquote><div><br></div></div>
+
+<div><br></div><div>However, when trying to configure the ras:alps component, the value of ras_alps_CPPFLAGS does not contain &quot;-I/opt/cray/alps/default/include&quot; as I would have expected from reading the relevant .m4 files and the generated configure script:</div>
+
+<div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">configure:113697: checking for MCA component ras:alps compile mode<br>
+
+configure:113703: result: static<br>configure:113871: checking alps/apInfo.h usability<br>configure:113871: gcc -std=gnu99 -c -O3 -DNDEBUG -march=amdfam10 -finline-functions -fno-strict-aliasing -fexceptions -pthread   -I/global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.9a1r27905/opal/mca/hwloc/hwloc151/hwloc/include -I/global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.9a1r27905/BUILD-edison-gcc/opal/mca/hwloc/hwloc151/hwloc/include -I/global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.9a1r27905/opal/mca/event/libevent2019/libevent -I/global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.9a1r27905/opal/mca/event/libevent2019/libevent/include -I/global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.9a1r27905/BUILD-edison-gcc/opal/mca/event/libevent2019/libevent/include -I/opt/cray/pmi/default/include -I/opt/cray/pmi/default/include -I/opt/cray/pmi/default/include -I/opt/cray/pmi/default/include  conftest.c &gt;&amp;5<br>
+
+conftest.c:640:25: fatal error: alps/apInfo.h: No such file or directory<br>compilation terminated.<br>configure:113871: $? = 1</blockquote><div><br></div><div>While only 95% certain, I think that this logic in config/orte_check_alps.m4 is to blame:</div>
+
+<div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">        if test &quot;$with_alps&quot; = &quot;no&quot; -o -z &quot;$with_alps&quot; ; then<br>
+
+            orte_check_alps_happy=&quot;no&quot;<br>        else<br>           # Only need to do these tests once (this macro is invoked<br>           # from multiple different components&#39; configure.m4 scripts</blockquote>
+
+<div><br></div></div><div>Specifically, the setting of &quot;$1_CPPFLAGS&quot; appears to be ERRONEOUSLY placed within the else-clause of the logic above.  So, when orte/mca/ess/alps/configure.m4 is run BEFORE orte/mca/ras/alps/configure.m4, the variable &quot;with_alps&quot; gets set and the &quot;$1_CPPFLAGS=...&quot; is then unreachable when the ORTE_CHECK_ALPS macro is run later from config/orte_check_alps.m4.</div>
+
+<div><br></div><div>Though it leaves the indentation sloppy, I believe the following might fix the problem, but I lack the autotools versions to test this myself:</div><div><br></div><div><div>--- config/orte_check_alps.m4   (revision 27954)</div>
+
+<div>+++ config/orte_check_alps.m4   (working copy)</div><div>@@ -80,6 +80,7 @@</div><div>                         [orte_check_alps_dir=&quot;/opt/cray/alps/default&quot;],</div><div>                         [orte_check_alps_dir=&quot;$with_alps&quot;])</div>
+
+<div>            fi</div><div>+        fi</div><div> </div><div>            $1_CPPFLAGS=&quot;-I$orte_check_alps_dir/include&quot;</div><div>            $1_LDFLAGS=&quot;-L$orte_check_alps_libdir&quot;</div><div>@@ -106,7 +107,6 @@</div>
+
+<div>                           AC_MSG_ERROR([Cannot continue])])</div><div>                fi</div><div>            fi</div><div>-        fi</div><div>     fi</div><div> </div><div>     AS_IF([test &quot;$orte_check_alps_happy&quot; = &quot;yes&quot;], </div>
+
+<div><br></div></div><div><br></div></div><div>-Paul</div><div><br></div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Jan 28, 2013 at 6:30 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">Like I said, I didn&#39;t write this code - all I can say for certain is that it gets the right answer on the LANL Crays. I&#39;ll talk to Nathan (the author) about it tomorrow.<div>
+
+<br><div><div>On Jan 28, 2013, at 6:23 PM, Paul Hargrove &lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt; wrote:</div><br><blockquote type="cite"><div dir="ltr">Ralph writes<div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+
+?? It looks correct to me - if with_alps is &quot;yes&quot;, then no path was given and we have to look at a default location. If it isn&#39;t yes, then a path was given and we use it.<br>
+Am I missing something?</blockquote><div><br></div><div>Maybe *I* am the one missing something, but the way I read it the following defaults are applied</div><div><div><br></div><div><div>CLE4:</div><div>
+   orte_check_alps_libdir=&quot;/usr/lib/alps&quot;</div><div>   orte_check_alps_dir=&quot;/opt/cray/alps/default&quot;</div><div>CLE5:</div><div>   orte_check_alps_libdir=&quot;/opt/cray/alps/default/lib64&quot;</div><div>
+
+
+   orte_check_alps_dir=&quot;/usr&quot;</div><div><br></div><div>Unless I am mistaken, the defaults for orte_check_alps_dir should be exchanged to yield:</div><div><br></div><div><div>CLE4:</div><div>   orte_check_alps_libdir=&quot;/usr/lib/alps&quot;</div>
+
+
+<div>   orte_check_alps_dir=&quot;/usr&quot;</div><div>CLE5:<br></div><div>   orte_check_alps_libdir=&quot;/opt/cray/alps/default/lib64&quot;</div><div><div>   orte_check_alps_dir=&quot;/opt/cray/alps/default&quot;</div>
+
+
+</div><div><br></div><div>-Paul</div></div></div></div></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Jan 28, 2013 at 6:14 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word"><br><div><div>On Jan 28, 2013, at 6:10 PM, Paul Hargrove &lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt; wrote:</div>
+
+
+<br><blockquote type="cite"><div dir="ltr">The following 2 fragment from config/orte_check_alps.m4 appear to be contradictory.<br><div><div>By that I mean the first appears to mean that &quot;--with-alps&quot; with no argument means /opt/cray/alps/default/... for CLE5 and /usr/... for CLE4, while the second fragment appears to be doing the opposite:</div>
+
+
+
+<div><br></div><div><div>                   if test &quot;$using_cle5_install&quot; = &quot;yes&quot;; then</div><div>                       orte_check_alps_libdir=&quot;/opt/cray/alps/default/lib64&quot;</div>
+<div>                   else</div><div>                       orte_check_alps_libdir=&quot;/usr/lib/alps&quot;</div><div>                   fi</div><div><br></div><div><br></div><div><div>           if test &quot;$using_cle5_install&quot; = &quot;yes&quot; ; then</div>
+
+
+
+<div>                  AS_IF([test &quot;$with_alps&quot; = &quot;yes&quot;],</div><div>                        [orte_check_alps_dir=&quot;/usr&quot;],</div><div>                        [orte_check_alps_dir=&quot;$with_alps&quot;])</div>
+
+
+
+<div>           else   </div><div>                  AS_IF([test &quot;$with_alps&quot; = &quot;yes&quot;],</div><div>                        [orte_check_alps_dir=&quot;/opt/cray/alps/default&quot;],</div><div>                        [orte_check_alps_dir=&quot;$with_alps&quot;])</div>
+
+
+
+<div>           fi</div></div><div><br></div><div>At least based on header and lib locations on NERSC&#39;s XC30 (CLE 5.0.15) and XE6 (CLE 4.1.40), the first fragment is correctwhile the second fragment is &quot;backwards&quot; (the two calls to AS_IF should be exchanged, or the initial &quot;test&quot; should be inverted).</div>
+
+
+</div></div></div></blockquote><div><br></div>?? It looks correct to me - if with_alps is &quot;yes&quot;, then no path was given and we have to look at a default location. If it isn&#39;t yes, then a path was given and we use it.</div>
+
+
+<div><br></div><div>Am I missing something?</div><div><br><blockquote type="cite"><div dir="ltr"><div><div>
+<div><br></div><div>Note this same logic is present in both trunk and v1.7 (in SVN - I am not looking at tarballs this time).</div><div><br></div><div>-Paul</div><div><br></div></div><div>
+<br></div></div><div><br></div><div><br></div><div><br clear="all"><span><font color="#888888"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+
+
+
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+
+
+</font>
+</font></span></div></div><span><font color="#888888">
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></font></span></blockquote>
+
+
+</div><br></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br><br clear="all"><span><font color="#888888"><div>
+<br></div>-- <br><font face="courier new, monospace"><div>
+Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div>
+
+
+<div>Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div></font>
+</font></span></div><span><font color="#888888">
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></font></span></blockquote>
+
+</div><br></div></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><span class="HOEnZb"><font color="#888888"><br></font></span></blockquote></div><span class="HOEnZb"><font color="#888888"><br>
+<br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>
+Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div>
+
+<div>Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div></font>
+</font></span></div>
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font>
+</div>
+

@@ -1,0 +1,115 @@
+<html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <font face="monospace">Hi,<br>
+      <br>
+      I'm currently working on a bug occuring at the client site with
+      openmpi when calling MPI_Sendreceive() on datatypes built by the
+      application.<br>
+      I think I've found where the bug comes from (it is located in
+      opal_generic_simple_pack_function() - file
+      opal/datatype/opal_datatype_pack.c). But this code is so
+      complicated that I'm more than unsure of my fix. What I can say is
+      that it fixes things for me, but I need some advices from the
+      datatypes specialists.<br>
+      <br>
+      ---------------<br>
+      <br>
+      You will find in attachment the reproducer provided by the client,
+      as well as the resulting output.<br>
+      datatypes.c : reproducer<br>
+      to run the binary: salloc --exclusive -p B510 -N 1 -n 1 mpirun
+      ./datatypes<br>
+      trc_ko: traces got without the patch applied<br>
+      trc_ok: traces got with the patch applied.<br>
+      <br>
+      ---------------<br>
+      <br>
+      The proposed patch is the following: (Note that the very first
+      change in this patch was enough in my case, but I thought all the
+      "source_base" settings should follow this model.)<br>
+      <br>
+      -------------------------<br>
+      opal_generic_simple_pack_function: add the datatype lb when
+      progressing in the input buffer<br>
+      <br>
+      diff -r cb23c2f07e1f opal/datatype/opal_datatype_pack.c<br>
+      --- a/opal/datatype/opal_datatype_pack.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Sun Nov 24
+      17:06:51 2013 +0000<br>
+      +++ b/opal/datatype/opal_datatype_pack.c&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Mon Nov 25
+      10:48:00 2013 +0100<br>
+      @@ -301,7 +301,7 @@ opal_generic_simple_pack_function( opal_<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PACK_PREDEFINED_DATATYPE( pConvertor, pElem,
+      count_desc,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base,
+      destination, iov_len_local );<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if( 0 == count_desc ) {&nbsp; /* completed */<br>
+      -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+      pStack-&gt;disp;<br>
+      +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+      pStack-&gt;disp + pData-&gt;lb;<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pos_desc++;&nbsp; /* advance to the next data */<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; UPDATE_INTERNAL_COUNTERS( description,
+      pos_desc, pElem, count_desc );<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; continue;<br>
+      @@ -333,7 +333,7 @@ opal_generic_simple_pack_function( opal_<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pStack-&gt;disp +=
+      description[pStack-&gt;index].loop.extent;<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br>
+      -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+      pStack-&gt;disp;<br>
+      +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+      pStack-&gt;disp + pData-&gt;lb;<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; UPDATE_INTERNAL_COUNTERS( description, pos_desc,
+      pElem, count_desc );<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DO_DEBUG( opal_output( 0, "pack new_loop count %d
+      stack_pos %d pos_desc %d disp %ld space %lu\n",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (int)pStack-&gt;count,
+      pConvertor-&gt;stack_pos, pos_desc, (long)pStack-&gt;disp,
+      (unsigned long)iov_len_local ); );<br>
+      @@ -354,7 +354,7 @@ opal_generic_simple_pack_function( opal_<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pStack-&gt;disp + local_disp);<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pos_desc++;<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; update_loop_description:&nbsp; /* update the current state
+      */<br>
+      -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+      pStack-&gt;disp;<br>
+      +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base = pConvertor-&gt;pBaseBuf +
+      pStack-&gt;disp + pData-&gt;lb;<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; UPDATE_INTERNAL_COUNTERS( description, pos_desc,
+      pElem, count_desc );<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DDT_DUMP_STACK( pConvertor-&gt;pStack,
+      pConvertor-&gt;stack_pos, pElem, "advance loop" );<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; continue;<br>
+      @@ -374,7 +374,7 @@ opal_generic_simple_pack_function( opal_<br>
+      &nbsp;&nbsp;&nbsp;&nbsp; }<br>
+      &nbsp;&nbsp;&nbsp;&nbsp; /* I complete an element, next step I should go to the next
+      one */<br>
+      &nbsp;&nbsp;&nbsp;&nbsp; PUSH_STACK( pStack, pConvertor-&gt;stack_pos, pos_desc,
+      OPAL_DATATYPE_INT8, count_desc,<br>
+      -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base - pStack-&gt;disp -
+      pConvertor-&gt;pBaseBuf );<br>
+      +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; source_base - pStack-&gt;disp -
+      pConvertor-&gt;pBaseBuf - pData-&gt;lb );<br>
+      &nbsp;&nbsp;&nbsp;&nbsp; DO_DEBUG( opal_output( 0, "pack save stack stack_pos %d
+      pos_desc %d count_desc %d disp %ld\n",<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pConvertor-&gt;stack_pos,
+      pStack-&gt;index, (int)pStack-&gt;count, (long)pStack-&gt;disp );
+      );<br>
+      &nbsp;&nbsp;&nbsp;&nbsp; return 0;<br>
+      <br>
+      -------------------------------<br>
+      <br>
+      Regards,<br>
+      Nadia</font>
+    <pre class="moz-signature" cols="72">-- 
+Nadia Derbey
+Bull, Architect of an Open World
+<a class="moz-txt-link-freetext" href="http://www.bull.com">http://www.bull.com</a></pre>
+  </body>
+</html>
+

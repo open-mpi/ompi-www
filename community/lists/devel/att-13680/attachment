@@ -1,0 +1,49 @@
+<div dir="ltr">Based on how MAP_ANONYMOUS vs MAP_ANON is dealt with in opal/mca/memory/linux/malloc.c,  I believe the patch below is an appropriate solution for this issue.  Additionally, it handles the possibility that MAP_FAILED is not defined (not sure where that comes up, but opal/mca/memory/linux/malloc.c allows for it).<div>
+<br></div><div>-Paul</div><div><br></div><div><div><font size="1" face="courier new, monospace">Index: oshmem/mca/memheap/base/memheap_base_alloc.c</font></div><div><font size="1" face="courier new, monospace">===================================================================</font></div>
+<div><font size="1" face="courier new, monospace">--- oshmem/mca/memheap/base/memheap_base_alloc.c        (revision 30223)</font></div><div><font size="1" face="courier new, monospace">+++ oshmem/mca/memheap/base/memheap_base_alloc.c        (working copy)</font></div>
+<div><font size="1" face="courier new, monospace">@@ -18,6 +18,12 @@</font></div><div><font size="1" face="courier new, monospace"> #ifdef HAVE_SYS_MMAN_H</font></div><div><font size="1" face="courier new, monospace"> #include &lt;sys/mman.h&gt;</font></div>
+<div><font size="1" face="courier new, monospace"> #endif</font></div><div><font size="1" face="courier new, monospace">+#if !defined(MAP_ANONYMOUS) &amp;&amp; defined(MAP_ANON)</font></div><div><font size="1" face="courier new, monospace">+# define MAP_ANONYMOUS MAP_ANON</font></div>
+<div><font size="1" face="courier new, monospace">+#endif</font></div><div><font size="1" face="courier new, monospace">+#if !defined(MAP_FAILED)</font></div><div><font size="1" face="courier new, monospace">+# define MAP_FAILED ((char*)-1)</font></div>
+<div><font size="1" face="courier new, monospace">+#endif</font></div><div><font size="1" face="courier new, monospace"> </font></div><div><font size="1" face="courier new, monospace"> #include &lt;sys/ipc.h&gt;</font></div>
+<div><font size="1" face="courier new, monospace"> #include &lt;sys/shm.h&gt;</font></div><div><font size="1" face="courier new, monospace">@@ -278,10 +284,8 @@</font></div><div><font size="1" face="courier new, monospace">                 size,</font></div>
+<div><font size="1" face="courier new, monospace">                 PROT_READ | PROT_WRITE,</font></div><div><font size="1" face="courier new, monospace">                 MAP_SHARED |</font></div><div><font size="1" face="courier new, monospace">-#if defined (__APPLE__)</font></div>
+<div><font size="1" face="courier new, monospace">-MAP_ANON |</font></div><div><font size="1" face="courier new, monospace">-#elif defined (__GNUC__)</font></div><div><font size="1" face="courier new, monospace">-MAP_ANONYMOUS |</font></div>
+<div><font size="1" face="courier new, monospace">+#ifdef MAP_ANONYMOUS</font></div><div><font size="1" face="courier new, monospace">+                MAP_ANONYMOUS |</font></div><div><font size="1" face="courier new, monospace"> #endif</font></div>
+<div><font size="1" face="courier new, monospace">                 MAP_FIXED,</font></div><div><font size="1" face="courier new, monospace">                 0,</font></div></div><div><br></div><div><br></div></div><div class="gmail_extra">
+<br><br><div class="gmail_quote">On Thu, Jan 9, 2014 at 8:35 PM, Paul Hargrove <span dir="ltr">&lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<div dir="ltr">Same issue for NetBSD, too.<div><br></div><div>-Paul</div><div class="gmail_extra"><br><br><div class="gmail_quote">On Thu, Jan 9, 2014 at 7:09 PM, Paul Hargrove <span dir="ltr">&lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">With the new opal/util/path.c I get farther building the trunk on OpenBSD but hit a new failure:<div><br>
+
+</div><div><div><font face="courier new, monospace">Making all in mca/memheap</font></div><div><font face="courier new, monospace">  CC       base/memheap_base_frame.lo</font></div>
+<div><font face="courier new, monospace">  CC       base/memheap_base_select.lo</font></div><div><font face="courier new, monospace">  CC       base/memheap_base_alloc.lo</font></div><div><font face="courier new, monospace">/home/phargrov/OMPI/openmpi-trunk-openbsd5-i386/openmpi-1.9a1r30215/oshmem/mca/memheap/base/memheap_base_alloc.c: In function &#39;_mmap_attach&#39;:</font></div>
+
+
+<div><font face="courier new, monospace">/home/phargrov/OMPI/openmpi-trunk-openbsd5-i386/openmpi-1.9a1r30215/oshmem/mca/memheap/base/memheap_base_alloc.c:284: error: &#39;MAP_ANONYMOUS&#39; undeclared (first use in this function)</font></div>
+
+
+<div><font face="courier new, monospace">/home/phargrov/OMPI/openmpi-trunk-openbsd5-i386/openmpi-1.9a1r30215/oshmem/mca/memheap/base/memheap_base_alloc.c:284: error: (Each undeclared identifier is reported only once</font></div>
+
+
+<div><font face="courier new, monospace">/home/phargrov/OMPI/openmpi-trunk-openbsd5-i386/openmpi-1.9a1r30215/oshmem/mca/memheap/base/memheap_base_alloc.c:284: error: for each function it appears in.)</font></div><div><font face="courier new, monospace">*** Error 1 in oshmem/mca/memheap (Makefile:1631 &#39;base/memheap_base_alloc.lo&#39;: @echo &quot;  CC      &quot; base/memheap_base_alloc.lo;depbase=`echo b...)</font></div>
+
+
+<div><font face="courier new, monospace">*** Error 1 in oshmem (Makefile:1962 &#39;all-recursive&#39;)</font></div><div><font face="courier new, monospace">*** Error 1 in /home/phargrov/OMPI/openmpi-trunk-openbsd5-i386/BLD (Makefile:1685 &#39;all-recursive&#39;)</font></div>
+
+
+</div><div><br></div><div>On OpenBSD one must use MAP_ANON rather than MAP_ANONYMOUS.</div><span><font color="#888888"><div><br></div><div>-Paul</div><div><br clear="all"><span class="HOEnZb"><font color="#888888"><div><br>
+</div>-- <br><font face="courier new, monospace"><div>
+Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+
+</font>
+</font></span></div></font></span></div><span class="HOEnZb"><font color="#888888">
+</font></span></blockquote></div><span class="HOEnZb"><font color="#888888"><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+</font>
+</font></span></div></div>
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font>
+</div>
+

@@ -1,0 +1,148 @@
+<html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=windows-1252">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Folks,<br>
+    <br>
+    this is a question (and my reply) initially posted on the users ML<br>
+    <br>
+    in v1.10 libmpi.so depends on libibverbs.so.1 because of
+    ompi/mca/common/verbs_usnic<br>
+    i can understand this is not desired if OpenMPI install tree is
+    shared with nodes without infiniband libraries.<br>
+    <br>
+    so far, the non-user friendly workaround is to<br>
+    <pre>configure DISABLE_common_verbs_usnic=1
+</pre>
+    <div class="moz-forward-container"><br>
+      configure --without-usnic still builds
+      ompi/mca/common/verbs_usnic, and hence the dependency on
+      libibverbs.so.1<br>
+      <br>
+      <br>
+      i made the attached patch as a proof of concept :<br>
+      note there are now two AC_ARG_WITH([usnic],...)<br>
+      - ompi/mca/common/verbs_usnic/configure.m4<br>
+      - ompi/mca/btl/usnic/configure.m4<br>
+      <br>
+      though it seems to work as expected, i am not sure this is the
+      right way to do things.<br>
+      <br>
+      any thoughts ?<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      -------- Forwarded Message --------
+      <table class="moz-email-headers-table" border="0" cellpadding="0"
+        cellspacing="0">
+        <tbody>
+          <tr>
+            <th align="RIGHT" nowrap="nowrap" valign="BASELINE">Subject:
+            </th>
+            <td>Re: [OMPI users] New libmpi.so dependency on
+              libibverbs.so?</td>
+          </tr>
+          <tr>
+            <th align="RIGHT" nowrap="nowrap" valign="BASELINE">Date: </th>
+            <td>Tue, 2 Feb 2016 10:26:53 +0900</td>
+          </tr>
+          <tr>
+            <th align="RIGHT" nowrap="nowrap" valign="BASELINE">From: </th>
+            <td>Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles@rist.or.jp">&lt;gilles@rist.or.jp&gt;</a></td>
+          </tr>
+          <tr>
+            <th align="RIGHT" nowrap="nowrap" valign="BASELINE">To: </th>
+            <td>Open MPI Users <a class="moz-txt-link-rfc2396E" href="mailto:users@open-mpi.org">&lt;users@open-mpi.org&gt;</a></td>
+          </tr>
+        </tbody>
+      </table>
+      <br>
+      <br>
+      <pre>Simon,
+
+this is an usnic requirement
+(mca/common/verbs_usnic to be more specific)
+
+as a workaround (and assuming you do not need usnic stuff on any of your 
+nodes) you can
+configure DISABLE_common_verbs_usnic=1 ... &amp;&amp; make install
+
+note that if libibverbs.so.1 is missing on some nodes, you will get warnings
+(such as cannot dlopen mca_btl_openib.so) on these nodes unless you specify
+--mca btl ^openib
+on these nodes
+
+i think it would be much easier if libibverbs.so.1 were available on all 
+your nodes, including those with no infiniband hardware
+
+
+Cheers,
+
+Gilles
+
+
+On 2/2/2016 2:52 AM, Number Cruncher wrote:
+&gt; Having compiled various recent Open MPI sources with the same 
+&gt; "configure" options, I've noticed that the "libmpi.so" shared library 
+&gt; from 1.10.1 now depends itself directly on libibverbs.so.1. 
+&gt; Previously, 1.10.0 for example, only plugins such as mca_btl_openib.so 
+&gt; depended on it.
+&gt;
+&gt; E.g.
+&gt;
+&gt; readelf -d ../ompi_install4/lib/libmpi.so.12.0.0:
+&gt;
+&gt;  0x0000000000000001 (NEEDED)             Shared library: 
+&gt; [libopen-rte.so.12]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: 
+&gt; [libopen-pal.so.13]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [libdl.so.2]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [librt.so.1]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [libm.so.6]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [libutil.so.1]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: 
+&gt; [libpthread.so.0]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+&gt;  0x000000000000000e (SONAME)             Library soname: [libmpi.so.12]
+&gt;
+&gt; readelf -d ../ompi_install4/lib/libmpi.so.12.0.1
+&gt;
+&gt;  0x0000000000000001 (NEEDED)             Shared library: 
+&gt; [libibverbs.so.1]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: 
+&gt; [libopen-rte.so.12]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: 
+&gt; [libopen-pal.so.13]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [libdl.so.2]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [librt.so.1]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [libm.so.6]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [libutil.so.1]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: 
+&gt; [libpthread.so.0]
+&gt;  0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+&gt;  0x000000000000000e (SONAME)             Library soname: [libmpi.so.12]
+&gt;
+&gt; This could make it difficult to share an install between machines. Is 
+&gt; this intended?
+&gt;
+&gt; Thanks,
+&gt; Simon
+&gt; _______________________________________________
+&gt; users mailing list
+&gt; <a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+&gt; Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+&gt; Link to this post: 
+&gt; <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/02/28424.php">http://www.open-mpi.org/community/lists/users/2016/02/28424.php</a>
+&gt;
+
+
+</pre>
+      <br>
+    </div>
+    <br>
+  </body>
+</html>
+

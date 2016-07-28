@@ -1,0 +1,209 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+    Trying to uplevel this a bit so I can figure out which of these
+    paths makes sense to me.&nbsp; Is the only reason we want to convert the
+    symmetry of init and finalize to being asymmetric is to support an
+    abort case?&nbsp; Forgive me Ralph, I know you had posted this in one of
+    the emails but I&nbsp; wanted to make sure it was that simple (I feel it
+    probably isn't).<br>
+    <br>
+    --td<br>
+    <br>
+    On 7/11/2011 7:28 AM, George Bosilca wrote:
+    <blockquote
+      cite="mid:228CE6EB-02B7-46A8-ADFA-D2A383408B71@eecs.utk.edu"
+      type="cite">
+      <pre wrap="">
+On Jul 9, 2011, at 13:43 , Jeff Squyres wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Leaving out many details, I think the arguments can be summarized as:
+
+1. Ralph's argument is that per convention of our other 2 layers, "&lt;foo&gt;_finalize" should unconditionally finalize the layer.  Just do it.  It's also weird that opal_finalize() may actually do *nothing* (vs. finalizing at least all of its stuff but leave OPAL util stuff initialized) -- this is not symmetric.
+
+2. George's argument is that for API symmetry, if you call opal_init_util, then opal shouldn't be finalized until opal_finalize_util is invoked.  Plus, we may want to use OPAL utils after opal_finalize someday (note that we don't do this today).
+
+How about a compromise?
+</pre>
+      </blockquote>
+      <pre wrap="">
+Based on the english dictionary a compromise is an agreement or a settlement of a dispute that is reached by each side making concessions. This is not a compromise. This is exactly what Ralph did plus name changes. Therefore, this is a single sided settlement.
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">- Take what is (essentially) in opal_init() today and rename it to be opal_init_frameworks() -- because it's (mostly) initializing the OPAL MCA frameworks.
+
+- Take what is (essentially) in opal_finalize() today and rename it to be opal_finalize_frameworks() -- because it's (mostly) finalizing the OPAL MCA frameworks.  Remove the call to opal_finalize_util() from this function.
+
+- Remove all use of counters; calling opal_init*() will initialize (unless it has already been initialized), and calling opal_finalize*() will finalize (unless it has already been finalized).
+
+- Create a new opal_init() function that is a wrapper around opal_init_util() and opal_init_frameworks().  Create a new opal_finalize() function that is a wrapper around opal_finalize_util() and opal_finalize_frameworks().
+
+- orte_finalize() will call opal_finalize() -- i.e., it will unconditionally shut down all of OPAL.  This will remove the need for opal_finalize_util() in the MPI layer.
+
+This seems to give all desired behaviors:
+
+- All &lt;foo&gt;_finalize() functions will be unconditional.  The Law of Least Surprise is preserved.
+
+- There are paths for split init and split finalize and combined init and combined finalize.  They can even be combined (e.g., split init and combined finalize -- which will be a common case, actually).
+</pre>
+      </blockquote>
+      <pre wrap="">
+Least surprise you say? How surprise one will be once he/she realize that orte_finalize teared down all OPAL.  At least, do not forget to add one of those nice comments about the fact that one have to initialize the utils, but don't have to finalize them, ORTE will graciously do it for you.
+
+You want to change names, OK go for it. At the point where the code is today, I don't think it really matters anymore. In fact why do we need a boolean in the code Ralph put inside? If the opal_finalize is supposed to clean up everything just go ahead and remove that useless bool. And as you made the code easy to understand by few, put a big comment for all the others (the ones that will try to understand why their code break after a simple orte_finalize).
+
+Moreover, Open MPI is a community project. I'm the only one against this change and you guys are two for adding this great feature to the code base. So go ahead and implement it with the blessing of the entire community!
+
+  george.
+
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">If we ever want to use OPAL utility behavior after orte_finalize() someday, we can.  E.g., we can pass a flag to orte_finalize() saying "use opal_finalize_frameworks() instead of opal_finalize()", or perhaps even "don't finalize OPAL at all."
+
+
+
+On Jul 8, 2011, at 11:57 AM, George Bosilca wrote:
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">
+On Jul 8, 2011, at 16:15 , Ralph Castain wrote:
+
+</pre>
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">So we have opal_init * 1 and opal_util * 2. Clearly the opal util is not a simple ON/OFF stuff. With Ralph patch the OPAL utilities will disappear as soon as the OMPI layer call orte_fini. Luckily, today there is nothing between the call to orte_fini and opal_finalize_util, so we're safe from a segfault.
+</pre>
+            </blockquote>
+            <pre wrap="">
+The point is that you shouldn't be calling opal_finalize_util separately. We do so now only because of the counter - there is no reason for doing it separately otherwise.
+</pre>
+          </blockquote>
+          <pre wrap="">
+Absolutely not, we do so for consistency. If as a software layer have to explicitly call the opal util initialization function (in order to access some features), then it should __explicitly__ state when it doesn't need it anymore (instead of relying on some other layer will do the right thing for me).
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">In other words, we created a counter, and then modified the code to make the counter work. There is no reason for it to exist as there is no use of the opal utilities following the call to orte_finalize.
+</pre>
+          </blockquote>
+          <pre wrap="">
+It happens today that this is not the case, which doesn't means 1) nobody will ever do it; 2) it is correct to just assume you can release it somewhere else; 3) assume a bool is equivalent to a counter.
+
+</pre>
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">Moreover, from a software engineering point of view there are two choices for allowing library composition (ORTE using OPAL, OMPI using ORTE and OPAL, something else using OMPI and ORTE and OPAL). Either you do the management at the lowest level using counters, or you provide accessors to check the init/fini state of the library and do the management at the upper level (similar to the MPI library). In Open MPI and this for the last 7 years we chose the first approach. And so far there was no compelling case to switch.
+</pre>
+            </blockquote>
+            <pre wrap="">
+Yes there was - we just never checked it. None of the tools were calling opal_finalize multiple times. There was an inherent understanding that calling orte_finalize would shut everything down. This wasn't the case because this hidden counter wasn't getting zero'd, and so opal_finalize never actually executed.
+</pre>
+          </blockquote>
+          <pre wrap="">
+I dont get it. Why do a tool has to call the opal_finalize function multiple times? Instead, each layer should call it as many time as it called the corresponding initialization function, and because each layer is supposed to get initialized and finalized a equivalent number of times everything will just work.
+
+The modification in your commit created two different behavior, one for software using ORTE (which can safely assume everything was teared down after orte_fini and can avoid calling the opal_finalize_util) and one for every other software that doesn't use ORTE and therefore has to call opal_finalize_util as many times as it called the corresponding init function.
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">Now imagine there is an abnormal termination. You can't know for sure where it occurs - did we increment the counter already, or not? So how many times do I have to call opal_finalize and opal_finalize_util to get them to actually execute?
+</pre>
+          </blockquote>
+          <pre wrap="">
+First I'll say that if it's only for abnormal termination, I don't really care about not having memory leaks.   Now let's assume we do care about memory leaks. First there are many process data left around, the job map the modex info, countless other things that are significantly more difficult to cleanup than the opal util. And then, as I saidf before each layer should call the fini function exactly the same number of times it called the corresponding init.
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">The way things sat, I could only loop over opal_finalize and opal_finalize_util until I got back an error indicating it had finally executed. That is plain ugly.
+
+It isn't a big deal, but creates a hidden 'gotcha' that results in some ugly code to compensate if you want to cleanly terminate under all conditions. If you have a compelling case where someone needs to access the opal utils -after- having called orte_finalize or opal_finalize, then I would welcome hearing about it.
+</pre>
+          </blockquote>
+          <pre wrap="">
+We did not have to do any of this in the MPI layer, and we did have a correct handling of this issue. 
+
+george.
+
+PS: Small reminder in case we decide to withdraw this change: r24862 and r24864 are now related.
+
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+
+-- 
+Jeff Squyres
+<a class="moz-txt-link-abbreviated" href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>
+For corporate legal information go to:
+<a class="moz-txt-link-freetext" href="http://www.cisco.com/web/about/doing_business/legal/cri/">http://www.cisco.com/web/about/doing_business/legal/cri/</a>
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</pre>
+    </blockquote>
+    <br>
+    <div class="moz-signature">-- <br>
+      <meta content="text/html; charset=ISO-8859-1"
+        http-equiv="Content-Type">
+      <div class="moz-signature">
+        <meta http-equiv="content-type" content="text/html;
+          charset=ISO-8859-1">
+        <title></title>
+        <img moz-do-not-send="false"
+          src="cid:part1.02040003.04000509@oracle.com" alt="Oracle"><br>
+        <div class="moz-signature">
+          <div class="moz-signature">
+            <div class="moz-signature">
+              <div class="moz-signature">Terry D. Dontje | Principal
+                Software Engineer<br>
+                <div class="moz-signature"><font size="2"
+                    color="#666666" face="Verdana">Developer
+                    Tools
+                    Engineering | +1.781.442.2631<br>
+                  </font>
+                  <font size="2" color="#ff0000" face="Verdana">Oracle
+                  </font><font size="2" color="#666666" face="Verdana"><b>
+                      - Performance
+                      Technologies</b></font><br>
+                  <font size="2" color="#666666" face="Verdana">
+                    95 Network Drive, Burlington, MA 01803<br>
+                    Email <a moz-do-not-send="true"
+                      href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+                  </font><br>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <br>
+    </div>
+  </body>
+</html>
+

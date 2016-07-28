@@ -1,0 +1,611 @@
+<div dir="ltr">(Sorry for the delay, just catching up on email after the holidays)<br><div><br></div><div>I think that looks good too.</div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Thu, Dec 19, 2013 at 4:01 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">+1 from me<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On Dec 19, 2013, at 12:54 PM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+<br>
+&gt; From: Adrian Reber &lt;<a href="mailto:adrian.reber@hs-esslingen.de">adrian.reber@hs-esslingen.de</a>&gt;<br>
+&gt;<br>
+&gt; This patch changes all send/send_buffer occurrences in the C/R code<br>
+&gt; to send_nb/send_buffer_nb.<br>
+&gt; The new code compiles but does not work.<br>
+&gt;<br>
+&gt; Changes from V1:<br>
+&gt; * #ifdef out the code (so it is preserved for later re-design)<br>
+&gt; * marked the broken C/R code with ENABLE_FT_FIXED<br>
+&gt;<br>
+&gt; Changes from V2:<br>
+&gt; * just replace the blocking calls with the non-blocking calls<br>
+&gt; * all #ifdef&#39;s introduced in V1 are gone<br>
+&gt; * send_* returns error code or ORTE_SUCCESS (not the number of bytes)<br>
+&gt;<br>
+&gt; Signed-off-by: Adrian Reber &lt;<a href="mailto:adrian.reber@hs-esslingen.de">adrian.reber@hs-esslingen.de</a>&gt;<br>
+&gt; ---<br>
+&gt; ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c            | 23 ++++++----<br>
+&gt; orte/mca/errmgr/base/errmgr_base_tool.c         |  4 +-<br>
+&gt; orte/mca/rml/ftrm/rml_ftrm.h                    | 19 --------<br>
+&gt; orte/mca/rml/ftrm/rml_ftrm_component.c          |  2 -<br>
+&gt; orte/mca/rml/ftrm/rml_ftrm_module.c             | 61 +++----------------------<br>
+&gt; orte/mca/snapc/full/snapc_full_app.c            | 20 ++++++--<br>
+&gt; orte/mca/snapc/full/snapc_full_global.c         | 15 ++++--<br>
+&gt; orte/mca/snapc/full/snapc_full_local.c          |  4 +-<br>
+&gt; orte/mca/sstore/central/sstore_central_app.c    |  8 +++-<br>
+&gt; orte/mca/sstore/central/sstore_central_global.c |  4 +-<br>
+&gt; orte/mca/sstore/central/sstore_central_local.c  | 12 +++--<br>
+&gt; orte/mca/sstore/stage/sstore_stage_app.c        |  8 +++-<br>
+&gt; orte/mca/sstore/stage/sstore_stage_global.c     |  4 +-<br>
+&gt; orte/mca/sstore/stage/sstore_stage_local.c      | 16 +++++--<br>
+&gt; orte/tools/orte-checkpoint/orte-checkpoint.c    |  4 +-<br>
+&gt; orte/tools/orte-migrate/orte-migrate.c          |  4 +-<br>
+&gt; 16 files changed, 99 insertions(+), 109 deletions(-)<br>
+&gt;<br>
+&gt; diff --git a/ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c b/ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c<br>
+&gt; index 05cd598..5ad9a3e 100644<br>
+&gt; --- a/ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c<br>
+&gt; +++ b/ompi/mca/crcp/bkmrk/crcp_bkmrk_pml.c<br>
+&gt; @@ -5077,7 +5077,7 @@ static int wait_quiesce_drained(void)<br>
+&gt;                                  &quot;crcp:bkmrk: %s --&gt; %s Send ACKs to Peer\n&quot;,<br>
+&gt;                                  OMPI_NAME_PRINT(OMPI_PROC_MY_NAME),<br>
+&gt;                                  OMPI_NAME_PRINT(&amp;(cur_peer_ref-&gt;proc_name)) ));<br>
+&gt; -<br>
+&gt; +<br>
+&gt;             /* Send All Clear to Peer */<br>
+&gt;             if (NULL == (buffer = OBJ_NEW(opal_buffer_t))) {<br>
+&gt;                 exit_status = OMPI_ERROR;<br>
+&gt; @@ -5087,7 +5087,9 @@ static int wait_quiesce_drained(void)<br>
+&gt;             PACK_BUFFER(buffer, response, 1, OPAL_SIZE, &quot;&quot;);<br>
+&gt;<br>
+&gt;             /* JJH - Performance Optimization? - Why not post all isends, then wait? */<br>
+&gt; -            if ( 0 &gt; ( ret = ompi_rte_send_buffer(&amp;(cur_peer_ref-&gt;proc_name), buffer, OMPI_CRCP_COORD_BOOKMARK_TAG, 0)) ) {<br>
+&gt; +            if (ORTE_SUCCESS != (ret = ompi_rte_send_buffer_nb(&amp;(cur_peer_ref-&gt;proc_name),<br>
+&gt; +                                                               buffer, OMPI_CRCP_COORD_BOOKMARK_TAG,<br>
+&gt; +                                                               orte_rml_send_callback, NULL))) {<br>
+&gt;                 exit_status = ret;<br>
+&gt;                 goto cleanup;<br>
+&gt;             }<br>
+&gt; @@ -5288,7 +5290,9 @@ static int send_bookmarks(int peer_idx)<br>
+&gt;     PACK_BUFFER(buffer, (peer_ref-&gt;total_msgs_recvd),     1, OPAL_UINT32,<br>
+&gt;                 &quot;crcp:bkmrk: send_bookmarks: Unable to pack total_msgs_recvd&quot;);<br>
+&gt;<br>
+&gt; -    if ( 0 &gt; ( ret = ompi_rte_send_buffer(&amp;peer_name, buffer, OMPI_CRCP_COORD_BOOKMARK_TAG, 0)) ) {<br>
+&gt; +    if (ORTE_SUCCSS != (ret = ompi_rte_send_buffer_nb(&amp;peer_name, buffer,<br>
+&gt; +                                                      OMPI_CRCP_COORD_BOOKMARK_TAG,<br>
+&gt; +                                                      orte_rml_send_callback, NULL))) {<br>
+&gt;         opal_output(mca_crcp_bkmrk_component.super.output_handle,<br>
+&gt;                     &quot;crcp:bkmrk: send_bookmarks: Failed to send bookmark to peer %s: Return %d\n&quot;,<br>
+&gt;                     OMPI_NAME_PRINT(&amp;peer_name),<br>
+&gt; @@ -5567,13 +5571,14 @@ static int do_send_msg_detail(ompi_crcp_bkmrk_pml_peer_ref_t *peer_ref,<br>
+&gt;     /*<br>
+&gt;      * Do the send...<br>
+&gt;      */<br>
+&gt; -    if ( 0 &gt; ( ret = ompi_rte_send_buffer(&amp;peer_ref-&gt;proc_name, buffer,<br>
+&gt; -                                          OMPI_CRCP_COORD_BOOKMARK_TAG, 0)) ) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = ompi_rte_send_buffer_nb(&amp;peer_ref-&gt;proc_name, buffer,<br>
+&gt; +                                                       OMPI_CRCP_COORD_BOOKMARK_TAG,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         opal_output(mca_crcp_bkmrk_component.super.output_handle,<br>
+&gt;                     &quot;crcp:bkmrk: do_send_msg_detail: Unable to send message details to peer %s: Return %d\n&quot;,<br>
+&gt;                     OMPI_NAME_PRINT(&amp;peer_ref-&gt;proc_name),<br>
+&gt;                     ret);<br>
+&gt; -<br>
+&gt; +<br>
+&gt;         exit_status = OMPI_ERROR;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; @@ -6185,8 +6190,10 @@ static int do_recv_msg_detail_resp(ompi_crcp_bkmrk_pml_peer_ref_t *peer_ref,<br>
+&gt;                 &quot;crcp:bkmrk: recv_msg_details: Unable to ask peer for more messages&quot;);<br>
+&gt;     PACK_BUFFER(buffer, total_found, 1, OPAL_UINT32,<br>
+&gt;                 &quot;crcp:bkmrk: recv_msg_details: Unable to ask peer for more messages&quot;);<br>
+&gt; -<br>
+&gt; -    if ( 0 &gt; ( ret = ompi_rte_send_buffer(&amp;peer_ref-&gt;proc_name, buffer, OMPI_CRCP_COORD_BOOKMARK_TAG, 0)) ) {<br>
+&gt; +<br>
+&gt; +    if (ORTE_SUCCESS != (ret = ompi_rte_send_buffer_nb(&amp;peer_ref-&gt;proc_name, buffer,<br>
+&gt; +                                                       OMPI_CRCP_COORD_BOOKMARK_TAG,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         opal_output(mca_crcp_bkmrk_component.super.output_handle,<br>
+&gt;                     &quot;crcp:bkmrk: recv_msg_detail_resp: Unable to send message detail response to peer %s: Return %d\n&quot;,<br>
+&gt;                     OMPI_NAME_PRINT(&amp;peer_ref-&gt;proc_name),<br>
+&gt; diff --git a/orte/mca/errmgr/base/errmgr_base_tool.c b/orte/mca/errmgr/base/errmgr_base_tool.c<br>
+&gt; index 0b7890a..227c2d0 100644<br>
+&gt; --- a/orte/mca/errmgr/base/errmgr_base_tool.c<br>
+&gt; +++ b/orte/mca/errmgr/base/errmgr_base_tool.c<br>
+&gt; @@ -221,7 +221,9 @@ int orte_errmgr_base_migrate_update(int status)<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(&amp;errmgr_cmdline_sender, loc_buffer, ORTE_RML_TAG_MIGRATE, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(&amp;errmgr_cmdline_sender,<br>
+&gt; +                                                       loc_buffer, ORTE_RML_TAG_MIGRATE,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         opal_output(orte_errmgr_base_framework.framework_output,<br>
+&gt;                     &quot;errmgr:base:tool:update() Error: Send (status) Failure (ret = %d)\n&quot;,<br>
+&gt;                     ret);<br>
+&gt; diff --git a/orte/mca/rml/ftrm/rml_ftrm.h b/orte/mca/rml/ftrm/rml_ftrm.h<br>
+&gt; index 055c891..98c9968 100644<br>
+&gt; --- a/orte/mca/rml/ftrm/rml_ftrm.h<br>
+&gt; +++ b/orte/mca/rml/ftrm/rml_ftrm.h<br>
+&gt; @@ -71,40 +71,21 @@ BEGIN_C_DECLS<br>
+&gt;     int orte_rml_ftrm_ping(const char* uri, const struct timeval* tv);<br>
+&gt;<br>
+&gt;     /*<br>
+&gt; -     * Send<br>
+&gt; -     */<br>
+&gt; -    int orte_rml_ftrm_send(orte_process_name_t* peer,<br>
+&gt; -                           struct iovec *msg,<br>
+&gt; -                           int count,<br>
+&gt; -                           int tag,<br>
+&gt; -                           int flags);<br>
+&gt; -<br>
+&gt; -    /*<br>
+&gt;      * Send Non-blocking<br>
+&gt;      */<br>
+&gt;     int orte_rml_ftrm_send_nb(orte_process_name_t* peer,<br>
+&gt;                               struct iovec* msg,<br>
+&gt;                               int count,<br>
+&gt;                               orte_rml_tag_t tag,<br>
+&gt; -                              int flags,<br>
+&gt;                               orte_rml_callback_fn_t cbfunc,<br>
+&gt;                               void* cbdata);<br>
+&gt;<br>
+&gt;     /*<br>
+&gt; -     * Send Buffer<br>
+&gt; -     */<br>
+&gt; -    int orte_rml_ftrm_send_buffer(orte_process_name_t* peer,<br>
+&gt; -                                  opal_buffer_t* buffer,<br>
+&gt; -                                  orte_rml_tag_t tag,<br>
+&gt; -                                  int flags);<br>
+&gt; -<br>
+&gt; -    /*<br>
+&gt;      * Send Buffer Non-blocking<br>
+&gt;      */<br>
+&gt;     int orte_rml_ftrm_send_buffer_nb(orte_process_name_t* peer,<br>
+&gt;                                      opal_buffer_t* buffer,<br>
+&gt;                                      orte_rml_tag_t tag,<br>
+&gt; -                                     int flags,<br>
+&gt;                                      orte_rml_buffer_callback_fn_t cbfunc,<br>
+&gt;                                      void* cbdata);<br>
+&gt;<br>
+&gt; diff --git a/orte/mca/rml/ftrm/rml_ftrm_component.c b/orte/mca/rml/ftrm/rml_ftrm_component.c<br>
+&gt; index 0ffa79c..7cd5a69 100644<br>
+&gt; --- a/orte/mca/rml/ftrm/rml_ftrm_component.c<br>
+&gt; +++ b/orte/mca/rml/ftrm/rml_ftrm_component.c<br>
+&gt; @@ -68,9 +68,7 @@ orte_rml_module_t orte_rml_ftrm_module = {<br>
+&gt;<br>
+&gt;     orte_rml_ftrm_ping,<br>
+&gt;<br>
+&gt; -    orte_rml_ftrm_send,<br>
+&gt;     orte_rml_ftrm_send_nb,<br>
+&gt; -    orte_rml_ftrm_send_buffer,<br>
+&gt;     orte_rml_ftrm_send_buffer_nb,<br>
+&gt;<br>
+&gt;     orte_rml_ftrm_recv_nb,<br>
+&gt; diff --git a/orte/mca/rml/ftrm/rml_ftrm_module.c b/orte/mca/rml/ftrm/rml_ftrm_module.c<br>
+&gt; index 4ba6f2d..589ef65 100644<br>
+&gt; --- a/orte/mca/rml/ftrm/rml_ftrm_module.c<br>
+&gt; +++ b/orte/mca/rml/ftrm/rml_ftrm_module.c<br>
+&gt; @@ -126,71 +126,23 @@ int orte_rml_ftrm_ping(const char* uri, const struct timeval* tv)<br>
+&gt;<br>
+&gt;<br>
+&gt; /*<br>
+&gt; - * Send<br>
+&gt; - */<br>
+&gt; -int orte_rml_ftrm_send(orte_process_name_t* peer,<br>
+&gt; -                       struct iovec *msg,<br>
+&gt; -                       int count,<br>
+&gt; -                       int tag,<br>
+&gt; -                       int flags)<br>
+&gt; -{<br>
+&gt; -    int ret;<br>
+&gt; -<br>
+&gt; -    opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt; -                        &quot;orte_rml_ftrm: send(%s, %d, %d, %d )&quot;,<br>
+&gt; -                        ORTE_NAME_PRINT(peer), count, tag, flags);<br>
+&gt; -<br>
+&gt; -    if( NULL != orte_rml_ftrm_wrapped_module.send ) {<br>
+&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.send(peer, msg, count, tag, flags) ) ) {<br>
+&gt; -            return ret;<br>
+&gt; -        }<br>
+&gt; -    }<br>
+&gt; -<br>
+&gt; -    return ORTE_SUCCESS;<br>
+&gt; -}<br>
+&gt; -<br>
+&gt; -/*<br>
+&gt;  * Send Non-blocking<br>
+&gt;  */<br>
+&gt; int orte_rml_ftrm_send_nb(orte_process_name_t* peer,<br>
+&gt;                           struct iovec* msg,<br>
+&gt;                           int count,<br>
+&gt;                           orte_rml_tag_t tag,<br>
+&gt; -                          int flags,<br>
+&gt;                           orte_rml_callback_fn_t cbfunc,<br>
+&gt;                           void* cbdata)<br>
+&gt; {<br>
+&gt;     int ret;<br>
+&gt;<br>
+&gt;     opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt; -                        &quot;orte_rml_ftrm: send_nb(%s, %d, %d, %d )&quot;,<br>
+&gt; -                        ORTE_NAME_PRINT(peer), count, tag, flags);<br>
+&gt; +                        &quot;orte_rml_ftrm: send_nb(%s, %d, %d )&quot;,<br>
+&gt; +                        ORTE_NAME_PRINT(peer), count, tag);<br>
+&gt;<br>
+&gt;     if( NULL != orte_rml_ftrm_wrapped_module.send_nb ) {<br>
+&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.send_nb(peer, msg, count, tag, flags, cbfunc, cbdata) ) ) {<br>
+&gt; -            return ret;<br>
+&gt; -        }<br>
+&gt; -    }<br>
+&gt; -<br>
+&gt; -    return ORTE_SUCCESS;<br>
+&gt; -}<br>
+&gt; -<br>
+&gt; -/*<br>
+&gt; - * Send Buffer<br>
+&gt; - */<br>
+&gt; -int orte_rml_ftrm_send_buffer(orte_process_name_t* peer,<br>
+&gt; -                              opal_buffer_t* buffer,<br>
+&gt; -                              orte_rml_tag_t tag,<br>
+&gt; -                              int flags)<br>
+&gt; -{<br>
+&gt; -    int ret;<br>
+&gt; -<br>
+&gt; -    opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt; -                        &quot;orte_rml_ftrm: send_buffer(%s, %d, %d )&quot;,<br>
+&gt; -                        ORTE_NAME_PRINT(peer), tag, flags);<br>
+&gt; -<br>
+&gt; -    if( NULL != orte_rml_ftrm_wrapped_module.send_buffer ) {<br>
+&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.send_buffer(peer, buffer, tag, flags) ) ) {<br>
+&gt; +        if(ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.send_nb(peer, msg, count, tag, cbfunc, cbdata))) {<br>
+&gt;             return ret;<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt; @@ -204,18 +156,17 @@ int orte_rml_ftrm_send_buffer(orte_process_name_t* peer,<br>
+&gt; int orte_rml_ftrm_send_buffer_nb(orte_process_name_t* peer,<br>
+&gt;                                  opal_buffer_t* buffer,<br>
+&gt;                                  orte_rml_tag_t tag,<br>
+&gt; -                                 int flags,<br>
+&gt;                                  orte_rml_buffer_callback_fn_t cbfunc,<br>
+&gt;                                  void* cbdata)<br>
+&gt; {<br>
+&gt;     int ret;<br>
+&gt;<br>
+&gt;     opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt; -                        &quot;orte_rml_ftrm: send_buffer_nb(%s, %d, %d )&quot;,<br>
+&gt; -                        ORTE_NAME_PRINT(peer), tag, flags);<br>
+&gt; +                        &quot;orte_rml_ftrm: send_buffer_nb(%s, %d )&quot;,<br>
+&gt; +                        ORTE_NAME_PRINT(peer), tag);<br>
+&gt;<br>
+&gt;     if( NULL != orte_rml_ftrm_wrapped_module.send_buffer_nb ) {<br>
+&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.send_buffer_nb(peer, buffer, tag, flags, cbfunc, cbdata) ) ) {<br>
+&gt; +        if(ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.send_buffer_nb(peer, buffer, tag, cbfunc, cbdata))) {<br>
+&gt;             return ret;<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt; diff --git a/orte/mca/snapc/full/snapc_full_app.c b/orte/mca/snapc/full/snapc_full_app.c<br>
+&gt; index 862c9be..d79442e 100644<br>
+&gt; --- a/orte/mca/snapc/full/snapc_full_app.c<br>
+&gt; +++ b/orte/mca/snapc/full/snapc_full_app.c<br>
+&gt; @@ -197,7 +197,9 @@ int app_coord_init()<br>
+&gt;             goto cleanup;<br>
+&gt;         }<br>
+&gt;<br>
+&gt; -        if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt; +        if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_HNP, &amp;buffer,<br>
+&gt; +                                                           ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt; +                                                           orte_rml_send_callback, 0))) {<br>
+&gt;             ORTE_ERROR_LOG(ret);<br>
+&gt;             exit_status = ret;<br>
+&gt;             OBJ_DESTRUCT(&amp;buffer);<br>
+&gt; @@ -272,7 +274,9 @@ int app_coord_finalize()<br>
+&gt;             goto cleanup;<br>
+&gt;         }<br>
+&gt;<br>
+&gt; -        if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt; +        if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_HNP, &amp;buffer,<br>
+&gt; +                                                           ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt; +                                                           orte_rml_send_callback, 0))) {<br>
+&gt;             ORTE_ERROR_LOG(ret);<br>
+&gt;             exit_status = ret;<br>
+&gt;             OBJ_DESTRUCT(&amp;buffer);<br>
+&gt; @@ -838,7 +842,9 @@ static int snapc_full_app_finished_msg(int cr_state) {<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_DAEMON, &amp;buffer, ORTE_RML_TAG_SNAPC, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_DAEMON, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SNAPC,<br>
+&gt; +                                                       orte_rml_send_callback, 0))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; @@ -1271,7 +1277,9 @@ static int snapc_full_app_ft_event_update_process_info(orte_process_name_t proc,<br>
+&gt;     }<br>
+&gt; #endif<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_DAEMON, &amp;buffer, ORTE_RML_TAG_SNAPC, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_DAEMON, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SNAPC,<br>
+&gt; +                                                       orte_rml_send_callback, 0))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; @@ -1484,7 +1492,9 @@ int app_coord_request_op(orte_snapc_base_request_op_t *datum)<br>
+&gt;             }<br>
+&gt;         }<br>
+&gt;<br>
+&gt; -        if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt; +        if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_HNP, &amp;buffer,<br>
+&gt; +                                                           ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt; +                                                           orte_rml_send_callback, 0))) {<br>
+&gt;             ORTE_ERROR_LOG(ret);<br>
+&gt;             exit_status = ret;<br>
+&gt;             OBJ_DESTRUCT(&amp;buffer);<br>
+&gt; diff --git a/orte/mca/snapc/full/snapc_full_global.c b/orte/mca/snapc/full/snapc_full_global.c<br>
+&gt; index 9787591..0422aac 100644<br>
+&gt; --- a/orte/mca/snapc/full/snapc_full_global.c<br>
+&gt; +++ b/orte/mca/snapc/full/snapc_full_global.c<br>
+&gt; @@ -1243,8 +1243,11 @@ static void snapc_full_process_request_op_cmd(orte_process_name_t* sender,<br>
+&gt;             goto cleanup;<br>
+&gt;         }<br>
+&gt;<br>
+&gt; -        if (0 &gt; (ret = orte_rml.send_buffer(sender, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt; +        if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(sender, &amp;buffer,<br>
+&gt; +                                                           ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt; +                                                           orte_rml_send_callback, NULL))) {<br>
+&gt;             ORTE_ERROR_LOG(ret);<br>
+&gt; +            /* FIXME: buffer not cleaned up */<br>
+&gt;             goto cleanup;<br>
+&gt;         }<br>
+&gt;         OBJ_DESTRUCT(&amp;buffer);<br>
+&gt; @@ -1296,8 +1299,11 @@ static void snapc_full_process_request_op_cmd(orte_process_name_t* sender,<br>
+&gt;             goto cleanup;<br>
+&gt;         }<br>
+&gt;<br>
+&gt; -        if (0 &gt; (ret = orte_rml.send_buffer(sender, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt; +        if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(sender, &amp;buffer,<br>
+&gt; +                                                           ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt; +                                                           orte_rml_send_callback, NULL))) {<br>
+&gt;             ORTE_ERROR_LOG(ret);<br>
+&gt; +            /* FIXME: buffer not cleaned up */<br>
+&gt;             goto cleanup;<br>
+&gt;         }<br>
+&gt;         OBJ_DESTRUCT(&amp;buffer);<br>
+&gt; @@ -1437,8 +1443,11 @@ static void snapc_full_process_request_op_cmd(orte_process_name_t* sender,<br>
+&gt;             goto cleanup;<br>
+&gt;         }<br>
+&gt;<br>
+&gt; -        if (0 &gt; (ret = orte_rml.send_buffer(sender, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt; +        if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(sender, &amp;buffer,<br>
+&gt; +                                                           ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt; +                                                           orte_rml_send_callback, NULL))) {<br>
+&gt;             ORTE_ERROR_LOG(ret);<br>
+&gt; +            /* FIXME: buffer not cleaned up */<br>
+&gt;             goto cleanup;<br>
+&gt;         }<br>
+&gt;         OBJ_DESTRUCT(&amp;buffer);<br>
+&gt; diff --git a/orte/mca/snapc/full/snapc_full_local.c b/orte/mca/snapc/full/snapc_full_local.c<br>
+&gt; index 33215ac..0965571 100644<br>
+&gt; --- a/orte/mca/snapc/full/snapc_full_local.c<br>
+&gt; +++ b/orte/mca/snapc/full/snapc_full_local.c<br>
+&gt; @@ -1345,7 +1345,9 @@ static int snapc_full_local_update_coord(int state, bool quick)<br>
+&gt;     }<br>
+&gt;<br>
+&gt;  send_data:<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SNAPC_FULL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_HNP, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SNAPC_FULL,<br>
+&gt; +                                                       orte_rml_send_callback, 0))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; diff --git a/orte/mca/sstore/central/sstore_central_app.c b/orte/mca/sstore/central/sstore_central_app.c<br>
+&gt; index a7d6689..e32fb97 100644<br>
+&gt; --- a/orte/mca/sstore/central/sstore_central_app.c<br>
+&gt; +++ b/orte/mca/sstore/central/sstore_central_app.c<br>
+&gt; @@ -462,7 +462,9 @@ static int pull_handle_info(orte_sstore_central_app_snapshot_info_t *handle_info<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_DAEMON, &amp;buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_DAEMON, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; @@ -586,7 +588,9 @@ static int push_handle_info(orte_sstore_central_app_snapshot_info_t *handle_info<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_DAEMON, &amp;buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_DAEMON, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; diff --git a/orte/mca/sstore/central/sstore_central_global.c b/orte/mca/sstore/central/sstore_central_global.c<br>
+&gt; index 698910b..b18944d 100644<br>
+&gt; --- a/orte/mca/sstore/central/sstore_central_global.c<br>
+&gt; +++ b/orte/mca/sstore/central/sstore_central_global.c<br>
+&gt; @@ -926,7 +926,9 @@ static int process_local_pull(orte_process_name_t* peer, opal_buffer_t* buffer,<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(peer, &amp;loc_buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(peer, &amp;loc_buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; diff --git a/orte/mca/sstore/central/sstore_central_local.c b/orte/mca/sstore/central/sstore_central_local.c<br>
+&gt; index 6df04ef..b3d498e 100644<br>
+&gt; --- a/orte/mca/sstore/central/sstore_central_local.c<br>
+&gt; +++ b/orte/mca/sstore/central/sstore_central_local.c<br>
+&gt; @@ -760,7 +760,9 @@ static int process_app_pull(orte_process_name_t* peer, opal_buffer_t* buffer, or<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(peer, &amp;loc_buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(peer, &amp;loc_buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; @@ -877,7 +879,9 @@ static int pull_handle_info(orte_sstore_central_local_snapshot_info_t *handle_in<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_HNP, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; @@ -949,7 +953,9 @@ static int push_handle_info(orte_sstore_central_local_snapshot_info_t *handle_in<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_HNP, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; diff --git a/orte/mca/sstore/stage/sstore_stage_app.c b/orte/mca/sstore/stage/sstore_stage_app.c<br>
+&gt; index 88b6484..0a115e1 100644<br>
+&gt; --- a/orte/mca/sstore/stage/sstore_stage_app.c<br>
+&gt; +++ b/orte/mca/sstore/stage/sstore_stage_app.c<br>
+&gt; @@ -451,7 +451,9 @@ static int pull_handle_info(orte_sstore_stage_app_snapshot_info_t *handle_info )<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_DAEMON, &amp;buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_DAEMON, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; @@ -566,7 +568,9 @@ static int push_handle_info(orte_sstore_stage_app_snapshot_info_t *handle_info )<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_DAEMON, &amp;buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_DAEMON, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; diff --git a/orte/mca/sstore/stage/sstore_stage_global.c b/orte/mca/sstore/stage/sstore_stage_global.c<br>
+&gt; index 5af66d0..8f6a30e 100644<br>
+&gt; --- a/orte/mca/sstore/stage/sstore_stage_global.c<br>
+&gt; +++ b/orte/mca/sstore/stage/sstore_stage_global.c<br>
+&gt; @@ -1151,7 +1151,9 @@ static int process_local_pull(orte_process_name_t* peer, opal_buffer_t* buffer,<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(peer, &amp;loc_buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(peer, &amp;loc_buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; diff --git a/orte/mca/sstore/stage/sstore_stage_local.c b/orte/mca/sstore/stage/sstore_stage_local.c<br>
+&gt; index 95d89a8..292c173 100644<br>
+&gt; --- a/orte/mca/sstore/stage/sstore_stage_local.c<br>
+&gt; +++ b/orte/mca/sstore/stage/sstore_stage_local.c<br>
+&gt; @@ -1310,7 +1310,9 @@ static int process_global_remove(orte_process_name_t* peer, opal_buffer_t* buffe<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(peer, &amp;loc_buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(peer, &amp;loc_buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; @@ -1388,7 +1390,9 @@ static int process_app_pull(orte_process_name_t* peer, opal_buffer_t* buffer, or<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(peer, &amp;loc_buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(peer, &amp;loc_buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; @@ -1654,7 +1658,9 @@ static int pull_handle_info(orte_sstore_stage_local_snapshot_info_t *handle_info<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_HNP, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; @@ -1739,7 +1745,9 @@ static int push_handle_info(orte_sstore_stage_local_snapshot_info_t *handle_info<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if (0 &gt; (ret = orte_rml.send_buffer(ORTE_PROC_MY_HNP, &amp;buffer, ORTE_RML_TAG_SSTORE_INTERNAL, 0))) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(ORTE_PROC_MY_HNP, &amp;buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_SSTORE_INTERNAL,<br>
+&gt; +                                                       orte_rml_send_callback, NULL))) {<br>
+&gt;         ORTE_ERROR_LOG(ret);<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt; diff --git a/orte/tools/orte-checkpoint/orte-checkpoint.c b/orte/tools/orte-checkpoint/orte-checkpoint.c<br>
+&gt; index e0f7b01..7106342 100644<br>
+&gt; --- a/orte/tools/orte-checkpoint/orte-checkpoint.c<br>
+&gt; +++ b/orte/tools/orte-checkpoint/orte-checkpoint.c<br>
+&gt; @@ -833,7 +833,9 @@ static int notify_process_for_checkpoint(opal_crs_base_ckpt_options_t *options)<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if ( 0 &gt; (ret = orte_rml.send_buffer(&amp;(orterun_hnp-&gt;name), buffer, ORTE_RML_TAG_CKPT, 0)) ) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(&amp;(orterun_hnp-&gt;name), buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_CKPT, hnp_receiver,<br>
+&gt; +                                                       NULL))) {<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; diff --git a/orte/tools/orte-migrate/orte-migrate.c b/orte/tools/orte-migrate/orte-migrate.c<br>
+&gt; index b606e41..56f0d1f 100644<br>
+&gt; --- a/orte/tools/orte-migrate/orte-migrate.c<br>
+&gt; +++ b/orte/tools/orte-migrate/orte-migrate.c<br>
+&gt; @@ -681,7 +681,9 @@ static int notify_hnp(void)<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -    if ( 0 &gt; (ret = orte_rml.send_buffer(&amp;(orterun_hnp-&gt;name), buffer, ORTE_RML_TAG_MIGRATE, 0)) ) {<br>
+&gt; +    if (ORTE_SUCCESS != (ret = orte_rml.send_buffer_nb(&amp;(orterun_hnp-&gt;name), buffer,<br>
+&gt; +                                                       ORTE_RML_TAG_MIGRATE, orte_rml_send_callback,<br>
+&gt; +                                                       NULL))) {<br>
+&gt;         exit_status = ret;<br>
+&gt;         goto cleanup;<br>
+&gt;     }<br>
+&gt; --<br>
+&gt; 1.8.4.2<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Joshua Hursey<br>Assistant Professor of Computer Science<br>University of Wisconsin-La Crosse<br><a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a>
+</div>
+

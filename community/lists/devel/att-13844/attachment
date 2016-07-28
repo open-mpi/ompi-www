@@ -1,0 +1,31 @@
+<div dir="ltr"><div class="gmail_extra"><br><div class="gmail_quote">On Wed, Jan 22, 2014 at 8:50 AM, Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex"><div id=":1iw" style="overflow:hidden">Wow.  Pulling on this thread turned up a whole pile of bugs :-\, including several other names that are &gt;=32 characters:<br>
+
+<br>
+Found long name: ompi_type_create_indexed_block_f (32)<br>
+Found long name: ompi_type_create_hindexed_block_f (33)<br>
+Found long name: pompi_type_create_indexed_block_f (33)<br>
+Found long name: pompi_type_create_hindexed_block_f (34)<br>
+Found long name: pompi_file_get_position_shared_f (32)<br>
+Found long name: pompi_file_write_ordered_begin_f (32)<br></div></blockquote><div><br></div><div><br></div><div>As Larry Baker has cast some doubt on the conformance of fortran compiler applying a 32 (or 31?) char limit on the identifiers used for subroutines (and/or in BIND), I would not suggest radical changes to OMPI to shorten names - at least not for 1.7 (might there be a resulting ABI break?).</div>
+<div><br></div><div> </div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex"><div id=":1iw" style="overflow:hidden">
+
+<br>
+Can you do me a favor and cd into ompi/mpi/fortran/use-mpi-f08 and try to manually &quot;make type_create_indexed_block_f08.lo&quot; and see if it also complains?  That&#39;s a 32 character name -- let&#39;s see if the limit is &gt;=32 or &gt;=33...</div>
+</blockquote></div><br><br>Well that requested make command fails with the *original* complaint because the 33-char &quot;ompi_type_create_hindexed_block_f&quot; is in the HEADER file.</div><div class="gmail_extra"><br></div>
+<div class="gmail_extra">So, I manually #if0&#39;ed ompi_type_create_hindexed_block_f from the header.  That resolved ONE issue, but the Internal issue remains:</div><div class="gmail_extra"><br></div><div class="gmail_extra">
+<div class="gmail_extra"><font face="courier new, monospace">$ make type_create_indexed_block_f08.lo    </font></div><div class="gmail_extra"><font face="courier new, monospace">  PPFC     mpi-f08.lo</font></div><div class="gmail_extra">
+<font face="courier new, monospace">pathf95-1044 pathf95: INTERNAL OMPI_COMM_CREATE_KEYVAL_F, File = /global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.7-latest-linux-x86_64-pathcc-4.0/openmpi-1.7.4rc2r30361/ompi/mpi/fortran/use-mpi-f08/mpi-f-interfaces-bind.h, Line = 1244, Column = 38 </font></div>
+<div class="gmail_extra"><font face="courier new, monospace">  Internal : Unexpected ATP_PGM_UNIT in check_interoperable_pgm_unit()</font></div><div class="gmail_extra"><font face="courier new, monospace">make: *** [mpi-f08.lo] Error 1</font></div>
+<div><br></div><div><br></div><div>After the addition of 2-lines (&quot;#if 0&quot; and &quot;#endif&quot;) line 1244 is now:</div><div><div><font face="courier new, monospace">  1244  subroutine ompi_comm_create_keyval_f(comm_copy_attr_fn,comm_delete_attr_fn, &amp;</font></div>
+<div><font face="courier new, monospace">  1245                                       comm_keyval,extra_state,ierror) &amp;</font></div><div><font face="courier new, monospace">  1246     BIND(C, name=&quot;ompi_comm_create_keyval_f&quot;)</font></div>
+<div><font face="courier new, monospace">  1247     use :: mpi_f08_types, only : MPI_ADDRESS_KIND</font></div><div><font face="courier new, monospace">  1248     use :: mpi_f08_interfaces_callbacks, only : MPI_Comm_copy_attr_function</font></div>
+</div><div><br></div><div><br></div></div><div class="gmail_extra">Since PathScale and Open64 fortran compilers print the same errors, I am guessing that this is from code both inherited from their common ancestor (SGI&#39;s Pro64 was open sourced to create the original Open64).  So, in case anybody wants to reverse-engineer the problem, below is the source from Open64 that issues the error (though I can&#39;t say I gained any insight from looking at it).</div>
+<div class="gmail_extra"><br></div><div class="gmail_extra">-Paul</div><div class="gmail_extra"><br></div><font face="courier new, monospace">/*<br> * Print error messages for constraint violations related to the BIND attribute<br>
+ *<br> * attr_idx AT_Tbl_Idx index for program unit<br> */<br>static void<br>check_interoperable_pgm_unit(int attr_idx) {<br>  switch (ATP_PGM_UNIT(attr_idx)) {<br>    case Function:<br>      check_interoperable_data(ATP_RSLT_IDX(attr_idx));<br>
+      check_interoperable_procedure(attr_idx);<br>      break;<br><br>    case Subroutine:<br>      check_interoperable_procedure(attr_idx);<br>      break;<br><br>    case Program:<br>    case Blockdata:<br>    case Module:<br>
+    case Pgm_Unknown:<br>    default:<br>      PRINTMSG(AT_DEF_LINE(attr_idx), 1044, Internal, AT_DEF_COLUMN(attr_idx),<br>        &quot;Unexpected ATP_PGM_UNIT in check_interoperable_pgm_unit()&quot;);<br>      break;<br>
+  }<br>}</font><div class="gmail_extra"><br></div><div class="gmail_extra"><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font>
+</div></div>
+

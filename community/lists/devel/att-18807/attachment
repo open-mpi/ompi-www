@@ -1,0 +1,300 @@
+<div dir="ltr">HI,<div><br></div><div>When the <span style="font-size:12.8px">s</span><span style="font-size:12.8px">egmentation fault happens, I get the following trace:</span></div><div><br></div><div><div>(gdb) bt</div><div>#0  0x00007fffee4f007d in ibv_close_xrcd (xrcd=0x200000000) at /usr/include/infiniband/verbs.h:1227</div><div>#1  0x00007fffee4f055f in mca_btl_openib_close_xrc_domain (device=0xfb20c0) at btl_openib_xrc.c:104</div><div>#2  0x00007fffee4da073 in device_destruct (device=0xfb20c0) at btl_openib_component.c:978</div><div>#3  0x00007fffee4ce9f7 in opal_obj_run_destructors (object=0xfb20c0) at ../../../../opal/class/opal_object.h:460</div><div>#4  0x00007fffee4d4f82 in mca_btl_openib_finalize_resources (btl=0xfbbc40) at btl_openib.c:1703</div><div>#5  0x00007fffee4d511c in mca_btl_openib_finalize (btl=0xfbbc40) at btl_openib.c:1730</div><div>#6  0x00007ffff76b26d6 in mca_btl_base_close () at base/btl_base_frame.c:192</div><div>#7  0x00007ffff769c73d in mca_base_framework_close (framework=0x7ffff795bda0) at mca_base_framework.c:214</div><div>#8  0x00007ffff7d448e2 in mca_bml_base_close () at base/bml_base_frame.c:130</div><div>#9  0x00007ffff769c73d in mca_base_framework_close (framework=0x7ffff7fe4f00) at mca_base_framework.c:214</div><div>#10 0x00007ffff7cd4d18 in ompi_mpi_finalize () at runtime/ompi_mpi_finalize.c:415</div><div>#11 0x00007ffff7cfee0b in PMPI_Finalize () at pfinalize.c:47</div><div>#12 0x0000000000400880 in main ()</div></div><div><br></div><div>Looks like the problem originates from the openib btl finalize flow (if openib wasn&#39;t chosen for the run). This doesn&#39;t happen however when ob1 is specified from the command line as David mentioned.</div><div>Btl openib behaves differently in these cases - in mca_btl_openib_finalize_resources specifically. <br><br></div><div>When pml yalla is specified from the command line, this flow isn&#39;t invoked at all so in this case the segv doesn&#39;t happen as well.</div><div><br></div><div>Thanks,</div><div>Alina.</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Thu, Apr 21, 2016 at 6:55 PM, Nathan Hjelm <span dir="ltr">&lt;<a href="mailto:hjelmn@lanl.gov" target="_blank">hjelmn@lanl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+In 1.10.x is possible for the BTLs to be in use by ether ob1 or an<br>
+oshmem component. In 2.x one-sided components can also use BTLs. The MTL<br>
+interface doesn&#39;t not provide support for accessing hardware atomics and<br>
+RDMA. As for UD it stands for Unconnected Datagram. Its usage gets<br>
+better messaage rates for small messages but really hurts bandwidth. Our<br>
+applications are bandwidth bound and not message rate bound so we should<br>
+be using XRC not UD.<br>
+<br>
+-Nathan<br>
+<div><div class="h5"><br>
+On Thu, Apr 21, 2016 at 09:33:06AM -0600, David Shrader wrote:<br>
+&gt;    Hey Nathan,<br>
+&gt;<br>
+&gt;    I thought only 1 pml could be loaded at a time, and the only pml that<br>
+&gt;    could use btl&#39;s was ob1. If that is the case, how can the openib btl run<br>
+&gt;    at the same time as cm and yalla?<br>
+&gt;<br>
+&gt;    Also, what is UD?<br>
+&gt;<br>
+&gt;    Thanks,<br>
+&gt;    David<br>
+&gt;<br>
+&gt;    On 04/21/2016 09:25 AM, Nathan Hjelm wrote:<br>
+&gt;<br>
+&gt;  The openib btl should be able to run alongside cm/mxm or yalla. If I<br>
+&gt;  have time this weekend I will get on the mustang and see what the<br>
+&gt;  problem is. The best answer is to change the openmpi-mca-params.conf in<br>
+&gt;  the install to have pml = ob1. I have seen little to no benefit with<br>
+&gt;  using MXM on mustang. In fact, the default configuration (which uses UD)<br>
+&gt;  gets terrible bandwidth.<br>
+&gt;<br>
+&gt;  -Nathan<br>
+&gt;<br>
+&gt;  On Thu, Apr 21, 2016 at 01:48:46PM +0300, Alina Sklarevich wrote:<br>
+&gt;<br>
+&gt;     David, thanks for the info you provided.<br>
+&gt;     I will try to dig in further to see what might be causing this issue.<br>
+&gt;     In the meantime, maybe Nathan can please comment about the openib btl<br>
+&gt;     behavior here?<br>
+&gt;     Thanks,<br>
+&gt;     Alina.<br>
+&gt;     On Wed, Apr 20, 2016 at 8:01 PM, David Shrader &lt;<a href="mailto:dshrader@lanl.gov">dshrader@lanl.gov</a>&gt; wrote:<br>
+&gt;<br>
+&gt;       Hello Alina,<br>
+&gt;<br>
+&gt;       Thank you for the information about how the pml components work. I knew<br>
+&gt;       that the other components were being opened and ultimately closed in<br>
+&gt;       favor of yalla, but I didn&#39;t realize that initial open would cause a<br>
+&gt;       persistent change in the ompi runtime.<br>
+&gt;<br>
+&gt;       Here&#39;s the information you requested about the ib network:<br>
+&gt;<br>
+&gt;       - MOFED version:<br>
+&gt;       We are using the Open Fabrics Software as bundled by RedHat, and my ib<br>
+&gt;       network folks say we&#39;re running something close to v1.5.4<br>
+&gt;       - ibv_devinfo:<br>
+&gt;       [dshrader@mu0001 examples]$ ibv_devinfo<br>
+&gt;       hca_id: mlx4_0<br>
+&gt;               transport:                      InfiniBand (0)<br>
+&gt;               fw_ver:                         2.9.1000<br>
+&gt;               node_guid:                      0025:90ff:ff16:78d8<br>
+&gt;               sys_image_guid:                 0025:90ff:ff16:78db<br>
+&gt;               vendor_id:                      0x02c9<br>
+&gt;               vendor_part_id:                 26428<br>
+&gt;               hw_ver:                         0xB0<br>
+&gt;               board_id:                       SM_2121000001000<br>
+&gt;               phys_port_cnt:                  1<br>
+&gt;                       port:   1<br>
+&gt;                               state:                  PORT_ACTIVE (4)<br>
+&gt;                               max_mtu:                4096 (5)<br>
+&gt;                               active_mtu:             4096 (5)<br>
+&gt;                               sm_lid:                 250<br>
+&gt;                               port_lid:               366<br>
+&gt;                               port_lmc:               0x00<br>
+&gt;                               link_layer:             InfiniBand<br>
+&gt;<br>
+&gt;       I still get the seg fault when specifying the hca:<br>
+&gt;<br>
+&gt;       $&gt; mpirun -n 1 -mca btl_openib_receive_queues<br>
+&gt;       X,4096,1024:X,12288,512:X,65536,512 -mca btl_openib_if_include mlx4_0<br>
+&gt;       ./hello_c.x<br>
+&gt;       Hello, world, I am 0 of 1, (Open MPI v1.10.2, package: Open MPI<br>
+&gt;       <a href="mailto:dshrader@mu-fey.lanl.gov">dshrader@mu-fey.lanl.gov</a> Distribution, ident: 1.10.2, repo rev:<br>
+&gt;       v1.10.1-145-g799148f, Jan 21, 2016, 135)<br>
+&gt;       --------------------------------------------------------------------------<br>
+&gt;       mpirun noticed that process rank 0 with PID 10045 on node mu0001 exited<br>
+&gt;       on signal 11 (Segmentation fault).<br>
+&gt;       --------------------------------------------------------------------------<br>
+&gt;<br>
+&gt;       I don&#39;t know if this helps, but the first time I tried the command I<br>
+&gt;       mistyped the hca name. This got me a warning, but no seg fault:<br>
+&gt;<br>
+&gt;       $&gt; mpirun -n 1 -mca btl_openib_receive_queues<br>
+&gt;       X,4096,1024:X,12288,512:X,65536,512 -mca btl_openib_if_include ml4_0<br>
+&gt;       ./hello_c.x<br>
+&gt;       --------------------------------------------------------------------------<br>
+&gt;       WARNING: One or more nonexistent OpenFabrics devices/ports were<br>
+&gt;       specified:<br>
+&gt;<br>
+&gt;         Host:                 mu0001<br>
+&gt;         MCA parameter:        mca_btl_if_include<br>
+&gt;         Nonexistent entities: ml4_0<br>
+&gt;<br>
+&gt;       These entities will be ignored.  You can disable this warning by<br>
+&gt;       setting the btl_openib_warn_nonexistent_if MCA parameter to 0.<br>
+&gt;       --------------------------------------------------------------------------<br>
+&gt;       Hello, world, I am 0 of 1, (Open MPI v1.10.2, package: Open MPI<br>
+&gt;       <a href="mailto:dshrader@mu-fey.lanl.gov">dshrader@mu-fey.lanl.gov</a> Distribution, ident: 1.10.2, repo rev:<br>
+&gt;       v1.10.1-145-g799148f, Jan 21, 2016, 135)<br>
+&gt;<br>
+&gt;       So, telling the openib btl to use the actual hca didn&#39;t get the seg<br>
+&gt;       fault to go away, but giving it a dummy value did.<br>
+&gt;<br>
+&gt;       Thanks,<br>
+&gt;       David<br>
+&gt;<br>
+&gt;       On 04/20/2016 08:13 AM, Alina Sklarevich wrote:<br>
+&gt;<br>
+&gt;         Hi David,<br>
+&gt;         I was able to reproduce the issue you reported.<br>
+&gt;         When the command line doesn&#39;t specify the components to use, ompi will<br>
+&gt;         try to load/open all the ones available (and close them in the end)<br>
+&gt;         and then choose the components according to their priority and whether<br>
+&gt;         or not they were opened successfully.<br>
+&gt;         This means that even if pml yalla was the one running, other<br>
+&gt;         components were opened and closed as well.<br>
+&gt;         The parameter you are using - btl_openib_receive_queues, doesn&#39;t have<br>
+&gt;         an effect on pml yalla. It only affects the openib btl which is used<br>
+&gt;         by pml ob1.<br>
+&gt;         Using the verbosity of btl_base_verbose I see that when the<br>
+&gt;         segmentation fault happens, the code doesn&#39;t reach the phase of<br>
+&gt;         unloading the openib btl so perhaps the problem originates there<br>
+&gt;         (since pml yalla was already unloaded).<br>
+&gt;         Can you please try adding this mca parameter to your command line to<br>
+&gt;         specify the HCA you are using?<br>
+&gt;         -mca btl_openib_if_include &lt;hca&gt;<br>
+&gt;         It made the segv go away for me.<br>
+&gt;         Can you please attach the output of ibv_devinfo and write the MOFED<br>
+&gt;         version you are using?<br>
+&gt;         Thank you,<br>
+&gt;         Alina.<br>
+&gt;         On Wed, Apr 20, 2016 at 2:53 PM, Joshua Ladd &lt;<a href="mailto:jladd.mlnx@gmail.com">jladd.mlnx@gmail.com</a>&gt;<br>
+&gt;         wrote:<br>
+&gt;<br>
+&gt;           Hi, David<br>
+&gt;<br>
+&gt;           We are looking into your report.<br>
+&gt;<br>
+&gt;           Best,<br>
+&gt;<br>
+&gt;           Josh<br>
+&gt;           On Tue, Apr 19, 2016 at 4:41 PM, David Shrader &lt;<a href="mailto:dshrader@lanl.gov">dshrader@lanl.gov</a>&gt;<br>
+&gt;           wrote:<br>
+&gt;<br>
+&gt;             Hello,<br>
+&gt;<br>
+&gt;             I have been investigating using XRC on a cluster with a mellanox<br>
+&gt;             interconnect. I have found that in a certain situation I get a seg<br>
+&gt;             fault. I am using 1.10.2 compiled with gcc 5.3.0, and the simplest<br>
+&gt;             configure line that I have found that still results in the seg<br>
+&gt;             fault is as follows:<br>
+&gt;<br>
+&gt;             $&gt; ./configure --with-hcoll --with-mxm --prefix=...<br>
+&gt;<br>
+&gt;             I do have mxm 3.4.3065 and hcoll 3.3.768 installed in to system<br>
+&gt;             space (/usr/lib64). If I use &#39;--without-hcoll --without-mxm,&#39; the<br>
+&gt;             seg fault does not happen.<br>
+&gt;<br>
+&gt;             The seg fault happens even when using examples/hello_c.c, so here<br>
+&gt;             is an example of the seg fault using it:<br>
+&gt;<br>
+&gt;             $&gt; mpicc hello_c.c -o hello_c.x<br>
+&gt;             $&gt; mpirun -n 1 ./hello_c.x<br>
+&gt;             Hello, world, I am 0 of 1, (Open MPI v1.10.2, package: Open MPI<br>
+&gt;             <a href="mailto:dshrader@mu-fey.lanl.gov">dshrader@mu-fey.lanl.gov</a> Distribution, ident: 1.10.2, repo rev:<br>
+&gt;             v1.10.1-145-g799148f, Jan 21, 2016, 135)<br>
+&gt;             $&gt; mpirun -n 1 -mca btl_openib_receive_queues<br>
+&gt;             X,4096,1024:X,12288,512:X,65536,512<br>
+&gt;             Hello, world, I am 0 of 1, (Open MPI v1.10.2, package: Open MPI<br>
+&gt;             <a href="mailto:dshrader@mu-fey.lanl.gov">dshrader@mu-fey.lanl.gov</a> Distribution, ident: 1.10.2, repo rev:<br>
+&gt;             v1.10.1-145-g799148f, Jan 21, 2016, 135)<br>
+&gt;             --------------------------------------------------------------------------<br>
+&gt;             mpirun noticed that process rank 0 with PID 22819 on node mu0001<br>
+&gt;             exited on signal 11 (Segmentation fault).<br>
+&gt;             --------------------------------------------------------------------------<br>
+&gt;<br>
+&gt;             The seg fault happens no matter the number of ranks. I have tried<br>
+&gt;             the above command with &#39;-mca pml_base_verbose,&#39; and it shows that<br>
+&gt;             I am using the yalla pml:<br>
+&gt;<br>
+&gt;             $&gt; mpirun -n 1 -mca btl_openib_receive_queues<br>
+&gt;             X,4096,1024:X,12288,512:X,65536,512 -mca pml_base_verbose 100<br>
+&gt;             ./hello_c.x<br>
+&gt;             ...output snipped...<br>
+&gt;             [mu0001.localdomain:22825] select: component cm not selected /<br>
+&gt;             finalized<br>
+&gt;             [mu0001.localdomain:22825] select: component ob1 not selected /<br>
+&gt;             finalized<br>
+&gt;             [mu0001.localdomain:22825] select: component yalla selected<br>
+&gt;             ...output snipped...<br>
+&gt;             --------------------------------------------------------------------------<br>
+&gt;             mpirun noticed that process rank 0 with PID 22825 on node mu0001<br>
+&gt;             exited on signal 11 (Segmentation fault).<br>
+&gt;             --------------------------------------------------------------------------<br>
+&gt;<br>
+&gt;             Interestingly enough, if I tell mpirun what pml to use, the seg<br>
+&gt;             fault goes away. The following command does not get the seg fault:<br>
+&gt;<br>
+&gt;             $&gt; mpirun -n 1 -mca btl_openib_receive_queues<br>
+&gt;             X,4096,1024:X,12288,512:X,65536,512 -mca pml yalla ./hello_c.x<br>
+&gt;<br>
+&gt;             Passing either ob1 or cm to &#39;-mca pml&#39; also works. So it seems<br>
+&gt;             that the seg fault comes about when the yalla pml is chosen by<br>
+&gt;             default, when mxm/hcoll is involved, and using XRC. I&#39;m not sure<br>
+&gt;             if mxm is to blame, however, as using &#39;-mca pml cm -mca mtl mxm&#39;<br>
+&gt;             with the XRC parameters doesn&#39;t throw the seg fault.<br>
+&gt;<br>
+&gt;             Other information...<br>
+&gt;             OS: RHEL 6.7-based (TOSS)<br>
+&gt;             OpenFabrics: RedHat provided<br>
+&gt;             Kernel: 2.6.32-573.8.1.2chaos.ch5.4.x86_64<br>
+&gt;             Config.log and &#39;ompi_info --all&#39; are in the tarball ompi.tar.bz2<br>
+&gt;             which is attached.<br>
+&gt;<br>
+&gt;             Is there something else I should be doing with the yalla pml when<br>
+&gt;             using XRC? Regardless, I hope reporting the seg fault is useful.<br>
+&gt;<br>
+&gt;             Thanks,<br>
+&gt;             David<br>
+&gt;<br>
+&gt;             --<br>
+&gt;             David Shrader<br>
+&gt;             HPC-ENV High Performance Computer Systems<br>
+&gt;             Los Alamos National Lab<br>
+&gt;             Email: dshrader &lt;at&gt; <a href="http://lanl.gov" rel="noreferrer" target="_blank">lanl.gov</a><br>
+&gt;<br>
+&gt;             _______________________________________________<br>
+&gt;             devel mailing list<br>
+&gt;             <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;             Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;             Link to this post:<br>
+&gt;             <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18786.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18786.php</a><br>
+&gt;<br>
+&gt;           _______________________________________________<br>
+&gt;           devel mailing list<br>
+&gt;           <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;           Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;           Link to this post:<br>
+&gt;           <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18788.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18788.php</a><br>
+&gt;<br>
+&gt;   _______________________________________________<br>
+&gt;   devel mailing list<br>
+&gt;   <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;   Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;   Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18789.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18789.php</a><br>
+&gt;<br>
+&gt;   --<br>
+&gt;   David Shrader<br>
+&gt;   HPC-ENV High Performance Computer Systems<br>
+&gt;   Los Alamos National Lab<br>
+&gt;   Email: dshrader &lt;at&gt; <a href="http://lanl.gov" rel="noreferrer" target="_blank">lanl.gov</a><br>
+&gt;<br>
+&gt;       _______________________________________________<br>
+&gt;       devel mailing list<br>
+&gt;       <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;       Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;       Link to this post:<br>
+&gt;       <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18793.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18793.php</a><br>
+&gt;<br>
+&gt;  _______________________________________________<br>
+&gt;  devel mailing list<br>
+&gt;  <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;  Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;  Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18801.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18801.php</a><br>
+&gt;<br>
+&gt;  _______________________________________________<br>
+&gt;  devel mailing list<br>
+&gt;  <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;  Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;  Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18804.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18804.php</a><br>
+&gt;<br>
+&gt;  --<br>
+&gt;  David Shrader<br>
+&gt;  HPC-ENV High Performance Computer Systems<br>
+&gt;  Los Alamos National Lab<br>
+&gt;  Email: dshrader &lt;at&gt; <a href="http://lanl.gov" rel="noreferrer" target="_blank">lanl.gov</a><br>
+<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div>&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18805.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18805.php</a><br>
+<br>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18806.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18806.php</a><br></blockquote></div><br></div>
+

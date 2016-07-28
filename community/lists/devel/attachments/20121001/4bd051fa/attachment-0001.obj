@@ -1,0 +1,44 @@
+#!/bin/bash
+
+. /etc/profile.d/modules.sh
+module use ~/privatemodules
+module unload git
+module load git/1.7.11.4
+
+###############################################################################
+
+doit() {
+   cmd="$*"
+   eval $cmd >> $logfile 2>&1
+   status=$?
+   if test "$status" != "0"; then
+      echo "Git SVN update failed.  Log:"
+      cat $logfile
+      exit $status
+   fi
+}
+
+###############################################################################
+
+temp_repository=/home/ompi-git/ompi-git-svn
+bare_repository=github
+
+logfile=/tmp/git-svn-update.$$.log
+rm -f $logfile
+touch $logfile
+
+cd $temp_repository
+
+doit git checkout master
+for i in `git branch|grep -v trunk|grep -v master`; do
+        doit git checkout ${i}
+        doit git svn fetch
+        doit git merge remotes/${i}
+done
+doit git checkout master
+doit git svn fetch
+doit git merge remotes/trunk
+
+doit git push $bare_repository '*:*'
+
+rm -f $logfile

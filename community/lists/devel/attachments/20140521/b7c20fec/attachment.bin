@@ -1,0 +1,852 @@
+Index: ompi/mca/coll/cuda/configure.m4
+===================================================================
+--- ompi/mca/coll/cuda/configure.m4	(revision 0)
++++ ompi/mca/coll/cuda/configure.m4	(revision 0)
+@@ -0,0 +1,29 @@
++# -*- shell-script -*-
++#
++# Copyright (c) 2014      The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++# $COPYRIGHT$
++#
++# Additional copyrights may follow
++#
++# $HEADER$
++#
++
++# MCA_coll_cuda_CONFIG([action-if-can-compile],
++#                      [action-if-cant-compile])
++# ------------------------------------------------
++AC_DEFUN([MCA_ompi_coll_cuda_CONFIG],[
++    AC_CONFIG_FILES([ompi/mca/coll/cuda/Makefile])
++
++    # make sure that CUDA-aware checks have been done
++    AC_REQUIRE([OPAL_CHECK_CUDA])
++
++    # Only build if CUDA support is available
++    AS_IF([test "x$CUDA_SUPPORT" = "x1"],
++          [$1],
++          [$2])
++
++])dnl
++
+Index: ompi/mca/coll/cuda/coll_cuda_allreduce.c
+===================================================================
+--- ompi/mca/coll/cuda/coll_cuda_allreduce.c	(revision 0)
++++ ompi/mca/coll/cuda/coll_cuda_allreduce.c	(revision 0)
+@@ -0,0 +1,77 @@
++/*
++ * Copyright (c) 2014      The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#include "ompi_config.h"
++#include "coll_cuda.h"
++
++#include <stdio.h>
++
++#include "ompi/op/op.h"
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++
++/*
++ *	allreduce_intra
++ *
++ *	Function:	- allreduce using other MPI collectives
++ *	Accepts:	- same as MPI_Allreduce()
++ *	Returns:	- MPI_SUCCESS or error code
++ */
++int
++mca_coll_cuda_allreduce(void *sbuf, void *rbuf, int count,
++                        struct ompi_datatype_t *dtype,
++                        struct ompi_op_t *op,
++                        struct ompi_communicator_t *comm,
++                        mca_coll_base_module_t *module)
++{
++    mca_coll_cuda_module_t *s = (mca_coll_cuda_module_t*) module;
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t bufsize;
++    int rc;
++
++    ompi_datatype_get_extent(dtype, &lb, &extent);
++    ompi_datatype_get_true_extent(dtype, &true_lb, &true_extent);
++    bufsize = true_extent + (ptrdiff_t)(count - 1) * extent;
++    if ((MPI_IN_PLACE != sbuf) && (opal_cuda_check_bufs((char *)sbuf, NULL))) {
++        sbuf1 = (char*)malloc(bufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sbuf, bufsize);
++        sbuf2 = sbuf; /* save away original buffer */
++        sbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(rbuf, NULL)) {
++        rbuf1 = (char*)malloc(bufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, rbuf, bufsize);
++        rbuf2 = rbuf; /* save away original buffer */
++        rbuf = rbuf1 - lb;
++    }
++    rc = s->c_coll.coll_allreduce(sbuf, rbuf, count, dtype, op, comm, s->c_coll.coll_allreduce_module);
++    if (NULL != sbuf1) {
++        free(sbuf1);
++    }
++    if (NULL != rbuf1) {
++        rbuf = rbuf2;
++        opal_cuda_memcpy_sync(rbuf, rbuf1, bufsize);
++        free(rbuf1);
++    }
++    return rc;
++}
++
+Index: ompi/mca/coll/cuda/coll_cuda_exscan.c
+===================================================================
+--- ompi/mca/coll/cuda/coll_cuda_exscan.c	(revision 0)
++++ ompi/mca/coll/cuda/coll_cuda_exscan.c	(revision 0)
+@@ -0,0 +1,70 @@
++/*
++ * Copyright (c) 2014      The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++
++#include "ompi_config.h"
++#include "coll_cuda.h"
++
++#include <stdio.h>
++
++#include "ompi/op/op.h"
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++
++int mca_coll_cuda_exscan(void *sbuf, void *rbuf, int count,
++                         struct ompi_datatype_t *dtype,
++                         struct ompi_op_t *op,
++                         struct ompi_communicator_t *comm,
++                         mca_coll_base_module_t *module)
++{
++    mca_coll_cuda_module_t *s = (mca_coll_cuda_module_t*) module;
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t bufsize;
++    int rc;
++
++    ompi_datatype_get_extent(dtype, &lb, &extent);
++    ompi_datatype_get_true_extent(dtype, &true_lb, &true_extent);
++    bufsize = true_extent + (ptrdiff_t)(count - 1) * extent;
++    if ((MPI_IN_PLACE != sbuf) && (opal_cuda_check_bufs((char *)sbuf, NULL))) {
++        sbuf1 = (char*)malloc(bufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sbuf, bufsize);
++        sbuf2 = sbuf; /* save away original buffer */
++        sbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(rbuf, NULL)) {
++        rbuf1 = (char*)malloc(bufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, rbuf, bufsize);
++        rbuf2 = rbuf; /* save away original buffer */
++        rbuf = rbuf1 - lb;
++    }
++
++    rc = s->c_coll.coll_exscan(sbuf, rbuf, count, dtype, op, comm,
++                               s->c_coll.coll_exscan_module);
++    if (NULL != sbuf1) {
++        free(sbuf1);
++    }
++    if (NULL != rbuf1) {
++        rbuf = rbuf2;
++        opal_cuda_memcpy_sync(rbuf, rbuf1, bufsize);
++        free(rbuf1);
++    }
++    return rc;
++}
+Index: ompi/mca/coll/cuda/coll_cuda_component.c
+===================================================================
+--- ompi/mca/coll/cuda/coll_cuda_component.c	(revision 0)
++++ ompi/mca/coll/cuda/coll_cuda_component.c	(revision 0)
+@@ -0,0 +1,92 @@
++/*
++ * Copyright (c) 2014      The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#include "ompi_config.h"
++
++#include <string.h>
++
++#include "mpi.h"
++#include "ompi/constants.h"
++#include "coll_cuda.h"
++
++/*
++ * Public string showing the coll ompi_cuda component version number
++ */
++const char *mca_coll_cuda_component_version_string =
++    "Open MPI cuda collective MCA component version " OMPI_VERSION;
++
++/*
++ * Local function
++ */
++static int cuda_register(void);
++
++/*
++ * Instantiate the public struct with all of our public information
++ * and pointers to our public functions in it
++ */
++
++mca_coll_cuda_component_t mca_coll_cuda_component = {
++    {
++        /* First, the mca_component_t struct containing meta information
++         * about the component itself */
++
++        {
++            MCA_COLL_BASE_VERSION_2_0_0,
++
++            /* Component name and version */
++            "cuda",
++            OMPI_MAJOR_VERSION,
++            OMPI_MINOR_VERSION,
++            OMPI_RELEASE_VERSION,
++
++            /* Component open and close functions */
++            NULL,
++            NULL,
++            NULL,
++            cuda_register
++        },
++        {
++            /* The component is checkpoint ready */
++            MCA_BASE_METADATA_PARAM_CHECKPOINT
++        },
++
++        /* Initialization / querying functions */
++
++        mca_coll_cuda_init_query,
++        mca_coll_cuda_comm_query
++    },
++
++    /* cuda-specific component information */
++
++    /* Priority: use a low priority, but allow others to be lower */
++    50,
++};
++
++
++static int cuda_register(void)
++{
++    (void) mca_base_component_var_register(&mca_coll_cuda_component.super.collm_version,
++                                           "priority", "Priority of the cuda coll component; only relevant if barrier_before or barrier_after is > 0",
++                                           MCA_BASE_VAR_TYPE_INT, NULL, 0, 0,
++                                           OPAL_INFO_LVL_6,
++                                           MCA_BASE_VAR_SCOPE_READONLY,
++                                           &mca_coll_cuda_component.priority);
++
++    (void) mca_base_component_var_register(&mca_coll_cuda_component.super.collm_version,
++                                           "disable_cuda_coll", "Automatically handle the CUDA buffers for the MPI collective.",
++                                           MCA_BASE_VAR_TYPE_INT, NULL, 0, 0,
++                                           OPAL_INFO_LVL_2,
++                                           MCA_BASE_VAR_SCOPE_READONLY,
++                                           &mca_coll_cuda_component.disable_cuda_coll);
++
++    return OMPI_SUCCESS;
++}
+Index: ompi/mca/coll/cuda/Makefile.am
+===================================================================
+--- ompi/mca/coll/cuda/Makefile.am	(revision 0)
++++ ompi/mca/coll/cuda/Makefile.am	(revision 0)
+@@ -0,0 +1,37 @@
++#
++# Copyright (c) 2014      The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++
++sources = coll_cuda_module.c coll_cuda_reduce.c coll_cuda_allreduce.c \
++          coll_cuda_reduce_scatter_block.c coll_cuda_component.c \
++          coll_cuda_scan.c coll_cuda_exscan.c
++
++# Make the output library in this directory, and name it either
++# mca_<type>_<name>.la (for DSO builds) or libmca_<type>_<name>.la
++# (for static builds).
++
++if MCA_BUILD_ompi_coll_cuda_DSO
++component_noinst =
++component_install = mca_coll_cuda.la
++else
++component_noinst = libmca_coll_cuda.la
++component_install =
++endif
++
++mcacomponentdir = $(ompilibdir)
++mcacomponent_LTLIBRARIES = $(component_install)
++mca_coll_cuda_la_SOURCES = $(sources)
++mca_coll_cuda_la_LDFLAGS = -module -avoid-version
++
++noinst_LTLIBRARIES = $(component_noinst)
++libmca_coll_cuda_la_SOURCES =$(sources)
++libmca_coll_cuda_la_LDFLAGS = -module -avoid-version
++
+Index: ompi/mca/coll/cuda/coll_cuda_scan.c
+===================================================================
+--- ompi/mca/coll/cuda/coll_cuda_scan.c	(revision 0)
++++ ompi/mca/coll/cuda/coll_cuda_scan.c	(revision 0)
+@@ -0,0 +1,76 @@
++/*
++ * Copyright (c) 2014      The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#include "ompi_config.h"
++#include "coll_cuda.h"
++
++#include <stdio.h>
++
++#include "ompi/op/op.h"
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++
++/*
++ *	scan
++ *
++ *	Function:	- scan
++ *	Accepts:	- same arguments as MPI_Scan()
++ *	Returns:	- MPI_SUCCESS or error code
++ */
++int mca_coll_cuda_scan(void *sbuf, void *rbuf, int count,
++                       struct ompi_datatype_t *dtype,
++                       struct ompi_op_t *op,
++                       struct ompi_communicator_t *comm,
++                       mca_coll_base_module_t *module)
++{
++    mca_coll_cuda_module_t *s = (mca_coll_cuda_module_t*) module;
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t bufsize;
++    int rc;
++
++    ompi_datatype_get_extent(dtype, &lb, &extent);
++    ompi_datatype_get_true_extent(dtype, &true_lb, &true_extent);
++    bufsize = true_extent + (ptrdiff_t)(count - 1) * extent;
++    if ((MPI_IN_PLACE != sbuf) && (opal_cuda_check_bufs((char *)sbuf, NULL))) {
++        sbuf1 = (char*)malloc(bufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sbuf, bufsize);
++        sbuf2 = sbuf; /* save away original buffer */
++        sbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(rbuf, NULL)) {
++        rbuf1 = (char*)malloc(bufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, rbuf, bufsize);
++        rbuf2 = rbuf; /* save away original buffer */
++        rbuf = rbuf1 - lb;
++    }
++    rc = s->c_coll.coll_scan(sbuf, rbuf, count, dtype, op, comm,
++                             s->c_coll.coll_scan_module);
++    if (NULL != sbuf1) {
++        free(sbuf1);
++    }
++    if (NULL != rbuf1) {
++        rbuf = rbuf2;
++        opal_cuda_memcpy_sync(rbuf, rbuf1, bufsize);
++        free(rbuf1);
++    }
++    return rc;
++}
+Index: ompi/mca/coll/cuda/coll_cuda_module.c
+===================================================================
+--- ompi/mca/coll/cuda/coll_cuda_module.c	(revision 0)
++++ ompi/mca/coll/cuda/coll_cuda_module.c	(revision 0)
+@@ -0,0 +1,158 @@
++/*
++ * Copyright (c) 2014      The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#include "ompi_config.h"
++
++#ifdef HAVE_STRING_H
++#include <string.h>
++#endif
++#include <stdio.h>
++
++#include "coll_cuda.h"
++
++#include "mpi.h"
++
++#include "orte/util/show_help.h"
++#include "orte/util/proc_info.h"
++
++#include "ompi/constants.h"
++#include "ompi/communicator/communicator.h"
++#include "ompi/mca/coll/coll.h"
++#include "ompi/mca/coll/base/base.h"
++#include "coll_cuda.h"
++
++
++static void mca_coll_cuda_module_construct(mca_coll_cuda_module_t *module)
++{
++    memset(&(module->c_coll), 0, sizeof(module->c_coll));
++}
++
++static void mca_coll_cuda_module_destruct(mca_coll_cuda_module_t *module)
++{
++    OBJ_RELEASE(module->c_coll.coll_allreduce_module);
++    OBJ_RELEASE(module->c_coll.coll_reduce_module);
++    OBJ_RELEASE(module->c_coll.coll_reduce_scatter_block_module);
++    OBJ_RELEASE(module->c_coll.coll_scatter_module);
++    /* If the exscan module is not NULL, then this was an
++       intracommunicator, and therefore scan will have a module as
++       well. */
++    if (NULL != module->c_coll.coll_exscan_module) {
++        OBJ_RELEASE(module->c_coll.coll_exscan_module);
++        OBJ_RELEASE(module->c_coll.coll_scan_module);
++    }
++}
++
++OBJ_CLASS_INSTANCE(mca_coll_cuda_module_t, mca_coll_base_module_t,
++                   mca_coll_cuda_module_construct, 
++                   mca_coll_cuda_module_destruct);
++
++
++/*
++ * Initial query function that is invoked during MPI_INIT, allowing
++ * this component to disqualify itself if it doesn't support the
++ * required level of thread support.
++ */
++int mca_coll_cuda_init_query(bool enable_progress_threads,
++                             bool enable_mpi_threads)
++{
++    /* Nothing to do */
++
++    return OMPI_SUCCESS;
++}
++
++
++/*
++ * Invoked when there's a new communicator that has been created.
++ * Look at the communicator and decide which set of functions and
++ * priority we want to return.
++ */
++mca_coll_base_module_t *
++mca_coll_cuda_comm_query(struct ompi_communicator_t *comm, 
++                         int *priority)
++{
++    mca_coll_cuda_module_t *cuda_module;
++
++    cuda_module = OBJ_NEW(mca_coll_cuda_module_t);
++    if (NULL == cuda_module) {
++        return NULL;
++    }
++
++    *priority = mca_coll_cuda_component.priority;
++    strcpy(cuda_module->super.coll_name, "cuda");
++
++    /* Choose whether to use [intra|inter] */
++    cuda_module->super.coll_module_enable = mca_coll_cuda_module_enable;
++    cuda_module->super.ft_event = NULL;
++
++    cuda_module->super.coll_allgather  = NULL;
++    cuda_module->super.coll_allgatherv = NULL;
++    cuda_module->super.coll_allreduce  = mca_coll_cuda_allreduce;
++    cuda_module->super.coll_alltoall   = NULL;
++    cuda_module->super.coll_alltoallv  = NULL;
++    cuda_module->super.coll_alltoallw  = NULL;
++    cuda_module->super.coll_barrier    = NULL;
++    cuda_module->super.coll_bcast      = NULL;
++    cuda_module->super.coll_exscan     = mca_coll_cuda_exscan;
++    cuda_module->super.coll_gather     = NULL;
++    cuda_module->super.coll_gatherv    = NULL;
++    cuda_module->super.coll_reduce     = mca_coll_cuda_reduce;
++    cuda_module->super.coll_reduce_scatter = NULL;
++    cuda_module->super.coll_reduce_scatter_block = mca_coll_cuda_reduce_scatter_block;
++    cuda_module->super.coll_scan       = mca_coll_cuda_scan;
++    cuda_module->super.coll_scatter    = NULL;
++    cuda_module->super.coll_scatterv   = NULL;
++
++    return &(cuda_module->super);
++}
++
++
++/*
++ * Init module on the communicator
++ */
++int mca_coll_cuda_module_enable(mca_coll_base_module_t *module,
++                                struct ompi_communicator_t *comm)
++{
++    bool good = true;
++    char *msg = NULL;
++    mca_coll_cuda_module_t *s = (mca_coll_cuda_module_t*) module;
++
++#define CHECK_AND_RETAIN(src, dst, name)               \
++    if (NULL == (src)->c_coll.coll_ ## name ## _module) {   \
++        good = false; \
++        msg = #name; \
++    } else if (good) { \
++        (dst)->c_coll.coll_ ## name ## _module = (src)->c_coll.coll_ ## name ## _module;\
++        (dst)->c_coll.coll_ ## name = (src)->c_coll.coll_ ## name ; \
++        OBJ_RETAIN((src)->c_coll.coll_ ## name ## _module); \
++    }
++
++    CHECK_AND_RETAIN(comm, s, allreduce);
++    CHECK_AND_RETAIN(comm, s, reduce);
++    CHECK_AND_RETAIN(comm, s, reduce_scatter_block);
++    CHECK_AND_RETAIN(comm, s, scatter);
++    if (!OMPI_COMM_IS_INTER(comm)) {
++        /* MPI does not define scan/exscan on intercommunicators */
++        CHECK_AND_RETAIN(comm, s, exscan);
++        CHECK_AND_RETAIN(comm, s, scan);
++    }
++
++    /* All done */
++    if (good) {
++        return OMPI_SUCCESS;
++    } else {
++        orte_show_help("help-coll-cuda.txt", "missing collective", true,
++                       orte_process_info.nodename, 
++                       mca_coll_cuda_component.priority, msg);
++        return OMPI_ERR_NOT_FOUND;
++    }
++}
++
+Index: ompi/mca/coll/cuda/coll_cuda.h
+===================================================================
+--- ompi/mca/coll/cuda/coll_cuda.h	(revision 0)
++++ ompi/mca/coll/cuda/coll_cuda.h	(revision 0)
+@@ -0,0 +1,101 @@
++/*
++ * Copyright (c) 2014      The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#ifndef MCA_COLL_CUDA_EXPORT_H
++#define MCA_COLL_CUDA_EXPORT_H
++
++#include "ompi_config.h"
++
++#include "mpi.h"
++
++#include "opal/class/opal_object.h"
++#include "opal/mca/mca.h"
++
++#include "ompi/constants.h"
++#include "ompi/mca/coll/coll.h"
++#include "ompi/mca/coll/base/base.h"
++#include "ompi/communicator/communicator.h"
++
++BEGIN_C_DECLS
++
++/* API functions */
++
++int mca_coll_cuda_init_query(bool enable_progress_threads,
++                             bool enable_mpi_threads);
++mca_coll_base_module_t
++*mca_coll_cuda_comm_query(struct ompi_communicator_t *comm,
++                          int *priority);
++
++int mca_coll_cuda_module_enable(mca_coll_base_module_t *module,
++                                struct ompi_communicator_t *comm);
++
++int
++mca_coll_cuda_allreduce(void *sbuf, void *rbuf, int count,
++                        struct ompi_datatype_t *dtype,
++                        struct ompi_op_t *op,
++                        struct ompi_communicator_t *comm,
++                        mca_coll_base_module_t *module);
++
++int mca_coll_cuda_reduce(void *sbuf, void *rbuf, int count,
++                         struct ompi_datatype_t *dtype,
++                         struct ompi_op_t *op,
++                         int root,
++                         struct ompi_communicator_t *comm,
++                         mca_coll_base_module_t *module);
++
++int mca_coll_cuda_exscan(void *sbuf, void *rbuf, int count,
++                         struct ompi_datatype_t *dtype,
++                         struct ompi_op_t *op,
++                         struct ompi_communicator_t *comm,
++                         mca_coll_base_module_t *module);
++
++int mca_coll_cuda_scan(void *sbuf, void *rbuf, int count,
++                       struct ompi_datatype_t *dtype,
++                       struct ompi_op_t *op,
++                       struct ompi_communicator_t *comm,
++                       mca_coll_base_module_t *module);
++
++int
++mca_coll_cuda_reduce_scatter_block(void *sbuf, void *rbuf, int rcount,
++                                   struct ompi_datatype_t *dtype,
++                                   struct ompi_op_t *op,
++                                   struct ompi_communicator_t *comm,
++                                   mca_coll_base_module_t *module);
++
++/* Types */
++/* Module */
++
++typedef struct mca_coll_cuda_module_t {
++    mca_coll_base_module_t super;
++
++    /* Pointers to all the "real" collective functions */
++    mca_coll_base_comm_coll_t c_coll;
++} mca_coll_cuda_module_t;
++
++OBJ_CLASS_DECLARATION(mca_coll_cuda_module_t);
++
++/* Component */
++
++typedef struct mca_coll_cuda_component_t {
++    mca_coll_base_component_2_0_0_t super;
++
++    int priority; /* Priority of this component */
++    int disable_cuda_coll;  /* Force disable of the CUDA collective component */
++} mca_coll_cuda_component_t;
++
++/* Globally exported variables */
++
++OMPI_MODULE_DECLSPEC extern mca_coll_cuda_component_t mca_coll_cuda_component;
++
++END_C_DECLS
++
++#endif /* MCA_COLL_CUDA_EXPORT_H */
+Index: ompi/mca/coll/cuda/coll_cuda_reduce_scatter_block.c
+===================================================================
+--- ompi/mca/coll/cuda/coll_cuda_reduce_scatter_block.c	(revision 0)
++++ ompi/mca/coll/cuda/coll_cuda_reduce_scatter_block.c	(revision 0)
+@@ -0,0 +1,83 @@
++/*
++ * Copyright (c) 2014      The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#include "ompi_config.h"
++#include "coll_cuda.h"
++
++#include <stdio.h>
++
++#include "ompi/op/op.h"
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++
++/*
++ *	reduce_scatter_block
++ *
++ *	Function:	- reduce then scatter
++ *	Accepts:	- same as MPI_Reduce_scatter_block()
++ *	Returns:	- MPI_SUCCESS or error code
++ *
++ * Algorithm:
++ *     reduce and scatter (needs to be cleaned 
++ *     up at some point)
++ */
++int
++mca_coll_cuda_reduce_scatter_block(void *sbuf, void *rbuf, int rcount,
++                                   struct ompi_datatype_t *dtype,
++                                   struct ompi_op_t *op,
++                                   struct ompi_communicator_t *comm,
++                                   mca_coll_base_module_t *module)
++{
++    mca_coll_cuda_module_t *s = (mca_coll_cuda_module_t*) module;
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t sbufsize, rbufsize;
++    int rc;
++
++    ompi_datatype_get_extent(dtype, &lb, &extent);
++    ompi_datatype_get_true_extent(dtype, &true_lb, &true_extent);
++    sbufsize = (true_extent + (ptrdiff_t)(rcount - 1) * extent) * ompi_comm_size(comm);
++    rbufsize = true_extent + (ptrdiff_t)(rcount - 1) * extent;
++    if ((MPI_IN_PLACE != sbuf) && (opal_cuda_check_bufs((char *)sbuf, NULL))) {
++        sbuf1 = (char*)malloc(sbufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sbuf, sbufsize);
++        sbuf2 = sbuf; /* save away original buffer */
++        sbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(rbuf, NULL)) {
++        rbuf1 = (char*)malloc(rbufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, rbuf, rbufsize);
++        rbuf2 = rbuf; /* save away original buffer */
++        rbuf = rbuf1 - lb;
++    }
++    rc = s->c_coll.coll_reduce_scatter_block(sbuf, rbuf, rcount, dtype, op, comm,
++                                             s->c_coll.coll_reduce_scatter_block_module);
++    if (NULL != sbuf1) {
++        free(sbuf1);
++    }
++    if (NULL != rbuf1) {
++        rbuf = rbuf2;
++        opal_cuda_memcpy_sync(rbuf, rbuf1, rbufsize);
++        free(rbuf1);
++    }
++    return rc;
++}
++
+Index: ompi/mca/coll/cuda/coll_cuda_reduce.c
+===================================================================
+--- ompi/mca/coll/cuda/coll_cuda_reduce.c	(revision 0)
++++ ompi/mca/coll/cuda/coll_cuda_reduce.c	(revision 0)
+@@ -0,0 +1,79 @@
++/*
++ * Copyright (c) 2004-2014 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++
++#include "ompi_config.h"
++#include "coll_cuda.h"
++
++#include <stdio.h>
++
++#include "ompi/op/op.h"
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++
++/*
++ *	reduce_log_inter
++ *
++ *	Function:	- reduction using O(N) algorithm
++ *	Accepts:	- same as MPI_Reduce()
++ *	Returns:	- MPI_SUCCESS or error code
++ */
++int
++mca_coll_cuda_reduce(void *sbuf, void *rbuf, int count,
++                     struct ompi_datatype_t *dtype,
++                     struct ompi_op_t *op,
++                     int root, struct ompi_communicator_t *comm,
++                     mca_coll_base_module_t *module)
++{
++    mca_coll_cuda_module_t *s = (mca_coll_cuda_module_t*) module;
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t bufsize;
++    int rc;
++
++    ompi_datatype_get_extent(dtype, &lb, &extent);
++    ompi_datatype_get_true_extent(dtype, &true_lb, &true_extent);
++    bufsize = true_extent + (ptrdiff_t)(count - 1) * extent;
++    if ((MPI_IN_PLACE != sbuf) && (opal_cuda_check_bufs((char *)sbuf, NULL))) {
++        sbuf1 = (char*)malloc(bufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sbuf, bufsize);
++        sbuf2 = sbuf; /* save away original buffer */
++        sbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(rbuf, NULL)) {
++        rbuf1 = (char*)malloc(bufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, rbuf, bufsize);
++        rbuf2 = rbuf; /* save away original buffer */
++        rbuf = rbuf1 - lb;
++    }
++    rc = s->c_coll.coll_reduce((void *) sbuf, rbuf, count,
++                               dtype, op, root, comm,
++                               s->c_coll.coll_reduce_module);
++
++    if (NULL != sbuf1) {
++        free(sbuf1);
++    }
++    if (NULL != rbuf1) {
++        rbuf = rbuf2;
++        opal_cuda_memcpy_sync(rbuf, rbuf1, bufsize);
++        free(rbuf1);
++    }
++    return rc;
++}

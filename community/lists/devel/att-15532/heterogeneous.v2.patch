@@ -1,0 +1,396 @@
+Index: oshmem/mca/scoll/mpi/scoll_mpi_module.c
+===================================================================
+--- oshmem/mca/scoll/mpi/scoll_mpi_module.c	(revision 32440)
++++ oshmem/mca/scoll/mpi/scoll_mpi_module.c	(working copy)
+@@ -1,11 +1,13 @@
+ /**
+-  Copyright (c) 2011 Mellanox Technologies. All rights reserved.
+-  Copyright (c) 2014 Cisco Systems, Inc.  All rights reserved.
+-  $COPYRIGHT$
+-
+-  Additional copyrights may follow
+-
+- $HEADER$
++ * Copyright (c) 2011 Mellanox Technologies. All rights reserved.
++ * Copyright (c) 2014 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
+  */
+ 
+ #include "ompi_config.h"
+@@ -125,7 +127,7 @@
+             ompi_proc_t* ompi_proc;
+             for( int j = 0; j < ompi_group_size(parent_group); j++ ) {
+                 ompi_proc = ompi_group_peer_lookup(parent_group, j);
+-                if( ompi_proc->super.proc_name == osh_group->proc_array[i]->super.proc_name) {
++                if( ompi_proc->super.proc_name.id == osh_group->proc_array[i]->super.proc_name.id) {
+                     ranks[i] = j;
+                     break;
+                 }
+Index: opal/mca/btl/tcp/btl_tcp_proc.c
+===================================================================
+--- opal/mca/btl/tcp/btl_tcp_proc.c	(revision 32440)
++++ opal/mca/btl/tcp/btl_tcp_proc.c	(working copy)
+@@ -12,6 +12,8 @@
+  *                         All rights reserved.
+  * Copyright (c) 2008-2010 Oracle and/or its affiliates.  All rights reserved
+  * Copyright (c) 2013      Intel, Inc. All rights reserved
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -77,7 +79,7 @@
+     /* remove from list of all proc instances */
+     OPAL_THREAD_LOCK(&mca_btl_tcp_component.tcp_lock);
+     opal_hash_table_remove_value_uint64(&mca_btl_tcp_component.tcp_procs, 
+-                                        tcp_proc->proc_opal->proc_name);
++                                        tcp_proc->proc_opal->proc_name.id);
+     OPAL_THREAD_UNLOCK(&mca_btl_tcp_component.tcp_lock);
+ 
+     /* release resources */
+@@ -97,7 +99,7 @@
+ 
+ mca_btl_tcp_proc_t* mca_btl_tcp_proc_create(const opal_proc_t* proc)
+ {
+-    uint64_t hash = proc->proc_name;
++    uint64_t hash = proc->proc_name.id;
+     mca_btl_tcp_proc_t* btl_proc;
+     size_t size;
+     int rc;
+@@ -719,7 +721,7 @@
+     mca_btl_tcp_proc_t* proc = NULL;
+     OPAL_THREAD_LOCK(&mca_btl_tcp_component.tcp_lock);
+     opal_hash_table_get_value_uint64(&mca_btl_tcp_component.tcp_procs, 
+-                                     *name, (void**)&proc);
++                                     name->id, (void**)&proc);
+     OPAL_THREAD_UNLOCK(&mca_btl_tcp_component.tcp_lock);
+     return proc;
+ }
+Index: opal/mca/btl/openib/btl_openib.c
+===================================================================
+--- opal/mca/btl/openib/btl_openib.c	(revision 32440)
++++ opal/mca/btl/openib/btl_openib.c	(working copy)
+@@ -1064,7 +1064,7 @@
+             rc = mca_btl_openib_ib_address_add_new(
+                     ib_proc->proc_ports[j].pm_port_info.lid,
+                     ib_proc->proc_ports[j].pm_port_info.subnet_id,
+-                    opal_process_name_jobid(proc->proc_name), endpoint);
++                    proc->proc_name, endpoint);
+             if (OPAL_SUCCESS != rc ) {
+                 OPAL_THREAD_UNLOCK(&ib_proc->proc_lock);
+                 return OPAL_ERROR;
+Index: opal/util/proc.c
+===================================================================
+--- opal/util/proc.c	(revision 32440)
++++ opal/util/proc.c	(working copy)
+@@ -3,6 +3,8 @@
+  *                         of Tennessee Research Foundation.  All rights
+  *                         reserved.
+  * Copyright (c) 2013      Inria.  All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -29,7 +31,7 @@
+ static opal_proc_t opal_local_proc = {
+     { .opal_list_next = NULL,
+       .opal_list_prev = NULL},
+-    0x1122334455667788,
++    { .id = 0x1122334455667788},
+     0,
+     0,
+     NULL,
+@@ -42,13 +44,13 @@
+     proc->proc_arch = opal_local_arch;
+     proc->proc_convertor = NULL;
+     proc->proc_flags = 0;
+-    proc->proc_name = 0;
++    proc->proc_name.id = 0;
+ }
+ 
+ static void opal_proc_destruct(opal_proc_t* proc)
+ {
+     proc->proc_flags     = 0;
+-    proc->proc_name      = 0;
++    proc->proc_name.id = 0;
+     proc->proc_hostname  = NULL;
+     proc->proc_convertor = NULL;
+ }
+@@ -60,8 +62,8 @@
+ opal_compare_opal_procs(const opal_process_name_t proc1,
+                         const opal_process_name_t proc2)
+ {
+-    if( proc1 == proc2 ) return  0;
+-    if( proc1 <  proc2 ) return -1;
++    if( proc1.id == proc2.id ) return  0;
++    if( proc1.id <  proc2.id ) return -1;
+     return 1;
+ }
+ 
+Index: opal/util/proc.h
+===================================================================
+--- opal/util/proc.h	(revision 32440)
++++ opal/util/proc.h	(working copy)
+@@ -32,25 +32,30 @@
+  * is to be copied from one structure to another, otherwise it should
+  * only be used via the accessors defined below.
+  */
+-typedef opal_identifier_t opal_process_name_t;
++typedef uint32_t opal_jobid_t;
++typedef uint32_t opal_vpid_t;
++typedef struct {
++    opal_jobid_t jobid;
++    opal_jobid_t vpid;
++} opal_proc_name_t ;
+ 
++typedef union {
++    opal_proc_name_t name;
++    opal_identifier_t id;
++} opal_process_name_t;
++
+ #if OPAL_ENABLE_HETEROGENEOUS_SUPPORT && !defined(WORDS_BIGENDIAN)
+-#define OPAL_PROCESS_NAME_NTOH(guid) opal_process_name_ntoh_intr(&(guid))
+-static inline __opal_attribute_always_inline__ void
+-opal_process_name_ntoh_intr(opal_process_name_t *name)
+-{
+-    uint32_t * w = (uint32_t *)name;
+-    w[0] = ntohl(w[0]);
+-    w[1] = ntohl(w[1]);
+-}
+-#define OPAL_PROCESS_NAME_HTON(guid) opal_process_name_hton_intr(&(guid))
+-static inline __opal_attribute_always_inline__ void
+-opal_process_name_hton_intr(opal_process_name_t *name)
+-{
+-    uint32_t * w = (uint32_t *)name;
+-    w[0] = htonl(w[0]);
+-    w[1] = htonl(w[1]);
+-}
++#define OPAL_PROCESS_NAME_NTOH(n)       \
++do {                                    \
++    n.name.jobid = ntohl(n.name.jobid); \
++    n.name.vpid  = ntohl(n.name.vpid);  \
++} while (0);
++    
++#define OPAL_PROCESS_NAME_HTON(n)       \
++do {                                    \
++    n.name.jobid = htonl(n.name.jobid); \
++    n.name.vpid  = htonl(n.name.vpid);  \
++} while (0);
+ #else
+ #define OPAL_PROCESS_NAME_NTOH(guid)
+ #define OPAL_PROCESS_NAME_HTON(guid)
+Index: ompi/mca/dpm/orte/dpm_orte.c
+===================================================================
+--- ompi/mca/dpm/orte/dpm_orte.c	(revision 32440)
++++ ompi/mca/dpm/orte/dpm_orte.c	(working copy)
+@@ -16,6 +16,8 @@
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
+  * Copyright (c) 2013-2014 Intel, Inc. All rights reserved
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -1767,7 +1769,7 @@
+ }
+ 
+ static void paccept_recv(int status,
+-                         struct orte_process_name_t* peer,
++                         orte_process_name_t* peer,
+                          struct opal_buffer_t* buffer,
+                          orte_rml_tag_t tag,
+                          void* cbdata)
+Index: orte/mca/rml/rml.h
+===================================================================
+--- orte/mca/rml/rml.h	(revision 32440)
++++ orte/mca/rml/rml.h	(working copy)
+@@ -11,6 +11,8 @@
+  *                         All rights reserved.
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -52,7 +54,6 @@
+ 
+ 
+ struct opal_buffer_t;
+-struct orte_process_name_t;
+ struct orte_rml_module_t;
+ typedef struct {
+     opal_object_t super;
+@@ -146,7 +147,7 @@
+  * @param[in] cbdata  User data passed to send_nb()
+  */
+ typedef void (*orte_rml_callback_fn_t)(int status,
+-                                       struct orte_process_name_t* peer,
++                                       orte_process_name_t* peer,
+                                        struct iovec* msg,
+                                        int count,
+                                        orte_rml_tag_t tag,
+@@ -171,7 +172,7 @@
+  * @param[in] cbdata  User data passed to send_buffer_nb() or recv_buffer_nb()
+  */
+ typedef void (*orte_rml_buffer_callback_fn_t)(int status,
+-                                              struct orte_process_name_t* peer,
++                                              orte_process_name_t* peer,
+                                               struct opal_buffer_t* buffer,
+                                               orte_rml_tag_t tag,
+                                               void* cbdata);
+@@ -315,7 +316,7 @@
+  *                    receiving process is not available
+  * @retval ORTE_ERROR  An unspecified error occurred
+  */
+-typedef int (*orte_rml_module_send_nb_fn_t)(struct orte_process_name_t* peer,
++typedef int (*orte_rml_module_send_nb_fn_t)(orte_process_name_t* peer,
+                                             struct iovec* msg,
+                                             int count,
+                                             orte_rml_tag_t tag,
+@@ -345,7 +346,7 @@
+  *                    receiving process is not available
+  * @retval ORTE_ERROR  An unspecified error occurred
+  */
+-typedef int (*orte_rml_module_send_buffer_nb_fn_t)(struct orte_process_name_t* peer,
++typedef int (*orte_rml_module_send_buffer_nb_fn_t)(orte_process_name_t* peer,
+                                                    struct opal_buffer_t* buffer,
+                                                    orte_rml_tag_t tag,
+                                                    orte_rml_buffer_callback_fn_t cbfunc,
+@@ -360,7 +361,7 @@
+  * @param[in] cbfunc   Callback function on message comlpetion
+  * @param[in] cbdata   User data to provide during completion callback
+  */
+-typedef void (*orte_rml_module_recv_nb_fn_t)(struct orte_process_name_t* peer,
++typedef void (*orte_rml_module_recv_nb_fn_t)(orte_process_name_t* peer,
+                                              orte_rml_tag_t tag,
+                                              bool persistent,
+                                              orte_rml_callback_fn_t cbfunc,
+@@ -376,7 +377,7 @@
+  * @param[in] cbfunc   Callback function on message comlpetion
+  * @param[in] cbdata   User data to provide during completion callback
+  */
+-typedef void (*orte_rml_module_recv_buffer_nb_fn_t)(struct orte_process_name_t* peer,
++typedef void (*orte_rml_module_recv_buffer_nb_fn_t)(orte_process_name_t* peer,
+                                                     orte_rml_tag_t tag,
+                                                     bool persistent,
+                                                     orte_rml_buffer_callback_fn_t cbfunc,
+@@ -427,7 +428,7 @@
+  * to/from a specified process. Used when a process aborts
+  * and is to be restarted
+  */
+-typedef void (*orte_rml_module_purge_fn_t)(struct orte_process_name_t *peer);
++typedef void (*orte_rml_module_purge_fn_t)(orte_process_name_t *peer);
+ 
+ /* ******************************************************************** */
+ 
+Index: orte/mca/rml/base/base.h
+===================================================================
+--- orte/mca/rml/base/base.h	(revision 32440)
++++ orte/mca/rml/base/base.h	(working copy)
+@@ -12,6 +12,8 @@
+  *                         All rights reserved.
+  * Copyright (c) 2007-2014 Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -245,23 +247,23 @@
+ ORTE_DECLSPEC void orte_rml_base_process_error(int fd, short flags, void *cbdata);
+ 
+ /* null functions */
+-int orte_rml_base_null_send_nb(struct orte_process_name_t* peer,
++int orte_rml_base_null_send_nb(orte_process_name_t* peer,
+                                struct iovec* msg,
+                                int count,
+                                orte_rml_tag_t tag,
+                                orte_rml_callback_fn_t cbfunc,
+                                void* cbdata);
+-int orte_rml_base_null_send_buffer_nb(struct orte_process_name_t* peer,
++int orte_rml_base_null_send_buffer_nb(orte_process_name_t* peer,
+                                       struct opal_buffer_t* buffer,
+                                       orte_rml_tag_t tag,
+                                       orte_rml_buffer_callback_fn_t cbfunc,
+                                       void* cbdata);
+-void orte_rml_base_null_recv_nb(struct orte_process_name_t* peer,
++void orte_rml_base_null_recv_nb(orte_process_name_t* peer,
+                                 orte_rml_tag_t tag,
+                                 bool persistent,
+                                 orte_rml_callback_fn_t cbfunc,
+                                 void* cbdata);
+-void orte_rml_base_null_recv_buffer_nb(struct orte_process_name_t* peer,
++void orte_rml_base_null_recv_buffer_nb(orte_process_name_t* peer,
+                                        orte_rml_tag_t tag,
+                                        bool persistent,
+                                        orte_rml_buffer_callback_fn_t cbfunc,
+Index: orte/mca/routed/routed.h
+===================================================================
+--- orte/mca/routed/routed.h	(revision 32440)
++++ orte/mca/routed/routed.h	(working copy)
+@@ -51,7 +51,6 @@
+ 
+ 
+ struct opal_buffer_t;
+-struct orte_process_name_t;
+ struct orte_rml_module_t;
+ 
+ 
+Index: orte/include/orte/types.h
+===================================================================
+--- orte/include/orte/types.h	(revision 32440)
++++ orte/include/orte/types.h	(working copy)
+@@ -10,6 +10,8 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2014      Intel, Inc. All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -27,6 +29,7 @@
+ #include <sys/types.h>
+ #endif
+ #include "opal/dss/dss_types.h"
++#include "opal/util/proc.h"
+ 
+ /**
+  * Supported datatypes for messaging and storage operations.
+@@ -74,11 +77,11 @@
+  * the other, and it will cause problems in the communication subsystems
+  */
+ 
+-typedef uint32_t orte_jobid_t;
++typedef opal_jobid_t orte_jobid_t;
+ #define ORTE_JOBID_T        OPAL_UINT32
+ #define ORTE_JOBID_MAX      UINT32_MAX-2
+ #define ORTE_JOBID_MIN      0
+-typedef uint32_t orte_vpid_t;
++typedef opal_vpid_t orte_vpid_t;
+ #define ORTE_VPID_T         OPAL_UINT32
+ #define ORTE_VPID_MAX       UINT32_MAX-2
+ #define ORTE_VPID_MIN       0
+@@ -116,11 +119,7 @@
+ /*
+  * define the process name structure
+  */
+-struct orte_process_name_t {
+-    orte_jobid_t jobid;     /**< Job number */
+-    orte_vpid_t vpid;       /**< Process id - equivalent to rank */
+-};
+-typedef struct orte_process_name_t orte_process_name_t;
++typedef opal_proc_name_t orte_process_name_t;
+ 
+ 
+ /**
+

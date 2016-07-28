@@ -1,0 +1,596 @@
+Index: VERSION
+===================================================================
+--- VERSION	(revision 24957)
++++ VERSION	(working copy)
+@@ -1,5 +1,6 @@
+ # Copyright (c) 2008      Sun Microsystems, Inc.  All rights reserved.
+ # Copyright (c) 2008-2011 Cisco Systems, Inc.  All rights reserved.
++# Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
+ 
+ # This is the VERSION file for Open MPI, describing the precise
+ # version of Open MPI in this distribution.  The various components of
+@@ -102,4 +103,5 @@
+ libmca_common_sm_so_version=0:0:0
+ libmca_common_mx_so_version=0:0:0
+ libmca_common_portals_so_version=0:0:0
++libmca_common_cuda_so_version=0:0:0
+ libmca_opal_common_hwloc_so_version=0:0:0
+Index: configure.ac
+===================================================================
+--- configure.ac	(revision 24957)
++++ configure.ac	(working copy)
+@@ -15,6 +15,7 @@
+ # Copyright (c) 2006-2011 Los Alamos National Security, LLC.  All rights
+ #                         reserved.
+ # Copyright (c) 2009      Oak Ridge National Labs.  All rights reserved.
++# Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
+ # $COPYRIGHT$
+ # 
+ # Additional copyrights may follow
+@@ -129,6 +130,7 @@
+           # right now.
+           AC_SUBST(libmca_common_sm_so_version)
+           AC_SUBST(libmca_common_mx_so_version)
++          AC_SUBST(libmca_common_cuda_so_version)
+           AC_SUBST(libmca_common_portals_so_version)])
+ m4_ifdef([project_orte],
+          [AC_SUBST(libopen_rte_so_version)])
+Index: ompi/mca/btl/openib/btl_openib_component.c
+===================================================================
+--- ompi/mca/btl/openib/btl_openib_component.c	(revision 24957)
++++ ompi/mca/btl/openib/btl_openib_component.c	(working copy)
+@@ -16,6 +16,7 @@
+  *                         reserved.
+  * Copyright (c) 2006-2007 Voltaire All rights reserved.
+  * Copyright (c) 2009-2011 Oracle and/or its affiliates.  All rights reserved.
++ * Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -70,6 +71,7 @@
+ #include "ompi/constants.h"
+ #include "ompi/proc/proc.h"
+ #include "ompi/mca/btl/btl.h"
++#include "ompi/mca/common/cuda/common_cuda.h"
+ #include "ompi/mca/mpool/base/base.h"
+ #include "ompi/mca/mpool/rdma/mpool_rdma.h"
+ #include "ompi/mca/btl/base/base.h"
+@@ -542,6 +544,13 @@
+         return OMPI_ERR_OUT_OF_RESOURCE;
+     }
+ 
++#if OMPI_CUDA_SUPPORT
++    if (reg->flags & MCA_MPOOL_FLAGS_CUDA_REGISTER_MEM) {
++        mca_common_cuda_register(base, size,
++            openib_reg->base.mpool->mpool_component->mpool_version.mca_component_name);
++    }
++#endif
++
+     return OMPI_SUCCESS;
+ }
+ 
+@@ -555,6 +564,14 @@
+                        __func__, strerror(errno)));
+             return OMPI_ERROR;
+         }
++
++#if OMPI_CUDA_SUPPORT
++        if (reg->flags & MCA_MPOOL_FLAGS_CUDA_REGISTER_MEM) {
++            mca_common_cuda_unregister(openib_reg->base.base,
++                openib_reg->base.mpool->mpool_component->mpool_version.mca_component_name);
++        }
++#endif
++
+     }
+     openib_reg->mr = NULL;
+     return OMPI_SUCCESS;
+Index: ompi/mca/btl/openib/Makefile.am
+===================================================================
+--- ompi/mca/btl/openib/Makefile.am	(revision 24957)
++++ ompi/mca/btl/openib/Makefile.am	(working copy)
+@@ -11,6 +11,7 @@
+ #                         All rights reserved.
+ # Copyright (c) 2007-2010 Cisco Systems, Inc.  All rights reserved.
+ # Copyright (c) 2010      Oracle and/or its affiliates.  All rights reserved.
++# Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
+ # $COPYRIGHT$
+ #
+ # Additional copyrights may follow
+@@ -118,6 +119,10 @@
+ mca_btl_openib_la_SOURCES = $(component_sources)
+ mca_btl_openib_la_LDFLAGS = -module -avoid-version $(btl_openib_LDFLAGS)
+ mca_btl_openib_la_LIBADD = $(btl_openib_LIBS)
++if MCA_ompi_cuda_support
++mca_btl_openib_la_LIBADD += \
++    $(top_ompi_builddir)/ompi/mca/common/cuda/libmca_common_cuda.la
++endif
+ 
+ noinst_LTLIBRARIES = $(lib)
+ libmca_btl_openib_la_SOURCES = $(lib_sources)
+Index: ompi/mca/mpool/sm/Makefile.am
+===================================================================
+--- ompi/mca/mpool/sm/Makefile.am	(revision 24957)
++++ ompi/mca/mpool/sm/Makefile.am	(working copy)
+@@ -10,6 +10,7 @@
+ # Copyright (c) 2004-2005 The Regents of the University of California.
+ #                         All rights reserved.
+ # Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
++# Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
+ # $COPYRIGHT$
+ # 
+ # Additional copyrights may follow
+@@ -45,6 +46,10 @@
+ mca_mpool_sm_la_LDFLAGS = -module -avoid-version
+ mca_mpool_sm_la_LIBADD = \
+     $(top_ompi_builddir)/ompi/mca/common/sm/libmca_common_sm.la
++if MCA_ompi_cuda_support
++mca_mpool_sm_la_LIBADD += \
++    $(top_ompi_builddir)/ompi/mca/common/cuda/libmca_common_cuda.la
++endif
+ 
+ noinst_LTLIBRARIES = $(component_noinst)
+ libmca_mpool_sm_la_SOURCES = $(sources)
+Index: ompi/mca/mpool/sm/mpool_sm_module.c
+===================================================================
+--- ompi/mca/mpool/sm/mpool_sm_module.c	(revision 24957)
++++ ompi/mca/mpool/sm/mpool_sm_module.c	(working copy)
+@@ -12,6 +12,7 @@
+  * Copyright (c) 2009      Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2011      Los Alamos National Security, LLC.  
+  *                         All rights reserved. 
++ * Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -23,6 +24,7 @@
+ #include <string.h>
+ #include "ompi/mca/mpool/sm/mpool_sm.h"
+ #include "ompi/mca/common/sm/common_sm.h"
++#include "ompi/mca/common/cuda/common_cuda.h"
+ #ifdef HAVE_UNISTD_H
+ #include <unistd.h>
+ #endif
+@@ -95,6 +97,13 @@
+         opal_maffinity_base_bind(&mseg, 1, mpool_sm->mem_node);
+     }
+ 
++#if OPAL_CUDA_SUPPORT
++    if (flags & MCA_MPOOL_FLAGS_CUDA_REGISTER_MEM) {
++        mca_common_cuda_register(mseg.mbs_start_addr, size,
++                                 mpool->mpool_component->mpool_version.mca_component_name);
++    }
++#endif
++
+     return mseg.mbs_start_addr;
+ }
+ 
+Index: ompi/mca/mpool/mpool.h
+===================================================================
+--- ompi/mca/mpool/mpool.h	(revision 24957)
++++ ompi/mca/mpool/mpool.h	(working copy)
+@@ -11,6 +11,7 @@
+   * Copyright (c) 2004-2005 The Regents of the University of California.
+   *                         All rights reserved.
+   * Copyright (c) 2009      Sun Microsystems, Inc.  All rights reserved.
++  * Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
+   * $COPYRIGHT$
+   * 
+   * Additional copyrights may follow
+@@ -36,6 +37,7 @@
+ #define MCA_MPOOL_FLAGS_MPI_ALLOC_MEM 0x4
+ #define MCA_MPOOL_FLAGS_INVALID 0x8
+ #define MCA_MPOOL_FLAGS_SO_MEM 0x10
++#define MCA_MPOOL_FLAGS_CUDA_REGISTER_MEM 0x20
+ 
+ struct mca_mpool_base_resources_t;
+ 
+Index: ompi/mca/pml/ob1/pml_ob1_sendreq.h
+===================================================================
+--- ompi/mca/pml/ob1/pml_ob1_sendreq.h	(revision 24957)
++++ ompi/mca/pml/ob1/pml_ob1_sendreq.h	(working copy)
+@@ -10,6 +10,7 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2009      Sun Microsystems, Inc.  All rights reserved.
++ * Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -394,6 +395,13 @@
+                                                          MCA_PML_OB1_HDR_FLAGS_CONTIG);
+             }
+         } else {
++#if OPAL_CUDA_SUPPORT
++            /* Do not send anything with first rendezvous message as copying GPU
++             * memory into RNDV message is expensive. */
++            if (sendreq->req_send.req_base.req_convertor.flags & CONVERTOR_CUDA) {
++                size = 0;
++            }
++#endif
+             rc = mca_pml_ob1_send_request_start_rndv(sendreq, bml_btl, size, 0);
+         }
+     }
+Index: ompi/mca/common/cuda/configure.m4
+===================================================================
+--- ompi/mca/common/cuda/configure.m4	(revision 0)
++++ ompi/mca/common/cuda/configure.m4	(revision 0)
+@@ -0,0 +1,34 @@
++# -*- shell-script -*-
++#
++# Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
++# $COPYRIGHT$
++#
++# Additional copyrights may follow
++#
++# $HEADER$
++#
++
++#
++# If CUDA support was requested, then build the CUDA support library.
++# This code checks the variable CUDA_SUPPORT which was set earlier in
++# the configure sequence by the opal_configure_options.m4 code.
++#
++
++AC_DEFUN([MCA_ompi_common_cuda_CONFIG],[
++    AC_CONFIG_FILES([ompi/mca/common/cuda/Makefile])
++
++    # Use CUDA_SUPPORT which was filled in by the opal configure code.
++    AM_CONDITIONAL([MCA_ompi_cuda_support], [test "x$CUDA_SUPPORT" = "x1"])
++    AC_DEFINE_UNQUOTED([OMPI_CUDA_SUPPORT],$CUDA_SUPPORT,
++                       [Whether we want cuda memory registration support in OMPI code])
++    AS_IF([test "xCUDA_SUPPORT" = "x1"],
++          [$1],
++          [$2])
++
++    # Copy over the includes and libs needed to build CUDA
++    common_cuda_CPPFLAGS=$opal_datatype_CPPFLAGS
++    common_cuda_LIBS=$opal_datatype_LIBS
++    AC_SUBST([common_cuda_CPPFLAGS])
++    AC_SUBST([common_cuda_LIBS])
++
++])dnl
+Index: ompi/mca/common/cuda/common_cuda.c
+===================================================================
+--- ompi/mca/common/cuda/common_cuda.c	(revision 0)
++++ ompi/mca/common/cuda/common_cuda.c	(revision 0)
+@@ -0,0 +1,137 @@
++/*
++ * Copyright (c) 2004-2006 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2005 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2006 The Regents of the University of California.
++ *                         All rights reserved.
++ * Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++
++#include "ompi_config.h"
++
++#include <errno.h>
++#include <unistd.h>
++#include <cuda.h>
++
++#include "opal/align.h"
++#include "opal/mca/base/mca_base_param.h"
++#include "opal/util/output.h"
++#include "orte/util/show_help.h"
++#include "common_cuda.h"
++
++static bool initialized = false;
++static int mca_common_cuda_verbose;
++static int mca_common_cuda_output = 0;
++bool mca_common_cuda_enabled = false;
++bool mca_common_cuda_registered_memory = true;
++
++void mca_common_cuda_init(void)
++{
++    int id, value;
++    CUresult res;
++    CUcontext cuContext;
++
++    if (initialized) {
++        return;
++    }
++
++    /* Set different levels of verbosity in the cuda related code. */
++    id = mca_base_param_reg_int_name("mpi", "common_cuda_verbose", 
++                                     "Set level of common cuda verbosity",
++                                     false, false, 0, &mca_common_cuda_verbose);
++    mca_common_cuda_output = opal_output_open(NULL);
++    opal_output_set_verbosity(mca_common_cuda_output, mca_common_cuda_verbose);
++
++    /* Control whether system buffers get CUDA pinned or not.  Allows for 
++     * performance analysis. */
++    id = mca_base_param_reg_int_name("mpi", "common_cuda_registered_memory",
++                                     "Whether to cuMemHostRegister preallocated BTL buffers",
++                                     false, false, 
++                                     (int) mca_common_cuda_registered_memory, &value);
++    mca_common_cuda_registered_memory = OPAL_INT_TO_BOOL(value);
++
++    /* Check to see if this process is running in a CUDA context.  If so,
++     * all is good.  If not, then disable CUDA support. */
++    res = cuCtxGetCurrent(&cuContext);
++    if (CUDA_SUCCESS != res) {
++        orte_show_help("help-mpi-common-cuda.txt", "cuCtxGetCurrent failed",
++                       true, res);
++        mca_common_cuda_enabled = false;
++        mca_common_cuda_registered_memory = false;
++        initialized = true;
++        return;
++    } else {
++        mca_common_cuda_enabled = true;
++        opal_output_verbose(20, mca_common_cuda_output,
++                            "CUDA: cuCtxGetCurrent succeeded");
++    }
++
++    opal_output_verbose(30, mca_common_cuda_output,
++                        "CUDA: initialized");
++    initialized = true;
++}
++
++
++/**
++ * Call the CUDA register function so we pin the memory in the CUDA
++ * space.
++ */
++void mca_common_cuda_register(void *ptr, size_t amount, char *msg) {
++    int res;
++
++    if (!initialized) {
++        mca_common_cuda_init();
++    }
++
++    if (mca_common_cuda_enabled && mca_common_cuda_registered_memory) {
++        res = cuMemHostRegister(ptr, amount, 0);
++        if (res != CUDA_SUCCESS) {
++            /* If registering the memory fails, print a message and continue.
++             * This is not a fatal error. */
++            orte_show_help("help-mpi-common-cuda.txt", "cuMemHostRegister failed",
++                           true, ptr, amount, res, msg);
++        } else {
++            opal_output_verbose(20, mca_common_cuda_output,
++                                "CUDA: cuMemHostRegister OK on mpool %s: "
++                                "address=%p, bufsize=%d",
++                                msg, ptr, (int)amount);
++        }
++    }
++}
++
++/**
++ * Call the CUDA unregister function so we unpin the memory in the CUDA
++ * space.
++ */
++void mca_common_cuda_unregister(void *ptr, char *msg) {
++    int res;
++
++    if (!initialized) {
++        mca_common_cuda_init();
++    }
++
++    if (mca_common_cuda_enabled && mca_common_cuda_registered_memory) {
++        res = cuMemHostUnregister(ptr);
++        if (res != CUDA_SUCCESS) {
++            /* If unregistering the memory fails, print a message and continue.
++             * This is not a fatal error. */
++            orte_show_help("help-mpi-common-cuda.txt", "cuMemHostUnregister failed",
++                           true, ptr, res, msg);
++        } else {
++            opal_output_verbose(20, mca_common_cuda_output,
++                                "CUDA: cuMemHostUnregister OK on mpool %s: "
++                                "address=%p",
++                                msg, ptr);
++        }
++    }
++}
+Index: ompi/mca/common/cuda/help-mpi-common-cuda.txt
+===================================================================
+--- ompi/mca/common/cuda/help-mpi-common-cuda.txt	(revision 0)
++++ ompi/mca/common/cuda/help-mpi-common-cuda.txt	(revision 0)
+@@ -0,0 +1,24 @@
++# -*- text -*-
++#
++# Copyright (c) 2011      NVIDIA.  All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++[cuCtxGetCurrent failed]
++The call to cuCtxGetCurrent() failed while initializing the CUDA support.
++Support for CUDA registered memory is disabled.
++  cuCtxGetCurrent return value:   %d
++#
++[cuMemHostRegister failed]
++The call to cuMemHostRegister(%p, %d, 0) failed.
++  cuMemHostRegister return value:   %d
++  Memory Pool: %s
++#
++[cuMemHostUnregister failed]
++The call to cuMemHostUnregister(%p) failed.
++  cuMemHostUnregister return value:   %d
++  Memory Pool: %s
++#
+Index: ompi/mca/common/cuda/Makefile.am
+===================================================================
+--- ompi/mca/common/cuda/Makefile.am	(revision 0)
++++ ompi/mca/common/cuda/Makefile.am	(revision 0)
+@@ -0,0 +1,110 @@
++#
++# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++#                         University Research and Technology
++#                         Corporation.  All rights reserved.
++# Copyright (c) 2004-2005 The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2004-2009 High Performance Computing Center Stuttgart, 
++#                         University of Stuttgart.  All rights reserved.
++# Copyright (c) 2004-2005 The Regents of the University of California.
++#                         All rights reserved.
++# Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++
++# A word of explanation...
++#
++# This library is linked against various MCA components because the
++# support for CUDA device pointers is needed in various places.
++# There's two cases:
++#
++# 1. libmca_common_cuda.la is a shared library.  By linking that shared
++# library to all components that need it, the OS linker will
++# automatically load it into the process as necessary, and there will
++# only be one copy (i.e., all the components will share *one* copy of
++# the code and data).
++#
++# 2. libmca_common_cuda.la is a static library.  In this case, it will
++# be rolled up into the top-level libmpi.la.  It will also be rolled
++# into each component, but then the component will also be rolled up
++# into the upper-level libmpi.la.  Linkers universally know how to
++# "figure this out" so that we end up with only one copy of the code
++# and data.
++#
++# Note that building this common component statically and linking
++# against other dynamic components is *not* supported!
++
++AM_CPPFLAGS = $(common_cuda_CPPFLAGS)
++
++# Header files
++
++headers = \
++        common_cuda.h
++
++# Source files
++
++sources = \
++        common_cuda.c
++
++dist_pkgdata_DATA = help-mpi-common-cuda.txt
++
++# As per above, we'll either have an installable or noinst result.
++# The installable one should follow the same MCA prefix naming rules
++# (i.e., libmca_<type>_<name>.la).  The noinst one can be named
++# whatever it wants, although libmca_<type>_<name>_noinst.la is
++# recommended.
++
++# To simplify components that link to this library, we will *always*
++# have an output libtool library named libmca_<type>_<name>.la -- even
++# for case 2) described above (i.e., so there's no conditional logic
++# necessary in component Makefile.am's that link to this library).
++# Hence, if we're creating a noinst version of this library (i.e.,
++# case 2), we sym link it to the libmca_<type>_<name>.la name
++# (libtool will do the Right Things under the covers).  See the
++# all-local and clean-local rules, below, for how this is effected.
++
++lib_LTLIBRARIES =
++noinst_LTLIBRARIES =
++comp_inst = libmca_common_cuda.la
++comp_noinst = libmca_common_cuda_noinst.la
++
++if MCA_BUILD_ompi_common_cuda_DSO
++lib_LTLIBRARIES += $(comp_inst)
++else
++noinst_LTLIBRARIES += $(comp_noinst)
++endif
++
++libmca_common_cuda_la_SOURCES = $(headers) $(sources)
++libmca_common_cuda_la_LDFLAGS = -version-info $(libmca_common_cuda_so_version)
++libmca_common_cuda_la_LIBADD = $(common_cuda_LIBS)
++
++libmca_common_cuda_noinst_la_SOURCES = $(libmca_common_cuda_la_SOURCES)
++libmca_common_cuda_noinst_la_LDFLAGS = $(common_cuda_LDFLAGS)
++libmca_common_cuda_noinst_la_LIBADD = $(common_cuda_LIBS)
++
++# Conditionally install the header files
++
++if WANT_INSTALL_HEADERS
++ompidir = $(includedir)/openmpi/$(subdir)
++ompi_HEADERS = $(headers)
++endif
++
++# These two rules will sym link the "noinst" libtool library filename
++# to the installable libtool library filename in the case where we are
++# compiling this component statically (case 2), described above).
++
++all-local:
++	if test -z "$(lib_LTLIBRARIES)"; then \
++	  rm -f "$(comp_inst)"; \
++	  $(LN_S) "$(comp_noinst)" "$(comp_inst)"; \
++	fi
++
++clean-local:
++	if test -z "$(lib_LTLIBRARIES)"; then \
++	  rm -f "$(comp_inst)"; \
++	fi
+Index: ompi/mca/common/cuda/common_cuda.h
+===================================================================
+--- ompi/mca/common/cuda/common_cuda.h	(revision 0)
++++ ompi/mca/common/cuda/common_cuda.h	(revision 0)
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (c) 2004-2006 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2005 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2006 The Regents of the University of California.
++ *                         All rights reserved.
++ * Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++
++#ifndef OMPI_MCA_COMMON_CUDA_H
++#define OMPI_MCA_COMMON_CUDA_H
++
++OMPI_DECLSPEC extern bool mca_common_cuda_enabled;
++OMPI_DECLSPEC extern bool mca_common_cuda_registered_memory;
++
++OMPI_DECLSPEC void mca_common_cuda_init(void);
++
++OMPI_DECLSPEC void mca_common_cuda_register(void *ptr, size_t amount, char *msg);
++
++OMPI_DECLSPEC void mca_common_cuda_unregister(void *ptr, char *msg);
++
++
++#endif /* OMPI_MCA_COMMON_CUDA_H */
+Index: ompi/class/ompi_free_list.c
+===================================================================
+--- ompi/class/ompi_free_list.c	(revision 24957)
++++ ompi/class/ompi_free_list.c	(working copy)
+@@ -12,6 +12,7 @@
+  *                         All rights reserved.
+  * Copyright (c) 2006-2007 Mellanox Technologies. All rights reserved.
+  * Copyright (c) 2010      Cisco Systems, Inc. All rights reserved.
++ * Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -202,7 +203,7 @@
+         if(elem_size != 0) {
+             mpool_alloc_ptr = (unsigned char *) flist->fl_mpool->mpool_alloc(flist->fl_mpool,
+                    num_elements * elem_size, flist->fl_payload_buffer_alignment,
+-                   MCA_MPOOL_FLAGS_CACHE_BYPASS, &reg);
++                   MCA_MPOOL_FLAGS_CACHE_BYPASS | MCA_MPOOL_FLAGS_CUDA_REGISTER_MEM, &reg);
+             if(NULL == mpool_alloc_ptr) {
+                 free(alloc_ptr);
+                 return OMPI_ERR_TEMP_OUT_OF_RESOURCE;

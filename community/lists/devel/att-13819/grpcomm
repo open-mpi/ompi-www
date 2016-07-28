@@ -1,0 +1,132 @@
+diff --git a/orte/mca/ess/base/ess_base_std_tool.c b/orte/mca/ess/base/ess_base_std_tool.c
+index 357ea60..98c1685 100644
+--- a/orte/mca/ess/base/ess_base_std_tool.c
++++ b/orte/mca/ess/base/ess_base_std_tool.c
+@@ -42,6 +42,7 @@
+ #include "orte/mca/iof/base/base.h"
+ #include "orte/mca/state/base/base.h"
+ #if OPAL_ENABLE_FT_CR == 1
++#include "orte/mca/grpcomm/base/base.h"
+ #include "orte/mca/snapc/base/base.h"
+ #endif
+ #include "orte/util/proc_info.h"
+@@ -168,6 +169,19 @@ int orte_ess_base_tool_setup(void)
+     
+ #if OPAL_ENABLE_FT_CR == 1
+     /*
++     * Group communications
++     */
++    if (ORTE_SUCCESS != (ret = mca_base_framework_open(&orte_grpcomm_base_framework, 0))) {
++        ORTE_ERROR_LOG(ret);
++        error = "orte_grpcomm_base_open";
++        goto error;
++    }
++    if (ORTE_SUCCESS != (ret = orte_grpcomm_base_select())) {
++        ORTE_ERROR_LOG(ret);
++        error = "orte_grpcomm_base_select";
++        goto error;
++    }
++    /*
+      * Setup the SnapC
+      */
+     if (ORTE_SUCCESS != (ret = mca_base_framework_open(&orte_snapc_base_framework, 0))) {
+@@ -200,7 +214,8 @@ int orte_ess_base_tool_finalize(void)
+     orte_wait_finalize();
+ 
+ #if OPAL_ENABLE_FT_CR == 1
+-    mca_base_framework_close(&orte_snapc_base_framework);
++    (void) mca_base_framework_close(&orte_snapc_base_framework);
++    (void) mca_base_framework_close(&orte_grpcomm_base_framework);
+ #endif
+ 
+     /* if I am a tool, then all I will have done is
+diff --git a/orte/mca/snapc/full/snapc_full_app.c b/orte/mca/snapc/full/snapc_full_app.c
+index 0f0f147..a3df3c7 100644
+--- a/orte/mca/snapc/full/snapc_full_app.c
++++ b/orte/mca/snapc/full/snapc_full_app.c
+@@ -53,6 +53,7 @@
+ #include "orte/mca/snapc/snapc.h"
+ #include "orte/mca/snapc/base/base.h"
+ #include "orte/mca/errmgr/errmgr.h"
++#include "orte/mca/grpcomm/base/base.h"
+ #include "orte/mca/grpcomm/grpcomm.h"
+ #include "orte/mca/rml/rml.h"
+ #include "orte/mca/rml/rml_types.h"
+@@ -84,6 +85,9 @@ static char *app_comm_pipe_w = NULL;
+ static int   app_comm_pipe_r_fd = -1;
+ static int   app_comm_pipe_w_fd = -1;
+ 
++static int snapc_init_barrier = -1;
++static int snapc_fini_barrier = -1;
++
+ static opal_crs_base_snapshot_t *local_snapshot = NULL;
+ 
+ static bool app_notif_processed = false;
+@@ -109,6 +113,36 @@ static void snapc_full_app_callback_recv(int status,
+  * Function Definitions
+  ************************/
+ 
++static void init_barriers()
++{
++    orte_grpcomm_collective_t *coll;
++    orte_namelist_t *nm;
++
++    if (-1 == snapc_init_barrier) {
++        snapc_init_barrier = orte_grpcomm_base_get_coll_id();
++    } else {
++        return;
++    }
++
++    if (-1 == snapc_fini_barrier) {
++        snapc_fini_barrier = orte_grpcomm_base_get_coll_id();
++    } else {
++        return;
++    }
++
++    coll = orte_grpcomm_base_setup_collective(snapc_init_barrier);
++    nm = OBJ_NEW(orte_namelist_t);
++    nm->name.vpid = ORTE_PROC_MY_NAME->vpid;
++    nm->name.jobid = ORTE_PROC_MY_NAME->jobid;
++    opal_list_append(&coll->participants, &nm->super);
++
++    coll = orte_grpcomm_base_setup_collective(snapc_fini_barrier);
++    nm = OBJ_NEW(orte_namelist_t);
++    nm->name.vpid = ORTE_PROC_MY_NAME->vpid;
++    nm->name.jobid = ORTE_PROC_MY_NAME->jobid;
++    opal_list_append(&coll->participants, &nm->super);
++}
++
+ int app_coord_init()
+ {
+     int ret, exit_status  = ORTE_SUCCESS;
+@@ -160,8 +194,10 @@ int app_coord_init()
+                              "app) Startup Barrier..."));
+     }
+ 
++    init_barriers();
++
+     coll = OBJ_NEW(orte_grpcomm_collective_t);
+-    coll->id = orte_process_info.peer_init_barrier;
++    coll->id = snapc_init_barrier;
+     if( ORTE_SUCCESS != (ret = orte_grpcomm.barrier(coll)) ) {
+ 	    ORTE_ERROR_LOG(ret);
+         exit_status = ret;
+@@ -236,7 +272,7 @@ int app_coord_finalize()
+     }
+ 
+     coll = OBJ_NEW(orte_grpcomm_collective_t);
+-    coll->id = orte_process_info.peer_init_barrier;
++    coll->id = snapc_init_barrier;
+     if( ORTE_SUCCESS != (ret = orte_grpcomm.barrier(coll)) ) {
+         ORTE_ERROR_LOG(ret);
+         exit_status = ret;
+@@ -318,7 +354,7 @@ int app_coord_finalize()
+                              "app) Shutdown Barrier: Waiting on barrier...!"));
+     }
+ 
+-    coll->id = orte_process_info.peer_fini_barrier;
++    coll->id = snapc_fini_barrier;
+     if( ORTE_SUCCESS != (ret = orte_grpcomm.barrier(coll)) ) {
+         ORTE_ERROR_LOG(ret);
+         exit_status = ret;
+

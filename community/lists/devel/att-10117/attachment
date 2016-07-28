@@ -1,0 +1,116 @@
+Hello George and @ll.<div><br></div><div>Sorry for the late answer, but i was doing some trace to see where is set the MPI_ERROR. I took a look to ompi_request_default_wait and try to see what happen with request.</div><div>
+<br></div><div>Well, i&#39;ve noticed that all requests that are not inmediately solved go to ompi_request_wait_completion. But i don&#39;t know exactly where the execution jumps when i inject a failure to the receiver of the message. After the failure, the sender does not return from ompi_request_wait_completion to ompi_request_default_wait, and i don&#39;t know where to catch when the req-&gt;req_status.MPI_ERROR is set. Do you know where jumps the execution? or at least in which error handler?</div>
+<meta http-equiv="content-type" content="text/html; charset=utf-8"><div><br></div><div>Thanks in advance.</div><div><br></div><div>Hugo</div><meta http-equiv="content-type" content="text/html; charset=utf-8"><div><br><div class="gmail_quote">
+2011/12/9 George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+
+<div style="word-wrap:break-word"><br><div><div><div>On Dec 9, 2011, at 06:59 , Hugo Daniel Meyer wrote:</div><br><blockquote type="cite">Hello George and all.<div><br></div><div>I&#39;ve been adapting some of the code to copy the request, and now i think that it is working ok. I&#39;m storing the request as you do on the pessimist, but i&#39;m only logging received messages, as my approach is a pessimist log based on the receiver. </div>
+
+
+
+
+<div><br></div><div>I do have a question about how you detect when you have to resend a message, or at least repost it? </div></blockquote><div><br></div></div><div>The error in the status attached to the request will be set in case of failure. As the MPI error handler is triggered right before returning above the MPI layer, at the level where you placed your interception you have all the freedom you need to handle the faults.</div>
+
+
+
+<span><font color="#888888"><div><br></div><div>  george.</div></font></span><div><div><br><blockquote type="cite"><div><br></div><div>Thanks for the help.</div><div><br></div><div>Hugo<br><br><div class="gmail_quote">
+
+2011/11/19 Hugo Daniel Meyer <span dir="ltr">&lt;<a href="mailto:meyer.hugo@gmail.com" target="_blank">meyer.hugo@gmail.com</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+
+
+<br><br><div class="gmail_quote"><div><div>2011/11/18 George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+
+
+
+<div style="word-wrap:break-word"><div><br><div><div>On Nov 18, 2011, at 11:50 , Hugo Daniel Meyer wrote:</div><br><blockquote type="cite"><span style="border-collapse:separate;font-family:&#39;Courier New&#39;;font-style:normal;font-variant:normal;font-weight:normal;letter-spacing:normal;line-height:normal;text-align:-webkit-auto;text-indent:0px;text-transform:none;white-space:normal;word-spacing:0px;font-size:medium"><br>
+
+
+
+
+
+2011/11/18 George Bosilca<span> </span><span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;</span><br><blockquote class="gmail_quote" style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+
+
+
+
+
+<div style="word-wrap:break-word"><br><div><div><div>On Nov 18, 2011, at 11:14 , Hugo Daniel Meyer wrote:</div><br><blockquote type="cite"><div class="gmail_quote">2011/11/18 George Bosilca<span> </span><span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;</span><br>
+
+
+
+
+
+<blockquote class="gmail_quote" style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex"><div style="word-wrap:break-word">
+
+
+
+
+
+<br><div><div><div>On Nov 18, 2011, at 07:29 , Hugo Daniel Meyer wrote:</div><br><blockquote type="cite">Hello again.<div><br></div><div>I was doing some trace into de PML_OB1 files. I start to follow a MPI_Ssend() trying to find where a message is stored (in the sender) if it is not send until the receiver post the recv, but i didn&#39;t find that place. </div>
+
+
+
+
+
+</blockquote><div><br></div></div><div>Right, you can&#39;t find this as the message is not stored on the sender. The pointer to the send request is sent encapsulated in the matching header, and the receiver will provide it back once the message has been matched (this means the data is now ready to flow).</div>
+
+
+
+
+
+</div></div></blockquote><div><br></div><div>So, what you&#39;re saying is that the sender only sends the header, so when the receiver post the recv will send again the header so the sender starts with the data sent? am i getting it right?  If this is ok, the data stays in the sender, but where it is stored?</div>
+
+
+
+
+
+</div></blockquote><div><br></div></div><div>If we consider rendez-vous messages the data is remains in the sender buffer (aka the buffer provided by the upper level to the MPI_Send function).</div></div></div></blockquote>
+
+
+
+
+
+<div><br></div><div>Yes, so i will only need to save the headears of the messages (where the status is incomplete), and then maybe just call again the upper level MP_Send. A question here, the headers are not marked as pending (at least i think so), so, my only approach might be to create a list of pending headers and store there the pointer to the send, then try to identify its corresponding upper level MPI_Send and retries it in case of failure, is this a correct approach? </div>
+
+
+
+
+
+</span></blockquote><br></div></div><div>Look in the mca/vprotocol/base to see how we deal with the send requests in our message logging protocol. We hijack the send request list, and replace them with our own, allowing us to chain all active requests. This make the tracking of chive requests very simple, and minimize the impact on the overall code.</div>
+
+
+
+
+
+<span><font color="#888888"><div><br></div><div>  george.</div><div><br></div></font></span></div></blockquote><div><br></div></div></div><div>Ok George.</div><div>I will take a look there and then let you know how it goes.</div>
+
+
+
+
+
+<div><br></div><div>Thanks.</div><div><div><br></div><div>Hugo </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word"><span><font color="#888888"><div>
+
+
+
+
+
+</div></font></span></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div></div><br>
+</blockquote></div><br></div>
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+
+
+
+</div></div></div><br></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br>
+</div>
+

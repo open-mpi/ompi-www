@@ -1,0 +1,2568 @@
+Index: ompi/mca/btl/mosix/configure.m4
+===================================================================
+--- ompi/mca/btl/mosix/configure.m4	(revision 0)
++++ ompi/mca/btl/mosix/configure.m4	(revision 0)
+@@ -0,0 +1,30 @@
++# -*- shell-script -*-
++#
++# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++#                         University Research and Technology
++#                         Corporation.  All rights reserved.
++# Copyright (c) 2004-2005 The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++#                         University of Stuttgart.  All rights reserved.
++# Copyright (c) 2004-2005 The Regents of the University of California.
++#                         All rights reserved.
++# Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++
++# MCA_btl_mosix_CONFIG([action-if-found], [action-if-not-found])
++# -----------------------------------------------------------
++AC_DEFUN([MCA_ompi_btl_mosix_CONFIG],[
++    AC_CONFIG_FILES([ompi/mca/btl/mosix/Makefile])
++
++    # check for mosix presence
++    AC_CHECK_FILE([/proc/mosix/mosip], 
++                  [$1],
++                  [$2])
++])dnl
+Index: ompi/mca/btl/mosix/btl_mosix_endpoint.c
+===================================================================
+--- ompi/mca/btl/mosix/btl_mosix_endpoint.c	(revision 0)
++++ ompi/mca/btl/mosix/btl_mosix_endpoint.c	(revision 0)
+@@ -0,0 +1,155 @@
++/*
++ * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2008 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2005 The Regents of the University of California.
++ *                         All rights reserved.
++ * Copyright (c) 2007-2008 Sun Microsystems, Inc.  All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ *
++ */
++
++#include "ompi_config.h"
++
++#include <stdlib.h>
++#include <string.h>
++#ifdef HAVE_UNISTD_H
++#include <unistd.h>
++#endif
++#ifdef HAVE_SYS_TYPES_H
++#include <sys/types.h>
++#endif
++#ifdef HAVE_FCNTL_H
++#include <fcntl.h>
++#endif
++
++#include "opal/opal_socket_errno.h"
++
++#include "ompi/types.h"
++#include "ompi/mca/btl/base/btl_base_error.h"
++
++#include "btl_mosix.h"
++#include "btl_mosix_endpoint.h"
++
++#define CLOSE_FD(x) { close(x); x = -1; }
++
++/*
++ * Attempt to send a descriptor using a given endpoint.
++ * If the channel has not been in use so far - open it.
++ */
++int mca_btl_mosix_endpoint_send(mca_btl_mosix_endpoint_t* mosix_endpoint,
++		                        mca_btl_base_descriptor_t* des)
++{
++	int cnt = -1;
++    char* remote_mbox_path = NULL;
++	struct iovec writer[] = {{NULL, sizeof(mca_btl_base_header_t)}};
++
++    /* Open connection if not open already */
++    if( 0 > mosix_endpoint->endpoint_tcp_fd ) {
++    	OPAL_THREAD_LOCK(&mosix_endpoint->endpoint_establishment_lock);
++		if( 0 > mosix_endpoint->endpoint_tcp_fd ) {
++			/* Construct the path for the remote mailbox */
++			asprintf(&remote_mbox_path, MCA_BTL_MOSIX_MBOX_PATH_STRING_FORMAT,
++					mosix_endpoint->endpoint_address.addr_ipv4_str,
++					mosix_endpoint->endpoint_address.addr_pid);
++			opal_output_verbose(20, mca_btl_base_output,
++								"btl: dicom: attempting to connect() to address %s and PID #%i",
++								mosix_endpoint->endpoint_address.addr_ipv4_str,
++								mosix_endpoint->endpoint_address.addr_pid);
++
++			/* Try to open path to remote mailbox*/
++			mosix_endpoint->endpoint_tcp_fd = open(remote_mbox_path, 1);
++			free(remote_mbox_path);
++			if( -1 == mosix_endpoint->endpoint_tcp_fd ) {
++				CLOSE_FD(mosix_endpoint->endpoint_tcp_fd);
++				return OMPI_ERR_UNREACH;
++			}
++		}
++	    OPAL_THREAD_UNLOCK(&mosix_endpoint->endpoint_establishment_lock);
++    }
++
++	/* non-blocking write, but continue if interrupted */
++	while( cnt < 0 ) {
++		cnt = writev(mosix_endpoint->endpoint_tcp_fd, writer, des->des_src_cnt);
++		if( cnt < 0 ) {
++			switch( opal_socket_errno ) {
++			case EINTR:
++				continue;
++			default:
++				BTL_ERROR(("mca_btl_mosix_frag_send: writev failed: %s (%d)",
++						   strerror(opal_socket_errno), opal_socket_errno));
++				CLOSE_FD(mosix_endpoint->endpoint_tcp_fd);
++				return OMPI_ERR_IN_ERRNO;
++			}
++		}
++	}
++	/* TODO: Should I invoke the segment cbfunc even if I never set MCA_BTL_DES_SEND_ALWAYS_CALLBACK? */
++	return OMPI_SUCCESS;
++}
++
++
++/*
++ * An incoming message was detected for the given endpoint -
++ * Read it into a fresh descriptor and notify the upper layers of the arrival.
++ */
++void mca_btl_mosix_endpoint_recv_handler(mca_btl_mosix_endpoint_t* mosix_endpoint)
++{
++	int cnt = -1;
++
++	/* Prepare descriptor for reading an incoming message */
++	struct iovec reader[] = {{NULL, sizeof(mca_btl_base_header_t)}, {0, MCA_BTL_MOSIX_MAX_SIZE}};
++	mca_btl_base_descriptor_t* des = mca_btl_mosix_alloc(NULL, NULL, MCA_BTL_NO_ORDER, MCA_BTL_MOSIX_MAX_SIZE, 0);
++	if ( OPAL_UNLIKELY(NULL == des) ) {
++		return;
++	}
++	reader[0].iov_base = des->des_src[0].seg_addr.pval;
++	reader[1].iov_base = des->des_src[1].seg_addr.pval;
++	des->des_dst = des->des_src;
++	des->des_src = NULL;
++	des->des_dst_cnt = 2;
++	des->des_src_cnt = 0;
++
++	/* Read the incoming message */
++	while( cnt < 0 ) {
++		cnt = readv(mosix_endpoint->endpoint_tcp_fd, reader, 2);
++		if( cnt > 0 ) {
++			/* Invoke the call-back function to notify of the incoming package */
++			mca_btl_mosix_module_t* mosix_module = (mca_btl_mosix_module_t*)mosix_endpoint->endpoint_module;
++			mca_btl_base_tag_t tag = ((mca_btl_base_header_t*)(reader[0].iov_base))->tag;
++			mca_btl_active_message_callback_t* reg = mca_btl_base_active_message_trigger;
++		    if (mosix_endpoint->endpoint_nbo) {
++		    	tag = ntohl(tag);
++		    }
++		    reg += tag;
++			des->des_src[1].seg_len = reader[1].iov_len; /* Store real length received */
++			reg->cbfunc(&mosix_module->super, tag, des, reg->cbdata);
++			return;
++		}
++		if( cnt == 0 ) {
++			CLOSE_FD(mosix_endpoint->endpoint_tcp_fd);
++			return;
++		}
++		switch(opal_socket_errno) {
++		case EINTR:
++			continue;
++		case EFAULT:
++				BTL_ERROR(("mca_btl_mosix_endpoint_recv_handler: readv error (%p, %lu)\n\t%s\n",
++						reader[0].iov_base, (unsigned long) reader[0].iov_len, strerror(opal_socket_errno)));
++				CLOSE_FD(mosix_endpoint->endpoint_tcp_fd);
++			break;
++		default:
++				BTL_ERROR(("mca_btl_mosix_endpoint_recv_handler: readv failed: %s (%d)",
++						   strerror(opal_socket_errno), opal_socket_errno));
++				CLOSE_FD(mosix_endpoint->endpoint_tcp_fd);
++		}
++	}
++}
+Index: ompi/mca/btl/mosix/btl_mosix.c
+===================================================================
+--- ompi/mca/btl/mosix/btl_mosix.c	(revision 0)
++++ ompi/mca/btl/mosix/btl_mosix.c	(revision 0)
+@@ -0,0 +1,351 @@
++/*
++ * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2008 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2005 The Regents of the University of California.
++ *                         All rights reserved.
++ * Copyright (c) 2006      Los Alamos National Security, LLC.  All rights
++ *                         reserved. 
++ *
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#include "ompi_config.h"
++#include <string.h>
++
++#include "opal/util/arch.h"
++#include "opal/class/opal_bitmap.h"
++#include "opal/datatype/opal_convertor.h"
++
++#include "ompi/mca/btl/btl.h"
++#include "ompi/proc/proc.h"
++#include "ompi/runtime/ompi_module_exchange.h"
++
++#include "btl_mosix.h"
++#include "btl_mosix_endpoint.h"
++
++mca_btl_mosix_module_t mca_btl_mosix_module = {
++    {
++        &mca_btl_mosix_component.super,
++        0, /* max size of first fragment */
++        0, /* min send fragment size */
++        0, /* max send fragment size */
++        0, /* btl_rdma_pipeline_send_length */
++        0, /* btl_rdma_pipeline_frag_size */
++        0, /* btl_min_rdma_pipeline_size */
++        0, /* exclusivity */
++        0, /* latency */
++        0, /* bandwidth */
++        0, /* flags */
++        mca_btl_mosix_add_procs,
++        mca_btl_mosix_del_procs,
++        NULL, /* register */
++        mca_btl_mosix_finalize,
++        mca_btl_mosix_alloc, 
++        mca_btl_mosix_free, 
++        mca_btl_mosix_prepare_src,
++        NULL, /* prepare_dst */
++        mca_btl_mosix_send,
++        NULL, /* send immediate */
++        NULL, /* put */
++        NULL, /* get */ 
++        mca_btl_base_dump,
++        NULL, /* mem-pool */
++        NULL, /* register error */
++        NULL  /* Fault-tolerance handler */
++    }
++};
++
++/*
++ * Create the endpoints to connect the current module with each of the
++ * given processes. The reachable bitmap will be filled with 1's since
++ * we assume all the processes are in the MOSIX cluster and reachable via
++ * the MOSIX direct communication mechanism. The endpoint is created with
++ * the target processes' "coordinates", namely it's PID and home-node
++ * address (in a dotted-qued string format, see mca_btl_mosix_addr_t), so
++ * when the first packet is sent the connection FD will be established.
++ */
++int mca_btl_mosix_add_procs(struct mca_btl_base_module_t* btl_base,
++							size_t nprocs,
++							struct ompi_proc_t **procs,
++							struct mca_btl_base_endpoint_t** peers,
++							opal_bitmap_t* reachable)
++{
++	int rc;
++	size_t index, addr_len = sizeof(mca_btl_mosix_addr_t);
++	mca_btl_mosix_endpoint_t* peer;
++    mca_btl_mosix_module_t* btl_mosix = (mca_btl_mosix_module_t*)btl_base;
++    assert(&mca_btl_mosix_module == (mca_btl_mosix_module_t*) btl_base);
++
++    /* Enforce the per-process connection-maximum limit */
++    if( MCA_BTL_MOSIX_MAX_CONNECTIONS <= nprocs ) {
++        opal_bitmap_clear_all_bits(reachable);
++        return OMPI_SUCCESS;
++    }
++
++    /* Allocate filter space */
++    btl_mosix->mosix_incoming.item_count = nprocs;
++    btl_mosix->mosix_incoming.filters = calloc(nprocs, sizeof(mca_btl_mosix_filter_t));
++    if (NULL == btl_mosix->mosix_incoming.filters) {
++    	return OMPI_ERR_OUT_OF_RESOURCE;
++    }
++
++    /* loop through all procs, setting our reachable flag */
++    for (index= 0; index < nprocs ; ++index) {
++        /* Allocate the new peer */
++        peer = malloc(sizeof(mca_btl_mosix_endpoint_t));
++        if( NULL == peer ) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++
++        /* Fill in the fields for each new endpoint */
++        peers[index] = peer;
++        peer->endpoint_tcp_fd = -1;
++        peer->endpoint_udp_fd = -1;
++        peer->endpoint_module = btl_base;
++        OBJ_CONSTRUCT(&peer->endpoint_establishment_lock, opal_mutex_t);
++        peer->endpoint_nbo = false;
++#ifndef WORDS_BIGENDIAN
++		/* if we are little endian and our peer is not so lucky, then we
++		   need to put all information sent to him in big endian (aka
++		   Network Byte Order) and expect all information received to
++		   be in NBO.  Since big endian machines always send and receive
++		   in NBO, we don't care so much about that case. */
++		if( procs[0]->proc_arch & OPAL_ARCH_ISBIGENDIAN ) {
++			peer->endpoint_nbo = true;
++		}
++#endif
++
++		/* Read the address of each process so we can later contact it on-demand */
++        rc = ompi_modex_recv(&mca_btl_mosix_component.super.btl_version,
++            procs[index], (void**)&(peer->endpoint_address), &addr_len);
++        /* TODO: make sure that addr_len remains sizeof(mca_btl_mosix_addr_t) */
++        if( OMPI_SUCCESS != rc ) {
++        	return rc;
++        }
++
++        /* Fill the filter with content about this process */
++        btl_mosix->mosix_incoming.filters[index].filter_pid = peer->endpoint_address.addr_pid;
++        btl_mosix->mosix_incoming.filters[index].filter_conditions =
++			MCA_BTL_MOSIX_INTERESTED_IN_HOME |
++			MCA_BTL_MOSIX_INTERESTED_IN_PID;
++
++        rc = opal_bitmap_set_bit(reachable, index);
++        if( OMPI_SUCCESS != rc ) {
++        	return rc;
++        }
++    }
++    return OMPI_SUCCESS;
++}
++
++/*
++ * Delete all the connections from this module to other instances.
++ */
++int mca_btl_mosix_del_procs(struct mca_btl_base_module_t *btl_base,
++				  size_t nprocs,
++				  struct ompi_proc_t **procs,
++				  struct mca_btl_base_endpoint_t **peers)
++{
++    size_t i = 0;
++    assert(&mca_btl_mosix_module == (mca_btl_mosix_module_t*) btl_base);
++
++    /* Free all the resources */
++    for (i = 0 ; i < nprocs ; ++i) {
++    	OBJ_DESTRUCT(&peers[i]->endpoint_establishment_lock);
++    	close(peers[i]->endpoint_tcp_fd);
++    	close(peers[i]->endpoint_udp_fd);
++        free(peers[i]);
++    }
++    return OMPI_SUCCESS;
++}
++
++/*
++ * Last function, called at module tear-down time.
++ */
++int mca_btl_mosix_finalize(struct mca_btl_base_module_t* btl)
++{
++	/* Assume mca_btl_mosix_del_procs() was already called on
++	 * all the processes...
++	 */
++	return OMPI_SUCCESS;
++}
++
++/*
++ * Allocate a descriptor for sending data over through the endpoint.
++ * The descriptor is composed of three segments:
++ *  - Header segment (including the tag)
++ *  - Reserved data + (optional) outgoing buffer
++ *  - (optional) outgoing buffer
++ */
++mca_btl_base_descriptor_t* mca_btl_mosix_alloc(
++    struct mca_btl_base_module_t* btl,
++    struct mca_btl_base_endpoint_t* endpoint,
++    uint8_t order,
++    size_t size,
++    uint32_t flags)
++{
++	/* Allocate the basic segments in a descriptor */
++	mca_btl_base_descriptor_t* des = malloc(sizeof(mca_btl_base_descriptor_t));
++    if( OPAL_UNLIKELY(NULL == des) ) {
++        return NULL;
++    }
++    bzero(des, sizeof(mca_btl_base_descriptor_t));
++    des->des_flags = flags;
++    des->des_src_cnt = 3;
++    des->des_src = calloc(3, sizeof(mca_btl_base_segment_t));
++    if( OPAL_UNLIKELY(NULL == des->des_src) ) {
++    	mca_btl_mosix_free(btl, des);
++        return NULL;
++    }
++
++    /* Initialization allows mca_btl_mosix_free() to be called */
++    des->des_src[0].seg_addr.pval = NULL;
++    des->des_src[1].seg_addr.pval = NULL;
++    des->des_src[2].seg_addr.pval = NULL;
++    des->des_src[2].seg_len = 0;
++
++    /* Allocate the segment contents - leave the last one blank */
++    des->des_src[0].seg_len = sizeof(mca_btl_base_header_t);
++    des->des_src[0].seg_addr.pval = malloc(sizeof(mca_btl_base_header_t));
++    if( OPAL_UNLIKELY(NULL == des->des_src[0].seg_addr.pval) ) {
++    	mca_btl_mosix_free(btl, des);
++        return NULL;
++    }
++    des->des_src[1].seg_len = size;
++    des->des_src[1].seg_addr.pval = malloc(size);
++    if( OPAL_UNLIKELY(NULL == des->des_src[1].seg_addr.pval) ) {
++    	mca_btl_mosix_free(btl, des);
++        return NULL;
++    }
++    return des;
++}
++
++
++/*
++ * Free an allocated (even partially) descriptor by mca_btl_mosix_alloc().
++ */
++int mca_btl_mosix_free(
++    struct mca_btl_base_module_t* btl,
++    mca_btl_base_descriptor_t* des)
++{
++	if( NULL == des ) {
++		return OMPI_SUCCESS;
++	}
++	if(NULL != des->des_src) {
++		if( NULL != des->des_src[0].seg_addr.pval ) {
++			free(des->des_src[0].seg_addr.pval);
++		}
++		if( NULL != des->des_src[1].seg_addr.pval ) {
++			free(des->des_src[1].seg_addr.pval);
++		}
++		/*
++		 * This BTl didn't allocate des_src #3 (a converter did)
++		 * so we don't free it here.
++		 */
++		free(des->des_src);
++	}
++	free(des);
++    return OMPI_SUCCESS;
++}
++
++/*
++ * Pack data and return a descriptor that can be used for sending.
++ * A single segment is (currently) limited to a fixed MCA_BTL_MOSIX_MAX_SIZE
++ * (soon to become run-time variable). The preparation includes mostly
++ * the creation/copy of the send buffer in an internally allocated descriptor.
++ */
++mca_btl_base_descriptor_t* mca_btl_mosix_prepare_src(
++    struct mca_btl_base_module_t* btl,
++    struct mca_btl_base_endpoint_t* endpoint,
++    struct mca_mpool_base_registration_t* registration,
++    struct opal_convertor_t* convertor,
++    uint8_t order,
++    size_t reserve,
++    size_t* size,
++    uint32_t flags)
++{
++	int rc;
++    struct iovec iov;
++    uint32_t iov_count = 1;
++    mca_btl_base_descriptor_t* des;
++
++    /* Enforce upper limit */
++    if (*size + reserve > MCA_BTL_MOSIX_MAX_SIZE) {
++    	*size = MCA_BTL_MOSIX_MAX_SIZE - reserve;
++    }
++
++    /* Check if the converter makes use of an existing buffer */
++    if( opal_convertor_need_buffers(convertor) ) {
++    	/* Allocate the descriptor with both reserved and outgoing data in the second segment */
++    	des = mca_btl_mosix_alloc(btl, endpoint, order, reserve + *size, flags);
++    	if ( OPAL_UNLIKELY(NULL == des) ) {
++    		return NULL;
++    	}
++        des->des_src_cnt = 2;
++
++        /* Apply the converter - writes the data to the (end of the) second segment */
++        iov.iov_len = *size;
++        iov.iov_base = (IOVBASE_TYPE*)(((unsigned char*)(des->des_src[0].seg_addr.pval)) + reserve);
++        rc = opal_convertor_pack(convertor, &iov, &iov_count, size);
++        if( OPAL_UNLIKELY(rc < 0) ) {
++            mca_btl_mosix_free(btl, des);
++            return NULL;
++        }
++    } else {
++    	/* Allocate the descriptor with room only for reserved data (second segment) */
++    	des = mca_btl_mosix_alloc(btl, endpoint, order, reserve, flags);
++    	if ( OPAL_UNLIKELY(NULL == des) ) {
++    		return NULL;
++    	}
++        des->des_src_cnt = 3;
++
++    	/* Apply the converter - creates the outgoing data buffer for the third segment */
++    	iov.iov_len = *size;
++        iov.iov_base = NULL;
++        rc = opal_convertor_pack(convertor, &iov, &iov_count, size);
++        if( OPAL_UNLIKELY(rc < 0) ) {
++            mca_btl_mosix_free(btl, des);
++            return NULL;
++        }
++
++        des->des_src[2].seg_addr.pval = iov.iov_base;
++        des->des_src[2].seg_len = *size;
++    }
++    return des;
++}
++
++/*
++ * Send a descriptor created by mca_btl_mosix_alloc() and passed through
++ * mca_btl_mosix_prepare_src() in a blocking manner. See endpoint_t docs for
++ * more about blocking/non-blocking options.
++ * TODO: export an API for the non-blocking alternative...
++ */
++int mca_btl_mosix_send(struct mca_btl_base_module_t* btl,
++                       struct mca_btl_base_endpoint_t* endpoint,
++                       struct mca_btl_base_descriptor_t* descriptor,
++                       mca_btl_base_tag_t tag)
++{
++	int rc;
++    mca_btl_base_header_t* mosix_header = descriptor->des_src[0].seg_addr.pval;
++    mosix_header->tag = tag;
++    if( ((mca_btl_mosix_endpoint_t*)endpoint)->endpoint_nbo ) {
++    	mosix_header->tag = htonl(mosix_header->tag);
++    }
++    rc = mca_btl_mosix_endpoint_send(endpoint, descriptor);
++    if( descriptor->des_flags & MCA_BTL_DES_SEND_ALWAYS_CALLBACK ) {
++    	descriptor->des_cbfunc(btl, endpoint, descriptor, rc);
++    }
++    if( descriptor->des_flags & MCA_BTL_DES_FLAGS_BTL_OWNERSHIP ) {
++    	mca_btl_mosix_free(btl, descriptor);
++    }
++    return rc;
++}
+Index: ompi/mca/btl/mosix/btl_mosix_component.c
+===================================================================
+--- ompi/mca/btl/mosix/btl_mosix_component.c	(revision 0)
++++ ompi/mca/btl/mosix/btl_mosix_component.c	(revision 0)
+@@ -0,0 +1,220 @@
++/*
++ * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2012 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2005 The Regents of the University of California.
++ *                         All rights reserved.
++ * Copyright (c) 2007-2011 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2008      Sun Microsystems, Inc.  All rights reserved.
++ * Copyright (c) 2009      Oak Ridge National Laboratory
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ *
++ */
++
++#include "ompi_config.h"
++
++#include "opal/opal_socket_errno.h"
++#ifdef HAVE_UNISTD_H
++#include <unistd.h>
++#endif
++#include <string.h>
++#include <fcntl.h>
++#ifdef HAVE_SYS_IOCTL_H
++#include <sys/ioctl.h>
++#endif
++#include <ctype.h>
++#include <limits.h>
++
++#include "opal/mca/event/event.h"
++#include "opal/util/if.h"
++#include "opal/util/output.h"
++#include "opal/util/argv.h"
++#include "opal/util/net.h"
++#include "opal/util/opal_sos.h"
++#include "opal/mca/base/mca_base_param.h"
++
++#include "orte/types.h"
++#include "orte/util/show_help.h"
++#include "orte/mca/ess/ess.h"
++
++#include "ompi/constants.h"
++#include "ompi/mca/btl/btl.h"
++#include "ompi/mca/btl/base/base.h" 
++#include "ompi/runtime/ompi_module_exchange.h"
++#include "ompi/mca/mpool/base/base.h" 
++#include "ompi/mca/btl/base/btl_base_error.h"
++
++#include "btl_mosix.h"
++#include "btl_mosix_endpoint.h"
++
++
++/* 
++ * Local functions
++ */
++static int mca_btl_mosix_component_register(void);
++static int mca_btl_mosix_component_open(void);
++static int mca_btl_mosix_component_close(void);
++static int mca_btl_mosix_component_progress(void);
++
++mca_btl_mosix_component_t mca_btl_mosix_component = {
++    {
++        /* First, the mca_base_component_t struct containing meta information
++           about the component itself */
++
++        {
++            MCA_BTL_BASE_VERSION_2_0_0,
++
++            "mosix", /* MCA component name */
++            OMPI_MAJOR_VERSION,  /* MCA component major version */
++            OMPI_MINOR_VERSION,  /* MCA component minor version */
++            OMPI_RELEASE_VERSION,  /* MCA component release version */
++            mca_btl_mosix_component_open,  /* component open */
++            mca_btl_mosix_component_close,  /* component close */
++            NULL, /* component query */
++            mca_btl_mosix_component_register, /* component register */
++        },
++        {
++            /* The component is checkpoint ready */
++            MCA_BASE_METADATA_PARAM_CHECKPOINT
++        },
++
++        mca_btl_mosix_component_init,  
++        mca_btl_mosix_component_progress
++    },
++    &mca_btl_mosix_module
++};
++
++static int mca_btl_mosix_component_register(void)
++{
++    mca_btl_mosix_module.super.btl_exclusivity =  MCA_BTL_EXCLUSIVITY_LOW + 100;
++    mca_btl_mosix_module.super.btl_eager_limit = 64*1024;
++    mca_btl_mosix_module.super.btl_rndv_eager_limit = 64*1024;
++    mca_btl_mosix_module.super.btl_max_send_size = 128*1024;
++    mca_btl_mosix_module.super.btl_rdma_pipeline_send_length = 128*1024;
++    mca_btl_mosix_module.super.btl_rdma_pipeline_frag_size = INT_MAX;
++    mca_btl_mosix_module.super.btl_min_rdma_pipeline_size = 0;
++    mca_btl_mosix_module.super.btl_flags = MCA_BTL_FLAGS_SEND |
++										   MCA_BTL_FLAGS_SEND_INPLACE |
++										   MCA_BTL_FLAGS_NEED_CSUM |
++										   MCA_BTL_FLAGS_NEED_ACK |
++										   MCA_BTL_FLAGS_HETEROGENEOUS_RDMA;
++    mca_btl_mosix_module.super.btl_bandwidth = 100;
++    mca_btl_mosix_module.super.btl_latency = 100;
++
++    mca_btl_base_param_register(&mca_btl_mosix_component.super.btl_version,
++                                &mca_btl_mosix_module.super);
++
++    return OMPI_SUCCESS;
++}
++
++/*
++ * Gather the information composing our local address.
++ */
++static int mca_btl_mosix_retrieve_local_address(mca_btl_mosix_addr_t* local_address)
++{
++    /* Determine local address from local file */
++    int local_addr_fd = open("/proc/mosix/mosip", O_RDONLY);
++    if (-1 == local_addr_fd) {
++    	return OMPI_ERR_FILE_OPEN_FAILURE;
++    }
++
++    /* Read file contents (contains only the address, in the dotted-quad format) */
++    if (-1 == read(local_addr_fd, &local_address->addr_ipv4_str, MCA_BTL_MOSIX_ADDR_IPV4_LENGTH)) {
++    	return OMPI_ERR_FILE_READ_FAILURE;
++    }
++
++    /* Store process ID */
++    local_address->addr_pid = getpid();
++    return OMPI_SUCCESS;
++}
++
++static int mca_btl_mosix_component_open(void)
++{
++    /* Determine the local address thus making sure MOSIX is up and running */
++    return mca_btl_mosix_retrieve_local_address(&mca_btl_mosix_component.mosix_module->module_mailbox_address);
++}
++
++static int mca_btl_mosix_component_close(void)
++{
++    return OMPI_SUCCESS;
++}
++
++/*
++ *  MOSIX module initialization: since there's always a single module,
++ *  just distribute it's address (including our PID and IP(v4) address) and
++ *  open the local mailbox for incoming messages (thus making sure MOSIX is up).
++ */
++mca_btl_base_module_t** mca_btl_mosix_component_init(int *num_btl_modules, 
++                                                   bool enable_progress_threads,
++                                                   bool enable_mpi_threads)
++{
++    int ret = OMPI_SUCCESS;
++	mca_btl_base_module_t** btls = NULL;
++	mca_btl_mosix_module_t* mosix_module = mca_btl_mosix_component.mosix_module;
++
++    /* Notify other procs of our address (used in mca_btl_mosix_add_procs()) */
++    ret = ompi_modex_send(&mca_btl_mosix_component.super.btl_version,
++    		              &mosix_module->module_mailbox_address,
++    		              sizeof(mca_btl_mosix_addr_t));
++    if (OMPI_SUCCESS != ret) {
++    	return NULL;
++    }
++
++    /* Open the handle to the incoming mailbox */
++    mosix_module->module_mailbox_fd =
++    	open(MCA_BTL_MOSIX_LOCAL_PATH_STRING_FORMAT, O_CREAT,
++    		 MCA_BTL_MOSIX_LOCAL_MBOX_FLAGS);
++	if (-1 == mosix_module->module_mailbox_fd) {
++		return NULL;
++	}
++
++    /* Set the only BTL as output and return */
++    btls = malloc(sizeof(mca_btl_base_module_t*));
++    btls[0] = (mca_btl_base_module_t*)mosix_module;
++    *num_btl_modules = 1;
++    return btls;
++}
++
++/*
++ * Poll for incoming messages on any of the connections. In fact - this is not
++ * effected by open/closed endpoints, but rather by anything found in the local mailbox.
++ * Messages in the mailbox are filtered by all the available filters (each endpoint has
++ * a corresponding filter on the mailbox, including sender PID and location).
++ * The ioctl() calls set the filters and create a bitmap where each bit represents
++ * the presence of an incoming message(s) fitting the corresponding filter.
++ * For each such "flagged" filter - the endpoint recieving callback is invoked.
++ */
++static int mca_btl_mosix_component_progress(void)
++{
++	mca_btl_mosix_module_t* mosix_module = mca_btl_mosix_component.mosix_module;
++	int count = 0, index = mosix_module->mosix_incoming.item_count;
++	opal_bitmap_t* bit_field = OBJ_NEW(opal_bitmap_t);
++	opal_bitmap_set_max_size(bit_field, MCA_BTL_MOSIX_MAX_CONNECTIONS);
++
++	/* Set parameters for MOSIX polling using ioctl */
++	ioctl(mosix_module->module_mailbox_fd, SIOCKSTOREINTERESTS, &(mosix_module->mosix_incoming));
++
++	/* Perform MOSIX direct communication polling */
++	ioctl(mosix_module->module_mailbox_fd, SIOCWHICH, bit_field->bitmap);
++
++	/* Iterate over fds to treat only DiCOM sockets */
++	while (index-- < 0) {
++		if (opal_bitmap_is_set_bit(bit_field, index)) {
++			mca_btl_mosix_endpoint_recv_handler(mosix_module->mosix_incoming.endpoints[index]);
++			count++;
++		}
++	}
++
++	/* Release the memory and return amount of FDs ready to read */
++	OBJ_RELEASE(bit_field);
++	return count;
++}
+Index: ompi/mca/btl/mosix/configure.params
+===================================================================
+--- ompi/mca/btl/mosix/configure.params	(revision 0)
++++ ompi/mca/btl/mosix/configure.params	(revision 0)
+@@ -0,0 +1,24 @@
++# -*- shell-script -*-
++#
++# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++#                         University Research and Technology
++#                         Corporation.  All rights reserved.
++# Copyright (c) 2004-2005 The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++#                         University of Stuttgart.  All rights reserved.
++# Copyright (c) 2004-2005 The Regents of the University of California.
++#                         All rights reserved.
++# Copyright (c) 2007      Los Alamos National Security, LLC.  All rights
++#                         reserved. 
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++
++# Specific to this module
++
++PARAM_CONFIG_FILES="Makefile"
+Index: ompi/mca/btl/mosix/help-mpi-btl-mosix.txt
+===================================================================
+--- ompi/mca/btl/mosix/help-mpi-btl-mosix.txt	(revision 0)
++++ ompi/mca/btl/mosix/help-mpi-btl-mosix.txt	(revision 0)
+@@ -0,0 +1,12 @@
++# -*- text -*-
++#
++# Copyright (c) 2009-2011 Cisco Systems, Inc.  All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++# This is the US/English help file for Open MPI's TCP support
++# (the openib BTL).
++#
+Index: ompi/mca/btl/mosix/btl_mosix_endpoint.h
+===================================================================
+--- ompi/mca/btl/mosix/btl_mosix_endpoint.h	(revision 0)
++++ ompi/mca/btl/mosix/btl_mosix_endpoint.h	(revision 0)
+@@ -0,0 +1,122 @@
++/*
++ * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2007 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2005 The Regents of the University of California.
++ *                         All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#ifndef MCA_BTL_MOSIX_ENDPOINT_H
++#define MCA_BTL_MOSIX_ENDPOINT_H
++
++#include "btl_mosix.h"
++
++#define MCA_BTL_MOSIX_MAX_SIZE (2^13) /* TODO: move to the component as a run-time parameter */
++
++#define MCA_BTL_MOSIX_MBOX_PATH_STRING_FORMAT 	"/proc/mosix/mbox/%s/%i"
++#define MCA_BTL_MOSIX_UBOX_PATH_STRING_FORMAT 	"/proc/mosix/ubox/%s/%i"
++#define MCA_BTL_MOSIX_LOCAL_PATH_STRING_FORMAT 	"/proc/mosix/mybox"
++#define MCA_BTL_MOSIX_MBOX_PATH_BUFFER_LENGTH 	(35)
++#define MCA_BTL_MOSIX_MAX_CONNECTIONS			(128) /* 128 DiCOMs possible */
++#define MCA_BTL_MOSIX_LOCAL_MBOX_FLAGS			(71) /* See flags in `man direct_communication` */
++#define MCA_BTL_MOSIX_ADDR_IPV4_LENGTH 			(16) /* Space for xxx.xxx.xxx.xxx + null truncation */
++
++/* Define conditions for filter bit-field */
++#define MCA_BTL_MOSIX_INTERESTED_IN_PID     	(1)
++#define MCA_BTL_MOSIX_INTERESTED_IN_HOME    	(2)
++#define MCA_BTL_MOSIX_INTERESTED_IN_MINLEN  	(4)
++#define MCA_BTL_MOSIX_INTERESTED_IN_MAXLEN  	(8)
++#define MCA_BTL_MOSIX_INTERESTED_IN_PATTERN 	(16)
++#define MCA_BTL_MOSIX_INTERESTED_IN_MESSAGENO	(32)
++#define MCA_BTL_MOSIX_INTERESTED_IN_OFFSET  	(64)
++#define MCA_BTL_MOSIX_PREVENT_REMOVAL       	(128)
++
++/* Define special ioctl codes */
++#define SIOCINTERESTED   	(0x8985)
++#define SIOCKSTOREINTERESTS (0x8986)
++#define SIOCWHICH 			(0x8987)
++
++BEGIN_C_DECLS
++
++/**
++ * Structure used to publish MOSIX connection information to peers.
++ */
++
++struct mca_btl_mosix_addr_t {
++    char   addr_ipv4_str[MCA_BTL_MOSIX_ADDR_IPV4_LENGTH]; /**< ipv4 address */
++    pid_t  addr_pid;                                  /**< process ID */
++};
++typedef struct mca_btl_mosix_addr_t mca_btl_mosix_addr_t;
++
++/**
++ * Endpoint is a representation of a connection to a remote process.
++ * While the address is filled when the endpoint structure is created, both
++ * FDs remain closed until they are needed. Since there are currently two methods
++ * to send data over, via TCP or UDP, both channels can be open at the same time.
++ * UDP should be favored for async. sending, but is ofter out-performed by TCP, and
++ * requires tending to packet order and acknoledgements (lower layer only provides delivery).
++ * TODO: Put the udp channel to good use as an alternative to TCP?
++ */
++
++struct mca_btl_base_endpoint_t {
++	int                     endpoint_tcp_fd;             /**<  file descriptor for sync. sending */
++	int                     endpoint_udp_fd;             /**<  file descriptor for async. sending */
++    mca_btl_mosix_addr_t    endpoint_address;            /**<  address of the remote mailbox */
++    opal_mutex_t            endpoint_establishment_lock; /**< lock to protect endpoint establishment */
++    mca_btl_base_module_t*  endpoint_module;             /**< module which this endpoint belongs to */
++    bool                    endpoint_nbo;                /**< convert headers to network byte order */
++};
++
++typedef struct mca_btl_base_endpoint_t mca_btl_base_endpoint_t;
++typedef mca_btl_base_endpoint_t  mca_btl_mosix_endpoint_t;
++
++int  mca_btl_mosix_endpoint_send(mca_btl_base_endpoint_t* btl_endpoint, mca_btl_base_descriptor_t* des);
++void mca_btl_mosix_endpoint_recv_handler(mca_btl_base_endpoint_t* btl_endpoint);
++
++/*
++ * The filter is used to specify the criteria for incoming mailbox messages
++ * for an endpoint. For example, if this process is connected to the remote
++ * process #1234, the filter will include the flag MCA_BTL_MOSIX_INTERESTED_IN_PID
++ * in the conditions bitmap, and the pid will contain 1234.
++ */
++struct mca_btl_mosix_filter_t {
++  unsigned char filter_conditions; 	    /**< bitmap of fields effecting the filter (below) */
++  unsigned char filter_testlen; 		/**< length of test-pattern (1-8 bytes) */
++  int filter_pid; 						/**< Process-ID of sender */
++  unsigned int filter_home; 			/**< home-node of sender (0 = same home) */
++  int filter_minlen; 					/**< minimum message length */
++  int filter_maxlen; 					/**< maximum message length */
++  int filter_testoffset; 				/**< offset of test-pattern within message */
++  unsigned char filter_testdata[8]; 	/**< expected test-pattern */
++  int filter_msgno; 					/**< pick a specific message (starting from 1) */
++  int filter_msgoffset; 				/**< start reading from given offset */
++};
++typedef struct mca_btl_mosix_filter_t mca_btl_mosix_filter_t;
++
++/*
++ *  This is an array of filters and their corresponding endpoints (arrays
++ *  should both be of the same length, stored in item_count).
++ *  The progress function polls for incoming messages to all existing
++ *  endpoints by feeding the criteria for each one (using an ioctl() call).
++ *  When a message fitting a criteria is found - the corresponding endpoint
++ *  is dispatched to the incoming message handler to retrieve it.
++ */
++struct mca_btl_mosix_incoming_array_t {
++  long item_count; 				        /**< number of filters */
++  mca_btl_mosix_filter_t* filters; 	    /**< filters to store criteria */
++  mca_btl_mosix_endpoint_t** endpoints; /**< endpoints for incoming data */
++};
++typedef struct mca_btl_mosix_incoming_array_t mca_btl_mosix_incoming_array_t;
++
++END_C_DECLS
++#endif
+Index: ompi/mca/btl/mosix/btl_mosix.h
+===================================================================
+--- ompi/mca/btl/mosix/btl_mosix.h	(revision 0)
++++ ompi/mca/btl/mosix/btl_mosix.h	(revision 0)
+@@ -0,0 +1,229 @@
++/*
++ * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2012 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2005 The Regents of the University of California.
++ *                         All rights reserved.
++ * Copyright (c) 2010-2011 Cisco Systems, Inc.  All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++/**
++ * @file
++ */
++#ifndef MCA_BTL_MOSIX_H
++#define MCA_BTL_MOSIX_H
++
++/* Open MPI includes */
++#include "ompi_config.h"
++#include "ompi/mca/btl/btl.h"
++#include "ompi/mca/btl/base/base.h"
++#include "ompi/mca/mpool/mpool.h"
++#include "ompi/mca/btl/btl.h"
++
++#include "btl_mosix_endpoint.h"
++BEGIN_C_DECLS
++
++/**
++ * MOSIX BTL Module Interface (one per process).
++ * Note: MOSIX issues a "dummy" FD for the mailbox, not recognized by the system.
++ * This should be an oddly high number, such as 207618048, so it won't collide with
++ * native linux FDs.
++ */
++struct mca_btl_mosix_module_t {
++    mca_btl_base_module_t  super;                 /**< base BTL interface */
++    int                    module_mailbox_fd;      /**< local mailbox file descriptor */
++    mca_btl_mosix_addr_t   module_mailbox_address; /**< local mailbox address */
++
++    /* Array of filters for MOSIX direct communication polling */
++    mca_btl_mosix_incoming_array_t mosix_incoming;
++}; 
++typedef struct mca_btl_mosix_module_t mca_btl_mosix_module_t;
++extern mca_btl_mosix_module_t mca_btl_mosix_module;
++
++/**
++ * MOSIX BTL component.
++ */
++struct mca_btl_mosix_component_t {
++    mca_btl_base_component_2_0_0_t super;  /**< base BTL component */
++    mca_btl_mosix_module_t* mosix_module;   /**< local module */
++};
++typedef struct mca_btl_mosix_component_t mca_btl_mosix_component_t;
++
++OMPI_MODULE_DECLSPEC extern mca_btl_mosix_component_t mca_btl_mosix_component;
++
++/**
++ * MOSIX component initialization.
++ * 
++ * @param num_btl_modules (OUT)           Number of BTLs returned in BTL array.
++ * @param allow_multi_user_threads (OUT)  Flag indicating wether BTL supports user threads (TRUE)
++ * @param have_hidden_threads (OUT)       Flag indicating wether BTL uses threads (TRUE)
++ */
++extern mca_btl_base_module_t** mca_btl_mosix_component_init(
++    int *num_btl_modules, 
++    bool allow_multi_user_threads,
++    bool have_hidden_threads
++);
++
++
++/**
++ * Cleanup any resources held by the BTL.
++ * 
++ * @param btl  BTL instance.
++ * @return     OMPI_SUCCESS or error status on failure.
++ */
++
++extern int mca_btl_mosix_finalize(
++    struct mca_btl_base_module_t* btl
++);
++
++
++/**
++ * PML->BTL notification of change in the process list.
++ * 
++ * @param btl (IN)
++ * @param nprocs (IN)     Number of processes
++ * @param procs (IN)      Set of processes
++ * @param peers (OUT)     Set of (optional) peer addressing info.
++ * @param peers (IN/OUT)  Set of processes that are reachable via this BTL.
++ * @return     OMPI_SUCCESS or error status on failure.
++ * 
++ */
++
++extern int mca_btl_mosix_add_procs(
++    struct mca_btl_base_module_t* btl,
++    size_t nprocs,
++    struct ompi_proc_t **procs,
++    struct mca_btl_base_endpoint_t** peers,
++    opal_bitmap_t* reachable
++);
++
++/**
++ * PML->BTL notification of change in the process list.
++ *
++ * @param btl (IN)     BTL instance
++ * @param nproc (IN)   Number of processes.
++ * @param procs (IN)   Set of processes.
++ * @param peers (IN)   Set of peer data structures.
++ * @return             Status indicating if cleanup was successful
++ *
++ */
++
++extern int mca_btl_mosix_del_procs(
++    struct mca_btl_base_module_t* btl,
++    size_t nprocs,
++    struct ompi_proc_t **procs,
++    struct mca_btl_base_endpoint_t** peers
++);
++
++
++/**
++ * Initiate an asynchronous send.
++ *
++ * @param btl (IN)         BTL module
++ * @param endpoint (IN)    BTL addressing information
++ * @param descriptor (IN)  Description of the data to be transfered
++ * @param tag (IN)         The tag value used to notify the peer.
++ */
++
++extern int mca_btl_mosix_send(
++    struct mca_btl_base_module_t* btl,
++    struct mca_btl_base_endpoint_t* btl_peer,
++    struct mca_btl_base_descriptor_t* descriptor,
++    mca_btl_base_tag_t tag
++);
++
++
++/**
++ * Initiate an asynchronous put.
++ *
++ * @param btl (IN)         BTL module
++ * @param endpoint (IN)    BTL addressing information
++ * @param descriptor (IN)  Description of the data to be transferred
++ */
++
++extern int mca_btl_mosix_put(
++    struct mca_btl_base_module_t* btl,
++    struct mca_btl_base_endpoint_t* btl_peer,
++    struct mca_btl_base_descriptor_t* decriptor
++);
++
++
++/**
++ * Initiate an asynchronous get.
++ *
++ * @param btl (IN)         BTL module
++ * @param endpoint (IN)    BTL addressing information
++ * @param descriptor (IN)  Description of the data to be transferred
++ */
++
++extern int mca_btl_mosix_get(
++    struct mca_btl_base_module_t* btl,
++    struct mca_btl_base_endpoint_t* btl_peer,
++    struct mca_btl_base_descriptor_t* decriptor
++);
++
++/**
++ * Allocate a descriptor with a segment of the requested size.
++ * Note that the BTL layer may choose to return a smaller size
++ * if it cannot support the request.
++ *
++ * @param btl (IN)      BTL module
++ * @param size (IN)     Request segment size.
++ */
++
++extern mca_btl_base_descriptor_t* mca_btl_mosix_alloc(
++    struct mca_btl_base_module_t* btl,
++    struct mca_btl_base_endpoint_t* endpoint,
++    uint8_t order,
++    size_t size,
++    uint32_t flags); 
++
++
++/**
++ * Return a segment allocated by this BTL.
++ *
++ * @param btl (IN)      BTL module
++ * @param descriptor (IN)  Allocated descriptor.
++ */
++
++extern int mca_btl_mosix_free(
++    struct mca_btl_base_module_t* btl, 
++    mca_btl_base_descriptor_t* des); 
++    
++
++/**
++ * Prepare a descriptor for send/rdma using the supplied
++ * convertor. If the convertor references data that is contigous,
++ * the descriptor may simply point to the user buffer. Otherwise,
++ * this routine is responsible for allocating buffer space and
++ * packing if required.
++ *
++ * @param btl (IN)          BTL module
++ * @param endpoint (IN)     BTL peer addressing
++ * @param convertor (IN)    Data type convertor
++ * @param reserve (IN)      Additional bytes requested by upper layer to precede user data
++ * @param size (IN/OUT)     Number of bytes to prepare (IN), number of bytes actually prepared (OUT) 
++*/
++
++mca_btl_base_descriptor_t* mca_btl_mosix_prepare_src(
++    struct mca_btl_base_module_t* btl,
++    struct mca_btl_base_endpoint_t* peer,
++    struct mca_mpool_base_registration_t*,
++    struct opal_convertor_t* convertor,
++    uint8_t order,
++    size_t reserve,
++    size_t* size,
++    uint32_t flags
++);
++
++END_C_DECLS
++#endif
+Index: ompi/mca/btl/mosix/Makefile.am
+===================================================================
+--- ompi/mca/btl/mosix/Makefile.am	(revision 0)
++++ ompi/mca/btl/mosix/Makefile.am	(revision 0)
+@@ -0,0 +1,52 @@
++#
++# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++#                         University Research and Technology
++#                         Corporation.  All rights reserved.
++# Copyright (c) 2004-2005 The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2004-2009 High Performance Computing Center Stuttgart, 
++#                         University of Stuttgart.  All rights reserved.
++# Copyright (c) 2004-2005 The Regents of the University of California.
++#                         All rights reserved.
++# Copyright (c) 2009-2010 Cisco Systems, Inc.  All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++
++dist_pkgdata_DATA = help-mpi-btl-mosix.txt
++
++sources = \
++    btl_mosix.c \
++    btl_mosix.h \
++    btl_mosix_component.c \
++    btl_mosix_endpoint.c \
++    btl_mosix_endpoint.h
++
++# Make the output library in this directory, and name it either
++# mca_<type>_<name>.la (for DSO builds) or libmca_<type>_<name>.la
++# (for static builds).
++
++if MCA_BUILD_ompi_btl_mosix_DSO
++lib =
++lib_sources =
++component = mca_btl_mosix.la
++component_sources = $(sources)
++else
++lib = libmca_btl_mosix.la
++lib_sources = $(sources)
++component =
++component_sources =
++endif
++
++mcacomponentdir = $(pkglibdir)
++mcacomponent_LTLIBRARIES = $(component)
++mca_btl_mosix_la_SOURCES = $(component_sources)
++mca_btl_mosix_la_LDFLAGS = -module -avoid-version
++
++noinst_LTLIBRARIES = $(lib)
++libmca_btl_mosix_la_SOURCES = $(lib_sources)
++libmca_btl_mosix_la_LDFLAGS = -module -avoid-version
+Index: ompi/mca/btl/base/btl_base_select.c
+===================================================================
+--- ompi/mca/btl/base/btl_base_select.c	(revision 26191)
++++ ompi/mca/btl/base/btl_base_select.c	(working copy)
+@@ -134,6 +134,12 @@
+                                     component->btl_version.mca_component_name);
+ 
+                 for (i = 0; i < num_btls; ++i) {
++                	if (NULL == modules[i]) {
++                        opal_output_verbose(10, mca_btl_base_output,
++                                            "select: init of component %s returned a bad module",
++                                            component->btl_version.mca_component_name);
++                        continue;
++                	}
+                     sm = OBJ_NEW(mca_btl_base_selected_module_t);
+                     if (NULL == sm) {
+                         return OMPI_ERR_OUT_OF_RESOURCE;
+Index: orte/mca/odls/mosix/configure.m4
+===================================================================
+--- orte/mca/odls/mosix/configure.m4	(revision 0)
++++ orte/mca/odls/mosix/configure.m4	(revision 0)
+@@ -0,0 +1,30 @@
++# -*- shell-script -*-
++#
++# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++#                         University Research and Technology
++#                         Corporation.  All rights reserved.
++# Copyright (c) 2004-2005 The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++#                         University of Stuttgart.  All rights reserved.
++# Copyright (c) 2004-2005 The Regents of the University of California.
++#                         All rights reserved.
++# Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++
++# MCA_btl_mosix_CONFIG([action-if-found], [action-if-not-found])
++# -----------------------------------------------------------
++AC_DEFUN([MCA_orte_odls_mosix_CONFIG],[
++    AC_CONFIG_FILES([orte/mca/odls/mosix/Makefile])
++
++    # check for mosix presence
++    AC_CHECK_FILE([/proc/mosix/mosip], 
++                  [$1],
++                  [$2])
++])dnl
+Index: orte/mca/odls/mosix/odls_mosix_component.c
+===================================================================
+--- orte/mca/odls/mosix/odls_mosix_component.c	(revision 0)
++++ orte/mca/odls/mosix/odls_mosix_component.c	(revision 0)
+@@ -0,0 +1,152 @@
++/*
++ * Copyright (c) 2004-2008 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2006 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2005 The Regents of the University of California.
++ *                         All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ *
++ * These symbols are in a file by themselves to provide nice linker
++ * semantics.  Since linkers generally pull in symbols by object
++ * files, keeping these symbols as the only symbols in this file
++ * prevents utility programs such as "ompi_info" from having to import
++ * entire components just to query their version and parameters.
++ */
++
++#include "orte_config.h"
++#include "orte/constants.h"
++#include "orte/util/show_help.h"
++
++#include <stdlib.h>
++#ifdef HAVE_UNISTD_H
++#include <unistd.h>
++#endif
++#include <ctype.h>
++
++#include "opal/mca/mca.h"
++#include "opal/mca/base/base.h"
++#include "opal/mca/base/mca_base_param.h"
++
++#include "orte/mca/odls/odls.h"
++#include "orte/mca/odls/base/odls_private.h"
++#include "orte/mca/odls/mosix/odls_mosix.h"
++
++/*
++ * Instantiate the public struct with all of our public information
++ * and pointers to our public functions in it
++ */
++
++orte_odls_mosix_component_t mca_odls_mosix_component = {
++	{
++		/* First, the mca_component_t struct containing meta information
++		about the component itself */
++		{
++			ORTE_ODLS_BASE_VERSION_2_0_0,
++			/* Component name and version */
++			"mosix",
++			ORTE_MAJOR_VERSION,
++			ORTE_MINOR_VERSION,
++			ORTE_RELEASE_VERSION,
++
++			/* Component open and close functions */
++			orte_odls_mosix_component_open,
++			orte_odls_mosix_component_close,
++			orte_odls_mosix_component_query,
++			orte_odls_mosix_component_register
++		},
++		{
++			/* The component is checkpoint ready */
++			MCA_BASE_METADATA_PARAM_CHECKPOINT
++		}
++	}
++};
++
++/*
++ * utility routines for parameter registration
++ */
++
++static inline char* mca_odls_mosix_param_register_string(
++        const char* param_name,
++        const char* help_string,
++        const char* default_value)
++{
++    char *value;
++    mca_base_param_reg_string(&mca_odls_mosix_component.super.version,
++                              param_name, help_string, false, false,
++                              default_value, &value);
++    return value;
++}
++
++static inline int mca_odls_mosix_param_register_int(
++        const char* param_name,
++        const char* help_string,
++        int default_value)
++{
++    int value;
++    mca_base_param_reg_int(&mca_odls_mosix_component.super.version,
++                           param_name, help_string, false, false,
++                           default_value, &value);
++    return value;
++}
++
++int orte_odls_mosix_component_register(void)
++{
++	mca_odls_mosix_component.mosix_remote_host_name =
++			mca_odls_mosix_param_register_string("remote_host_name", "Host name to serve as a remote node for the process.", NULL);
++	mca_odls_mosix_component.mosix_remote_host_address =
++			mca_odls_mosix_param_register_string("remote_host_address", "Host address to serve as a remote node for the process.", NULL);
++	if ((NULL != mca_odls_mosix_component.mosix_remote_host_name) &&
++		(NULL != mca_odls_mosix_component.mosix_remote_host_address))
++	{
++		orte_show_help("help-orte-odls-mosix.txt", "hostname and address collision", true);
++		mca_odls_mosix_component.mosix_remote_host_name = NULL;
++	}
++
++	mca_odls_mosix_component.mosix_grid_class =
++			mca_odls_mosix_param_register_int("grid_class", "Class permitted for migration in a MOSIX multi-cluster.", 0);
++	mca_odls_mosix_component.mosix_queue_priority =
++			mca_odls_mosix_param_register_int("queue_priority", "Priority in the MOSIX queue (0 for not queuing, default).", 0);
++	mca_odls_mosix_component.mosix_migration_lock =
++			mca_odls_mosix_param_register_int("migration_lock", "Whether to lock the process in place for migration (If strated remotely - stays there).", 0);
++	mca_odls_mosix_component.mosix_unsupported_syscalls =
++			mca_odls_mosix_param_register_int("unsupported_syscalls", "How to handle unsupported system calls (0: Exit, 1: Ignore (default), 2: Report).", 1);
++	mca_odls_mosix_component.mosix_job_id =
++			mca_odls_mosix_param_register_int("job_id", "MOSIX Job ID for all the processes launched in this MPI job.", 0);
++    return ORTE_SUCCESS;
++}
++
++int orte_odls_mosix_component_open(void)
++{
++    return ORTE_SUCCESS;
++}
++
++int orte_odls_mosix_component_query(mca_base_module_t **module, int *priority)
++{
++    /* the base open/select logic protects us against operation when
++     * we are NOT in a daemon, so we don't have to check that here
++     */
++    
++    /* we have built some logic into the configure.m4 file that checks
++     * to see if we have "fork" support and only builds this component
++     * if we do. Hence, we only get here if we CAN build - in which
++     * case, we definitely should be considered for selection
++     */
++    *priority = 2; /* default priority + 1 */
++    *module = (mca_base_module_t *) &orte_odls_mosix_module;
++    return ORTE_SUCCESS;
++}
++
++
++int orte_odls_mosix_component_close(void)
++{
++    return ORTE_SUCCESS;
++}
+Index: orte/mca/odls/mosix/odls_mosix.h
+===================================================================
+--- orte/mca/odls/mosix/odls_mosix.h	(revision 0)
++++ orte/mca/odls/mosix/odls_mosix.h	(revision 0)
+@@ -0,0 +1,61 @@
++/*
++ * Copyright (c) 2004-2008 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2006 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2005 The Regents of the University of California.
++ *                         All rights reserved.
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++/**
++ * @file:
++ */
++
++#ifndef ORTE_ODLS_DEFAULT_H
++#define ORTE_ODLS_DEFAULT_H
++
++#include "orte_config.h"
++
++#include "opal/mca/mca.h"
++
++#include "orte/mca/odls/odls.h"
++
++BEGIN_C_DECLS
++
++/*
++ * Module open / close
++ */
++int orte_odls_mosix_component_open(void);
++int orte_odls_mosix_component_close(void);
++int orte_odls_mosix_component_query(mca_base_module_t **module, int *priority);
++int orte_odls_mosix_component_register(void);
++
++/*
++ * ODLS Default module
++ */
++struct orte_odls_mosix_component_t {
++	orte_odls_base_component_2_0_0_t super;
++	char* mosix_remote_host_name;
++	char* mosix_remote_host_address;
++	uint8_t mosix_grid_class;
++	uint8_t mosix_queue_priority;
++	uint8_t mosix_migration_lock;
++	uint8_t mosix_unsupported_syscalls;
++	uint32_t mosix_job_id;
++};
++
++typedef struct orte_odls_mosix_component_t orte_odls_mosix_component_t;
++extern orte_odls_base_module_t orte_odls_mosix_module;
++ORTE_MODULE_DECLSPEC extern orte_odls_mosix_component_t mca_odls_mosix_component;
++
++END_C_DECLS
++
++#endif /* ORTE_ODLS_H */
+Index: orte/mca/odls/mosix/odls_mosix_module.c
+===================================================================
+--- orte/mca/odls/mosix/odls_mosix_module.c	(revision 0)
++++ orte/mca/odls/mosix/odls_mosix_module.c	(revision 0)
+@@ -0,0 +1,869 @@
++/*
++ * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2008 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2005 The Regents of the University of California.
++ *                         All rights reserved.
++ * Copyright (c) 2007-2010 Oracle and/or its affiliates.  All rights reserved.
++ * Copyright (c) 2007      Evergrid, Inc. All rights reserved.
++ * Copyright (c) 2008-2011 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2010      IBM Corporation.  All rights reserved.
++ *
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++
++/*
++ * There is a complicated sequence of events that occurs when the
++ * parent forks a child process that is intended to launch the target
++ * executable.
++ *
++ * Before the child process exec's the target executable, it might tri
++ * to set the affinity of that new child process according to a
++ * complex series of rules.  This binding may fail in a myriad of
++ * different ways.  A lot of this code deals with reporting that error
++ * occurately to the end user.  This is a complex task in itself
++ * because the child process is not "really" an ORTE process -- all
++ * error reporting must be proxied up to the parent who can use normal
++ * ORTE error reporting mechanisms.
++ *
++ * Here's a high-level description of what is occurring in this file:
++ *
++ * - parent opens a pipe
++ * - parent forks a child
++ * - parent blocks reading on the pipe: the pipe will either close
++ *   (indicating that the child successfully exec'ed) or the child will
++ *   write some proxied error data up the pipe
++ *
++ * - the child tries to set affinity and do other housekeeping in
++ *   preparation of exec'ing the target executable
++ * - if the child fails anywhere along the way, it sends a message up
++ *   the pipe to the parent indicating what happened -- including a 
++ *   rendered error message detailing the problem (i.e., human-readable).
++ * - it is important that the child renders the error message: there
++ *   are so many errors that are possible that the child is really the
++ *   only entity that has enough information to make an accuate error string
++ *   to report back to the user.
++ * - the parent reads this message + rendered string in and uses ORTE
++ *   reporting mechanisms to display it to the user
++ * - if the problem was only a warning, the child continues processing
++ *   (potentially eventually exec'ing the target executable).
++ * - if the problem was an error, the child exits and the parent
++ *   handles the death of the child as appropriate (i.e., this ODLS
++ *   simply reports the error -- other things decide what to do).
++ */
++
++#include "orte_config.h"
++#include "orte/constants.h"
++#include "orte/types.h"
++
++#ifdef HAVE_STRING_H
++#include <string.h>
++#endif
++#include <stdlib.h>
++#ifdef HAVE_UNISTD_H
++#include <unistd.h>
++#endif
++#include <errno.h>
++#ifdef HAVE_SYS_TYPES_H
++#include <sys/types.h>
++#endif
++#ifdef HAVE_SYS_WAIT_H
++#include <sys/wait.h>
++#endif
++#include <signal.h>
++#ifdef HAVE_FCNTL_H
++#include <fcntl.h>
++#endif
++#ifdef HAVE_SYS_TIME_H
++#include <sys/time.h>
++#endif
++#ifdef HAVE_SYS_PARAM_H
++#include <sys/param.h>
++#endif
++#ifdef HAVE_NETDB_H
++#include <netdb.h>
++#endif
++#ifdef HAVE_STDLIB_H
++#include <stdlib.h>
++#endif
++#ifdef HAVE_SYS_STAT_H
++#include <sys/stat.h>
++#endif  /* HAVE_SYS_STAT_H */
++#ifdef HAVE_STDARG_H
++#include <stdarg.h>
++#endif
++#ifdef HAVE_SYS_SELECT_H
++#include <sys/select.h>
++#endif
++
++#include "opal/mca/hwloc/hwloc.h"
++#include "opal/mca/hwloc/base/base.h"
++#include "opal/mca/maffinity/base/base.h"
++#include "opal/class/opal_pointer_array.h"
++#include "opal/util/opal_environ.h"
++#include "opal/util/show_help.h"
++#include "opal/util/fd.h"
++
++#include "orte/util/show_help.h"
++#include "orte/runtime/orte_wait.h"
++#include "orte/runtime/orte_globals.h"
++#include "orte/mca/errmgr/errmgr.h"
++#include "orte/mca/ess/ess.h"
++#include "orte/mca/iof/base/iof_base_setup.h"
++#include "orte/mca/plm/plm.h"
++#include "orte/util/name_fns.h"
++
++#include "orte/mca/odls/base/base.h"
++#include "orte/mca/odls/base/odls_private.h"
++#include "orte/mca/odls/mosix/odls_mosix.h"
++
++/*
++ * Struct written up the pipe from the child to the parent.
++ */
++typedef struct {
++    /* True if the child has died; false if this is just a warning to
++       be printed. */
++    bool fatal;
++    /* Relevant only if fatal==true */
++    int exit_status;
++
++    /* Length of the strings that are written up the pipe after this
++       struct */
++    int file_str_len;
++    int topic_str_len;
++    int msg_str_len;
++} pipe_err_msg_t;
++
++/* 
++ * Max length of strings from the pipe_err_msg_t
++ */
++#define MAX_FILE_LEN 511
++#define MAX_TOPIC_LEN MAX_FILE_LEN
++
++/*
++ * Module functions (function pointers used in a struct)
++ */
++static int orte_odls_mosix_launch_local_procs(opal_buffer_t *data);
++static int orte_odls_mosix_kill_local_procs(opal_pointer_array_t *procs);
++static int orte_odls_mosix_signal_local_procs(const orte_process_name_t *proc, int32_t signal);
++static int orte_odls_mosix_restart_proc(orte_odls_child_t *child);
++
++/*
++ * Explicitly declared functions so that we can get the noreturn
++ * attribute registered with the compiler.
++ */
++static void send_error_show_help(int fd, int exit_status, 
++                                 const char *file, const char *topic, ...)
++    __opal_attribute_noreturn__;
++static int do_child(orte_app_context_t* context,
++                    orte_odls_child_t *child,
++                    char **environ_copy,
++                    orte_odls_job_t *jobdat, int write_fd,
++                    orte_iof_base_io_conf_t opts)
++    __opal_attribute_noreturn__;
++
++
++/*
++ * MOSIX requires all processes to be launched with "/bin/mosrun -w procname arg1 arg2..."
++ */
++#define ORTE_ODLS_MOSIX_ARGV_COUNT (8)
++#define ORTE_ODLS_MOSIX_MOSRUN_LOCATION "/bin/mosrun"
++
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_MIGRATION_LOCKED "-L"
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_MIGRATION_UNLOCKED "-l"
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_FAIL_ON_UNSUPPORTED "-u"
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_IGNORE_UNSUPPORTED "-e"
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_REPORT_UNSUPPORTED "-w"
++
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_JOB_ID "-J%i"
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_GRID_CLASS "-G%i"
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_QUEUE_PRIORITY "-Q%i"
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_REMOTE_HOST_NAME "-r%s"
++#define ORTE_ODLS_MOSIX_MOSRUN_PARAM_REMOTE_HOST_ADDRESS "-%s"
++
++/*
++ * Module
++ */
++orte_odls_base_module_t orte_odls_mosix_module = {
++    orte_odls_base_default_get_add_procs_data,
++    orte_odls_mosix_launch_local_procs,
++    orte_odls_mosix_kill_local_procs,
++    orte_odls_mosix_signal_local_procs,
++    orte_odls_base_default_deliver_message,
++    orte_odls_base_default_require_sync,
++    orte_odls_mosix_restart_proc
++};
++
++
++static bool odls_mosix_child_died(orte_odls_child_t *child)
++{
++    time_t end;
++    pid_t ret;
++        
++    /* Because of rounding in time (which returns whole seconds) we
++     * have to add 1 to our wait number: this means that we wait
++     * somewhere between (target) and (target)+1 seconds.  Otherwise,
++     * the default 1s actually means 'somwhere between 0 and 1s'. */
++    end = time(NULL) + orte_odls_globals.timeout_before_sigkill + 1;
++    do {
++        ret = waitpid(child->pid, &child->exit_code, WNOHANG);
++        if (child->pid == ret) {
++            OPAL_OUTPUT_VERBOSE((2, orte_odls_globals.output,
++                                 "%s odls:default:WAITPID INDICATES PROC %d IS DEAD",
++                                 ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), (int)(child->pid)));
++            /* It died -- return success */
++            return true;
++        } else if (0 == ret) {
++            /* with NOHANG specified, if a process has already exited
++             * while waitpid was registered, then waitpid returns 0
++             * as there is no error - this is a race condition problem
++             * that occasionally causes us to incorrectly report a proc
++             * as refusing to die. Unfortunately, errno may not be reset
++             * by waitpid in this case, so we cannot check it.
++	     *
++	     * (note the previous fix to this, to return 'process dead'
++	     * here, fixes the race condition at the cost of reporting
++	     * all live processes have immediately died!  Better to
++	     * occasionally report a dead process as still living -
++	     * which will occasionally trip the timeout for cases that
++	     * are right on the edge.)
++             */
++
++	    /* Do nothing, process still alive */
++        } else if (-1 == ret && ECHILD == errno) {
++            /* The pid no longer exists, so we'll call this "good
++               enough for government work" */
++            OPAL_OUTPUT_VERBOSE((2, orte_odls_globals.output,
++                                 "%s odls:default:WAITPID INDICATES PID %d NO LONGER EXISTS",
++                                 ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), (int)(child->pid)));
++            return true;
++        }
++        
++        /* Bogus delay for 1 msec - let's actually give the CPU some time
++         * to quit the other process (sched_yield() -- even if we have it
++         * -- changed behavior in 2.6.3x Linux flavors to be undesirable)
++         * Don't use select on a bogus file descriptor here as it has proven
++         * unreliable and sometimes immediately returns - we really, really
++         * -do- want to wait a bit!
++         */
++        usleep(1000);
++    } while (time(NULL) < end);
++
++    /* The child didn't die, so return false */
++    return false;
++}
++
++static int odls_mosix_kill_local(pid_t pid, int signum)
++{
++    if (orte_forward_job_control) {
++        pid = -pid;
++    }
++    if (0 != kill(pid, signum)) {
++        if (ESRCH != errno) {
++            OPAL_OUTPUT_VERBOSE((2, orte_odls_globals.output,
++                                 "%s odls:default:SENT KILL %d TO PID %d GOT ERRNO %d",
++                                 ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), signum, (int)pid, errno));
++            return errno;
++        }
++    }
++    OPAL_OUTPUT_VERBOSE((2, orte_odls_globals.output,
++                         "%s odls:default:SENT KILL %d TO PID %d SUCCESS",
++                         ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), signum, (int)pid));
++    return 0;
++}
++
++int orte_odls_mosix_kill_local_procs(opal_pointer_array_t *procs)
++{
++    int rc;
++    
++    if (ORTE_SUCCESS != (rc = orte_odls_base_default_kill_local_procs(procs,
++                                    odls_mosix_kill_local, odls_mosix_child_died))) {
++        ORTE_ERROR_LOG(rc);
++        return rc;
++    }
++    return ORTE_SUCCESS;
++}
++
++
++static void set_handler_default(int sig)
++{
++    struct sigaction act;
++
++    act.sa_handler = SIG_DFL;
++    act.sa_flags = 0;
++    sigemptyset(&act.sa_mask);
++
++    sigaction(sig, &act, (struct sigaction *)0);
++}
++
++/*
++ * Internal function to write a rendered show_help message back up the
++ * pipe to the waiting parent.
++ */
++static int write_help_msg(int fd, pipe_err_msg_t *msg, const char *file,
++                          const char *topic, va_list ap)
++{
++    int ret;
++    char *str;
++
++    if (NULL == file || NULL == topic) {
++        return OPAL_ERR_BAD_PARAM;
++    }
++
++    str = opal_show_help_vstring(file, topic, true, ap);
++
++    msg->file_str_len = (int) strlen(file);
++    if (msg->file_str_len > MAX_FILE_LEN) {
++        ORTE_ERROR_LOG(ORTE_ERR_BAD_PARAM);
++        return ORTE_ERR_BAD_PARAM;
++    }
++    msg->topic_str_len = (int) strlen(topic);
++    if (msg->topic_str_len > MAX_TOPIC_LEN) {
++        ORTE_ERROR_LOG(ORTE_ERR_BAD_PARAM);
++        return ORTE_ERR_BAD_PARAM;
++    }
++    msg->msg_str_len = (int) strlen(str);
++
++    /* Only keep writing if each write() succeeds */
++    if (OPAL_SUCCESS != (ret = opal_fd_write(fd, sizeof(*msg), msg))) {
++        goto out;
++    }
++    if (msg->file_str_len > 0 &&
++        OPAL_SUCCESS != (ret = opal_fd_write(fd, msg->file_str_len, file))) {
++        goto out;
++    }
++    if (msg->topic_str_len > 0 &&
++        OPAL_SUCCESS != (ret = opal_fd_write(fd, msg->topic_str_len, topic))) {
++        goto out;
++    }
++    if (msg->msg_str_len > 0 &&
++        OPAL_SUCCESS != (ret = opal_fd_write(fd, msg->msg_str_len, str))) {
++        goto out;
++    }
++
++ out:
++    free(str);
++    return ret;
++}
++
++/* Called from the child to send an error message up the pipe to the
++   waiting parent. */
++static void send_error_show_help(int fd, int exit_status,
++                                 const char *file, const char *topic, ...)
++{
++    va_list ap;
++    pipe_err_msg_t msg;
++
++    msg.fatal = true;
++    msg.exit_status = exit_status;
++
++    /* Send it */
++    va_start(ap, topic);
++    (void) write_help_msg(fd, &msg, file, topic, ap);
++    va_end(ap);
++
++    exit(exit_status);
++}
++
++/*
++ * Manipulate the argv array to start this process under MOSIX.
++ */
++static void prepend_mosrun_options(orte_app_context_t* context)
++{
++	size_t argc = 0;
++	uint32_t index = 0;
++	char** new_argv = malloc((ORTE_ODLS_MOSIX_ARGV_COUNT + 1) * sizeof(char*));
++
++	/* Fill in the mosrun parametes according to what was passed to mpirun */
++	new_argv[index++] = ORTE_ODLS_MOSIX_MOSRUN_LOCATION;
++	asprintf(&new_argv[index++], ORTE_ODLS_MOSIX_MOSRUN_PARAM_GRID_CLASS, mca_odls_mosix_component.mosix_grid_class);
++	if (0 != mca_odls_mosix_component.mosix_migration_lock) {
++		new_argv[index++] = ORTE_ODLS_MOSIX_MOSRUN_PARAM_MIGRATION_LOCKED;
++	} else {
++		new_argv[index++] = ORTE_ODLS_MOSIX_MOSRUN_PARAM_MIGRATION_UNLOCKED;
++	}
++	switch (mca_odls_mosix_component.mosix_migration_lock) {
++		case 0:
++			new_argv[index++] = ORTE_ODLS_MOSIX_MOSRUN_PARAM_FAIL_ON_UNSUPPORTED;
++		case 2:
++			new_argv[index++] = ORTE_ODLS_MOSIX_MOSRUN_PARAM_REPORT_UNSUPPORTED;
++		case 1:
++		default:
++			new_argv[index++] = ORTE_ODLS_MOSIX_MOSRUN_PARAM_IGNORE_UNSUPPORTED;
++	}
++
++	if (0 != mca_odls_mosix_component.mosix_job_id) {
++		asprintf(&new_argv[index++], ORTE_ODLS_MOSIX_MOSRUN_PARAM_JOB_ID, mca_odls_mosix_component.mosix_job_id);
++	}
++	if (0 != mca_odls_mosix_component.mosix_queue_priority) {
++		asprintf(&new_argv[index++], ORTE_ODLS_MOSIX_MOSRUN_PARAM_QUEUE_PRIORITY, mca_odls_mosix_component.mosix_queue_priority);
++	}
++	if (NULL != mca_odls_mosix_component.mosix_remote_host_name) {
++		asprintf(&new_argv[index++], ORTE_ODLS_MOSIX_MOSRUN_PARAM_REMOTE_HOST_NAME, mca_odls_mosix_component.mosix_remote_host_name);
++	}
++	if (NULL != mca_odls_mosix_component.mosix_remote_host_address) {
++		asprintf(&new_argv[index++], ORTE_ODLS_MOSIX_MOSRUN_PARAM_REMOTE_HOST_ADDRESS, mca_odls_mosix_component.mosix_remote_host_address);
++	}
++
++	/* Append the original argv if not NULL, and truncate */
++	new_argv[index++] = context->app;
++    if (NULL == context->argv) {
++    	new_argv[index++] = NULL;
++    } else {
++    	while (NULL != context->argv[argc++]); /* Count the given parameters */
++    	if (argc > ORTE_ODLS_MOSIX_ARGV_COUNT - index) {
++    		new_argv = realloc(new_argv, (index + argc) * sizeof(char*));
++    	}
++    	/* Assume current parameters will at least include the first arg... */
++    	memcpy(new_argv + index, context->argv + 1, argc * sizeof(char*));
++    }
++    context->app = new_argv[0];
++    context->argv = new_argv;
++}
++
++static int do_child(orte_app_context_t* context,
++                    orte_odls_child_t *child,
++                    char **environ_copy,
++                    orte_odls_job_t *jobdat, int write_fd,
++                    orte_iof_base_io_conf_t opts)
++{
++    int i;
++    sigset_t sigs;
++    long fd, fdmax = sysconf(_SC_OPEN_MAX);
++
++    if (orte_forward_job_control) {
++        /* Set a new process group for this child, so that a
++           SIGSTOP can be sent to it without being sent to the
++           orted. */
++        setpgid(0, 0);
++    }
++    
++    /* Setup the pipe to be close-on-exec */
++    fcntl(write_fd, F_SETFD, FD_CLOEXEC);
++
++    if (NULL != child) {
++        /* setup stdout/stderr so that any error messages that we
++           may print out will get displayed back at orterun.
++           
++           NOTE: Definitely do this AFTER we check contexts so
++           that any error message from those two functions doesn't
++           come out to the user. IF we didn't do it in this order,
++           THEN a user who gives us a bad executable name or
++           working directory would get N error messages, where
++           N=num_procs. This would be very annoying for large
++           jobs, so instead we set things up so that orterun
++           always outputs a nice, single message indicating what
++           happened
++        */
++        if (ORTE_SUCCESS != (i = orte_iof_base_setup_child(&opts, 
++                                                           &environ_copy))) {
++            ORTE_ERROR_LOG(i);
++            send_error_show_help(write_fd, 1, 
++                                 "help-orte-odls-mosix.txt",
++                                 "iof setup failed",
++                                 orte_process_info.nodename, context->app);
++            /* Does not return */
++        }
++
++    } else if (!(ORTE_JOB_CONTROL_FORWARD_OUTPUT & jobdat->controls)) {
++        /* tie stdin/out/err/internal to /dev/null */
++        int fdnull;
++        for (i=0; i < 3; i++) {
++            fdnull = open("/dev/null", O_RDONLY, 0);
++            if (fdnull > i && i != write_fd) {
++                dup2(fdnull, i);
++            }
++            close(fdnull);
++        }
++        fdnull = open("/dev/null", O_RDONLY, 0);
++        if (fdnull > opts.p_internal[1]) {
++            dup2(fdnull, opts.p_internal[1]);
++        }
++        close(fdnull);
++    }
++
++    /* close all file descriptors w/ exception of stdin/stdout/stderr,
++       the pipe used for the IOF INTERNAL messages, and the pipe up to
++       the parent. */
++    for(fd=3; fd<fdmax; fd++) {
++        if (fd != opts.p_internal[1] && fd != write_fd) {
++            close(fd);
++        }
++    }
++
++    /*
++     * Prepend the "/bin/mosrun -w" to the launched application
++     */
++    prepend_mosrun_options(context);
++
++    /* Set signal handlers back to the default.  Do this close to
++       the exev() because the event library may (and likely will)
++       reset them.  If we don't do this, the event library may
++       have left some set that, at least on some OS's, don't get
++       reset via fork() or exec().  Hence, the launched process
++       could be unkillable (for example). */
++    
++    set_handler_default(SIGTERM);
++    set_handler_default(SIGINT);
++    set_handler_default(SIGHUP);
++    set_handler_default(SIGPIPE);
++    set_handler_default(SIGCHLD);
++    
++    /* Unblock all signals, for many of the same reasons that we
++       set the default handlers, above.  This is noticable on
++       Linux where the event library blocks SIGTERM, but we don't
++       want that blocked by the launched process. */
++    sigprocmask(0, 0, &sigs);
++    sigprocmask(SIG_UNBLOCK, &sigs, 0);
++    
++    /* Exec the new executable */
++    
++    if (10 < opal_output_get_verbosity(orte_odls_globals.output)) {
++        int jout;
++        opal_output(0, "%s STARTING %s", ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), context->app);
++        for (jout=0; NULL != context->argv[jout]; jout++) {
++            opal_output(0, "%s\tARGV[%d]: %s", ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), jout, context->argv[jout]);
++        }
++        for (jout=0; NULL != environ_copy[jout]; jout++) {
++            opal_output(0, "%s\tENVIRON[%d]: %s", ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), jout, environ_copy[jout]);
++        }
++    }
++    
++    execve(context->app, context->argv, environ_copy);
++    send_error_show_help(write_fd, 1, 
++                         "help-orte-odls-mosix.txt", "execve error",
++                         context->app, strerror(errno));
++    /* Does not return */
++}
++
++
++static int do_parent(orte_app_context_t* context,
++                     orte_odls_child_t *child,
++                     char **environ_copy,
++                     orte_odls_job_t *jobdat, int read_fd,
++                     orte_iof_base_io_conf_t opts)
++{
++    int rc;
++    pipe_err_msg_t msg;
++    char file[MAX_FILE_LEN + 1], topic[MAX_TOPIC_LEN + 1], *str = NULL;
++
++    if (NULL != child && (ORTE_JOB_CONTROL_FORWARD_OUTPUT & jobdat->controls)) {
++        /* connect endpoints IOF */
++        rc = orte_iof_base_setup_parent(child->name, &opts);
++        if (ORTE_SUCCESS != rc) {
++            ORTE_ERROR_LOG(rc);
++            close(read_fd);
++
++            if (NULL != child) {
++                child->state = ORTE_PROC_STATE_UNDEF;
++            }
++            return rc;
++        }
++    }
++    
++    /* Block reading a message from the pipe */
++    while (1) {
++        rc = opal_fd_read(read_fd, sizeof(msg), &msg);
++
++        /* If the pipe closed, then the child successfully launched */
++        if (OPAL_ERR_TIMEOUT == rc) {
++            break;
++        }
++        
++        /* If Something Bad happened in the read, error out */
++        if (OPAL_SUCCESS != rc) {
++            ORTE_ERROR_LOG(rc);
++            close(read_fd);
++            
++            if (NULL != child) {
++                child->state = ORTE_PROC_STATE_UNDEF;
++            }
++            return rc;
++        }
++
++        /* Otherwise, we got a warning or error message from the child */
++        if (NULL != child) {
++            child->alive = msg.fatal ? 0 : 1;
++        }
++
++        /* Read in the strings; ensure to terminate them with \0 */
++        if (msg.file_str_len > 0) {
++            rc = opal_fd_read(read_fd, msg.file_str_len, file);
++            if (OPAL_SUCCESS != rc) {
++                orte_show_help("help-orte-odls-mosix.txt", "syscall fail",
++                               true,
++                               orte_process_info.nodename, context->app,
++                               "opal_fd_read", __FILE__, __LINE__);
++                if (NULL != child) {
++                    child->state = ORTE_PROC_STATE_UNDEF;
++                }
++                return rc;
++            }
++            file[msg.file_str_len] = '\0';
++        }
++        if (msg.topic_str_len > 0) {
++            rc = opal_fd_read(read_fd, msg.topic_str_len, topic);
++            if (OPAL_SUCCESS != rc) {
++                orte_show_help("help-orte-odls-mosix.txt", "syscall fail",
++                               true,
++                               orte_process_info.nodename, context->app,
++                               "opal_fd_read", __FILE__, __LINE__);
++                if (NULL != child) {
++                    child->state = ORTE_PROC_STATE_UNDEF;
++                }
++                return rc;
++            }
++            topic[msg.topic_str_len] = '\0';
++        }
++        if (msg.msg_str_len > 0) {
++            str = calloc(1, msg.msg_str_len + 1);
++            if (NULL == str) {
++                orte_show_help("help-orte-odls-mosix.txt", "syscall fail",
++                               true,
++                               orte_process_info.nodename, context->app,
++                               "opal_fd_read", __FILE__, __LINE__);
++                if (NULL != child) {
++                    child->state = ORTE_PROC_STATE_UNDEF;
++                }
++                return rc;
++            }
++            rc = opal_fd_read(read_fd, msg.msg_str_len, str);
++        }
++
++        /* Print out what we got.  We already have a rendered string,
++           so use orte_show_help_norender(). */
++        if (msg.msg_str_len > 0) {
++            orte_show_help_norender(file, topic, false, str);
++            free(str);
++            str = NULL;
++        }
++
++        /* If msg.fatal is true, then the child exited with an error.
++           Otherwise, whatever we just printed was a warning, so loop
++           around and see what else is on the pipe (or if the pipe
++           closed, indicating that the child launched
++           successfully). */
++        if (msg.fatal) {
++            if (NULL != child) {
++                child->state = ORTE_PROC_STATE_FAILED_TO_START;
++                child->alive = false;
++            }
++            close(read_fd);
++            return ORTE_ERR_FAILED_TO_START;
++        }
++    }
++
++    /* If we got here, it means that the pipe closed without
++       indication of a fatal error, meaning that the child process
++       launched successfully. */
++    if (NULL != child) {
++        child->state = ORTE_PROC_STATE_LAUNCHED;
++        child->alive = true;
++    }
++    close(read_fd);
++    
++    return ORTE_SUCCESS;
++}
++
++
++/**
++ *  Fork/exec the specified processes
++ */
++static int odls_mosix_fork_local_proc(orte_app_context_t* context,
++                                        orte_odls_child_t *child,
++                                        char **environ_copy,
++                                        orte_odls_job_t *jobdat)
++{
++    orte_iof_base_io_conf_t opts;
++    int rc, p[2];
++    pid_t pid;
++    
++    if (NULL != child) {
++        /* should pull this information from MPIRUN instead of going with
++         default */
++        opts.usepty = OPAL_ENABLE_PTY_SUPPORT;
++        
++        /* do we want to setup stdin? */
++        if (NULL != child &&
++            (jobdat->stdin_target == ORTE_VPID_WILDCARD || child->name->vpid == jobdat->stdin_target)) {
++            opts.connect_stdin = true;
++        } else {
++            opts.connect_stdin = false;
++        }
++        
++        if (ORTE_SUCCESS != (rc = orte_iof_base_setup_prefork(&opts))) {
++            ORTE_ERROR_LOG(rc);
++            if (NULL != child) {
++                child->state = ORTE_PROC_STATE_FAILED_TO_START;
++                child->exit_code = rc;
++            }
++            return rc;
++        }
++    }
++    
++    /* A pipe is used to communicate between the parent and child to
++       indicate whether the exec ultimately succeeded or failed.  The
++       child sets the pipe to be close-on-exec; the child only ever
++       writes anything to the pipe if there is an error (e.g.,
++       executable not found, exec() fails, etc.).  The parent does a
++       blocking read on the pipe; if the pipe closed with no data,
++       then the exec() succeeded.  If the parent reads something from
++       the pipe, then the child was letting us know why it failed. */
++    if (pipe(p) < 0) {
++        ORTE_ERROR_LOG(ORTE_ERR_SYS_LIMITS_PIPES);
++        if (NULL != child) {
++            child->state = ORTE_PROC_STATE_FAILED_TO_START;
++            child->exit_code = ORTE_ERR_SYS_LIMITS_PIPES;
++        }
++        return ORTE_ERR_SYS_LIMITS_PIPES;
++    }
++    
++    /* Fork off the child */
++    pid = fork();
++    if (NULL != child) {
++        child->pid = pid;
++    }
++    
++    if (pid < 0) {
++        ORTE_ERROR_LOG(ORTE_ERR_SYS_LIMITS_CHILDREN);
++        if (NULL != child) {
++            child->state = ORTE_PROC_STATE_FAILED_TO_START;
++            child->exit_code = ORTE_ERR_SYS_LIMITS_CHILDREN;
++        }
++        return ORTE_ERR_SYS_LIMITS_CHILDREN;
++    }
++    
++    if (pid == 0) {
++	close(p[0]);
++        do_child(context, child, environ_copy, jobdat, p[1], opts);
++        /* Does not return */
++    } 
++
++    close(p[1]);
++    return do_parent(context, child, environ_copy, jobdat, p[0], opts);
++}
++
++
++/**
++ * Launch all processes allocated to the current node.
++ */
++
++int orte_odls_mosix_launch_local_procs(opal_buffer_t *data)
++{
++    int rc;
++    orte_jobid_t job;
++    orte_job_t *jdata;
++
++    /* construct the list of children we are to launch */
++    if (ORTE_SUCCESS != (rc = orte_odls_base_default_construct_child_list(data, &job))) {
++        OPAL_OUTPUT_VERBOSE((2, orte_odls_globals.output,
++                             "%s odls:default:launch:local failed to construct child list on error %s",
++                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), ORTE_ERROR_NAME(rc)));
++        goto CLEANUP;
++    }
++    
++    /* launch the local procs */
++    if (ORTE_SUCCESS != (rc = orte_odls_base_default_launch_local(job, odls_mosix_fork_local_proc))) {
++        OPAL_OUTPUT_VERBOSE((2, orte_odls_globals.output,
++                             "%s odls:default:launch:local failed to launch on error %s",
++                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), ORTE_ERROR_NAME(rc)));
++        goto CLEANUP;
++    }
++    
++    /* look up job data object */
++    if (NULL != (jdata = orte_get_job_data_object(job))) {
++        if (jdata->state & ORTE_JOB_STATE_SUSPENDED) {
++            if (ORTE_PROC_IS_HNP) {
++		/* Have the plm send the signal to all the nodes.
++		   If the signal arrived before the orteds started,
++		   then they won't know to suspend their procs.
++		   The plm also arranges for any local procs to
++		   be signaled.
++		 */
++                orte_plm.signal_job(jdata->jobid, SIGTSTP);
++            } else {
++                orte_odls_mosix_signal_local_procs(NULL, SIGTSTP);
++            }
++        }
++    }
++
++CLEANUP:
++   
++    return rc;
++}
++
++
++/**
++ * Send a sigal to a pid.  Note that if we get an error, we set the
++ * return value and let the upper layer print out the message.  
++ */
++static int send_signal(pid_t pid, int signal)
++{
++    int rc = ORTE_SUCCESS;
++    
++    OPAL_OUTPUT_VERBOSE((1, orte_odls_globals.output,
++                         "%s sending signal %d to pid %ld",
++                         ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
++                         signal, (long)pid));
++
++    if (orte_forward_job_control) {
++	/* Send the signal to the process group rather than the
++	   process.  The child is the leader of its process group. */
++	pid = -pid;
++    }
++    if (kill(pid, signal) != 0) {
++        switch(errno) {
++            case EINVAL:
++                rc = ORTE_ERR_BAD_PARAM;
++                break;
++            case ESRCH:
++                /* This case can occur when we deliver a signal to a
++                   process that is no longer there.  This can happen if
++                   we deliver a signal while the job is shutting down. 
++                   This does not indicate a real problem, so just 
++                   ignore the error.  */
++                break;
++            case EPERM:
++                rc = ORTE_ERR_PERM;
++                break;
++            default:
++                rc = ORTE_ERROR;
++        }
++    }
++    
++    return rc;
++}
++
++static int orte_odls_mosix_signal_local_procs(const orte_process_name_t *proc, int32_t signal)
++{
++    int rc;
++    
++    if (ORTE_SUCCESS != (rc = orte_odls_base_default_signal_local_procs(proc, signal, send_signal))) {
++        ORTE_ERROR_LOG(rc);
++        return rc;
++    }
++    return ORTE_SUCCESS;
++}
++
++static int orte_odls_mosix_restart_proc(orte_odls_child_t *child)
++{
++    int rc;
++    
++    /* restart the local proc */
++    if (ORTE_SUCCESS != (rc = orte_odls_base_default_restart_proc(child, odls_mosix_fork_local_proc))) {
++        OPAL_OUTPUT_VERBOSE((2, orte_odls_globals.output,
++                             "%s odls:default:restart_proc failed to launch on error %s",
++                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), ORTE_ERROR_NAME(rc)));
++    }
++    return rc;
++}
++
+Index: orte/mca/odls/mosix/help-orte-odls-mosix.txt
+===================================================================
+--- orte/mca/odls/mosix/help-orte-odls-mosix.txt	(revision 0)
++++ orte/mca/odls/mosix/help-orte-odls-mosix.txt	(revision 0)
+@@ -0,0 +1,121 @@
++# -*- text -*-
++#
++# Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
++#                         University Research and Technology
++#                         Corporation.  All rights reserved.
++# Copyright (c) 2004-2005 The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++#                         University of Stuttgart.  All rights reserved.
++# Copyright (c) 2004-2005 The Regents of the University of California.
++#                         All rights reserved.
++# Copyright (c) 2009      Sun Microsystems, Inc.  All rights reserved.
++# Copyright (c) 2010-2011 Cisco Systems, Inc.  All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++# This is a US/English help file.
++#
++[execve error]
++Open MPI tried to fork a new process via the "execve" system call but
++failed.  This is an unusual error because Open MPI checks many things
++before attempting to launch a child process.  This error may be
++indicative of another problem on the target host.  Your job will now
++abort.
++
++  Local host:        %s
++  Application name:  %s
++#
++[binding not supported]
++Open MPI tried to bind a new process, but process binding is not
++supported on the host where it was launched.  The process was killed
++without launching the target application.  Your job will now abort.
++
++  Local host:        %s
++  Application name:  %s
++#
++[binding generic error]
++Open MPI tried to bind a new process, but something went wrong.  The
++process was killed without launching the target application.  Your job
++will now abort.
++
++  Local host:        %s
++  Application name:  %s
++  Error message:     %s
++  Location:          %s:%d
++#
++[bound to everything]
++Open MPI tried to bind a new process to a specific set of processors,
++but ended up binding it to *all* processors.  This means that the new
++process is effectively unbound.
++
++This is only a warning -- your job will continue.  You can suppress
++this warning in the future by setting the odls_warn_if_not_bound MCA
++parameter to 0.
++
++  Local host:        %s
++  Application name:  %s
++  Location:          %s:%d
++#
++[slot list and paffinity_alone]
++Open MPI detected that both a slot list was specified and the MCA
++parameter "paffinity_alone" was set to true.  Only one of these can be
++used at a time.  Your job will now abort.
++
++  Local host:        %s
++  Application name:  %s
++#
++[iof setup failed]
++Open MPI tried to launch a child process but the "IOF child setup"
++failed.  This should not happen.  Your job will now abort.
++
++  Local host:        %s
++  Application name:  %s
++#
++[not bound]
++WARNING: Open MPI tried to bind a process but failed.  This is a
++warning only; your job will continue.
++
++  Local host:        %s
++  Application name:  %s
++  Error message:     %s
++  Location:          %s:%d
++#
++[syscall fail]
++A system call failed that should not have.  In this particular case,
++a warning or error message was not displayed that should have been.
++Your job may behave unpredictably after this, or abort.
++
++  Local host:        %s
++  Application name:  %s
++  Function:          %s
++  Location:          %s:%d
++#
++[memory not bound]
++WARNING: Open MPI tried to bind a process but failed.  This is a
++warning only; your job will continue, though performance may
++be degraded.
++
++  Local host:        %s
++  Application name:  %s
++  Error message:     %s
++  Location:          %s:%d
++
++#
++[memory binding error]
++Open MPI tried to bind memory for a new process but something went
++wrong. The process was killed without launching the target
++application. Your job will now abort.
++
++  Local host:        %s
++  Application name:  %s
++  Error message: %s
++  Location:  %s:%d
++#
++[hostname and address collision]
++WARNING: Open MPI was given both a remote host name and an address for MOSIX.
++This is a warning only; your job will continue, host name will be ignored.
+\ No newline at end of file
+Index: orte/mca/odls/mosix/Makefile.am
+===================================================================
+--- orte/mca/odls/mosix/Makefile.am	(revision 0)
++++ orte/mca/odls/mosix/Makefile.am	(revision 0)
+@@ -0,0 +1,46 @@
++#
++# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++#                         University Research and Technology
++#                         Corporation.  All rights reserved.
++# Copyright (c) 2004-2005 The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++#                         University of Stuttgart.  All rights reserved.
++# Copyright (c) 2004-2005 The Regents of the University of California.
++#                         All rights reserved.
++# Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++
++dist_pkgdata_DATA = help-orte-odls-mosix.txt
++
++sources = \
++        odls_mosix.h \
++        odls_mosix_component.c \
++        odls_mosix_module.c
++
++# Make the output library in this directory, and name it either
++# mca_<type>_<name>.la (for DSO builds) or libmca_<type>_<name>.la
++# (for static builds).
++
++if MCA_BUILD_orte_odls_mosix_DSO
++component_noinst =
++component_install = mca_odls_mosix.la
++else
++component_noinst = libmca_odls_mosix.la
++component_install =
++endif
++
++mcacomponentdir = $(pkglibdir)
++mcacomponent_LTLIBRARIES = $(component_install)
++mca_odls_mosix_la_SOURCES = $(sources)
++mca_odls_mosix_la_LDFLAGS = -module -avoid-version
++
++noinst_LTLIBRARIES = $(component_noinst)
++libmca_odls_mosix_la_SOURCES =$(sources)
++libmca_odls_mosix_la_LDFLAGS = -module -avoid-version
+

@@ -1,0 +1,93 @@
+Index: opal/mca/event/base/event_base_open.c
+===================================================================
+--- opal/mca/event/base/event_base_open.c	(revision 28396)
++++ opal/mca/event/base/event_base_open.c	(working copy)
+@@ -71,10 +71,7 @@
+         return rc;
+     }
+ 
+-    /* Declare our intent to use threads. If event library internal
+-     * thread support was not enabled during configuration, this
+-     * function defines to no-op
+-     */
++    /* Declare our intent to use threads */
+     opal_event_use_threads();
+ 
+     /* get our event base */
+Index: opal/mca/event/libevent2019/configure.m4
+===================================================================
+--- opal/mca/event/libevent2019/configure.m4	(revision 28396)
++++ opal/mca/event/libevent2019/configure.m4	(working copy)
+@@ -91,7 +91,7 @@
+     CPPFLAGS="-I$OMPI_TOP_SRCDIR -I$OMPI_TOP_BUILDDIR -I$OMPI_TOP_SRCDIR/opal/include $CPPFLAGS"
+ 
+     AC_MSG_CHECKING([libevent configuration args])
+-    event_args="--disable-dns --disable-http --disable-rpc --disable-openssl"
++    event_args="--disable-dns --disable-http --disable-rpc --disable-openssl --enable-thread-support"
+ 
+     AC_ARG_ENABLE(event-rtsig,
+         AC_HELP_STRING([--enable-event-rtsig],
+@@ -150,18 +150,6 @@
+         event_args="$event_args --enable-debug-mode"
+     fi
+ 
+-    AC_ARG_ENABLE(event-thread-support,
+-                  AC_HELP_STRING([--enable-event-thread-support], [enable event library internal thread support]))
+-    if test "$enable_event_thread_support" = "yes"; then
+-        AC_DEFINE_UNQUOTED(OPAL_EVENT_HAVE_THREAD_SUPPORT, 1,
+-                           [Thread support was configured into the event library])
+-    else
+-        event_args="$event_args --disable-thread-support"
+-        AC_DEFINE_UNQUOTED(OPAL_EVENT_HAVE_THREAD_SUPPORT, 0,
+-                           [Thread support was not configured into the event library])
+-    fi
+-    AM_CONDITIONAL(OPAL_EVENT_HAVE_THREAD_SUPPORT, test "$enable_event_thread_support" = "yes")
+-
+     AC_MSG_RESULT([$event_args])
+ 
+     OMPI_CONFIG_SUBDIR([$basedir/libevent], 
+Index: opal/mca/event/libevent2019/libevent2019.h
+===================================================================
+--- opal/mca/event/libevent2019/libevent2019.h	(revision 28396)
++++ opal/mca/event/libevent2019/libevent2019.h	(working copy)
+@@ -1,7 +1,7 @@
+ /*
+  * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2010      Oracle and/or its affiliates.  All rights reserved.
+- * Copyright (c) 2012      Los Alamos National Security, LLC.
++ * Copyright (c) 2012-2013 Los Alamos National Security, LLC.
+  *                         All rights reserved.
+  *
+  * $COPYRIGHT$
+@@ -99,15 +99,7 @@
+ #define opal_event_set_priority(x, n) event_priority_set((x), (n))
+ 
+ /* thread support APIs */
+-#if OPAL_EVENT_HAVE_THREAD_SUPPORT
+-#ifdef WIN32
+-#define opal_event_use_threads() evthread_use_windows_threads()
+-#else
+ #define opal_event_use_threads() evthread_use_pthreads()
+-#endif
+-#else
+-#define opal_event_use_threads()
+-#endif
+ 
+ /* Basic event APIs */
+ #define opal_event_enable_debug_mode() event_enable_debug_mode()
+Index: opal/mca/event/libevent2019/libevent2019_module.c
+===================================================================
+--- opal/mca/event/libevent2019/libevent2019_module.c	(revision 28396)
++++ opal/mca/event/libevent2019/libevent2019_module.c	(working copy)
+@@ -88,11 +88,6 @@
+         dumpit = true;
+     }
+ 
+-#if OPAL_EVENT_HAVE_THREAD_SUPPORT
+-    /* turn on libevent thread safety */
+-    evthread_use_pthreads ();
+-#endif
+-
+     if (NULL == event_module_include) {
+         /* Shouldn't happen, but... */
+         event_module_include = strdup("select");

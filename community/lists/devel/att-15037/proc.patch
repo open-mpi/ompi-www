@@ -1,0 +1,181 @@
+Index: opal/mca/hwloc/base/base.h
+===================================================================
+--- opal/mca/hwloc/base/base.h	(revision 32056)
++++ opal/mca/hwloc/base/base.h	(working copy)
+@@ -1,6 +1,8 @@
+ /*
+  * Copyright (c) 2011-2012 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2013-2014 Intel, Inc. All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -86,6 +88,9 @@
+ OPAL_DECLSPEC opal_hwloc_locality_t opal_hwloc_base_get_relative_locality(hwloc_topology_t topo,
+                                                                           char *cpuset1, char *cpuset2);
+ 
++OPAL_DECLSPEC opal_hwloc_locality_t opal_hwloc_base_get_relative_locality2(hwloc_topology_t topo,
++                                                                          char *cpuset1, char *cpuset2);
++
+ OPAL_DECLSPEC int opal_hwloc_base_set_binding_policy(opal_binding_policy_t *policy, char *spec);
+ 
+ /**
+Index: opal/mca/hwloc/base/hwloc_base_util.c
+===================================================================
+--- opal/mca/hwloc/base/hwloc_base_util.c	(revision 32056)
++++ opal/mca/hwloc/base/hwloc_base_util.c	(working copy)
+@@ -13,6 +13,8 @@
+  * Copyright (c) 2012-2013 Los Alamos National Security, LLC.
+  *                         All rights reserved.
+  * Copyright (c) 2013-2014 Intel, Inc. All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -1419,6 +1421,130 @@
+     return locality;
+ }
+ 
++opal_hwloc_locality_t opal_hwloc_base_get_relative_locality2(hwloc_topology_t topo,
++                                                            char *cpuset1, char *cpuset2)
++{
++    opal_hwloc_locality_t locality;
++    hwloc_obj_t obj;
++    unsigned depth, d, width, w;
++    hwloc_cpuset_t avail;
++    bool shared;
++    hwloc_obj_type_t type;
++    int sect1, sect2;
++    hwloc_cpuset_t loc1, loc2;
++
++    /* start with what we know - they share a node on a cluster
++     * NOTE: we may alter that latter part as hwloc's ability to
++     * sense multi-cu, multi-cluster systems grows
++     */
++    locality = OPAL_PROC_ON_NODE;
++
++    /* if either cpuset is NULL, then that isn't bound */
++    if (NULL == cpuset1 || NULL == cpuset2) {
++        return locality;
++    }
++
++    /* get the max depth of the topology */
++    depth = hwloc_topology_get_depth(topo);
++
++    /* convert the strings to cpusets */
++    loc1 = hwloc_bitmap_alloc();
++    hwloc_bitmap_list_sscanf(loc1, cpuset1);
++    loc2 = hwloc_bitmap_alloc();
++    hwloc_bitmap_list_sscanf(loc2, cpuset2);
++
++    width = hwloc_get_nbobjs_by_depth(topo, 0);
++    for (w = 0; w < width; w++) {
++        obj = hwloc_get_obj_by_depth(topo, 0, w);
++        avail = opal_hwloc_base_get_available_cpus(topo, obj);
++        if ( hwloc_bitmap_isequal(avail, loc1) ||
++             hwloc_bitmap_isequal(avail, loc2)) {
++            goto out;
++        }
++    }
++
++    /* start at the first depth below the top machine level */
++    for (d=1; d < depth; d++) {
++        shared = false;
++        /* get the object type at this depth */
++        type = hwloc_get_depth_type(topo, d);
++        /* if it isn't one of interest, then ignore it */
++        if (HWLOC_OBJ_NODE != type &&
++            HWLOC_OBJ_SOCKET != type &&
++            HWLOC_OBJ_CACHE != type &&
++            HWLOC_OBJ_CORE != type &&
++            HWLOC_OBJ_PU != type) {
++            continue;
++        }
++        /* get the width of the topology at this depth */
++        width = hwloc_get_nbobjs_by_depth(topo, d);
++
++        /* scan all objects at this depth to see if
++         * our locations overlap with them
++         */
++        for (w=0; w < width; w++) {
++            /* get the object at this depth/index */
++            obj = hwloc_get_obj_by_depth(topo, d, w);
++            /* get the available cpuset for this obj */
++            avail = opal_hwloc_base_get_available_cpus(topo, obj);
++            /* see if our locations intersect with it */
++            sect1 = hwloc_bitmap_intersects(avail, loc1);
++            sect2 = hwloc_bitmap_intersects(avail, loc2);
++            /* if both intersect, then we share this level */
++            if (sect1 && sect2) {
++                shared = true;
++                switch(obj->type) {
++                case HWLOC_OBJ_NODE:
++                    locality = OPAL_PROC_ON_NUMA;
++                    break;
++                case HWLOC_OBJ_SOCKET:
++                    locality = OPAL_PROC_ON_SOCKET;
++                    break;
++                case HWLOC_OBJ_CACHE:
++                    if (3 == obj->attr->cache.depth) {
++                        locality = OPAL_PROC_ON_L3CACHE;
++                    } else if (2 == obj->attr->cache.depth) {
++                        locality = OPAL_PROC_ON_L2CACHE;
++                    } else {
++                        locality = OPAL_PROC_ON_L1CACHE;
++                    }
++                    break;
++                case HWLOC_OBJ_CORE:
++                    locality = OPAL_PROC_ON_CORE;
++                    break;
++                case HWLOC_OBJ_PU:
++                    locality = OPAL_PROC_ON_HWTHREAD;
++                    break;
++                default:
++                    /* just ignore it */
++                    break;
++                }
++                break;
++            }
++            /* otherwise, we don't share this
++             * object - but we still might share another object
++             * on this level, so we have to keep searching
++             */
++        }
++        /* if we spanned the entire width without finding
++         * a point of intersection, then no need to go
++         * deeper
++         */
++        if (!shared) {
++            break;
++        }
++    }
++
++out:
++    opal_output_verbose(5, opal_hwloc_base_framework.framework_output,
++                        "locality: %s",
++                        opal_hwloc_base_print_locality(locality));
++    hwloc_bitmap_free(loc1);
++    hwloc_bitmap_free(loc2);
++
++    return locality;
++}
++
+ /* searches the given topology for coprocessor objects and returns
+  * their serial numbers as a comma-delimited string, or NULL
+  * if no coprocessors are found
+Index: ompi/proc/proc.c
+===================================================================
+--- ompi/proc/proc.c	(revision 32056)
++++ ompi/proc/proc.c	(working copy)
+@@ -225,7 +225,7 @@
+                     locality = OPAL_PROC_ON_NODE;
+                 } else {
+                     /* we share a node - see what else we share */
+-                    locality = opal_hwloc_base_get_relative_locality(opal_hwloc_topology,
++                    locality = opal_hwloc_base_get_relative_locality2(opal_hwloc_topology,
+                                                                      ompi_process_info.cpuset,
+                                                                      cpu_bitmap);
+                 }
+

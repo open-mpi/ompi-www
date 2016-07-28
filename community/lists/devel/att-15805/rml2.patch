@@ -1,0 +1,197 @@
+Index: orte/mca/grpcomm/rcd/grpcomm_rcd.c
+===================================================================
+--- orte/mca/grpcomm/rcd/grpcomm_rcd.c	(revision 32706)
++++ orte/mca/grpcomm/rcd/grpcomm_rcd.c	(working copy)
+@@ -6,6 +6,8 @@
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC. All
+  *                         rights reserved.
+  * Copyright (c) 2014      Intel, Inc.  All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -85,6 +87,9 @@
+ static int allgather(orte_grpcomm_coll_t *coll,
+                      opal_buffer_t *sendbuf)
+ {
++    orte_grpcomm_base_pending_coll_t *pc;
++    bool pending = false;
++
+     OPAL_OUTPUT_VERBOSE((5, orte_grpcomm_base_framework.framework_output,
+                          "%s grpcomm:coll:recdub algo employed for %d processes",
+                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), (int)coll->ndmns));
+@@ -106,6 +111,33 @@
+      */
+     rcd_allgather_send_dist(coll, 1);
+ 
++    OPAL_LIST_FOREACH(pc, &orte_grpcomm_base.pending, orte_grpcomm_base_pending_coll_t) {
++        if (NULL == coll->sig->signature) {
++            if (NULL == pc->coll->sig->signature) {
++                /* only one collective can operate at a time
++                 * across every process in the system */
++                 pending = true;
++                 break;
++            }
++            /* if only one is NULL, then we can't possibly match */
++            break;
++        }
++        if (OPAL_EQUAL == opal_dss.compare(coll->sig, pc->coll->sig, ORTE_SIGNATURE)) {
++            OPAL_OUTPUT_VERBOSE((1, orte_grpcomm_base_framework.framework_output,
++                                 "%s grpcomm:rcd:found existing pending collective",
++                                 ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
++            pending = true;
++            break;
++        }
++    }
++    if (pending) {
++        assert (coll == pc->coll);
++        pc->coll->cbfunc(pc->ret, pc->reply, coll->cbdata);
++        opal_list_remove_item(&orte_grpcomm_base.pending, &pc->super);
++        OBJ_RELEASE(pc->reply);
++        OBJ_RELEASE(pc);
++    }
++    
+     return ORTE_SUCCESS;
+ }
+ 
+@@ -271,11 +303,16 @@
+     /* execute the callback */
+     if (NULL != coll->cbfunc) {
+         coll->cbfunc(ret, reply, coll->cbdata);
++        opal_list_remove_item(&orte_grpcomm_base.ongoing, &coll->super);
++        OBJ_RELEASE(reply);
++    } else {
++        orte_grpcomm_base_pending_coll_t *pcoll = OBJ_NEW(orte_grpcomm_base_pending_coll_t);
++        opal_list_remove_item(&orte_grpcomm_base.ongoing, &coll->super);
++        pcoll->ret = ret;
++        pcoll->reply = reply;
++        pcoll->coll = coll;
++        opal_list_append(&orte_grpcomm_base.pending, &pcoll->super);
+     }
+ 
+-    opal_list_remove_item(&orte_grpcomm_base.ongoing, &coll->super);
+-
+-    OBJ_RELEASE(reply);
+-
+     return ORTE_SUCCESS;
+ }
+Index: orte/mca/grpcomm/base/grpcomm_base_stubs.c
+===================================================================
+--- orte/mca/grpcomm/base/grpcomm_base_stubs.c	(revision 32706)
++++ orte/mca/grpcomm/base/grpcomm_base_stubs.c	(working copy)
+@@ -12,6 +12,8 @@
+  *                         All rights reserved.
+  * Copyright (c) 2011-2012 Los Alamos National Security, LLC.
+  *                         All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -72,6 +74,11 @@
+                           opal_object_t,
+                           gccon, NULL);
+ 
++OBJ_CLASS_INSTANCE(orte_grpcomm_base_pending_coll_t,
++                   opal_list_item_t,
++                   NULL,
++                   NULL);
++
+ int orte_grpcomm_API_xcast(orte_grpcomm_signature_t *sig,
+                            orte_rml_tag_t tag,
+                            opal_buffer_t *msg)
+@@ -184,6 +191,7 @@
+ orte_grpcomm_coll_t* orte_grpcomm_base_get_tracker(orte_grpcomm_signature_t *sig, bool create)
+ {
+     orte_grpcomm_coll_t *coll;
++    orte_grpcomm_base_pending_coll_t *pcoll;
+     int rc;
+ 
+     /* search the existing tracker list to see if this already exists */
+@@ -204,6 +212,23 @@
+             return coll;
+         }
+     }
++    OPAL_LIST_FOREACH(pcoll, &orte_grpcomm_base.pending, orte_grpcomm_base_pending_coll_t) {
++        if (NULL == sig->signature) {
++            if (NULL == pcoll->coll->sig->signature) {
++                /* only one collective can operate at a time
++                 * across every process in the system */
++                return pcoll->coll;
++            }
++            /* if only one is NULL, then we can't possibly match */
++            break;
++        }
++        if (OPAL_EQUAL == opal_dss.compare(sig, pcoll->coll->sig, ORTE_SIGNATURE)) {
++            OPAL_OUTPUT_VERBOSE((1, orte_grpcomm_base_framework.framework_output,
++                                 "%s grpcomm:base:returning existing pending collective",
++                                 ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
++            return pcoll->coll;
++        }
++    }
+     /* if we get here, then this is a new collective - so create
+      * the tracker for it */
+     if (!create) {
+Index: orte/mca/grpcomm/base/base.h
+===================================================================
+--- orte/mca/grpcomm/base/base.h	(revision 32706)
++++ orte/mca/grpcomm/base/base.h	(working copy)
+@@ -12,6 +12,8 @@
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC.
+  *                         All rights reserved.
+  * Copyright (c) 2013-2014 Intel, Inc. All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -65,8 +67,18 @@
+ OBJ_CLASS_DECLARATION(orte_grpcomm_base_active_t);
+ 
+ typedef struct {
++    opal_list_item_t super;
++    orte_grpcomm_coll_t * coll;
++    int ret;
++    opal_buffer_t *reply;
++} orte_grpcomm_base_pending_coll_t;
++
++OBJ_CLASS_DECLARATION(orte_grpcomm_base_pending_coll_t);
++
++typedef struct {
+     opal_list_t actives;
+     opal_list_t ongoing;
++    opal_list_t pending;
+ } orte_grpcomm_base_t;
+ 
+ ORTE_DECLSPEC extern orte_grpcomm_base_t orte_grpcomm_base;
+Index: orte/mca/grpcomm/base/grpcomm_base_frame.c
+===================================================================
+--- orte/mca/grpcomm/base/grpcomm_base_frame.c	(revision 32706)
++++ orte/mca/grpcomm/base/grpcomm_base_frame.c	(working copy)
+@@ -12,6 +12,8 @@
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC.
+  *                         All rights reserved.
+  * Copyright (c) 2014      Intel, Inc. All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -70,6 +72,7 @@
+     }
+     OPAL_LIST_DESTRUCT(&orte_grpcomm_base.actives);
+     OPAL_LIST_DESTRUCT(&orte_grpcomm_base.ongoing);
++    OPAL_LIST_DESTRUCT(&orte_grpcomm_base.pending);
+ 
+     return mca_base_framework_components_close(&orte_grpcomm_base_framework, NULL);
+ }
+@@ -82,6 +85,7 @@
+ {
+     OBJ_CONSTRUCT(&orte_grpcomm_base.actives, opal_list_t);
+     OBJ_CONSTRUCT(&orte_grpcomm_base.ongoing, opal_list_t);
++    OBJ_CONSTRUCT(&orte_grpcomm_base.pending, opal_list_t);
+ 
+     return mca_base_framework_components_open(&orte_grpcomm_base_framework, flags);
+ }
+

@@ -1,0 +1,502 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">George,<br>
+      <br>
+      i confirm there was a problem when running on an heterogeneous
+      cluster,<br>
+      this is now fixed in r32425.<br>
+      <br>
+      i am not convinced i chose the most elegant way to achieve the
+      desired result ...<br>
+      could you please double check this commit ?<br>
+      <br>
+      Thanks,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/08/02 0:14, George Bosilca wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:3FE5F0A2-B802-4322-AB01-D066542678EC@icl.utk.edu"
+      type="cite">
+      <pre wrap="">Gilles,
+
+The design of the BTL move was to let the opal_process_name_t be agnostic to what is stored inside, and all accesses should be done through the provided accessors. Thus, big endian or little endian doesn&#8217;t make a difference, as long as everything goes through the accessors.
+
+I&#8217;m skeptical about the support of heterogeneous environments in the current code, so I didn&#8217;t pay much attention to handling the case in the TCP BTL. But in case we do care it is enough to make  the 2 macros point to something meaningful instead of being empty (bswap_64 or something).
+
+  George.
+
+On Aug 1, 2014, at 06:52 , Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;gilles.gouaillardet@iferc.org&gt;</a> wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">George and Ralph,
+
+i am very confused whether there is an issue or not.
+
+
+anyway, today Paul and i ran basic tests on big endian machines and did not face any issue related to big endianness.
+
+so i made my homework, digged into the code, and basically, opal_process_name_t is used as an orte_process_name_t.
+for example, in ompi_proc_init :
+
+OMPI_CAST_ORTE_NAME(&amp;proc-&gt;super.proc_name)-&gt;jobid = OMPI_PROC_MY_NAME-&gt;jobid;
+OMPI_CAST_ORTE_NAME(&amp;proc-&gt;super.proc_name)-&gt;vpid = i;
+
+and with
+
+#define OMPI_CAST_ORTE_NAME(a) ((orte_process_name_t*)(a))
+
+so as long as an opal_process_name_t is used as an orte_process_name_t, there is no problem,
+regardless the endianness of the homogenous cluster we are running on.
+
+for the sake of readability (and for being pedantic too ;-) ) in r32357,
+&amp;proc_temp-&gt;super.proc_name 
+could be replaced with
+OMPI_CAST_ORTE_NAME(&amp;proc_temp-&gt;super.proc_name) 
+
+
+
+That being said, in btl/tcp, i noticed :
+
+in mca_btl_tcp_component_recv_handler :
+
+    opal_process_name_t guid;
+[...]
+    /* recv the process identifier */
+    retval = recv(sd, (char *)&amp;guid, sizeof(guid), 0);
+    if(retval != sizeof(guid)) {
+        CLOSE_THE_SOCKET(sd);
+        return;
+    }
+    OPAL_PROCESS_NAME_NTOH(guid);
+
+and in mca_btl_tcp_endpoint_send_connect_ack :
+
+    /* send process identifier to remote endpoint */
+    opal_process_name_t guid = btl_proc-&gt;proc_opal-&gt;proc_name;
+
+    OPAL_PROCESS_NAME_HTON(guid);
+    if(mca_btl_tcp_endpoint_send_blocking(btl_endpoint, &amp;guid, sizeof(guid)) !=
+
+and with
+
+#define OPAL_PROCESS_NAME_NTOH(guid)
+#define OPAL_PROCESS_NAME_HTON(guid)
+
+
+i had no time yet to test yet, but for now, i can only suspect :
+- there will be an issue with the tcp btl on an heterogeneous cluster
+- for this case, the fix is to have a different version of the OPAL_PROCESS_NAME_xTOy
+  on little endian arch if heterogeneous mode is supported.
+
+
+
+does that make sense ?
+
+Cheers,
+
+Gilles
+
+
+On 2014/07/31 1:29, George Bosilca wrote:
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">The underlying structure changed, so a little bit of fiddling is normal.
+Instead of using a field in the ompi_proc_t you are now using a field down
+in opal_proc_t, a field that simply cannot have the same type as before
+(orte_process_name_t).
+
+  George.
+
+
+
+On Wed, Jul 30, 2014 at 12:19 PM, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">George - my point was that we regularly tested using the method in that
+routine, and now we have to do something a little different. So it is an
+"issue" in that we have to make changes across the code base to ensure we
+do things the "new" way, that's all
+
+On Jul 30, 2014, at 9:17 AM, George Bosilca <a class="moz-txt-link-rfc2396E" href="mailto:bosilca@icl.utk.edu">&lt;bosilca@icl.utk.edu&gt;</a> wrote:
+
+No, this is not going to be an issue if the opal_identifier_t is used
+correctly (aka only via the exposed accessors).
+
+  George.
+
+
+
+On Wed, Jul 30, 2014 at 12:09 PM, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">Yeah, my fix won't work for big endian machines - this is going to be an
+issue across the code base now, so we'll have to troll and fix it. I was
+doing the minimal change required to fix the trunk in the meantime.
+
+On Jul 30, 2014, at 9:06 AM, George Bosilca <a class="moz-txt-link-rfc2396E" href="mailto:bosilca@icl.utk.edu">&lt;bosilca@icl.utk.edu&gt;</a> wrote:
+
+Yes. opal_process_name_t has basically no meaning by itself, it is a 64
+bits storage location used by the upper layer to save some local key that
+can be later used to extract information. Calling the OPAL level compare
+function might be a better fit there.
+
+  George.
+
+
+
+On Wed, Jul 30, 2014 at 11:50 AM, Gilles Gouaillardet &lt;
+<a class="moz-txt-link-abbreviated" href="mailto:gilles.gouaillardet@gmail.com">gilles.gouaillardet@gmail.com</a>&gt; wrote:
+
+</pre>
+              <blockquote type="cite">
+                <pre wrap="">Ralph,
+
+was it really that simple ?
+
+proc_temp-&gt;super.proc_name has type opal_process_name_t :
+typedef opal_identifier_t opal_process_name_t;
+typedef uint64_t opal_identifier_t;
+
+*but*
+
+item_ptr-&gt;peer has type orte_process_name_t :
+struct orte_process_name_t {
+   orte_jobid_t jobid;
+   orte_vpid_t vpid;
+};
+
+bottom line, is r32357 still valid on a big endian arch ?
+
+Cheers,
+
+Gilles
+
+
+On Wed, Jul 30, 2014 at 11:49 PM, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a>
+wrote:
+
+</pre>
+                <blockquote type="cite">
+                  <pre wrap="">I just fixed this one - all that was required was an ampersand as the
+name was being passed into the function instead of a pointer to the name
+
+r32357
+
+On Jul 30, 2014, at 7:43 AM, Gilles GOUAILLARDET &lt;
+<a class="moz-txt-link-abbreviated" href="mailto:gilles.gouaillardet@gmail.com">gilles.gouaillardet@gmail.com</a>&gt; wrote:
+
+Rolf,
+
+r32353 can be seen as a suspect...
+Even if it is correct, it might have exposed the bug discussed in #4815
+even more (e.g. we hit the bug 100% after the fix)
+
+does the attached patch to #4815 fixes the problem ?
+
+If yes, and if you see this issue as a showstopper, feel free to commit
+it and drop a note to #4815
+( I am afk until tomorrow)
+
+Cheers,
+
+Gilles
+
+Rolf vandeVaart <a class="moz-txt-link-rfc2396E" href="mailto:rvandevaart@nvidia.com">&lt;rvandevaart@nvidia.com&gt;</a> wrote:
+
+Just an FYI that my trunk version (r32355) does not work at all anymore
+if I do not include "--mca coll ^ml".    Here is a stack trace from the
+ibm/pt2pt/send test running on a single node.
+
+
+
+(gdb) where
+
+#0  0x00007f6c0d1321d0 in ?? ()
+
+#1  &lt;signal handler called&gt;
+
+#2  0x00007f6c183abd52 in orte_util_compare_name_fields (fields=15
+'\017', name1=0x192350001, name2=0xbaf76c) at ../../orte/util/name_fns.c:522
+
+#3  0x00007f6c0bea17be in bcol_basesmuma_smcm_allgather_connection
+(sm_bcol_module=0x7f6bf3b68040, module=0xb3d200, peer_list=0x7f6c0c0a6748,
+back_files=0x7f6bf3ffd6c8,
+
+    comm=0x6037a0, input=..., base_fname=0x7f6c0bea2606
+"sm_payload_mem_", map_all=false) at
+../../../../../ompi/mca/bcol/basesmuma/bcol_basesmuma_smcm.c:237
+
+#4  0x00007f6c0be98307 in bcol_basesmuma_bank_init_opti
+(payload_block=0xbc0f60, data_offset=64, bcol_module=0x7f6bf3b68040,
+reg_data=0xba28c0)
+
+    at
+../../../../../ompi/mca/bcol/basesmuma/bcol_basesmuma_buf_mgmt.c:302
+
+#5  0x00007f6c0cced386 in mca_coll_ml_register_bcols
+(ml_module=0xba5c40) at ../../../../../ompi/mca/coll/ml/coll_ml_module.c:510
+
+#6  0x00007f6c0cced68f in ml_module_memory_initialization
+(ml_module=0xba5c40) at ../../../../../ompi/mca/coll/ml/coll_ml_module.c:558
+
+#7  0x00007f6c0ccf06b1 in ml_discover_hierarchy (ml_module=0xba5c40) at
+../../../../../ompi/mca/coll/ml/coll_ml_module.c:1539
+
+#8  0x00007f6c0ccf4e0b in mca_coll_ml_comm_query (comm=0x6037a0,
+priority=0x7fffe7991b58) at
+../../../../../ompi/mca/coll/ml/coll_ml_module.c:2963
+
+#9  0x00007f6c18cc5b09 in query_2_0_0 (component=0x7f6c0cf50940,
+comm=0x6037a0, priority=0x7fffe7991b58, module=0x7fffe7991b90)
+
+    at ../../../../ompi/mca/coll/base/coll_base_comm_select.c:372
+
+#10 0x00007f6c18cc5ac8 in query (component=0x7f6c0cf50940,
+comm=0x6037a0, priority=0x7fffe7991b58, module=0x7fffe7991b90)
+
+    at ../../../../ompi/mca/coll/base/coll_base_comm_select.c:355
+
+#11 0x00007f6c18cc59d2 in check_one_component (comm=0x6037a0,
+component=0x7f6c0cf50940, module=0x7fffe7991b90)
+
+    at ../../../../ompi/mca/coll/base/coll_base_comm_select.c:317
+
+#12 0x00007f6c18cc5818 in check_components (components=0x7f6c18f46ef0,
+comm=0x6037a0) at ../../../../ompi/mca/coll/base/coll_base_comm_select.c:281
+
+#13 0x00007f6c18cbe3c9 in mca_coll_base_comm_select (comm=0x6037a0) at
+../../../../ompi/mca/coll/base/coll_base_comm_select.c:117
+
+#14 0x00007f6c18c52301 in ompi_mpi_init (argc=1, argv=0x7fffe79924c8,
+requested=0, provided=0x7fffe79922e8) at
+../../ompi/runtime/ompi_mpi_init.c:918
+
+#15 0x00007f6c18c86e92 in PMPI_Init (argc=0x7fffe799234c,
+argv=0x7fffe7992340) at pinit.c:84
+
+#16 0x0000000000401056 in main (argc=1, argv=0x7fffe79924c8) at
+send.c:32
+
+(gdb) up
+
+#1  &lt;signal handler called&gt;
+
+(gdb) up
+
+#2  0x00007f6c183abd52 in orte_util_compare_name_fields (fields=15
+'\017', name1=0x192350001, name2=0xbaf76c) at ../../orte/util/name_fns.c:522
+
+522           if (name1-&gt;jobid &lt; name2-&gt;jobid) {
+
+(gdb) print name1
+
+$1 = (const orte_process_name_t *) 0x192350001
+
+(gdb) print *name1
+
+Cannot access memory at address 0x192350001
+
+(gdb) print name2
+
+$2 = (const orte_process_name_t *) 0xbaf76c
+
+(gdb) print *name2
+
+$3 = {jobid = 2452946945, vpid = 1}
+
+(gdb)
+
+
+
+
+
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">-----Original Message-----
+From: devel [<a class="moz-txt-link-freetext" href="mailto:devel-bounces@open-mpi.org">mailto:devel-bounces@open-mpi.org</a>
+</pre>
+                  </blockquote>
+                  <pre wrap=""><a class="moz-txt-link-rfc2396E" href="mailto:devel-bounces@open-mpi.org">&lt;devel-bounces@open-mpi.org&gt;</a>] On Behalf Of Gilles
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">Gouaillardet
+Sent: Wednesday, July 30, 2014 2:16 AM
+To: Open MPI Developers
+Subject: Re: [OMPI devel] trunk compilation errors in jenkins
+George,
+#4815 is indirectly related to the move :
+in bcol/basesmuma, we used to compare ompi_process_name_t, and now
+we (try to) compare an ompi_process_name_t and an opal_process_name_t
+(which causes a glory SIGSEGV)
+i proposed a temporary patch which is both broken and unelegant, could
+</pre>
+                  </blockquote>
+                  <pre wrap="">you
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">please advise a correct solution ?
+Cheers,
+Gilles
+On 2014/07/27 7:37, George Bosilca wrote:
+</pre>
+                    <blockquote type="cite">
+                      <pre wrap="">If you have any issue with the move, I&#8217;ll be happy to help and/or
+</pre>
+                    </blockquote>
+                  </blockquote>
+                  <pre wrap="">support
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">you on your last move toward a completely generic BTL. To facilitate
+</pre>
+                  </blockquote>
+                  <pre wrap="">your
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">work I exposed a minimalistic set of OMPI information at the OPAL
+</pre>
+                  </blockquote>
+                  <pre wrap="">level. Take
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">a look at opal/util/proc.h for more info, but please try not to expose
+</pre>
+                  </blockquote>
+                  <pre wrap="">more.
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open">http://www.open</a>-
+</pre>
+                  </blockquote>
+                  <pre wrap=""><a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/07/15348.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/07/15348.php&gt;</a>
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">mpi.org/community/lists/devel/2014/07/15348.php
+</pre>
+                  </blockquote>
+                  <pre wrap=""><a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/07/15348.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/07/15348.php&gt;</a>
+ ------------------------------
+ This email message is for the sole use of the intended recipient(s)
+and may contain confidential information.  Any unauthorized review, use,
+disclosure or distribution is prohibited.  If you are not the intended
+recipient, please contact the sender by reply email and destroy all copies
+of the original message.
+ ------------------------------
+ _______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/07/15355.php">http://www.open-mpi.org/community/lists/devel/2014/07/15355.php</a>
+
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/07/15356.php">http://www.open-mpi.org/community/lists/devel/2014/07/15356.php</a>
+
+</pre>
+                </blockquote>
+                <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/07/15363.php">http://www.open-mpi.org/community/lists/devel/2014/07/15363.php</a>
+
+</pre>
+              </blockquote>
+              <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/07/15364.php">http://www.open-mpi.org/community/lists/devel/2014/07/15364.php</a>
+
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/07/15365.php">http://www.open-mpi.org/community/lists/devel/2014/07/15365.php</a>
+
+</pre>
+            </blockquote>
+            <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/07/15366.php">http://www.open-mpi.org/community/lists/devel/2014/07/15366.php</a>
+
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/07/15367.php">http://www.open-mpi.org/community/lists/devel/2014/07/15367.php</a>
+
+</pre>
+          </blockquote>
+          <pre wrap="">
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/07/15368.php">http://www.open-mpi.org/community/lists/devel/2014/07/15368.php</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15446.php">http://www.open-mpi.org/community/lists/devel/2014/08/15446.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15454.php">http://www.open-mpi.org/community/lists/devel/2014/08/15454.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

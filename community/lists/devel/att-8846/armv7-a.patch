@@ -1,0 +1,586 @@
+--- ompi-trunk/opal/asm/generate-asm.pl (revision 24191)
++++ ompi-trunk/opal/asm/generate-asm.pl (working copy)
+@@ -103,7 +103,11 @@
+ }
+ 
+ if ($GNU_STACK == 1) {
+-    print OUTPUT "\n\t.section\t.note.GNU-stack,\"\",\@progbits\n";
++    if ($asmarch eq "ARM") {
++        print OUTPUT "\n\t.section\t.note.GNU-stack,\"\",\%progbits\n";
++    } else {
++        print OUTPUT "\n\t.section\t.note.GNU-stack,\"\",\@progbits\n";
++    }
+ }
+ 
+ close(INPUT);
+Index: ompi-trunk/opal/asm/asm-data.txt
+===================================================================
+--- ompi-trunk/opal/asm/asm-data.txt    (revision 24191)
++++ ompi-trunk/opal/asm/asm-data.txt    (working copy)
+@@ -48,6 +48,15 @@
+ 
+ ######################################################################
+ #
++# ARM (ARMv7 and later)
++#
++######################################################################
++
++ARM    default-.text-.globl-:--.L-#-1-1-1-1-1  arm-linux
++
++
++######################################################################
++#
+ # Intel Pentium Class
+ #
+ ######################################################################
+Index: ompi-trunk/opal/asm/base/ARM.asm
+===================================================================
+--- ompi-trunk/opal/asm/base/ARM.asm    (revision 0)
++++ ompi-trunk/opal/asm/base/ARM.asm    (revision 0)
+@@ -0,0 +1,150 @@
++START_FILE
++       TEXT
++
++       ALIGN(4)
++START_FUNC(opal_atomic_mb)
++       dmb
++       bx      lr
++END_FUNC(opal_atomic_mb)
++
++
++START_FUNC(opal_atomic_rmb)
++       dmb
++       bx      lr
++END_FUNC(opal_atomic_rmb)
++
++
++START_FUNC(opal_atomic_wmb)
++       dmb
++       bx      lr
++END_FUNC(opal_atomic_wmb)
++
++
++START_FUNC(opal_atomic_cmpset_32)
++       LSYM(1)
++       ldrex   r3, [r0]
++       cmp     r1, r3
++       bne     REFLSYM(2)
++       strex   r12, r2, [r0]
++       cmp     r12, #0
++       bne     REFLSYM(1)
++       mov     r0, #1
++       LSYM(2)
++       movne   r0, #0
++       bx      lr
++END_FUNC(opal_atomic_cmpset_32)
++
++
++START_FUNC(opal_atomic_cmpset_acq_32)
++       LSYM(3)
++       ldrex   r3, [r0]
++       cmp     r1, r3
++       bne     REFLSYM(4)
++       strex   r12, r2, [r0]
++       cmp     r12, #0
++       bne     REFLSYM(3)
++       dmb
++       mov     r0, #1
++       LSYM(4)
++       movne   r0, #0
++       bx      lr
++END_FUNC(opal_atomic_cmpset_acq_32)
++
++
++START_FUNC(opal_atomic_cmpset_rel_32)
++       LSYM(5)
++       ldrex   r3, [r0]
++       cmp     r1, r3
++       bne     REFLSYM(6)
++       dmb
++       strex   r12, r2, [r0]
++       cmp     r12, #0
++       bne     REFLSYM(4)
++       mov     r0, #1
++       LSYM(6)
++       movne   r0, #0
++       bx      lr
++END_FUNC(opal_atomic_cmpset_rel_32)
++
++#START_64BIT
++START_FUNC(opal_atomic_cmpset_64)
++       push    {r4-r7}
++       ldrd    r6, r7, [sp, #16]
++       LSYM(7)
++       ldrexd  r4, r5, [r0]
++       cmp     r4, r2
++       cmpeq   r5, r3
++       bne     REFLSYM(8)
++       strexd  r1, r6, r7, [r0]
++       cmp     r1, #0
++       bne     REFLSYM(7)
++       mov     r0, #1
++       LSYM(8)
++       movne   r0, #0
++       pop     {r4-r7}
++       bx      lr
++END_FUNC(opal_atomic_cmpset_64)
++
++START_FUNC(opal_atomic_cmpset_acq_64)
++       push    {r4-r7}
++       ldrd    r6, r7, [sp, #16]
++       LSYM(9)
++       ldrexd  r4, r5, [r0]
++       cmp     r4, r2
++       cmpeq   r5, r3
++       bne     REFLSYM(10)
++       strexd  r1, r6, r7, [r0]
++       cmp     r1, #0
++       bne     REFLSYM(9)
++       dmb
++       mov     r0, #1
++       LSYM(10)
++       movne   r0, #0
++       pop     {r4-r7}
++       bx      lr
++END_FUNC(opal_atomic_cmpset_acq_64)
++
++
++START_FUNC(opal_atomic_cmpset_rel_64)
++       push    {r4-r7}
++       ldrd    r6, r7, [sp, #16]
++       LSYM(11)
++       ldrexd  r4, r5, [r0]
++       cmp     r4, r2
++       cmpeq   r5, r3
++       bne     REFLSYM(12)
++       dmb
++       strexd  r1, r6, r7, [r0]
++       cmp     r1, #0
++       bne     REFLSYM(11)
++       mov     r0, #1
++       LSYM(12)
++       movne   r0, #0
++       pop     {r4-r7}
++       bx      lr
++END_FUNC(opal_atomic_cmpset_rel_64)
++#END_64BIT
++
++
++START_FUNC(opal_atomic_add_32)
++       LSYM(13)
++       ldrex   r2, [r0]
++       add     r2, r2, r1
++       strex   r3, r2, [r0]
++       cmp     r3, #0
++       bne     REFLSYM(13)
++       mov     r0, r2
++       bx      lr
++END_FUNC(opal_atomic_add_32)
++
++
++START_FUNC(opal_atomic_sub_32)
++       LSYM(14)
++       ldrex   r2, [r0]
++       sub     r2, r2, r1
++       strex   r3, r2, [r0]
++       cmp     r3, #0
++       bne     REFLSYM(14)
++       mov     r0, r2
++       bx      lr
++END_FUNC(opal_atomic_sub_32)
+Index: ompi-trunk/opal/include/opal/sys/arm/atomic.h
+===================================================================
+--- ompi-trunk/opal/include/opal/sys/arm/atomic.h       (revision 0)
++++ ompi-trunk/opal/include/opal/sys/arm/atomic.h       (revision 0)
+@@ -0,0 +1,227 @@
++/*
++ * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++ *                         University Research and Technology
++ *                         Corporation.  All rights reserved.
++ * Copyright (c) 2004-2005 The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++ *                         University of Stuttgart.  All rights reserved.
++ * Copyright (c) 2004-2005 The Regents of the University of California.
++ *                         All rights reserved.
++ * Copyright (c) 2010      IBM Corporation.  All rights reserved.
++ * Copyright (c) 2010      ARM ltd.  All rights reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#ifndef OMPI_SYS_ARCH_ATOMIC_H
++#define OMPI_SYS_ARCH_ATOMIC_H 1
++
++#if OPAL_WANT_SMP_LOCKS
++
++#define MB()  __asm__ __volatile__ ("dmb" : : : "memory")
++#define RMB() __asm__ __volatile__ ("dmb" : : : "memory")
++#define WMB() __asm__ __volatile__ ("dmb" : : : "memory")
++
++#else
++
++#define MB()
++#define RMB()
++#define WMB()
++
++#endif
++
++
++/**********************************************************************
++ *
++ * Define constants for ARMv7
++ *
++ *********************************************************************/
++#define OPAL_HAVE_ATOMIC_MEM_BARRIER 1
++
++#define OPAL_HAVE_ATOMIC_CMPSET_32 1
++
++#define OPAL_HAVE_ATOMIC_CMPSET_64 1
++
++#define OPAL_HAVE_ATOMIC_MATH_32 1
++#define OPAL_HAVE_ATOMIC_ADD_32 1
++#define OPAL_HAVE_ATOMIC_SUB_32 1
++
++
++/**********************************************************************
++ *
++ * Memory Barriers
++ *
++ *********************************************************************/
++#if OMPI_GCC_INLINE_ASSEMBLY
++
++static inline
++void opal_atomic_mb(void)
++{
++    MB();
++}
++
++
++static inline
++void opal_atomic_rmb(void)
++{
++    RMB();
++}
++
++
++static inline
++void opal_atomic_wmb(void)
++{
++    WMB();
++}
++
++
++/**********************************************************************
++ *
++ * Atomic math operations
++ *
++ *********************************************************************/
++
++static inline int opal_atomic_cmpset_32(volatile int32_t *addr,
++                                        int32_t oldval, int32_t newval)
++{
++  int32_t ret, tmp;
++
++   __asm__ __volatile__ (
++                         "1:  ldrex   %0, [%2]        \n"
++                         "    cmp     %0, %3          \n"
++                         "    bne     2f              \n"
++                         "    strex   %1, %4, [%2]    \n"
++                         "    cmp     %1, #0          \n"
++                         "    bne     1b              \n"
++                         "2:                          \n"
++
++                         : "=&r" (ret), "=&r" (tmp)
++                         : "r" (addr), "r" (oldval), "r" (newval)
++                         : "cc", "memory");
++
++   return (ret == oldval);
++}
++
++/* these two functions aren't inlined in the non-gcc case because then
++   there would be two function calls (since neither cmpset_32 nor
++   atomic_?mb can be inlined).  Instead, we "inline" them by hand in
++   the assembly, meaning there is one function call overhead instead
++   of two */
++static inline int opal_atomic_cmpset_acq_32(volatile int32_t *addr,
++                                            int32_t oldval, int32_t newval)
++{
++    int rc;
++
++    rc = opal_atomic_cmpset_32(addr, oldval, newval);
++    opal_atomic_rmb();
++
++    return rc;
++}
++
++
++static inline int opal_atomic_cmpset_rel_32(volatile int32_t *addr,
++                                            int32_t oldval, int32_t newval)
++{
++    opal_atomic_wmb();
++    return opal_atomic_cmpset_32(addr, oldval, newval);
++}
++
++
++static inline int opal_atomic_cmpset_64(volatile int64_t *addr,
++                                        int64_t oldval, int64_t newval)
++{
++  int64_t ret;
++  int tmp;
++
++
++   __asm__ __volatile__ (
++                         "1:  ldrexd  %0, %H0, [%2]           \n"
++                         "    cmp     %0, %3                  \n"
++                         "    cmpeq   %H0, %H3                \n"
++                         "    bne     2f                      \n"
++                         "    strexd  %1, %4, %H4, [%2]       \n"
++                         "    cmp     %1, #0                  \n"
++                         "    bne     1b                      \n"
++                         "2:                                    \n"
++
++                         : "=&r" (ret), "=&r" (tmp)
++                         : "r" (addr), "r" (oldval), "r" (newval)
++                         : "cc", "memory");
++
++   return (ret == oldval);
++}
++
++/* these two functions aren't inlined in the non-gcc case because then
++   there would be two function calls (since neither cmpset_64 nor
++   atomic_?mb can be inlined).  Instead, we "inline" them by hand in
++   the assembly, meaning there is one function call overhead instead
++   of two */
++static inline int opal_atomic_cmpset_acq_64(volatile int64_t *addr,
++                                            int64_t oldval, int64_t newval)
++{
++    int rc;
++
++    rc = opal_atomic_cmpset_64(addr, oldval, newval);
++    opal_atomic_rmb();
++
++    return rc;
++}
++
++
++static inline int opal_atomic_cmpset_rel_64(volatile int64_t *addr,
++                                            int64_t oldval, int64_t newval)
++{
++    opal_atomic_wmb();
++    return opal_atomic_cmpset_64(addr, oldval, newval);
++}
++
++
++static inline int32_t opal_atomic_add_32(volatile int32_t* v, int inc)
++{
++   int32_t t;
++   int tmp;
++
++   __asm__ __volatile__(
++                         "1:  ldrex   %0, [%2]        \n"
++                         "    add     %0, %0, %3      \n"
++                         "    strex   %1, %0, [%2]    \n"
++                         "    cmp     %1, #0          \n"
++                         "    bne     1b              \n"
++
++                         : "=&r" (t), "=&r" (tmp)
++                         : "r" (v), "r" (inc)
++                         : "cc", "memory");
++
++
++   return t;
++}
++
++
++static inline int32_t opal_atomic_sub_32(volatile int32_t* v, int dec)
++{
++   int32_t t;
++   int tmp;
++
++   __asm__ __volatile__(
++                         "1:  ldrex   %0, [%2]        \n"
++                         "    sub     %0, %0, %3      \n"
++                         "    strex   %1, %0, [%2]    \n"
++                         "    cmp     %1, #0          \n"
++                         "    bne     1b              \n"
++
++                         : "=&r" (t), "=&r" (tmp)
++                         : "r" (v), "r" (dec)
++                         : "cc", "memory");
++
++   return t;
++}
++
++
++#endif /* OMPI_GCC_INLINE_ASSEMBLY */
++
++#endif /* ! OMPI_SYS_ARCH_ATOMIC_H */
+Index: ompi-trunk/opal/include/opal/sys/arm/timer.h
+===================================================================
+--- ompi-trunk/opal/include/opal/sys/arm/timer.h        (revision 0)
++++ ompi-trunk/opal/include/opal/sys/arm/timer.h        (revision 0)
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (c) 2008      The University of Tennessee and The University
++ *                         of Tennessee Research Foundation.  All rights
++ *                         reserved.
++ * $COPYRIGHT$
++ * 
++ * Additional copyrights may follow
++ * 
++ * $HEADER$
++ */
++
++#ifndef OMPI_SYS_ARCH_TIMER_H
++#define OMPI_SYS_ARCH_TIMER_H 1
++
++#include <sys/times.h>
++
++typedef uint64_t opal_timer_t;
++
++static inline opal_timer_t
++opal_sys_timer_get_cycles(void)
++{
++    opal_timer_t ret;
++    struct tms accurate_clock;
++
++    times(&accurate_clock);
++    ret = accurate_clock.tms_utime + accurate_clock.tms_stime;
++
++    return ret;
++}
++
++#define OPAL_HAVE_SYS_TIMER_GET_CYCLES 1
++
++#endif /* ! OMPI_SYS_ARCH_TIMER_H */
+Index: ompi-trunk/opal/include/opal/sys/arm/Makefile.am
+===================================================================
+--- ompi-trunk/opal/include/opal/sys/arm/Makefile.am    (revision 0)
++++ ompi-trunk/opal/include/opal/sys/arm/Makefile.am    (revision 0)
+@@ -0,0 +1,24 @@
++#
++# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++#                         University Research and Technology
++#                         Corporation.  All rights reserved.
++# Copyright (c) 2004-2008 The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++#                         University of Stuttgart.  All rights reserved.
++# Copyright (c) 2004-2005 The Regents of the University of California.
++#                         All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++
++# This makefile.am does not stand on its own - it is included from opal/include/Makefile.am
++
++headers += \
++       opal/sys/arm/atomic.h \
++       opal/sys/arm/timer.h
++
+Index: ompi-trunk/opal/include/opal/sys/arm/update.sh
+===================================================================
+--- ompi-trunk/opal/include/opal/sys/arm/update.sh      (revision 0)
++++ ompi-trunk/opal/include/opal/sys/arm/update.sh      (revision 0)
+@@ -0,0 +1,37 @@
++#!/bin/sh
++#
++# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
++#                         University Research and Technology
++#                         Corporation.  All rights reserved.
++# Copyright (c) 2004-2005 The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++#                         University of Stuttgart.  All rights reserved.
++# Copyright (c) 2004-2005 The Regents of the University of California.
++#                         All rights reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++
++CFILE=/tmp/opal_atomic_$$.c
++
++trap "/bin/rm -f $CFILE; exit 0" 0 1 2 15
++
++echo Updating atomic.s from atomic.h using gcc
++
++cat > $CFILE<<EOF
++#include <stdlib.h>
++#include <inttypes.h>
++#define static
++#define inline
++#define OMPI_GCC_INLINE_ASSEMBLY 1
++#define OPAL_WANT_SMP_LOCKS 1
++#include "../architecture.h"
++#include "atomic.h"
++EOF
++
++gcc -O1 -I. -S $CFILE -o atomic.s
+Index: ompi-trunk/opal/include/opal/sys/atomic.h
+===================================================================
+--- ompi-trunk/opal/include/opal/sys/atomic.h   (revision 24191)
++++ ompi-trunk/opal/include/opal/sys/atomic.h   (working copy)
+@@ -146,6 +146,8 @@
+ #include "opal/sys/alpha/atomic.h"
+ #elif OPAL_ASSEMBLY_ARCH == OMPI_AMD64
+ #include "opal/sys/amd64/atomic.h"
++#elif OPAL_ASSEMBLY_ARCH == OMPI_ARM
++#include "opal/sys/arm/atomic.h"
+ #elif OPAL_ASSEMBLY_ARCH == OMPI_IA32
+ #include "opal/sys/ia32/atomic.h"
+ #elif OPAL_ASSEMBLY_ARCH == OMPI_IA64
+Index: ompi-trunk/opal/include/opal/sys/timer.h
+===================================================================
+--- ompi-trunk/opal/include/opal/sys/timer.h    (revision 24191)
++++ ompi-trunk/opal/include/opal/sys/timer.h    (working copy)
+@@ -79,6 +79,8 @@
+ /* don't include system-level gorp when generating doxygen files */ 
+ #elif OPAL_ASSEMBLY_ARCH == OMPI_AMD64
+ #include "opal/sys/amd64/timer.h"
++#elif OPAL_ASSEMBLY_ARCH == OMPI_ARM
++#include "opal/sys/arm/timer.h"
+ #elif OPAL_ASSEMBLY_ARCH == OMPI_IA32
+ #include "opal/sys/ia32/timer.h"
+ #elif OPAL_ASSEMBLY_ARCH == OMPI_IA64
+Index: ompi-trunk/opal/include/opal/sys/architecture.h
+===================================================================
+--- ompi-trunk/opal/include/opal/sys/architecture.h     (revision 24191)
++++ ompi-trunk/opal/include/opal/sys/architecture.h     (working copy)
+@@ -36,6 +36,7 @@
+ #define OMPI_SPARCV9_32     0061
+ #define OMPI_SPARCV9_64     0062
+ #define OMPI_MIPS           0070
++#define OMPI_ARM            0100
+ 
+ /* Formats */
+ #define OMPI_DEFAULT        1000  /* standard for given architecture */
+Index: ompi-trunk/opal/config/opal_config_asm.m4
+===================================================================
+--- ompi-trunk/opal/config/opal_config_asm.m4   (revision 24191)
++++ ompi-trunk/opal/config/opal_config_asm.m4   (working copy)
+@@ -900,6 +900,12 @@
+             OMPI_GCC_INLINE_ASSIGN='"bis [$]31,[$]31,%0" : "=&r"(ret)'
+             ;;
+ 
++        armv7*)
++            ompi_cv_asm_arch="ARM"
++            OPAL_ASM_SUPPORT_64BIT=1
++            OMPI_GCC_INLINE_ASSIGN='"mov %0, #0" : "=&r"(ret)'
++            ;;
++
+         mips-*|mips64*)
+             # Should really find some way to make sure that we are on
+             # a MIPS III machine (r4000 and later)

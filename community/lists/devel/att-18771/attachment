@@ -1,0 +1,121 @@
+Nadia,<div><br></div><div>by any chance, could this test suite be contributed to the ompi-tests repository ?</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Friday, April 15, 2016, DERBEY, NADIA &lt;<a href="mailto:nadia.derbey@atos.net">nadia.derbey@atos.net</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Jeff,<br>
+<br>
+Actually, we have a functional test suite that used to pass for these<br>
+types and it fails now with v2.x. So I thought it was a regression.<br>
+<br>
+But from what you&#39;re saying, the new standard doesn&#39;t have a strong<br>
+requirement on LOGICAL and CHARACTER. So I really don&#39;t mind, since I<br>
+don&#39;t know whether these types are widely used in client applications. I<br>
+guess no?<br>
+<br>
+Regards,<br>
+<br>
+<br>
+On 04/15/2016 02:34 PM, Jeff Squyres (jsquyres) wrote:<br>
+&gt; Nadia --<br>
+&gt;<br>
+&gt; I believe that the character and logical types are not in this script already because the description of MPI_SIZEOF in MPI-3.1 says that the input choice buffer parameter is:<br>
+&gt;<br>
+&gt; IN x     a Fortran variable of numeric intrinsic type (choice)<br>
+&gt;<br>
+&gt; As I understand it (and my usual disclaimer here: I am *not* a Fortran expert), CHARACTER and LOGICAL types are not numeric in Fortran.<br>
+&gt;<br>
+&gt; However, we could add such interfaces as an extension.<br>
+&gt;<br>
+&gt; I just checked MPICH 3.2, and they *do* include MPI_SIZEOF interfaces for CHARACTER and LOGICAL, but they are missing many of the other MPI_SIZEOF interfaces that we have in OMPI.  Meaning: OMPI and MPICH already diverge wildly on MPI_SIZEOF.  :-\<br>
+&gt;<br>
+&gt; I guess I don&#39;t have a strong opinion here.  If you file a PR for this patch, I won&#39;t object.  :-)<br>
+&gt;<br>
+&gt;<br>
+&gt;&gt; On Apr 15, 2016, at 3:22 AM, DERBEY, NADIA &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;nadia.derbey@atos.net&#39;)">nadia.derbey@atos.net</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; Hi,<br>
+&gt;&gt;<br>
+&gt;&gt; The following trivial example doesn&#39;t compile because of 2 missing types<br>
+&gt;&gt; in the MPI_SIZEOF subroutines (in mpi_sizeof.f90).<br>
+&gt;&gt;<br>
+&gt;&gt; [derbeyn@btp0 test]$ cat mpi_sizeof.f90<br>
+&gt;&gt;            program main<br>
+&gt;&gt; !        use mpi<br>
+&gt;&gt;            include &#39;mpif.h&#39;<br>
+&gt;&gt;<br>
+&gt;&gt;            integer ierr, sz, mpisize<br>
+&gt;&gt;            real r1<br>
+&gt;&gt;            integer i1<br>
+&gt;&gt;            character ch1<br>
+&gt;&gt;            logical l1<br>
+&gt;&gt;<br>
+&gt;&gt;            call MPI_INIT(ierr)<br>
+&gt;&gt;            call MPI_SIZEOF(r1, sz, ierr)<br>
+&gt;&gt;            call MPI_SIZEOF(i1, sz, ierr)<br>
+&gt;&gt;            call MPI_SIZEOF(l1, sz, ierr)<br>
+&gt;&gt;            call MPI_SIZEOF(ch1, sz, ierr)<br>
+&gt;&gt;            call MPI_FINALIZE(ierr)<br>
+&gt;&gt;<br>
+&gt;&gt;            end<br>
+&gt;&gt; [derbeyn@btp0 test]$ mpif90 -o mpi_sizeof mpi_sizeof.f90<br>
+&gt;&gt; mpi_sizeof.f90(14): error #6285: There is no matching specific<br>
+&gt;&gt; subroutine for this generic subroutine call.   [MPI_SIZEOF]<br>
+&gt;&gt;            call MPI_SIZEOF(ch1, sz, ierr)<br>
+&gt;&gt; -------------^<br>
+&gt;&gt; mpi_sizeof.f90(15): error #6285: There is no matching specific<br>
+&gt;&gt; subroutine for this generic subroutine call.   [MPI_SIZEOF]<br>
+&gt;&gt;            call MPI_SIZEOF(l1, sz, ierr)<br>
+&gt;&gt; -------------^<br>
+&gt;&gt; compilation aborted for mpi_sizeof.f90 (code 1)<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; This problem happens both on master and v2.x. The following patch seems<br>
+&gt;&gt; to solve the issue:<br>
+&gt;&gt;<br>
+&gt;&gt; diff --git a/ompi/mpi/fortran/base/<a href="http://gen-mpi-sizeof.pl" target="_blank">gen-mpi-sizeof.pl</a><br>
+&gt;&gt; b/ompi/mpi/fortran/base/<a href="http://gen-mpi-sizeof.pl" target="_blank">gen-mpi-sizeof.pl</a><br>
+&gt;&gt; index 5ea3dca3..a2a99924 100755<br>
+&gt;&gt; --- a/ompi/mpi/fortran/base/<a href="http://gen-mpi-sizeof.pl" target="_blank">gen-mpi-sizeof.pl</a><br>
+&gt;&gt; +++ b/ompi/mpi/fortran/base/<a href="http://gen-mpi-sizeof.pl" target="_blank">gen-mpi-sizeof.pl</a><br>
+&gt;&gt; @@ -145,6 +145,9 @@ sub generate {<br>
+&gt;&gt;     # Main<br>
+&gt;&gt;<br>
+&gt;&gt; #############################################################################<br>
+&gt;&gt;<br>
+&gt;&gt; +queue_sub(&quot;character&quot;, &quot;char&quot;, &quot;character_kinds&quot;);<br>
+&gt;&gt; +queue_sub(&quot;logical&quot;, &quot;logical&quot;, &quot;logical_kinds&quot;);<br>
+&gt;&gt; +<br>
+&gt;&gt;     for my $size (qw/8 16 32 64/) {<br>
+&gt;&gt;         queue_sub(&quot;integer(int${size})&quot;, &quot;int${size}&quot;, &quot;int${size}&quot;);<br>
+&gt;&gt;     }<br>
+&gt;&gt;<br>
+&gt;&gt; Regards,<br>
+&gt;&gt; Nadia<br>
+&gt;&gt;<br>
+&gt;&gt; --<br>
+&gt;&gt; Nadia Derbey - B1-387<br>
+&gt;&gt; HPC R&amp;D - MPI<br>
+&gt;&gt; Tel: +33 4 76 29 77 62<br>
+&gt;&gt; <a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;nadia.derbey@atos.net&#39;)">nadia.derbey@atos.net</a><br>
+&gt;&gt; 1 Rue de Provence BP 208<br>
+&gt;&gt; 38130 Echirolles Cedex, France<br>
+&gt;&gt; <a href="http://www.atos.com" target="_blank">www.atos.com</a><br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;devel@open-mpi.org&#39;)">devel@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18765.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18765.php</a><br>
+&gt;<br>
+&gt;<br>
+<br>
+--<br>
+Nadia Derbey - B1-387<br>
+HPC R&amp;D - MPI<br>
+Tel: +33 4 76 29 77 62<br>
+<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;nadia.derbey@atos.net&#39;)">nadia.derbey@atos.net</a><br>
+1 Rue de Provence BP 208<br>
+38130 Echirolles Cedex, France<br>
+<a href="http://www.atos.com" target="_blank">www.atos.com</a><br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;devel@open-mpi.org&#39;)">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18768.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18768.php</a><br>
+</blockquote></div>
+

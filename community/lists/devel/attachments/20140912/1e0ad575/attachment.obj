@@ -1,0 +1,256 @@
+Index: orte/mca/grpcomm/rcd/grpcomm_rcd.c
+===================================================================
+--- orte/mca/grpcomm/rcd/grpcomm_rcd.c	(revision 32716)
++++ orte/mca/grpcomm/rcd/grpcomm_rcd.c	(working copy)
+@@ -6,6 +6,8 @@
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC. All
+  *                         rights reserved.
+  * Copyright (c) 2014      Intel, Inc.  All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -39,6 +41,7 @@
+                  opal_buffer_t *msg);
+ static int allgather(orte_grpcomm_coll_t *coll,
+                      opal_buffer_t *buf);
++static int rcd_allgather_send_dists(orte_grpcomm_coll_t *coll, orte_vpid_t distance);
+ static int rcd_allgather_send_dist(orte_grpcomm_coll_t *coll, orte_vpid_t distance);
+ static void rcd_allgather_recv_dist(int status, orte_process_name_t* sender,
+                                      opal_buffer_t* buffer, orte_rml_tag_t tag,
+@@ -104,11 +107,38 @@
+      At every step i, rank r:
+      - exchanges message containing all data collected so far with rank peer = (r ^ 2^i).
+      */
+-    rcd_allgather_send_dist(coll, 1);
++    coll->nreported |= 1;
++    rcd_allgather_send_dists(coll, 1);
++    if (coll->nreported == (2*coll->ndmns-1)) {
++        assert(NULL != coll->cbfunc);
++        rcd_finalize_coll(coll, ORTE_SUCCESS);
++    }
+ 
+     return ORTE_SUCCESS;
+ }
+ 
++static int rcd_allgather_send_dists(orte_grpcomm_coll_t *coll, orte_vpid_t distance) {
++    int rc;
++    orte_vpid_t mask = (1<<(distance-1)) - 1;
++    if ((coll->nreported & mask) != mask) {
++        /* not enough info */
++        return ORTE_SUCCESS;
++    }
++    /* send to the requested distance<<1 and the following distances
++       that could not be previously sent */
++    while (coll->nreported & (1<<(distance-1))) {
++        if (ORTE_SUCCESS != (rc = rcd_allgather_send_dist(coll, distance))) {
++            return rc;
++        }
++        if ((1<<distance) == coll->ndmns) {
++            break;
++        }
++        distance++;
++    }
++
++    return ORTE_SUCCESS;
++}
++
+ static int rcd_allgather_send_dist(orte_grpcomm_coll_t *coll, orte_vpid_t distance) {
+     orte_process_name_t peer;
+     opal_buffer_t *send_buf;
+@@ -165,8 +195,9 @@
+     }
+ 
+     OPAL_OUTPUT_VERBOSE((5, orte_grpcomm_base_framework.framework_output,
+-                         "%s grpcomm:coll:recdub sending to %s",
++                         "%s grpcomm:coll:recdub sending at distance %d to %s",
+                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
++                         distance,
+                          ORTE_NAME_PRINT(&peer)));
+ 
+ 
+@@ -178,11 +209,6 @@
+         return rc;
+     };
+ 
+-    OPAL_OUTPUT_VERBOSE((5, orte_grpcomm_base_framework.framework_output,
+-                             "%s grpcomm:coll:recdub receiving from %s",
+-                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+-                             ORTE_NAME_PRINT(&peer)));
+-
+     return ORTE_SUCCESS;
+ }
+ 
+@@ -231,8 +257,38 @@
+         rcd_finalize_coll(coll, rc);
+         return;
+     }
+-    coll->nreported += num_remote;
+ 
++    OPAL_OUTPUT_VERBOSE((5, orte_grpcomm_base_framework.framework_output,
++                             "%s grpcomm:coll:recdub received data from distance %d : %d -> %d",
++                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
++                             distance,
++                             coll->nreported,
++                             coll->nreported | (1<<distance)));
++
++    if (coll->nreported & (1<<distance)) {
++        /* now this gets tricky ...
++         * i did not finish this collective, but i receive some info for the *next* collective
++         * just create a new coll and append it to the list of outgoing colls, it won't get used
++         * until the current coll finishes
++         */
++        OPAL_OUTPUT_VERBOSE((5, orte_grpcomm_base_framework.framework_output,
++                                 "%s grpcomm:coll:recdub SAVING THIS FOR THE NEXT COLL",
++                                 ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
++        assert(1 == distance);
++        coll = OBJ_NEW(orte_grpcomm_coll_t);
++        OBJ_RETAIN(sig);
++        coll->sig = sig;
++        opal_list_append(&orte_grpcomm_base.ongoing, &coll->super);
++        /* now get the daemons involved */
++        if (ORTE_SUCCESS != (rc = orte_grpcomm_base_create_dmns(sig, &coll->dmns, &coll->ndmns))) {
++            ORTE_ERROR_LOG(rc);
++            OBJ_RELEASE(coll);
++            return;
++        }
++    }
++
++    coll->nreported |= (1<<distance);
++
+     /* capture any provided content */
+     if (OPAL_SUCCESS != (rc = opal_dss.copy_payload(&coll->bucket, buffer))) {
+         OBJ_RELEASE(sig);
+@@ -241,11 +297,13 @@
+         return;
+     }
+ 
+-    //update distance and send
++    /* update distance and send */
+     new_distance = distance <<= 1;
+-    if (new_distance < coll->ndmns) {
+-        rcd_allgather_send_dist(coll, new_distance);
+-    } else {
++    if (0 != distance && new_distance < coll->ndmns) {
++        rcd_allgather_send_dists(coll, new_distance);
++    }
++    if (coll->nreported == (2*coll->ndmns-1)) {
++        assert(NULL != coll->cbfunc);
+         rcd_finalize_coll(coll, ORTE_SUCCESS);
+     }
+ 
+@@ -270,7 +328,14 @@
+ 
+     /* execute the callback */
+     if (NULL != coll->cbfunc) {
++        OPAL_OUTPUT_VERBOSE((5, orte_grpcomm_base_framework.framework_output,
++                             "%s grpcomm:coll:recdub finalizing",
++                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
+         coll->cbfunc(ret, reply, coll->cbdata);
++    } else {
++        OPAL_OUTPUT_VERBOSE((5, orte_grpcomm_base_framework.framework_output,
++                             "%s grpcomm:coll:recdub NO CALLBACK to finalize",
++                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
+     }
+ 
+     opal_list_remove_item(&orte_grpcomm_base.ongoing, &coll->super);
+Index: orte/mca/grpcomm/base/grpcomm_base_stubs.c
+===================================================================
+--- orte/mca/grpcomm/base/grpcomm_base_stubs.c	(revision 32716)
++++ orte/mca/grpcomm/base/grpcomm_base_stubs.c	(working copy)
+@@ -12,6 +12,8 @@
+  *                         All rights reserved.
+  * Copyright (c) 2011-2012 Los Alamos National Security, LLC.
+  *                         All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -50,9 +52,6 @@
+                       opal_buffer_t *message,
+                       orte_rml_tag_t tag);
+ 
+-static int create_dmns(orte_grpcomm_signature_t *sig,
+-                       orte_vpid_t **dmns, size_t *ndmns);
+-
+ typedef struct {
+     opal_object_t super;
+     opal_event_t ev;
+@@ -94,7 +93,7 @@
+     buf = OBJ_NEW(opal_buffer_t);
+ 
+     /* create the array of participating daemons */
+-    if (ORTE_SUCCESS != (rc = create_dmns(sig, &dmns, &ndmns))) {
++    if (ORTE_SUCCESS != (rc = orte_grpcomm_base_create_dmns(sig, &dmns, &ndmns))) {
+         ORTE_ERROR_LOG(rc);
+         OBJ_RELEASE(buf);
+         return rc;
+@@ -199,7 +198,7 @@
+         }
+         if (OPAL_EQUAL == opal_dss.compare(sig, coll->sig, ORTE_SIGNATURE)) {
+             OPAL_OUTPUT_VERBOSE((1, orte_grpcomm_base_framework.framework_output,
+-                                 "%s grpcomm:base:returning existing collective",
++                                 "%s grpcomm:base:tracker returning existing collective",
+                                  ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
+             return coll;
+         }
+@@ -208,7 +207,7 @@
+      * the tracker for it */
+     if (!create) {
+         OPAL_OUTPUT_VERBOSE((1, orte_grpcomm_base_framework.framework_output,
+-                             "%s grpcomm:base: not creating new coll",
++                             "%s grpcomm:base:tracker not creating new coll",
+                              ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
+ 
+         return NULL;
+@@ -216,7 +215,7 @@
+     if (1 < opal_output_get_verbosity(orte_grpcomm_base_framework.framework_output)) {
+         char *tmp=NULL;
+         (void)opal_dss.print(&tmp, NULL, sig, ORTE_SIGNATURE);
+-        opal_output(0, "%s grpcomm:base: creating new coll for procs %s",
++        opal_output(0, "%s grpcomm:base:tracker creating new coll for procs %s",
+                     ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), tmp);
+         free(tmp);
+     }
+@@ -226,7 +225,7 @@
+     opal_list_append(&orte_grpcomm_base.ongoing, &coll->super);
+ 
+     /* now get the daemons involved */
+-    if (ORTE_SUCCESS != (rc = create_dmns(sig, &coll->dmns, &coll->ndmns))) {
++    if (ORTE_SUCCESS != (rc = orte_grpcomm_base_create_dmns(sig, &coll->dmns, &coll->ndmns))) {
+         ORTE_ERROR_LOG(rc);
+         OBJ_RELEASE(coll);
+         return NULL;
+@@ -234,7 +233,7 @@
+     return coll;
+ }
+ 
+-static int create_dmns(orte_grpcomm_signature_t *sig,
++int orte_grpcomm_base_create_dmns(orte_grpcomm_signature_t *sig,
+                        orte_vpid_t **dmns, size_t *ndmns)
+ {
+     size_t n;
+Index: orte/mca/grpcomm/base/base.h
+===================================================================
+--- orte/mca/grpcomm/base/base.h	(revision 32716)
++++ orte/mca/grpcomm/base/base.h	(working copy)
+@@ -12,6 +12,8 @@
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC.
+  *                         All rights reserved.
+  * Copyright (c) 2013-2014 Intel, Inc. All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -83,5 +85,8 @@
+ 
+ ORTE_DECLSPEC orte_grpcomm_coll_t* orte_grpcomm_base_get_tracker(orte_grpcomm_signature_t *sig, bool create);
+ 
++ORTE_DECLSPEC int orte_grpcomm_base_create_dmns(orte_grpcomm_signature_t *sig,
++                                                orte_vpid_t **dmns, size_t *ndmns);
++
+ END_C_DECLS
+ #endif

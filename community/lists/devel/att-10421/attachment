@@ -1,0 +1,144 @@
+See responses mixed in below.<div><br><div class="gmail_quote">On Wed, Feb 15, 2012 at 1:02 AM, Matthias Jurenz <span dir="ltr">&lt;<a href="mailto:matthias.jurenz@tu-dresden.de" target="_blank">matthias.jurenz@tu-dresden.de</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Unfortunately, we don&#39;t have access to a PPC system with MacOS 10.4 to try to<br>
+reproduce the error.<br></blockquote><div><br></div><div><br></div><div>Not too surprising.  I&#39;ll see what I can do to help resolve the problem.</div><div><br></div><div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+<br>
+Paul, could you please check for the definition of the macro<br>
+OPAL_HAVE_WEAK_SYMBOLS in ompi_config.h?</blockquote><div><br></div><div><br></div><div>ompi_config.h doesn&#39;t contain that macro.</div><div>However, opal_config.h shows no weak symbol support:</div><div><div>#define HWLOC_HAVE_ATTRIBUTE_WEAK_ALIAS 0</div>
+
+<div>#define OPAL_HAVE_ATTRIBUTE_WEAK_ALIAS 0</div><div>#define OPAL_HAVE_WEAK_SYMBOLS 0</div></div><div><br></div><div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+ I assume that the ancient GNU compiler<br>
+on PPC/MacOS10.4 does not support weak-symbols which cause the multiply<br>
+definitions.<br></blockquote><div><br></div><div><br></div><div>Does that mean I should simply not expect to get VT built there?</div><div><br></div><div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+<br>
+Furthermore, could you please try to build the following code to test whether<br>
+the PMPI interface of Open MPI works in general?<br>
+<br>
+#include &lt;stdio.h&gt;<br>
+#include &lt;mpi.h&gt;<br>
+<br>
+int MPI_Finalize() {<br>
+  printf( &quot;inside MPI_Finalize() wrapper\n&quot; );<br>
+  return PMPI_Finalize();<br>
+}<br>
+<br>
+int main(int argc, char** argv) {<br>
+   MPI_Init(&amp;argc, &amp;argv);<br>
+   MPI_Finalize();<br>
+}<br></blockquote><div><br></div><div><br></div><div>I am assuming I am supposed to build that with VT disabled in my OMPI build. </div><div>Doing so, I see that PMPI is apparently not working:</div><div><div>$ ./bin/mpicc pmpi_test.c </div>
+<div>/usr/bin/ld: warning multiple definitions of symbol _MPI_Finalize</div><div>/var/tmp//ccHZvZ3B.o definition of _MPI_Finalize in section (__TEXT,__text)</div><div>/Users/phargrov/OMPI/openmpi-1.5.5rc1/INST/lib/libmpi.dylib(single module) definition of _MPI_Finalize</div>
+</div><div><br></div><div><br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+<br>
+Maybe the error occurs only if this code is in a shared library which depends<br>
+on the MPI library (as does the libvt-mpi). Therefor, run the following:<br>
+<br>
+$ gcc -fPIC -shared pmpi_test.c -I&lt;mpi-inc-dir&gt; -o libpmpi_test.dylib -L&lt;mpi-<br>
+lib-dir&gt; -lmpi<br>
+<br></blockquote><div><br></div><div>I assume this check might be redundant given that the previous one failed.</div><div>However, here it is anyway:</div><div><div>$ gcc -fPIC -shared pmpi_test.c -Iinclude -o libpmpi_test.dylib -Llib</div>
+<div>powerpc-apple-darwin8-gcc-4.0.1: unrecognized option &#39;-shared&#39;</div><div>/usr/bin/ld: Undefined symbols:</div><div>_MPI_Init</div><div>_PMPI_Finalize</div><div>collect2: ld returned 1 exit status</div></div><div>
+<br></div><div><br></div><div>-Paul</div><div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+Thanks!<br>
+<br>
+Matthias<br>
+<br>
+&gt; On 12/14/2011 2:51 PM, Paul H. Hargrove wrote:<br>
+&gt; I&#39;ve attempted to reproduce the failure reported below for MacOS 10.4<br>
+&gt; for PPC on an X86-64 system.<br>
+&gt; First, I&#39;ve realized that while I reported &quot;make check&quot; as the source of<br>
+&gt; the problem, it occurs at &quot;make&quot;.<br>
+&gt;<br>
+&gt; Regardless of that mistake in my reporting, I was unable to reproduce<br>
+&gt; the problem, making this a PPC-specific problem as far as I can tell.<br>
+&gt; Instead of 255 instances of &quot;ld: multiple definitions of symbol _MPI_*&quot;<br>
+&gt; I get instances of &quot;ld: warning multiple definitions of symbol _MPI*&quot;,<br>
+&gt; where the only difference is the addition of the word &quot;warning&quot;.<br>
+&gt; However, this is apparently non-fatal on the x86-64 but fatal by default<br>
+&gt; on PPC.<br>
+&gt;<br>
+&gt; -Paul<br>
+&gt;<br>
+&gt; On 12/13/2011 9:30 PM, Paul H. Hargrove wrote:<br>
+&gt; &gt; Using the 1.5.5rc1 tarball, I&#39;ve repeated tests on the following<br>
+&gt; &gt; platforms for which I recently reported 1.4.5rc1 results:<br>
+&gt; &gt;<br>
+&gt; &gt; MacOS 10.5 (Leopard) on PPC:<br>
+&gt; &gt; powerpc-apple-darwin9-gcc-4.0.1 (GCC) 4.0.1 (Apple Inc. build 5488)<br>
+&gt; &gt; MacOS 10.4 (Tiger) on PPC:<br>
+&gt; &gt; powerpc-apple-darwin8-gcc-4.0.1 (GCC) 4.0.1 (Apple Computer, Inc.<br>
+&gt; &gt; build 5341)<br>
+&gt; &gt; MacOS 10.3 (Panther) on PPC:<br>
+&gt; &gt; gcc (GCC) 3.3 20030304 (Apple Computer, Inc. build 1666)<br>
+&gt; &gt;<br>
+&gt; &gt; On MacOS 10.5 &quot;make all install check&quot; completed w/o incident.<br>
+&gt; &gt;<br>
+&gt; &gt; Unfortunately, on MacOS 10.4 (Tiger) I get multiply defined symbols<br>
+&gt; &gt; from VT in &quot;make check&quot;:<br>
+&gt; &gt;&gt; Making check in vtlib<br>
+&gt; &gt;&gt; CCLD <a href="http://libvt-mpi.la" target="_blank">libvt-mpi.la</a><br>
+&gt; &gt;&gt; ld: multiple definitions of symbol _MPI_Abort<br>
+&gt; &gt;&gt; .libs/libvt_mpi_la-vt_mpiwrap.o definition of _MPI_Abort in section<br>
+&gt; &gt;&gt; (__TEXT,__text)<br>
+&gt; &gt;&gt; /Users/phargrov/openmpi-1.5.5rc1/BUILD-<br>
+dflt/ompi/contrib/vt/vt/../../../.libs/libmpi.dylib(single<br>
+&gt; &gt;&gt; module) definition of _MPI_Abort<br>
+&gt; &gt; [...253 more &quot;ld: multiple definitions of symbol&quot; errors...]<br>
+&gt; &gt;&gt; ld: multiple definitions of symbol _MPI_Win_wait<br>
+&gt; &gt;&gt; .libs/libvt_mpi_la-vt_mpiwrap.o definition of _MPI_Win_wait in<br>
+&gt; &gt;&gt; section (__TEXT,__text)<br>
+&gt; &gt;&gt; /Users/phargrov/openmpi-1.5.5rc1/BUILD-<br>
+dflt/ompi/contrib/vt/vt/../../../.libs/libmpi.dylib(single<br>
+&gt; &gt;&gt; module) definition of _MPI_Win_wait<br>
+&gt; &gt;&gt; /usr/bin/libtool: internal link edit command failed<br>
+&gt; &gt;&gt; make[4]: *** [<a href="http://libvt-mpi.la" target="_blank">libvt-mpi.la</a>] Error 1<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Unlike the compilation failure for 1.4.5rc1 on MacOS 10.3 (Panther), I<br>
+&gt; &gt; got the following at configure time:<br>
+&gt; &gt;&gt; configure: WARNING: Open MPI does not support OS X prior to version<br>
+&gt; &gt;&gt; 10.4 (Tiger)<br>
+&gt; &gt;&gt; configure: error: Cannot continue<br>
+&gt; &gt; So I would like to &quot;CMR&quot; this logic to the 1.4 branch.<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; -Paul<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; On 12/13/2011 8:36 PM, Jeff Squyres wrote:<br>
+&gt; &gt;&gt; In the usual place:<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; <a href="http://www.open-mpi.org/software/ompi/v1.5/" target="_blank">http://www.open-mpi.org/software/ompi/v1.5/</a><br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Please test! I would really like to get this out by the end of the<br>
+&gt; &gt;&gt; week.<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Two issues *might* still be considered for this release:<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Putting back the openib minor fixes<br>
+&gt; &gt;&gt; <a href="https://svn.open-mpi.org/trac/ompi/ticket/2930" target="_blank">https://svn.open-mpi.org/trac/ompi/ticket/2930</a><br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Making the &quot;your SM file is on an NFS!&quot; warning disable-able<br>
+&gt; &gt;&gt; (this is the v1.4 ticket)<br>
+&gt; &gt;&gt; <a href="https://svn.open-mpi.org/trac/ompi/ticket/2937" target="_blank">https://svn.open-mpi.org/trac/ompi/ticket/2937</a><br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; They would both need to be fixed in the *immediate future* to be<br>
+&gt; &gt;&gt; considered.<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;<br>
+<span><font color="#888888">&gt;<br>
+&gt; --<br>
+&gt; Paul H. Hargrove                          PHHargrove_at_[hidden]<br>
+&gt; Future Technologies Group<br>
+&gt; HPC Research Department                   Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a><br>
+&gt; Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a><br>
+&gt;<br>
+</font></span></blockquote></div><br><br clear="all"><div><br></div>-- <br>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a><br>Future Technologies Group<br>
+HPC Research Department                   Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a><br>
+Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a><br>
+</div>
+

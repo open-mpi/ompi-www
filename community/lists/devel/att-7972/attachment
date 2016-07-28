@@ -1,0 +1,85 @@
+Hmmm...well, the way that function -used- to work was it returned an error code, and had the index as a *int param in the function call. Tim P changed it awhile back (don&#39;t remember exactly why, but it was when he moved the pointer_array code from orte to opal), and I&#39;m not sure the fixes it required were ever propagated everywhere (I occasionally run across them in ORTE, though I think I&#39;ve got them all now).<br>
+<br>My point: only real fix may be to go back to the old API and quit overloading the return code.<br><br><br><div class="gmail_quote">On Tue, May 18, 2010 at 12:32 PM, Rolf vandeVaart <span dir="ltr">&lt;<a href="mailto:rolf.vandevaart@oracle.com">rolf.vandevaart@oracle.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+
+
+  
+  
+
+<div bgcolor="#ffffff" text="#000000">
+I think we are almost saying the same thing. But to be sure, I will
+restate. The call to opal_pointer_array_add() can return either an
+index (which I assume is a positive integer, maybe also 0?) or
+OPAL_ERR_OUT_OF_RESOURCE (which is a -2) if it cannot malloc anymore
+space in the table.  So, I guess I agree that the original code was
+wrong as it never would have detected the error since OMPI_ERROR !=
+OPAL_ERR_OUT_OF_RESOURCE.  (-1 != -2)<br>
+<br>
+Since we are overloading the return value, it seems like the only thing
+we could do is something like this:<br>
+<br>
+if (new_group-&gt;grp_f_to_c_index &lt; 0)<br>
+   error();<br>
+<br>
+But that does not follow the SOS logic as the key is that we want to
+compare to OMPI_SUCCESS (I think).  Also, for what it is worth, the
+setting of the grp_f_to_c_index happens in the group constructor, so we
+cannot get at the return value of opal_pointer_array_add() except by
+looking at the grp_f_to_c value after the object is constructed.  I am
+not sure the correct way to handle this.<br><font color="#888888">
+<br>
+Rolf <br></font><div class="im">
+<br>
+On 05/18/10 14:02, Jeff Squyres wrote:
+<blockquote type="cite">
+  <pre>Looks like the comparison to OMPI_ERROR worked by accident -- just because it happened to have a value of -1.  
+
+The *_f_to_c_index values are the return value from a call to opal_point_array_add().  This value will either be non-negative or -1.  -1 indicates a failure.  It&#39;s not an *_ERR_* code -- it&#39;s a -1 index value.  So the comparisons should really have been to -1 in the first place.
+
+Rolf / Abhishek -- can you fix?  Did this happen in other *_f_to_c_index member variable comparisons elsewhere?
+
+
+
+On May 18, 2010, at 1:25 PM, Rolf vandeVaart wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <pre>I am getting SEGVs while running the IMB-MPI1 tests.  I believe the
+problem has to do with changes made to the group_init.c file last
+night.  The error occurs in the call to MPI_Comm_split.
+
+ There were 4 changes in the file that look like this:
+OLD:
+if (OMPI_ERROR == new_group-&gt;grp_f_to_c_index)
+
+NEW:
+if (OMPI_SUCCESS != new_group-&gt;grp_f_to_c_index)
+
+If I change it back, things work.  I understand the idea of changing the
+logic, but maybe that does not apply in this case?    When running with
+np=2, the value of new_group-&gt;grp_f_to_c_index is 4, thereby not
+equaling OMPI_SUCCESS and we end up in an error condition which results
+in a null pointer later on.
+
+Am I the only that has run into this?
+
+Rolf
+
+
+_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+
+    </pre>
+  </blockquote>
+  <pre>  </pre>
+</blockquote>
+<br>
+</div></div>
+
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br>
+

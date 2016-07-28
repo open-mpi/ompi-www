@@ -1,0 +1,85 @@
+Index: opal/util/proc.h
+===================================================================
+--- opal/util/proc.h	(revision 32438)
++++ opal/util/proc.h	(working copy)
+@@ -39,17 +39,15 @@
+ static inline __opal_attribute_always_inline__ void
+ opal_process_name_ntoh_intr(opal_process_name_t *name)
+ {
+-    uint32_t * w = (uint32_t *)name;
+-    w[0] = ntohl(w[0]);
+-    w[1] = ntohl(w[1]);
++    uint64_t *lw = (uint64_t *)name;
++    *lw = ((((uint64_t)ntohl(*lw)) << 32) | ((uint64_t)ntohl(*lw >> 32)));
+ }
+ #define OPAL_PROCESS_NAME_HTON(guid) opal_process_name_hton_intr(&(guid))
+ static inline __opal_attribute_always_inline__ void
+ opal_process_name_hton_intr(opal_process_name_t *name)
+ {
+-    uint32_t * w = (uint32_t *)name;
+-    w[0] = htonl(w[0]);
+-    w[1] = htonl(w[1]);
++    uint64_t *lw = (uint64_t *)name;
++    *lw = ((((uint64_t)htonl(*lw)) << 32) | ((uint64_t)htonl(*lw >> 32)));
+ }
+ #else
+ #define OPAL_PROCESS_NAME_NTOH(guid)
+Index: orte/include/orte/types.h
+===================================================================
+--- orte/include/orte/types.h	(revision 32438)
++++ orte/include/orte/types.h	(working copy)
+@@ -10,6 +10,8 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2014      Intel, Inc. All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -83,18 +85,18 @@
+ #define ORTE_VPID_MAX       UINT32_MAX-2
+ #define ORTE_VPID_MIN       0
+ 
++#if OPAL_ENABLE_HETEROGENEOUS_SUPPORT && !defined(WORDS_BIGENDIAN)
+ #define ORTE_PROCESS_NAME_HTON(n)       \
+-do {                                    \
+-    n.jobid = htonl(n.jobid);           \
+-    n.vpid = htonl(n.vpid);             \
+-} while (0)
++    opal_process_name_hton_intr((opal_process_name_t *)&(n))
+ 
+ #define ORTE_PROCESS_NAME_NTOH(n)       \
+-do {                                    \
+-    n.jobid = ntohl(n.jobid);           \
+-    n.vpid = ntohl(n.vpid);             \
+-} while (0)
++    opal_process_name_ntoh_intr((opal_process_name_t *)&(n))
++#else
++#define ORTE_PROCESS_NAME_HTON(n)
+ 
++#define ORTE_PROCESS_NAME_NTOH(n)
++#endif
++
+ #define ORTE_NAME_ARGS(n) \
+     (unsigned long) ((NULL == n) ? (unsigned long)ORTE_JOBID_INVALID : (unsigned long)(n)->jobid), \
+     (unsigned long) ((NULL == n) ? (unsigned long)ORTE_VPID_INVALID : (unsigned long)(n)->vpid) \
+@@ -116,10 +118,17 @@
+ /*
+  * define the process name structure
+  */
++#if OPAL_ENABLE_HETEROGENEOUS_SUPPORT && !defined(WORDS_BIGENDIAN)
+ struct orte_process_name_t {
++    orte_vpid_t vpid;       /**< Process id - equivalent to rank */
+     orte_jobid_t jobid;     /**< Job number */
++};
++#else
++struct orte_process_name_t {
++    orte_jobid_t jobid;     /**< Job number */
+     orte_vpid_t vpid;       /**< Process id - equivalent to rank */
+ };
++#endif
+ typedef struct orte_process_name_t orte_process_name_t;
+ 
+ 
+

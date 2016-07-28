@@ -1,0 +1,363 @@
+Index: screen.inc
+===================================================================
+--- screen.inc	(revision 939)
++++ screen.inc	(working copy)
+@@ -16,8 +16,11 @@
+ #
+ #
+ 
++include_once("$topdir/google-analytics.inc");
++
+ # Print user dash-board 
+ function dump_query_screen($nogo, $sql_cmd) {
++    global $mtt_body_html_prefix;
+ 
+     $phases   = process_phase_field($_GET);
+     $defaults = setup_mainwin_fields($phases);
+@@ -70,7 +73,7 @@
+     print "<html>" . 
+           html_head("Open MPI Test Reporter") .
+           "\n" .
+-          "\n<body>" .
++          "\n<body>" . $mtt_body_html_prefix . print_ga() .
+           "\n<form method='get' id='report' name='report' action='$self'>" .
+           "\n$prefs" .
+           "\n <div align='left'>" .
+@@ -1205,6 +1208,8 @@
+ 
+ # Load up some CSS and Javascript
+ function html_head($title) {
++    global $mtt_head_html;
++    global $mtt_body_html_suffix;
+ 
+     $javascript = <<<EOT
+ 
+@@ -1213,7 +1218,7 @@
+         newwindow2=window.open('','name','height=' + height + ',width=' + width + ',scrollbars=yes');
+         var tmp = newwindow2.document;
+         tmp.write('<html><head>' + script + '<title>' + title + '</title></head>');
+-        tmp.write('<body ' + style + '><form id=adv name=adv method=get>' + content + '</form></body></html>');
++        tmp.write('<body ' + style + '><form id=adv name=adv method=get>' + content + '</form>$mtt_body_html_suffix</body></html>');
+         tmp.close();
+     }
+ 
+@@ -1284,15 +1289,13 @@
+ EOT;
+ 
+     # Return html head
+-    return "\n<head>" .
++    return "\n<head>" . 
+            "\n<title>$title</title>" .
+            "\n<script language='javascript' type='text/javascript'>" .
+            "\n$javascript" .
+            "\n</script>" .
+            "\n<style type='text/css'>" .
+            "\n$style" .
+-           "\n</style>" .
++           "\n</style>" . $mtt_head_html .
+            "\n</head>";
+ }
+-
+-?>
+Index: reporter.php
+===================================================================
+--- reporter.php	(revision 939)
++++ reporter.php	(working copy)
+@@ -10,6 +10,11 @@
+ # $HEADER$
+ #
+ 
++$topdir = ".";
++if (file_exists("$topdir/config.inc")) {
++    include_once("$topdir/config.inc");
++}
++
+ #
+ #
+ # Web-based Open MPI Tests Querying Tool
+@@ -30,9 +35,6 @@
+ include_once("$topdir/report.inc");
+ include_once("$topdir/database.inc");
+ 
+-# Deny mirrors access to MTT results
+-deny_mirror();
+-
+ # 'debug' is an aggregate trace
+ if (isset($_GET['debug'])) {
+     $_GET['verbose'] = 'on';
+@@ -77,7 +79,7 @@
+ debug_cgi($_COOKIE, "COOKIE " . __LINE__);
+ 
+ print hidden_carryover($_GET) .
+-      "\n<hr></form></body></html>";
++      "\n<hr></form></body>$mtt_body_html_suffix</html>";
+ 
+ exit;
+ 
+Index: stats/index.php
+===================================================================
+--- stats/index.php	(revision 939)
++++ stats/index.php	(working copy)
+@@ -11,11 +11,16 @@
+ #
+ 
+ $topdir = '..';
+-$ompi_home = '/l/osl/www/doc/www.open-mpi.org';
+-include_once("$ompi_home/dbpassword.inc");
++if (file_exists("$topdir/config.inc")) {
++    include_once("$topdir/config.inc");
++}
++include_once("$topdir/google-analytics.inc");
+ include_once("$topdir/reporter.inc");
+ 
+-$dbname  = isset($_GET['db'])       ? $_GET['db']       : "mtt";
++if (array_key_exists("db", $_GET) &&
++    preg_match("/mtt/i", $_GET['db'])) {
++    $mtt_database_name = $_GET['db'];
++}
+ $pgsql_conn;
+ 
+ $start_collection_date = "DATE '2007-05-01'";
+@@ -35,9 +40,9 @@
+ 
+ print("<html>" .
+       "\n<head>" .
+-      "\n<title>Open MPI Test Statistics</title>" .
++      "\n<title>Open MPI Test Statistics</title>" . $head_html .
+       "\n</head>".
+-      "\n<body>".
++      "\n<body>". $body_html_prefix . print_ga() .
+       "\n");
+ 
+ process_stat_dates();
+@@ -52,7 +57,7 @@
+ 
+ # All done
+ pg_close();
+-print("\n<hr>".
++print("\n<hr>". $body_html_suffix .
+       "\n</body>".
+       "\n</html>");
+ 
+@@ -704,15 +709,15 @@
+ 
+ function do_pg_connect() {
+ 
+-    global $dbname;
+-    global $user;
+-    global $pass;
++    global $mtt_database_name;
++    global $mtt_database_username;
++    global $mtt_database_password;
+     global $pgsql_conn;
+     static $connected = false;
+ 
+     if (!$connected) {
+         $pgsql_conn =
+-            pg_connect("host=localhost port=5432 dbname=$dbname user=$user password=$pass");
++            pg_connect("host=localhost port=5432 dbname=$mtt_database_name user=$mtt_database_username password=$mtt_database_password");
+ 
+         # Exit if we cannot connect
+         if (!$pgsql_conn)
+Index: submit/index.php
+===================================================================
+--- submit/index.php	(revision 939)
++++ submit/index.php	(working copy)
+@@ -11,6 +11,14 @@
+ #
+ #
+ 
++$topdir = "..";
++if (file_exists("$topdir/config.inc")) {
++    include_once("$topdir/config.inc");
++}
++
++# Note that Google Analytics is not performed here because the MTT
++# client doesn't understand javascript to report back to GA.
++
+ # A large test run submission could overload the PHP 16MB limit
+ # (The following line increases the limit for this script only)
+ ini_set("memory_limit", "32M");
+Index: google-analytics.inc
+===================================================================
+--- google-analytics.inc	(revision 0)
++++ google-analytics.inc	(revision 0)
+@@ -0,0 +1,21 @@
++<?php
++
++# If global $mtt_google_anatics_account is defined, return some GA goodness.
++# If a key is passed in, use that as the URL.  Otherwise, urchinTracker 
++# will simply use the current URL. 
++function print_ga($key) {
++    global $mtt_google_analytics_account;
++
++    if (empty($mtt_google_analytics_account)) {
++        return "";
++    }
++
++    return "<!-- Start Google analytics -->
++<script src=\"http://www.google-analytics-foo.com/urchin.js\" type=\"text/javascript\">
++</script>
++<script type=\"text/javascript\">
++_uacct = \"$mtt_google_analytics_account\";
++urchinTracker($key);
++</script>
++<!-- End Google analytics -->";
++}
+Index: reporter.inc
+===================================================================
+--- reporter.inc	(revision 939)
++++ reporter.inc	(working copy)
+@@ -898,26 +898,4 @@
+     return $_GET;
+ }
+ 
+-# Deny mirrors access to MTT results
+-function deny_mirror() {
+-
+-    $mother_site = "www.open-mpi.org";
+-    $server_dir = "/";
+-
+-    # Are we the "mother site" or a mirror?
+-    if ($_SERVER["SERVER_NAME"] == $mother_site)
+-        $is_mirror = false;
+-    else
+-        $is_mirror = true;
+-
+-    if ($is_mirror) {
+-        $equiv_dir = ereg_replace("^$server_dir", '', $_SERVER["REQUEST_URI"]);
+-        print "Sorry, this page is not mirrored.  " .
+-               "Please see the <a href=\"http://$mother_site/$equiv_dir\">" .
+-               "original version of this page</a> " .
+-               "on the main Open MPI web site.\n";
+-        exit();
+-    }
+-}
+-
+ ?>
+Index: curl_get.inc
+===================================================================
+--- curl_get.inc	(revision 939)
++++ curl_get.inc	(working copy)
+@@ -1,10 +1,10 @@
+ <?php
+ 
+-include_once("/l/osl/www/doc/www.open-mpi.org/http_password.inc");
++include_once("$topdir/config.inc");
+ 
+ function do_curl_get($url) {
+ 
+-    global $user, $pass;
++    global $mtt_http_username, $mtt_http_password;
+ 
+     $method = "GET";
+ 
+@@ -13,7 +13,7 @@
+     $ch = curl_init();
+ 
+     # Set the URL to GET from
+-    curl_setopt($ch, CURLOPT_USERPWD, "$user:$pass");
++    curl_setopt($ch, CURLOPT_USERPWD, "$mtt_http_username:$mtt_http_password");
+     curl_setopt($ch, CURLOPT_URL, $url);
+     curl_setopt($ch, CURLOPT_HTTPGET, 1);
+ 
+Index: database.inc
+===================================================================
+--- database.inc	(revision 939)
++++ database.inc	(working copy)
+@@ -16,14 +16,12 @@
+ #
+ #
+ 
+-$ompi_home = '/l/osl/www/doc/www.open-mpi.org';
+-include_once("$ompi_home/dbpassword.inc");
++include_once("$topdir/config.inc");
+ 
+ # Select a database name
+-if (preg_match("/mtt/i", $_GET['db'])) {
+-    $dbname = $_GET['db'];
+-} else {
+-    $dbname = "mtt";
++if (array_key_exists("db", $_GET) &&
++    preg_match("/mtt/i", $_GET['db'])) {
++    $mtt_database_name = $_GET['db'];
+ }
+ 
+ # Function used to determine which _POST fields
+@@ -89,9 +87,9 @@
+ 
+ # Connect to the Postgres database
+ function do_pg_connect() {
+-    global $dbname;
+-    global $user;
+-    global $pass;
++    global $mtt_database_name;
++    global $mtt_database_username;
++    global $mtt_database_password;
+     global $pgsql_conn;
+     static $connected = false;
+ 
+@@ -100,7 +98,7 @@
+ 
+     if (!$connected) {
+         $pgsql_conn = 
+-            pg_connect("host=localhost port=5432 dbname=$dbname user=$user password=$pass");
++            pg_connect("host=localhost port=5432 dbname=$mtt_database_name user=$mtt_database_username password=$mtt_database_password");
+         if (!$pgsql_conn) {
+             print("\nCould not connect to '$dbname' database.");
+             exit;
+Index: config.inc
+===================================================================
+--- config.inc	(revision 0)
++++ config.inc	(revision 0)
+@@ -0,0 +1,49 @@
++<?php
++
++# Open MPI-specific functionality: deny mirrors access to Open MPI MTT
++$mother_site = "www.open-mpi.org";
++$server_dir = "/";
++
++# Are we the "mother site" or a mirror?
++if ($_SERVER["SERVER_NAME"] != $mother_site) {
++    $equiv_dir = ereg_replace("^$server_dir", '', $_SERVER["REQUEST_URI"]);
++    print "Sorry, this page is not mirrored.  " .
++           "Please see the <a href=\"http://$mother_site/$equiv_dir\">" .
++           "original version of this page</a> " .
++            "on the main Open MPI web site.\n";
++    exit();
++}
++
++###########################################################################
++
++# If you are tracking MTT usaging through Google Analytics, fill in 
++# your account number here.
++$mtt_google_analytics_account = "";
++
++# If you want some data output during the <head> ... </head>, put it
++# in this variable.
++$mtt_head_html = "  <META name=\"description\" content=\"Open MPI\">
++  <META name=\"keywords\" content=\"MPI, Open MPI, Open-MPI, OpenMPI, parallel computing, beowulf, linux, cluster, parallel, distributed\">\n";
++
++# If you want some data output at the beginning of the <body>, put it
++# in this variable.
++$mtt_body_html_prefix = "";
++
++# If you want some data output at the end of the <body>, put it
++# in this variable.
++$mtt_body_html_suffix = "";
++
++# Database name
++$mtt_database_name = "mtt";
++
++# Database username
++$mtt_database_username = "mtt";
++
++# Database password
++$mtt_database_password = rtrim(file_get_contents("/l/osl/www/doc/www.open-mpi.org/mtt-db-password.txt"));
++
++# HTTP username
++$mtt_http_username = "sun";
++
++# HTTP password
++$mtt_http_password = rtrim(file_get_contents("/l/osl/www/doc/www.open-mpi.org/mtt-http-password.txt"));
+

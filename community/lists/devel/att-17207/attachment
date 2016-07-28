@@ -1,0 +1,116 @@
+<div dir="ltr">Bug, it should be &quot;span,pe=2&quot;</div><div class="gmail_extra"><br><div class="gmail_quote">2015-04-10 15:28 GMT+02:00 Nick Papior Andersen <span dir="ltr">&lt;<a href="mailto:nickpapior@gmail.com" target="_blank">nickpapior@gmail.com</a>&gt;</span>:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">I guess you want process #1 to have core 0 and core 1 bound to it, process #2 have core 2 and core 3 bound?<div><br></div><div>I can do this with (I do this with 1.8.4, I do not think it works with 1.6.x):</div><div>--map-by ppr:4:socket:span:pe=2</div><div>ppr = processes per resource.</div><div>socket = the resource</div><div>span = load balance the processes</div><div>pe = bind processing elements to each process</div><div><br></div><div>This should launch 8 processes (you have 2 sockets). Each process should have 2 processing elements bound to it.</div><div>You can check with --report-bindings to see the &quot;bound&quot; processes bindings.</div></div><div class="gmail_extra"><div><div class="h5"><br><div class="gmail_quote">2015-04-10 15:16 GMT+02:00  <span dir="ltr">&lt;<a href="mailto:twurgl@goodyear.com" target="_blank">twurgl@goodyear.com</a>&gt;</span>:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+We can&#39;t seem to get &quot;processor affinity&quot; using 1.6.4 or newer OpenMPI.<br>
+<br>
+Note this is a 2 socket machine with 8 cores per socket<br>
+<br>
+We had compiled OpenMPI 1.4.2 with the following configure options:<br>
+<br>
+===========================================================================<br>
+export CC=/apps/share/intel/v14.0.4.211/bin/icc<br>
+export CXX=/apps/share/intel/v14.0.4.211/bin/icpc<br>
+export FC=/apps/share/intel/v14.0.4.211/bin/ifort<br>
+<br>
+version=1.4.2.I1404211<br>
+<br>
+./configure \<br>
+    --prefix=/apps/share/openmpi/$version \<br>
+    --disable-shared \<br>
+    --enable-static \<br>
+    --enable-shared=no \<br>
+    --with-openib \<br>
+    --with-libnuma=/usr \<br>
+    --enable-mpirun-prefix-by-default \<br>
+    --with-memory-manager=none \<br>
+    --with-tm=/apps/share/TORQUE/current/Linux<br>
+===========================================================================<br>
+<br>
+and then used this mpirun command (where we used 8 cores):<br>
+<br>
+===========================================================================<br>
+/apps/share/openmpi/1.4.2.I1404211/bin/mpirun \<br>
+--prefix /apps/share/openmpi/1.4.2.I1404211 \<br>
+--mca mpi_paffinity_alone 1 \<br>
+--mca btl openib,tcp,sm,self \<br>
+--x LD_LIBRARY_PATH \<br>
+{model args}<br>
+===========================================================================<br>
+<br>
+And when we checked the process map, it looks like this:<br>
+<br>
+  PID COMMAND         CPUMASK     TOTAL [     N0     N1     N2     N3     N4     N5 ]<br>
+22232 prog1                 0    469.9M [ 469.9M     0      0      0      0      0  ]<br>
+22233 prog1                 1    479.0M [   4.0M 475.0M     0      0      0      0  ]<br>
+22234 prog1                 2    516.7M [ 516.7M     0      0      0      0      0  ]<br>
+22235 prog1                 3    485.4M [   8.0M 477.4M     0      0      0      0  ]<br>
+22236 prog1                 4    482.6M [ 482.6M     0      0      0      0      0  ]<br>
+22237 prog1                 5    486.6M [   6.0M 480.6M     0      0      0      0  ]<br>
+22238 prog1                 6    481.3M [ 481.3M     0      0      0      0      0  ]<br>
+22239 prog1                 7    419.4M [   8.0M 411.4M     0      0      0      0  ]<br>
+<br>
+Now with 1.6.4 and higher, we did the following:<br>
+===========================================================================<br>
+export CC=/apps/share/intel/v14.0.4.211/bin/icc<br>
+export CXX=/apps/share/intel/v14.0.4.211/bin/icpc<br>
+export FC=/apps/share/intel/v14.0.4.211/bin/ifort<br>
+<br>
+version=1.6.4.I1404211<br>
+<br>
+./configure \<br>
+    --disable-vt \<br>
+    --prefix=/apps/share/openmpi/$version \<br>
+    --disable-shared \<br>
+    --enable-static \<br>
+    --with-verbs \<br>
+    --enable-mpirun-prefix-by-default \<br>
+    --with-memory-manager=none \<br>
+    --with-hwloc \<br>
+    --enable-mpi-ext \<br>
+    --with-tm=/apps/share/TORQUE/current/Linux<br>
+===========================================================================<br>
+<br>
+We&#39;ve tried the same mpirun command, with -bind-to-core, with -bind-to-core -bycore etc<br>
+and I can&#39;t seem to get the right combination of args to get the same behavior as 1.4.2.<br>
+<br>
+We get the following process map (this output is with mpirun args --bind-to-socket<br>
+--mca mpi_paffinity_alone 1):<br>
+<br>
+  PID COMMAND         CPUMASK     TOTAL [     N0     N1     N2     N3     N4     N5 ]<br>
+24176 prog1           0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30     60.2M [  60.2M     0      0      0      0      0  ]<br>
+24177 prog1           0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30     60.5M [  60.5M     0      0      0      0      0  ]<br>
+24178 prog1           0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30     60.5M [  60.5M     0      0      0      0      0  ]<br>
+24179 prog1           0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30     60.5M [  60.5M     0      0      0      0      0  ]<br>
+24180 prog1           0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30     60.5M [  60.5M     0      0      0      0      0  ]<br>
+24181 prog1           0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30     60.5M [  60.5M     0      0      0      0      0  ]<br>
+24182 prog1           0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30     60.5M [  60.5M     0      0      0      0      0  ]<br>
+24183 prog1           0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30     60.5M [  60.5M     0      0      0      0      0  ]<br>
+<br>
+here is the map using just --mca mpi_paffinity_alone 1<br>
+<br>
+  PID COMMAND         CPUMASK     TOTAL [     N0     N1     N2     N3     N4     N5 ]<br>
+25846 prog1              0,16     60.6M [  60.6M     0      0      0      0      0  ]<br>
+25847 prog1              2,18     60.6M [  60.6M     0      0      0      0      0  ]<br>
+25848 prog1              4,20     60.6M [  60.6M     0      0      0      0      0  ]<br>
+25849 prog1              6,22     60.6M [  60.6M     0      0      0      0      0  ]<br>
+25850 prog1              8,24     60.6M [  60.6M     0      0      0      0      0  ]<br>
+25851 prog1             10,26     60.6M [  60.6M     0      0      0      0      0  ]<br>
+25852 prog1             12,28     60.6M [  60.6M     0      0      0      0      0  ]<br>
+25853 prog1             14,30     60.6M [  60.6M     0      0      0      0      0  ]<br>
+<br>
+I figure I am compiling incorrectly or using the wrong mpirun args.<br>
+<br>
+Can someone tell me how to duplicate the behavior of 1.4.2 regarding binding the processes to cores?<br>
+<br>
+Any help appreciated..<br>
+<br>
+thanks<br>
+<br>
+tom<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/04/17205.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/04/17205.php</a><br>
+</blockquote></div><br><br clear="all"><div><br></div></div></div><span class="HOEnZb"><font color="#888888">-- <br><div><div dir="ltr"><div>Kind regards Nick</div></div></div>
+</font></span></div>
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature"><div dir="ltr"><div>Kind regards Nick</div></div></div>
+</div>

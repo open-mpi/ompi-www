@@ -1,0 +1,126 @@
+Hello.<div><br></div><div>Thanks for yours answers. </div><div><br></div><div>I&#39;ts as you said Josh, i&#39;m trying to do something uncoordinated, and on demand. What i&#39;m doing now is to put some code in the btl_tcp_endpoint.c and others file that allows me to change the attempts of communication in the sockets when a failure occurs. At the moment i reset the values in the receptor of a message from a restored process, and that is working until the recv finish, because when the receptor tries to communicate with the sender it fails because the sender does not have an open socket to accept the connect i think (am i correct?). So now i will work on that and will give you some feedback.</div>
+<div><br></div><div>Thanks a lot for all your help.</div><div><br></div><div>Hugo<br><br><div class="gmail_quote">2011/6/13 Josh Hursey <span dir="ltr">&lt;<a href="mailto:jjhursey@open-mpi.org">jjhursey@open-mpi.org</a>&gt;</span><br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">I don&#39;t think this will help much, but I can tell you how we handled<br>
+this for the coordinated C/R functionality.<br>
+<br>
+When we added automatic recovery and process migration using<br>
+coordinated checkpoints to the Open MPI trunk (spring/summer 2010) we<br>
+were able to take advantage of the coordinated nature of the activity.<br>
+Since all processes were doing the recovery together (with possibly<br>
+only a subset of the processes actually restarting - in the case of<br>
+process migration) we were able to flush the modex and repost<br>
+connection information to all processes that wanted it. The restarted<br>
+processes will pull the updated modex information, and the existing<br>
+processes (if any) will pull the modex information from the restarted<br>
+processes once it is posted. The coordinated nature of the recovery<br>
+activity made it easy to define a point in time in which the modex was<br>
+accurate - similar to MPI_Init.<br>
+<br>
+It sounds like you are trying to do something less coordinated in<br>
+nature. So you will most likely need to extend the modex, since I do<br>
+not think it has good support for sending updated contact information<br>
+(and invalidating old contact information) in the current trunk.<br>
+<br>
+George should know this code path better than I do, so he might be<br>
+able to help a bit more. For their uncoordinated C/R approach they<br>
+would have had to deal with this when restarting processes mid-run<br>
+without halting other processes. So maybe you can use a similar<br>
+approach.<br>
+<br>
+-- Josh<br>
+<div><div></div><div class="h5"><br>
+<br>
+On Sat, Jun 4, 2011 at 10:55 AM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt;<br>
+&gt; On Jun 4, 2011, at 5:21 AM, Hugo Meyer wrote:<br>
+&gt;<br>
+&gt; Thanks for your replies.<br>
+&gt;&gt;After doing that, the MPI_Init procedure calls grpcomm.modex to distribute<br>
+&gt;&gt; the data across all procs in the job. Unfortunately, being a collective, all<br>
+&gt;&gt; procs must participate. In your case, you&#39;ll have to find a different way to<br>
+&gt;&gt; do it. Upon receipt, each proc updates its own modex db to include the new<br>
+&gt;&gt; info.<br>
+&gt;&gt;Look in orte/mca/grpcomm/bad/grpcomm_bad_module.c at the modex function and<br>
+&gt;&gt; follow that code thru the grpcomm/base functions to see how the modex info<br>
+&gt;&gt; is retrieved, passed, and decoded on the far end.<br>
+&gt; I will take a look to this Ralph and let you know how it goes. But today<br>
+&gt; looking at the code with a partner, he suggested to me to try to capture an<br>
+&gt; error when sending data through the btl_tcp_endpoint, more precisely<br>
+&gt; in mca_btl_tcp_frag_send and capture there an error when we try to write to<br>
+&gt; the fd of the socket. I&#39;ve tried this but when a process moves and try to<br>
+&gt; send a message, or someone try to send a message for him, i cannot capture<br>
+&gt; the moment of the failure in the mca_btl_tcp_frag_send, but i don&#39;t know<br>
+&gt; why, it is supposed to fail when someone try to send, is there any other<br>
+&gt; place where this is capture? If i do in this way, i can reset connections on<br>
+&gt; demand i suppose. What do you think of this? it&#39;s a good idea? And after i<br>
+&gt; detect this failure, i will try to update de modex db of that process from<br>
+&gt; here it&#39;s ok?<br>
+&gt;<br>
+&gt; I&#39;m no expert on the tcp btl - perhaps George can answer?<br>
+&gt; The run-time has no visibility into MPI connections, and has no<br>
+&gt; understanding of the modex contents. So if a proc detects that it cannot<br>
+&gt; make the btl connection, I guess it could send an orte message to the proc<br>
+&gt; it&#39;s trying to reach, and have that proc return a copy of its modex data?<br>
+&gt; I guess that could work. You may be running into the MPI layer&#39;s own<br>
+&gt; attempts to ensure comm success via retry...I know you won&#39;t get a send<br>
+&gt; failure just because the socket is closed - it&#39;ll keep retrying the<br>
+&gt; connection for awhile before giving up.<br>
+&gt;<br>
+&gt;<br>
+&gt; Thanks<br>
+&gt; Hugo<br>
+&gt;<br>
+&gt;<br>
+&gt; 2011/6/3 Jeff Squyres &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On Jun 3, 2011, at 10:12 AM, Ralph Castain wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; &gt; When an MPI proc calls MPI_Init, each btl pushes its contact info into<br>
+&gt;&gt; &gt; the modex database - one example is the btl.tcp.1.7 info you found there.<br>
+&gt;&gt; &gt; That entry is for the TCP btl, which is probably what you are looking for.<br>
+&gt;&gt; &gt; There is no way for you to edit that data - each btl encodes it in its own<br>
+&gt;&gt; &gt; way and then adds it to the modex.<br>
+&gt;&gt;<br>
+&gt;&gt; More specifically, whatever each entity puts into the modex is a blob that<br>
+&gt;&gt; is only readable by other entities just like itself.  For example, what one<br>
+&gt;&gt; TCP BTL puts in the modex can really only be read by another TCP BTL. The<br>
+&gt;&gt; contents of what the TCP BTL puts in there is an opaque binary blob from the<br>
+&gt;&gt; modex&#39;s point of view.<br>
+&gt;&gt;<br>
+&gt;&gt; --<br>
+&gt;&gt; Jeff Squyres<br>
+&gt;&gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt;&gt; For corporate legal information go to:<br>
+&gt;&gt; <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+<br>
+<br>
+<br>
+</div></div><font color="#888888">--<br>
+Joshua Hursey<br>
+Postdoctoral Research Associate<br>
+Oak Ridge National Laboratory<br>
+<a href="http://users.nccs.gov/~jjhursey" target="_blank">http://users.nccs.gov/~jjhursey</a><br>
+</font><div><div></div><div class="h5"><br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br></div>
+

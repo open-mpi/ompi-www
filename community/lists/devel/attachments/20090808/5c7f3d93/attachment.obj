@@ -1,0 +1,185 @@
+Index: ompi/runtime/params.h
+===================================================================
+--- ompi/runtime/params.h	(revision 21776)
++++ ompi/runtime/params.h	(working copy)
+@@ -11,7 +11,7 @@
+  *                         All rights reserved.
+  * Copyright (c) 2007      Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
+- * Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2006-2009 Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -146,6 +146,15 @@
+ OMPI_DECLSPEC extern bool ompi_use_sparse_group_storage;
+ 
+ /**
++ * Indicates whether Open MPI will use MCA_PML_BASE_SEND_STANDARD or 
++ * MCA_PML_BASE_SEND_SYNCHRONOUS.
++ * -mca standard_send_pml_flag [val]
++ * [val] >=1  = MCA_PML_BASE_SEND_SYNCHRONOUS
++ * [val] <=0  = MCA_PML_BASE_SEND_STANDARD
++ */
++OMPI_DECLSPEC extern int ompi_mpi_std_send_pml_flags;
++
++/**
+  * Register MCA parameters used by the MPI layer.
+  *
+  * @returns OMPI_SUCCESS
+Index: ompi/runtime/ompi_mpi_params.c
+===================================================================
+--- ompi/runtime/ompi_mpi_params.c	(revision 21776)
++++ ompi/runtime/ompi_mpi_params.c	(working copy)
+@@ -9,7 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2006-2009 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2007      Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
+  * $COPYRIGHT$
+@@ -32,6 +32,7 @@
+ #include "orte/util/show_help.h"
+ #include "opal/mca/base/mca_base_param.h"
+ #include "opal/util/argv.h"
++#include "ompi/mca/pml/pml.h"
+ 
+ /*
+  * Global variables
+@@ -57,6 +58,7 @@
+ bool ompi_mpi_leave_pinned_pipeline = false;
+ bool ompi_have_sparse_group_storage = OPAL_INT_TO_BOOL(OMPI_GROUP_SPARSE);
+ bool ompi_use_sparse_group_storage = OPAL_INT_TO_BOOL(OMPI_GROUP_SPARSE);
++int ompi_mpi_std_send_pml_flags = MCA_PML_BASE_SEND_STANDARD;
+ 
+ static bool show_default_mca_params = false;
+ static bool show_file_mca_params = false;
+@@ -288,6 +290,13 @@
+             ompi_use_sparse_group_storage = false;
+         }
+     }
++    
++    mca_base_param_reg_int_name("mpi", "force_sync_sends",
++                                "If true (nonzero), Open MPI will silently convert all MPI_SENDs, MPI_ISENDs, MPI_SEND_INITs, and MPI_SENDRECVs to use synchronous mode sends rather than standard mode sends (default: 0/standard mode sends).",
++                                false, false, 0, &value);
++    if (0 != value) {
++        ompi_mpi_std_send_pml_flags = MCA_PML_BASE_SEND_SYNCHRONOUS;   
++    }
+ 
+     /* The ddt engine has a few parameters */
+     return ompi_ddt_register_params();
+Index: ompi/mpi/c/send.c
+===================================================================
+--- ompi/mpi/c/send.c	(revision 21776)
++++ ompi/mpi/c/send.c	(working copy)
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2009      Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -69,6 +70,7 @@
+ 
+     OPAL_CR_ENTER_LIBRARY();
+ 
+-    rc = MCA_PML_CALL(send(buf, count, type, dest, tag, MCA_PML_BASE_SEND_STANDARD, comm));
++    rc = MCA_PML_CALL(send(buf, count, type, dest, tag, 
++                           ompi_mpi_std_send_pml_flags, comm));
+     OMPI_ERRHANDLER_RETURN(rc, comm, rc, FUNC_NAME);
+ }
+Index: ompi/mpi/c/send_init.c
+===================================================================
+--- ompi/mpi/c/send_init.c	(revision 21776)
++++ ompi/mpi/c/send_init.c	(working copy)
+@@ -9,7 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2006      Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2006-2009 Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -85,7 +85,8 @@
+     /*
+      * Here, we just initialize the request -- memchecker should set the buffer in MPI_Start.
+      */
+-    rc = MCA_PML_CALL(isend_init(buf,count,type,dest,tag,MCA_PML_BASE_SEND_STANDARD,comm,request));
++    rc = MCA_PML_CALL(isend_init(buf,count,type,dest,tag,
++                                 ompi_mpi_std_send_pml_flags, comm,request));
+     OMPI_ERRHANDLER_RETURN(rc, comm, rc, FUNC_NAME);
+ }
+ 
+Index: ompi/mpi/c/sendrecv.c
+===================================================================
+--- ompi/mpi/c/sendrecv.c	(revision 21776)
++++ ompi/mpi/c/sendrecv.c	(working copy)
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2009      Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -79,7 +80,7 @@
+ 
+     if (dest != MPI_PROC_NULL) { /* send */
+         rc = MCA_PML_CALL(send(sendbuf, sendcount, sendtype, dest,
+-                               sendtag, MCA_PML_BASE_SEND_STANDARD, comm));
++                               sendtag, ompi_mpi_std_send_pml_flags, comm));
+         OMPI_ERRHANDLER_CHECK(rc, comm, rc, FUNC_NAME);
+     }
+ 
+Index: ompi/mpi/c/isend.c
+===================================================================
+--- ompi/mpi/c/isend.c	(revision 21776)
++++ ompi/mpi/c/isend.c	(working copy)
+@@ -9,7 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2006-2007 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2006-2009 Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -78,7 +78,8 @@
+     MEMCHECKER (
+         memchecker_call(&opal_memchecker_base_mem_noaccess, buf, count, type);
+     );
+-    rc = MCA_PML_CALL(isend(buf,count,type,dest,tag,MCA_PML_BASE_SEND_STANDARD,comm,request));
++    rc = MCA_PML_CALL(isend(buf,count,type,dest,tag,
++                            ompi_mpi_std_send_pml_flags, comm, request));
+     OMPI_ERRHANDLER_RETURN(rc, comm, rc, FUNC_NAME);
+ }
+ 
+Index: NEWS
+===================================================================
+--- NEWS	(revision 21776)
++++ NEWS	(working copy)
+@@ -8,7 +8,7 @@
+                         University of Stuttgart.  All rights reserved.
+ Copyright (c) 2004-2006 The Regents of the University of California.
+                         All rights reserved.
+-Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.
++Copyright (c) 2006-2009 Cisco Systems, Inc.  All rights reserved.
+ Copyright (c) 2006      Voltaire, Inc. All rights reserved.
+ Copyright (c) 2006      Sun Microsystems, Inc.  All rights reserved.
+                         Use is subject to license terms.
+@@ -33,6 +33,11 @@
+   those symbols being hidden.  This appears to mainly solve the
+   problem of applications attempting to use different versions of
+   libltdl from that used to build Open MPI.
++- Add new MCA parameter: mpi_force_sync_sends.  If true (nonzero),
++  Open MPI will silently convert all MPI_SENDs, MPI_ISENDs,
++  MPI_SEND_INITs, and MPI_SENDRECVs to use synchronous mode sends
++  rather than standard mode sends; handy for ensuring your MPI
++  application doesn't rely on MPI-level buffering.
+ 
+ 
+ 1.3.3
