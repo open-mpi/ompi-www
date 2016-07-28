@@ -1,0 +1,66 @@
+Index: opal/mca/memory/malloc_hooks/memory_malloc_hooks.c
+===================================================================
+--- opal/mca/memory/malloc_hooks/memory_malloc_hooks.c	(revision 10123)
++++ opal/mca/memory/malloc_hooks/memory_malloc_hooks.c	(working copy)
+@@ -27,6 +27,7 @@
+      
+ /* Prototypes for our hooks.  */
+ void opal_memory_malloc_hooks_init(void);
++void opal_memory_malloc_hooks_finalize(void);
+ static void opal_mem_free_free_hook (void*, const void *);
+ static void* opal_mem_free_realloc_hook (void*, size_t, const void *);
+      
+@@ -60,6 +61,18 @@
+ }
+ 
+ 
++void
++opal_memory_malloc_hooks_finalize(void)
++{
++    if (initialized == 0) {
++        return;
++    }
++
++    __free_hook = old_free_hook;
++    __realloc_hook = old_realloc_hook;
++    initialized = 0;
++}
++
+ static void
+ opal_mem_free_free_hook (void *ptr, const void *caller)
+ {
+Index: opal/mca/memory/malloc_hooks/memory_malloc_hooks_component.c
+===================================================================
+--- opal/mca/memory/malloc_hooks/memory_malloc_hooks_component.c	(revision 10123)
++++ opal/mca/memory/malloc_hooks/memory_malloc_hooks_component.c	(working copy)
+@@ -22,8 +22,10 @@
+ #include "opal/include/constants.h"
+ 
+ extern void opal_memory_malloc_hooks_init(void);
++extern void opal_memory_malloc_hooks_finalize(void);
+ 
+ static int opal_memory_malloc_open(void);
++static int opal_memory_malloc_close(void);
+ 
+ const opal_memory_base_component_1_0_0_t mca_memory_malloc_hooks_component = {
+     /* First, the mca_component_t struct containing meta information
+@@ -41,7 +43,7 @@
+ 
+         /* Component open and close functions */
+         opal_memory_malloc_open,
+-        NULL
++        opal_memory_malloc_close
+     },
+ 
+     /* Next the MCA v1.0.0 component meta data */
+@@ -58,3 +60,10 @@
+     opal_memory_malloc_hooks_init();
+     return OPAL_SUCCESS;
+ }
++
++static int
++opal_memory_malloc_close(void)
++{
++    opal_memory_malloc_hooks_finalize();
++    return OPAL_SUCCESS;
++}

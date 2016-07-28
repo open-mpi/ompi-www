@@ -1,0 +1,82 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title></title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+I think we are almost saying the same thing. But to be sure, I will
+restate. The call to opal_pointer_array_add() can return either an
+index (which I assume is a positive integer, maybe also 0?) or
+OPAL_ERR_OUT_OF_RESOURCE (which is a -2) if it cannot malloc anymore
+space in the table.&nbsp; So, I guess I agree that the original code was
+wrong as it never would have detected the error since OMPI_ERROR !=
+OPAL_ERR_OUT_OF_RESOURCE.&nbsp; (-1 != -2)<br>
+<br>
+Since we are overloading the return value, it seems like the only thing
+we could do is something like this:<br>
+<br>
+if (new_group-&gt;grp_f_to_c_index &lt; 0)<br>
+&nbsp;&nbsp; error();<br>
+<br>
+But that does not follow the SOS logic as the key is that we want to
+compare to OMPI_SUCCESS (I think).&nbsp; Also, for what it is worth, the
+setting of the grp_f_to_c_index happens in the group constructor, so we
+cannot get at the return value of opal_pointer_array_add() except by
+looking at the grp_f_to_c value after the object is constructed.&nbsp; I am
+not sure the correct way to handle this.<br>
+<br>
+Rolf <br>
+<br>
+On 05/18/10 14:02, Jeff Squyres wrote:
+<blockquote cite="mid:5626BD3B-37FF-4A74-A56D-40F909FF7C74@cisco.com"
+ type="cite">
+  <pre wrap="">Looks like the comparison to OMPI_ERROR worked by accident -- just because it happened to have a value of -1.  
+
+The *_f_to_c_index values are the return value from a call to opal_point_array_add().  This value will either be non-negative or -1.  -1 indicates a failure.  It's not an *_ERR_* code -- it's a -1 index value.  So the comparisons should really have been to -1 in the first place.
+
+Rolf / Abhishek -- can you fix?  Did this happen in other *_f_to_c_index member variable comparisons elsewhere?
+
+
+
+On May 18, 2010, at 1:25 PM, Rolf vandeVaart wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">I am getting SEGVs while running the IMB-MPI1 tests.  I believe the
+problem has to do with changes made to the group_init.c file last
+night.  The error occurs in the call to MPI_Comm_split.
+
+ There were 4 changes in the file that look like this:
+OLD:
+if (OMPI_ERROR == new_group-&gt;grp_f_to_c_index)
+
+NEW:
+if (OMPI_SUCCESS != new_group-&gt;grp_f_to_c_index)
+
+If I change it back, things work.  I understand the idea of changing the
+logic, but maybe that does not apply in this case?    When running with
+np=2, the value of new_group-&gt;grp_f_to_c_index is 4, thereby not
+equaling OMPI_SUCCESS and we end up in an error condition which results
+in a null pointer later on.
+
+Am I the only that has run into this?
+
+Rolf
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+
+  </pre>
+</blockquote>
+<br>
+</body>
+</html>
+

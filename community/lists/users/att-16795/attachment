@@ -1,0 +1,263 @@
+<HTML>
+<BODY>
+Ah, this clears things up a bit. I still feel that using shared fileseeks is a dangerous practice however, so I will steer clear of them for now. I did this small experiment on a Macbook Pro with Snow Leopard 10.6.7, so the file system is HFS+. I just did the file size example since it was simple, I do not have any real interest in the filesize read this way.<br>
+
+<br>
+
+Christian<br>
+
+<br>
+
+&lt;-----Original Message-----&gt; <br>
+
+&gt;From: Rob Latham [robl@mcs.anl.gov]<br>
+
+&gt;Sent: 7/1/2011 11:13:29 PM<br>
+
+&gt;To: jsquyres@cisco.com<br>
+
+&gt;Cc: users@open-mpi.org<br>
+
+&gt;Subject: Re: [OMPI users] File seeking with shared filepointer issues<br>
+
+&gt;<br>
+
+&gt;On Sat, Jun 25, 2011 at 06:54:32AM -0400, Jeff Squyres wrote:<br>
+
+&gt;<br>
+
+&gt;&gt; Rob -- can you comment on this, perchance?  Is this a bug in ROMIO, or if not, how is one supposed <br>
+
+&gt;to use this interface can get consistent answers in all MPI processes?<br>
+
+&gt;<br>
+
+&gt;Maybe the problem here is that shared file pointers were intended for<br>
+
+&gt;things like reading from a work queue or writing to a log file.<br>
+
+&gt;<br>
+
+&gt;Determining the file size or the position of the file pointer is a<br>
+
+&gt;little racy, since some other process can sneak in and change things<br>
+
+&gt;(getting the shared file pointer is independent but setting it is<br>
+
+&gt;collective)<br>
+
+&gt;<br>
+
+&gt;When writing a log file or reading from a work queue the exact value<br>
+
+&gt;of the shared file pointer is actually irrelevant.  The program just<br>
+
+&gt;wants "the next" item, or "the last" item. <br>
+
+&gt;<br>
+
+&gt;The more robust way to do this file size determination, if that's<br>
+
+&gt;really what you want,  is to have rank<br>
+
+&gt;0 do the work and broadcast the result to everyone else. <br>
+
+&gt;<br>
+
+&gt;==rob<br>
+
+&gt;<br>
+
+&gt;&gt; <br>
+
+&gt;&gt; <br>
+
+&gt;&gt; On Jun 23, 2011, at 10:04 AM, Christian Anonymous wrote:<br>
+
+&gt;&gt; <br>
+
+&gt;&gt; &gt; I'm having some issues with MPI_File_seek_shared. Consider the following small test C++ <br>
+
+&gt;program<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; #include &lt;iostream&gt;<br>
+
+&gt;&gt; &gt; #include &lt;mpi.h&gt;<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; #define PATH "simdata.bin"<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; using namespace std;<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; int ThisTask;<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; int main(int argc, char *argv[])<br>
+
+&gt;&gt; &gt; {<br>
+
+&gt;&gt; &gt; MPI_Init(&argc,&argv); /* Initialize MPI */<br>
+
+&gt;&gt; &gt; MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; MPI_File fh;<br>
+
+&gt;&gt; &gt; int success;<br>
+
+&gt;&gt; &gt; MPI_File_open(MPI_COMM_WORLD,(char *) PATH,MPI_MODE_RDONLY,MPI_INFO_NULL,&fh);<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; if(success != MPI_SUCCESS){ //Successfull open?<br>
+
+&gt;&gt; &gt; char err[256];<br>
+
+&gt;&gt; &gt; int err_length, err_class;<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; MPI_Error_class(success,&err_class);<br>
+
+&gt;&gt; &gt; MPI_Error_string(err_class,err,&err_length);<br>
+
+&gt;&gt; &gt; cout &lt;&lt; "Task " &lt;&lt; ThisTask &lt;&lt; ": " &lt;&lt; err &lt;&lt; endl;<br>
+
+&gt;&gt; &gt; MPI_Error_string(success,err,&err_length);<br>
+
+&gt;&gt; &gt; cout &lt;&lt; "Task " &lt;&lt; ThisTask &lt;&lt; ": " &lt;&lt; err &lt;&lt; endl;<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; MPI_Abort(MPI_COMM_WORLD,success);<br>
+
+&gt;&gt; &gt; }<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; /* START SEEK TEST */<br>
+
+&gt;&gt; &gt; MPI_Offset cur_filepos, eof_filepos;<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; MPI_File_get_position_shared(fh,&cur_filepos);<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; //MPI_Barrier(MPI_COMM_WORLD);<br>
+
+&gt;&gt; &gt; MPI_File_seek_shared(fh,0,MPI_SEEK_END); /* Seek is collective */<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; MPI_File_get_position_shared(fh,&eof_filepos);<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; //MPI_Barrier(MPI_COMM_WORLD);<br>
+
+&gt;&gt; &gt; MPI_File_seek_shared(fh,0,MPI_SEEK_SET);<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; cout &lt;&lt; "Task " &lt;&lt; ThisTask &lt;&lt; " reports a filesize of " &lt;&lt; eof_filepos &lt;&lt; "-" <br>
+
+&gt;&lt;&lt; cur_filepos &lt;&lt; "=" &lt;&lt; eof_filepos-cur_filepos &lt;&lt; endl;<br>
+
+&gt;&gt; &gt; /* END SEEK TEST */<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; /* Finalizing */	<br>
+
+&gt;&gt; &gt; MPI_File_close(&fh);<br>
+
+&gt;&gt; &gt; MPI_Finalize();<br>
+
+&gt;&gt; &gt; return 0;<br>
+
+&gt;&gt; &gt; }<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; Note the comments before each MPI_Barrier. When the program is run by mpirun -np N (N strictly <br>
+
+&gt;greater than 1), task 0 reports the correct filesize, while every other process reports either 0, minus the <br>
+
+&gt;filesize or the correct filesize. Uncommenting the MPI_Barrier makes each process report the correct <br>
+
+&gt;filesize. Is this working as intended? Since MPI_File_seek_shared is a collective, blocking function each <br>
+
+&gt;process have to synchronise at the return point of the function, but not when the function is called. It <br>
+
+&gt;seems that the use of MPI_File_seek_shared without an MPI_Barrier call first is very dangerous, or am I <br>
+
+&gt;missing something?<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; &gt; _______________________________________________________________<br>
+
+&gt;&gt; &gt; Care2 makes it easy for everyone to live a healthy, green lifestyle and impact the causes you care <br>
+
+&gt;about most. Over 12 Million members! http://www.care2.com Feed a child by searching the web! Learn <br>
+
+&gt;how http://www.care2.com/toolbar_______________________________________________<br>
+
+&gt;&gt; &gt; users mailing list<br>
+
+&gt;&gt; &gt; users@open-mpi.org<br>
+
+&gt;&gt; &gt; http://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+
+&gt;&gt; &gt; <br>
+
+&gt;&gt; <br>
+
+&gt;&gt; <br>
+
+&gt;<br>
+
+&gt;-- <br>
+
+&gt;Rob Latham<br>
+
+&gt;Mathematics and Computer Science Division<br>
+
+&gt;Argonne National Lab, IL USA<br>
+
+&gt;_______________________________________________<br>
+
+&gt;users mailing list<br>
+
+&gt;users@open-mpi.org<br>
+
+&gt;http://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+
+&gt;.<br>
+
+&gt;
+</BODY></HTML>
+
+
+<P><p><font face="Arial, Helvetica, sans-serif" size="2" style="font-size:13.5px">_______________________________________________________________<BR>Care2 makes it easy for everyone to live a healthy, green lifestyle
+and impact the causes you care about most. Over 12 Million members!
+http://www.care2.com
+
+Feed a child by searching the web! Learn how http://www.care2.com/toolbar</font>

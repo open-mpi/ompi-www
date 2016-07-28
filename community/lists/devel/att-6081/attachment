@@ -1,0 +1,173 @@
+Hi Ashley<br><br>I dug into this deeper and fixed the problem last night. We were actually hanging on the send operation as the recvr (a stale HNP, in this case) wasn&#39;t there. I had to use a non-blocking send and put a timeout around it so we could escape that situation.<br>
+<br>I also had to change a couple of tests to ensure we knew when to print local help messages vs sending them to an HNP.<br><br>I have tested the result in a scenario where several stale HNP contact files existed and it worked fine. See if it works for you. I&#39;ll tinker with it to print out a complete list of the stale HNPs later.<br>
+<br>Ralph<br><br><br><div class="gmail_quote">On Tue, May 19, 2009 at 7:07 AM, Ashley Pittman <span dir="ltr">&lt;<a href="mailto:ashley@pittman.co.uk">ashley@pittman.co.uk</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<br>
+Ralph,<br>
+<br>
+At least part of them problem is to do with error reporting, orte-ps is<br>
+hitting the error case for a stale hnp at around line 258 and is trying<br>
+to report the error via orte_show_help() however this function is<br>
+calling a rpc into the orted-run which is silently ignoring it for some<br>
+reason.<br>
+<br>
+The failure itself seems to come from a timeout in comm.c:1114 where the<br>
+client process isn&#39;t waiting long enough for the orted-run to reply and<br>
+is returning ORTE_ERR_SILENT instead.  I can&#39;t think what to suggest<br>
+here other than increasing the timeout?<br>
+<font color="#888888"><br>
+Ashley,<br>
+</font><div><div></div><div class="h5"><br>
+On Mon, 2009-05-18 at 17:06 +0100, Ashley Pittman wrote:<br>
+&gt; It&#39;s certainly helped and now runs for me however if I run mpirun under<br>
+&gt; valgrind and then opmi-ps in another window Valgrind reports errors and<br>
+&gt; ompi-ps doesn&#39;t list the job so there is clearly something still amiss.<br>
+&gt; I&#39;m trying to do some more diagnostics now.<br>
+&gt;<br>
+&gt; ==32362== Syscall param writev(vector[...]) points to uninitialised<br>
+&gt; byte(s)<br>
+&gt; ==32362==    at 0x41BF10C: writev (writev.c:46)<br>
+&gt; ==32362==    by 0x4EAAD52: mca_oob_tcp_msg_send_handler<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/openmpi/mca_oob_tcp.so)<br>
+&gt; ==32362==    by 0x4EAC505: mca_oob_tcp_peer_send<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/openmpi/mca_oob_tcp.so)<br>
+&gt; ==32362==    by 0x4EAEF89: mca_oob_tcp_send_nb<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/openmpi/mca_oob_tcp.so)<br>
+&gt; ==32362==    by 0x4EA20BE: orte_rml_oob_send<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/openmpi/mca_rml_oob.so)<br>
+&gt; ==32362==    by 0x4EA2359: orte_rml_oob_send_buffer<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/openmpi/mca_rml_oob.so)<br>
+&gt; ==32362==    by 0x4050738: process_commands<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-rte.so.0.0.0)<br>
+&gt; ==32362==    by 0x405108C: orte_daemon_cmd_processor<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-rte.so.0.0.0)<br>
+&gt; ==32362==    by 0x4260B57: opal_event_base_loop<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x4260DF6: opal_event_loop<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x4260E1D: opal_event_dispatch<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x804B15F: orterun (orterun.c:757)<br>
+&gt; ==32362==  Address 0x448507c is 20 bytes inside a block of size 512<br>
+&gt; alloc&#39;d<br>
+&gt; ==32362==    at 0x402613C: realloc (vg_replace_malloc.c:429)<br>
+&gt; ==32362==    by 0x42556B7: opal_dss_buffer_extend<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x4256C4F: opal_dss_pack_int32<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x42565C9: opal_dss_pack_buffer<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x403A60D: orte_dt_pack_job<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-rte.so.0.0.0)<br>
+&gt; ==32362==    by 0x42565C9: opal_dss_pack_buffer<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x4256FFB: opal_dss_pack<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x40506F7: process_commands<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-rte.so.0.0.0)<br>
+&gt; ==32362==    by 0x405108C: orte_daemon_cmd_processor<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-rte.so.0.0.0)<br>
+&gt; ==32362==    by 0x4260B57: opal_event_base_loop<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x4260DF6: opal_event_loop<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt; ==32362==    by 0x4260E1D: opal_event_dispatch<br>
+&gt; (in /mnt/home/debian/ashley/code/OpenMPI/install/lib/libopen-pal.so.0.0.0)<br>
+&gt;<br>
+&gt; On Mon, 2009-05-18 at 08:22 -0600, Ralph Castain wrote:<br>
+&gt; &gt; Aha! Thanks for spotting the problem - I had to move that var init to<br>
+&gt; &gt; cover all cases, but it should be working now with r21249<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; On May 18, 2009, at 8:08 AM, Ashley Pittman wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Ralph,<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; This patch fixed it, num_nodes was being used initialised and hence<br>
+&gt; &gt; &gt; the<br>
+&gt; &gt; &gt; client was getting a bogus value for the number of nodes.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Ashley,<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; On Mon, 2009-05-18 at 10:09 +0100, Ashley Pittman wrote:<br>
+&gt; &gt; &gt;&gt; No joy I&#39;m afraid,  now I get errors when I run it.  This is a single<br>
+&gt; &gt; &gt;&gt; node job run with the command line &quot;mpirun -n 3 ./a.out&quot;.  I&#39;ve<br>
+&gt; &gt; &gt;&gt; attached<br>
+&gt; &gt; &gt;&gt; the strace output and gzipped /tmp files from the machine.<br>
+&gt; &gt; &gt;&gt; Valgrind on<br>
+&gt; &gt; &gt;&gt; the opmi-ps process doesn&#39;t show anything interesting.<br>
+&gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt;&gt; [alpha:29942] [[35044,0],0] ORTE_ERROR_LOG: Data unpack would read<br>
+&gt; &gt; &gt;&gt; past<br>
+&gt; &gt; &gt;&gt; end of buffer in<br>
+&gt; &gt; &gt;&gt; file /mnt/home/debian/ashley/code/OpenMPI/ompi-trunk-tes/trunk/orte/<br>
+&gt; &gt; &gt;&gt; util/comm/comm.c at line 242<br>
+&gt; &gt; &gt;&gt; [alpha:29942] [[35044,0],0] ORTE_ERROR_LOG: Data unpack would read<br>
+&gt; &gt; &gt;&gt; past<br>
+&gt; &gt; &gt;&gt; end of buffer in<br>
+&gt; &gt; &gt;&gt; file /mnt/home/debian/ashley/code/OpenMPI/ompi-trunk-tes/trunk/orte/<br>
+&gt; &gt; &gt;&gt; tools/orte-ps/orte-ps.c at line 818<br>
+&gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt;&gt; Ashley.<br>
+&gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt;&gt; On Sat, 2009-05-16 at 08:15 -0600, Ralph Castain wrote:<br>
+&gt; &gt; &gt;&gt;&gt; This is fixed now, Ashley - sorry for the problem.<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; On May 15, 2009, at 4:47 AM, Ashley Pittman wrote:<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;&gt; On Thu, 2009-05-14 at 22:49 -0600, Ralph Castain wrote:<br>
+&gt; &gt; &gt;&gt;&gt;&gt;&gt; It is definitely broken at the moment, Ashley. I have it pretty<br>
+&gt; &gt; &gt;&gt;&gt;&gt;&gt; well<br>
+&gt; &gt; &gt;&gt;&gt;&gt;&gt; fixed, but need/want to cleanup some corner cases that have<br>
+&gt; &gt; &gt;&gt;&gt;&gt;&gt; plagued<br>
+&gt; &gt; &gt;&gt;&gt;&gt;&gt; us<br>
+&gt; &gt; &gt;&gt;&gt;&gt;&gt; for a long time.<br>
+&gt; &gt; &gt;&gt;&gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;&gt;&gt; Should have it for you sometime Friday.<br>
+&gt; &gt; &gt;&gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;&gt; Ok, thanks.  I might try switching to slurm in the mean-time, I<br>
+&gt; &gt; &gt;&gt;&gt;&gt; know<br>
+&gt; &gt; &gt;&gt;&gt;&gt; my<br>
+&gt; &gt; &gt;&gt;&gt;&gt; code works with that.<br>
+&gt; &gt; &gt;&gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;&gt; Can you let me know when it&#39;s fixed on or off list and I&#39;ll do an<br>
+&gt; &gt; &gt;&gt;&gt;&gt; update.<br>
+&gt; &gt; &gt;&gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;&gt; Ashley,<br>
+&gt; &gt; &gt;&gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt; &gt; &gt;&gt;&gt;&gt; devel mailing list<br>
+&gt; &gt; &gt;&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; &gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; _______________________________________________<br>
+&gt; &gt; &gt;&gt;&gt; devel mailing list<br>
+&gt; &gt; &gt;&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; &gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt; &gt;&gt; _______________________________________________<br>
+&gt; &gt; &gt;&gt; devel mailing list<br>
+&gt; &gt; &gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; &gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt; &gt; &lt;ompi-ps.patch&gt;_______________________________________________<br>
+&gt; &gt; &gt; devel mailing list<br>
+&gt; &gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; devel mailing list<br>
+&gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br>
+

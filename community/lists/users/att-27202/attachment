@@ -1,0 +1,302 @@
+<div dir="ltr">Starting in the 1.7 series, Open MPI automatically binds application processes. By default, we bind to core if np &lt;= 2, otherwise we bind to socket.. So your proc, and all its threads, are being bound to a single core.<div><br></div><div>What you probably want to do is add either &quot;--bind-to none&quot; or &quot;--bind-to socket&quot; to your mpirun cmd line.</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Fri, Jun 26, 2015 at 2:00 AM, Fedele Stabile <span dir="ltr">&lt;<a href="mailto:fedele.stabile@fis.unical.it" target="_blank">fedele.stabile@fis.unical.it</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi,<br>
+I&#39;m trying hybrid programming and I have this strange issue:<br>
+Running fortran code listed below it happens that it uses only the 200%<br>
+of cpu on each node also if I request 4 threads with the command<br>
+mpirun -n 2 -npernode 1  -x OMP_NUM_THREADS=4 ./pi_parallel_do.f.exe<br>
+I&#39;ll explain: four threads are created but it works as if they were only<br>
+two cores available<br>
+<br>
+however if I run the OpenMP version it loads 400% of cpu, so it works on<br>
+four core.<br>
+This is the code and below is the output of ompi_info (as requested by<br>
+Howard Pritchard)<br>
+$ cat pi_parallel_do.f<br>
+        PROGRAM Compute_PI<br>
+           IMPLICIT NONE<br>
+        include &quot;mpif.h&quot;<br>
+        integer numprocs, rank, ierr<br>
+           INTEGER*8           N, i<br>
+           DOUBLE PRECISION  w, x, sum<br>
+           DOUBLE PRECISION  pi, mypi<br>
+           double precision n_mpi, pi_mpi<br>
+        call MPI_Init(ierr)<br>
+        call MPI_Comm_size(MPI_COMM_WORLD, numprocs, ierr)<br>
+        call MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)<br>
+           N = 500000000         !! Number of intervals<br>
+           w = 1.0d0/(1.d0*N)          !! width of each interval<br>
+           sum = 0.0d0<br>
+        pi_mpi = 0.0<br>
+!$OMP    PARALLEL PRIVATE(x, mypi)<br>
+           mypi = 0.0d0<br>
+!$OMP    DO<br>
+           DO i = 0, N-1                !! Parallel Loop<br>
+             x = w * (i + 0.5d0)<br>
+             mypi = mypi + w*4.d0/(1.d0 + x * x)<br>
+           END DO<br>
+!$OMP    END DO<br>
+!$OMP CRITICAL<br>
+           pi_mpi = pi_mpi + mypi<br>
+!$OMP END CRITICAL<br>
+!$OMP    END PARALLEL<br>
+        call mpi_reduce(pi_mpi, pi, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0,<br>
+MPI_COMM_WORLD, ierr)<br>
+           PRINT *, &quot;Pi = &quot;, pi<br>
+        call MPI_Finalize(ierr)<br>
+           END PROGRAM<br>
+<br>
+and output of ompi_info:<br>
+$ ompi_info<br>
+                 Package: Open MPI root@newton-s Distribution<br>
+                Open MPI: 1.8.4<br>
+  Open MPI repo revision: v1.8.3-330-g0344f04<br>
+   Open MPI release date: Dec 19, 2014<br>
+                Open RTE: 1.8.4<br>
+  Open RTE repo revision: v1.8.3-330-g0344f04<br>
+   Open RTE release date: Dec 19, 2014<br>
+                    OPAL: 1.8.4<br>
+      OPAL repo revision: v1.8.3-330-g0344f04<br>
+       OPAL release date: Dec 19, 2014<br>
+                 MPI API: 3.0<br>
+            Ident string: 1.8.4<br>
+                  Prefix: /data/apps/mpi/openmpi-1.8.4-gnu<br>
+ Configured architecture: x86_64-unknown-linux-gnu<br>
+          Configure host: newton-s<br>
+           Configured by: root<br>
+           Configured on: Mon Apr 13 18:29:51 CEST 2015<br>
+          Configure host: newton-s<br>
+                Built by: root<br>
+                Built on: lun 13 apr 2015, 18.42.15, CEST<br>
+              Built host: newton-s<br>
+              C bindings: yes<br>
+            C++ bindings: yes<br>
+             Fort mpif.h: yes (all)<br>
+            Fort use mpi: yes (limited: overloading)<br>
+       Fort use mpi size: deprecated-ompi-info-value<br>
+        Fort use mpi_f08: no<br>
+ Fort mpi_f08 compliance: The mpi_f08 module was not built<br>
+  Fort mpi_f08 subarrays: no<br>
+           Java bindings: no<br>
+  Wrapper compiler rpath: runpath<br>
+              C compiler: gcc<br>
+     C compiler absolute: /usr/bin/gcc<br>
+  C compiler family name: GNU<br>
+      C compiler version: 4.4.7<br>
+            C++ compiler: g++<br>
+   C++ compiler absolute: /usr/bin/g++<br>
+           Fort compiler: gfortran<br>
+       Fort compiler abs: /usr/bin/gfortran<br>
+         Fort ignore TKR: no<br>
+   Fort 08 assumed shape: no<br>
+      Fort optional args: no<br>
+          Fort INTERFACE: yes<br>
+    Fort ISO_FORTRAN_ENV: no<br>
+       Fort STORAGE_SIZE: no<br>
+      Fort BIND(C) (all): no<br>
+      Fort ISO_C_BINDING: yes<br>
+ Fort SUBROUTINE BIND(C): no<br>
+       Fort TYPE,BIND(C): no<br>
+ Fort T,BIND(C,name=&quot;a&quot;): no<br>
+            Fort PRIVATE: no<br>
+          Fort PROTECTED: no<br>
+           Fort ABSTRACT: no<br>
+       Fort ASYNCHRONOUS: no<br>
+          Fort PROCEDURE: no<br>
+           Fort C_FUNLOC: no<br>
+ Fort f08 using wrappers: no<br>
+         Fort MPI_SIZEOF: no<br>
+             C profiling: yes<br>
+           C++ profiling: yes<br>
+   Fort mpif.h profiling: yes<br>
+  Fort use mpi profiling: yes<br>
+   Fort use mpi_f08 prof: no<br>
+          C++ exceptions: no<br>
+          Thread support: posix (MPI_THREAD_MULTIPLE: yes, OPAL support:<br>
+yes,<br>
+                          OMPI progress: no, ORTE progress: yes, Event<br>
+lib:<br>
+                          yes)<br>
+           Sparse Groups: no<br>
+  Internal debug support: no<br>
+  MPI interface warnings: yes<br>
+     MPI parameter check: runtime<br>
+Memory profiling support: no<br>
+Memory debugging support: no<br>
+         libltdl support: yes<br>
+   Heterogeneous support: no<br>
+ mpirun default --prefix: yes<br>
+         MPI I/O support: yes<br>
+       MPI_WTIME support: gettimeofday<br>
+     Symbol vis. support: yes<br>
+   Host topology support: yes<br>
+          MPI extensions:<br>
+   FT Checkpoint support: no (checkpoint thread: no)<br>
+   C/R Enabled Debugging: no<br>
+     VampirTrace support: yes<br>
+  MPI_MAX_PROCESSOR_NAME: 256<br>
+    MPI_MAX_ERROR_STRING: 256<br>
+     MPI_MAX_OBJECT_NAME: 64<br>
+        MPI_MAX_INFO_KEY: 36<br>
+        MPI_MAX_INFO_VAL: 256<br>
+       MPI_MAX_PORT_NAME: 1024<br>
+  MPI_MAX_DATAREP_STRING: 128<br>
+           MCA backtrace: execinfo (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+            MCA compress: bzip (MCA v2.0, API v2.0, Component v1.8.4)<br>
+            MCA compress: gzip (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA crs: none (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                  MCA db: hash (MCA v2.0, API v1.0, Component v1.8.4)<br>
+                  MCA db: print (MCA v2.0, API v1.0, Component v1.8.4)<br>
+               MCA event: libevent2021 (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+               MCA hwloc: hwloc191 (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                  MCA if: posix_ipv4 (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                  MCA if: linux_ipv6 (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+         MCA installdirs: env (MCA v2.0, API v2.0, Component v1.8.4)<br>
+         MCA installdirs: config (MCA v2.0, API v2.0, Component v1.8.4)<br>
+              MCA memory: linux (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA pstat: linux (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA sec: basic (MCA v2.0, API v1.0, Component v1.8.4)<br>
+               MCA shmem: mmap (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA shmem: posix (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA shmem: sysv (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA timer: linux (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA dfs: app (MCA v2.0, API v1.0, Component v1.8.4)<br>
+                 MCA dfs: orted (MCA v2.0, API v1.0, Component v1.8.4)<br>
+                 MCA dfs: test (MCA v2.0, API v1.0, Component v1.8.4)<br>
+              MCA errmgr: default_app (MCA v2.0, API v3.0, Component<br>
+v1.8.4)<br>
+              MCA errmgr: default_hnp (MCA v2.0, API v3.0, Component<br>
+v1.8.4)<br>
+              MCA errmgr: default_orted (MCA v2.0, API v3.0, Component<br>
+                          v1.8.4)<br>
+              MCA errmgr: default_tool (MCA v2.0, API v3.0, Component<br>
+v1.8.4)<br>
+                 MCA ess: env (MCA v2.0, API v3.0, Component v1.8.4)<br>
+                 MCA ess: hnp (MCA v2.0, API v3.0, Component v1.8.4)<br>
+                 MCA ess: singleton (MCA v2.0, API v3.0, Component<br>
+v1.8.4)<br>
+                 MCA ess: slurm (MCA v2.0, API v3.0, Component v1.8.4)<br>
+                 MCA ess: tm (MCA v2.0, API v3.0, Component v1.8.4)<br>
+                 MCA ess: tool (MCA v2.0, API v3.0, Component v1.8.4)<br>
+               MCA filem: raw (MCA v2.0, API v2.0, Component v1.8.4)<br>
+             MCA grpcomm: bad (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA iof: hnp (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA iof: mr_hnp (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA iof: mr_orted (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                 MCA iof: orted (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA iof: tool (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA odls: default (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA oob: tcp (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA plm: isolated (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                 MCA plm: rsh (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA plm: slurm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA plm: tm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA ras: loadleveler (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                 MCA ras: simulator (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                 MCA ras: slurm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA ras: tm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA rmaps: lama (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA rmaps: mindist (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA rmaps: ppr (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA rmaps: rank_file (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+               MCA rmaps: resilient (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+               MCA rmaps: round_robin (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+               MCA rmaps: seq (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA rmaps: staged (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA rml: oob (MCA v2.0, API v2.0, Component v1.8.4)<br>
+              MCA routed: binomial (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+              MCA routed: debruijn (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+              MCA routed: direct (MCA v2.0, API v2.0, Component v1.8.4)<br>
+              MCA routed: radix (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA state: app (MCA v2.0, API v1.0, Component v1.8.4)<br>
+               MCA state: hnp (MCA v2.0, API v1.0, Component v1.8.4)<br>
+               MCA state: novm (MCA v2.0, API v1.0, Component v1.8.4)<br>
+               MCA state: orted (MCA v2.0, API v1.0, Component v1.8.4)<br>
+               MCA state: staged_hnp (MCA v2.0, API v1.0, Component<br>
+v1.8.4)<br>
+               MCA state: staged_orted (MCA v2.0, API v1.0, Component<br>
+v1.8.4)<br>
+               MCA state: tool (MCA v2.0, API v1.0, Component v1.8.4)<br>
+           MCA allocator: basic (MCA v2.0, API v2.0, Component v1.8.4)<br>
+           MCA allocator: bucket (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA bcol: basesmuma (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                MCA bcol: ptpcoll (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA bml: r2 (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA btl: openib (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA btl: self (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA btl: sm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA btl: smcuda (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA btl: tcp (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA btl: vader (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA coll: basic (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA coll: hierarch (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                MCA coll: inter (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA coll: libnbc (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA coll: ml (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA coll: self (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA coll: sm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA coll: tuned (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA dpm: orte (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA fbtl: posix (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA fcoll: dynamic (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA fcoll: individual (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+               MCA fcoll: static (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA fcoll: two_phase (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+               MCA fcoll: ylib (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                  MCA fs: ufs (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                  MCA io: ompio (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                  MCA io: romio (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA mpool: gpusm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA mpool: grdma (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA mpool: rgpusm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+               MCA mpool: sm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA mtl: psm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA osc: rdma (MCA v2.0, API v3.0, Component v1.8.4)<br>
+                 MCA osc: sm (MCA v2.0, API v3.0, Component v1.8.4)<br>
+                 MCA pml: v (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA pml: bfo (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA pml: cm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA pml: ob1 (MCA v2.0, API v2.0, Component v1.8.4)<br>
+              MCA pubsub: orte (MCA v2.0, API v2.0, Component v1.8.4)<br>
+              MCA rcache: vma (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                 MCA rte: orte (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA sbgp: basesmsocket (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                MCA sbgp: basesmuma (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+                MCA sbgp: p2p (MCA v2.0, API v2.0, Component v1.8.4)<br>
+            MCA sharedfp: individual (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+            MCA sharedfp: lockedfile (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+            MCA sharedfp: sm (MCA v2.0, API v2.0, Component v1.8.4)<br>
+                MCA topo: basic (MCA v2.0, API v2.1, Component v1.8.4)<br>
+           MCA vprotocol: pessimist (MCA v2.0, API v2.0, Component<br>
+v1.8.4)<br>
+<br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/06/27201.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27201.php</a><br>
+</blockquote></div><br></div>
+

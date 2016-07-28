@@ -1,0 +1,402 @@
+commit 5957bcd31d18f44a80c2c100eaff472293261f42
+Author: Brice Goglin <Brice.Goglin@inria.fr>
+Date:   Mon Jan 6 12:52:14 2014 +0100
+
+    plugins: export hwloc_alloc_root_sets()
+    
+    Renamed from the old hwloc_alloc_obj_cpusets(),
+    now officially specialized for root objects only,
+    and now exported to plugins (Xen will need it).
+
+diff --git a/NEWS b/NEWS
+index eec10ea..5e0d78a 100644
+--- a/NEWS
++++ b/NEWS
+@@ -28,6 +28,8 @@ Version 1.9.0
+   + hwloc-ps reports locations as likely-more-useful objects such as Cores
+     or Sockets instead of Caches when possible.
+   + Add -e as a synonym to --get-last-cpu-location in hwloc-bind.
++* Plugins
++  + Add the new hwloc_alloc_root_sets() function for plugins that discover CPUs.
+ 
+ 
+ Version 1.8.0
+diff --git a/include/hwloc/plugins.h b/include/hwloc/plugins.h
+index aa5d993..964da66 100644
+--- a/include/hwloc/plugins.h
++++ b/include/hwloc/plugins.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright © 2013 Inria.  All rights reserved.
++ * Copyright © 2013-2014 Inria.  All rights reserved.
+  * See COPYING in top-level directory.
+  */
+ 
+@@ -305,6 +305,12 @@ hwloc_alloc_setup_object(hwloc_obj_type_t type, signed os_index)
+  */
+ HWLOC_DECLSPEC int hwloc_fill_object_sets(hwloc_obj_t obj);
+ 
++/** \brief Allocate object CPU and node sets of the root object.
++ *
++ * Used for initializing the root object sets prior to discovering CPUs and NUMA nodes.
++ */
++HWLOC_DECLSPEC int hwloc_alloc_root_sets(struct hwloc_topology *topology);
++
+ /** \brief Insert a list of PCI devices and bridges in the backend topology.
+  *
+  * Insert a list of objects (either PCI device or bridges) starting at first_obj
+diff --git a/include/hwloc/rename.h b/include/hwloc/rename.h
+index 6266264..424a3e9 100644
+--- a/include/hwloc/rename.h
++++ b/include/hwloc/rename.h
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+- * Copyright © 2010-2013 Inria.  All rights reserved.
++ * Copyright © 2010-2014 Inria.  All rights reserved.
+  * See COPYING in top-level directory.
+  */
+ 
+@@ -485,6 +485,7 @@ extern "C" {
+ #define hwloc_insert_object_by_parent HWLOC_NAME(insert_object_by_parent)
+ #define hwloc_alloc_setup_object HWLOC_NAME(alloc_setup_object)
+ #define hwloc_fill_object_sets HWLOC_NAME(fill_object_sets)
++#define hwloc_alloc_root_sets HWLOC_NAME(alloc_root_sets)
+ 
+ #define hwloc_insert_pci_device_list HWLOC_NAME(insert_pci_device_list)
+ #define hwloc_pci_find_cap HWLOC_NAME(pci_find_cap)
+diff --git a/include/private/private.h b/include/private/private.h
+index a9009de..3c28683 100644
+--- a/include/private/private.h
++++ b/include/private/private.h
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009      CNRS
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2012 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  *
+@@ -128,7 +128,6 @@ struct hwloc_topology {
+   struct hwloc_backend * backends;
+ };
+ 
+-extern void hwloc_alloc_obj_cpusets(hwloc_obj_t obj);
+ extern void hwloc_setup_pu_level(struct hwloc_topology *topology, unsigned nb_pus);
+ extern int hwloc_get_sysctlbyname(const char *name, int64_t *n);
+ extern int hwloc_get_sysctl(int name[], unsigned namelen, int *n);
+diff --git a/src/topology-aix.c b/src/topology-aix.c
+index e19faeb..977998f 100644
+--- a/src/topology-aix.c
++++ b/src/topology-aix.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2011, 2013 Université Bordeaux 1
+  * Copyright © 2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -709,7 +709,7 @@ hwloc_look_aix(struct hwloc_backend *backend)
+     /* somebody discovered things */
+     return 0;
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+ 
+   /* TODO: R_LGPGDEF/R_LGPGFREE for large pages */
+ 
+diff --git a/src/topology-bgq.c b/src/topology-bgq.c
+index 5a2e611..df7186e 100644
+--- a/src/topology-bgq.c
++++ b/src/topology-bgq.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright © 2013 Inria.  All rights reserved.
++ * Copyright © 2013-2014 Inria.  All rights reserved.
+  * See COPYING in top-level directory.
+  */
+ 
+@@ -29,7 +29,7 @@ hwloc_look_bgq(struct hwloc_backend *backend)
+ 
+ #define HWLOC_BGQ_CORES 17 /* spare core ignored for now */
+ 
+-    hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++    hwloc_alloc_root_sets(topology);
+     /* mark the 17th core (OS-reserved) as disallowed */
+     hwloc_bitmap_clr_range(topology->levels[0][0]->allowed_cpuset, (HWLOC_BGQ_CORES-1)*4, HWLOC_BGQ_CORES*4-1);
+ 
+diff --git a/src/topology-darwin.c b/src/topology-darwin.c
+index 39e13a3..70e23ee 100644
+--- a/src/topology-darwin.c
++++ b/src/topology-darwin.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2013 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -43,7 +43,7 @@ hwloc_look_darwin(struct hwloc_backend *backend)
+     /* somebody discovered things */
+     return 0;
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+ 
+   if (hwloc_get_sysctlbyname("hw.ncpu", &_nprocs) || _nprocs <= 0)
+     return -1;
+diff --git a/src/topology-freebsd.c b/src/topology-freebsd.c
+index 7e13ca1..59d5b8b 100644
+--- a/src/topology-freebsd.c
++++ b/src/topology-freebsd.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2013 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2010, 2012 Université Bordeaux 1
+  * Copyright © 2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -182,7 +182,7 @@ hwloc_look_freebsd(struct hwloc_backend *backend)
+ 
+   if (!topology->levels[0][0]->cpuset) {
+     /* Nobody (even the x86 backend) created objects yet, setup basic objects */
+-    hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++    hwloc_alloc_root_sets(topology);
+     hwloc_setup_pu_level(topology, nbprocs);
+   }
+ 
+diff --git a/src/topology-hpux.c b/src/topology-hpux.c
+index bd84379..91885f3 100644
+--- a/src/topology-hpux.c
++++ b/src/topology-hpux.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2010, 2013 Université Bordeaux 1
+  * Copyright © 2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -175,7 +175,7 @@ hwloc_look_hpux(struct hwloc_backend *backend)
+     /* somebody discovered things */
+     return 0;
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+ 
+   if (has_numa) {
+     nbnodes = mpctl(topology->flags & HWLOC_TOPOLOGY_FLAG_WHOLE_SYSTEM ?
+diff --git a/src/topology-linux.c b/src/topology-linux.c
+index 2841f23..2796ae7 100644
+--- a/src/topology-linux.c
++++ b/src/topology-linux.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2013 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2013 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  * Copyright © 2010 IBM
+@@ -3445,7 +3445,7 @@ hwloc_look_linuxfs(struct hwloc_backend *backend)
+     /* somebody discovered things */
+     return 0;
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+ 
+   /* Gather the list of admin-disabled cpus and mems */
+   hwloc_find_linux_cpuset_mntpnt(&cgroup_mntpnt, &cpuset_mntpnt, data->root_fd);
+diff --git a/src/topology-netbsd.c b/src/topology-netbsd.c
+index c88ba87..9988b9e 100644
+--- a/src/topology-netbsd.c
++++ b/src/topology-netbsd.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2012 Aleksej Saushev, The NetBSD Foundation
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2010 Université Bordeaux 1
+  * Copyright © 2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -138,7 +138,7 @@ hwloc_look_netbsd(struct hwloc_backend *backend)
+ 
+   if (!topology->levels[0][0]->cpuset) {
+     /* Nobody (even the x86 backend) created objects yet, setup basic objects */
+-    hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++    hwloc_alloc_root_sets(topology);
+     hwloc_setup_pu_level(topology, nbprocs);
+   }
+ 
+diff --git a/src/topology-noos.c b/src/topology-noos.c
+index 8c74ded..c26e981 100644
+--- a/src/topology-noos.c
++++ b/src/topology-noos.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2012 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -19,7 +19,7 @@ hwloc_look_noos(struct hwloc_backend *backend)
+     /* somebody discovered things */
+     return 0;
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+   hwloc_setup_pu_level(topology, hwloc_fallback_nbprocessors(topology));
+   if (topology->is_thissystem)
+     hwloc_add_uname_info(topology);
+diff --git a/src/topology-osf.c b/src/topology-osf.c
+index 52300fc..0b3c45e 100644
+--- a/src/topology-osf.c
++++ b/src/topology-osf.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2011 Université Bordeaux 1
+  * Copyright © 2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -254,7 +254,7 @@ hwloc_look_osf(struct hwloc_backend *backend)
+     /* somebody discovered things */
+     return 0;
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+ 
+   nbnodes = rad_get_num();
+ 
+diff --git a/src/topology-solaris.c b/src/topology-solaris.c
+index fec511d..59decca 100644
+--- a/src/topology-solaris.c
++++ b/src/topology-solaris.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2011 Université Bordeaux 1
+  * Copyright © 2011 Cisco Systems, Inc.  All rights reserved.
+  * Copyright © 2011      Oracle and/or its affiliates.  All rights reserved.
+@@ -726,7 +726,7 @@ hwloc_look_solaris(struct hwloc_backend *backend)
+     /* somebody discovered things */
+     return 0;
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+ 
+ #ifdef HAVE_LIBLGRP
+   hwloc_look_lgrp(topology);
+diff --git a/src/topology-synthetic.c b/src/topology-synthetic.c
+index 11c8c33..6120696 100644
+--- a/src/topology-synthetic.c
++++ b/src/topology-synthetic.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2010 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -352,7 +352,7 @@ hwloc_look_synthetic(struct hwloc_backend *backend)
+ 
+   assert(!topology->levels[0][0]->cpuset);
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+ 
+   topology->support.discovery->pu = 1;
+ 
+diff --git a/src/topology-windows.c b/src/topology-windows.c
+index 8d811c7..f33d4ec 100644
+--- a/src/topology-windows.c
++++ b/src/topology-windows.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2012 Université Bordeaux 1
+  * Copyright © 2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -490,7 +490,7 @@ hwloc_look_windows(struct hwloc_backend *backend)
+     /* somebody discovered things */
+     return 0;
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+ 
+   GetSystemInfo(&SystemInfo);
+ 
+diff --git a/src/topology-x86.c b/src/topology-x86.c
+index 9fa0f88..4c72dcc 100644
+--- a/src/topology-x86.c
++++ b/src/topology-x86.c
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright © 2010-2013 Inria.  All rights reserved.
++ * Copyright © 2010-2014 Inria.  All rights reserved.
+  * Copyright © 2010-2013 Université Bordeaux 1
+  * Copyright © 2010-2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -885,7 +885,7 @@ hwloc_x86_discover(struct hwloc_backend *backend)
+     return 0;
+   } else {
+     /* topology is empty, initialize it */
+-    hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++    hwloc_alloc_root_sets(topology);
+   }
+ 
+ fulldiscovery:
+diff --git a/src/topology-xen.c b/src/topology-xen.c
+index 28526fe..c0b416a 100644
+--- a/src/topology-xen.c
++++ b/src/topology-xen.c
+@@ -180,7 +180,7 @@ hwloc_xen_discover(struct hwloc_backend *backend)
+       hwloc_debug("  node[%3"PRIu32"], size %"PRIu64", free %"PRIu64"\n",
+                   z, data->node_to_memsize[z], data->node_to_memfree[z]);
+ 
+-  hwloc_alloc_obj_cpusets(topology->levels[0][0]);
++  hwloc_alloc_root_sets(topology);
+   hwloc_setup_pu_level(topology, data->max_cpu_id+1);
+ 
+   /* Socket information */
+diff --git a/src/topology.c b/src/topology.c
+index 8afe5a4..8a45b9b 100644
+--- a/src/topology.c
++++ b/src/topology.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2013 Inria.  All rights reserved.
++ * Copyright © 2009-2014 Inria.  All rights reserved.
+  * Copyright © 2009-2012 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -2282,8 +2282,9 @@ hwloc_connect_levels(hwloc_topology_t topology)
+   return 0;
+ }
+ 
+-void hwloc_alloc_obj_cpusets(hwloc_obj_t obj)
++int hwloc_alloc_root_sets(hwloc_topology_t topology)
+ {
++  hwloc_obj_t obj = hwloc_get_root_obj(topology);
+   obj->cpuset = hwloc_bitmap_alloc_full();
+   obj->complete_cpuset = hwloc_bitmap_alloc();
+   obj->online_cpuset = hwloc_bitmap_alloc_full();
+@@ -2291,6 +2292,7 @@ void hwloc_alloc_obj_cpusets(hwloc_obj_t obj)
+   obj->nodeset = hwloc_bitmap_alloc();
+   obj->complete_nodeset = hwloc_bitmap_alloc();
+   obj->allowed_nodeset = hwloc_bitmap_alloc_full();
++  return 0;
+ }
+ 
+ /* Main discovery loop */

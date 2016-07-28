@@ -1,0 +1,122 @@
+<div dir="ltr"><div><font face="arial, helvetica, sans-serif">Hi,</font></div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif">Thanks for your reply Ralph.</font></div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif">The option only I&#39;m using when configuring OpenMPI is &#39;</font><font face="monospace, monospace">--prefix</font><font face="arial, helvetica, sans-serif">&#39;.</font></div><div><font face="arial, helvetica, sans-serif">When checking the config.log file, I see </font></div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="monospace, monospace">configure:208504: checking whether the openib BTL will use malloc hooks</font></div><div><font face="monospace, monospace">configure:208510: result: yes</font></div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif">so I guess it is properly enabled (full config.log in attachment of this email).</font></div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif">However, I think I have the reason of the bug (lines refer to source code of OpenMPI 1.8.5):</font></div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif">The default value of </font><font face="monospace, monospace">memalign_threshold</font><font face="arial, helvetica, sans-serif"> is taken from </font><font face="monospace, monospace">eager_limit</font><font face="arial, helvetica, sans-serif"> in function </font><font face="monospace, monospace">btl_openib_register_mca_params()</font><font face="arial, helvetica, sans-serif"> in </font><font face="monospace, monospace">btl_openib_mca.c</font><font face="arial, helvetica, sans-serif"> line 717.</font></div><div><font face="arial, helvetica, sans-serif">But the default value is </font><font face="monospace, monospace">eager_limit</font><font face="arial, helvetica, sans-serif"> is set in </font><font face="monospace, monospace">btl_openib_component.c</font><font face="arial, helvetica, sans-serif"> at line 193 right after the call to </font><font face="monospace, monospace">btl_openib_register_mca_params()</font><font face="arial, helvetica, sans-serif">.</font></div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif">To summarize, </font><font face="monospace, monospace">memalign_threshold</font><font face="arial, helvetica, sans-serif"> gets its value from </font><font face="monospace, monospace">eager_limit</font><font face="arial, helvetica, sans-serif"> before this one gets its value assigned.</font></div><div><br></div><div><br></div><div><br></div><div>Best regards,</div><div><br></div><div>Xavier</div><div><br></div><div><br></div><div><br></div><div> </div><div><font face="monospace, monospace"><br></font></div><div><font face="monospace, monospace"><br></font></div><div><font face="monospace, monospace"><br></font></div><div class="gmail_extra"><br><div class="gmail_quote">On Mon, May 25, 2015 at 2:27 AM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+
+
+
+<div style="word-wrap:break-word">
+Looking at the code, we do in fact set the memalign_threshold = eager_limit by default, but only if you configured with —enable-btl-openib-malloc-alignment AND/OR we found the malloc hook functions were available.
+<div><br>
+</div>
+<div>You might check config.log to see if the openib malloc hooks were enabled. My guess is that they weren’t, for some reason.
+<div><br>
+</div>
+<div><br>
+<div>
+<blockquote type="cite"><div><div class="h5">
+<div>On May 24, 2015, at 9:07 AM, Xavier Besseron &lt;<a href="mailto:xavier.besseron@uni.lu" target="_blank">xavier.besseron@uni.lu</a>&gt; wrote:</div>
+<br>
+</div></div><div><div><div class="h5">
+<div dir="ltr">
+<div class="gmail_quote">
+<div>
+<div>
+<div dir="ltr">
+<div class="gmail_quote">
+<div dir="ltr">Dear OpenMPI developers / users,<br>
+<br>
+This is much more a comment than a question since I believe I have already solved my issue. But I would like to report it.
+<div><br>
+I have noticed my code performed very badly with OpenMPI when Infinand is enabled, sometime +50% or even +100% overhead.<br>
+I also have this slowdown when running with one thread and one process. In such case, there is no other MPI call than
+<font face="monospace, monospace">MPI_Init()</font> and <font face="monospace, monospace">
+MPI_Finalize()</font>.<br>
+This overhead disappears if I disable at runtime the openib btl, ie with &#39;<font face="monospace, monospace">--mca btl ^openib</font>&#39;.<br>
+After further investigation, I figured out it comes from the memory allocator which is aligning every memory allocation when Infiniband is used.
+<div>This makes sense because my code is a large irregular C++ code creating and deleting many objects.</div>
+<div><br>
+Just below is the documentation of the relevant MCA parameters coming <font face="monospace, monospace">
+ompi_info</font>:<br>
+<br>
+<font face="monospace, monospace">MCA btl: parameter &quot;<b>btl_openib_memalign</b>&quot; (current value: &quot;32&quot;, data source: default, level: 9 dev/all, type: int)<br>
+         [64 | 32 | 0] - Enable (64bit or 32bit)/Disable(0) memoryalignment for all malloc calls if btl openib is used.<br>
+<br>
+MCA btl: parameter &quot;<b>btl_openib_memalign_threshold</b>&quot; (current value: &quot;<b>0</b>&quot;, data source: default, level: 9 dev/all, type: size_t)<br>
+         Allocating memory more than btl_openib_memalign_threshholdbytes will automatically be algined to the value of btl_openib_memalign bytes.<b>memalign_threshhold defaults to the same value as mca_btl_openib_eager_limit</b>.<br>
+<br>
+MCA btl: parameter &quot;<b>btl_openib_eager_limit</b>&quot; (current value: &quot;<b>12288</b>&quot;, data source: default, level: 4 tuner/basic, type: size_t)<br>
+         Maximum size (in bytes, including header) of &quot;short&quot; messages (must be &gt;= 1).</font><br>
+<br>
+<br>
+In the end, the problem is that the default value for <font face="monospace, monospace">
+btl_openib_memalign_threshold</font> is 0, which means that <b>all</b> memory allocations are aligned to 32 bits.</div>
+<div>The documentation says that the default value of <font face="monospace, monospace">btl_openib_memalign_threshold</font> should be the the same as <font face="monospace, monospace">btl_openib_eager_limit</font><font face="arial, helvetica, sans-serif">,
+ ie 12288 instead of 0.</font></div>
+<div><br>
+</div>
+<div><font face="arial, helvetica, sans-serif">On my side, changing </font><span style="font-family:monospace,monospace">btl_openib_memalign_threshold</span><font face="arial, helvetica, sans-serif"> to 12288 fixes my performance
+ issue.</font></div>
+<div><font face="arial, helvetica, sans-serif">However, I believe that the default value of </font><span style="font-family:monospace,monospace">btl_openib_memalign_threshold</span><font face="arial, helvetica, sans-serif">
+ should be fixed in the OpenMPI code (or at least the documentation should be fixed).</font></div>
+<div><font face="arial, helvetica, sans-serif"><br>
+</font></div>
+<div>
+<div>I tried OpenMPI 1.8.5, 1.7.3 and 1.6.4 and it&#39;s all the same.<br>
+</div>
+</div>
+<div><br>
+</div>
+<div><font face="arial, helvetica, sans-serif"><br>
+</font></div>
+<div><font face="arial, helvetica, sans-serif">Bonus question:</font></div>
+<div><font face="arial, helvetica, sans-serif">As this issue might impact other users, I&#39;m considering applying a global fix on our clusters by setting this default value </font><font face="monospace, monospace">etc/openmpi-mca-params.conf</font><span style="font-family:arial,helvetica,sans-serif">.</span></div>
+<div><span style="font-family:arial,helvetica,sans-serif">Do you see any good reason not doing it?</span></div>
+<div><span style="font-family:arial,helvetica,sans-serif"><br>
+</span></div>
+<div><span style="font-family:arial,helvetica,sans-serif">Thank you for your comments.</span><br>
+</div>
+<div><span style="font-family:arial,helvetica,sans-serif"><br>
+</span></div>
+<div><span style="font-family:arial,helvetica,sans-serif">Best regards,</span></div>
+<div><span style="font-family:arial,helvetica,sans-serif"><br>
+</span></div>
+<div><span style="font-family:arial,helvetica,sans-serif">Xavier</span></div>
+<span><font color="#888888">
+<div><br>
+</div>
+<div><br>
+</div>
+</font></span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+-- <br>
+<div>
+<div dir="ltr">Dr Xavier BESSERON<br>
+Research associate<br>
+FSTC, University of Luxembourg<br>
+Campus Kirchberg, Office E-007<br>
+Phone: <a href="tel:%2B352%2046%2066%2044%205418" value="+3524666445418" target="_blank">+352 46 66 44 5418</a><br>
+<div><a href="http://luxdem.uni.lu/" target="_blank">http://luxdem.uni.lu/</a><br>
+</div>
+<div><br>
+</div>
+</div>
+</div>
+</div></div></div>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/05/26913.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/05/26913.php</a></div>
+</blockquote>
+</div>
+<br>
+</div>
+</div>
+</div>
+
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature"><div dir="ltr">Dr Xavier BESSERON<br>Research associate<br>FSTC, University of Luxembourg<br>Campus Kirchberg, Office E-007<br>Phone: +352 46 66 44 5418<br><div><a href="http://luxdem.uni.lu/" target="_blank">http://luxdem.uni.lu/</a><br></div><div><br></div><div><br></div></div></div>
+</div></div>
+

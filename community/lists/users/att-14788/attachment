@@ -1,0 +1,105 @@
+<br><br><div class="gmail_quote">On Tue, Nov 16, 2010 at 12:23 PM, Terry Dontje <span dir="ltr">&lt;<a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+
+
+  
+    
+  
+  <div bgcolor="#ffffff" text="#000000"><div class="im">
+    On 11/16/2010 01:31 PM, Reuti wrote:
+    <blockquote type="cite">
+      <pre>Hi Ralph,
+
+Am 16.11.2010 um 15:40 schrieb Ralph Castain:
+
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre>2. have SGE bind procs it launches to -all- of those cores. I believe SGE does this automatically to constrain the procs to running on only those cores.
+</pre>
+        </blockquote>
+        <pre>This is another &quot;bug/feature&quot; in SGE: it&#39;s a matter of discussion, whether the shepherd should get exactly one core (in case you use more than one `qrsh`per node) for each call, or *all* cores assigned (which we need right now, as the processes in Open MPI will be forks of orte daemon). About such a situtation I filled an issue a long time ago and &quot;limit_to_one_qrsh_per_host yes/no&quot; in the PE definition would do (this setting should then also change the core allocation of the master process):
+
+<a href="http://gridengine.sunsource.net/issues/show_bug.cgi?id=1254" target="_blank">http://gridengine.sunsource.net/issues/show_bug.cgi?id=1254</a>
+
+I believe this is indeed the crux of the issue
+</pre>
+      </blockquote>
+      <pre>fantastic to share the same view.
+
+</pre>
+    </blockquote></div>
+    FWIW, I think I agree too.<div class="im"><br>
+    <blockquote type="cite">
+      <pre></pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre>3. tell OMPI to --bind-to-core.
+
+In other words, tell SGE to allocate a certain number of cores on each node, but to bind each proc to all of them (i.e., don&#39;t bind a proc to a specific core). I&#39;m pretty sure that is a standard SGE option today (at least, I know it used to be). I don&#39;t believe any patch or devel work is required (to either SGE or OMPI).
+</pre>
+        </blockquote>
+        <pre>When you use a fixed allocation_rule and a matching -binding request it will work today. But any other case won&#39;t be distributed in the correct way.
+
+Is it possible to not include the -binding request? If SGE is told to use a fixed allocation_rule, and to allocate (for example) 2 cores/node, then won&#39;t the orted see 
+itself bound to two specific cores on each node?
+</pre>
+      </blockquote>
+      <pre>When you leave out the -binding, all jobs are allowed to run on any core.
+
+
+</pre>
+      <blockquote type="cite">
+        <pre>We would then be okay as the spawned children of orted would inherit its binding. Just don&#39;t tell mpirun to bind the processes and the threads of those MPI procs will be able to operate across the provided cores.
+
+Or does SGE only allocate 2 cores/node in that case (i.e., allocate, but no -binding given), but doesn&#39;t bind the orted to any two specific cores? If so, then that would be a problem as the orted would think itself unconstrained. If I understand the thread correctly, you&#39;re saying that this is what happens today - true?
+</pre>
+      </blockquote>
+      <pre>Exactly. It won&#39;t apply any binding at all and orted would think of being unlimited. I.e. limited only by the number of slots it should use thereon.
+
+</pre>
+    </blockquote></div>
+    So I guess the question I have for Ralph.  I thought, and this might
+    be mixing some of the ideas Jeff and I&#39;ve been talking about, that
+    when a RM executes the orted with a bound set of resources (ie
+    cores) that orted would bind the individual processes on a subset of
+    the bounded resources.  Is this not really the case for 1.4.X
+    branch?  I believe it is the case for the trunk based on Jeff&#39;s
+    refactoring.</div></blockquote><div><br></div><div>You are absolutely correct, Terry, and the 1.4 release series does include the proper code. The point here, though, is that SGE binds the orted to a single core, even though other cores are also allocated. So the orted detects an external binding of one core, and binds all its children to that same core.</div>
+<div><br></div><div>What I had suggested to Reuti was to not include the -binding flag to SGE in the hopes that SGE would then bind the orted to all the allocated cores. However, as I feared, SGE in that case doesn&#39;t bind the orted at all - and so we assume the entire node is available for our use.</div>
+<div><br></div><div>This is an SGE issue. We need them to bind the orted to -all- the allocated cores (and only those cores) in order for us to operate correctly.</div><div><br></div><div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div bgcolor="#ffffff" text="#000000"><div class="im"><br>
+    <br>
+    <div>-- <br>
+      
+      
+      <img src="cid:part1.08010109.02070209@oracle.com" alt="Oracle"><br>
+      Terry D. Dontje | Principal Software Engineer<br>
+      <font size="2" color="#666666" face="Verdana">Developer Tools
+        Engineering | +1.781.442.2631<br>
+      </font> <font size="2" color="#ff0000" face="Verdana">Oracle </font><font size="2" color="#666666" face="Verdana"><b> - Performance
+          Technologies</b></font><br>
+      <font size="2" color="#666666" face="Verdana"> 95 Network Drive,
+        Burlington, MA 01803<br>
+        Email <a href="mailto:terry.dontje@oracle.com" target="_blank">terry.dontje@oracle.com</a><br>
+      </font>
+      <div><br>
+        <div>
+          <div>
+            <div>
+              <div>
+                <div> </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <br>
+        <br>
+      </div>
+    </div>
+  </div></div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br>
+

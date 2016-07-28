@@ -1,0 +1,104 @@
+<div dir="ltr">Both BLCR and Open MPI work just fine. Independently.<div><br></div><div>Checkpointing and restarting a parallel application is not as simple as mixing 2 tools together (especially when we talk about a communication library, aka. MPI), they have to cooperate in order to achieve the desired goal of being able to continue the execution on another set of resources. Open MPI had support for C/R but this feature has been lost.</div><div><br></div><div>1. It is not clear from your email what exactly you checkpoint. Are you checkpointing the mpirun process, or are you checkpointing all the MPI processes ?</div><div><br></div><div>2. What are you recovering? Assuming that you checkpoint your MPI processes (and not the mpirun), what you can try to do during the recovery is to spawn a new set of MPI processes (that will give you new orteds) and then let each one of these processes call the corresponding BLCR cr_restart.<br></div><div><br></div><div>3. This will not give you a working MPI environment, as the processes will know each other from the original execution, and will be unable to connect to each other to resume communications. You will have to dig a little more in the code in order to achieve what you want/need.</div><div><br></div><div>  George.</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Wed, Mar 23, 2016 at 12:14 PM, Meij, Henk <span dir="ltr">&lt;<a href="mailto:hmeij@wesleyan.edu" target="_blank">hmeij@wesleyan.edu</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+
+
+<div>
+<div style="direction:ltr;font-family:Arial;color:#000000;font-size:10pt">
+<p>So I&#39;ve redone this with openmpi 1.10.2 and another piece of software (lammps 16feb16) and get same results.</p>
+<p> </p>
+<p>Upon cr_restart I see the openlava_wrapper process, the mpirun process reappearing but no orted and no lmp_mpi processes. Not obvious error anywhere. Using the --save-all feature from BLCR and ignore pids.</p>
+<p> </p>
+<p>Does BLCR and openmpi work? Anybody have any idea as to where to look?</p>
+<p> </p>
+<p>-Henk</p>
+<p> </p>
+<div style="FONT-SIZE:16px;FONT-FAMILY:Times New Roman;COLOR:#000000">
+<hr>
+<div style="DIRECTION:ltr"><font color="#000000" size="2" face="Tahoma"><b>From:</b> Meij, Henk<br>
+<b>Sent:</b> Monday, March 21, 2016 12:24 PM<br>
+<b>To:</b> <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<b>Subject:</b> RE: BLCR &amp; openmpi<br>
+</font><br>
+</div><div><div class="h5">
+<div></div>
+<div>
+<div style="FONT-SIZE:10pt;FONT-FAMILY:Arial;COLOR:#000000;DIRECTION:ltr">
+<p>hmm, I&#39;m not correct. cr_restart starts with no errors, launches some of the processes, then suspends itself. strace on mpirun on this manual invocation yields the behavior same as below.</p>
+<p> </p>
+<p>-Henk</p>
+<p> </p>
+<p>[hmeij@swallowtail kflaherty]$ ps -u hmeij<br>
+  PID TTY          TIME CMD<br>
+29481 ?        00:00:00 res<br>
+29485 ?        00:00:00 1458575067.384<br>
+29488 ?        00:00:00 1458575067.384.<br>
+29508 ?        00:00:00 cr_restart<br>
+29509 ?        00:00:00 blcr_watcher<br>
+29512 ?        00:00:02 lava.openmpi.wr<br>
+29514 ?        00:38:35 mpirun<br>
+30313 ?        00:00:01 sshd<br>
+30314 pts/1    00:00:00 bash<br>
+30458 ?        00:00:00 sleep<br>
+30483 ?        00:00:00 sleep<br>
+30650 pts/1    00:00:00 cr_restart<br>
+30652 pts/1    00:00:00 lava.openmpi.wr<br>
+30653 pts/1    00:00:00 mpirun<br>
+30729 pts/1    00:00:00 ps<br>
+[hmeij@swallowtail kflaherty]$ jobs<br>
+[1]+  Stopped                 cr_restart --no-restore-pid --no-restore-pgid --no-restore-sid --relocate /sanscratch/383=/sanscratch/000 /sanscratch/checkpoints/383/chk.28244<br>
+</p>
+<div style="FONT-SIZE:16px;FONT-FAMILY:Times New Roman;COLOR:#000000">
+<hr>
+<div style="DIRECTION:ltr"><font color="#000000" size="2" face="Tahoma"><b>From:</b> Meij, Henk<br>
+<b>Sent:</b> Monday, March 21, 2016 12:04 PM<br>
+<b>To:</b> <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<b>Subject:</b> BLCR &amp; openmpi<br>
+</font><br>
+</div>
+<div></div>
+<div>
+<div style="FONT-SIZE:10pt;FONT-FAMILY:Arial;COLOR:#000000;DIRECTION:ltr">
+<p>openmpi1.2 (yes, I know old),python 2.6.1 blcr 0.8.5</p>
+<p> </p>
+<p>when I attempt to cr_restart (having performed cr_checkpoint --save-all) I can restart the job manually with blcr on a node. but when I go through my openlava scheduler, the cr_restart launches mpirun, then nothing. no orted or the python processes that
+ were running. the new scheduler job performing the restart puts in place the old machinefile and stderr and stdout files. here is what I view on an strace of mpirun</p>
+<p> </p>
+<p>What problem is this pointing at?</p>
+<p>Thanks,</p>
+<p> </p>
+<p>-Henk</p>
+<p> </p>
+<p>poll([{fd=5, events=POLLIN}, {fd=4, events=POLLIN}, {fd=6, events=POLLIN}, {fd=11, events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9, events=POLLIN}, {fd=10, events=POLLIN}], 8, 1000) = 8 ([{fd=5, revents=POLLNVAL}, {fd=4, revents=POLLNVAL},
+ {fd=6, revents=POLLNVAL}, {fd=11, revents=POLLNVAL}, {fd=7, revents=POLLNVAL}, {fd=8, revents=POLLNVAL}, {fd=9, revents=POLLNVAL}, {fd=10, revents=POLLNVAL}])<br>
+rt_sigprocmask(SIG_BLOCK, [INT USR1 USR2 TERM CHLD], NULL, 8) = 0<br>
+rt_sigaction(SIGCHLD, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+rt_sigaction(SIGTERM, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+rt_sigaction(SIGINT, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+rt_sigaction(SIGUSR1, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+rt_sigaction(SIGUSR2, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+sched_yield()                           = 0<br>
+rt_sigprocmask(SIG_BLOCK, [INT USR1 USR2 TERM CHLD], NULL, 8) = 0<br>
+rt_sigaction(SIGCHLD, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+rt_sigaction(SIGTERM, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+rt_sigaction(SIGINT, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+rt_sigaction(SIGUSR1, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+rt_sigaction(SIGUSR2, {0x2b7ca19cb30a, [INT USR1 USR2 TERM CHLD], SA_RESTORER|SA_RESTART, 0x397840f790}, NULL, 8) = 0<br>
+</p>
+<p> </p>
+<p> </p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div></div></div>
+</div>
+</div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/03/28806.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/03/28806.php</a><br></blockquote></div><br></div>
+

@@ -1,0 +1,181 @@
+<HTML>
+<HEAD>
+<TITLE>Re: [OMPI devel] CARTO slot definition</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>I believe this would help reduce the confusion a great deal. While the current carto syntax is the expected for a mathematician, computer users and developers have a well-established definition for the term &#8220;node&#8221; that conflicts with that used in carto.<BR>
+<BR>
+Some thoughts to add: &nbsp;in carto, do you want to create a definition for CORE as well as SOCKET? That way, someone could provide info down to either level of granularity. In our subsequent frameworks, we could assume that all cores in a socket have the same graph analysis unless the core was described separately.<BR>
+<BR>
+Likewise, you may want to support a NODE that describes connectivity between computing nodes. Again, one could assume that all sockets on the node share the same graph unless the socket was described separately &#8211; or perhaps allow someone to describe the graph for the socket to get to the edge of the node, and then let the node description handle comm between nodes.<BR>
+<BR>
+Up to you &#8211; I&#8217;m just trying to think of ways we could bring this closer to the topo description required in other modules elsewhere in the code to avoid having multiple files.<BR>
+<BR>
+Ralph<BR>
+<BR>
+On 6/29/08 7:44 AM, &quot;Lenny Verkhovsky&quot; &lt;lenny.verkhovsky@gmail.com&gt; wrote:<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Hi all,<BR>
+We have ambiquite definitions of &quot;slot&quot; in rankfile, hostfile and carto components.<BR>
+Since &quot;slot&quot; is well defined as a processor in the hostfile and rankfile ( &quot;slot&quot; is defined as processing unit which can be processor number or socket:core pair ).<BR>
+I propose to change carto file syntax and make it more graph oriented. This won't have any effect on the code. <BR>
+&nbsp;<BR>
+In new carto syntax <BR>
+&nbsp;<BR>
+NODE will be changed to EDGE<BR>
+CONNECTION will be changed to BRANCH<BR>
+SLOT will be changed to SOCKET.<BR>
+&nbsp;<BR>
+Any comments are welcome.<BR>
+few words about carto can be found at https://svn.open-mpi.org/trac/ompi/wiki/OnHostTopologyDescription <BR>
+&nbsp;<BR>
+&nbsp;&nbsp;Index: opal/mca/carto/file/help-opal-carto-file.txt<BR>
+===================================================================<BR>
+--- opal/mca/carto/file/help-opal-carto-file.txt &nbsp;&nbsp;&nbsp;(revision 18772)<BR>
++++ opal/mca/carto/file/help-opal-carto-file.txt &nbsp;&nbsp;&nbsp;(working copy)<BR>
+@@ -27,27 +27,27 @@<BR>
+&nbsp;#<BR>
+&nbsp;[expected node type]<BR>
+-File: %s line: %d expected node type (free string). received %s<BR>
++File: %s line: %d expected Edge type (free string). received %s<BR>
+&nbsp;#<BR>
+&nbsp;[expected node name]<BR>
+-File: %s line: %d expected Node name (free string). received %s<BR>
++File: %s line: %d expected Edge name (free string). received %s<BR>
+&nbsp;#<BR>
+&nbsp;[expected Connection]<BR>
+-File: %s line: %d expected Node connection (node name:weight). received %s<BR>
++File: %s line: %d expected Edge branch (edge name:weight). received %s<BR>
+&nbsp;#<BR>
+&nbsp;[expected deceleration]<BR>
+-File: %s line: %d expected Node deceleration (NODE) or connection deceleration (CONNECTION). received %s<BR>
++File: %s line: %d expected Edge declaration (EDGE) or branch declaration (BRANCH). received %s<BR>
+&nbsp;#<BR>
+&nbsp;[incorrect connection]<BR>
+-File: %s line: %d - %s - incorrect connection<BR>
++File: %s line: %d - %s - incorrect branch<BR>
+&nbsp;#<BR>
+&nbsp;[vertex not found]<BR>
+-File: %s line: %d - Node %s is not in the graph<BR>
++File: %s line: %d - Edge %s is not in the graph<BR>
+&nbsp;#<BR>
+&nbsp;[unknown token]<BR>
+Index: opal/mca/carto/file/carto_file_lex.l<BR>
+===================================================================<BR>
+--- opal/mca/carto/file/carto_file_lex.l &nbsp;&nbsp;&nbsp;(revision 18772)<BR>
++++ opal/mca/carto/file/carto_file_lex.l &nbsp;&nbsp;&nbsp;(working copy)<BR>
+@@ -80,13 +80,13 @@<BR>
+&nbsp;<BR>
+-NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ carto_file_value.sval = yytext;<BR>
++EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ carto_file_value.sval = yytext;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return OPAL_CARTO_FILE_NODE_DECELERATION; }<BR>
+-CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ carto_file_value.sval = yytext;<BR>
++BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ carto_file_value.sval = yytext;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return OPAL_CARTO_FILE_CONNECTION_DECELERATION; }<BR>
+-CON_BI_DIR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ carto_file_value.sval = yytext;<BR>
++BRANCH_BI_DIR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ carto_file_value.sval = yytext;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return OPAL_CARTO_FILE_BIDIRECTION_CONNECTION; }<BR>
+&nbsp;[0-9] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ carto_file_value.ival = atol(yytext);<BR>
+Index: opal/mca/carto/file/carto_file.h<BR>
+===================================================================<BR>
+--- opal/mca/carto/file/carto_file.h &nbsp;&nbsp;&nbsp;(revision 18772)<BR>
++++ opal/mca/carto/file/carto_file.h &nbsp;&nbsp;&nbsp;(working copy)<BR>
+@@ -21,49 +21,49 @@<BR>
+&nbsp;/**<BR>
+&nbsp;&nbsp;* @file#this is a comment<BR>
+&nbsp;# Node declaration &nbsp;&nbsp;Node type (Free string) &nbsp;&nbsp;Node name (Free string)<BR>
+-# (Reserve word) &nbsp;&nbsp;&nbsp;&nbsp;(slot is a reserve word &nbsp;&nbsp;(free string)<BR>
+-# &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for CPU slot)<BR>
++# (Reserve word) &nbsp;&nbsp;&nbsp;&nbsp;(socket is a reserve word &nbsp;&nbsp;(free string)<BR>
++# &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for CPU socket)<BR>
+&nbsp;#=======================================================================<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memory &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem0<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memory &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem1<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memory &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem2<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memory &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem3<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memory &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem0<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memory &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem1<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memory &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem2<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Memory &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem3<BR>
+&nbsp;#<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot0<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot1<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot2<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot3<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket0<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket1<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket2<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket3<BR>
+&nbsp;#<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Infiniband &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mthca0<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Infiniband &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mthca1<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Infiniband &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mthca0<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Infiniband &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mthca1<BR>
+&nbsp;#<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ethernet &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eth0<BR>
+- &nbsp;NODE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ethernet &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eth1<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ethernet &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eth0<BR>
++ &nbsp;EDGE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ethernet &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eth1<BR>
+&nbsp;#<BR>
+&nbsp;#<BR>
+&nbsp;# Connection decleration &nbsp;From node &nbsp;&nbsp;To node:weight &nbsp;&nbsp;To node:weight &nbsp;&nbsp;......<BR>
+&nbsp;# (Reserve word) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(declered &nbsp;&nbsp;(declered &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(declered<BR>
+&nbsp;# &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;above) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;above) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;above)<BR>
+&nbsp;#===============================================================================================<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot0:0<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem3 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot3:0<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket0:0<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem3 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket3:0<BR>
+&nbsp;#<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem0:0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot1:1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot2:1 mthca0:1 eth0:1<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot0:1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot3:1<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot2 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot1:1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot3:1<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot3 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem3:0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot1:1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot2:1 mthca1:1 eth1:1<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem0:0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket1:1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket2:1 mthca0:1 eth0:1<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket0:1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket3:1<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket2 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket1:1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket3:1<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket3 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem3:0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket1:1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket2:1 mthca1:1 eth1:1<BR>
+&nbsp;#<BR>
+&nbsp;#<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mthca0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot0:1<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mthca1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot3:1<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mthca0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket0:1<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mthca1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket3:1<BR>
+&nbsp;#<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eth0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot0:1<BR>
+- &nbsp;CONNECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eth1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot3:1<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eth0 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket0:1<BR>
++ &nbsp;BRANCH &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;eth1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket3:1<BR>
+&nbsp;#Bi-Directional connection<BR>
+&nbsp;#<BR>
+- &nbsp;CON_BI_DIR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem1:0<BR>
+- &nbsp;CON_BI_DIR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;slot2 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem2:0<BR>
++ &nbsp;BRANCH_BI_DIR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem1:0<BR>
++ &nbsp;BRANCH_BI_DIR &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;socket2 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mem2:0<BR>
+&nbsp;#<BR>
+&nbsp;# end of carto file.<BR>
+Index: opal/mca/carto/file/carto_file_module.c<BR>
+===================================================================<BR>
+--- opal/mca/carto/file/carto_file_module.c (revision 18772)<BR>
++++ opal/mca/carto/file/carto_file_module.c (working copy)<BR>
+@@ -171,7 +171,7 @@<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;case OPAL_CARTO_FILE_NAME:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node = (opal_carto_base_node_t *)malloc(sizeof(opal_carto_base_node_t));<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node-&gt;node_type = strdup(carto_file_value.sval);<BR>
+- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (0 == strcmp(&quot;slot&quot;,node-&gt;node_type)) {<BR>
++ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (0 == strcmp(&quot;socket&quot;,node-&gt;node_type)) {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;node-&gt;is_cpu = true;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<BR>
+<BR>
+<HR ALIGN=CENTER SIZE="3" WIDTH="95%"></SPAN></FONT><FONT SIZE="2"><FONT FACE="Monaco, Courier New"><SPAN STYLE='font-size:10.0px'>_______________________________________________<BR>
+devel mailing list<BR>
+devel@open-mpi.org<BR>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+</SPAN></FONT></FONT></BLOCKQUOTE><FONT SIZE="2"><FONT FACE="Monaco, Courier New"><SPAN STYLE='font-size:10.0px'><BR>
+</SPAN></FONT></FONT>
+</BODY>
+</HTML>
+
+

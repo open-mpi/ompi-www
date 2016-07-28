@@ -1,0 +1,73 @@
+<HTML>
+<HEAD>
+<TITLE>Re: [OMPI devel] shared-memory allocations</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'><BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>&gt; <BR>
+</SPAN></FONT></BLOCKQUOTE><FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>&gt; <BR>
+&gt; On 12/12/08 8:21 PM, &quot;Eugene Loh&quot; &lt;<a href="Eugene.Loh@sun.com">Eugene.Loh@sun.com</a>&gt; wrote:<BR>
+&gt; <BR>
+&gt; Richard Graham wrote: <BR>
+&gt; Re: [OMPI devel] shared-memory allocations The memory allocation is intended to take into account that two separate procs may be touching the same memory, so the intent is to reduce cache conflicts (false sharing)<BR>
+&gt; Got it. &nbsp;I'm totally fine with that. &nbsp;Separate cachelines.<BR>
+&gt; and put the memory close to the process that is using it.<BR>
+&gt; Problematic concept, but ... okay, I'll read on.<BR>
+&gt; When the code first went in, there was no explicit memory affinity implemented, so first-touch was relied on to get the memory in the &oslash;correct&oslash; location.<BR>
+&gt; <BR>
+&gt; Okay.<BR>
+&gt; If I remember correctly, the head and the tail each are written to be a different process, and is where the pointers and counters used to manage the fifo are maintained. &nbsp;They need to be close to the writer, and on separate cache lines, to avoid false sharing.<BR>
+&gt; Why close to the writer (versus reader)?<BR>
+&gt; <BR>
+&gt; Anyhow, so far as I can tell, the 2d structure ompi_fifo_t fifo[receiver][sender] is organized by receiver. &nbsp;That is, the main ompi_fifo_t FIFO data structures are local to receivers.<BR>
+&gt; <BR>
+&gt; But then, each FIFO is initialized (that is, circular buffers and associated allocations) by senders. &nbsp;E.g., <a href="https://svn.open-mpi.org/trac/ompi/browser/branches/v1.3/ompi/mca/btl/Smylers/btl_sm.c?version=19785#L537">https://svn.open-mpi.org/trac/ompi/browser/branches/v1.3/ompi/mca/btl/Smylers/btl_sm.c?version=19785#L537</a><BR>
+&gt; In the call to ompi_fifo_init(), all the circular buffer (CB) data structures are allocated by the sender. &nbsp;On different cachelines -- even different pages -- but all by the sender.<BR>
+<BR>
+It does not make a difference who allocates it, what makes a difference is who touches it first.<BR>
+<BR>
+&gt; <BR>
+&gt; Specifically, one accesses FIFO on the receiver side then follow pointers to the senders side. &nbsp;Doesn't matter if you're talking head, tail, or queue.<BR>
+&gt; The queue itself is accessed most often by the reader,<BR>
+&gt; You mean because it's polling often, but writer writes only once?<BR>
+<BR>
+Yes - it is polling volatile memory, so has to load from memory on every read.<BR>
+<BR>
+&gt; so it should be closer to the reader.<BR>
+&gt; Are there measurements to substantiate this? &nbsp;Seems to me that in a cache-based system, a reader could poll on a remote location all it wanted and there'd be traffic only if the cached copy were invalidated. &nbsp;Conceivably, a transfer could go cache-to-cache and not hit memory at all. &nbsp;I tried some measurements and found no difference for any location -- close to writer, close to reader, or far from both.<BR>
+&gt; I honestly don&oslash;t remember much about the wrapper &oslash; would have to go back to the code to look at it. &nbsp;If we no longer allow multiple fifo per pair, the wrapper layer can go away &oslash; it is there to manage multiple fifo&oslash;s per pair.<BR>
+&gt; <BR>
+&gt; There is support for multiple circular buffers per FIFO.<BR>
+<BR>
+The code is there, but I believe Gleb disabled using multiple fifo's, and added a list to hold pending<BR>
+messages, so now we are paying two overheads ... &nbsp;I could be wrong here, but am pretty sure I am not.<BR>
+I don't know if George has touched the code since.<BR>
+<BR>
+<BR>
+&gt; As far as granularity of allocation &oslash; it needs to be large enough to accommodate the smallest shared memory hierarchy, so I suppose in the most general case this may be the tertiary cache ?<BR>
+&gt; <BR>
+&gt; I don't get this. &nbsp;I understand how certain things should be on separate cachelines. &nbsp;Beyond that, we just figure out what should be local to a process and allocate all those things together. &nbsp;That takes us from 3*n*n allocations (and pages) to just n of them.<BR>
+<BR>
+Not sure what you point is here. &nbsp;The cost per process is linear in the total number of processes, so<BR>
+overall the cost scales as the number of procs squared. &nbsp;This was designed for small smp's, to reduce<BR>
+coordination costs between processes, and where memory costs are not large. &nbsp;Once can go to very simple<BR>
+schemes that are constant with respect to memory footprint, but then pay the cost of multiple writers<BR>
+to a single queue - this is what LA-MPI did.<BR>
+<BR>
+&gt; No reason not to allocate objects that need to be associated with the same process on the same page, as long as one avoids false sharing.<BR>
+&gt; Got it.<BR>
+&gt; So seems like each process could have all of it&oslash;s receive fifo&oslash;s on the same page, and these could share the also with either the heads, or the tails of each queue.<BR>
+<BR>
+Yes, this makes sense.<BR>
+<BR>
+Rich<BR>
+<BR>
+&gt; <BR>
+&gt; I will propose some specifics and run them by y'all. &nbsp;I think I know enough to get started. &nbsp;Thanks for the comments.<BR>
+&gt; <BR>
+&gt; <BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+

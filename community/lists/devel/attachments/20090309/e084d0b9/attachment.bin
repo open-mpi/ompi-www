@@ -1,0 +1,393 @@
+#!/bin/bash
+#
+# Copyright (c) 2009      Oak Ridge National Labs.  All rights reserved.
+# $COPYRIGHT$
+#
+# Additional copyrights may follow
+#
+# $HEADER$
+#
+
+# Move the BTLs (and corresponding MCAs and datastructures into their own layer (ONET) - 02-06-09
+
+# Before the final commit, set the MV command from "mv" to "svn mv"
+# ADD may just be removed, when not using svn...
+# propedit as well...
+MV="svn mv"
+CP="svn cp"
+ADD="svn add"
+PROPSET="svn propset"
+
+# Location of patches
+PATCH_DIR=$HOME/WORK/OPENMPI/PATCHES/
+
+set -e
+
+function replace_header()
+{
+    DIR=$1
+    STRING_FROM=$2
+    STRING_TO=$3
+
+    grep -r "$STRING_FROM" $DIR/* | grep '#include' | grep -v -E '(.svn|.libs|.deps|modif)' | cut -f 1 -d':' | sort | uniq | xargs -I {} \
+      sed -i s:\"$STRING_FROM:\"$STRING_TO:g {}
+}
+
+function replace_source_onet()
+{
+    DIR=$1
+    STRING_FROM=$2
+    STRING_TO=$3
+
+    grep -r "$STRING_FROM" $DIR/onet/* | grep -v -E '(.svn|.libs|.deps|modif)' | cut -f 1 -d':' | sort | uniq | xargs -I {} \
+      sed -i s:$STRING_FROM:$STRING_TO:g {}
+}
+
+
+function create_onet_makefile_am
+{
+	cat > $dir/onet/Makefile.am  << EOF
+# -*- makefile -*-
+#
+# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+#                         University Research and Technology
+#                         Corporation.  All rights reserved.
+# Copyright (c) 2004-2005 The University of Tennessee and The University
+#                         of Tennessee Research Foundation.  All rights
+#                         reserved.
+# Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
+#                         University of Stuttgart.  All rights reserved.
+# Copyright (c) 2004-2005 The Regents of the University of California.
+#                         All rights reserved.
+# Copyright (c) 2009      Oak Ridge National Labs.  All rights reserved.
+# \$COPYRIGHT\$
+# 
+# Additional copyrights may follow
+# 
+# \$HEADER\$
+#
+
+EXTRA_DIST=
+
+SUBDIRS = \\
+	\$(MCA_onet_FRAMEWORKS_SUBDIRS) \\
+	\$(MCA_onet_FRAMEWORK_COMPONENT_STATIC_SUBDIRS) \\
+	\$(MCA_onet_FRAMEWORK_COMPONENT_DSO_SUBDIRS) 
+
+DIST_SUBDIRS = \\
+	\$(MCA_onet_FRAMEWORKS_SUBDIRS) \\
+	\$(MCA_onet_FRAMEWORK_COMPONENT_ALL_SUBDIRS) 
+
+# Build the main MPI library
+
+lib_LTLIBRARIES = libopen-net.la
+libopen_net_la_SOURCES =
+libopen_net_la_LIBADD = \\
+	\$(MCA_onet_FRAMEWORK_LIBS) \\
+	\$(top_ompi_builddir)/orte/libopen-rte.la
+libopen_net_la_DEPENDENCIES = \\
+	\$(MCA_onet_FRAMEWORK_LIBS) \\
+	\$(top_ompi_builddir)/orte/libopen-rte.la
+
+# included subdirectory Makefile.am's and appended-to variables
+headers =
+noinst_LTLIBRARIES =
+include_HEADERS =
+nobase_onet_HEADERS = 
+dist_pkgdata_DATA =
+libopen_net_la_SOURCES += \$(headers)
+nodist_man_MANS =
+
+# Conditionally install the header files
+
+if WANT_INSTALL_HEADERS
+onetdir = \$(includedir)/openmpi/onet
+nobase_onet_HEADERS += \$(headers)
+else
+onetdir = \$(includedir)
+endif
+
+include class/Makefile.am
+
+EOF
+}
+
+
+
+
+
+
+function create_onet_class_makefile_am
+{
+        cat > $dir/onet/class/Makefile.am  << EOF
+# -*- makefile -*-
+#
+# Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+#                         University Research and Technology
+#                         Corporation.  All rights reserved.
+# Copyright (c) 2004-2005 The University of Tennessee and The University
+#                         of Tennessee Research Foundation.  All rights
+#                         reserved.
+# Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
+#                         University of Stuttgart.  All rights reserved.
+# Copyright (c) 2004-2005 The Regents of the University of California.
+#                         All rights reserved.
+# Copyright (c) 2009      Oak Ridge National Labs.  All rights reserved.
+# \$COPYRIGHT\$
+#
+# Additional copyrights may follow
+#
+# \$HEADER\$
+#
+
+# This makefile.am does not stand on its own - it is included from onet/Makefile.am
+
+# Source code files
+headers += \\
+        class/onet_free_list.h \\
+        class/onet_rb_tree.h
+
+libopen_net_la_SOURCES += \\
+        class/onet_free_list.c \\
+        class/onet_rb_tree.c
+
+EOF
+}
+
+#
+# Function adds into FILE a HEADER as the first #include
+#
+# Checks for #if  to do the right thing, but does not handle
+# single-line or (even harder) multi-line comments
+#
+function add_header_before()
+{
+    file=$1                               # File to add header to
+    header=$2                             # E.g. opal/util/output.h for #include "opal/util/output.h"
+    before_header_pattern=$3              # Add after occurences of pattern, e.g. opal/util
+    line=`grep -n "#include \"$before_header_pattern" $file | cut -f1 -d':' | head -n1`
+    if [ $# -gt 3 -a "x$line" = "x" ] ; then
+        before_header_pattern=$4          # If above pattern is not found, try more generic, e.g. opal/
+        line=`grep -n "#include \"$before_header_pattern" $file | cut -f1 -d':' | head -n1`
+
+        # If we have a final even more general pattern to search for...
+        if [ $# -gt 4 -a "x$line" = "x" ] ; then
+            before_header_pattern=$5       # If above pattern is not found, try even more generic, e.g. opal/
+            line=`grep -n "#include \"$before_header_pattern" $file | cut -f1 -d':' | head -n 1`
+        fi
+        # If still not found, go for plain '#include "'
+        if [ "x$line" = "x" ] ; then
+            echo Can neither find pattern $3 nor pattern $4 in file $file -- will include after the first include
+            line=`grep -n "#include \"" $file | cut -f1 -d':' | head -n1`
+            if [ "x$line" = "x" ] ; then
+                echo REAL ERROR -- NO INCLUDES AT ALL. INCLUDE MANUALLY
+                return
+            fi
+        fi
+    fi
+
+    # check if this is a header wrapped in #ifdef HAVE_LALALA_H, if so, add before any #if
+    prev_line=$(($line - 1))
+
+    if [ $prev_line = -1 -o $prev_line = 0 ] ; then
+        prev_line=1
+    fi
+
+    head -n $prev_line $file | tail -n 1 | grep -q "#if" \
+        && sed -i -e "${prev_line}s:#if.*:#include \"$header\"\n\n\0:" $file \
+        || sed -i -e "${line}s:#include.*:#include \"$header\"\n\0:" $file
+}
+
+
+#######################################################################
+# Main script
+#######################################################################
+if [ ! $# = 1 ]; then
+    echo usage: $0 future-stci-directory
+    exit -1
+fi
+
+if [ ! -d $PATCH_DIR ]; then
+    echo Warning: Dirctory $PATCH_DIR not found; will not apply patches
+fi
+
+dir=$1
+
+tmp=`mktemp -d`
+
+# 1. Creating the onet and subdirectories tree
+mkdir -p $dir/onet/mca
+$ADD $dir/onet
+
+# Creating the onet/Makefile.am
+create_onet_makefile_am
+$ADD $dir/onet/Makefile.am
+
+mkdir onet/class
+create_onet_class_makefile_am
+$ADD $dir/onet/class
+
+### MOVING
+# Moving the btl
+$MV $dir/ompi/mca/btl $dir/onet/mca
+
+# Moving the common
+$MV $dir/ompi/mca/common $dir/onet/mca/
+
+# Moving the allocator
+$MV $dir/ompi/mca/allocator $dir/onet/mca/
+
+# Moving the rcache
+$MV $dir/ompi/mca/rcache $dir/onet/mca/
+
+# Moving the mpool
+$MV $dir/ompi/mca/mpool $dir/onet/mca/
+
+# Moving used classes
+$MV $dir/ompi/class/ompi_free_list.c $dir/onet/class/onet_free_list.c
+$MV $dir/ompi/class/ompi_free_list.h $dir/onet/class/onet_free_list.h
+$MV $dir/ompi/class/ompi_rb_tree.c $dir/onet/class/onet_rb_tree.c
+$MV $dir/ompi/class/ompi_rb_tree.h $dir/onet/class/onet_rb_tree.h
+
+
+# Move the test-files, actually only one for ompi_rb_tree
+$MV $dir/test/class/ompi_rb_tree.c $dir/test/class/onet_rb_tree.c
+
+### MODIFYING
+# Modifying autogen.sh: adding the onet project
+sed -i s/'config_project_list="opal orte ompi"'/'config_project_list="opal orte onet ompi"'/g $dir/autogen.sh
+
+# Source file modification to point to the right btl directory
+replace_header $dir ompi/mca/btl/ onet/mca/btl/
+
+# Source file modification to point to the right common directory
+replace_header $dir ompi/mca/common/ onet/mca/common/
+### SPECIAL
+touch ompi/mca/common/.ompi_ignore
+
+# Source file modification to point to the right allocator directory
+replace_header $dir ompi/mca/allocator/ onet/mca/allocator/
+
+# Source file modification to point to the right rcache directory
+replace_header $dir ompi/mca/rcache/ onet/mca/rcache/
+
+# Source file modification to point to the right mpool directory
+replace_header $dir ompi/mca/mpool/ onet/mca/mpool/
+
+# Source file modification to point to the right free-list implementation
+replace_header $dir ompi/class/ompi_free_list.h onet/class/onet_free_list.h
+
+# Source file modification to point to the right free-list implementation
+replace_header $dir ompi/class/ompi_rb_tree.h onet/class/onet_rb_tree.h
+
+# Source file modification to use the right configured include-file
+replace_header $dir/onet ompi_config.h onet_config.h
+
+# Source file modification to use the right configured constants -- required for the ONET_ERR_*
+replace_header $dir/onet ompi/constants.h onet/constants.h
+
+# Source file modification to replace ompi_free_list_ by onet_free_list_*
+grep -r ompi_free_list_ $dir/* | grep -v -E '(.svn|modif)' | cut -f 1 -d':' | sort | uniq | xargs -I {} sed -i -e s@ompi_free_list_@onet_free_list_@g {}
+grep -r OMPI_FREE_LIST_ $dir/* | grep -v -E '(.svn|modif)' | cut -f 1 -d':' | sort | uniq | xargs -I {} sed -i -e s@OMPI_FREE_LIST_@ONET_FREE_LIST_@g {}
+
+# Source file modification to replace ompi_rb_tree_ by onet_rb_tree_*
+grep -r ompi_rb_tree_ $dir/* | grep -v -E '(.svn|modif)' | cut -f 1 -d':' | sort | uniq | xargs -I {} sed -i -e s@ompi_rb_tree_@onet_rb_tree_@g {}
+grep -r OMPI_RB_TREE_ $dir/* | grep -v -E '(.svn|modif)' | cut -f 1 -d':' | sort | uniq | xargs -I {} sed -i -e s@OMPI_RB_TREE_@ONET_RB_TREE_@g {}
+
+# Source file modification to replace OMPI_DECLSPEC by ONET_DECLSPEC
+replace_source_onet $dir OMPI_DECLSPEC                 ONET_DECLSPEC
+
+# Source file modification to replace OMPI_MODULE_DECLSPEC by ONET_MODULE_DECLSPEC
+replace_source_onet $dir OMPI_MODULE_DECLSPEC          ONET_MODULE_DECLSPEC
+
+
+# Source file modification to replace error return code
+# ONET is above the RTE!
+replace_source_onet $dir OMPI_SUCCESS                  ONET_SUCCESS
+replace_source_onet $dir OMPI_ERROR                    ONET_ERROR
+replace_source_onet $dir OMPI_ERR_BAD_PARAM            ONET_ERR_BAD_PARAM
+replace_source_onet $dir OMPI_ERR_FATAL                ONET_ERR_FATAL
+replace_source_onet $dir OMPI_ERR_IN_ERRNO             ONET_ERR_IN_ERRNO
+replace_source_onet $dir OMPI_ERR_NOT_AVAILABLE        ONET_ERR_NOT_AVAILABLE
+replace_source_onet $dir OMPI_ERR_NOT_FOUND            ONET_ERR_NOT_FOUND
+replace_source_onet $dir OMPI_ERR_NOT_IMPLEMENTED      ONET_ERR_NOT_IMPLEMENTED
+replace_source_onet $dir OMPI_ERR_NOT_SUPPORTED        ONET_ERR_NOT_SUPPORTED
+replace_source_onet $dir OMPI_ERR_OUT_OF_RESOURCE      ONET_ERR_OUT_OF_RESOURCE
+replace_source_onet $dir OMPI_ERR_RESOURCE_BUSY        ONET_ERR_RESOURCE_BUSY
+replace_source_onet $dir OMPI_ERR_TEMP_OUT_OF_RESOURCE ONET_ERR_TEMP_OUT_OF_RESOURCE
+replace_source_onet $dir OMPI_ERR_UNREACH              ONET_ERR_UNREACH
+replace_source_onet $dir OMPI_ERR_UNREACH              ONET_ERR_UNREACH
+replace_source_onet $dir OMPI_ERR_VALUE_OUT_OF_BOUNDS  ONET_ERR_VALUE_OUT_OF_BOUNDS
+
+# Minor crap is replacing the version information
+replace_source_onet $dir OMPI_MAJOR_VERSION            ONET_MAJOR_VERSION
+replace_source_onet $dir OMPI_MINOR_VERSION            ONET_MINOR_VERSION
+replace_source_onet $dir OMPI_RELEASE_VERSION          ONET_RELEASE_VERSION
+
+
+# Modifying the ompi/Makefile.am
+sed -i -e s@'libmpi_la_DEPENDENCIES = \\'@'libmpi_la_DEPENDENCIES = \\\n \t$(top_ompi_builddir)/onet/libopen-net.la \\'@g -e s@'libmpi_la_LIBADD = \\'@'libmpi_la_LIBADD = \\\n \t$(top_ompi_builddir)/onet/libopen-net.la \\'@g $dir/ompi/Makefile.am
+
+# Modifying all ompi/mca/common/sm/libmca_common_sm.la
+find $dir -type f -name Makefile.am | grep '$(top_ompi_builddir)/ompi/mca/common/sm/libmca_common_sm.la' | grep -v -E '(.svn|modif)' | cut -f 1 -d':' | sort | uniq | xargs -I {} sed -i -e s@'$(top_ompi_builddir)/ompi/mca/common/sm/libmca_common_sm.la'@'$(top_ompi_builddir)/onet/mca/common/sm/libmca_common_sm.la'@g {}
+
+# Modifying all onet/mca/*/Makefile.am to change ompidir to onetdir
+find $dir/onet/mca -type f -iname Makefile.am | grep -v -E '(.svn|modif)' | cut -f 1  -d':' | sort | uniq | xargs -I {} sed -i -e s@'ompidir = $(includedir)/openmpi/ompi'@'onetdir = $(includedir)/openmpi/onet'@g {}
+find $dir/onet/mca -type f -iname Makefile.am | grep -v -E '(.svn|modif)' | cut -f 1  -d':' | sort | uniq | xargs -I {} sed -i -e s@'ompidir = $(includedir)'@'onetdir = $(includedir)'@g {}
+find $dir/onet/mca -type f -iname Makefile.am | grep -v -E '(.svn|modif)' | cut -f 1  -d':' | sort | uniq | xargs -I {} sed -i -e s@'ompi_HEADERS'@'onet_HEADERS'@g {}
+find $dir/onet/mca -type f -iname Makefile.am | grep -v -E '(.svn|modif)' | cut -f 1  -d':' | sort | uniq | xargs -I {} sed -i -e s@'nobase_ompi_HEADERS'@'nobase_onet_HEADERS'@g {}
+
+### PATCHING
+# Patch the MPOOL to adapt to new mca_mpool_base_alloc interface
+patch -p0 < $PATCH_DIR/btl_move_api_mpool_alloc_mem-2009.03.02.diff
+patch -p0 < $PATCH_DIR/btl_move_api_mpool_base_tree_print-2009.02.05-new.diff
+patch -p0 < $PATCH_DIR/btl_move_test_class_makefile_am-2009.02.07.diff
+
+# Patch up the include files ompi->onet->orte->opal
+patch -p0 < $PATCH_DIR/btl_move_ompi_include_ompi_constants-2009.03.04.diff
+patch -p0 < $PATCH_DIR/btl_move_onet_include-2009.03.08.diff
+mkdir -p $dir/onet/include
+$ADD $dir/onet/include
+$PROPSET -F $PATCH_DIR/btl_move_onet_include_property-2009.02.09.diff svn:ignore $dir/onet/include
+$PROPSET -F $PATCH_DIR/btl_move_onet_include_onet_property-2009.02.09.diff svn:ignore $dir/onet/include/onet
+patch -p0 < $PATCH_DIR/btl_move_config_mca_configure_ac-2009.02.08.diff
+patch -p0 < $PATCH_DIR/btl_move_configure_ac-2009.03.03.diff
+patch -p0 < $PATCH_DIR/btl_move_onet_mca_makefiles_am_for_common-2009.02.08.diff
+patch -p0 < $PATCH_DIR/btl_move_ompi_mca_makefiles_am_for_common-2009.02.08.diff
+patch -p0 < $PATCH_DIR/btl_move_ompi_class_makefile_am-2009.03.04.diff
+patch -p0 < $PATCH_DIR/btl_move_ompi_tools_wrappers_script-2009.03.08.diff
+patch -p0 < $PATCH_DIR/btl_move_test_class_onet_rb_tree-2009.03.04.diff
+
+# At last, add the include file rte.h into all the onet-files, which themselves depend on ORTE
+for file in `find $dir/onet -type f -iname \*.[ch] | grep -v '.svn' | cut -f1  -d':' | sort | uniq` ; do
+    orte_include_found=0
+    grep "#include" $file | grep -q orte && orte_include_found=1
+    # If file already contains onet/include/rte.h stay away
+    grep -q "#include \"onet/include/rte.h\"" $file && orte_include_found=0
+    if [ $orte_include_found = 0 ] ; then
+        continue
+    fi
+    # This should be included before ANY orte include, therefore only one option...
+    add_header_before  $file  onet/include/rte.h   orte
+done
+
+
+
+# Finalize
+rm -rf $tmp
+
+#
+# Warn about the inevitable: autogen.sh looks for mca-directories, finds ompi/mca/common
+# but no Makefile.am anymore: NO WAY TO HAVE TWO FRAMEWORKS OF THE SAME NAME...
+#
+echo ALL DONE
+echo PLEASE NOTE: before running autogen.sh, the src-directory ompi/mca/common should be deleted
+
+#
+# Existing dependencies into ORTE:
+#   orte_show_help()
+#   ORTE_NAME_PRINT
+#   ORTE_PROC_MY_NAME
+#   struct orte_process_info!!!!
+#   orte_proc_t
+

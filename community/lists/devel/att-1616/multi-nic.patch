@@ -1,0 +1,166 @@
+Index: ompi/mca/pml/ob1/pml_ob1_recvreq.c
+===================================================================
+--- ompi/mca/pml/ob1/pml_ob1_recvreq.c	(revision 14870)
++++ ompi/mca/pml/ob1/pml_ob1_recvreq.c	(working copy)
+@@ -33,6 +33,9 @@
+ 
+ static mca_pml_ob1_recv_frag_t* mca_pml_ob1_recv_request_match_specific_proc(
+     mca_pml_ob1_recv_request_t* request, mca_pml_ob1_comm_proc_t* proc);
++static inline int
++mca_pml_ob1_recv_request_schedule_btl_exclusive( mca_bml_base_btl_t* bml_btl,
++                                                 mca_pml_ob1_recv_request_t* recvreq );
+ 
+ void mca_pml_ob1_recv_request_process_pending(void)
+ {
+@@ -170,7 +173,7 @@
+         MCA_PML_OB1_RECV_REQUEST_PML_COMPLETE( recvreq );
+     } else if (recvreq->req_rdma_offset < recvreq->req_send_offset) {
+         /* schedule additional rdma operations */
+-        mca_pml_ob1_recv_request_schedule(recvreq);
++        mca_pml_ob1_recv_request_schedule_btl_exclusive(bml_btl, recvreq);
+     }
+     MCA_PML_OB1_PROGRESS_PENDING(bml_btl);
+ }
+@@ -582,7 +585,128 @@
+     MCA_PML_OB1_RECV_REQUEST_PML_COMPLETE( recvreq );
+ }
+ 
++static inline int
++mca_pml_ob1_recv_request_schedule_btl_exclusive( mca_bml_base_btl_t* bml_btl,
++                                                 mca_pml_ob1_recv_request_t* recvreq )
++{
++    size_t bytes_remaining = recvreq->req_recv.req_bytes_packed -
++        recvreq->req_rdma_offset;
++    size_t size;
++    int rc = OMPI_SUCCESS;
++    size_t hdr_size;
++    mca_pml_ob1_rdma_hdr_t* hdr;
++    mca_btl_base_descriptor_t* dst;
++    mca_btl_base_descriptor_t* ctl;
++    mca_mpool_base_registration_t * reg = NULL;
+ 
++    if( 0 == bytes_remaining ||
++        recvreq->req_pipeline_depth >= mca_pml_ob1.recv_pipeline_depth ) {
++        return OMPI_SUCCESS;
++    }
++
++    ompi_convertor_set_position(&recvreq->req_recv.req_convertor,
++                                &recvreq->req_rdma_offset);
++    /*
++     * If more than one NIC is available - try to use both for
++     * anything larger than the eager limit
++     */
++    if( bytes_remaining < bml_btl->btl_eager_limit ) {
++        size = bytes_remaining;
++    } else {
++        /* 
++         * otherwise attempt to give the BTL a percentage of
++         * the message based on a weighting factor. for
++         * simplicity calculate this as a percentage of the
++         * overall message length (regardless of amount
++         * previously assigned)
++         */
++        size = (size_t)(bml_btl->btl_weight * bytes_remaining);
++    }
++    /* makes sure that we don't exceed BTL max rdma size
++     * if memory is not pinned already */
++    if( size > bml_btl->btl_rdma_pipeline_frag_size ) {
++        size = bml_btl->btl_rdma_pipeline_frag_size;
++    }
++
++    /*
++     * Select the next btl out of the list w/ preregistered memory.
++     */
++    reg = recvreq->req_rdma[bml_btl->btl_index].btl_reg;
++
++    /* prepare a descriptor for RDMA */
++    mca_bml_base_prepare_dst(bml_btl, reg,
++                             &recvreq->req_recv.req_convertor, MCA_BTL_NO_ORDER,
++                             0, &size, &dst);
++
++    if(dst == NULL) {
++        return OMPI_ERR_OUT_OF_RESOURCE;
++    }
++    dst->des_cbfunc = mca_pml_ob1_put_completion;
++    dst->des_cbdata = recvreq;
++
++    /*opal_output( 0, "prepare RDMA fragment with a size of %ld bytes\n", size );*/
++
++    /* prepare a descriptor for rdma control message */
++    hdr_size = sizeof(mca_pml_ob1_rdma_hdr_t);
++    if(dst->des_dst_cnt > 1) {
++        hdr_size += (sizeof(mca_btl_base_segment_t) *
++                     (dst->des_dst_cnt-1));
++    }
++
++    MCA_PML_OB1_DES_ALLOC(bml_btl, ctl, MCA_BTL_NO_ORDER, hdr_size);
++    if(ctl == NULL) {
++        mca_bml_base_free(bml_btl,dst);
++        return OMPI_ERR_OUT_OF_RESOURCE;
++    }
++    ctl->des_flags |= MCA_BTL_DES_FLAGS_PRIORITY;
++    ctl->des_cbfunc = mca_pml_ob1_recv_ctl_completion;
++            
++    /* fill in rdma header */
++    hdr = (mca_pml_ob1_rdma_hdr_t*)ctl->des_src->seg_addr.pval;
++    hdr->hdr_common.hdr_type = MCA_PML_OB1_HDR_TYPE_PUT;
++    hdr->hdr_common.hdr_flags =
++        (!recvreq->req_ack_sent) ? MCA_PML_OB1_HDR_TYPE_ACK : 0;
++    hdr->hdr_req = recvreq->req_send;
++    hdr->hdr_des.pval = dst;
++    hdr->hdr_rdma_offset = recvreq->req_rdma_offset;
++    hdr->hdr_seg_cnt = dst->des_dst_cnt;
++    memcpy(hdr->hdr_segs, dst->des_dst,
++           dst->des_dst_cnt * sizeof(mca_btl_base_segment_t));
++    if(!recvreq->req_ack_sent)
++        recvreq->req_ack_sent = true;
++#if OMPI_ENABLE_HETEROGENEOUS_SUPPORT
++#ifdef WORDS_BIGENDIAN
++    hdr->hdr_common.hdr_flags |= MCA_PML_OB1_HDR_FLAGS_NBO;
++#else
++    /* if we are little endian and the remote side is big endian,
++       we're responsible for making sure the data is in network byte
++       order */
++    /* RDMA is currently disabled by bml if arch doesn't
++       match, so this shouldn't be needed.  here to make sure
++       we remember if we ever change the bml. */
++    assert(0 == (recvreq->req_recv.req_base.req_proc->proc_arch & 
++                 OMPI_ARCH_ISBIGENDIAN));
++#endif
++#endif
++
++    PERUSE_TRACE_COMM_OMPI_EVENT( PERUSE_COMM_REQ_XFER_CONTINUE,
++                                  &(recvreq->req_recv.req_base), size,
++                                  PERUSE_RECV);
++
++    /* send rdma request to peer */
++    rc = mca_bml_base_send(bml_btl, ctl, MCA_BTL_TAG_PML);
++    if(rc == OMPI_SUCCESS) {
++        /* update request state */
++        recvreq->req_rdma_offset += size;
++        OPAL_THREAD_ADD_SIZE_T(&recvreq->req_pipeline_depth,1);
++        bytes_remaining -= size;
++    } else {
++        mca_bml_base_free(bml_btl,ctl);
++        mca_bml_base_free(bml_btl,dst);
++    }
++    return rc;
++}
++
+ /*
+  * Schedule RDMA protocol.
+  *
+@@ -688,10 +812,11 @@
+             if(dst == NULL) {
+                 continue;
+             }
+-
+             dst->des_cbfunc = mca_pml_ob1_put_completion;
+             dst->des_cbdata = recvreq;
+ 
++            /*opal_output( 0, "prepare RDMA fragment with a size of %ld bytes\n", size );*/
++
+             /* prepare a descriptor for rdma control message */
+             hdr_size = sizeof(mca_pml_ob1_rdma_hdr_t);
+             if(dst->des_dst_cnt > 1) {
+

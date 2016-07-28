@@ -1,0 +1,293 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<TITLE>Re: [OMPI devel] undefined referencesforrdma_get_peer_addr	&amp;	rdma_get_local_addr</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/plain format -->
+
+<P><FONT SIZE=2>Coolio.&nbsp; Pak - go ahead and commit if you haven't already done so.<BR>
+<BR>
+-jms<BR>
+Sent from my PDA.&nbsp; No type good.<BR>
+<BR>
+&nbsp;-----Original Message-----<BR>
+From: &nbsp; Brian Barrett [<A HREF="mailto:brbarret@open-mpi.org">mailto:brbarret@open-mpi.org</A>]<BR>
+Sent:&nbsp;&nbsp; Sunday, May 04, 2008 02:14 PM Eastern Standard Time<BR>
+To:&nbsp;&nbsp;&nbsp;&nbsp; Open MPI Developers<BR>
+Subject:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Re: [OMPI devel] undefined referencesforrdma_get_peer_addr&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; rdma_get_local_addr<BR>
+<BR>
+I think I might see the issue.&nbsp; Jeff, I'm assuming you're using a&nbsp;<BR>
+developer build of Open MPI with GNU, Intel, or Pathscale compilers,&nbsp;<BR>
+right?&nbsp; At least someone below was using PGI.&nbsp; The first three&nbsp;<BR>
+compilers on a developer build have the magic pixie dust arguments&nbsp;<BR>
+added that makes calling an undeclared function an error.&nbsp; PGI, Sun&nbsp;<BR>
+Workshop, and non-developer builds don't have that pixie dust.&nbsp; So&nbsp;<BR>
+it's not an error to call an undeclared function in those cases, and&nbsp;<BR>
+AC_COMPILE_IFELSE won't error out.&nbsp; AC_LINK_IFELSE should always be&nbsp;<BR>
+used to check for functions for precisely that reason.<BR>
+<BR>
+Brian<BR>
+<BR>
+On May 4, 2008, at 11:41 AM, Jeff Squyres (jsquyres) wrote:<BR>
+<BR>
+&gt; As steve mentioned, its inline.&nbsp; But I don't understand how that&nbsp;<BR>
+&gt; would even compile if its not in rdma_cma.h.&nbsp; Iflink will catch it,&nbsp;<BR>
+&gt; but I'm still a little uneasy not understanding why it passes the&nbsp;<BR>
+&gt; compile...<BR>
+&gt;<BR>
+&gt; -jms<BR>
+&gt; Sent from my PDA.&nbsp; No type good.<BR>
+&gt;<BR>
+&gt;&nbsp; -----Original Message-----<BR>
+&gt; From:&nbsp;&nbsp; Pak Lui [<A HREF="mailto:Pak.Lui@sun.com">mailto:Pak.Lui@sun.com</A>]<BR>
+&gt; Sent:&nbsp;&nbsp; Sunday, May 04, 2008 11:44 AM Eastern Standard Time<BR>
+&gt; To:&nbsp;&nbsp;&nbsp;&nbsp; Open MPI Developers<BR>
+&gt; Subject:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Re: [OMPI devel] undefined references&nbsp;<BR>
+&gt; forrdma_get_peer_addr&nbsp;&nbsp;&nbsp;&nbsp; &amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; rdma_get_local_addr<BR>
+&gt;<BR>
+&gt; Jeff Squyres wrote:<BR>
+&gt; &gt; Jon / Steve -- can you comment?<BR>
+&gt; &gt;<BR>
+&gt; &gt; I tested with OFED 1.2.5 (which is what I assume you meant) and got:<BR>
+&gt; &gt;<BR>
+&gt; &gt; checking for rdma_get_peer_addr... no<BR>
+&gt; &gt;<BR>
+&gt; &gt; Because that function is not defined in OFED 1.2.5.&nbsp; Running with&nbsp;<BR>
+&gt; OFED<BR>
+&gt; &gt; 1.3 (where the function does exist), I get:<BR>
+&gt; &gt;<BR>
+&gt; &gt; checking for rdma_get_peer_addr... yes<BR>
+&gt;<BR>
+&gt; For me it seems to be running with 1.2.5.<BR>
+&gt;<BR>
+&gt; login3% /opt/ofed/bin/ofed_info | head -1<BR>
+&gt; OFED-1.2.5.5<BR>
+&gt;<BR>
+&gt; No rmda_get_peer_addr or rmda_get_local_addr in these .so's,&nbsp;<BR>
+&gt; assumingly<BR>
+&gt; they are coming from there.<BR>
+&gt;<BR>
+&gt; login3% ls librdmacm.so*<BR>
+&gt; librdmacm.so&nbsp; librdmacm.so.1&nbsp; librdmacm.so.1.0.0&nbsp; librdmacm.so.1.0.2<BR>
+&gt;<BR>
+&gt; login3% nm librdmacm.so* | grep rdma_get_<BR>
+&gt; 0000000000003470 T rdma_get_cm_event<BR>
+&gt; 0000000000001a20 T rdma_get_devices<BR>
+&gt; 0000000000003470 T rdma_get_cm_event<BR>
+&gt; 0000000000001a20 T rdma_get_devices<BR>
+&gt; 0000000000003470 T rdma_get_cm_event<BR>
+&gt; 0000000000001a20 T rdma_get_devices<BR>
+&gt; 0000000000003470 T rdma_get_cm_event<BR>
+&gt; 0000000000001a20 T rdma_get_devices<BR>
+&gt;<BR>
+&gt; And I don't see rdma_get_peer_addr appeared in the<BR>
+&gt; /opt/ofed/include/rdma/rdma_cma.h either. Not knowing how it actually<BR>
+&gt; know about the interface (and it's not inline) there.<BR>
+&gt;<BR>
+&gt; &gt;<BR>
+&gt; &gt; Outside of all the configure complexity, can you write a simple<BR>
+&gt; &gt; program that calls that function and have it compile and link&nbsp;<BR>
+&gt; properly?<BR>
+&gt;<BR>
+&gt; These are the references of rmda_get_peer_addr from the config.log:<BR>
+&gt;&nbsp;&nbsp;&nbsp; 47858 configure:120941: checking for rdma_get_peer_addr<BR>
+&gt;&nbsp;&nbsp;&nbsp; 47859 configure:120966: pgcc -c -g&nbsp;&nbsp; -D_REENTRANT<BR>
+&gt; -I/opt/ofed/include conftest.c &gt;&amp;5<BR>
+&gt;&nbsp;&nbsp;&nbsp; 47860 PGC-W-0155-Pointer value created from a nonlong integral type<BR>
+&gt; (conftest&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .c: 412)<BR>
+&gt;&nbsp;&nbsp;&nbsp; 47861 PGC/x86-64 Linux 7.1-2: compilation completed with warnings<BR>
+&gt;&nbsp;&nbsp;&nbsp; 47862 configure:120972: $? = 0<BR>
+&gt;&nbsp;&nbsp;&nbsp; 47863 configure:120987: result: yes<BR>
+&gt; ...<BR>
+&gt;&nbsp;&nbsp;&nbsp; 48355 configure:123600: checking for rdma_get_peer_addr<BR>
+&gt;&nbsp;&nbsp;&nbsp; 48356 configure:123625: pgcc -c -g&nbsp;&nbsp; -D_REENTRANT<BR>
+&gt; -I/opt/ofed/include conftes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; t.c &gt;&amp;5<BR>
+&gt;&nbsp;&nbsp;&nbsp; 48357 PGC-W-0155-Pointer value created from a nonlong integral type<BR>
+&gt; (conftest&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; .c: 423)<BR>
+&gt;&nbsp;&nbsp;&nbsp; 48358 PGC/x86-64 Linux 7.1-2: compilation completed with warnings<BR>
+&gt;&nbsp;&nbsp;&nbsp; 48359 configure:123631: $? = 0<BR>
+&gt;&nbsp;&nbsp;&nbsp; 48360 configure:123646: result: yes<BR>
+&gt;<BR>
+&gt; Here's my program, not sure if it's doing it correctly. I am no m4<BR>
+&gt; expert, so how do I run the ompi_check_openib.m4 independently and see<BR>
+&gt; the conftest.c??<BR>
+&gt;<BR>
+&gt; login3% cat mytest.c<BR>
+&gt; #include &quot;rdma/rdma_cma.h&quot;<BR>
+&gt; int main (void) {<BR>
+&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; void *ret = (void*) rdma_get_peer_addr((struct rdma_cm_id*)0);<BR>
+&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return 0;<BR>
+&gt; }<BR>
+&gt;<BR>
+&gt; It gives me a warning if I just try to create an object, which is&nbsp;<BR>
+&gt; what I<BR>
+&gt; see in the config.log.<BR>
+&gt;<BR>
+&gt; login3% pgcc -c -g&nbsp;&nbsp; -D_REENTRANT&nbsp; -I/opt/ofed/include mytest.c<BR>
+&gt; PGC-W-0155-Pointer value created from a nonlong integral type&nbsp;&nbsp;<BR>
+&gt; (mytest.c: 3)<BR>
+&gt; PGC/x86-64 Linux 7.1-2: compilation completed with warnings<BR>
+&gt; login3% echo $?<BR>
+&gt; 0<BR>
+&gt;<BR>
+&gt; But trying to create an executable would give me the error.<BR>
+&gt;<BR>
+&gt; login3% pgcc -g -D_REENTRANT -I/opt/ofed/include mytest.c -o mytest<BR>
+&gt; PGC-W-0155-Pointer value created from a nonlong integral type&nbsp;&nbsp;<BR>
+&gt; (mytest.c: 3)<BR>
+&gt; PGC/x86-64 Linux 7.1-2: compilation completed with warnings<BR>
+&gt; /tmp/pgccjF6BryhFmWS.o: In function `main':<BR>
+&gt; /share/home/00951/paklui/ompi-trunk5/config-data1-debug/mytest.c:3:<BR>
+&gt; undefined reference to `rdma_get_peer_addr'<BR>
+&gt;<BR>
+&gt; Hmm, any clues, comments?<BR>
+&gt;<BR>
+&gt; &gt;<BR>
+&gt; &gt; I suppose we could change the AC_COMPILE_IFELSE in config/<BR>
+&gt; &gt; ompi_check_openib.m4 to OMPI_LINK_IFELSE, but I'm a little&nbsp;<BR>
+&gt; confused as<BR>
+&gt; &gt; to why it would compile successfully if the symbol&nbsp;<BR>
+&gt; rdma_get_peer_addr<BR>
+&gt; &gt; is not declared anywhere (which it shouldn't be in OFED 1.2 or&nbsp;<BR>
+&gt; 1.2.5,<BR>
+&gt; &gt; AFAIK)...<BR>
+&gt; &gt;<BR>
+&gt; &gt;<BR>
+&gt; &gt;<BR>
+&gt; &gt; On May 3, 2008, at 10:56 AM, Pak Lui wrote:<BR>
+&gt; &gt;<BR>
+&gt; &gt;&gt; Sure Jeff, see attached.<BR>
+&gt; &gt;&gt;<BR>
+&gt; &gt;&gt; Jeff Squyres wrote:<BR>
+&gt; &gt;&gt;&gt; (moving to devel so that others are aware)<BR>
+&gt; &gt;&gt;&gt; Crud.&nbsp; Can you send me your config.log?&nbsp; I don't know why it's&nbsp;<BR>
+&gt; able<BR>
+&gt; &gt;&gt;&gt; to&nbsp; find rdma_get_peer_addr() in configure, but then later not&nbsp;<BR>
+&gt; able<BR>
+&gt; &gt;&gt;&gt; to&nbsp; find it during the build - I'd like to see what happened<BR>
+&gt; &gt;&gt;&gt; during&nbsp; configure.<BR>
+&gt; &gt;&gt;&gt; On May 2, 2008, at 7:09 PM, Pak Lui wrote:<BR>
+&gt; &gt;&gt;&gt;&gt; Hi Jeff,<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt; It seems that the cpc3 merge causes my Ranger build to break. I<BR>
+&gt; &gt;&gt;&gt;&gt; believe it is using OFED 1.2 but I don't know how to check. It<BR>
+&gt; &gt;&gt;&gt;&gt; passes the ompi_check_openib.m4 that you added in for the<BR>
+&gt; &gt;&gt;&gt;&gt; rdma_get_peer_addr. Is there a missing #include for openib/ofed<BR>
+&gt; &gt;&gt;&gt;&gt; related somewhere?<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt;&nbsp; 1236 checking rdma/rdma_cma.h usability... yes<BR>
+&gt; &gt;&gt;&gt;&gt;&nbsp; 1237 checking rdma/rdma_cma.h presence... yes<BR>
+&gt; &gt;&gt;&gt;&gt;&nbsp; 1238 checking for rdma/rdma_cma.h... yes<BR>
+&gt; &gt;&gt;&gt;&gt;&nbsp; 1239 checking for rdma_create_id in -lrdmacm... yes<BR>
+&gt; &gt;&gt;&gt;&gt;&nbsp; 1240 checking for rdma_get_peer_addr... yes<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt; pgCC -DHAVE_CONFIG_H -I. -I../../../../ompi/tools/ompi_info -<BR>
+&gt; &gt;&gt;&gt;&gt; I../../../opal/include -I../../../orte/include -I../../../ompi/<BR>
+&gt; &gt;&gt;&gt;&gt; include -I../../../opal/mca/paffinity/linux/plpa/src/libplpa -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_CONFIGURE_USER=&quot;\&quot;paklui\&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_CONFIGURE_HOST=&quot;\&quot;login4.ranger.tacc.utexas.edu\&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_CONFIGURE_DATE=&quot;\&quot;Fri May&nbsp; 2 17:07:01 CDT 2008\&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_BUILD_USER=&quot;\&quot;$USER\&quot;&quot; -DOMPI_BUILD_HOST=&quot;\&quot;`hostname`\&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_BUILD_DATE=&quot;\&quot;`date`\&quot;&quot; -DOMPI_BUILD_CFLAGS=&quot;\&quot;-O -DNDEBUG<BR>
+&gt; &gt;&gt;&gt;&gt; \&quot;&quot; -DOMPI_BUILD_CPPFLAGS=&quot;\&quot;-I../../../.. -I../../.. -<BR>
+&gt; &gt;&gt;&gt;&gt; I../../../../ opal/include -I../../../../orte/include -<BR>
+&gt; &gt;&gt;&gt;&gt; I../../../../ompi/include&nbsp; - D_REENTRANT\&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_BUILD_CXXFLAGS=&quot;\&quot;-O -DNDEBUG&nbsp; \&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_BUILD_CXXCPPFLAGS=&quot;\&quot;-I../../../.. -I../../.. -<BR>
+&gt; I../../../../<BR>
+&gt; &gt;&gt;&gt;&gt; opal/include -I../../../../orte/include -I../../../../ompi/<BR>
+&gt; &gt;&gt;&gt;&gt; include&nbsp; - D_REENTRANT\&quot;&quot; -DOMPI_BUILD_FFLAGS=&quot;\&quot;\&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_BUILD_FCFLAGS=&quot;\&quot;\&quot;&quot; -DOMPI_BUILD_LDFLAGS=&quot;\&quot; \&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_BUILD_LIBS=&quot;\&quot;-lnsl -lutil&nbsp; -lpthread\&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; DOMPI_CC_ABSOLUTE=&quot;\&quot;/opt/apps/pgi/7.1/linux86-64/7.1-2/bin/pgcc<BR>
+&gt; &gt;&gt;&gt;&gt; \&quot;&quot; - DOMPI_CXX_ABSOLUTE=&quot;\&quot;/opt/apps/pgi/7.1/linux86-64/7.1-2/<BR>
+&gt; bin/<BR>
+&gt; &gt;&gt;&gt;&gt; pgCC\&quot;&quot;&nbsp; -DOMPI_F77_ABSOLUTE=&quot;\&quot;/opt/apps/pgi/7.1/<BR>
+&gt; linux86-64/7.1-2/<BR>
+&gt; &gt;&gt;&gt;&gt; bin/ pgf77\&quot;&quot; -DOMPI_F90_ABSOLUTE=&quot;\&quot;/opt/apps/pgi/7.1/<BR>
+&gt; &gt;&gt;&gt;&gt; linux86-64/7.1-2/ bin/pgf95\&quot;&quot; -DOMPI_F90_BUILD_SIZE=&quot;\&quot;small<BR>
+&gt; \&quot;&quot; -<BR>
+&gt; &gt;&gt;&gt;&gt; I../../../.. - I../../.. -I../../../../opal/include -<BR>
+&gt; I../../../../<BR>
+&gt; &gt;&gt;&gt;&gt; orte/include - I../../../../ompi/include&nbsp; -D_REENTRANT&nbsp; -O -<BR>
+&gt; &gt;&gt;&gt;&gt; DNDEBUG&nbsp;&nbsp; -c -o&nbsp; version.o ../../../../ompi/tools/ompi_info/<BR>
+&gt; &gt;&gt;&gt;&gt; version.cc<BR>
+&gt; &gt;&gt;&gt;&gt; /bin/sh ../../../libtool --tag=CXX&nbsp;&nbsp; --mode=link pgCC&nbsp; -O -<BR>
+&gt; DNDEBUG<BR>
+&gt; &gt;&gt;&gt;&gt; - o ompi_info components.o ompi_info.o output.o param.o<BR>
+&gt; &gt;&gt;&gt;&gt; version.o ../../../ompi/libmpi.la -lnsl -lutil&nbsp; -lpthread<BR>
+&gt; &gt;&gt;&gt;&gt; libtool: link: pgCC -O -DNDEBUG -o .libs/ompi_info components.o<BR>
+&gt; &gt;&gt;&gt;&gt; ompi_info.o output.o param.o version.o&nbsp; ../../../ompi/.libs/<BR>
+&gt; &gt;&gt;&gt;&gt; libmpi.so -L/opt/ofed/lib64 -libcm -lrdmacm -libverbs -lrt /<BR>
+&gt; share/<BR>
+&gt; &gt;&gt;&gt;&gt; home/00951/paklui/ompi-trunk5/config-data1/orte/.libs/libopen-<BR>
+&gt; &gt;&gt;&gt;&gt; rte.so /share/home/00951/paklui/ompi-trunk5/config-data1/<BR>
+&gt; &gt;&gt;&gt;&gt; opal/.libs/ libopen-pal.so -lnuma -ldl -lnsl -lutil -lpthread -<BR>
+&gt; &gt;&gt;&gt;&gt; Wl,--rpath -Wl,/ share/home/00951/paklui/ompi-trunk5/shared-<BR>
+&gt; &gt;&gt;&gt;&gt; install1/lib<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt; [1]&nbsp;&nbsp;&nbsp; Exit 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; make install &gt;&amp;<BR>
+&gt; &gt;&gt;&gt;&gt; make.install.log.0<BR>
+&gt; &gt;&gt;&gt;&gt; ../../../ompi/.libs/libmpi.so: undefined reference to<BR>
+&gt; &gt;&gt;&gt;&gt; `rdma_get_peer_addr'<BR>
+&gt; &gt;&gt;&gt;&gt; ../../../ompi/.libs/libmpi.so: undefined reference to<BR>
+&gt; &gt;&gt;&gt;&gt; `rdma_get_local_addr'<BR>
+&gt; &gt;&gt;&gt;&gt; make[2]: *** [ompi_info] Error 2<BR>
+&gt; &gt;&gt;&gt;&gt; make[2]: Leaving directory `/share/home/00951/paklui/ompi-trunk5/<BR>
+&gt; &gt;&gt;&gt;&gt; config-data1/ompi/tools/ompi_info'<BR>
+&gt; &gt;&gt;&gt;&gt; make[1]: *** [install-recursive] Error 1<BR>
+&gt; &gt;&gt;&gt;&gt; make[1]: Leaving directory `/share/home/00951/paklui/ompi-trunk5/<BR>
+&gt; &gt;&gt;&gt;&gt; config-data1/ompi'<BR>
+&gt; &gt;&gt;&gt;&gt; make: *** [install-recursive] Error 1<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt; --<BR>
+&gt; &gt;&gt;&gt;&gt;<BR>
+&gt; &gt;&gt;&gt;&gt; - Pak Lui<BR>
+&gt; &gt;&gt;&gt;&gt; pak.lui@sun.com<BR>
+&gt; &gt;&gt;<BR>
+&gt; &gt;&gt; --<BR>
+&gt; &gt;&gt;<BR>
+&gt; &gt;&gt;<BR>
+&gt; &gt;&gt; - Pak Lui<BR>
+&gt; &gt;&gt; pak.lui@sun.com<BR>
+&gt; &gt;&gt; &lt;config.log.bz2&gt;&lt;mime-attachment.txt&gt;<BR>
+&gt; &gt;<BR>
+&gt; &gt;<BR>
+&gt;<BR>
+&gt;<BR>
+&gt; --<BR>
+&gt;<BR>
+&gt;<BR>
+&gt; - Pak Lui<BR>
+&gt; pak.lui@sun.com<BR>
+&gt; _______________________________________________<BR>
+&gt; devel mailing list<BR>
+&gt; devel@open-mpi.org<BR>
+&gt; <A HREF="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</A><BR>
+&gt;<BR>
+&gt; _______________________________________________<BR>
+&gt; devel mailing list<BR>
+&gt; devel@open-mpi.org<BR>
+&gt; <A HREF="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</A><BR>
+<BR>
+--<BR>
+&nbsp;&nbsp; Brian Barrett<BR>
+&nbsp;&nbsp; Open MPI developer<BR>
+&nbsp;&nbsp; <A HREF="http://www.open-mpi.org/">http://www.open-mpi.org/</A><BR>
+<BR>
+<BR>
+_______________________________________________<BR>
+devel mailing list<BR>
+devel@open-mpi.org<BR>
+<A HREF="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</A><BR>
+</FONT>
+</P>
+
+</BODY>
+</HTML>

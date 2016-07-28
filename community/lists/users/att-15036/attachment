@@ -1,0 +1,195 @@
+Ya, I just tested -x as well, and it does indeed set the value of DISPLAY correctly for every process, every time I run it.  Unfortunately the display is still not behaving as desired. Sometimes they open, and sometimes they don&#39;t.  <br>
+<br>I&#39;m currently using openmpi-1.4.1 over infiniband on a Rocks cluster.  Any ideas on how to debug this will be greatly appreciated.  <br>
+<br>Thanks,<br>Brad<br>
+<br><div class="gmail_quote">On Tue, Dec 7, 2010 at 1:42 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div>FWIW: I just tested the -x option on a multi-node system and had no problem getting the value of DISPLAY to propagate. I was able to define it on the cmd line, saw it set correctly on every process, etc.<div>
+
+
+
+<br></div><div>This was with our devel trunk - not sure what version you are using.</div><div><div></div><div><div><br></div><div><br><div><div>On Dec 7, 2010, at 12:12 PM, brad baker wrote:</div><br><blockquote type="cite">
+
+
+
+Thanks for your responses!  I&#39;m at home today so I can&#39;t actually do any tests to &#39;see&#39; if anything works. But I logged in remotely and I did as Ralph suggested and ran env as my app.  No process returned a value for DISPLAY.  Then I made a small program that calls getenv(&quot;DISPLAY&quot;) to run with mpi, and each process returns NULL.<br>
+
+
+
+
+<br><div>I did some googling and found in the <a href="http://linux.die.net/man/1/mpirun" target="_blank">mpirun man page</a>:</div><div><br></div><div>&quot;<span style="font-family: arial,sans-serif; font-size: 13px;"><b style="font-weight: bold;">Exported Environment Variables</b></span></div>
+
+
+
+
+<span style="font-family: arial,sans-serif; font-size: 13px;"><dl compact><dt>The <i style="font-style: italic;">-x</i> option to <i style="font-style: italic;">mpirun</i> can be used to export specific environment variables to the new processes. While the syntax of the <i style="font-style: italic;">-x</i> option allows the definition of new variables, note that the<b> parser for this option is currently not very sophisticated</b> - it does not even understand quoted values. <span style="background-color: rgb(255, 255, 255);">Users are advised to<b> set variables in the environment and use </b></span><i style="font-style: italic;"><span style="background-color: rgb(255, 255, 255);"><b>-x</b></span></i><span style="background-color: rgb(255, 255, 255);"><b> to export them; not to define them</b></span>.&quot;</dt>
+
+
+
+
+</dl></span><div>So it looks like I need to manually set them, possible how Jeff suggested.  I&#39;ll do some more research on this and get back after I&#39;ve tried a few things in the lab.</div><div><br></div><div>Thanks again!</div>
+
+
+
+
+<div>Brad</div><div><br></div><div><div><br><div class="gmail_quote">On Tue, Dec 7, 2010 at 10:26 AM, Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+
+
+
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Are you using ssh to launch OMPI between your nodes?  (i.e., is mpirun using ssh under the covers to launch on remote nodes)<br>
+<br>
+If so, you might want to just set OMPI to use &quot;ssh -X&quot;, which sets up SSH tunneled X forwarding, and therefore it sets DISPLAY for you properly on all the remote nodes automatically.  But it does have the disadvantage of being a bit slow, since it&#39;s coming through ssh.<br>
+
+
+
+
+
+<br>
+Alternatively, you can xhost +&lt;source_host&gt;, where &lt;source_host&gt; is the host where your X app is running.  Then set your DISPLAY variable manually to &lt;source_host&gt;:display and it&#39;ll just go in an unencrypted fashion.  This is normal X forwarding stuff -- you can probably google around for more info on this.<br>
+
+
+
+
+
+<br>
+NOTE: IIRC, xauth is better than xhost these days.  I stopped using X for most things many years ago, so my xhost/xauth information is probably a little dated.  Google around for the most recent / best ways to do this stuff.<br>
+
+
+
+
+
+<div><div></div><div><br>
+<br>
+On Dec 6, 2010, at 10:11 PM, Ralph Castain wrote:<br>
+<br>
+&gt; BTW: you might check to see if the DISPLAY envar is being correctly set on all procs. Two ways to do it:<br>
+&gt;<br>
+&gt; 1. launch &quot;env&quot; as your app to print out the envars - can be messy on the output end, though you could use the mpirun options to tag and/or split the output from the procs<br>
+&gt;<br>
+&gt; 2. in your app, just do a getenv and print the display envar<br>
+&gt;<br>
+&gt; Would help tell us if there is an OMPI problem, or just a problem in how you setup X11<br>
+&gt;<br>
+&gt;<br>
+&gt; On Dec 6, 2010, at 9:18 PM, Ralph Castain wrote:<br>
+&gt;<br>
+&gt;&gt; Hmmm...yes, the code does seem to handle that &#39;=&#39; being in there. Forgot it was there.<br>
+&gt;&gt;<br>
+&gt;&gt; Depending on the version you are using, mpirun could just open the display for you. There is an mpirun option that tells us to please start each app in its own xterm.<br>
+&gt;&gt;<br>
+&gt;&gt; You shouldn&#39;t need forwarding if you are going to see it on a local display (i.e., one physically attached to the node), assuming you are logged into those nodes (otherwise you don&#39;t own the display).<br>
+
+
+
+
+
+&gt;&gt;<br>
+&gt;&gt; If you are trying to view it on your own local display, then you do need forwarding setup.<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On Dec 6, 2010, at 8:36 PM, brad baker wrote:<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; Without including the -x DISPLAY, glut doesn&#39;t know what display to open.  For instance, without the -x DISPLAY parameter glut returns an error from each process stating that it could not find display &quot;&quot; (empty string).  This strategy is briefly described in the openmpi   FAQs for launching gui applications with openmpi.<br>
+
+
+
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I&#39;m assuming that by setting the DISPLAY envar to :0.0, each process will render to their local display, which is my intention, and as I previously stated works for up to 2 processes. So I believe it to be necessary.<br>
+
+
+
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; But I&#39;m thinking I may have to configure some kind of  X11 forwarding.  I&#39;m not sure...<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thanks for your reply! Any more ideas?<br>
+&gt;&gt;&gt; Brad<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; On Mon, Dec 6, 2010 at 6:31 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt;&gt;&gt; Guess I&#39;m not entirely sure I understand how this is supposed to work. All the -x does is tell us to pickup an envar of the given name and forward its value to the remote apps. You can&#39;t set the envar&#39;s value on the cmd line. So you told mpirun to pickup the value of an envar called &quot;DISPLAY=:0.0&quot;.<br>
+
+
+
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; So yes - I would expect this would be behaving strangely.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; If you tell us -x DISPLAY, we&#39;ll pickup the local value of DISPLAY and forward it. What that will cause your app to do is, I suppose, up to it.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; On Dec 6, 2010, at 12:42 PM, brad baker wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; &gt; Hello,<br>
+&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt; &gt; I&#39;m working on an mpi application that opens a glut display on each node of a small cluster for opengl rendering (each node has its own display). My current implementation scales great with mpich2, but I&#39;d like to use openmpi infiniband, which is giving me trouble.<br>
+
+
+
+
+
+&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt; &gt; I&#39;ve had some success with the -x DISPLAY=:0.0 parameter to mpirun, which will open the display on up to 2 of my nodes... any 2.  But when I attempt to run the application on 4 nodes, the display is non-deterministic. If any open at all process 0 definately will, and sometimes process 3 along with that.  I haven&#39;t observed much behavior from process 1 or 2.<br>
+
+
+
+
+
+&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt; &gt; My command:<br>
+&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt; &gt; mpirun -x DISPLAY=:0.0 -np 4 -hostfile ~/openmpi.hosts ./myapp<br>
+&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt; &gt; I&#39;ve tried adding the -d option with no success.<br>
+&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt; &gt; Does anyone have any suggestions or comments?  I&#39;ll certainly provide more information if required.<br>
+&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt; &gt; Thanks,<br>
+&gt;&gt;&gt; &gt; Brad<br>
+&gt;&gt;&gt; &gt; _______________________________________________<br>
+&gt;&gt;&gt; &gt; users mailing list<br>
+&gt;&gt;&gt; &gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;&gt;&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+</div></div><font color="#888888">--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+For corporate legal information go to:<br>
+<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+</font><div><div></div><div><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br></div></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+
+
+
+</div><br></div></div></div></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br>
+

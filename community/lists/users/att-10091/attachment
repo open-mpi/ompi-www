@@ -1,0 +1,118 @@
+Hi Alexey,<br>I tried the same line of codes in my free time and what I could see is that when you perform strcpy the string was copied with  &#39;/0&#39; but since you only receive  4 characters it can only receive the &#39;asdf&#39; but not &#39;/0&#39; which seems a bit strange in the nature. I think this is because the MPI_Send/Recev isn&#39;t defined to send and recieve &#39;strings&#39; but only character buffers. So when you recieve the buffer only with &#39;asdf&#39; printf tends to print asdf + some garbage characters since theres no termination for the string (I also saw +3 garbage charactors :)). So the solution is to make sure you send strlen() + 1 and recieve strlen() + 1. If you arent sure about the receiving length, do a MPI_Probe and allocate the necessary buffer. So its really important to have enough space in the send buffer to hold the &quot;asdf&#39; which is strlen(&#39;asdf&#39;) + 1, and on the receive side, recieve from a strlen(&#39;asdf&#39;) + 1 buffer. I guess this is the difference of sending character buffers from sending &#39;strings&#39; using MPI_Send/Recv. Correct me someone if I&#39;m wrong!<br>
+PS: I think reboot is just a trick that won&#39;t yeild to a solution :).<br><br><div class="gmail_quote">On Mon, Jul 27, 2009 at 1:43 PM, jody <span dir="ltr">&lt;<a href="mailto:jody.xha@gmail.com">jody.xha@gmail.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Hi Alexey<br>
+No, strlen() does not include the &#39;\0&#39; - this is what &#39;man strlen&#39; says:<br>
+<br>
+    STRLEN(3)                  Linux Programmer’s Manual<br>
+  STRLEN(3)<br>
+<br>
+    NAME<br>
+           strlen - calculate the length of a string<br>
+<br>
+    SYNOPSIS<br>
+           #include &lt;string.h&gt;<br>
+<br>
+           size_t strlen(const char *s);<br>
+<br>
+    DESCRIPTION<br>
+           The  strlen()  function  calculates  the  length  of  the<br>
+string s, not<br>
+           including the terminating ’\0’ character.<br>
+<br>
+    RETURN VALUE<br>
+           The strlen() function returns the number of characters in s.<br>
+<br>
+If your code worked after reboot, you were just lucky that a 0-character<br>
+followed our string. The problem may appear again anytime if you don&#39;t<br>
+increase your message length to  strlen(chdata[i])+1.<br>
+<font color="#888888"><br>
+Jody<br>
+</font><div><div></div><div class="h5"><br>
+<br>
+<br>
+On Mon, Jul 27, 2009 at 9:57 AM, Alexey Sokolov&lt;<a href="mailto:gabbear@niir.ru">gabbear@niir.ru</a>&gt; wrote:<br>
+&gt; Hi<br>
+&gt;<br>
+&gt; Thank you for advising, but my problem disappeared after rebooting as it<br>
+&gt; has never been. I really don&#39;t know why it was in this way, but I didn&#39;t<br>
+&gt; change anything and now it works correctly. May be it was connected with<br>
+&gt; system update without rebooting after it (I use Fedora 10), don&#39;t truly<br>
+&gt; know.<br>
+&gt;<br>
+&gt; Anyway thank you for your help and paying me attention.<br>
+&gt;<br>
+&gt; PS: I typed you a little bit wrong code. In the original code i get the<br>
+&gt; string length with strlen(chdata[i]), so the null-terminator should be<br>
+&gt; counted.<br>
+&gt;<br>
+&gt; Sincerely yours, Alexey.<br>
+&gt;<br>
+&gt; On Fri, 2009-07-24 at 16:47 +0200, Dorian Krause wrote:<br>
+&gt;&gt; Hi,<br>
+&gt;&gt;<br>
+&gt;&gt; you do not send the trailing &#39;0&#39; which is used to determine the<br>
+&gt;&gt; stringlength. I assume that chdata[i] has at least length 5 (otherwise<br>
+&gt;&gt; you overrun your memory). Replace the &quot;4&quot; by &quot;5&quot; in MPI_Isend and<br>
+&gt;&gt; MPI_Recv and everything should work (If I get the problem right).<br>
+&gt;&gt;<br>
+&gt;&gt; Dorian.<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; Alexey Sokolov wrote:<br>
+&gt;&gt; &gt; Hi<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; I&#39;m sorry if the answer to my question is very simple, but I&#39;m really<br>
+&gt;&gt; &gt; confused with this situation.<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; I got a program that now contains 1 master and 1 slave processes. Master<br>
+&gt;&gt; &gt; process sends few similar chars to the slave process with this:<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt;         for (unsigned i = 0; i &lt; SomeVariable; i++) {<br>
+&gt;&gt; &gt;           strcpy(chdata[i], &quot;asdf&quot;);<br>
+&gt;&gt; &gt;           MPI_Isend(chdata[i], 4, MPI_CHAR, SLAVE, 1, MPI_COMM_WORLD,<br>
+&gt;&gt; &gt;         &amp;req[i]);<br>
+&gt;&gt; &gt;         }<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; And the slave process receives them with this:<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt;         for (unsigned i = 0; i &lt; SomeVariable; i++) {<br>
+&gt;&gt; &gt;           char * buf = new char[10];<br>
+&gt;&gt; &gt;           MPI_Recv(buf, 4, MPI_CHAR, MASTER, 1, MPI_COMM_WORLD, &amp;stat);<br>
+&gt;&gt; &gt;           printf(&quot;Received data [%s] of length %d\n&quot;, buf, strlen(buf));<br>
+&gt;&gt; &gt;         }<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; As I understand output should be &quot;Received data [asdf] of length 4&quot;, but<br>
+&gt;&gt; &gt; instead of this I got my &#39;asdf&#39; with additional 3 random ANSI characters<br>
+&gt;&gt; &gt; in string of length 7.<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; I&#39;ve already spent few hours to find the mistake out but unsuccessfully.<br>
+&gt;&gt; &gt; I do successfully transfer int data in the similar way, but this case<br>
+&gt;&gt; &gt; make me crazy. Could you help me to find out where did I fail in this?<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; Sincerely yours, Alexey.<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; _______________________________________________<br>
+&gt;&gt; &gt; users mailing list<br>
+&gt;&gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br><br clear="all"><br>-- <br><a href="http://www.codeproject.com/script/Articles/MemberArticles.aspx?amid=3489381">http://www.codeproject.com/script/Articles/MemberArticles.aspx?amid=3489381</a><br>
+
+

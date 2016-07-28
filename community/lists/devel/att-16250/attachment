@@ -1,0 +1,81 @@
+Nathan,<div><br></div><div>Has this bug always been present in OpenIB or is this a recent addition? If this is regression, I would also be inclined to say that this is a blocker for 1.8.4. This is a SIGNIFICANT bug. Both Howard and I were quite surprised that all the while this code has been in use at LANL in production systems, this issue was never discovered. </div><div><br></div><div>Once again, many thanks to Alina for discovering and reporting this. Keep up the MTT vigilance! </div><div><br></div><div>Josh</div><div><br></div><div><br><br>On Tuesday, November 4, 2014, Joshua Ladd &lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;jladd.mlnx@gmail.com&#39;);" target="_blank">jladd.mlnx@gmail.com</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div>Thanks, Nathan. After a bit more investigation yesterday, this was our conclusion too; that it is a longstanding bug in OpenIB BTL we just happened to start triggering the broken flow with some recent changes made to the default max_lmc parameter. Let us know if you need anything from our end. <br><br></div>Josh<br></div><div class="gmail_extra"><br><div class="gmail_quote">On Mon, Nov 3, 2014 at 6:03 PM, Nathan Hjelm <span dir="ltr">&lt;<a>hjelmn@lanl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+I see the problem. The openib btl does not properly handle the following<br>
+call sequence (this is an openib btl bug IMHO):<br>
+<br>
+btl_sendi (..., &amp;descriptor);<br>
+btl_free (..., descriptor);<br>
+<br>
+The bug is in the message coalescing code and it looks like extra logic<br>
+needs to be added to the openib btl&#39;s btl_free function for this to work<br>
+properly. I am working on a fix now.<br>
+<span><font color="#888888"><br>
+-Nathan<br>
+</font></span><div><div><br>
+On Mon, Nov 03, 2014 at 04:26:10PM +0200, Alina Sklarevich wrote:<br>
+&gt;    Hi,<br>
+&gt;    On 1.8.4rc1 we observe the following assert in the osu_mbw_mr test when<br>
+&gt;    using the openib BTL.<br>
+&gt;    When compiled in production mode (i.e. no --enable-debug) the test simply<br>
+&gt;    hangs.<br>
+&gt;    When using either the tcp BTL or the cm PML, the benchmark completes<br>
+&gt;    without error.<br>
+&gt;    The command line to reproduce this is:<br>
+&gt;    $ mpirun --bind-to core -display-map -mca btl_openib_if_include mlx5_0:1<br>
+&gt;    -np 2 -mca pml ob1 -mca btl openib,self,sm ./osu_mbw_mr<br>
+&gt;    # OSU MPI Multiple Bandwidth / Message Rate Test v4.4<br>
+&gt;    # [ pairs: 1 ] [ window size: 64 ]<br>
+&gt;    # Size                  MB/s        Messages/s<br>
+&gt;    osu_mbw_mr: ../../../../opal/class/opal_list.h:547: _opal_list_append:<br>
+&gt;    Assertion `0 == item-&gt;opal_list_item_refcount&#39; failed.<br>
+&gt;    [vegas15:30395] *** Process received signal ***<br>
+&gt;    [vegas15:30395] Signal: Aborted (6)<br>
+&gt;    [vegas15:30395] Signal code:  (-6)<br>
+&gt;    [vegas15:30395] [ 0] /lib64/libpthread.so.0[0x30bc40f500]<br>
+&gt;    [vegas15:30395] [ 1] /lib64/libc.so.6(gsignal+0x35)[0x30bc0328a5]<br>
+&gt;    [vegas15:30395] [ 2] /lib64/libc.so.6(abort+0x175)[0x30bc034085]<br>
+&gt;    [vegas15:30395] [ 3] /lib64/libc.so.6[0x30bc02ba1e]<br>
+&gt;    [vegas15:30395] [ 4]<br>
+&gt;    /lib64/libc.so.6(__assert_perror_fail+0x0)[0x30bc02bae0]<br>
+&gt;    [vegas15:30395] [ 5]<br>
+&gt;    /labhome/alinas/workspace/tt/ompi_rc1/openmpi-1.8.4rc1/install/lib/openmpi/mca_btl_openib.so(+0x9087)[0x7ffff3f70087]<br>
+&gt;    [vegas15:30395] [ 6]<br>
+&gt;    /labhome/alinas/workspace/tt/ompi_rc1/openmpi-1.8.4rc1/install/lib/openmpi/mca_btl_openib.so(mca_btl_openib_alloc+0x403)[0x7ffff3f754b3]<br>
+&gt;    [vegas15:30395] [ 7]<br>
+&gt;    /labhome/alinas/workspace/tt/ompi_rc1/openmpi-1.8.4rc1/install/lib/openmpi/mca_btl_openib.so(mca_btl_openib_sendi+0xf9e)[0x7ffff3f785b4]<br>
+&gt;    [vegas15:30395] [ 8]<br>
+&gt;    /labhome/alinas/workspace/tt/ompi_rc1/openmpi-1.8.4rc1/install/lib/openmpi/mca_pml_ob1.so(+0xed08)[0x7ffff3308d08]<br>
+&gt;    [vegas15:30395] [ 9]<br>
+&gt;    /labhome/alinas/workspace/tt/ompi_rc1/openmpi-1.8.4rc1/install/lib/openmpi/mca_pml_ob1.so(+0xf8ba)[0x7ffff33098ba]<br>
+&gt;    [vegas15:30395] [10]<br>
+&gt;    /labhome/alinas/workspace/tt/ompi_rc1/openmpi-1.8.4rc1/install/lib/openmpi/mca_pml_ob1.so(mca_pml_ob1_isend+0x108)[0x7ffff3309a1f]<br>
+&gt;    [vegas15:30395] [11]<br>
+&gt;    /labhome/alinas/workspace/tt/ompi_rc1/openmpi-1.8.4rc1/install/lib/libmpi.so.1(MPI_Isend+0x2ec)[0x7ffff7cff5e8]<br>
+&gt;    [vegas15:30395] [12]<br>
+&gt;    /hpc/local/benchmarks/hpc-stack-gcc/install/ompi-mellanox-v1.8/tests/osu-micro-benchmarks-4.4/osu_mbw_mr[0x400fa4]<br>
+&gt;    [vegas15:30395] [13]<br>
+&gt;    /hpc/local/benchmarks/hpc-stack-gcc/install/ompi-mellanox-v1.8/tests/osu-micro-benchmarks-4.4/osu_mbw_mr[0x40167d]<br>
+&gt;    [vegas15:30395] [14]<br>
+&gt;    /lib64/libc.so.6(__libc_start_main+0xfd)[0x30bc01ecdd]<br>
+&gt;    [vegas15:30395] [15]<br>
+&gt;    /hpc/local/benchmarks/hpc-stack-gcc/install/ompi-mellanox-v1.8/tests/osu-micro-benchmarks-4.4/osu_mbw_mr[0x400db9]<br>
+&gt;    [vegas15:30395] *** End of error message ***<br>
+&gt;    --------------------------------------------------------------------------<br>
+&gt;    mpirun noticed that process rank 0 with PID 30395 on node vegas15 exited<br>
+&gt;    on signal 6 (Aborted).<br>
+&gt;    --------------------------------------------------------------------------<br>
+&gt;    Thanks,<br>
+&gt;    Alina.<br>
+<br>
+</div></div><div><div>&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a>devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/11/16142.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/11/16142.php</a><br>
+<br>
+</div></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a>devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/11/16159.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/11/16159.php</a><br></blockquote></div><br></div>
+</blockquote></div>
+

@@ -1,0 +1,489 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Dahai Guo,<br>
+    <br>
+    <br>
+    <br>
+    <br>
+    <br>
+    <div class="moz-cite-prefix">On 10/7/2015 3:08 AM, Dahai Guo wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:36263173.1464890.1444154904151.JavaMail.yahoo@mail.yahoo.com"
+      type="cite">
+      <div style="color:#000; background-color:#fff;
+        font-family:HelveticaNeue, Helvetica Neue, Helvetica, Arial,
+        Lucida Grande, sans-serif;font-size:18px">
+        <div id="yui_3_16_0_1_1444152386099_11705"><span
+            id="yui_3_16_0_1_1444152386099_11748">Thanks, Jeff. It is
+            very helpful. some more questions :-):</span></div>
+        <div id="yui_3_16_0_1_1444152386099_11705"><span><br>
+          </span></div>
+        <div id="yui_3_16_0_1_1444152386099_11705" dir="ltr"><span
+            id="yui_3_16_0_1_1444152386099_11912">1.  There are many
+            coll components, such as basic, tuned, self, cuda, sm, and
+            etc.  Are they all selected at the MPI_Init time?  or it
+            just select those satisfying  some criteria, hardware,
+            communicator size? or only some specific ones are selected?</span></div>
+      </div>
+    </blockquote>
+    some components simply disqualify themselves at MPI_Init time,<br>
+    and some other components are not selected when a communicator is
+    created<br>
+    (for example coll/sm cannot be used on an communicator with tasks on
+    several nodes,<br>
+    note coll_sm_priority is zero by default, so coll/sm is disqualified
+    at MPI_Init time and hence<br>
+    this is not a perfect example)<br>
+    <br>
+    ompi/mpi/c/barrier.c uses a function pointer to the barrier
+    subroutine,<br>
+    and this function pointer has been set when the communicator was
+    created.<br>
+    <blockquote
+      cite="mid:36263173.1464890.1444154904151.JavaMail.yahoo@mail.yahoo.com"
+      type="cite">
+      <div style="color:#000; background-color:#fff;
+        font-family:HelveticaNeue, Helvetica Neue, Helvetica, Arial,
+        Lucida Grande, sans-serif;font-size:18px">
+        <div id="yui_3_16_0_1_1444152386099_11705" dir="ltr"><span
+            id="yui_3_16_0_1_1444152386099_12501">  <br>
+          </span></div>
+        <div id="yui_3_16_0_1_1444152386099_11705" dir="ltr"><span
+            id="yui_3_16_0_1_1444152386099_12853">2.  MPI_Barrier seems
+            choose the exact algorithm for the API in MPI_Init, since I
+            checked the file ompi/mpi/c/barrier.c, and there is no
+            choice  except inter/intra judge. Would you please point out
+            in which code it is selected? So that I can get some hint
+            for other MPI collective functions selection, and .</span></div>
+        <div id="yui_3_16_0_1_1444152386099_11705" dir="ltr"><span><br>
+          </span></div>
+      </div>
+    </blockquote>
+    most of the time, coll/tuned is used.<br>
+    and most of the time, coll_tuned_XXX_intra_dec_fixed is used<br>
+    this function will choose the collective algorithm to be used.<br>
+    <br>
+    for example, MPI_Barrier invokes
+    ompi_coll_tuned_barrier_intra_dec_fixed, which will choose and
+    invoke one of :<br>
+    - ompi_coll_base_barrier_intra_two_procs<br>
+    - ompi_coll_base_barrier_intra_bruck<br>
+    - ompi_coll_base_barrier_intra_recursivedoubling<br>
+    <br>
+    the best way to understand this part is probably to use a debugger,
+    set a breakpoint in MPI_Barrier and step as long as required.<br>
+    in most cases, you will end up using the coll/tuned module on an
+    intra-communicator, so unless you plan to develop your own
+    collective module, you can skip the module initialization/selection
+    part.<br>
+    <blockquote
+      cite="mid:36263173.1464890.1444154904151.JavaMail.yahoo@mail.yahoo.com"
+      type="cite">
+      <div style="color:#000; background-color:#fff;
+        font-family:HelveticaNeue, Helvetica Neue, Helvetica, Arial,
+        Lucida Grande, sans-serif;font-size:18px">
+        <div id="yui_3_16_0_1_1444152386099_11705" dir="ltr"><span
+            id="yui_3_16_0_1_1444152386099_12125">3. I saw somewhere
+             the run-time parameters to choose algorithms, such as
+            "--mca coll_tuned_reduce_algorithm 5". Where can I find the
+            complete list of these kinds of runtime options and their
+            value choices?</span></div>
+        <div id="yui_3_16_0_1_1444152386099_11705" dir="ltr"><span><br>
+          </span></div>
+      </div>
+    </blockquote>
+    you can run ompi_info --all and search for coll_tuned_xxx_algorithm<br>
+    for example<br>
+    MCA coll: parameter "coll_tuned_barrier_algorithm" (current value:
+    "ignore", data source: default, level: 5 tuner/detail, type: int)<br>
+                              Which barrier algorithm is used. Can be
+    locked down to choice of: 0 ignore, 1 linear, 2 double ring, 3:
+    recursive doubling 4: bruck, 5: two proc only, 6: tree<br>
+                              Valid values: 0:"ignore", 1:"linear",
+    2:"double_ring", 3:"recursive_doubling", 4:"bruck", 5:"two_proc",
+    6:"tree"<br>
+    <br>
+    if you want to force the usage of the bruck (4) algorithm, you can
+    run<br>
+    mpirun --mca coll_tuned_use_dynamic_rules 1 --mca
+    coll_tuned_barrier_algorithm 4 ...<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <blockquote
+      cite="mid:36263173.1464890.1444154904151.JavaMail.yahoo@mail.yahoo.com"
+      type="cite">
+      <div style="color:#000; background-color:#fff;
+        font-family:HelveticaNeue, Helvetica Neue, Helvetica, Arial,
+        Lucida Grande, sans-serif;font-size:18px">
+        <div id="yui_3_16_0_1_1444152386099_11705" dir="ltr"><span>Dahai </span></div>
+        <br>
+        <div class="qtdSeparateBR"><br>
+          <br>
+        </div>
+        <div class="yahoo_quoted" style="display: block;">
+          <div style="font-family: HelveticaNeue, Helvetica Neue,
+            Helvetica, Arial, Lucida Grande, sans-serif; font-size:
+            18px;">
+            <div style="font-family: HelveticaNeue, Helvetica Neue,
+              Helvetica, Arial, Lucida Grande, sans-serif; font-size:
+              16px;">
+              <div dir="ltr"> <font size="2" face="Arial"> On Tuesday,
+                  October 6, 2015 12:25 PM, Jeff Squyres (jsquyres)
+                  <a class="moz-txt-link-rfc2396E" href="mailto:jsquyres@cisco.com">&lt;jsquyres@cisco.com&gt;</a> wrote:<br>
+                </font> </div>
+              <br>
+              <br>
+              <div class="y_msg_container">On Oct 6, 2015, at 10:19 AM,
+                Dahai Guo &lt;<a moz-do-not-send="true" shape="rect"
+                  ymailto="mailto:dahaiguo2004@yahoo.com"
+                  href="mailto:dahaiguo2004@yahoo.com">dahaiguo2004@yahoo.com</a>&gt;
+                wrote:<br clear="none">
+                &gt; <br clear="none">
+                &gt; Thanks, Gilles. Some more questions:<br
+                  clear="none">
+                &gt; <br clear="none">
+                &gt; 1. how does Open MPI  define the priorities of the
+                different collective components? what criteria is based
+                on?<br clear="none">
+                <br clear="none">
+                The priorities are in the range of [0, 100]
+                (100=highest).  The priorities tend to be fairly
+                coarse-grained; they're mainly based on relative
+                knowledge of how good / bad a particular algorithm is
+                going to be.<br clear="none">
+                <br clear="none">
+                &gt; 2. how does a MPI collective function (MPI_Barrier
+                for example) choose the exact algorithm it use? based on
+                message size, and communicator size? any other factors?
+                <br clear="none">
+                <br clear="none">
+                Yes (all of the above).  Meaning: each component is
+                responsible for a) determining whether it will provide a
+                function pointer for each operation, and b) what that
+                function pointer's priority should be (same disclaimer
+                as my last mail: I don't remember offhand if there's a
+                single priority for the whole component, or on a
+                per-function-pointer/operation basis).<br clear="none">
+                <br clear="none">
+                Hence, the component can use whatever criteria it wants
+                to determine if it wants to provide a function pointer
+                or not.  E.g., if it only has algorithms that work with
+                communicators that have a size that is a power of 2,
+                then it can use that information to determine whether it
+                wants to provide a function pointer for a new
+                communicator or not.<br clear="none">
+                <br clear="none">
+                &gt; 3. when does MPI_Barrier choose the algorithm?  in
+                ompi_mpi_init? or  every time the API program calls the
+                MPI_barrier? <br clear="none">
+                <br clear="none">
+                A combination of: when the communicator is constructed
+                and when the barrier is run.<br clear="none">
+                <br clear="none">
+                I already described the communicator-constructor
+                scenario.  But in addition to that, it's certainly
+                possible to have a collective operation dispatch to a
+                function that makes a further run-time based decision
+                (the tuned collective component does a lot of this).<br
+                  clear="none">
+                <br clear="none">
+                For barrier that wouldn't really be necessary (because
+                you can setup everything at communicator constructor
+                time because the MPI_BCAST API doesn't have any
+                variation in its parameters -- i.e., you know everything
+                at communicator constructor time).  But for other
+                operations, you might choose different algorithms
+                depending on the number of local peers, the size of the
+                message, ...etc.  Hence, you might want to make the
+                final algorithm dispatch decision when MPI_GATHER is
+                invoked with the final set of parameters, etc.<br
+                  clear="none">
+                <br clear="none">
+                &gt; 4. all the MPI collective functions follow the same
+                procedure to choose algorithms in the API program?<br
+                  clear="none">
+                <br clear="none">
+                I'm not sure how to parse this question.<br clear="none">
+                <br clear="none">
+                In general, all MPI collective operations follow the
+                same procedure to select which component is selected at
+                communicator constructor time.  When the collective
+                operation is dispatched off to the module at run time
+                (e.g., when MPI_BCAST is invoked), it's then up to the
+                module to decide what to do next (i.e., how to actually
+                effect that collective operation).<br clear="none">
+                <br clear="none">
+                &gt; It would be great if you can point out some main
+                OMPI files and functions that are involved in the
+                process.<br clear="none">
+                <br clear="none">
+                You might want to step through the selection process
+                with a debugger to see what happens.  Set a breakpoint
+                on mca_coll_base_comm_select() and step through from
+                there.<br clear="none">
+                <br clear="none">
+                <br clear="none">
+                &gt; Dahai<br clear="none">
+                &gt; <br clear="none">
+                &gt; <br clear="none">
+                &gt; <br clear="none">
+                &gt; On Tuesday, October 6, 2015 1:08 AM, Gilles
+                Gouaillardet &lt;<a moz-do-not-send="true" shape="rect"
+                  ymailto="mailto:gilles.gouaillardet@gmail.com"
+                  href="mailto:gilles.gouaillardet@gmail.com">gilles.gouaillardet@gmail.com</a>&gt;
+                wrote:<br clear="none">
+                &gt; <br clear="none">
+                &gt; <br clear="none">
+                &gt; at first, you can check the priorities of the
+                various coll modules<br clear="none">
+                &gt; with ompi_info<br clear="none">
+                &gt; <br clear="none">
+                &gt; $ ompi_info --all | grep \"coll_ | grep priority<br
+                  clear="none">
+                &gt;                MCA coll: parameter
+                "coll_basic_priority" (current<br clear="none">
+                &gt; value: "10", data source: default, level: 9
+                dev/all, type: int)<br clear="none">
+                &gt;                MCA coll: parameter
+                "coll_inter_priority" (current<br clear="none">
+                &gt; value: "40", data source: default, level: 9
+                dev/all, type: int)<br clear="none">
+                &gt;                MCA coll: parameter
+                "coll_libnbc_priority" (current<br clear="none">
+                &gt; value: "10", data source: default, level: 9
+                dev/all, type: int)<br clear="none">
+                &gt;                MCA coll: parameter
+                "coll_ml_priority" (current value:<br clear="none">
+                &gt; "0", data source: default, level: 9 dev/all, type:
+                int)<br clear="none">
+                &gt;                MCA coll: parameter
+                "coll_self_priority" (current<br clear="none">
+                &gt; value: "75", data source: default, level: 9
+                dev/all, type: int)<br clear="none">
+                &gt;                MCA coll: parameter
+                "coll_sm_priority" (current value:<br clear="none">
+                &gt; "0", data source: default, level: 9 dev/all, type:
+                int)<br clear="none">
+                &gt;                MCA coll: parameter
+                "coll_tuned_priority" (current<br clear="none">
+                &gt; value: "30", data source: default, level: 6
+                tuner/all, type: int)<br clear="none">
+                &gt; <br clear="none">
+                &gt; <br clear="none">
+                &gt; coll_tuned_priority likely the collective module
+                you will be using.<br clear="none">
+                &gt; then you can check the various
+                ompi_coll_tuned_*_intra_dec_fixed functions in<br
+                  clear="none">
+                &gt; ompi/mca/coll/tuned/coll_tuned_decision_fixed.c<br
+                  clear="none">
+                &gt; this is how the tuned collective module selects
+                algorithms based on<br clear="none">
+                &gt; communicator size and message size.<br clear="none">
+                &gt; <br clear="none">
+                &gt; Cheers,<br clear="none">
+                &gt; <br clear="none">
+                &gt; Gilles<br clear="none">
+                &gt; <br clear="none">
+                &gt; On Sun, Oct 4, 2015 at 11:12 AM, Dahai Guo &lt;<a
+                  moz-do-not-send="true" shape="rect"
+                  ymailto="mailto:dahaiguo2004@yahoo.com"
+                  href="mailto:dahaiguo2004@yahoo.com"><a class="moz-txt-link-abbreviated" href="mailto:dahaiguo2004@yahoo.com">dahaiguo2004@yahoo.com</a></a>&gt;
+                wrote:<br clear="none">
+                &gt; &gt; Thanks, Jeff. I am trying to understand in
+                detail how Open MPI works in the<br clear="none">
+                &gt; &gt; run time. What main functions does it call to
+                select and initialize the coll<br clear="none">
+                &gt; &gt; components? Using the "helloworld" as an
+                example,  how does it select and<br clear="none">
+                &gt; &gt; initialize the MPI_Barrier algorithm?  which C
+                functions are involved and<br clear="none">
+                &gt; &gt; used in the process?<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt; Dahai<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt; On Friday, October 2, 2015 7:50 PM, Jeff
+                Squyres (jsquyres)<br clear="none">
+                &gt; &gt; &lt;<a moz-do-not-send="true" shape="rect"
+                  ymailto="mailto:jsquyres@cisco.com"
+                  href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;
+                wrote:<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt; On Oct 2, 2015, at 2:21 PM, Dahai Guo &lt;<a
+                  moz-do-not-send="true" shape="rect"
+                  ymailto="mailto:dahaiguo2004@yahoo.com"
+                  href="mailto:dahaiguo2004@yahoo.com"><a class="moz-txt-link-abbreviated" href="mailto:dahaiguo2004@yahoo.com">dahaiguo2004@yahoo.com</a></a>&gt;
+                wrote:<br clear="none">
+                &gt; &gt;&gt;<br clear="none">
+                &gt; &gt;&gt; Is there any way to trace open mpi
+                internal function calls in a MPI user<br clear="none">
+                &gt; &gt;&gt; program?<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt; Unfortunately, not easily -- other than using
+                a debugger, for example.<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt;&gt; If so, can any one explain it with an
+                example? such as helloworld?  I<br clear="none">
+                &gt; &gt;&gt; build open MPI with the VampirTrace
+                options, and compile the following<br clear="none">
+                &gt; &gt;&gt; program with picc-vt,. but I didn't get
+                any tracing info.<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt; Open MPI is a giant state machine -- MPI_INIT,
+                for example, invokes slightly<br clear="none">
+                &gt; &gt; fewer than a bazillion functions (e.g., it
+                initializes every framework and<br clear="none">
+                &gt; &gt; many components/plugins).<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt; Is there something in particular that you're
+                looking for / want to know<br clear="none">
+                &gt; &gt; about?<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt;&gt; Thanks<br clear="none">
+                &gt; &gt;&gt;<br clear="none">
+                &gt; &gt;&gt; D. G.<br clear="none">
+                &gt; &gt;&gt;<br clear="none">
+                &gt; &gt;&gt; #include &lt;stdio.h&gt;<br clear="none">
+                &gt; &gt;&gt; #include &lt;mpi.h&gt;<br clear="none">
+                &gt; &gt;&gt;<br clear="none">
+                &gt; &gt;&gt;<br clear="none">
+                &gt; &gt;&gt; int main (int argc, char **argv)<br
+                  clear="none">
+                &gt; &gt;&gt; {<br clear="none">
+                &gt; &gt;&gt;  int rank, size;<br clear="none">
+                &gt; &gt;&gt;<br clear="none">
+                &gt; &gt;&gt;  MPI_Init (&amp;argc, &amp;argv);<br
+                  clear="none">
+                &gt; &gt;&gt;  MPI_Comm_rank (MPI_COMM_WORLD,
+                &amp;rank);<br clear="none">
+                &gt; &gt;&gt;  MPI_Comm_size (MPI_COMM_WORLD,
+                &amp;size);<br clear="none">
+                &gt; &gt;&gt;  printf( "Hello world from process %d of
+                %d\n", rank, size );<br clear="none">
+                &gt; &gt;&gt;  MPI_Barrier(MPI_COMM_WORLD);<br
+                  clear="none">
+                &gt; &gt;&gt;  MPI_Finalize();<br clear="none">
+                &gt; &gt;&gt;  return 0;<br clear="none">
+                &gt; &gt;&gt; }<br clear="none">
+                &gt; &gt;&gt;<br clear="none">
+                &gt; &gt;&gt;
+                _______________________________________________<br
+                  clear="none">
+                &gt; &gt;&gt; devel mailing list<br clear="none">
+                &gt; &gt;&gt; <a moz-do-not-send="true" shape="rect"
+                  ymailto="mailto:devel@open-mpi.org"
+                  href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br
+                  clear="none">
+                &gt; &gt;&gt; Subscription: <a moz-do-not-send="true"
+                  shape="rect"
+                  href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"
+                  target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br
+                  clear="none">
+                &gt; &gt;&gt; Link to this post:<br clear="none">
+                &gt; &gt;&gt; <a moz-do-not-send="true" shape="rect"
+                  href="http://www.open-mpi.org/community/lists/devel/2015/10/18125.php"
+                  target="_blank">http://www.open-mpi.org/community/lists/devel/2015/10/18125.php</a><br
+                  clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt; --<br clear="none">
+                &gt; &gt; Jeff Squyres<br clear="none">
+                &gt; &gt; <a moz-do-not-send="true" shape="rect"
+                  ymailto="mailto:jsquyres@cisco.com"
+                  href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br
+                  clear="none">
+                &gt; &gt; For corporate legal information go to:<br
+                  clear="none">
+                &gt; &gt; <a moz-do-not-send="true" shape="rect"
+                  href="http://www.cisco.com/web/about/doing_business/legal/cri/"
+                  target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br
+                  clear="none">
+                &gt; <br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt;<br clear="none">
+                &gt; &gt;
+                _______________________________________________<br
+                  clear="none">
+                &gt; &gt; devel mailing list<br clear="none">
+                &gt; &gt; <a moz-do-not-send="true" shape="rect"
+                  ymailto="mailto:devel@open-mpi.org"
+                  href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br
+                  clear="none">
+                &gt; &gt; Subscription: <a moz-do-not-send="true"
+                  shape="rect"
+                  href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"
+                  target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br
+                  clear="none">
+                &gt; &gt; Link to this post:<br clear="none">
+                &gt; <br clear="none">
+                &gt; &gt; <a moz-do-not-send="true" shape="rect"
+                  href="http://www.open-mpi.org/community/lists/devel/2015/10/18138.php"
+                  target="_blank">http://www.open-mpi.org/community/lists/devel/2015/10/18138.php</a><br
+                  clear="none">
+                &gt; <br clear="none">
+                &gt; <br clear="none">
+                &gt; <br clear="none">
+                &gt; _______________________________________________<br
+                  clear="none">
+                &gt; devel mailing list<br clear="none">
+                &gt; <a moz-do-not-send="true" shape="rect"
+                  ymailto="mailto:devel@open-mpi.org"
+                  href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br
+                  clear="none">
+                &gt; Subscription: <a moz-do-not-send="true"
+                  shape="rect"
+                  href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"
+                  target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br
+                  clear="none">
+                &gt; Link to this post: <a moz-do-not-send="true"
+                  shape="rect"
+                  href="http://www.open-mpi.org/community/lists/devel/2015/10/18140.php"
+                  target="_blank">http://www.open-mpi.org/community/lists/devel/2015/10/18140.php</a>
+                <div class="yqt3666324187" id="yqtfd30685"><br
+                    clear="none">
+                  <br clear="none">
+                  <br clear="none">
+                  -- <br clear="none">
+                  Jeff Squyres<br clear="none">
+                  <a moz-do-not-send="true" shape="rect"
+                    ymailto="mailto:jsquyres@cisco.com"
+                    href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br
+                    clear="none">
+                  For corporate legal information go to: <a
+                    moz-do-not-send="true" shape="rect"
+                    href="http://www.cisco.com/web/about/doing_business/legal/cri/"
+                    target="_blank"><a class="moz-txt-link-freetext" href="http://www.cisco.com/web/about/doing_business/legal/cri/">http://www.cisco.com/web/about/doing_business/legal/cri/</a></a><br
+                    clear="none">
+                </div>
+                <br>
+                <br>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/10/18143.php">http://www.open-mpi.org/community/lists/devel/2015/10/18143.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

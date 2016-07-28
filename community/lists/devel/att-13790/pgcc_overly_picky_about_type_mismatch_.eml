@@ -1,0 +1,176 @@
+Message-ID: <07842FE0-A7CD-43F9-B1DD-DA3D12AC2837@usgs.gov>
+From: Larry Baker <baker@usgs.gov>
+To: <trs@pgroup.com>
+Content-Type: text/plain; charset="WINDOWS-1252"; format=flowed; delsp=yes
+Content-Transfer-Encoding: quoted-printable
+X-Smtp-Server: gscamnlh01.wr.usgs.gov
+MIME-Version: 1.0 (Apple Message framework v936)
+Subject: pgcc overly picky about type mismatch?
+Date: Thu, 22 Jul 2010 18:54:03 -0700
+
+Customer information:
+
+Larry Baker
+US Geological Survey
+650-329-5608
+baker@usgs.gov
+
+Product: 2183-WS
+PIN: 507549
+
+Problem description:
+
+I am trying to track down the warnings that occur when compiling the =20
+UCAR NetCDF package with PGI compilers.  I have found a case that gcc =20=
+
+does not warn about, but pgcc does.  If I understand the code and the =20=
+
+C (1990) standard, I think pgcc is complaining too much.
+
+You can reproduce the warnings by downloading the UCAR NetCDF source =20
+package, netcdf.tar.gz, from =
+http://www.unidata.ucar.edu/software/netcdf/=20
+.  Assuming you download it to /usr/local/src, here are the commands =20
+that illustrate the warnings:
+
+# cd /usr/local/src
+# tar -xzf netcdf.tar.gz
+# cd netcdf-4.1.1
+# ./configure >/dev/null 2>&1
+# cd ncgen
+# pgcc -DHAVE_CONFIG_H -I. -I.. -I../fortran       -I.. -I../libsrc -=20
+I../libsrc    -g -O2 -tp amd64 -Msignextend -DNO_PGI_OFFSET -c -o =20
+genf77.o genf77.c
+PGC-W-0095-Type cast required for this conversion (genf77.c: 498)
+PGC-W-0095-Type cast required for this conversion (genf77.c: 511)
+PGC/x86-64 Linux 10.3-0: compilation completed with warnings
+
+To eliminate the warnings, I had to modify the two source lines to =20
+cast the result from static const char* f77varncid() as (char *):
+
+>     /* Use the specialized put_att_XX routines if possible*/
+>     switch (basetype->typ.typecode) {
+>     case NC_BYTE:
+>     case NC_SHORT:
+>     case NC_INT:
+>     case NC_FLOAT:
+>     case NC_DOUBLE:
+>         f77attrify(asym,code);
+>         codedump(code);
+>         bbClear(code);
+>         bbprintf0(stmt,"stat =3D nf_put_att_%s(ncid, %s, %s, %s, %lu, =20=
+
+> %sval)\n",
+>                 nfstype(basetype->typ.typecode),
+>                 (asym->att.var =3D=3D NULL?"NF_GLOBAL"
+>                                       :(char *) f77varncid(asym-=20
+> >att.var)),   <--- here
+>                 f77escapifyname(asym->name),
+>                 nftype(basetype->typ.typecode),
+>                 len,
+>                 ncftype(basetype->typ.typecode));
+>         codedump(stmt);
+>         break;
+>
+>     case NC_CHAR:
+>         len =3D bbLength(code);
+>         f77quotestring(code);
+>         bbprintf0(stmt,"stat =3D nf_put_att_text(ncid, %s, %s, %lu, ",
+>                 (asym->att.var =3D=3D NULL?"NF_GLOBAL"
+>                                       :(char *)f77varncid(asym-=20
+> >att.var)),   <--- and here
+>                 f77escapifyname(asym->name),
+>                 (len=3D=3D0?1:len));
+>         codedump(stmt);
+>         codedump(code);
+>         codeline(")");
+>         break;
+
+Here is static const char* f77varncid():
+
+> /* Compute the name for a given var's id*/
+> /* Watch out: the result is a static*/
+> static const char*
+> f77varncid(Symbol* vsym)
+> {
+>     const char* tmp1;
+>     char* vartmp;
+>     tmp1 =3D f77name(vsym);
+>     vartmp =3D poolalloc(strlen(tmp1)+strlen("_id")+1);
+>     strcpy(vartmp,tmp1);
+>     strcat(vartmp,"_id");
+>     return vartmp;
+> }
+
+There are other lines in genf77.c that use f77varncid() in a print =20
+statement, so the warnings do not occur every time f77varncid() =20
+provides a string for %s:
+
+>     if (nvars > 0) {
+>         f77skip();
+>         f77comment("variable ids");
+>         for(ivar =3D 0; ivar < nvars; ivar++) {
+>             Symbol* vsym =3D (Symbol*)listget(vardefs,ivar);
+>             bbprintf0(stmt,"integer %s;\n", f77varncid(vsym));
+>             codedump(stmt);
+>         }
+
+The warnings occur in the only two instances where f77varncid() is =20
+used in a conditional expression.  In both cases, the second operand =20
+is a literal string, e.g., "NF_GLOBAL".  I would have thought that a =20
+(static const char*) and a string literal would be compatible types.  =20=
+
+I experimented with a (const char *) cast instead of a (char *) cast, =20=
+
+but that does not work.  I think it should.
+
+I admit, I have an old copy of the C standard =97 from 1990.  But, =20
+here's my interpretation of what it says about this:
+
+=95 6.1.4 String literals, says string literals are converted to an =20
+array of type char.  If the program attempts to modify a string =20
+literal, the behavior is undefined.  It does not say that the type has =20=
+
+the const type qualifier (though, you would think it should).
+
+=95 6.3.15 Conditional operator, says if the second and third operands =20=
+
+are pointers ..., the result type is a pointer to a type qualified =20
+with all the type qualifiers of the types pointed-to by both operands.
+
+This would seem to explain the warning message, since the string =20
+literal is (char *) and f77varncid() is (const char *).  However, =20
+6.3.15 goes on to say:
+
+Furthermore, if both operands are pointers to ... differently =20
+qualified versions of a compatible type, the result has the composite =20=
+
+type.
+
+Which leads me to believe you are allowed to mix const and non-const =20
+versions of a compatible type.
+
+Lastly:
+
+=95 6.5.3 Type qualifiers, says that the properties associated with =20
+qualified types are meaningful only for expressions that are lvalues.
+
+Seems to make the issue moot, since it says const-ness only applies to =20=
+
+lvalues.
+
+So, I think both 6.3.15 and 6.5.3 imply that (char *) and (const char =20=
+
+*) are compatible as the second and third operands in a conditional =20
+expression which is not an lvalue, which is the case in this code.  As =20=
+
+I mentioned above, gcc does not complain about this code.  What do you =20=
+
+think?
+
+Larry Baker
+US Geological Survey
+650-329-5608
+baker@usgs.gov
+
+

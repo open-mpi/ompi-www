@@ -1,0 +1,80 @@
+Ick - that isn&#39;t good. The receive should definitely be canceled upon completion of the allgather as per your second option.<br><br>Please go ahead and do so! And thanks for catching this problem!<br>Ralph<br><br><br><div class="gmail_quote">
+On Mon, Dec 7, 2009 at 10:11 AM, Damien Guinier <span dir="ltr">&lt;<a href="mailto:damien.guinier@ext.bull.net">damien.guinier@ext.bull.net</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Hi Ralph<br>
+<br>
+I have found a bug in the &#39;grpcomm&#39; : &#39;hier&#39;.  This bug create a infinite loop in mpi_finalize. In this module: the barrier is executed as an allgather with data length of zero. This allgather function can go to an infinite loop , depend of rank execution order.<br>
+
+<br>
+In orte/mca/grpcomm/hier/grpcomm_hier_module.c:402, this allgather function need send/recv a piece of data:<br>
+- before the receive loop : the receive counter is reseted and the &quot;allgather_recv()&quot; resistered.<br>
+- the &quot;allgather_recv&quot; function is not unregistered after the receive loop. The receive counter is incremented by &quot;allgather_recv&quot;.<br>
+This allgather function is use many times. So when the data is received before reseting the receive counter , the receive loop will always wait data.<br>
+<br>
+I have fix this with a patch( I reset the counter after the receive loop):<br>
+--- a/orte/mca/grpcomm/hier/grpcomm_hier_module.c       Fri Dec 04 19:59:26 2009 +0100<br>
++++ b/orte/mca/grpcomm/hier/grpcomm_hier_module.c       Mon Dec 07 16:35:40 2009 +0100<br>
+@@ -251,7 +251,7 @@<br>
+}<br>
+<br>
+static opal_buffer_t allgather_buf;<br>
+-static int allgather_num_recvd;<br>
++static int allgather_num_recvd=0;<br>
+<br>
+static void process_msg(int fd, short event, void *data)<br>
+{<br>
+@@ -366,7 +366,6 @@<br>
+        /* now receive the final result. Be sure to do this in<br>
+         * a manner that allows us to return without being in a recv!<br>
+         */<br>
+-        allgather_num_recvd = 0;<br>
+        rc = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_ALLGATHER,<br>
+                                     ORTE_RML_NON_PERSISTENT, allgather_recv, NULL);<br>
+        if (rc != ORTE_SUCCESS) {<br>
+@@ -375,6 +374,7 @@<br>
+        }<br>
+               ORTE_PROGRESSED_WAIT(false, allgather_num_recvd, 1);<br>
++       allgather_num_recvd = 0;<br>
+<br>
+        /* copy payload to the caller&#39;s buffer */<br>
+        if (ORTE_SUCCESS != (rc = opal_dss.copy_payload(rbuf, &amp;allgather_buf))) {<br>
+@@ -394,7 +394,6 @@<br>
+        /* wait to receive their data. Be sure to do this in<br>
+         * a manner that allows us to return without being in a recv!<br>
+         */<br>
+-        allgather_num_recvd = 0;<br>
+        rc = orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD, ORTE_RML_TAG_ALLGATHER,<br>
+                                     ORTE_RML_NON_PERSISTENT, allgather_recv, NULL);<br>
+        if (rc != ORTE_SUCCESS) {<br>
+@@ -403,6 +402,7 @@<br>
+        }<br>
+               ORTE_PROGRESSED_WAIT(false, allgather_num_recvd, num_local_peers);<br>
++       allgather_num_recvd = 0;<br>
+               /* take the recv&#39;d data and use one of the base collectives<br>
+         * to exchange it with all other local_rank=0 procs in a scalable<br>
+<br>
+An another way is to unregister &quot;allgather_recv()&quot; after the receive loop.<br>
+--- a/orte/mca/grpcomm/hier/grpcomm_hier_module.c       Fri Dec 04 19:59:26 2009 +0100<br>
++++ b/orte/mca/grpcomm/hier/grpcomm_hier_module.c       Mon Dec 07 17:46:13 2009 +0100<br>
+@@ -375,7 +375,7 @@<br>
+        }<br>
+               ORTE_PROGRESSED_WAIT(false, allgather_num_recvd, 1);<br>
+-<br>
++       if(ORTE_SUCCESS!= (rc = orte_rml.recv_cancel(ORTE_NAME_WILDCARD,ORTE_RML_TAG_ALLGATHER))) { ORTE_ERROR_LOG(rc); return rc;}<br>
+        /* copy payload to the caller&#39;s buffer */<br>
+        if (ORTE_SUCCESS != (rc = opal_dss.copy_payload(rbuf, &amp;allgather_buf))) {<br>
+            ORTE_ERROR_LOG(rc);<br>
+@@ -403,7 +403,7 @@<br>
+        }<br>
+               ORTE_PROGRESSED_WAIT(false, allgather_num_recvd, num_local_peers);<br>
+-       +        if(ORTE_SUCCESS!= (rc = orte_rml.recv_cancel(ORTE_NAME_WILDCARD,ORTE_RML_TAG_ALLGATHER))) { ORTE_ERROR_LOG(rc); return rc;}<br>
+        /* take the recv&#39;d data and use one of the base collectives<br>
+         * to exchange it with all other local_rank=0 procs in a scalable<br>
+         * manner - the exact collective will depend upon the number of<br>
+<br>
+Do you have any preferences ?<br>
+<br>
+Thanks<br><font color="#888888">
+Damien<br>
+<br>
+</font></blockquote></div><br>
+

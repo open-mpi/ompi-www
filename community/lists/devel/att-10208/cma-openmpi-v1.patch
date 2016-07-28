@@ -1,0 +1,688 @@
+Index: opal/include/opal/sys/cma.h
+===================================================================
+--- opal/include/opal/sys/cma.h	(revision 0)
++++ opal/include/opal/sys/cma.h	(revision 0)
+@@ -0,0 +1,75 @@
++/*
++ * Copyright (c) 2011      IBM Corporation.  All rights reserved.
++ *
++ */
++
++/** @file
++ *
++ * Cross Memory Attach syscall definitions. 
++ *
++ * These are only needed temporarily until these new syscalls 
++ * are incorporated into glibc
++ */
++
++#ifndef OPAL_SYS_CMA_H
++#define OPAL_SYS_CMA_H 1
++
++#include "opal_config.h"
++
++#include "opal/sys/architecture.h"
++
++#ifdef HAVE_SYS_TYPES_H
++#include <sys/types.h>
++#endif
++
++#ifdef HAVE_UNISTD_H
++#include <sys/unistd.h>
++#endif
++
++#ifdef __linux__
++
++/* Cross Memory Attach is so far only supported under linux */
++
++#if OPAL_ASSEMBLY_ARCH == OMPI_AMD64
++#define __NR_process_vm_readv 310
++#define __NR_process_vm_writev 311
++#elif OPAL_ASSEMBLY_ARCH == OMPI_IA32
++#define __NR_process_vm_readv 347
++#define __NR_process_vm_writev 348
++#elif OPAL_ASSEMBLY_ARCH == OMPI_IA64
++#define __NR_process_vm_readv 310
++#define __NR_process_vm_writev 311
++#elif OPAL_ASSEMBLY_ARCH == OMPI_POWERPC32
++#define __NR_process_vm_readv 351
++#define __NR_process_vm_writev 352
++#elif OPAL_ASSEMBLY_ARCH == OMPI_POWERPC64
++#define __NR_process_vm_readv 351
++#define __NR_process_vm_writev 352
++#else
++#error "Unsupported architecture for process_vm_readv and process_vm_writev syscalls"
++#endif
++
++
++inline ssize_t process_vm_readv(pid_t pid, 
++                                const struct iovec  *lvec, 
++                                unsigned long liovcnt,
++                                const struct iovec *rvec,
++                                unsigned long riovcnt,
++                                unsigned long flags)
++{
++  return syscall(__NR_process_vm_readv, pid, lvec, liovcnt, rvec, riovcnt, flags);
++}
++
++inline ssize_t process_vm_writev(pid_t pid, 
++                          const struct iovec  *lvec, 
++                          unsigned long liovcnt,
++                          const struct iovec *rvec,
++                          unsigned long riovcnt,
++                          unsigned long flags)
++{
++  return syscall(__NR_process_vm_writev, pid, lvec, liovcnt, rvec, riovcnt, flags);
++}
++
++#endif /* __linux__ */
++
++#endif /* OPAL_SYS_CMA_H */
+Index: ompi/mca/btl/sm/configure.m4
+===================================================================
+--- ompi/mca/btl/sm/configure.m4	(revision 25480)
++++ ompi/mca/btl/sm/configure.m4	(working copy)
+@@ -4,6 +4,7 @@
+ #                         of Tennessee Research Foundation.  All rights
+ #                         reserved.
+ # Copyright (c) 2009-2010 Cisco Systems, Inc.  All rights reserved.
++# Copyright (c) 2010-2011 IBM Corporation.  All rights reserved.
+ # $COPYRIGHT$
+ #
+ # Additional copyrights may follow
+@@ -11,6 +12,30 @@
+ # $HEADER$
+ #
+ 
++
++# OMPI_CHECK_CMA(prefix, [action-if-found], [action-if-not-found])
++# --------------------------------------------------------
++# check if cma support is wanted.
++AC_DEFUN([OMPI_CHECK_CMA],[
++    AC_ARG_WITH([cma],
++                [AC_HELP_STRING([--with-cma],
++                                [Build Cross Memory Attach support (default: no)])])
++
++    AC_MSG_CHECKING([if user requested CMA build])
++    if test "$with_cma" = "yes" ; then
++            btl_sm_cma_happy="yes"
++            AC_CHECK_FUNC(process_vm_readv, [btl_sm_cma_need_defs=0],
++                [btl_sm_cma_need_defs=1])
++            AC_DEFINE_UNQUOTED([OMPI_BTL_SM_CMA_NEED_SYSCALL_DEFS],
++                [$btl_sm_cma_need_defs],
++                [Need CMA syscalls defined])
++    fi
++    AS_IF([test "$btl_sm_cma_happy" = "yes"],
++            [$2],
++            [$3])
++])dnl
++
++
+ # OMPI_CHECK_KNEM(prefix, [action-if-found], [action-if-not-found])
+ # --------------------------------------------------------
+ # check if knem support can be found.  sets prefix_{CPPFLAGS,
+@@ -69,6 +94,15 @@
+ AC_DEFUN([MCA_ompi_btl_sm_CONFIG],[
+     AC_CONFIG_FILES([ompi/mca/btl/sm/Makefile])
+ 
++    OPAL_VAR_SCOPE_PUSH([btl_sm_cma_happy])
++    OMPI_CHECK_CMA([btl_sm], [btl_sm_cma_happy=1], [btl_sm_cma_happy=0])
++
++    AC_DEFINE_UNQUOTED([OMPI_BTL_SM_HAVE_CMA],
++        [$btl_sm_cma_happy],
++        [If CMA support can be enabled])
++
++    OPAL_VAR_SCOPE_POP
++
+     OPAL_VAR_SCOPE_PUSH([btl_sm_knem_happy])
+     OMPI_CHECK_KNEM([btl_sm],
+         [btl_sm_knem_happy=1],
+Index: ompi/mca/btl/sm/btl_sm.c
+===================================================================
+--- ompi/mca/btl/sm/btl_sm.c	(revision 25480)
++++ ompi/mca/btl/sm/btl_sm.c	(working copy)
+@@ -13,6 +13,7 @@
+  * Copyright (c) 2009      Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2010      Los Alamos National Security, LLC.  
+  *                         All rights reserved. 
++ * Copyright (c) 2010-2011 IBM Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -32,6 +33,10 @@
+ #include <sys/mman.h>
+ #endif  /* HAVE_SYS_MMAN_H */
+ 
++#ifdef OMPI_BTL_SM_CMA_NEED_SYSCALL_DEFS
++#include "opal/sys/cma.h"
++#endif /* OMPI_BTL_SM_CMA_NEED_SYSCALL_DEFS */
++
+ #include "opal/sys/atomic.h"
+ #include "opal/class/opal_bitmap.h"
+ #include "opal/util/output.h"
+@@ -80,11 +85,11 @@
+         mca_btl_sm_alloc,
+         mca_btl_sm_free,
+         mca_btl_sm_prepare_src,
+-#if OMPI_BTL_SM_HAVE_KNEM
++#if OMPI_BTL_SM_HAVE_KNEM || OMPI_BTL_SM_HAVE_CMA
+         mca_btl_sm_prepare_dst,
+ #else
+         NULL,
+-#endif  /* OMPI_BTL_SM_HAVE_KNEM */
++#endif  /* OMPI_BTL_SM_HAVE_KNEM || OMPI_BTL_SM_HAVE_CMA */
+         mca_btl_sm_send,
+         mca_btl_sm_sendi,
+         NULL,  /* put */
+@@ -684,12 +689,12 @@
+     uint32_t iov_count = 1;
+     size_t max_data = *size;
+     int rc;
+-#if OMPI_BTL_SM_HAVE_KNEM
++
++#if OMPI_BTL_SM_HAVE_KNEM || OMPI_BTL_SM_HAVE_CMA
+     mca_btl_sm_t* sm_btl = (mca_btl_sm_t*)btl;
+-    struct knem_cmd_create_region knem_cr;
+-    struct knem_cmd_param_iovec knem_iov;
+ 
+-    if( (0 != reserve) || (OPAL_UNLIKELY(!mca_btl_sm_component.use_knem)) ) {
++    if( (0 != reserve) || ( OPAL_UNLIKELY(!mca_btl_sm_component.use_knem)
++                            && OPAL_UNLIKELY(!mca_btl_sm_component.use_cma)) ) {
+ #endif
+         if ( reserve + max_data <= mca_btl_sm_component.eager_limit ) {
+             MCA_BTL_SM_FRAG_ALLOC_EAGER(frag,rc);
+@@ -714,8 +719,12 @@
+             return NULL;
+         }
+         frag->segment.seg_len = reserve + max_data;
++#if OMPI_BTL_SM_HAVE_KNEM || OMPI_BTL_SM_HAVE_CMA
++    } else {
+ #if OMPI_BTL_SM_HAVE_KNEM
+-    } else {
++        struct knem_cmd_create_region knem_cr;
++        struct knem_cmd_param_iovec knem_iov;
++#endif /* OMPI_BTL_SM_HAVE_KNEM */
+         MCA_BTL_SM_FRAG_ALLOC_USER(frag, rc);
+         if( OPAL_UNLIKELY(NULL == frag) ) {
+             return NULL;
+@@ -730,18 +739,30 @@
+         frag->segment.seg_addr.pval = iov.iov_base;
+         frag->segment.seg_len = max_data;
+ 
+-        knem_iov.base = (uintptr_t)iov.iov_base;
+-        knem_iov.len = max_data;
+-        knem_cr.iovec_array = (uintptr_t)&knem_iov;
+-        knem_cr.iovec_nr = iov_count;
+-        knem_cr.protection = PROT_READ;
+-        knem_cr.flags = KNEM_FLAG_SINGLEUSE;
+-        if (OPAL_UNLIKELY(ioctl(sm_btl->knem_fd, KNEM_CMD_CREATE_REGION, &knem_cr) < 0)) {
+-            return NULL;
++#if OMPI_BTL_SM_HAVE_KNEM
++        if (OPAL_LIKELY(mca_btl_sm_component.use_knem)) {
++            knem_iov.base = (uintptr_t)iov.iov_base;
++            knem_iov.len = max_data;
++            knem_cr.iovec_array = (uintptr_t)&knem_iov;
++            knem_cr.iovec_nr = iov_count;
++            knem_cr.protection = PROT_READ;
++            knem_cr.flags = KNEM_FLAG_SINGLEUSE;
++            if (OPAL_UNLIKELY(ioctl(sm_btl->knem_fd, KNEM_CMD_CREATE_REGION, &knem_cr) < 0)) {
++                return NULL;
++            }
++            frag->segment.seg_key.key64[0] = knem_cr.cookie;
+         }
+-        frag->segment.seg_key.key64[0] = knem_cr.cookie;
++#endif /* OMPI_BTL_SM_HAVE_KNEM */
++
++#if OMPI_BTL_SM_HAVE_CMA
++        if (OPAL_LIKELY(mca_btl_sm_component.use_cma)) {
++            /* Encode the pid as the key */
++            frag->segment.seg_key.key64[0] = getpid();
++        }
++#endif /* OMPI_BTL_SM_HAVE_CMA */
+     }
+-#endif
++#endif /* OMPI_BTL_SM_HAVE_KNEM || OMPI_BTL_SM_HAVE_CMA */
++
+     frag->base.des_src = &(frag->segment);
+     frag->base.des_src_cnt = 1;
+     frag->base.order = MCA_BTL_NO_ORDER;
+@@ -913,7 +934,7 @@
+     return 0;
+ }
+ 
+-#if OMPI_BTL_SM_HAVE_KNEM
++#if OMPI_BTL_SM_HAVE_KNEM || OMPI_BTL_SM_HAVE_CMA
+ struct mca_btl_base_descriptor_t* mca_btl_sm_prepare_dst( 
+ 		struct mca_btl_base_module_t* btl,
+ 		struct mca_btl_base_endpoint_t* endpoint,
+@@ -931,7 +952,7 @@
+     if(OPAL_UNLIKELY(NULL == frag)) {
+         return NULL;
+     }
+-    
++
+     frag->segment.seg_len = *size;
+     opal_convertor_get_current_pointer( convertor, (void**)&(frag->segment.seg_addr.pval) );
+     
+@@ -959,38 +980,78 @@
+     mca_btl_sm_frag_t* frag = (mca_btl_sm_frag_t*)des;
+     mca_btl_base_segment_t *src = des->des_src;
+     mca_btl_base_segment_t *dst = des->des_dst;
+-    struct knem_cmd_inline_copy icopy;
+-    struct knem_cmd_param_iovec recv_iovec;
++#if OMPI_BTL_SM_HAVE_KNEM
++    if (OPAL_LIKELY(mca_btl_sm_component.use_knem)) {
++        struct knem_cmd_inline_copy icopy;
++        struct knem_cmd_param_iovec recv_iovec;
+     
+-    /* Fill in the ioctl data fields.  There's no async completion, so
+-       we don't need to worry about getting a slot, etc. */
+-    recv_iovec.base = (uintptr_t) dst->seg_addr.pval;
+-    recv_iovec.len =  dst->seg_len;
+-    icopy.local_iovec_array = (uintptr_t)&recv_iovec;
+-    icopy.local_iovec_nr = 1;
+-    icopy.remote_cookie = src->seg_key.key64[0];
+-    icopy.remote_offset = 0;
+-    icopy.write = 0;
++        /* Fill in the ioctl data fields.  There's no async completion, so
++           we don't need to worry about getting a slot, etc. */
++        recv_iovec.base = (uintptr_t) dst->seg_addr.pval;
++        recv_iovec.len =  dst->seg_len;
++        icopy.local_iovec_array = (uintptr_t)&recv_iovec;
++        icopy.local_iovec_nr = 1;
++        icopy.remote_cookie = src->seg_key.key64[0];
++        icopy.remote_offset = 0;
++        icopy.write = 0;
+ 
+-    /* Use the DMA flag if knem supports it *and* the segment length
+-       is greater than the cutoff.  Note that if the knem_dma_min
+-       value is 0 (i.e., the MCA param was set to 0), the segment size
+-       will never be larger than it, so DMA will never be used. */
+-    icopy.flags = 0;
+-    if (mca_btl_sm_component.knem_dma_min <= dst->seg_len) {
+-        icopy.flags = mca_btl_sm_component.knem_dma_flag;
++        /* Use the DMA flag if knem supports it *and* the segment length
++           is greater than the cutoff.  Note that if the knem_dma_min
++           value is 0 (i.e., the MCA param was set to 0), the segment size
++           will never be larger than it, so DMA will never be used. */
++        icopy.flags = 0;
++        if (mca_btl_sm_component.knem_dma_min <= dst->seg_len) {
++            icopy.flags = mca_btl_sm_component.knem_dma_flag;
++        }
++        /* synchronous flags only, no need to specify icopy.async_status_index */
++
++        /* When the ioctl returns, the transfer is done and we can invoke
++           the btl callback and return the frag */
++        if (OPAL_UNLIKELY(0 != ioctl(sm_btl->knem_fd,
++                                     KNEM_CMD_INLINE_COPY, &icopy))) {
++            return OMPI_ERROR;
++        }
++
++        /* FIXME: what if icopy.current_status == KNEM_STATUS_FAILED? */
+     }
+-    /* synchronous flags only, no need to specify icopy.async_status_index */
++#endif
+ 
+-    /* When the ioctl returns, the transfer is done and we can invoke
+-       the btl callback and return the frag */
+-    if (OPAL_UNLIKELY(0 != ioctl(sm_btl->knem_fd, 
+-                                 KNEM_CMD_INLINE_COPY, &icopy))) {
+-        return OMPI_ERROR;
++#if OMPI_BTL_SM_HAVE_CMA
++    if (OPAL_LIKELY(mca_btl_sm_component.use_cma)) {
++        char *remote_address, *local_address;
++        int remote_length, local_length;
++        struct iovec local, remote;
++        pid_t remote_pid;
++        int val;
++
++        remote_address = (char *) src->seg_addr.pval;
++        remote_length = src->seg_len;
++
++        local_address = (char *) dst->seg_addr.pval;
++        local_length = dst->seg_len;
++
++        remote_pid = src->seg_key.key64[0];
++        remote.iov_base = src->seg_addr.pval;
++        remote.iov_len = src->seg_len;
++        local.iov_base = dst->seg_addr.pval;
++        local.iov_len = dst->seg_len;
++
++        val = process_vm_readv(remote_pid, &local, 1, &remote, 1, 0);
++
++        if (val != local_length) {
++            if (val<0) {
++              opal_output(0, "mca_btl_sm_get_sync: process_vm_readv failed: %i",
++                          errno);
++            } else {
++              /* Should never get a short read from process_vm_readv */
++              opal_output(0, "mca_btl_sm_get_sync: process_vm_readv short read: %i",
++                          val);
++            }
++            return OMPI_ERROR;
++        }
+     }
++#endif /* OMPI_BTL_SM_HAVE_CMA */
+ 
+-    /* FIXME: what if icopy.current_status == KNEM_STATUS_FAILED? */
+-
+     btl_ownership = (frag->base.des_flags & MCA_BTL_DES_FLAGS_BTL_OWNERSHIP);
+     if (0 != (MCA_BTL_DES_SEND_ALWAYS_CALLBACK & frag->base.des_flags)) {
+         frag->base.des_cbfunc(&mca_btl_sm.super, 
+@@ -1004,7 +1065,12 @@
+     return OMPI_SUCCESS;
+ }
+ 
++#endif /* OMPI_BTL_SM_HAVE_KNEM || OMPI_BTL_SM_HAVE_CMA */
+ 
++
++/* No support async_get for CMA yet */
++#if OMPI_BTL_SM_HAVE_KNEM
++
+ /**
+  * Initiate an asynchronous get.
+  *
+@@ -1084,7 +1150,7 @@
+         return OMPI_ERROR;
+     }
+ }
+-#endif
++#endif /* OMPI_BTL_SM_HAVE_KNEM */
+ 
+ 
+ #if OPAL_ENABLE_FT_CR    == 0
+Index: ompi/mca/btl/sm/btl_sm_component.c
+===================================================================
+--- ompi/mca/btl/sm/btl_sm_component.c	(revision 25480)
++++ ompi/mca/btl/sm/btl_sm_component.c	(working copy)
+@@ -14,6 +14,7 @@
+  * Copyright (c) 2010-2011 Los Alamos National Security, LLC.
+  *                         All rights reserved.
+  * Copyright (c) 2011      NVIDIA Corporation.  All rights reserved.
++ * Copyright (c) 2010-2011 IBM Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -172,6 +173,13 @@
+                            false, false, 0,
+                            &mca_btl_sm_component.knem_max_simultaneous);
+ 
++    /* CMA parameters */
++    mca_base_param_reg_int(&mca_btl_sm_component.super.btl_version,
++                           "use_cma",
++                           "Whether or not to enable CMA",
++                           false, false, 0, &mca_btl_sm_component.use_cma);
++
++
+     /* register SM component parameters */
+     mca_btl_sm_component.sm_free_list_num =
+         mca_btl_sm_param_register_int("free_list_num", 8);
+@@ -203,10 +211,17 @@
+     mca_btl_sm.super.btl_rdma_pipeline_frag_size = 64*1024;
+     mca_btl_sm.super.btl_min_rdma_pipeline_size = 64*1024;
+     mca_btl_sm.super.btl_flags = MCA_BTL_FLAGS_SEND;
+-#if OMPI_BTL_SM_HAVE_KNEM
+-    if (mca_btl_sm_component.use_knem) {
++#if OMPI_BTL_SM_HAVE_KNEM || OMPI_BTL_SM_HAVE_CMA
++    if (mca_btl_sm_component.use_knem || mca_btl_sm_component.use_cma) {
+         mca_btl_sm.super.btl_flags |= MCA_BTL_FLAGS_GET;
+     }
++
++    if (mca_btl_sm_component.use_knem && mca_btl_sm_component.use_cma) {
++        /* Disable CMA if knem is runtime enabled */
++        opal_output(0, "CMA disabled because knem is enabled");
++        mca_btl_sm_component.use_cma = 0;
++    }
++
+ #endif
+     mca_btl_sm.super.btl_bandwidth = 9000;  /* Mbs */
+     mca_btl_sm.super.btl_latency   = 1;     /* Microsecs */
+@@ -405,96 +420,106 @@
+     mca_btl_sm.btl_inited = false;
+ 
+ #if OMPI_BTL_SM_HAVE_KNEM
+-    /* Set knem_status_num_used outside the check for use_knem so that
+-       we can only have to check one thing (knem_status_num_used) in
+-       the progress loop. */
+-    mca_btl_sm.knem_fd = -1;
+-    mca_btl_sm.knem_status_array = NULL;
+-    mca_btl_sm.knem_frag_array = NULL;
+-    mca_btl_sm.knem_status_num_used = 0;
+-    mca_btl_sm.knem_status_first_avail = 0;
+-    mca_btl_sm.knem_status_first_used = 0;
++    if (mca_btl_sm_component.use_knem) {
++        /* Set knem_status_num_used outside the check for use_knem so that
++           we can only have to check one thing (knem_status_num_used) in
++           the progress loop. */
++        mca_btl_sm.knem_fd = -1;
++        mca_btl_sm.knem_status_array = NULL;
++        mca_btl_sm.knem_frag_array = NULL;
++        mca_btl_sm.knem_status_num_used = 0;
++        mca_btl_sm.knem_status_first_avail = 0;
++        mca_btl_sm.knem_status_first_used = 0;
+ 
+-    if (0 != mca_btl_sm_component.use_knem) {
+-        /* Open the knem device.  Try to print a helpful message if we
+-           fail to open it. */
+-        mca_btl_sm.knem_fd = open("/dev/knem", O_RDWR);
+-        if (mca_btl_sm.knem_fd < 0) {
+-            if (EACCES == errno) {
+-                struct stat sbuf;
+-                if (0 != stat("/dev/knem", &sbuf)) {
+-                    sbuf.st_mode = 0;
++        if (0 != mca_btl_sm_component.use_knem) {
++            /* Open the knem device.  Try to print a helpful message if we
++               fail to open it. */
++            mca_btl_sm.knem_fd = open("/dev/knem", O_RDWR);
++            if (mca_btl_sm.knem_fd < 0) {
++                if (EACCES == errno) {
++                    struct stat sbuf;
++                    if (0 != stat("/dev/knem", &sbuf)) {
++                        sbuf.st_mode = 0;
++                    }
++                    orte_show_help("help-mpi-btl-sm.txt", "knem permission denied",
++                                   true, orte_process_info.nodename, sbuf.st_mode);
++                } else {
++                    orte_show_help("help-mpi-btl-sm.txt", "knem fail open",
++                                   true, orte_process_info.nodename, errno,
++                                   strerror(errno));
+                 }
+-                orte_show_help("help-mpi-btl-sm.txt", "knem permission denied",
+-                               true, orte_process_info.nodename, sbuf.st_mode);
+-            } else {
+-                orte_show_help("help-mpi-btl-sm.txt", "knem fail open",
+-                               true, orte_process_info.nodename, errno,
+-                               strerror(errno));
++                goto no_knem;
+             }
+-            goto no_knem;
+-        }
+ 
+-        /* Check that the ABI if the kernel module running is the same
+-           as what we were compiled against */
+-        rc = ioctl(mca_btl_sm.knem_fd, KNEM_CMD_GET_INFO, 
+-                   &mca_btl_sm_component.knem_info);
+-        if (rc < 0) {
+-            orte_show_help("help-mpi-btl-sm.txt", "knem get ABI fail",
+-                           true, orte_process_info.nodename, errno,
+-                           strerror(errno));
+-            goto no_knem;
+-        }
+-        if (KNEM_ABI_VERSION != mca_btl_sm_component.knem_info.abi) {
+-            orte_show_help("help-mpi-btl-sm.txt", "knem ABI mismatch",
+-                           true, orte_process_info.nodename, KNEM_ABI_VERSION,
+-                           mca_btl_sm_component.knem_info.abi);
+-            goto no_knem;
+-        }
+-
+-        /* If we want DMA mode and DMA mode is supported, then set
+-           knem_dma_flag to KNEM_FLAG_DMA. */
+-        mca_btl_sm_component.knem_dma_flag = 0;
+-        if (mca_btl_sm_component.knem_dma_min > 0 && 
+-            (mca_btl_sm_component.knem_info.features & KNEM_FEATURE_DMA)) {
+-            mca_btl_sm_component.knem_dma_flag = KNEM_FLAG_DMA;
+-        }
+-
+-        /* Get the array of statuses from knem if max_simultaneous > 0 */
+-        if (mca_btl_sm_component.knem_max_simultaneous > 0) {
+-            mca_btl_sm.knem_status_array = mmap(NULL, 
+-                                                mca_btl_sm_component.knem_max_simultaneous,
+-                                                (PROT_READ | PROT_WRITE), 
+-                                                MAP_SHARED, mca_btl_sm.knem_fd, 
+-                                                KNEM_STATUS_ARRAY_FILE_OFFSET);
+-            if (MAP_FAILED == mca_btl_sm.knem_status_array) {
+-                orte_show_help("help-mpi-btl-sm.txt", "knem mmap fail",
++            /* Check that the ABI if the kernel module running is the same
++               as what we were compiled against */
++            rc = ioctl(mca_btl_sm.knem_fd, KNEM_CMD_GET_INFO,
++                       &mca_btl_sm_component.knem_info);
++            if (rc < 0) {
++                orte_show_help("help-mpi-btl-sm.txt", "knem get ABI fail",
+                                true, orte_process_info.nodename, errno,
+                                strerror(errno));
+                 goto no_knem;
+             }
+-
+-            /* The first available status index is 0.  Make an empty frag
+-               array. */
+-            mca_btl_sm.knem_frag_array = (mca_btl_sm_frag_t **)
+-                malloc(sizeof(mca_btl_sm_frag_t *) *
+-                       mca_btl_sm_component.knem_max_simultaneous);
+-            if (NULL == mca_btl_sm.knem_frag_array) {
+-                orte_show_help("help-mpi-btl-sm.txt", "knem init fail",
+-                               true, orte_process_info.nodename, "malloc",
+-                               errno, strerror(errno));
++            if (KNEM_ABI_VERSION != mca_btl_sm_component.knem_info.abi) {
++                orte_show_help("help-mpi-btl-sm.txt", "knem ABI mismatch",
++                               true, orte_process_info.nodename, KNEM_ABI_VERSION,
++                               mca_btl_sm_component.knem_info.abi);
+                 goto no_knem;
+             }
++
++            /* If we want DMA mode and DMA mode is supported, then set
++               knem_dma_flag to KNEM_FLAG_DMA. */
++            mca_btl_sm_component.knem_dma_flag = 0;
++            if (mca_btl_sm_component.knem_dma_min > 0 &&
++                (mca_btl_sm_component.knem_info.features & KNEM_FEATURE_DMA)) {
++                mca_btl_sm_component.knem_dma_flag = KNEM_FLAG_DMA;
++            }
++
++            /* Get the array of statuses from knem if max_simultaneous > 0 */
++            if (mca_btl_sm_component.knem_max_simultaneous > 0) {
++                mca_btl_sm.knem_status_array = mmap(NULL,
++                                                    mca_btl_sm_component.knem_max_simultaneous,
++                                                    (PROT_READ | PROT_WRITE),
++                                                    MAP_SHARED, mca_btl_sm.knem_fd,
++                                                    KNEM_STATUS_ARRAY_FILE_OFFSET);
++                if (MAP_FAILED == mca_btl_sm.knem_status_array) {
++                    orte_show_help("help-mpi-btl-sm.txt", "knem mmap fail",
++                                   true, orte_process_info.nodename, errno,
++                                   strerror(errno));
++                    goto no_knem;
++                }
++
++                /* The first available status index is 0.  Make an empty frag
++                   array. */
++                mca_btl_sm.knem_frag_array = (mca_btl_sm_frag_t **)
++                    malloc(sizeof(mca_btl_sm_frag_t *) *
++                           mca_btl_sm_component.knem_max_simultaneous);
++                if (NULL == mca_btl_sm.knem_frag_array) {
++                    orte_show_help("help-mpi-btl-sm.txt", "knem init fail",
++                                   true, orte_process_info.nodename, "malloc",
++                                   errno, strerror(errno));
++                    goto no_knem;
++                }
++            }
+         }
++        /* Set the BTL get function pointer if we're supporting KNEM;
++           choose between synchronous and asynchronous. */
++        if (mca_btl_sm_component.knem_max_simultaneous > 0) {
++            mca_btl_sm.super.btl_get = mca_btl_sm_get_async;
++        } else {
++            mca_btl_sm.super.btl_get = mca_btl_sm_get_sync;
++        }
+     }
+-    /* Set the BTL get function pointer if we're supporting KNEM;
+-       choose between synchronous and asynchronous. */
+-    if (mca_btl_sm_component.knem_max_simultaneous > 0) {
+-        mca_btl_sm.super.btl_get = mca_btl_sm_get_async;
+-    } else {
++#endif /* OMPI_BTL_SM_HAVE_KNEM */
++
++#if OMPI_BTL_SM_HAVE_CMA
++    if (mca_btl_sm_component.use_cma) {
++        /* Will only ever have either cma or knem enabled at runtime
++           so no problems with accidentally overwriting this set earlier */
+         mca_btl_sm.super.btl_get = mca_btl_sm_get_sync;
+     }
+-#endif
++#endif /* OMPI_BTL_SM_HAVE_CMA */
+ 
+     return btls;
+ 
+Index: ompi/mca/btl/sm/btl_sm.h
+===================================================================
+--- ompi/mca/btl/sm/btl_sm.h	(revision 25480)
++++ ompi/mca/btl/sm/btl_sm.h	(working copy)
+@@ -13,6 +13,7 @@
+  * Copyright (c) 2009-2010 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2010      Los Alamos National Security, LLC.  
+  *                         All rights reserved. 
++ * Copyright (c) 2010-2011 IBM Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -197,6 +198,10 @@
+     /** If we want DMA and DMA is supported, this will be loaded with
+         KNEM_FLAG_DMA.  Otherwise, it'll be 0. */
+     int knem_dma_flag;
++
++    /** MCA: should we be using CMA or not?
++        0 = no, 1 = yes */
++    int use_cma;
+ };
+ typedef struct mca_btl_sm_component_t mca_btl_sm_component_t;
+ OMPI_MODULE_DECLSPEC extern mca_btl_sm_component_t mca_btl_sm_component;
+@@ -492,21 +497,14 @@
+     mca_btl_base_tag_t tag
+ );
+ 
+-#if OMPI_BTL_SM_HAVE_KNEM
++#if OMPI_BTL_SM_HAVE_KNEM || OMPI_BTL_SM_HAVE_CMA
+ /*
+- * Synchronous knem get
++ * Synchronous knem/cma get
+  */
+ extern int mca_btl_sm_get_sync(
+ 		struct mca_btl_base_module_t* btl,
+ 		struct mca_btl_base_endpoint_t* endpoint,
+ 		struct mca_btl_base_descriptor_t* des );
+-/*
+- * Asynchronous knem get
+- */
+-extern int mca_btl_sm_get_async(
+-		struct mca_btl_base_module_t* btl,
+-		struct mca_btl_base_endpoint_t* endpoint,
+-		struct mca_btl_base_descriptor_t* des );
+ 
+ extern struct mca_btl_base_descriptor_t* mca_btl_sm_prepare_dst(
+ 		struct mca_btl_base_module_t* btl,
+@@ -519,6 +517,17 @@
+ 		uint32_t flags);
+ #endif
+ 
++#if OMPI_BTL_SM_HAVE_KNEM
++/*
++ * Asynchronous knem get
++ */
++extern int mca_btl_sm_get_async(
++                struct mca_btl_base_module_t* btl,
++                struct mca_btl_base_endpoint_t* endpoint,
++                struct mca_btl_base_descriptor_t* des );
++
++#endif
++
+ /**
+  * Fault Tolerance Event Notification Function
+  * @param state Checkpoint Stae
+

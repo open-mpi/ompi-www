@@ -1,0 +1,270 @@
+<?
+$subject_val = "Re: [OMPI users] orte_ess_base_select failed";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Wed Dec  7 12:00:43 2011" -->
+<!-- isoreceived="20111207170043" -->
+<!-- sent="Wed, 7 Dec 2011 11:00:33 -0600" -->
+<!-- isosent="20111207170033" -->
+<!-- name="John Doe" -->
+<!-- email="javadevelopercl_at_[hidden]" -->
+<!-- subject="Re: [OMPI users] orte_ess_base_select failed" -->
+<!-- id="CAJ32XeZiEOtsqyWdbNBSHbAcZ_VjcBhjV5M-xzWAU7O78TQ67Q_at_mail.gmail.com" -->
+<!-- charset="ISO-8859-1" -->
+<!-- inreplyto="AD3B71A2-124E-4309-BE1A-3B5D09A350FD_at_ldeo.columbia.edu" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI users] orte_ess_base_select failed<br>
+<strong>From:</strong> John Doe (<em>javadevelopercl_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2011-12-07 12:00:33
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="17903.php">Ralph Castain: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<li><strong>Previous message:</strong> <a href="17901.php">Tim Blattner: "[OMPI users] Run Time problem: Program hangs when utilizing multiple nodes."</a>
+<li><strong>In reply to:</strong> <a href="17900.php">Gustavo Correa: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="17903.php">Ralph Castain: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<li><strong>Reply:</strong> <a href="17903.php">Ralph Castain: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<li><strong>Reply:</strong> <a href="17907.php">Gustavo Correa: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Hi Gustavo,
+<br>
+<p>&nbsp;I do have /opt/ompi/gnu/1.4.4/lib in my LD_LIBRARY_PATH and the bin
+<br>
+directory in my path as well but that didn't seem to help.
+<br>
+<p>Sam
+<br>
+<p>On Tue, Dec 6, 2011 at 5:18 PM, Gustavo Correa &lt;gus_at_[hidden]&gt;wrote:
+<br>
+<p><span class="quotelev1">&gt; Hi John Doe
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; What you need to add to LD_LIBRARY_PATH is /opt/ompi/gnu/1.4.4/lib
+</span><br>
+<span class="quotelev1">&gt; [note 'lib' at the end].
+</span><br>
+<span class="quotelev1">&gt; Your email seems to say that you added /opt/ompi/gnu/1.4.4/lib/openmpi
+</span><br>
+<span class="quotelev1">&gt; instead, if I understood it right.
+</span><br>
+<span class="quotelev1">&gt; And to your PATH you need to add the corresponding 'bin' directory:
+</span><br>
+<span class="quotelev1">&gt; /opt/ompi/gnu/1.4.4/bin.
+</span><br>
+<span class="quotelev1">&gt; The rule here is your installation prefix /opt/ompi/gnu/1.4.4/
+</span><br>
+<span class="quotelev1">&gt; with 'lib' or 'bin' at the end.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; I hope this helps,
+</span><br>
+<span class="quotelev1">&gt; Frank Capra
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; On Dec 6, 2011, at 5:54 PM, John Doe wrote:
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; I recently built and installed openmpi on my 64 bit linux machine
+</span><br>
+<span class="quotelev1">&gt; running centOS 6.
+</span><br>
+<span class="quotelev2">&gt; &gt; However whenever I try mpirun I get the error message:
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; [[INVALID],INVALID] ORTE_ERROR_LOG: Not found in file
+</span><br>
+<span class="quotelev1">&gt; runtime/orte_init.c at line 125
+</span><br>
+<span class="quotelev2">&gt; &gt; orte_ess_base_select failed
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; Actually here's the full error transcript:
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev1">&gt; ====================================================================================================
+</span><br>
+<span class="quotelev4">&gt; &gt; &gt;&gt; mpiexec -n 4 object/a.out
+</span><br>
+<span class="quotelev2">&gt; &gt; [ellipse:01480] mca: base: component_find: unable to open
+</span><br>
+<span class="quotelev1">&gt; /opt/ompi/gnu/1.4.4/lib/openmpi/mca_paffinity_linux: file not found
+</span><br>
+<span class="quotelev1">&gt; (ignored)
+</span><br>
+<span class="quotelev2">&gt; &gt; [ellipse:01480] mca: base: component_find: unable to open
+</span><br>
+<span class="quotelev1">&gt; /opt/ompi/gnu/1.4.4/lib/openmpi/mca_carto_auto_detect: file not found
+</span><br>
+<span class="quotelev1">&gt; (ignored)
+</span><br>
+<span class="quotelev2">&gt; &gt; [ellipse:01480] mca: base: component_find: unable to open
+</span><br>
+<span class="quotelev1">&gt; /opt/ompi/gnu/1.4.4/lib/openmpi/mca_carto_file: file not found (ignored)
+</span><br>
+<span class="quotelev2">&gt; &gt; [ellipse:01480] mca: base: component_find: unable to open
+</span><br>
+<span class="quotelev1">&gt; /opt/ompi/gnu/1.4.4/lib/openmpi/mca_ess_env: file not found (ignored)
+</span><br>
+<span class="quotelev2">&gt; &gt; [ellipse:01480] mca: base: component_find: unable to open
+</span><br>
+<span class="quotelev1">&gt; /opt/ompi/gnu/1.4.4/lib/openmpi/mca_ess_hnp: file not found (ignored)
+</span><br>
+<span class="quotelev2">&gt; &gt; [ellipse:01480] mca: base: component_find: unable to open
+</span><br>
+<span class="quotelev1">&gt; /opt/ompi/gnu/1.4.4/lib/openmpi/mca_ess_singleton: file not found (ignored)
+</span><br>
+<span class="quotelev2">&gt; &gt; [ellipse:01480] mca: base: component_find: unable to open
+</span><br>
+<span class="quotelev1">&gt; /opt/ompi/gnu/1.4.4/lib/openmpi/mca_ess_slurm: file not found (ignored)
+</span><br>
+<span class="quotelev2">&gt; &gt; [ellipse:01480] mca: base: component_find: unable to open
+</span><br>
+<span class="quotelev1">&gt; /opt/ompi/gnu/1.4.4/lib/openmpi/mca_ess_tool: file not found (ignored)
+</span><br>
+<span class="quotelev2">&gt; &gt; [ellipse:01480] [[INVALID],INVALID] ORTE_ERROR_LOG: Not found in file
+</span><br>
+<span class="quotelev1">&gt; runtime/orte_init.c at line 125
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev2">&gt; &gt; It looks like orte_init failed for some reason; your parallel process is
+</span><br>
+<span class="quotelev2">&gt; &gt; likely to abort.  There are many reasons that a parallel process can
+</span><br>
+<span class="quotelev2">&gt; &gt; fail during orte_init; some of which are due to configuration or
+</span><br>
+<span class="quotelev2">&gt; &gt; environment problems.  This failure appears to be an internal failure;
+</span><br>
+<span class="quotelev2">&gt; &gt; here's some additional information (which may only be relevant to an
+</span><br>
+<span class="quotelev2">&gt; &gt; Open MPI developer):
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;   orte_ess_base_select failed
+</span><br>
+<span class="quotelev2">&gt; &gt;   --&gt; Returned value Not found (-13) instead of ORTE_SUCCESS
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev1">&gt; =============================================================================================================
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; Here are the configure options I used to build openmpi:
+</span><br>
+<span class="quotelev2">&gt; &gt; ./configure --prefix=/opt/ompi/gnu/1.4.4 CC=gcc -m64 CXX=g++ -m64
+</span><br>
+<span class="quotelev1">&gt; FC=gfortran -m64 F77=gfortran -m64 CFLAGS=-O2 -g CXXFLAGS=-O2 -g
+</span><br>
+<span class="quotelev1">&gt; FCFLAGS=-O2 -g FFLAGS=-O2 -g --enable-debug --enable-shared=gcc
+</span><br>
+<span class="quotelev1">&gt; --with-valgrind=/opt/valgrind --with-devel-headers --enable-mem-profile
+</span><br>
+<span class="quotelev1">&gt; --enable-orterun-prefix-by-default --enable-memchecker
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; Does anyone have any idea what these errors are. I tried recompiling
+</span><br>
+<span class="quotelev1">&gt; with the --enable-orterun-prefix-by-default  flag. Also while those files
+</span><br>
+<span class="quotelev1">&gt; e.g mca_ess_tool are not found, the static versions e.g mca_ess_tool.a and
+</span><br>
+<span class="quotelev1">&gt; mca_ess_tool.la exist in the /opt/ompi/gnu/1.4.4/lib/openmpi directory.
+</span><br>
+<span class="quotelev1">&gt; I've also tried adding that directory to my LD_LIBRARY_PATH but still get
+</span><br>
+<span class="quotelev1">&gt; the same error. Help would be much appreciated.
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; Thanks,
+</span><br>
+<span class="quotelev2">&gt; &gt; Sam
+</span><br>
+<span class="quotelev2">&gt; &gt; _______________________________________________
+</span><br>
+<span class="quotelev2">&gt; &gt; users mailing list
+</span><br>
+<span class="quotelev2">&gt; &gt; users_at_[hidden]
+</span><br>
+<span class="quotelev2">&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; users mailing list
+</span><br>
+<span class="quotelev1">&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<p><hr>
+<ul>
+<li>text/html attachment: <a href="http://www.open-mpi.org/community/lists/users/att-17902/attachment">attachment</a>
+</ul>
+<!-- attachment="attachment" -->
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="17903.php">Ralph Castain: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<li><strong>Previous message:</strong> <a href="17901.php">Tim Blattner: "[OMPI users] Run Time problem: Program hangs when utilizing multiple nodes."</a>
+<li><strong>In reply to:</strong> <a href="17900.php">Gustavo Correa: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="17903.php">Ralph Castain: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<li><strong>Reply:</strong> <a href="17903.php">Ralph Castain: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<li><strong>Reply:</strong> <a href="17907.php">Gustavo Correa: "Re: [OMPI users] orte_ess_base_select failed"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

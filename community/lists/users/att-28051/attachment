@@ -1,0 +1,63 @@
+Michael,<br><br>I remember i saw similar reports.<br><br>Could you give a try to the latest v1.10.1 ?<br>And if that still does not work, can you upgrade icc suite and give it an other try ?<br><br>I cannot remember whether this is an ifort bug or the way ompi uses fortran...<br><br>Btw, any reason why you do not<br>Use mpi_f08 ?<br><br>HTH<br><br>Gilles<br><br>Michael.Rachner@dlr.de wrote:<br>
+<div class="WordSection1">
+<p class="MsoNormal"><span lang="EN-US">Dear developers of OpenMPI,<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">I am trying to run our parallelized Ftn-95 code on a Linux cluster with OpenMPI-1-10.0 and Intel-16.0.0 Fortran compiler.<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">In the code I use the&nbsp; module MPI&nbsp; (&#8220;use MPI&#8221;-stmts).<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">However I am not able to compile the code, because of compiler error messages like this:<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">/src_SPRAY/mpi_wrapper.f90(2065): error #6285: There is no matching specific subroutin for this generic subroutine call.&nbsp;&nbsp; [MPI_REDUCE]<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">The problem seems for me to be this one:<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">The interfaces in the module MPI for the MPI-routines do not accept a send or receive buffer array, which is<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">actually a variable, an array element or a constant (like MPI_IN_PLACE).<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">Example 1:<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp; This does not work (gives the compiler error message: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;error #6285: There is no matching specific subroutin for this generic subroutine call&nbsp; )<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ivar=123&nbsp;&nbsp;&nbsp; ! </span><span lang="EN-US" style="font-family:Wingdings">ß</span><span lang="EN-US"> ivar is an integer variable, not an array<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>call</b> MPI_BCAST( ivar, 1, MPI_INTEGER, 0, MPI_COMM_WORLD), ierr_mpi )&nbsp;&nbsp;&nbsp; !
+</span><span lang="EN-US" style="font-family:Wingdings">ß</span><span lang="EN-US">- this should work, but is not accepted by the compiler<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; only this cumbersome workaround works:<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ivar=123<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; allocate( iarr(1) )<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;iarr(1) = ivar<o:p></o:p></span></p>
+<p class="MsoNormal"><b><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call</span></b><span lang="EN-US"> MPI_BCAST( iarr, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr_mpi )&nbsp;&nbsp;&nbsp; !
+</span><span lang="EN-US" style="font-family:Wingdings">ß</span><span lang="EN-US">- this workaround works<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ivar = iarr(1) <o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;deallocate( iarr(1) )&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">Example 2:<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp; Any call of an MPI-routine with MPI_IN_PLACE does not work, like that coding:<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>if</b>(lmaster) <b>then</b><o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>call</b> MPI_REDUCE( MPI_IN_PLACE, rbuffarr, nelem, MPI_REAL8, MPI_MAX &amp;&nbsp;&nbsp;&nbsp; !
+</span><span lang="EN-US" style="font-family:Wingdings">ß</span><span lang="EN-US">- this should work, but is not accepted by the compiler<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;,0_INT4, MPI_COMM_WORLD, ierr_mpi )<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>else</b>&nbsp; ! slaves<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>call</b> MPI_REDUCE( rbuffarr, rdummyarr, nelem, MPI_REAL8, MPI_MAX &amp;<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ,0_INT4, MPI_COMM_WORLD, ierr_mpi )<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>endif</b><o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp; <o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;This results in this compiler error message:<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /src_SPRAY/mpi_wrapper.f90(2122): error #6285: There is no matching specific subroutine for this generic subroutine call.&nbsp;&nbsp; [MPI_REDUCE]<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;call MPI_REDUCE( MPI_IN_PLACE, rbuffarr, nelem, MPI_REAL8, MPI_MAX &amp;<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">-------------^<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">In our code I observed the bug with MPI_BCAST, MPI_REDUCE, MPI_ALLREDUCE,<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">but probably there may be other MPI-routines with the same kind of bug.<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">This bug occurred for&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;&nbsp; &nbsp;&nbsp;OpenMPI-1.10.0 &nbsp;with Intel-16.0.0<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">In contrast, this bug did NOT occur for:&nbsp;&nbsp; &nbsp;&nbsp;OpenMPI-1.8.8 &nbsp;&nbsp;&nbsp;with Intel-16.0.0<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;OpenMPI-1.8.8 &nbsp;&nbsp;&nbsp;with Intel-15.0.3<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OpenMPI-1.10.0 &nbsp;with gfortran-5.2.0<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US"><o:p>&nbsp;</o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">Greetings<o:p></o:p></span></p>
+<p class="MsoNormal"><span lang="EN-US">Michael Rachner<o:p></o:p></span></p>
+</div>

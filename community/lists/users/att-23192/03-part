@@ -1,0 +1,82 @@
+From a90f1fb49df1ff9442476b5e4294353ebb94498b Mon Sep 17 00:00:00 2001
+From: Tom Fogal <tfogal@alumni.unh.edu>
+Date: Fri, 13 Dec 2013 15:09:10 +0100
+Subject: [PATCH 3/3] info: accept env vars desired in child processes
+
+This looks for "env" keys in MPI_Info structures, which should be
+then used to forward environment variables from parent to child
+when spawning jobs.  However, note this doesn't (yet) change the
+spawn machinery.
+---
+ ompi/mca/dpm/orte/dpm_orte.c | 12 ++++++++++++
+ orte/runtime/orte_globals.c  |  2 ++
+ orte/runtime/orte_globals.h  |  2 ++
+ 3 files changed, 16 insertions(+)
+
+diff --git a/ompi/mca/dpm/orte/dpm_orte.c b/ompi/mca/dpm/orte/dpm_orte.c
+index 65099a5..b61d6f2 100644
+--- a/ompi/mca/dpm/orte/dpm_orte.c
++++ b/ompi/mca/dpm/orte/dpm_orte.c
+@@ -680,6 +680,7 @@ static int spawn(int count, const char *array_of_commands[],
+     char mapper[OPAL_PATH_MAX];
+     int npernode;
+     char slot_list[OPAL_PATH_MAX];
++    char envvar[1024]; /* better magic number? */
+ 
+     orte_job_t *jdata;
+     orte_app_context_t *app;
+@@ -705,6 +706,7 @@ static int spawn(int count, const char *array_of_commands[],
+        - "path": list of directories where to look for the executable
+        - "file": filename, where additional information is provided.
+        - "soft": see page 92 of MPI-2.
++       - "env": environment variables desired in the children.
+     */
+ 
+     /* setup the job object */
+@@ -1358,6 +1360,16 @@ static int spawn(int count, const char *array_of_commands[],
+                     jdata->stdin_target = strtoul(stdin_target, NULL, 10);
+                 }
+             }
++
++            /* did the user want us to forward any environment variables? */
++            ompi_info_get (array_of_info[i], "env", sizeof(envvar)-1, envvar,
++                           &flag);
++            if ( flag ) {
++              jdata->nenv_vars++;
++              jdata->env_vars = realloc(jdata->env_vars,
++                                        jdata->nenv_vars*sizeof(char*));
++              jdata->env_vars[jdata->nenv_vars-1] = strdup(envvar);
++            }
+         }
+ 
+         /* default value: If the user did not tell us where to look for the
+diff --git a/orte/runtime/orte_globals.c b/orte/runtime/orte_globals.c
+index f3e3029..e4ba975 100644
+--- a/orte/runtime/orte_globals.c
++++ b/orte/runtime/orte_globals.c
+@@ -742,6 +742,8 @@ static void orte_job_construct(orte_job_t* job)
+     job->ckpt_snapshot_ref = NULL;
+     job->ckpt_snapshot_loc = NULL;
+ #endif
++    job->env_vars = NULL;
++    job->nenv_vars = 0;
+ }
+ 
+ static void orte_job_destruct(orte_job_t* job)
+diff --git a/orte/runtime/orte_globals.h b/orte/runtime/orte_globals.h
+index f284045..d12296b 100644
+--- a/orte/runtime/orte_globals.h
++++ b/orte/runtime/orte_globals.h
+@@ -463,6 +463,8 @@ typedef struct {
+     /* snapshot location */
+     char *ckpt_snapshot_loc;
+ #endif
++    char** env_vars;
++    size_t nenv_vars;
+ } orte_job_t;
+ ORTE_DECLSPEC OBJ_CLASS_DECLARATION(orte_job_t);
+ 
+-- 
+1.8.3.2
+
+

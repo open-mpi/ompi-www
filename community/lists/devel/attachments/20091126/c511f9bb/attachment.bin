@@ -1,0 +1,144 @@
+btl/openib: correctly manage ibv_resize_cqueue returning EINVAL
+
+When ibv_resize_cqueue() returns EINVAL, retry several times lowering the
+CQ size (b.c. EINVAL may be due to a CQ size too high).
+
+If ever EINVAL is still returned, mca_btl_openib_size_queues() will do too.
+In that case, since this is a true error, clean everything by calling
+mca_btl_openib_del_procs().
+
+
+diff -r cf107f1a397e ompi/mca/btl/openib/btl_openib.c
+--- a/ompi/mca/btl/openib/btl_openib.c	Thu Nov 26 15:05:37 2009 +0100
++++ b/ompi/mca/btl/openib/btl_openib.c	Thu Nov 26 15:08:03 2009 +0100
+@@ -143,18 +143,24 @@ static inline struct ibv_cq *ibv_create_
+ #endif
+ }
+ 
+-static int adjust_cq(mca_btl_openib_device_t *device, const int cq)
++static int adjust_cq(mca_btl_openib_device_t *device, const int cq,
++                     uint32_t old_cq_size)
+ {
+     uint32_t cq_size = device->cq_size[cq];
+ 
+     /* make sure we don't exceed the maximum CQ size and that we
+      * don't size the queue smaller than otherwise requested
++     * Keep track of the actual CQ size in the device structure.
+      */
+-     if(cq_size < mca_btl_openib_component.ib_cq_size[cq])
++    if (cq_size < mca_btl_openib_component.ib_cq_size[cq]) {
+         cq_size = mca_btl_openib_component.ib_cq_size[cq];
++        device->cq_size[cq] = cq_size;
++    }
+ 
+-    if(cq_size > (uint32_t)device->ib_dev_attr.max_cqe)
++    if (cq_size > (uint32_t)device->ib_dev_attr.max_cqe) {
+         cq_size = device->ib_dev_attr.max_cqe;
++        device->cq_size[cq] = cq_size;
++    }
+ 
+     if(NULL == device->ib_cq[cq]) {
+         device->ib_cq[cq] = ibv_create_cq_compat(device->ib_dev_context, cq_size,
+@@ -198,8 +204,29 @@ static int adjust_cq(mca_btl_openib_devi
+         /* For ConnectX the resize CQ is not implemented and verbs returns -ENOSYS
+          * but should return ENOSYS. So it is reason for abs */
+         if(rc && ENOSYS != abs(rc)) {
+-            BTL_ERROR(("cannot resize completion queue, error: %d", rc));
+-            return OMPI_ERROR;
++            int save_cq_size = cq_size;
++
++            /*
++             * EINVAL is returned is case the size asked for is too high.
++             * So try lesser values until we reach the last value that
++             * has succeeded.
++             */
++            while (EINVAL == abs(rc) && cq_size > old_cq_size) {
++                cq_size = old_cq_size + ((cq_size - old_cq_size) / 2);
++                rc = ibv_resize_cq(device->ib_cq[cq], cq_size);
++            }
++            if (rc) {
++                BTL_ERROR(("cannot resize completion queue, error: %d", rc));
++                return OMPI_ERROR;
++            } else {
++                /* Warn that CQ was not resized as originally asked for. */
++                device->cq_size[cq] = cq_size;
++                orte_show_help("help-mpi-btl-openib.txt",
++                           "CQ resized lower", true,
++                           orte_process_info.nodename,
++                           ibv_get_device_name(device->ib_dev),
++                           save_cq_size, cq_size);
++            }
+         }
+     }
+ #endif
+@@ -253,6 +280,23 @@ static int mca_btl_openib_size_queues(st
+     uint32_t send_cqes, recv_cqes;
+     int rc = OMPI_SUCCESS, qp;
+     mca_btl_openib_device_t *device = openib_btl->device;
++    uint32_t old_cq_size[2];
++
++    /*
++     * Save current cq_sizes values to be able to rollback in case of failure.
++     * This is useful in the following case:
++     * if adjust_cq() is called twice for the same competion queue, it
++     * may succeed during the first call, i.e. it creates the cq with the
++     * appropriate size. Then it may fail during the 2nd call, while
++     * increasing the cq size.
++     * Thus we keep track of the sizes used during last call to adjust_cq
++     * in order to retry with lesser entries if ever we fail inside adjust_cq.
++     */
++    old_cq_size[BTL_OPENIB_HP_CQ] =
++        openib_btl->device->cq_size[BTL_OPENIB_HP_CQ];
++    old_cq_size[BTL_OPENIB_LP_CQ] =
++        openib_btl->device->cq_size[BTL_OPENIB_LP_CQ];
++
+ 
+     /* figure out reasonable sizes for completion queues */
+     for(qp = 0; qp < mca_btl_openib_component.num_qps; qp++) {
+@@ -268,12 +312,12 @@ static int mca_btl_openib_size_queues(st
+         openib_btl->device->cq_size[BTL_OPENIB_LP_CQ] += send_cqes;
+     }
+ 
+-    rc = adjust_cq(device, BTL_OPENIB_HP_CQ);
++    rc = adjust_cq(device, BTL_OPENIB_HP_CQ, old_cq_size[BTL_OPENIB_HP_CQ]);
+     if (OMPI_SUCCESS != rc) {
+         goto out;
+     }
+ 
+-    rc = adjust_cq(device, BTL_OPENIB_LP_CQ);
++    rc = adjust_cq(device, BTL_OPENIB_LP_CQ, old_cq_size[BTL_OPENIB_LP_CQ]);
+     if (OMPI_SUCCESS != rc) {
+         goto out;
+     }
+@@ -496,7 +540,13 @@ int mca_btl_openib_add_procs(
+         peers[i] = endpoint;
+     }
+ 
+-    return mca_btl_openib_size_queues(openib_btl, nprocs);
++    rc = mca_btl_openib_size_queues(openib_btl, nprocs);
++    if (OMPI_SUCCESS != rc) {
++        mca_btl_openib_del_procs(btl, nprocs, ompi_procs, peers);
++        opal_bitmap_clear_all_bits(reachable);
++    }
++
++    return rc;
+ }
+ 
+ /*
+diff -r cf107f1a397e ompi/mca/btl/openib/help-mpi-btl-openib.txt
+--- a/ompi/mca/btl/openib/help-mpi-btl-openib.txt	Thu Nov 26 15:05:37 2009 +0100
++++ b/ompi/mca/btl/openib/help-mpi-btl-openib.txt	Thu Nov 26 15:08:03 2009 +0100
+@@ -590,3 +590,13 @@ value will be ignored.
+   Local host: %s
+   Value:      %s
+   Message:    %s
++#
++[CQ resized lower]
++WARNING: Could not resize CQ to the size originally asked for.
++
++  Local host:     %s
++  Device name:    %s
++  Size asked for: %d
++  Actual CQ size: %d
++
++This may result in lower performance.

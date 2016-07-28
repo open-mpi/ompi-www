@@ -1,0 +1,89 @@
+<html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-15">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    Hello,<br>
+    <br>
+    I noticed this weird behavior, because after a certain time of more
+    than one minute the transfer rates of MPI_Send and MPI_Recv dropped
+    by a factor of 100+. By chance I saw, that my program did allocate
+    more and more memory. I have the following minimal working example:<br>
+    <br>
+    <blockquote>#include &lt;cstdlib&gt;<br>
+      #include &lt;mpi.h&gt;<br>
+      <br>
+      const uint32_t MSG_LENGTH = 256;<br>
+      <br>
+      int main(int argc, char* argv[]) {<br>
+          MPI_Init(NULL, NULL);<br>
+          int rank;<br>
+          MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+      <br>
+          volatile char * msg  = (char*) malloc( sizeof(char) *
+      MSG_LENGTH );<br>
+      <br>
+          for (uint64_t i = 0; i &lt; 1e9; i++) {<br>
+              if ( rank == 1 ) {<br>
+                  MPI_Recv( const_cast&lt;char*&gt;(msg), MSG_LENGTH,
+      MPI_CHAR,<br>
+                            rank-1, 0, MPI_COMM_WORLD,
+      MPI_STATUS_IGNORE);<br>
+                  MPI_Send( const_cast&lt;char*&gt;(msg), MSG_LENGTH,
+      MPI_CHAR,<br>
+                            rank-1, 0, MPI_COMM_WORLD);<br>
+              } else if ( rank == 0 ) {<br>
+                  MPI_Send( const_cast&lt;char*&gt;(msg), MSG_LENGTH,
+      MPI_CHAR,<br>
+                            rank+1, 0, MPI_COMM_WORLD);<br>
+                  MPI_Recv( const_cast&lt;char*&gt;(msg), MSG_LENGTH,
+      MPI_CHAR,<br>
+                            rank+1, 0, MPI_COMM_WORLD,
+      MPI_STATUS_IGNORE);<br>
+              }<br>
+              MPI_Barrier( MPI_COMM_WORLD );<br>
+              for (uint32_t k = 0; k &lt; MSG_LENGTH; k++)<br>
+                  msg[k]++;<br>
+          }<br>
+      <br>
+          MPI_Finalize();<br>
+          return 0;<br>
+      }<br>
+    </blockquote>
+    <br>
+    I run this with mpirun -n 2 ./pingpong_memleak.exe<br>
+    <br>
+    The program does nothing more than send a message from rank 0 to
+    rank 1, then from rank 1 to rank 0 and so on in standard blocking
+    mode, not even asynchronous.<br>
+    <br>
+    Running the program will allocate roughly 30mb/s (Windows Task
+    Manager) until it stops at around 1.313.180kb. This is when the
+    transfer rates (not being measured in above snippet) drop
+    significantly to maybe a second per send instead of roughly 1µs.<br>
+    <br>
+    I use Cygwin with Windows 7 and 16Gb RAM. I haven't tested this
+    minimal working example on other setups.<br>
+    <br>
+    I understand, that it's possible for MPI_Send to just store the
+    message in a buffer and then resume the program, even though it's
+    supposed to be blocking. But MPI_Recv should in my understanding be
+    really 100% blocking. This means, that after each MPI_Recv the
+    buffer should be emptied in above code, am I right?<br>
+    <br>
+    Well it's not the case, so I inserted the MPI_Barrier. Thinking,
+    that at least now both blocking operations should be 100% finished,
+    but it only dropped the 50mb/s allocation to the mentioned 30mb/s
+    allocation. Although I have to add: in my real code the MPI_Barrier
+    mitigates the problem to maybe 10kb/s, which is acceptable if the
+    program finishes in under 2 days. But it still shouldn't happen.<br>
+    <br>
+    I also tried to increase the msg in each step in order to prevent
+    buffering and caching, but it didn't help either.<br>
+    <br>
+    What is happening? Can I stop it from happening like with some kind
+    of MPI_Flush()?<br>
+  </body>
+</html>
+

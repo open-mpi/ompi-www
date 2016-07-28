@@ -1,0 +1,143 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; "><br><div><div>On Aug 29, 2011, at 8:35 AM, <a href="mailto:nadia.derbey@bull.net">nadia.derbey@bull.net</a> wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">
+<br><tt><font size="2"><a href="mailto:devel-bounces@open-mpi.org">devel-bounces@open-mpi.org</a> wrote on 08/29/2011 04:20:30
+PM:<br>
+<br>
+&gt; De : Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;</font></tt>
+<br><tt><font size="2">&gt; A : Open MPI Developers &lt;<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;</font></tt>
+<br><tt><font size="2">&gt; Date : 08/29/2011 04:26 PM</font></tt>
+<br><tt><font size="2">&gt; Objet : Re: [OMPI devel] known limitation or
+bug in hwloc?</font></tt>
+<br><tt><font size="2">&gt; Envoyé par : <a href="mailto:devel-bounces@open-mpi.org">devel-bounces@open-mpi.org</a></font></tt>
+<br><tt><font size="2">&gt; <br>
+&gt; Actually, I'll eat those words. I was looking at the wrong place.<br>
+&gt; <br>
+&gt; Yes, that is a bug in hwloc. It needs to loop over CPU_MAX for those<br>
+&gt; cases where the bit mask extends over multiple words.</font></tt>
+<br>
+<br><tt><font size="2">But I'm afraid the fix won't be trivial at all: hwloc
+in itself is coherent: it loops overs NUM_BITS, but it uses masks that
+are NUM_BITS wide (hwloc_bitmap_t set)...</font></tt>
+<br></blockquote><div><br></div>I guess I'm missing that - I just did a search and cannot find any reference to&nbsp;OPAL_PAFFINITY_BITMASK_T_NUM_BITS anywhere in paffinity/hwloc after the last change.</div><div><br></div><div>Can you point me to where you believe a problem exists? Or feel free to submit a patch to fix it :-) &nbsp;We can push it upstream to the hwloc folks for their consideration.<br></div><div><br></div><div><br><blockquote type="cite">
+<font class="Apple-style-span" color="#000000" face="monospace" size="2"><br></font><tt><font size="2">Regards,</font></tt>
+<br><tt><font size="2">Nadia<br>
+&gt; <br>
+&gt; <br>
+&gt; On Aug 29, 2011, at 7:16 AM, Ralph Castain wrote:<br>
+&gt; <br>
+&gt; &gt; Actually, if you look closely at the definition of those two
+<br>
+&gt; values, you'll see that it really doesn't matter which one we loop
+<br>
+&gt; over. The NUM_BITS value defines the actual total number of bits in
+<br>
+&gt; the mask. The CPU_MAX is the total number of cpus we can support,
+<br>
+&gt; which was set to a value such that the two are equal (i.e., it's a
+<br>
+&gt; power of two that happens to be an integer multiple of 64).<br>
+&gt; &gt; <br>
+&gt; &gt; I believe the original intent was to allow CPU_MAX to be <br>
+&gt; independent of address-alignment questions, so NUM_BITS could <br>
+&gt; technically be greater than CPU_MAX. Even if this happens, though,
+<br>
+&gt; all that would do is cause the loop to run across more bits than required.<br>
+&gt; &gt; <br>
+&gt; &gt; So it doesn't introduce a limitation at all. In hindsight, we
+<br>
+&gt; could simplify things by eliminating one of those values and just
+<br>
+&gt; putting a requirement on the number that it be a multiple of 64 so
+<br>
+&gt; it aligns with a memory address.<br>
+&gt; &gt; <br>
+&gt; &gt; <br>
+&gt; &gt; On Aug 29, 2011, at 7:05 AM, Kenneth Lloyd wrote:<br>
+&gt; &gt; <br>
+&gt; &gt;&gt; Nadia,<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; Interesting. I haven't tried pushing this to levels above
+8 on a particular<br>
+&gt; &gt;&gt; machine. Do you think that the cpuset / paffinity / hwloc
+only applies at<br>
+&gt; &gt;&gt; the machine level, at which time you need to employ a graph
+with carto?<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; Regards,<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; Ken<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; -----Original Message-----<br>
+&gt; &gt;&gt; From: <a href="mailto:devel-bounces@open-mpi.org">devel-bounces@open-mpi.org</a> [</font></tt><a href="mailto:devel-bounces@open-mpi.org"><tt><font size="2">mailto:devel-bounces@open-mpi.org</font></tt></a><tt><font size="2">]
+On<br>
+&gt; &gt;&gt; Behalf Of nadia.derbey<br>
+&gt; &gt;&gt; Sent: Monday, August 29, 2011 5:45 AM<br>
+&gt; &gt;&gt; To: Open MPI Developers<br>
+&gt; &gt;&gt; Subject: [OMPI devel] known limitation or bug in hwloc?<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; Hi list,<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; I'm hitting a limitation with paffinity/hwloc with cpu numbers
+&gt;= 64.<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; In opal/mca/paffinity/hwloc/paffinity_hwloc_module.c, module_set()
+is<br>
+&gt; &gt;&gt; the routine that sets the calling process affinity to the
+mask given as<br>
+&gt; &gt;&gt; parameter. Note that "mask" is a opal_paffinity_base_cpu_set_t
+(so we<br>
+&gt; &gt;&gt; allow the cpus to be potentially numbered up to<br>
+&gt; &gt;&gt; OPAL_PAFFINITY_BITMASK_CPU_MAX - 1).<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; The problem with module_set() is that is loops over<br>
+&gt; &gt;&gt; OPAL_PAFFINITY_BITMASK_T_NUM_BITS bits to check if these
+bits are set in<br>
+&gt; &gt;&gt; the mask:<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; for (i = 0; ((unsigned int) i) &lt; OPAL_PAFFINITY_BITMASK_T_NUM_BITS;
+++i)<br>
+&gt; &gt;&gt; {<br>
+&gt; &gt;&gt; &nbsp; &nbsp; &nbsp; if (OPAL_PAFFINITY_CPU_ISSET(i, mask))
+{<br>
+&gt; &gt;&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; hwloc_bitmap_set(set,
+i);<br>
+&gt; &gt;&gt; &nbsp; &nbsp; &nbsp; }<br>
+&gt; &gt;&gt; &nbsp; }<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; Given "mask"'s type, I think module_set() should
+instead loop over<br>
+&gt; &gt;&gt; OPAL_PAFFINITY_BITMASK_CPU_MAX bits.<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; Note that module_set() uses a type for its internal mask
+that is<br>
+&gt; &gt;&gt; coherent with OPAL_PAFFINITY_BITMASK_T_NUM_BITS (hwloc_bitmap_t).<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; So I'm wondering whether this is a known limitation I've
+never heard of<br>
+&gt; &gt;&gt; or an actual bug?<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; Regards,<br>
+&gt; &gt;&gt; Nadia<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; _______________________________________________<br>
+&gt; &gt;&gt; devel mailing list<br>
+&gt; &gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt;&gt; </font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"><tt><font size="2">http://www.open-mpi.org/mailman/listinfo.cgi/devel</font></tt></a><tt><font size="2"><br>
+&gt; &gt;&gt; -----<br>
+&gt; &gt;&gt; No virus found in this message.<br>
+&gt; &gt;&gt; Checked by AVG - </font></tt><a href="x-msg://97/www.avg.com"><tt><font size="2">www.avg.com</font></tt></a><tt><font size="2"><br>
+&gt; &gt;&gt; Version: 10.0.1392 / Virus Database: 1520/3864 - Release
+Date: 08/28/11<br>
+&gt; &gt;&gt; <br>
+&gt; &gt;&gt; _______________________________________________<br>
+&gt; &gt;&gt; devel mailing list<br>
+&gt; &gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt;&gt; </font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"><tt><font size="2">http://www.open-mpi.org/mailman/listinfo.cgi/devel</font></tt></a><tt><font size="2"><br>
+&gt; &gt; <br>
+&gt; <br>
+&gt; <br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; </font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"><tt><font size="2">http://www.open-mpi.org/mailman/listinfo.cgi/devel</font></tt></a><tt><font size="2"><br>
+</font></tt>_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/devel</blockquote></div><br></body></html>

@@ -1,0 +1,151 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Hello<br>
+    <br>
+    Thanks for your help.<br>
+    <br>
+    MPI_UNDEFINED lead me to a better understanding and control on all
+    my communicators. I used now only MPI_Comm_Split (before i was
+    trying with MPI_Group_incl which complicated things )<br>
+    <br>
+    Others errors were caused by a non-mpi-related mistake.<br>
+    <br>
+    It works well now, thanks.<br>
+    <br>
+    Mathieu<br>
+    On 04/05/2012 04:21 PM, George Bosilca wrote:
+    <blockquote
+      cite="mid:F542A3D2-BAEA-4811-8E3F-CF9DA71D9E82@eecs.utk.edu"
+      type="cite">Mathieu,
+      <div><br>
+      </div>
+      <div>All communicator creation function in the MPI 2.2 standard
+        are collective over the original communicator. For your specific
+        case this means all processes in the worker communicator must
+        call the communicator creation functions.</div>
+      <div><br>
+      </div>
+      <div>As this is true in all cases, and as a communicator creation
+        function can return only a communicator per rank, if you want to
+        create overlapping communicators the communicator creation
+        function should be called as many times as there are overlaps by
+        all processes in the original communicator.</div>
+      <div><br>
+      </div>
+      <div>Based on my understanding of what you did, the first
+        MPI_Comm_split is correct. For creating the second communicator,
+        either you replace the second call (MPI_Comm_create) by a call
+        to MPI_Comm_split with 2 and 4 using a key=MPI_UNDEFINED, or you
+        force all your workers to call the MPI_Comm_create the same
+        group with 2 and 4 using MPI_GROUP_EMPTY.</div>
+      <div><br>
+      </div>
+      <div>However, based on the description of your issues I don't
+        think is the right solution. If you know that each worker will
+        execute the same number of tasks, i.e., you need the exact same
+        number of MPI_Reduce, you might want to look into the
+        non-blocking collective proposed in MPI 3.0. Otherwise you
+        should implement your own based on non-blocking point-to-point
+        communications.</div>
+      <div><br>
+      </div>
+      <div>&nbsp; george.</div>
+      <div><br>
+        <div>
+          <div>On Apr 5, 2012, at 06:02 , Mathieu westphal wrote:</div>
+          <br class="Apple-interchange-newline">
+          <blockquote type="cite">
+            <meta http-equiv="content-type" content="text/html;
+              charset=ISO-8859-1">
+            <div bgcolor="#FFFFFF" text="#000000"> Hello<br>
+              <br>
+              I got a problem with my code, wich run some kinf of a
+              simulator.<br>
+              <br>
+              I get 4 worker (aka 4 mpi process ) wich process data.<br>
+              <br>
+              These data aren't available at the same time, so i get
+              another process (Splitter) wich send chunk of data to each
+              process in round robin.<br>
+              <br>
+              This work well using MPI_Send and Receive but aftet that i
+              need to reduce all the data.<br>
+              <br>
+              I hope to be able to use MPI_Reduce to reduce all data
+              from all worker but there is a problem :<br>
+              <br>
+              1. All results data aren't available at the same time, dut
+              to the delay from the original data delay.<br>
+              2. I cannot wait all data to be computed, i need to
+              proceed the reduce a soon as possible<br>
+              <br>
+              So when the first and second worker have finished, i can
+              reduce the two results data and keep the results on the
+              first worker.<br>
+              And when the third and the fourth have finished, i can
+              reduce these two too, and keep results on third worker.<br>
+              At last i need to reduce data from first and third worker.<br>
+              <br>
+              The only way to do that using MPI_Reduce is to create
+              "communicators".<br>
+              <br>
+              All i want is :<br>
+              <br>
+              commA : contain W1 W2<br>
+              commB : contain W3 W4<br>
+              commC : contain W1 W3<br>
+              <br>
+              <br>
+              Let's say i've already create a communicator only for my
+              workers MPI_Comm workerComm;<br>
+              &nbsp;10&nbsp;&nbsp;&nbsp;&nbsp; MPI_Comm intComm[8];<br>
+              &nbsp;<br>
+              I can easily add this line in all my workers :<br>
+              <br>
+              <br>
+MPI_Comm_Split(workers_comm,(int)(workerId/2),rank,CommAlpha)<br>
+              <br>
+              <b>If i understand well i will get an communicator on W1
+                and W2 wich contains W1 and W2, and a communicator on W3
+                and W4 wich contains W3 and W4. Am i right?</b><br>
+              <br>
+              <br>
+              But next when i try to use (only on W1 and W3): <br>
+              <br>
+              MPI_Create_comm(MPI_Comm workers_comm,group,commC),<br>
+              <br>
+              <b>I need also to call MPI_Create_comm on W2 and W4 or it
+                will block. Why?</b><br>
+              <br>
+              After that, i got lot of non persistent error depending of
+              the number of worker i want to use.<br>
+              <b>So is this allowed to create and use overlapping
+                communicator? and if so how to do that?</b><br>
+              <br>
+              Thanks<br>
+              <br>
+              Mathieu<br>
+            </div>
+            _______________________________________________<br>
+            users mailing list<br>
+            <a moz-do-not-send="true" href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+            <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

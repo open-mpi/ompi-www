@@ -1,0 +1,137 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+</head>
+<body>
+<div class="BodyFragment"><font size="2"><span style="font-size:10pt;">
+<div class="PlainText">Er... here's the patch I forgot to attach.&nbsp; :-)<br>
+<br>
+</div>
+</span></font></div>
+<div class="BodyFragment"><font size="2"><span style="font-size:10pt;">
+<div class="PlainText"><br>
+<br>
+On May 7, 2013, at 6:00 PM, &quot;Jeff Squyres (jsquyres)&quot; &lt;jsquyres@cisco.com&gt; wrote:<br>
+<br>
+&gt; Sorry for the high latency reply.<br>
+&gt; <br>
+&gt; I thought about this quite a bit today.&nbsp; Here's a thinking-out-of-the-box question: should we just use the default/system installed libltdl instead of embedding?&nbsp; If we don't embed, many of these problems go away, right?&nbsp; I.e., we can still have the same
+ options for plugins: non-default, but available if you ask for it *and* there's a system-level libltdl available.<br>
+&gt; <br>
+&gt; FWIW: I see RHEL 6.x uses libtool/libltdl 2.2.6.&nbsp; Do we:<br>
+&gt; <br>
+&gt; a) care about supporting plugins by default on distros with older ltdl versions?<br>
+&gt; b) use any functionality beyond libltdl 2.2.6?&nbsp; (or some other older/benchmark distro ltdl version that we care about supporting)<br>
+&gt; <br>
+&gt; Attached is a patch that does a few minor things:<br>
+&gt; <br>
+&gt; - avoid the use of AM_CONDITIONAL for the libltdl subdir<br>
+&gt; - ensure to have libtool avoid setting up Fortran and C&#43;&#43; (a trick we learned from MPICH :-) )<br>
+&gt; - disallow embedded mode and plugins (per our phone discussion the other day)<br>
+&gt; - reorder the plugins support AC_MSG_RESULT to come before any WARN/ERROR messages<br>
+&gt; <br>
+&gt; <br>
+&gt; On Apr 30, 2013, at 5:30 AM, Brice Goglin &lt;Brice.Goglin@inria.fr&gt; wrote:<br>
+&gt; <br>
+&gt;&gt; Jeff,<br>
+&gt;&gt; <br>
+&gt;&gt; I've been working on making hwloc v1.7 pass our tests/embedded scripts<br>
+&gt;&gt; in the last days. I fixed some minor issues but here's the remaining<br>
+&gt;&gt; (big) one.<br>
+&gt;&gt; <br>
+&gt;&gt; First problem is that we need the AM_CONDITIONAL for HWLOC_LTDL_INCLUDED<br>
+&gt;&gt; to be executed when embedded. I can fix this by moving into<br>
+&gt;&gt; HWLOC_DO_AM_CONDITIONAL. But...<br>
+&gt;&gt; <br>
+&gt;&gt; We conditionally enable SUBDIRS=libltdl (in src/Makefile.am) when<br>
+&gt;&gt; plugins are enabled and the internal ltdl is used. Assuming embedders<br>
+&gt;&gt; don't want hwloc plugins, this builds fine since we don't enter libltdl<br>
+&gt;&gt; during &quot;make&quot;, and we can avoid the (ugly) ltdl configuration entirely<br>
+&gt;&gt; [1]. But &quot;make distclean&quot; still enters libltdl unconditionally, and it<br>
+&gt;&gt; fails if LTDL wasn't configured because the Makefile is missing.<br>
+&gt;&gt; <br>
+&gt;&gt; For the record, you had a similar issue with doc/tests/tools where you<br>
+&gt;&gt; don't even have a Makefile.am in these directories in OMPI. You fixed it<br>
+&gt;&gt; by doing DIST_SUBDIRS=$(SUBDIRS). It means that distclean doesn't enter<br>
+&gt;&gt; those directories at all. But it also means that you don't get<br>
+&gt;&gt; doc/tests/tools in make dist when embedded is enabled. We don't build<br>
+&gt;&gt; hwloc tarballs in embedded mode so that's fine. Using the same idea for<br>
+&gt;&gt; my issue would require to build hwloc tarballs with plugins enabled and<br>
+&gt;&gt; ltld included (both non default), I don't thing we should to this way.<br>
+&gt;&gt; <br>
+&gt;&gt; So we need a way to have src/libltdl stay in DIST_SUBDIRS by default, go<br>
+&gt;&gt; in SUBDIRS when needed, and disappear totally when embedded. So here's<br>
+&gt;&gt; the only solution I finally found: hwloc configure.ac sets a shell<br>
+&gt;&gt; variable to yes, and a new AM_CONDITIONAL adds src/libltdl to<br>
+&gt;&gt; DIST_SUBDIRS only when this variable is &quot;yes&quot;.<br>
+&gt;&gt; This still causes hwloc tarballs to contain libltdl (because hwloc<br>
+&gt;&gt; configure.ac sets the variable to yes). It's still enabled only when the<br>
+&gt;&gt; system doesn't have libltdl installed or --with-included-ltdl is given,<br>
+&gt;&gt; as previously. And embedders totally ignore src/libltdl, including in<br>
+&gt;&gt; distclean, because they don't set the variable to yes.<br>
+&gt;&gt; <br>
+&gt;&gt; If an embedder ever wants to use hwloc plugins, he will have to<br>
+&gt;&gt; duplicate what the hwloc configure.ac does [1], and it can still link<br>
+&gt;&gt; with another libltdl if needed (to be tested).<br>
+&gt;&gt; <br>
+&gt;&gt; Patch attached, on top of trunk. Note that you may need these additional<br>
+&gt;&gt; commits if you or Pavan want to test things [2]<br>
+&gt;&gt; <br>
+&gt;&gt; Let me know what you think because you have the same problem as Pavan<br>
+&gt;&gt; when OMPI switches to hwloc v1.6&#43;<br>
+&gt;&gt; <br>
+&gt;&gt; Brice<br>
+&gt;&gt; <br>
+&gt;&gt; <br>
+&gt;&gt; <br>
+&gt;&gt; <br>
+&gt;&gt; [1] Enabling ltdl requires some code like below:configure.ac<br>
+&gt;&gt; AM_PROG_LIBTOOL([dlopen win32-dll])<br>
+&gt;&gt; LT_LANG([C])<br>
+&gt;&gt; # Here's what we need to configure ltdl properly<br>
+&gt;&gt; LT_CONFIG_LTDL_DIR([src/libltdl])<br>
+&gt;&gt; LTDL_INIT([recursive convenience])<br>
+&gt;&gt; AC_CONFIG_FILES([src/libltdl/Makefile])<br>
+&gt;&gt; # Tell src/Makefile.am that things were configured under src/libltdl/<br>
+&gt;&gt; hwloc_mayenter_src_libltdl=yes<br>
+&gt;&gt; <br>
+&gt;&gt; libtool doesn't seem to like having it in a HWLOC_SETUP_LTDL macro<br>
+&gt;&gt; outside of the main, and I think we have to let embedders call<br>
+&gt;&gt; AM_PROG_LIBTOOL() directly in case they need other options.<br>
+&gt;&gt; <br>
+&gt;&gt; There's also a hack below these lines that is specific to the<br>
+&gt;&gt; &quot;recursive&quot; mode, but we may switch to &quot;subproject&quot; mode&nbsp; (hwloc<br>
+&gt;&gt; configure explicitly calls libltdl configure) at some point if libtool<br>
+&gt;&gt; doesn't fix the issue.<br>
+&gt;&gt; <br>
+&gt;&gt; [2]<br>
+&gt;&gt; <a href="https://svn.open-mpi.org/trac/hwloc/changeset/5563">https://svn.open-mpi.org/trac/hwloc/changeset/5563</a><br>
+&gt;&gt; <a href="https://svn.open-mpi.org/trac/hwloc/changeset/5562">https://svn.open-mpi.org/trac/hwloc/changeset/5562</a><br>
+&gt;&gt; <br>
+&gt;&gt; &lt;ltdl.patch&gt;<br>
+&gt; <br>
+&gt; <br>
+&gt; -- <br>
+&gt; Jeff Squyres<br>
+&gt; jsquyres@cisco.com<br>
+&gt; For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/">
+http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt; <br>
+&gt; <br>
+&gt; _______________________________________________<br>
+&gt; hwloc-devel mailing list<br>
+&gt; hwloc-devel@open-mpi.org<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-devel">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-devel</a><br>
+<br>
+<br>
+-- <br>
+Jeff Squyres<br>
+jsquyres@cisco.com<br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/">
+http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+</div>
+</span></font></div>
+</body>
+</html>
+

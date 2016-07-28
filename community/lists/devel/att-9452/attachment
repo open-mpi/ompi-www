@@ -1,0 +1,24 @@
+<div dir="ltr"><p>WHAT: Adding communicator add/delete callbacks to MTL.</p>
+<p>WHY: MTL will be able to separate messages on different contexts.</p>
+<p>WHEN: On trunk (later on v1.5 as well), Tuesday telconf, 5 July 2011</p>
+<p>TIMEOUT: Tuesday telconf, 12 July 2011</p>
+<div>DETAILS:</div>
+<div> </div>
+<div> Currently MTLs do no handle communicator contexts in any special way,<br>they only add the context id to the tag selection of the underlying <br>messaging meachinsm. <br> <br> We would like to enable an MTL to maintain its own context data<br>
+per-communicator. This way an MTL will be able to queue incoming eager <br>messages and rendezvous requests per-communicator basis.</div>
+<p> The MTL will be allowed to override comm-&gt;c_pml_comm member, <br>since it&#39;s unused in pml_cm anyway. </p>
+<p><br>diff -r 0f757f8f3efb -r 8fcf276ee527 ompi/mca/mtl/mtl.h<br>--- a/ompi/mca/mtl/mtl.h Thu Jun 30 14:13:33 2011 +0300<br>+++ b/ompi/mca/mtl/mtl.h Fri Jul 01 13:54:20 2011 +0300<br>@@ -355,6 +355,34 @@<br> <br> <br> /**<br>
++ * Downcall from PML layer when a new communicator is created.<br>+ *<br>+ * @param comm  Communicator<br>+ * @return      OMPI_SUCCESS or failure status.<br>+ *<br>+ * Provides the MTL the opportunity to initialize/cache a data structure<br>
++ * on the communicator.<br>+ */<br>+typedef int (*mca_mtl_base_module_add_comm_fn_t)(<br>+                          struct mca_mtl_base_module_t* mtl,<br>+                          struct ompi_communicator_t* comm);<br>+<br>
++<br>+/**<br>+ * Downcall from PML layer when a communicator is destroyed.<br>+ *<br>+ * @param comm  Communicator<br>+ * @return      OMPI_SUCCESS or failure status.<br>+ *<br>+ * Provides the MTL the opportunity to cleanup any datastructures<br>
++ * associated with the communicator.<br>+ */<br>+typedef int (*mca_mtl_base_module_del_comm_fn_t)(<br>+                          struct mca_mtl_base_module_t* mtl,<br>+                          struct ompi_communicator_t* comm);<br>
++<br>+<br>+/**<br>  * MTL module interface functions and attributes.<br>  */<br> struct mca_mtl_base_module_t {<br>@@ -368,7 +396,6 @@<br>     mca_mtl_base_module_add_procs_fn_t   mtl_add_procs;<br>     mca_mtl_base_module_del_procs_fn_t   mtl_del_procs;<br>
+     mca_mtl_base_module_finalize_fn_t    mtl_finalize;<br>-<br>     mca_mtl_base_module_send_fn_t        mtl_send;<br>     mca_mtl_base_module_isend_fn_t       mtl_isend;<br>     mca_mtl_base_module_irecv_fn_t       mtl_irecv;<br>
+@@ -376,6 +403,8 @@<br> <br>     /* Optional MTL functions */<br>     mca_mtl_base_module_cancel_fn_t      mtl_cancel;<br>+    mca_mtl_base_module_add_comm_fn_t    mtl_add_comm;<br>+    mca_mtl_base_module_del_comm_fn_t    mtl_del_comm;<br>
+ };<br> typedef struct mca_mtl_base_module_t mca_mtl_base_module_t;<br> <br>diff -r 0f757f8f3efb -r 8fcf276ee527 ompi/mca/pml/cm/pml_cm.c<br>--- a/ompi/mca/pml/cm/pml_cm.c Thu Jun 30 14:13:33 2011 +0300<br>+++ b/ompi/mca/pml/cm/pml_cm.c Fri Jul 01 13:54:20 2011 +0300<br>
+@@ -82,14 +82,22 @@<br> int<br> mca_pml_cm_add_comm(ompi_communicator_t* comm)<br> {<br>+    int ret;<br>+<br>     /* should never happen, but it was, so check */<br>     if (comm-&gt;c_contextid &gt; ompi_pml_cm.super.pml_max_contextid) {<br>
+         return OMPI_ERR_OUT_OF_RESOURCE;<br>     }<br> <br>-    /* setup our per-communicator data */<br>+    /* initialize per-communicator data. MTLs may override this. */<br>     comm-&gt;c_pml_comm = NULL;<br> <br>+    /* notify the MTL about the added communicator */<br>
++    if ((NULL != ompi_mtl-&gt;mtl_add_comm) &amp;&amp;<br>+        (OMPI_SUCCESS != (ret = OMPI_MTL_CALL(add_comm(ompi_mtl, comm))))) {<br>+        return ret;<br>+    }<br>+<br>     return OMPI_SUCCESS;<br> }<br> <br>@@ -97,8 +105,13 @@<br>
+ int<br> mca_pml_cm_del_comm(ompi_communicator_t* comm)<br> {<br>-    /* clean up our per-communicator data */<br>-    comm-&gt;c_pml_comm = NULL;<br>+    int ret;<br>+<br>+    /* notify the MTL about the deleted communicator */<br>
++    if ((NULL != ompi_mtl-&gt;mtl_del_comm) &amp;&amp;<br>+        (OMPI_SUCCESS != (ret = OMPI_MTL_CALL(del_comm(ompi_mtl, comm))))) {<br>+        return ret;<br>+    }<br> <br>     return OMPI_SUCCESS;<br> }<br></p></div>
+

@@ -1,0 +1,182 @@
+<div dir="ltr">Hi,<br><div class="gmail_extra"><br><div class="gmail_quote"><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+
+
+1. If you use OMPI&#39;s --bind-to-core option and then re-bind yourself to some other core, then all the memory affinity that MPI setup during MPI_Init() will be &quot;wrong&quot; (possibly on a remote numa node).  I would advise against doing this.<br>
+
+</blockquote><div>Ah yes!  Noted. </div><div> </div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex"><br>
+3. Rather that setting up cpu shielding, you can just use simple API calls or scripting calls to bind each MPI process to wherever you want.  <br></blockquote><div><br></div><div>The reason for using &quot;cpu shielding&quot; was not to bind processes to cores but to ensure that no other processes get scheduled on those cores (some stubborn kernel tasks can still disobey cpuset rules but they are too lightweight anyway, so that&#39;s fine). </div>
+
+<div><br></div><div> </div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+$ mpirun --host a,b -np 4 my_binding_script.sh my_mpi_app<br>
+<br>
+Where my_binding_script.sh simply invokes a tool like hwloc-bind to bind yourself to whatever socket/core combination you want, and then invokes my_mpi_app (i.e., the real MPI application).  For example:<br>
+<br>
+$ cat my_binding_script.sh<br>
+#!/bin/sh<br><span style="font-family:arial,sans-serif;font-size:13px">exec hwloc-bind socket:1.core:$OMPI_COMM_</span><span style="font-family:arial,sans-serif;font-size:13px">WORLD_LOCAL_RANK $1</span> </blockquote><div>
+
+ </div><div><div>As pointed out, it is indeed convenient to use hwloc and its cousins for binding processes. It is my understanding, however, that coupling hwloc with cpu-shielding will enable exclusive access to cores within the set.</div>
+
+<div><br></div><div>Thanks again,</div><div>Siddhartha Jana</div><div><br></div></div><div><br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+
+<div class=""><div class="h5">
+<br>
+On Aug 18, 2013, at 7:01 PM, Siddhartha Jana &lt;<a href="mailto:siddharthajana24@gmail.com">siddharthajana24@gmail.com</a>&gt; wrote:<br>
+<br>
+&gt; Noted. Thanks again<br>
+&gt; -- Sid<br>
+&gt;<br>
+&gt;<br>
+&gt; On 18 August 2013 18:40, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt; It only has to come after MPI_Init *if* you are telling mpirun to bind you as well. Otherwise, you could just not tell mpirun to bind (it doesn&#39;t by default) and then bind anywhere, anytime you like<br>
+&gt;<br>
+&gt;<br>
+&gt; On Aug 18, 2013, at 3:24 PM, Siddhartha Jana &lt;<a href="mailto:siddharthajana24@gmail.com">siddharthajana24@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; A process can always change its binding by &quot;re-binding&quot; to wherever it wants after MPI_Init completes.<br>
+&gt;&gt; Noted. Thanks. I guess the important thing that I wanted to know was that the binding needs to happen *after* MPI_Init() completes.<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks all<br>
+&gt;&gt;<br>
+&gt;&gt; -- Siddhartha<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On Aug 18, 2013, at 9:38 AM, Siddhartha Jana &lt;<a href="mailto:siddharthajana24@gmail.com">siddharthajana24@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; Firstly, I would like my program to dynamically assign it self to one of the cores it pleases and remain bound to it until it later reschedules itself.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Ralph Castain wrote:<br>
+&gt;&gt;&gt; &gt;&gt; &quot;If you just want mpirun to respect an external cpuset limitation, it already does so when binding - it will bind within the external limitation&quot;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; In my case, the limitation is enforced &quot;internally&quot;, by the application once in begins execution. I enforce this during program execution, after the mpirun has finished &quot;binding within the external limitation&quot;.<br>
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Brice Goglin said:<br>
+&gt;&gt;&gt; &gt;&gt;  &quot;MPI can bind at two different times: inside mpirun after ssh before running the actual program (this one would ignore your cpuset), later at MPI_Init inside your program (this one will ignore your cpuset only if you call MPI_Init before creating the cpuset).&quot;<br>
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Noted. In that case, during program execution, whose binding is respected - mpirun&#39;s or MPI_Init()&#39;s? From the above, is my understanding correct? That MPI_Init() will be responsible for the 2nd round of attempting to bind processes to cores and can override what mpirun or the programmer had enforced before its call (using hwloc/cpuset/sched_load_balance() and other compatible cousins) ?<br>
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; --------------------------------------------<br>
+&gt;&gt;&gt; If this is so, in my case the flow of events is thus:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 1. mpirun binds an MPI process which is yet to begin execution. So mpirun says: &quot;Bind to some core - A&quot; (I don&#39;t use any hostfile/rankfile. but I do use the --bind-to-core flag)<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 2. Process begins execution on core A<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 3. I enforce: &quot;Bind to core B&quot;. (we must remember, it is only at runtime that  I know what core I want to be bound to and not while launching the processes using mpirun). So my process shifts over to core B<br>
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 4. MPI_Init() once again honors rankfile mapping(if any, default policy, otherwise ) and rebinds my process to core A<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 5. process finished execution and calls MPI_Finalize(), all the time on core A<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 6. mpirun exits<br>
+&gt;&gt;&gt; --------------------------------------------<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; So if I place step-3 above after step-4, my request will hold for the rest of the execution. Please do let me know, if my understanding is correct.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thanks for all the help<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Sincerely,<br>
+&gt;&gt;&gt; Siddhartha Jana<br>
+&gt;&gt;&gt; HPCTools<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; On 18 August 2013 10:49, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt;&gt;&gt; If you require that a specific rank go to a specific core, then use the rankfile mapper - you can see explanations on the syntax in &quot;man mpirun&quot;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; If you just want mpirun to respect an external cpuset limitation, it already does so when binding - it will bind within the external limitation<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; On Aug 18, 2013, at 6:09 AM, Siddhartha Jana &lt;<a href="mailto:siddharthajana24@gmail.com">siddharthajana24@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; So my question really boils down to:<br>
+&gt;&gt;&gt;&gt; How does one ensure that mpirun launches the processes on the &quot;specific&quot; cores that are expected of them to be bound to.<br>
+&gt;&gt;&gt;&gt; As I mentioned, if there were a way to specify the cores through the hostfile, this problem should be solved.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Thanks for all the quick replies,<br>
+&gt;&gt;&gt;&gt; -- Sid<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; On 18 August 2013 09:04, Siddhartha Jana &lt;<a href="mailto:siddharthajana24@gmail.com">siddharthajana24@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt; Thanks John. But I have an incredibly small system. 2 nodes - 16 cores each.<br>
+&gt;&gt;&gt;&gt; 2-4 MPI processes. :-)<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; On 18 August 2013 09:03, John Hearns &lt;<a href="mailto:hearnsj@googlemail.com">hearnsj@googlemail.com</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt; You really should install a job scheduler.<br>
+&gt;&gt;&gt;&gt; There are free versions.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; I&#39;m not sure about cpuset support in Gridengine. Anyone?<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+</div></div><span class=""><font color="#888888">--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+</font></span><div class=""><div class="h5"><br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br></div></div>
+

@@ -1,0 +1,112 @@
+You could set the setuid bit on the application and chown it to root??  It is about as secure as anything else that has been described thus far.  As a system admin, I cringe at the thought of anything that would allow something to run as someone else,  so there would have to be a pretty good justification for such unique use case as yours.  <br>
+<br>Randall<br><br><div class="gmail_quote">On Wed, Sep 14, 2011 at 12:56 PM, Reuti <span dir="ltr">&lt;<a href="mailto:reuti@staff.uni-marburg.de">reuti@staff.uni-marburg.de</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+Am 14.09.2011 um 19:02 schrieb Blosch, Edwin L:<br>
+<div class="im"><br>
+&gt; Thanks for trying.<br>
+&gt;<br>
+&gt; Do you feel that this is an impossible request without the assistance of some process running as root, for example, as Reuti mentioned, the daemons of a job scheduler?  Or are you saying it will just not be as straightforward as calling setgid as you had hoped?<br>
+
+&gt;<br>
+&gt; Also, do you think there is a way I could make use of the sg command below?  Perhaps there is a way to have the rsh/ssh launcher start the application processes with a command like &#39;sg &lt;group&gt; &lt;executable name&gt;&#39;?<br>
+
+<br>
+</div>What about a half-tight integration (or call it: classic tight integration), i.e. no recompilation necessary?<br>
+<br>
+- setup your mpiexec call in the jobscript to use a plain rsh for the remote startup (no path given): –mca plm_rsh_agent rsh<br>
+<br>
+- the PE of SGE needs the argument -catch_rsh in start_proc_args and the supplied script in $SGE_ROOT/mpi/startmpi.sh<br>
+<br>
+ (SGE will create a symbolic link in $TMPDIR therein [which will be called first this way] to the rsh-wrapper in $SGE_ROOT/mpi [pitfall: some applications need a -V to be added in the lines woth &quot;qrsh&quot;, i.e. &quot;qrsh -inherit -V ...&quot; to send all environment variables to the slaves])<br>
+
+<br>
+- what is your setting of qrsh_daemon/qrsh_command in `qconf -sconf`? This will then be used finally to reach the node and should be builtin or point to the SGE supplied rsh/rshd (no rshd necessary to install, no rshd is running all the time, no rshd will be started by xinet.d or alike)<br>
+
+<br>
+- like you do already: switch off the built-in SGE starter in your mpiexec call: -mca plm_rsh_disable_qrsh 1<br>
+<font color="#888888"><br>
+-- Reuti<br>
+</font><br>
+PS: To avoid misunderstandings: you could also set &quot;–mca plm_rsh_agent foobar&quot; and in $SGE_ROOT/mpi/startmpi.sh you change it to create a symbolic link called &quot;foobar &quot; in $TMPDIR. It&#39;s just a name at this stage of startup.<br>
+
+<div><div></div><div class="h5"><br>
+<br>
+&gt; Ed<br>
+&gt;<br>
+&gt;<br>
+&gt; NAME<br>
+&gt;      sg - execute command as different group ID<br>
+&gt;<br>
+&gt; SYNOPSIS<br>
+&gt;      sg [-] [group [-c ] command]<br>
+&gt;<br>
+&gt; DESCRIPTION<br>
+&gt;      The sg command works similar to newgrp but accepts a command. The<br>
+&gt;      command will be executed with the /bin/sh shell. With most shells you<br>
+&gt;      may run sg from, you need to enclose multi-word commands in quotes.<br>
+&gt;      Another difference between newgrp and sg is that some shells treat<br>
+&gt;      newgrp specially, replacing themselves with a new instance of a shell<br>
+&gt;      that newgrp creates. This doesn&#39;t happen with sg, so upon exit from a<br>
+&gt;      sg command you are returned to your previous group ID.<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; -----Original Message-----<br>
+&gt; From: <a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a> [mailto:<a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a>] On Behalf Of Ralph Castain<br>
+&gt; Sent: Wednesday, September 14, 2011 11:33 AM<br>
+&gt; To: Open MPI Users<br>
+&gt; Subject: Re: [OMPI users] EXTERNAL: Re: Can you set the gid of the processes created by mpirun?<br>
+&gt;<br>
+&gt;<br>
+&gt; On Sep 14, 2011, at 9:39 AM, Blosch, Edwin L wrote:<br>
+&gt;<br>
+&gt;&gt; Thanks, Ralph,<br>
+&gt;&gt;<br>
+&gt;&gt; I get the failure messages, unfortunately:<br>
+&gt;&gt;<br>
+&gt;&gt; setgid FAILED<br>
+&gt;&gt; setgid FAILED<br>
+&gt;&gt; setgid FAILED<br>
+&gt;&gt;<br>
+&gt;&gt; I actually had attempted to call setgid from within the application previously, which looks similar to what you&#39;ve done, but it failed. That was when I initiated the post to the mailing list. My conclusion, a guess really, was that Linux would not let me setgid from within my program because I was not root.<br>
+
+&gt;<br>
+&gt; I was afraid of that - the documentation seemed to indicate that would be the case, but I figured it was worth a quick try. Sorry I can&#39;t be of help.<br>
+&gt;<br>
+&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; -----Original Message-----<br>
+&gt;&gt; From: <a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a> [mailto:<a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a>] On Behalf Of Ralph Castain<br>
+&gt;&gt; Sent: Wednesday, September 14, 2011 8:15 AM<br>
+&gt;&gt; To: Open MPI Users<br>
+&gt;&gt; Subject: Re: [OMPI users] EXTERNAL: Re: Can you set the gid of the processes created by mpirun?<br>
+&gt;&gt;<br>
+&gt;&gt; The attached should set the gid of the remote daemons (and their children) to the gid of mpirun. No cmd line option or anything is required - it will just always do it.<br>
+&gt;&gt;<br>
+&gt;&gt; Would you mind giving it a try?<br>
+&gt;&gt;<br>
+&gt;&gt; Please let me know if/how it works.<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br><br clear="all"><br>-- <br>Randall Svancara<br><a href="http://knowyourlinux.com/" target="_blank">http://knowyourlinux.com/</a><br>
+

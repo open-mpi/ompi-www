@@ -1,0 +1,260 @@
+I think Bill is right.  Here is the description for mpi_finalize:<br><br>This routine cleans up all MPI states. Once this routine is called, no 
+MPI routine (not even MPI_Init) may be called, except for 
+MPI_Get_version,
+MPI_Initialized, and MPI_Finalized. Unless there has been a call to 
+MPI_Abort, you must ensure that all pending communications involving a 
+process are complete
+before the process calls MPI_Finalize. If the call returns, each process
+ may either continue local computations or exit without participating in
+ further
+communication with other processes. <b>At the moment when the last process 
+calls MPI_Finalize, all pending sends must be matched by a receive, and 
+all pending
+receives must be matched by a send.
+</b><br><br>So I believe what Bill is alluding to is that after you called the second Isend, your receive side hasn&#39;t posted the second Irecv; thus when mpi_finalize is called on the send side, the message got thrown out.  When your receive side does get to the second Irecv, it is waiting for a message that&#39;ll never arrive.<br>
+
+<br><div class="gmail_quote">On Tue, Feb 22, 2011 at 8:06 AM, Bill Rankin <span dir="ltr">&lt;<a href="mailto:Bill.Rankin@sas.com">Bill.Rankin@sas.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+
+Try putting an &quot;MPI_Barrier()&quot; call before your MPI_Finalize() [*].  I suspect that one of the programs (the sending side) is calling Finalize before the receiving side has processed the messages.<br>
+<br>
+-bill<br>
+<br>
+[*] pet peeve of mine : this should almost always be standard practice.<br>
+<div><div></div><div class="h5"><br>
+<br>
+&gt; -----Original Message-----<br>
+&gt; From: <a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a> [mailto:<a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a>] On<br>
+&gt; Behalf Of Xianglong Kong<br>
+&gt; Sent: Tuesday, February 22, 2011 10:27 AM<br>
+&gt; To: Open MPI Users<br>
+&gt; Subject: Re: [OMPI users] Beginner&#39;s question: why multiple sends or<br>
+&gt; receives don&#39;t work?<br>
+&gt;<br>
+&gt; Hi, Thank you for the reply.<br>
+&gt;<br>
+&gt; However, using MPI_waitall instead of MPI_wait didn&#39;t solve the<br>
+&gt; problem. The code would hang at the MPI_waitall. Also, I&#39;m not quit<br>
+&gt; understand why the code is inherently unsafe.  Can the non-blocking<br>
+&gt; send or receive cause any deadlock?<br>
+&gt;<br>
+&gt; Thanks!<br>
+&gt;<br>
+&gt; Kong<br>
+&gt;<br>
+&gt; On Mon, Feb 21, 2011 at 2:32 PM, Jeff Squyres &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;<br>
+&gt; wrote:<br>
+&gt; &gt; It&#39;s because you&#39;re waiting on the receive request to complete before<br>
+&gt; the send request.  This likely works locally because the message<br>
+&gt; transfer is through shared memory and is fast, but it&#39;s still an<br>
+&gt; inherently unsafe way to block waiting for completion (i.e., the<br>
+&gt; receive might not complete if the send does not complete).<br>
+&gt; &gt;<br>
+&gt; &gt; What you probably want to do is build an array of 2 requests and then<br>
+&gt; issue a single MPI_Waitall() on both of them.  This will allow MPI to<br>
+&gt; progress both requests simultaneously.<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; On Feb 18, 2011, at 11:58 AM, Xianglong Kong wrote:<br>
+&gt; &gt;<br>
+&gt; &gt;&gt; Hi, all,<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; I&#39;m an mpi newbie. I&#39;m trying to connect two desktops in my office<br>
+&gt; &gt;&gt; with each other using a crossing cable and implement a parallel code<br>
+&gt; &gt;&gt; on them using MPI.<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Now, the two nodes can ssh to each other without password, and can<br>
+&gt; &gt;&gt; successfully run the MPI &quot;Hello world&quot; code. However, when I tried<br>
+&gt; to<br>
+&gt; &gt;&gt; use multiple MPI non-blocking sends or receives, the job would hang.<br>
+&gt; &gt;&gt; The problem only showed up if the two processes are launched in the<br>
+&gt; &gt;&gt; different nodes, the code can run successfully if the two processes<br>
+&gt; &gt;&gt; are launched in the same node. Also, the code can run successfully<br>
+&gt; if<br>
+&gt; &gt;&gt; there are only one send or/and one receive in each process.<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Here is the code that can run successfully:<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; #include &lt;stdlib.h&gt;<br>
+&gt; &gt;&gt; #include &lt;stdio.h&gt;<br>
+&gt; &gt;&gt; #include &lt;string.h&gt;<br>
+&gt; &gt;&gt; #include &lt;mpi.h&gt;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; int main(int argc, char** argv) {<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       int myrank, nprocs;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       MPI_Init(&amp;argc, &amp;argv);<br>
+&gt; &gt;&gt;       MPI_Comm_size(MPI_COMM_WORLD, &amp;nprocs);<br>
+&gt; &gt;&gt;       MPI_Comm_rank(MPI_COMM_WORLD, &amp;myrank);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       printf(&quot;Hello from processor %d of %d\n&quot;, myrank, nprocs);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       MPI_Request reqs1, reqs2;<br>
+&gt; &gt;&gt;       MPI_Status stats1, stats2;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       int tag1=10;<br>
+&gt; &gt;&gt;       int tag2=11;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       int buf;<br>
+&gt; &gt;&gt;       int mesg;<br>
+&gt; &gt;&gt;       int source=1-myrank;<br>
+&gt; &gt;&gt;       int dest=1-myrank;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       if(myrank==0)<br>
+&gt; &gt;&gt;       {<br>
+&gt; &gt;&gt;               mesg=1;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;               MPI_Irecv(&amp;buf, 1, MPI_INT, source, tag1,<br>
+&gt; MPI_COMM_WORLD, &amp;reqs1);<br>
+&gt; &gt;&gt;               MPI_Isend(&amp;mesg, 1, MPI_INT, dest,  tag2,<br>
+&gt; MPI_COMM_WORLD, &amp;reqs2);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       }<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       if(myrank==1)<br>
+&gt; &gt;&gt;       {<br>
+&gt; &gt;&gt;               mesg=2;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;               MPI_Irecv(&amp;buf, 1, MPI_INT, source, tag2,<br>
+&gt; MPI_COMM_WORLD, &amp;reqs1);<br>
+&gt; &gt;&gt;               MPI_Isend(&amp;mesg, 1, MPI_INT,  dest, tag1,<br>
+&gt; MPI_COMM_WORLD, &amp;reqs2);<br>
+&gt; &gt;&gt;       }<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       MPI_Wait(&amp;reqs1, &amp;stats1);<br>
+&gt; &gt;&gt;       printf(&quot;myrank=%d,received the message\n&quot;,myrank);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       MPI_Wait(&amp;reqs2, &amp;stats2);<br>
+&gt; &gt;&gt;       printf(&quot;myrank=%d,sent the messages\n&quot;,myrank);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       printf(&quot;myrank=%d, buf=%d\n&quot;,myrank, buf);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       MPI_Finalize();<br>
+&gt; &gt;&gt;       return 0;<br>
+&gt; &gt;&gt; }<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; And here is the code that will hang<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; #include &lt;stdlib.h&gt;<br>
+&gt; &gt;&gt; #include &lt;stdio.h&gt;<br>
+&gt; &gt;&gt; #include &lt;string.h&gt;<br>
+&gt; &gt;&gt; #include &lt;mpi.h&gt;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; int main(int argc, char** argv) {<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       int myrank, nprocs;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       MPI_Init(&amp;argc, &amp;argv);<br>
+&gt; &gt;&gt;       MPI_Comm_size(MPI_COMM_WORLD, &amp;nprocs);<br>
+&gt; &gt;&gt;       MPI_Comm_rank(MPI_COMM_WORLD, &amp;myrank);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       printf(&quot;Hello from processor %d of %d\n&quot;, myrank, nprocs);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       MPI_Request reqs1, reqs2;<br>
+&gt; &gt;&gt;       MPI_Status stats1, stats2;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       int tag1=10;<br>
+&gt; &gt;&gt;       int tag2=11;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       int source=1-myrank;<br>
+&gt; &gt;&gt;       int dest=1-myrank;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       if(myrank==0)<br>
+&gt; &gt;&gt;       {<br>
+&gt; &gt;&gt;               int buf1, buf2;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;               MPI_Irecv(&amp;buf1, 1, MPI_INT, source, tag1,<br>
+&gt; MPI_COMM_WORLD, &amp;reqs1);<br>
+&gt; &gt;&gt;               MPI_Irecv(&amp;buf2, 1, MPI_INT, source, tag2,<br>
+&gt; MPI_COMM_WORLD, &amp;reqs2);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;               MPI_Wait(&amp;reqs1, &amp;stats1);<br>
+&gt; &gt;&gt;               printf(&quot;received one message\n&quot;);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;               MPI_Wait(&amp;reqs2, &amp;stats2);<br>
+&gt; &gt;&gt;               printf(&quot;received two messages\n&quot;);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;               printf(&quot;myrank=%d, buf1=%d, buf2=%d\n&quot;,myrank, buf1,<br>
+&gt; buf2);<br>
+&gt; &gt;&gt;       }<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       if(myrank==1)<br>
+&gt; &gt;&gt;       {<br>
+&gt; &gt;&gt;               int mesg1=1;<br>
+&gt; &gt;&gt;               int mesg2=2;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;               MPI_Isend(&amp;mesg1, 1, MPI_INT, dest, tag1,<br>
+&gt; MPI_COMM_WORLD, &amp;reqs1);<br>
+&gt; &gt;&gt;               MPI_Isend(&amp;mesg2, 1, MPI_INT, dest, tag2,<br>
+&gt; MPI_COMM_WORLD, &amp;reqs2);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;               MPI_Wait(&amp;reqs1, &amp;stats1);<br>
+&gt; &gt;&gt;               printf(&quot;sent one message\n&quot;);<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;               MPI_Wait(&amp;reqs2, &amp;stats2);<br>
+&gt; &gt;&gt;               printf(&quot;sent two messages\n&quot;);<br>
+&gt; &gt;&gt;       }<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;       MPI_Finalize();<br>
+&gt; &gt;&gt;       return 0;<br>
+&gt; &gt;&gt; }<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; And the output of the second failed code:<br>
+&gt; &gt;&gt; ***********************************************<br>
+&gt; &gt;&gt; Hello from processor 0 of 2<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Received one message<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Hello from processor 1 of 2<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Sent one message<br>
+&gt; &gt;&gt; *******************************************************<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Can anyone help to point out why the second code didn&#39;t work?<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Thanks!<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; Kong<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; _______________________________________________<br>
+&gt; &gt;&gt; users mailing list<br>
+&gt; &gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; --<br>
+&gt; &gt; Jeff Squyres<br>
+&gt; &gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; &gt; For corporate legal information go to:<br>
+&gt; &gt; <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; users mailing list<br>
+&gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Xianglong Kong<br>
+&gt; Department of Mechanical Engineering<br>
+&gt; University of Rochester<br>
+&gt; Phone: (585)520-4412<br>
+&gt; MSN: <a href="mailto:dinosaur8312@hotmail.com">dinosaur8312@hotmail.com</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br><br clear="all"><br>-- <br>David Zhang<br>University of California, San Diego<br>
+

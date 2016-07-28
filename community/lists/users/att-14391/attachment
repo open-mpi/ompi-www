@@ -1,0 +1,111 @@
+<html><body bgcolor="#FFFFFF"><div>Open MPI will use shared memory to communicate between peers on the sane node - but that's hidden beneath the covers; it's not exposed via the MPI API. You just MPI-send and magic occurs and the receiver gets the message.&nbsp;<br><br>Sent from my PDA.<span class="Apple-style-span" style="-webkit-tap-highlight-color: rgba(26, 26, 26, 0.296875); -webkit-composition-fill-color: rgba(175, 192, 227, 0.230469); -webkit-composition-frame-color: rgba(77, 128, 180, 0.230469); ">&nbsp;No type good.&nbsp;</span></div><div><br>On Oct 4, 2010, at 11:13 AM, "Andrei Fokau" &lt;<a href="mailto:andrei.fokau@neutron.kth.se">andrei.fokau@neutron.kth.se</a>&gt; wrote:<br><br></div><div></div><blockquote type="cite"><div><font class="Apple-style-span" face="arial, helvetica, sans-serif">Does OMPI have shared memory capabilities (as it is mentioned in MPI-2)?</font><div><font class="Apple-style-span" face="arial, helvetica, sans-serif">How can I use them?<br>
+
+</font><br><div>Andrei<br>
+<br><br><div class="gmail_quote">On Sat, Sep 25, 2010 at 23:19, Andrei Fokau <span dir="ltr">&lt;<a href="mailto:andrei.fokau@neutron.kth.se"><a href="mailto:andrei.fokau@neutron.kth.se">andrei.fokau@neutron.kth.se</a></a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+
+<font face="arial, helvetica, sans-serif">Here are some more details about our problem. We use a dozen of 4-processor nodes with 8 GB memory on each node. The code we run needs about 3 GB per processor, so we can load only 2 processors out of 4. The vast majority of those 3 GB is the same for each processor and is accessed&nbsp;continuously during calculation. In my original question I wasn't very clear asking about a possibility to use shared memory with Open MPI - in our case we do not need to have a remote access to the data, and&nbsp;</font><span style="font-family:arial, helvetica, sans-serif">it would be sufficient to share memory within each node only.</span><div>
+
+
+<font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif">Of course, the possibility to access the data remotely (via mmap) is attractive because it would allow to store much larger arrays (up to 10 GB) at one remote place, meaning higher accuracy for our calculations. However, I believe that the access time would be too long for the data read so frequently, and therefore the performance would be lost.<br>
+
+
+</font><div><div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif">I still hope that some of the subscribers to this mailing list have an experience of using Global Arrays. This library seems to be fine for our case, however I feel that there should be a simpler solution. Open MPI conforms with MPI-2 standard, and the later has a description of shared memory application. Do you see any other way for us to use&nbsp;shared memory (within node) apart of using Global Arrays?</font></div>
+
+
+<div><font face="arial, helvetica, sans-serif"><br></font></div><font color="#888888"><div><font face="arial, helvetica, sans-serif">Andrei</font></div></font><div><div></div><div class="h5"><div><font face="arial, helvetica, sans-serif"><br>
+
+
+</font>
+<br><div class="gmail_quote">On Fri, Sep 24, 2010 at 19:03, Durga Choudhury <span dir="ltr">&lt;<a href="mailto:dpchoudh@gmail.com" target="_blank"><a href="mailto:dpchoudh@gmail.com">dpchoudh@gmail.com</a></a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+I think the 'middle ground' approach can be simplified even further if<br>
+the data file is in a shared device (e.g. NFS/Samba mount) that can be<br>
+mounted at the same location of the file system tree on all nodes. I<br>
+have never tried it, though and mmap()'ing a non-POSIX compliant file<br>
+system such as Samba might have issues I am unaware of.<br>
+<br>
+However, I do not see why you should not be able to do this even if<br>
+the file is being written to as long as you call msync() before using<br>
+the mapped pages.<br>
+<font color="#888888"><br>
+Durga<br>
+</font><div><div></div><div><br>
+<br>
+On Fri, Sep 24, 2010 at 12:31 PM, Eugene Loh &lt;<a href="mailto:eugene.loh@oracle.com" target="_blank"><a href="mailto:eugene.loh@oracle.com">eugene.loh@oracle.com</a></a>&gt; wrote:<br>
+&gt; It seems to me there are two extremes.<br>
+&gt;<br>
+&gt; One is that you replicate the data for each process.&nbsp; This has the<br>
+&gt; disadvantage of consuming lots of memory "unnecessarily."<br>
+&gt;<br>
+&gt; Another extreme is that shared data is distributed over all processes.&nbsp; This<br>
+&gt; has the disadvantage of making at least some of the data less accessible,<br>
+&gt; whether in programming complexity and/or run-time performance.<br>
+&gt;<br>
+&gt; I'm not familiar with Global Arrays.&nbsp; I was somewhat familiar with HPF.&nbsp; I<br>
+&gt; think the natural thing to do with those programming models is to distribute<br>
+&gt; data over all processes, which may relieve the excessive memory consumption<br>
+&gt; you're trying to address but which may also just put you at a different<br>
+&gt; "extreme" of this spectrum.<br>
+&gt;<br>
+&gt; The middle ground I think might make most sense would be to share data only<br>
+&gt; within a node, but to replicate the data for each node.&nbsp; There are probably<br>
+&gt; multiple ways of doing this -- possibly even GA, I don't know.&nbsp; One way<br>
+&gt; might be to use one MPI process per node, with OMP multithreading within<br>
+&gt; each process|node.&nbsp; Or (and I thought this was the solution you were looking<br>
+&gt; for), have some idea which processes are collocal.&nbsp; Have one process per<br>
+&gt; node create and initialize some shared memory -- mmap, perhaps, or SysV<br>
+&gt; shared memory.&nbsp; Then, have its peers map the same shared memory into their<br>
+&gt; address spaces.<br>
+&gt;<br>
+&gt; You asked what source code changes would be required.&nbsp; It depends.&nbsp; If<br>
+&gt; you're going to mmap shared memory in on each node, you need to know which<br>
+&gt; processes are collocal.&nbsp; If you're willing to constrain how processes are<br>
+&gt; mapped to nodes, this could be easy.&nbsp; (E.g., "every 4 processes are<br>
+&gt; collocal".)&nbsp; If you want to discover dynamically at run time which are<br>
+&gt; collocal, it would be harder.&nbsp; The mmap stuff could be in a stand-alone<br>
+&gt; function of about a dozen lines.&nbsp; If the shared area is allocated as one<br>
+&gt; piece, substituting the single malloc() call with a call to your mmap<br>
+&gt; function should be simple.&nbsp; If you have many malloc()s you're trying to<br>
+&gt; replace, it's harder.<br>
+&gt;<br>
+&gt; Andrei Fokau wrote:<br>
+&gt;<br>
+&gt; The data are read from a file and processed before calculations begin, so I<br>
+&gt; think that mapping will not work in our case.<br>
+&gt; Global Arrays look promising indeed. As I said, we need to put just a part<br>
+&gt; of data to the shared section. John, do you (or may be other users) have an<br>
+&gt; experience of working with GA?<br>
+&gt; <a href="http://www.emsl.pnl.gov/docs/global/um/build.html" target="_blank"><a href="http://www.emsl.pnl.gov/docs/global/um/build.html">http://www.emsl.pnl.gov/docs/global/um/build.html</a></a><br>
+&gt; When GA runs with MPI:<br>
+&gt; MPI_Init(..) &nbsp; &nbsp; &nbsp;! start MPI<br>
+&gt; GA_Initialize() &nbsp; ! start global arrays<br>
+&gt; MA_Init(..) &nbsp; &nbsp; &nbsp; ! start memory allocator<br>
+&gt; &nbsp;&nbsp; .... do work<br>
+&gt; GA_Terminate() &nbsp; &nbsp;! tidy up global arrays<br>
+&gt; MPI_Finalize() &nbsp; &nbsp;! tidy up MPI<br>
+&gt; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;! exit program<br>
+&gt; On Fri, Sep 24, 2010 at 13:44, Reuti &lt;<a href="mailto:reuti@staff.uni-marburg.de" target="_blank"><a href="mailto:reuti@staff.uni-marburg.de">reuti@staff.uni-marburg.de</a></a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; Am 24.09.2010 um 13:26 schrieb John Hearns:<br>
+&gt;&gt;<br>
+&gt;&gt; &gt; On 24 September 2010 08:46, Andrei Fokau &lt;<a href="mailto:andrei.fokau@neutron.kth.se" target="_blank"><a href="mailto:andrei.fokau@neutron.kth.se">andrei.fokau@neutron.kth.se</a></a>&gt;<br>
+&gt;&gt; &gt; wrote:<br>
+&gt;&gt; &gt;&gt; We use a C-program which consumes a lot of memory per process (up to<br>
+&gt;&gt; &gt;&gt; few<br>
+&gt;&gt; &gt;&gt; GB), 99% of the data being the same for each process. So for us it<br>
+&gt;&gt; &gt;&gt; would be<br>
+&gt;&gt; &gt;&gt; quite reasonable to put that part of data in a shared memory.<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; <a href="http://www.emsl.pnl.gov/docs/global/" target="_blank"><a href="http://www.emsl.pnl.gov/docs/global/">http://www.emsl.pnl.gov/docs/global/</a></a><br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; Is this eny help? Apologies if I'm talking through my hat.<br>
+&gt;&gt;<br>
+&gt;&gt; I was also thinking of this when I read "data in a shared memory" (besides<br>
+&gt;&gt; approaches like <a href="http://www.kerrighed.org/wiki/index.php/Main_Page" target="_blank"><a href="http://www.kerrighed.org/wiki/index.php/Main_Page">http://www.kerrighed.org/wiki/index.php/Main_Page</a></a>). Wasn't<br>
+&gt;&gt; this also one idea behind "High Performance Fortran" - running in parallel<br>
+&gt;&gt; across nodes even without knowing that it's across nodes at all while<br>
+&gt;&gt; programming and access all data like it's being local.<br>
+&gt;<br>
+</div></div><div><div></div><div><br></div></div></blockquote></div></div></div></div></div></div></blockquote></div></div></div>
+</div></blockquote><blockquote type="cite"><div><span>_______________________________________________</span><br><span>users mailing list</span><br><span><a href="mailto:users@open-mpi.org">users@open-mpi.org</a></span><br><span><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></span></div></blockquote></body></html>

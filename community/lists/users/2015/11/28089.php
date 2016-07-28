@@ -1,0 +1,181 @@
+<?
+$subject_val = "Re: [OMPI users] Openmpi 1.10.1 fails with SIGXFSZ on file limit &lt;=	131072";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Fri Nov 20 11:09:46 2015" -->
+<!-- isoreceived="20151120160946" -->
+<!-- sent="Fri, 20 Nov 2015 16:09:39 +0000" -->
+<!-- isosent="20151120160939" -->
+<!-- name="Jeff Squyres (jsquyres)" -->
+<!-- email="jsquyres_at_[hidden]" -->
+<!-- subject="Re: [OMPI users] Openmpi 1.10.1 fails with SIGXFSZ on file limit &amp;lt;=	131072" -->
+<!-- id="00E9B12D-DE36-4F84-A976-4AE5E625CF53_at_cisco.com" -->
+<!-- charset="us-ascii" -->
+<!-- inreplyto="DUB123-W14AFF35BFC3916B6D94E93B11A0_at_phx.gbl" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI users] Openmpi 1.10.1 fails with SIGXFSZ on file limit &lt;=	131072<br>
+<strong>From:</strong> Jeff Squyres (jsquyres) (<em>jsquyres_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2015-11-20 11:09:39
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="28090.php">Ralph Castain: "[OMPI users] PMIx Birds-of-a-Feather meeting"</a>
+<li><strong>Previous message:</strong> <a href="28088.php">Dave Love: "Re: [OMPI users] Setting bind-to none as default via environment?"</a>
+<li><strong>In reply to:</strong> <a href="28086.php">Saurabh T: "Re: [OMPI users] Openmpi 1.10.1 fails with SIGXFSZ on file limit &lt;= 131072"</a>
+<!-- nextthread="start" -->
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+I'm in an airport right now and can't easily check, but instead of using mmap memory (which treats shared memory as a file), you could tell open MPI to use SYSV shared memory. IIRC that isn't treated like a file.
+<br>
+<p>Look for a selection mechanism via an MCA param in the sm or Vader btls- run stuff like
+<br>
+<p>ompi_info --level 9 --param btl tcp
+<br>
+<p>And also w Vader. Looks for a param that selects which type of shared memory to use.
+<br>
+<p>Sent from my phone. No type good.
+<br>
+<p>On Nov 20, 2015, at 9:04 AM, Saurabh T &lt;saurabh_at_[hidden]&lt;mailto:saurabh_at_[hidden]&gt;&gt; wrote:
+<br>
+<p><p><span class="quotelev1">&gt; For what it's worth, that's open MPI creating a chunk of shared memory for use with on-server
+</span><br>
+<span class="quotelev1">&gt; communication. It shows up as a &quot;file&quot;, but it's really shared memory.
+</span><br>
+<p><span class="quotelev1">&gt; You can disable sm and/or Vader, but your on-server message passing performance will be significantly
+</span><br>
+<span class="quotelev1">&gt; lower.
+</span><br>
+<p><span class="quotelev1">&gt; Is there a reason you have a file size limit?
+</span><br>
+<p>The file size limit is so our testing does not write runaway large files. I'm not satisfied that the solution would be to just throw a better error. This to me looks like a bug in openmpi. If it is actually shared memory, it shouldnt be constrained by file size limit.
+<br>
+<p>saurabh
+<br>
+<p>________________________________
+<br>
+From: saurabh_at_[hidden]&lt;mailto:saurabh_at_[hidden]&gt;
+<br>
+To: users_at_[hidden]&lt;mailto:users_at_[hidden]&gt;
+<br>
+Subject: RE: Openmpi 1.10.1 fails with SIGXFSZ on file limit &lt;= 131072
+<br>
+Date: Thu, 19 Nov 2015 17:32:36 -0500
+<br>
+<p>I apologize, I have the wrong lines from strace for the initial file there (of course). The file with fd = 11 which causes the problem is called shared_mem_pool.[host] and fruncate(11, 134217736) is called on it. (This is exactly 1024 times the ulimit of 131072 which makes sense as the ulimit is in 1K blocks).
+<br>
+<p><p>________________________________
+<br>
+From: saurabh_at_[hidden]&lt;mailto:saurabh_at_[hidden]&gt;
+<br>
+To: users_at_[hidden]&lt;mailto:users_at_[hidden]&gt;
+<br>
+Subject: RE: Openmpi 1.10.1 fails with SIGXFSZ on file limit &lt;= 131072
+<br>
+Date: Thu, 19 Nov 2015 17:08:22 -0500
+<br>
+<p><p><span class="quotelev1">&gt; Could you please provide a little more info regarding the environment you
+</span><br>
+<span class="quotelev1">&gt; are running under (which resource mgr or not, etc), how many nodes you had
+</span><br>
+<span class="quotelev1">&gt; in the allocation, etc?
+</span><br>
+<p><span class="quotelev1">&gt; There is no reason why something should behave that way. So it would help
+</span><br>
+<span class="quotelev1">&gt; if we could understand the setup.
+</span><br>
+<span class="quotelev1">&gt; Ralph
+</span><br>
+<p>To answer Ralph's above question on the other thread, all nodes are  on the same machine orterun was run on. It's a redhat 7 64-bit gcc 4.8 install of openmpi 1.10.1. The only atypical thing is that
+<br>
+btl_tcp_if_exclude = virbr0
+<br>
+has been added to openmpi-mca-params.conf based on some failures I was seeing before.
+<br>
+(And now of course I've added btl = ^sm as well to fix this issue, see my other response).
+<br>
+<p>Relevant output from strace (without the btl = ^sm) is below. Stuff in square brackets are my minor edits and snips.
+<br>
+<p>open(&quot;/tmp/openmpi-sessions-[user]@[host]_0/40072/1/1/vader_segment.[host].1&quot;, O_RDWR|O_CREAT, 0600) = 12
+<br>
+ftruncate(12, 4194312)                  = 0
+<br>
+mmap(NULL, 4194312, PROT_READ|PROT_WRITE, MAP_SHARED, 12, 0) = 0x7fe506c8a000
+<br>
+close(12)                               = 0
+<br>
+write(9, &quot;\1\0\0\0\0\0\0\0&quot;, 8)         = 8
+<br>
+[...]
+<br>
+poll([{fd=5, events=POLLIN}, {fd=11, events=POLLIN}], 2, 0)                = -1 EFBIG (File too large)
+<br>
+--- SIGXFSZ {si_signo=SIGXFSZ, si_code=SI_USER, si_pid=12329, si_uid=1005} ---
+<br>
+<pre>
+--
+________________________________
+From: saurabh_at_[hidden]&lt;mailto:saurabh_at_[hidden]&gt;
+To: users_at_[hidden]&lt;mailto:users_at_[hidden]&gt;
+Subject: Openmpi 1.10.1 fails with SIGXFSZ on file limit &lt;= 131072
+Date: Thu, 19 Nov 2015 15:24:08 -0500
+Hi,
+Sorry my previous email was garbled, sending it again.
+&gt; cd examples
+&gt; make hello_cxx
+&gt; ulimit -f 131073
+&gt; orterun -np 3 hello_cxx
+Hello, world
+(etc)
+&gt; ulimit -f 131072
+&gt; orterun -np 3 hello_cxx
+--------------------------------------------------------------------------
+orterun noticed that process rank 0 with PID 4473 on node sim16 exited on signal 25 (File size limit exceeded).
+--------------------------------------------------------------------------
+Any thoughts?
+_______________________________________________
+users mailing list
+users_at_[hidden]&lt;mailto:users_at_[hidden]&gt;
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/11/28086.php">http://www.open-mpi.org/community/lists/users/2015/11/28086.php</a>
+</pre>
+<hr>
+<ul>
+<li>text/html attachment: <a href="http://www.open-mpi.org/community/lists/users/att-28089/attachment">attachment</a>
+</ul>
+<!-- attachment="attachment" -->
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="28090.php">Ralph Castain: "[OMPI users] PMIx Birds-of-a-Feather meeting"</a>
+<li><strong>Previous message:</strong> <a href="28088.php">Dave Love: "Re: [OMPI users] Setting bind-to none as default via environment?"</a>
+<li><strong>In reply to:</strong> <a href="28086.php">Saurabh T: "Re: [OMPI users] Openmpi 1.10.1 fails with SIGXFSZ on file limit &lt;= 131072"</a>
+<!-- nextthread="start" -->
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

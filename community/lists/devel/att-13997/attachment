@@ -1,0 +1,95 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=iso-8859-1"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">I added this to the trunk in r30568 - a new MCA param "ras_tm_smp_mode" will tell us to use the PBS_PPN envar to get the number of slots allocated per node. We then just use the PBS_Nodefile to read the names of the nodes, which I expect will be one for each partition.<div><br></div><div>Let me know if this solves the problem - I scheduled it for 1.7.5</div><div><br></div><div>Thanks!</div><div>Ralph</div><div><br><div><div>On Jan 31, 2014, at 4:33 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><meta http-equiv="Content-Type" content="text/html charset=iso-8859-1"><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">No worries about PBS itself - better to allow you to just run this way. Easy to add a switch for this purpose.<div><br></div><div>For now, just add --oversubscribe to the command line</div><div><br><div><div>On Jan 31, 2014, at 3:32 PM, Paul Hargrove &lt;<a href="mailto:phhargrove@lbl.gov">phhargrove@lbl.gov</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div dir="ltr">Ralph,<div><br></div><div>The mods may have been done by the staff at PSC rather than by SGI.</div><div>Note the "_psc" suffix:</div><div>$ which pbsnodes</div><div><div>/usr/local/packages/torque/2.3.13_psc/bin/pbsnodes</div>
+</div><div><br></div><div>Their sources appear to be available in the f/s too.</div><div>Using "tar -d" to compare that to the pristine torque-2.3.13 tarball show the following files were modified:</div><div><div>
+torque-2.3.13/src/resmom/job_func.c</div><div>torque-2.3.13/src/resmom/mom_main.c</div><div>torque-2.3.13/src/resmom/requests.c</div><div>torque-2.3.13/src/resmom/linux/mom_mach.h</div><div>torque-2.3.13/src/resmom/linux/mom_mach.c</div>
+<div>torque-2.3.13/src/resmom/linux/cpuset.c</div><div>torque-2.3.13/src/resmom/start_exec.c</div><div>torque-2.3.13/src/scheduler.tcl/pbs_sched.c</div><div>torque-2.3.13/src/cmds/qalter.c</div><div>torque-2.3.13/src/cmds/qsub.c</div>
+<div>torque-2.3.13/src/cmds/qstat.c</div><div>torque-2.3.13/src/server/resc_def_all.c</div><div>torque-2.3.13/src/server/req_quejob.c</div><div>torque-2.3.13/torque.spec</div></div><div><br></div><div>I'll provide what assistance I can in testing.</div>
+<div>That includes providing (off-list) the actual diffs of PSC's torque against the tarball, if desired.</div><div><br></div><div>In the meantime, since -npernode didn't work, what is the right way to say:</div><div>
+&nbsp; "I have 1 slot but I want to overcommit and run 16 mpi ranks".</div><div><br></div><div>-Paul</div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Fri, Jan 31, 2014 at 3:20 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word"><br><div><div>On Jan 31, 2014, at 3:13 PM, Paul Hargrove &lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt; wrote:</div>
+<br><blockquote type="cite"><div dir="ltr">Ralph,<div><br></div><div>As I said this is NOT a cluster - it is a 4k-core shared memory machine.</div></div></blockquote><div><br></div>I understood - that wasn't the nature of my question</div>
+<div><br><blockquote type="cite"><div dir="ltr"><div>TORQUE is allocating cpus (time-shared mode, IIRC), not nodes.</div><div>So, there is always exactly one line in $PBS_NODESFILE.</div></div></blockquote><div><br></div>
+Interesting - because that isn't the standard way Torque behaves. It is supposed to put one line/slot in the nodefile, each line containing the name of the node. Clearly, SGI has reconfigured Torque to do something different.</div>
+<div><br><blockquote type="cite"><div dir="ltr">
+<div><br></div><div>The system runs as 2 partitions of 2k-cores each.</div><div>So, the contents odf$PBS_NODESFILE has exactly 2 possible values, each 1 line.</div><div><br></div><div>The values of PBS_PPN and PBS_NCPUS both reflect the size of the allocation.</div>
+
+<div><br></div><div>At a minimum, shouldn't Open MPI be multiplying the lines in $PBS_NODESFILE by the value of $PBS_PPN?</div></div></blockquote><div><br></div>No, as above, that isn't the way Torque generally behaves. It would appear that we need a "switch" here to handle SGI's modifications. Should be doable - just haven't had anyone using an SGI machine before :-)</div>
+<div><br><blockquote type="cite"><div dir="ltr"><div><br></div><div>Additionally, when I try "mpirun -npernode 16 ./ring_c" I am still told there are not enough slots.</div>
+<div>Shouldn't that be working with 1 line is $PBS_NODESFILE?</div><div><br></div><div>-Paul</div><div><br></div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Fri, Jan 31, 2014 at 2:47 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">We read the nodes from the PBS_NODEFILE, Paul - can you pass that along?<div><br><div>
+
+<div>On Jan 31, 2014, at 2:33 PM, Paul Hargrove &lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt; wrote:</div><br><blockquote type="cite"><div dir="ltr">I am trying to test the trunk on an SGI UV (to validate Nathan's port of btl:vader to SGI's variant of xpmem).<div>
+
+<br></div><div>At configure time, PBS's TM support was correctly located.</div><div>
+<br></div><div>My PBS batch script includes</div><div><font face="courier new, monospace">&nbsp; #PBS -l ncpus=16</font></div><div>because that is what this installation requires (not nodes, mppnodes, or anything like that).</div>
+
+
+<div>One is allocating cpus on a large shared-memory machine, not a set of nodes in a cluster.</div><div><br></div><div>However, this appears to be causing mpirun to think I have just 1 slot:</div><div><br></div><div><div>
+
+
+<font face="courier new, monospace">+ mpirun -np 2 ./ring_c</font></div><div><font face="courier new, monospace">--------------------------------------------------------------------------</font></div><div><font face="courier new, monospace">There are not enough slots available in the system to satisfy the 2 slots&nbsp;</font></div>
+
+
+<div><font face="courier new, monospace">that were requested by the application:</font></div><div><font face="courier new, monospace">&nbsp; ./ring_c</font></div><div><font face="courier new, monospace"><br></font></div><div>
+
+<font face="courier new, monospace">Either request fewer slots for your application, or make more slots available</font></div>
+<div><font face="courier new, monospace">for use.</font></div><div><font face="courier new, monospace">--------------------------------------------------------------------------</font></div></div><div><br></div><div>In case they contain useful info, here are the PBS env vars in the job:</div>
+
+
+<div><br></div><div><div><font face="courier new, monospace">PBS_HT_NCPUS=32</font></div><div><font face="courier new, monospace">PBS_VERSION=TORQUE-2.3.13</font></div><div><font face="courier new, monospace">PBS_JOBNAME=qs</font></div>
+
+
+<div><font face="courier new, monospace">PBS_ENVIRONMENT=PBS_BATCH</font></div><div><font face="courier new, monospace">PBS_HOME=/var/spool/torque</font></div><div><font face="courier new, monospace">PBS_O_WORKDIR=/usr/users/6/hargrove/SCRATCH/OMPI/openmpi-trunk-linux-x86_64-uv-trunk/BLD/examples</font></div>
+
+
+<div><font face="courier new, monospace">PBS_PPN=16</font></div><div><font face="courier new, monospace">PBS_TASKNUM=1</font></div><div><font face="courier new, monospace">PBS_O_HOME=/usr/users/6/hargrove</font></div><div>
+
+
+<font face="courier new, monospace">PBS_MOMPORT=15003</font></div><div><font face="courier new, monospace">PBS_O_QUEUE=debug</font></div><div><font face="courier new, monospace">PBS_O_LOGNAME=hargrove</font></div><div><font face="courier new, monospace">PBS_O_LANG=en_US.UTF-8</font></div>
+
+
+<div><font face="courier new, monospace">PBS_JOBCOOKIE=9EEF5DF75FA705A241FEF66EDFE01C5B</font></div><div><font face="courier new, monospace">PBS_NODENUM=0</font></div><div><font face="courier new, monospace">PBS_O_SHELL=/usr/psc/shells/bash</font></div>
+
+
+<div><font face="courier new, monospace">PBS_SERVER=<a href="http://tg-login1.blacklight.psc.teragrid.org/" target="_blank">tg-login1.blacklight.psc.teragrid.org</a></font></div><div><font face="courier new, monospace">PBS_JOBID=<a href="http://314827.tg-login1.blacklight.psc.teragrid.org/" target="_blank">314827.tg-login1.blacklight.psc.teragrid.org</a></font></div>
+
+
+<div><font face="courier new, monospace">PBS_NCPUS=16</font></div><div><font face="courier new, monospace">PBS_O_HOST=<a href="http://tg-login1.blacklight.psc.teragrid.org/" target="_blank">tg-login1.blacklight.psc.teragrid.org</a></font></div>
+
+
+<div><font face="courier new, monospace">PBS_VNODENUM=0</font></div><div><font face="courier new, monospace">PBS_QUEUE=debug_r1</font></div><div><font face="courier new, monospace">PBS_O_MAIL=/var/mail/hargrove</font></div>
+
+
+<div><font face="courier new, monospace">PBS_NODEFILE=/var/spool/torque/aux//<a href="http://314827.tg-login1.blacklight.psc.teragrid.org/" target="_blank">314827.tg-login1.blacklight.psc.teragrid.org</a></font></div><div>
+
+<font face="courier new, monospace">PBS_O_PATH=[...removed...]</font></div>
+</div><div><br clear="all"><div>If any additional info is needed to help make mpirun "just work", please let me know.</div><div><br></div><div>However, at this point I am mostly interested in any work-arounds that will let me run something other than a singleton on this system.</div>
+
+
+<div><br></div><div>-Paul</div><span><font color="#888888"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+
+<div>
+Future Technologies Group</div><div>Computer and Data Sciences Department &nbsp; &nbsp; Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory &nbsp; &nbsp; Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+
+</font>
+</font></span></div></div><span><font color="#888888">
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></font></span></blockquote>
+
+</div><br></div></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br><br clear="all"><span class="HOEnZb"><font color="#888888"><div>
+<br></div>-- <br><font face="courier new, monospace"><div>
+Paul H. Hargrove &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>Computer and Data Sciences Department &nbsp; &nbsp; Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div>
+
+<div>Lawrence Berkeley National Laboratory &nbsp; &nbsp; Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div></font>
+</font></span></div><span class="HOEnZb"><font color="#888888">
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></font></span></blockquote>
+</div><br></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>
+Paul H. Hargrove &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>Computer and Data Sciences Department &nbsp; &nbsp; Tel: +1-510-495-2352</div>
+<div>Lawrence Berkeley National Laboratory &nbsp; &nbsp; Fax: +1-510-486-6900</div></font>
+</div>
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote></div><br></div></div></blockquote></div><br></div></body></html>

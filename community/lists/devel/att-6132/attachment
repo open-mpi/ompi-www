@@ -1,0 +1,69 @@
+I think it depends upon what is being monitored. As I understand it, we could use the peruse link to generate notifications based on the number of times someone calls &quot;MPI_Send&quot;, for example. I concur with George&#39;s concerns about performance in this area and would agree that using the peruse hooks makes some sense.<br>
+<br>However, if one wants to generate a notification when an error occurs (e.g., too many IB retries) that might not be fatal, but only wants that notification to go out every xx times that happens, then I don&#39;t think the peruse option will work. In this scenario, though, I don&#39;t think performance is an issue any longer - this code path would only be followed when tracking errors, and thus can flow slower.<br>
+<br>So I think a combination of the two approaches makes the most sense. All the ORTE_NOTIFIER_VERBOSE method does is provide a means of enabling the second option in a configure-it-in/out way that is fairly clean as it just mirrors the current OPAL_OUTPUT_VERBOSE methodology. Using peruse for the first option sounds like a reasonable approach.<br>
+<br>HTH<br>Ralph<br><br><br><div class="gmail_quote">On Wed, May 27, 2009 at 12:25 PM, Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Excellent points; Ralph and I chatted about this on the phone today -- we concur with George.<br>
+<br>
+Bull -- would peruse work for you?  I think you mentioned before that it didn&#39;t seem attractive to you.  I think George&#39;s point is that we already have lots of hooks in place in the PML -- and they&#39;re called peruse.  So if we could use those hooks, then a) they&#39;re run-time selectable already, and b) there&#39;s no additional cost in performance critical/not-critical code paths (for the case where these stats are not being collected) because PERUSE has been in the code base for a long time.<br>
+
+<br>
+I think the idea is that your callbacks could be invoked by the peruse hooks and then they can do whatever they want -- increment counters, conditionally invoke the ORTE notifier system, etc.<div><div></div><div class="h5">
+<br>
+<br>
+<br>
+<br>
+On May 27, 2009, at 11:34 AM, George Bosilca wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+What is a generic threshold? And what is a counter? We have a policy<br>
+against such coding standards, and to be honest I would like to stick<br>
+to it. The reason is that the PML is a very complex piece of code, and<br>
+I would like to keep it as easy to understand as possible. If people<br>
+start adding #if/#endif all over the code, we diverging from this goal.<br>
+<br>
+The only way to make this work is to call the notifier or some other<br>
+framework in this &quot;slow path&quot; and let this other framework do it&#39;s own<br>
+logic to determine what and when to print. Of course the cost of this<br>
+is a function call plus an atomic operation (which is already not<br>
+cheap). It&#39;s starting to get expensive, even for a &quot;slow path&quot;, which<br>
+in this particular context is just one insertion in an atomic FIFO.<br>
+<br>
+If instead of counting in number of times we try to send the fragment,<br>
+and switch to a time base approach, this can be solved with the PERUSE<br>
+calls. There is a callback when the request is created, and another<br>
+callback when the first fragment is pushed successfully into the<br>
+network. Computing the time between these two, allow a tool to figure<br>
+out how much time the request was waiting in some internal queues, and<br>
+therefore how much delay this added to the execution time.<br>
+<br>
+   george.<br>
+<br>
+On May 27, 2009, at 06:59 , Ralph Castain wrote:<br>
+<br>
+&gt; ORTE_NOTIFIER_VERBOSE(api, counter, threshold,...)<br>
+&gt;<br>
+&gt; #if WANT_NOTIFIER_VERBOSE<br>
+&gt; opal_atomic_increment(counter);<br>
+&gt; if (counter &gt; threshold) {<br>
+&gt;     orte_notifier.api(.....)<br>
+&gt; }<br>
+&gt; #endif<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+</blockquote>
+<br>
+<br></div></div><font color="#888888">
+-- <br>
+Jeff Squyres<br>
+Cisco Systems</font><div><div></div><div class="h5"><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br>
+

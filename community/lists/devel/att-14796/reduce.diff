@@ -1,0 +1,436 @@
+Index: ompi/mpi/c/exscan.c
+===================================================================
+--- ompi/mpi/c/exscan.c	(revision 31741)
++++ ompi/mpi/c/exscan.c	(working copy)
+@@ -12,6 +12,7 @@
+  *                         All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC.  All rights
+  *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -21,6 +22,10 @@
+ 
+ #include "ompi_config.h"
+ 
++#if OPAL_CUDA_SUPPORT
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++#endif /* OPAL_CUDA_SUPPORT */
+ #include "ompi/mpi/c/bindings.h"
+ #include "ompi/runtime/params.h"
+ #include "ompi/communicator/communicator.h"
+@@ -44,6 +49,12 @@
+                MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) 
+ {
+     int err;
++#if OPAL_CUDA_SUPPORT
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t bufsize;
++#endif /* OPAL_CUDA_SUPPORT */
+ 
+     MEMCHECKER(
+         memchecker_datatype(datatype);
+@@ -87,10 +98,50 @@
+     /* Invoke the coll component to perform the back-end operation */
+ 
+     OBJ_RETAIN(op);
++
++#if OPAL_CUDA_SUPPORT
++    ompi_datatype_get_extent(datatype, &lb, &extent);
++    ompi_datatype_get_true_extent(datatype, &true_lb, &true_extent);
++    bufsize = true_extent + (ptrdiff_t)(count - 1) * extent;
++    if ((MPI_IN_PLACE != sendbuf) && (opal_cuda_check_bufs((char *)sendbuf, NULL))) {
++        sbuf1 = (char*)malloc(bufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sendbuf, bufsize);
++        sbuf2 = sendbuf; /* save away original buffer */
++        sendbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(recvbuf, NULL)) {
++        rbuf1 = (char*)malloc(bufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, recvbuf, bufsize);
++        rbuf2 = recvbuf; /* save away original buffer */
++        recvbuf = rbuf1 - lb;
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     /* XXX -- CONST -- do not cast away const -- update mca/coll */
+     err = comm->c_coll.coll_exscan((void *) sendbuf, recvbuf, count,
+                                    datatype, op, comm,
+                                    comm->c_coll.coll_exscan_module);
++
++#if OPAL_CUDA_SUPPORT
++    if (NULL != sbuf1) {
++        free(sbuf1);
++        sendbuf = sbuf2;
++    }
++    if (NULL != rbuf1) {
++        recvbuf = rbuf2;
++        opal_cuda_memcpy_sync(recvbuf, rbuf1, bufsize);
++        free(rbuf1);
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     OBJ_RELEASE(op);
+     OMPI_ERRHANDLER_RETURN(err, comm, err, FUNC_NAME);
+ }
+Index: ompi/mpi/c/reduce_scatter_block.c
+===================================================================
+--- ompi/mpi/c/reduce_scatter_block.c	(revision 31741)
++++ ompi/mpi/c/reduce_scatter_block.c	(working copy)
+@@ -14,6 +14,7 @@
+  * Copyright (c) 2012      Oak Ridge National Labs. All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC.  All rights
+  *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -23,6 +24,10 @@
+ #include "ompi_config.h"
+ #include <stdio.h>
+ 
++#if OPAL_CUDA_SUPPORT
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++#endif /* OPAL_CUDA_SUPPORT */
+ #include "ompi/mpi/c/bindings.h"
+ #include "ompi/runtime/params.h"
+ #include "ompi/communicator/communicator.h"
+@@ -46,6 +51,12 @@
+                              MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
+ {
+     int err;
++#if OPAL_CUDA_SUPPORT
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t sbufsize, rbufsize;
++#endif /* OPAL_CUDA_SUPPORT */
+ 
+     MEMCHECKER(
+         int rank;
+@@ -98,10 +109,51 @@
+     /* Invoke the coll component to perform the back-end operation */
+ 
+     OBJ_RETAIN(op);
++
++#if OPAL_CUDA_SUPPORT
++    ompi_datatype_get_extent(datatype, &lb, &extent);
++    ompi_datatype_get_true_extent(datatype, &true_lb, &true_extent);
++    sbufsize = (true_extent + (ptrdiff_t)(recvcount - 1) * extent) * ompi_comm_size(comm);
++    rbufsize = true_extent + (ptrdiff_t)(recvcount - 1) * extent;
++    if ((MPI_IN_PLACE != sendbuf) && (opal_cuda_check_bufs((char *)sendbuf, NULL))) {
++        sbuf1 = (char*)malloc(sbufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sendbuf, sbufsize);
++        sbuf2 = sendbuf; /* save away original buffer */
++        sendbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(recvbuf, NULL)) {
++        rbuf1 = (char*)malloc(rbufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, recvbuf, rbufsize);
++        rbuf2 = recvbuf; /* save away original buffer */
++        recvbuf = rbuf1 - lb;
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     /* XXX -- CONST -- do not cast away const -- update mca/coll */
+     err = comm->c_coll.coll_reduce_scatter_block((void *) sendbuf, recvbuf, recvcount,
+                                                  datatype, op, comm,
+                                                  comm->c_coll.coll_reduce_scatter_block_module);
++
++#if OPAL_CUDA_SUPPORT
++    if (NULL != sbuf1) {
++        free(sbuf1);
++        sendbuf = sbuf2;
++    }
++    if (NULL != rbuf1) {
++        recvbuf = rbuf2;
++        opal_cuda_memcpy_sync(recvbuf, rbuf1, rbufsize);
++        free(rbuf1);
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     OBJ_RELEASE(op);
+     OMPI_ERRHANDLER_RETURN(err, comm, err, FUNC_NAME);
+ }
+Index: ompi/mpi/c/scan.c
+===================================================================
+--- ompi/mpi/c/scan.c	(revision 31741)
++++ ompi/mpi/c/scan.c	(working copy)
+@@ -13,6 +13,7 @@
+  * Copyright (c) 2006      Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC.  All rights
+  *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -22,6 +23,10 @@
+ #include "ompi_config.h"
+ #include <stdio.h>
+ 
++#if OPAL_CUDA_SUPPORT
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++#endif /* OPAL_CUDA_SUPPORT */
+ #include "ompi/mpi/c/bindings.h"
+ #include "ompi/runtime/params.h"
+ #include "ompi/communicator/communicator.h"
+@@ -45,6 +50,12 @@
+              MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) 
+ {
+     int err;
++#if OPAL_CUDA_SUPPORT
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t bufsize;
++#endif /* OPAL_CUDA_SUPPORT */
+ 
+     MEMCHECKER(
+         memchecker_datatype(datatype);
+@@ -101,10 +112,50 @@
+     /* Call the coll component to actually perform the allgather */
+ 
+     OBJ_RETAIN(op);
++
++#if OPAL_CUDA_SUPPORT
++    ompi_datatype_get_extent(datatype, &lb, &extent);
++    ompi_datatype_get_true_extent(datatype, &true_lb, &true_extent);
++    bufsize = true_extent + (ptrdiff_t)(count - 1) * extent;
++    if ((MPI_IN_PLACE != sendbuf) && (opal_cuda_check_bufs((char *)sendbuf, NULL))) {
++        sbuf1 = (char*)malloc(bufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sendbuf, bufsize);
++        sbuf2 = sendbuf; /* save away original buffer */
++        sendbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(recvbuf, NULL)) {
++        rbuf1 = (char*)malloc(bufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, recvbuf, bufsize);
++        rbuf2 = recvbuf; /* save away original buffer */
++        recvbuf = rbuf1 - lb;
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     /* XXX -- CONST -- do not cast away const -- update mca/coll */
+     err = comm->c_coll.coll_scan((void *) sendbuf, recvbuf, count,
+                                  datatype, op, comm,
+                                  comm->c_coll.coll_scan_module);
++
++#if OPAL_CUDA_SUPPORT
++    if (NULL != sbuf1) {
++        free(sbuf1);
++        sendbuf = sbuf2;
++    }
++    if (NULL != rbuf1) {
++        recvbuf = rbuf2;
++        opal_cuda_memcpy_sync(recvbuf, rbuf1, bufsize);
++        free(rbuf1);
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     OBJ_RELEASE(op);
+     OMPI_ERRHANDLER_RETURN(err, comm, err, FUNC_NAME);
+ }
+Index: ompi/mpi/c/allreduce.c
+===================================================================
+--- ompi/mpi/c/allreduce.c	(revision 31741)
++++ ompi/mpi/c/allreduce.c	(working copy)
+@@ -12,6 +12,7 @@
+  *                         All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC.  All rights
+  *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -22,6 +23,10 @@
+ #include "ompi_config.h"
+ #include <stdio.h>
+ 
++#if OPAL_CUDA_SUPPORT
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++#endif /* OPAL_CUDA_SUPPORT */
+ #include "ompi/mpi/c/bindings.h"
+ #include "ompi/runtime/params.h"
+ #include "ompi/communicator/communicator.h"
+@@ -45,6 +50,12 @@
+                   MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) 
+ {
+     int err;
++#if OPAL_CUDA_SUPPORT
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t bufsize;
++#endif /* OPAL_CUDA_SUPPORT */
+ 
+     MEMCHECKER(
+         memchecker_datatype(datatype);
+@@ -105,10 +116,50 @@
+     /* Invoke the coll component to perform the back-end operation */
+ 
+     OBJ_RETAIN(op);
++
++#if OPAL_CUDA_SUPPORT
++    ompi_datatype_get_extent(datatype, &lb, &extent);
++    ompi_datatype_get_true_extent(datatype, &true_lb, &true_extent);
++    bufsize = true_extent + (ptrdiff_t)(count - 1) * extent;
++    if ((MPI_IN_PLACE != sendbuf) && (opal_cuda_check_bufs((char *)sendbuf, NULL))) {
++        sbuf1 = (char*)malloc(bufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sendbuf, bufsize);
++        sbuf2 = sendbuf; /* save away original buffer */
++        sendbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(recvbuf, NULL)) {
++        rbuf1 = (char*)malloc(bufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, recvbuf, bufsize);
++        rbuf2 = recvbuf; /* save away original buffer */
++        recvbuf = rbuf1 - lb;
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     /* XXX -- CONST -- do not cast away const -- update mca/coll */
+     err = comm->c_coll.coll_allreduce((void *) sendbuf, recvbuf, count,
+                                       datatype, op, comm,
+                                       comm->c_coll.coll_allreduce_module);
++
++#if OPAL_CUDA_SUPPORT
++    if (NULL != sbuf1) {
++        free(sbuf1);
++        sendbuf = sbuf2;
++    }
++    if (NULL != rbuf1) {
++        recvbuf = rbuf2;
++        opal_cuda_memcpy_sync(recvbuf, rbuf1, bufsize);
++        free(rbuf1);
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     OBJ_RELEASE(op);
+     OMPI_ERRHANDLER_RETURN(err, comm, err, FUNC_NAME);
+ }
+Index: ompi/mpi/c/reduce.c
+===================================================================
+--- ompi/mpi/c/reduce.c	(revision 31741)
++++ ompi/mpi/c/reduce.c	(working copy)
+@@ -13,6 +13,7 @@
+  * Copyright (c) 2006      Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC.  All rights
+  *                         reserved.
++ * Copyright (c) 2014      NVIDIA Corporation.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -22,6 +23,10 @@
+ #include "ompi_config.h"
+ #include <stdio.h>
+ 
++#if OPAL_CUDA_SUPPORT
++#include "opal/datatype/opal_convertor.h"
++#include "opal/datatype/opal_datatype_cuda.h"
++#endif /* OPAL_CUDA_SUPPORT */
+ #include "ompi/mpi/c/bindings.h"
+ #include "ompi/runtime/params.h"
+ #include "ompi/communicator/communicator.h"
+@@ -45,6 +50,12 @@
+                MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm) 
+ {
+     int err;
++#if OPAL_CUDA_SUPPORT
++    ptrdiff_t true_lb, true_extent, lb, extent;
++    char *rbuf1 = NULL, *sbuf1 = NULL, *rbuf2;
++    const char *sbuf2;
++    size_t bufsize;
++#endif /* OPAL_CUDA_SUPPORT */
+ 
+     MEMCHECKER(
+         memchecker_datatype(datatype);
+@@ -132,10 +143,50 @@
+     /* Invoke the coll component to perform the back-end operation */
+ 
+     OBJ_RETAIN(op);
++
++#if OPAL_CUDA_SUPPORT
++    ompi_datatype_get_extent(datatype, &lb, &extent);
++    ompi_datatype_get_true_extent(datatype, &true_lb, &true_extent);
++    bufsize = true_extent + (ptrdiff_t)(count - 1) * extent;
++    if ((MPI_IN_PLACE != sendbuf) && (opal_cuda_check_bufs((char *)sendbuf, NULL))) {
++        sbuf1 = (char*)malloc(bufsize);
++        if (NULL == sbuf1) {
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(sbuf1, sendbuf, bufsize);
++        sbuf2 = sendbuf; /* save away original buffer */
++        sendbuf = sbuf1 - lb;
++    }
++
++    if (opal_cuda_check_bufs(recvbuf, NULL)) {
++        rbuf1 = (char*)malloc(bufsize);
++        if (NULL == rbuf1) {
++            if (NULL != sbuf1) free(sbuf1);
++            return OMPI_ERR_OUT_OF_RESOURCE;
++        }
++        opal_cuda_memcpy_sync(rbuf1, recvbuf, bufsize);
++        rbuf2 = recvbuf; /* save away original buffer */
++        recvbuf = rbuf1 - lb;
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     /* XXX -- CONST -- do not cast away const -- update mca/coll */
+     err = comm->c_coll.coll_reduce((void *) sendbuf, recvbuf, count,
+                                    datatype, op, root, comm,
+                                    comm->c_coll.coll_reduce_module);
++
++#if OPAL_CUDA_SUPPORT
++    if (NULL != sbuf1) {
++        free(sbuf1);
++        sendbuf = sbuf2;
++    }
++    if (NULL != rbuf1) {
++        recvbuf = rbuf2;
++        opal_cuda_memcpy_sync(recvbuf, rbuf1, bufsize);
++        free(rbuf1);
++    }
++#endif /* OPAL_CUDA_SUPPORT */
++
+     OBJ_RELEASE(op);
+     OMPI_ERRHANDLER_RETURN(err, comm, err, FUNC_NAME);
+ }

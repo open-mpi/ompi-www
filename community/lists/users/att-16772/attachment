@@ -1,0 +1,349 @@
+<HTML>
+<BODY>
+Thank you for your answer.<br>
+
+<br>
+
+Since a collective operation does not mean synchronization, I guess this also means that I should put an MPI_Barrier after the seek in order to ensure that no process changes the file pointer while an other process accesses it. To be honest this interface to MPI_File_seek_shared seems a bit clumsy and very error-prone. It would make more sense to absorb these 2 MPI_Barriers into the function itself.<br>
+
+<br>
+
+Christian<br>
+
+<br>
+
+&lt;-----Original Message-----&gt; <br>
+
+&gt;From: pascal.deveze@bull.net [pascal.deveze@bull.net]<br>
+
+&gt;Sent: 6/27/2011 3:21:36 PM<br>
+
+&gt;To: users@open-mpi.org<br>
+
+&gt;Subject: Re: [OMPI users] File seeking with shared filepointer issues<br>
+
+&gt;<br>
+
+&gt;Christian,<br>
+
+&gt;<br>
+
+&gt;Suppose you have N processes calling the first MPI_File_get_position_shared<br>
+
+&gt;().<br>
+
+&gt;<br>
+
+&gt;Some of them are running faster and could execute the call to<br>
+
+&gt;MPI_File_seek_shared() before all the other have got their file position.<br>
+
+&gt;(Note that the "collective" primitive is not a synchronization. In that<br>
+
+&gt;case, all parameters are broadcast to the process 0 and checked by process<br>
+
+&gt;0. All<br>
+
+&gt;the other processes are not blocked).<br>
+
+&gt;<br>
+
+&gt;So the slow processes can get the file position  that has just been<br>
+
+&gt;modified by the faster.<br>
+
+&gt;<br>
+
+&gt;That is the reason why, in your program, It is necessary to synchronize all<br>
+
+&gt;processes just before the call to MPI_File_seek_shared().<br>
+
+&gt;<br>
+
+&gt;Pascal<br>
+
+&gt;<br>
+
+&gt;users-bounces@open-mpi.org a écrit sur 25/06/2011 12:54:32 :<br>
+
+&gt;<br>
+
+&gt;&gt; De : Jeff Squyres &lt;jsquyres@cisco.com&gt;<br>
+
+&gt;&gt; A : Open MPI Users &lt;users@open-mpi.org&gt;<br>
+
+&gt;&gt; Date : 25/06/2011 12:55<br>
+
+&gt;&gt; Objet : Re: [OMPI users] File seeking with shared filepointer issues<br>
+
+&gt;&gt; Envoyé par : users-bounces@open-mpi.org<br>
+
+&gt;&gt;<br>
+
+&gt;&gt; I'm not super-familiar with the IO portions of MPI, but I think that<br>
+
+&gt;&gt; you might be running afoul of the definition of "collective."<br>
+
+&gt;&gt; "Collective," in MPI terms, does *not* mean "synchronize."  It just<br>
+
+&gt;&gt; means that all functions must invoke it, potentially with the same<br>
+
+&gt;&gt; (or similar) parameters.<br>
+
+&gt;&gt;<br>
+
+&gt;&gt; Hence, I think you're seeing cases where MPI processes are showing<br>
+
+&gt;&gt; correct values, but only because the updates have not completed in<br>
+
+&gt;&gt; the background.  Using a barrier is forcing those updates to<br>
+
+&gt;&gt; complete before you query for the file position.<br>
+
+&gt;&gt;<br>
+
+&gt;&gt; ...although, as I type that out, that seems weird.  A barrier should<br>
+
+&gt;&gt; not (be guaranteed to) force the completion of collectives (file-<br>
+
+&gt;&gt; based or otherwise).  That could be a side-effect of linear message<br>
+
+&gt;&gt; passing behind the scenes, but that seems like a weird interface.<br>
+
+&gt;&gt;<br>
+
+&gt;&gt; Rob -- can you comment on this, perchance?  Is this a bug in ROMIO,<br>
+
+&gt;&gt; or if not, how is one supposed to use this interface can get<br>
+
+&gt;&gt; consistent answers in all MPI processes?<br>
+
+&gt;&gt;<br>
+
+&gt;&gt;<br>
+
+&gt;&gt; On Jun 23, 2011, at 10:04 AM, Christian Anonymous wrote:<br>
+
+&gt;&gt;<br>
+
+&gt;&gt; &gt; I'm having some issues with MPI_File_seek_shared. Consider the<br>
+
+&gt;&gt; following small test C++ program<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; #include &lt;iostream&gt;<br>
+
+&gt;&gt; &gt; #include &lt;mpi.h&gt;<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; #define PATH "simdata.bin"<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; using namespace std;<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; int ThisTask;<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; int main(int argc, char *argv[])<br>
+
+&gt;&gt; &gt; {<br>
+
+&gt;&gt; &gt; MPI_Init(&argc,&argv); /* Initialize MPI */<br>
+
+&gt;&gt; &gt; MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; MPI_File fh;<br>
+
+&gt;&gt; &gt; int success;<br>
+
+&gt;&gt; &gt; MPI_File_open(MPI_COMM_WORLD,(char *)<br>
+
+&gt;&gt; PATH,MPI_MODE_RDONLY,MPI_INFO_NULL,&fh);<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; if(success != MPI_SUCCESS){ //Successfull open?<br>
+
+&gt;&gt; &gt; char err[256];<br>
+
+&gt;&gt; &gt; int err_length, err_class;<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; MPI_Error_class(success,&err_class);<br>
+
+&gt;&gt; &gt; MPI_Error_string(err_class,err,&err_length);<br>
+
+&gt;&gt; &gt; cout &lt;&lt; "Task " &lt;&lt; ThisTask &lt;&lt; ": " &lt;&lt; err &lt;&lt; endl;<br>
+
+&gt;&gt; &gt; MPI_Error_string(success,err,&err_length);<br>
+
+&gt;&gt; &gt; cout &lt;&lt; "Task " &lt;&lt; ThisTask &lt;&lt; ": " &lt;&lt; err &lt;&lt; endl;<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; MPI_Abort(MPI_COMM_WORLD,success);<br>
+
+&gt;&gt; &gt; }<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; /* START SEEK TEST */<br>
+
+&gt;&gt; &gt; MPI_Offset cur_filepos, eof_filepos;<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; MPI_File_get_position_shared(fh,&cur_filepos);<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; //MPI_Barrier(MPI_COMM_WORLD);<br>
+
+&gt;&gt; &gt; MPI_File_seek_shared(fh,0,MPI_SEEK_END); /* Seek is collective */<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; MPI_File_get_position_shared(fh,&eof_filepos);<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; //MPI_Barrier(MPI_COMM_WORLD);<br>
+
+&gt;&gt; &gt; MPI_File_seek_shared(fh,0,MPI_SEEK_SET);<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; cout &lt;&lt; "Task " &lt;&lt; ThisTask &lt;&lt; " reports a filesize of " &lt;&lt;<br>
+
+&gt;&gt; eof_filepos &lt;&lt; "-" &lt;&lt; cur_filepos &lt;&lt; "=" &lt;&lt; eof_filepos-cur_filepos &lt;&lt;<br>
+
+&gt;endl;<br>
+
+&gt;&gt; &gt; /* END SEEK TEST */<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; /* Finalizing */<br>
+
+&gt;&gt; &gt; MPI_File_close(&fh);<br>
+
+&gt;&gt; &gt; MPI_Finalize();<br>
+
+&gt;&gt; &gt; return 0;<br>
+
+&gt;&gt; &gt; }<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; Note the comments before each MPI_Barrier. When the program is run<br>
+
+&gt;&gt; by mpirun -np N (N strictly greater than 1), task 0 reports the<br>
+
+&gt;&gt; correct filesize, while every other process reports either 0, minus<br>
+
+&gt;&gt; the filesize or the correct filesize. Uncommenting the MPI_Barrier<br>
+
+&gt;&gt; makes each process report the correct filesize. Is this working as<br>
+
+&gt;&gt; intended? Since MPI_File_seek_shared is a collective, blocking<br>
+
+&gt;&gt; function each process have to synchronise at the return point of the<br>
+
+&gt;&gt; function, but not when the function is called. It seems that the use<br>
+
+&gt;&gt; of MPI_File_seek_shared without an MPI_Barrier call first is very<br>
+
+&gt;&gt; dangerous, or am I missing something?<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt; &gt; _______________________________________________________________<br>
+
+&gt;&gt; &gt; Care2 makes it easy for everyone to live a healthy, green<br>
+
+&gt;&gt; lifestyle and impact the causes you care about most. Over 12<br>
+
+&gt;Millionmembers!<br>
+
+&gt;&gt; http://www.care2.com Feed a child by searching the web! Learn how<br>
+
+&gt;&gt;<br>
+
+&gt;http://www.care2.com/toolbar_______________________________________________<br>
+
+&gt;&gt; &gt; users mailing list<br>
+
+&gt;&gt; &gt; users@open-mpi.org<br>
+
+&gt;&gt; &gt; http://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+
+&gt;&gt; &gt;<br>
+
+&gt;&gt;<br>
+
+&gt;&gt;<br>
+
+&gt;&gt; --<br>
+
+&gt;&gt; Jeff Squyres<br>
+
+&gt;&gt; jsquyres@cisco.com<br>
+
+&gt;&gt; For corporate legal information go to:<br>
+
+&gt;&gt; http://www.cisco.com/web/about/doing_business/legal/cri/<br>
+
+&gt;&gt;<br>
+
+&gt;&gt;<br>
+
+&gt;&gt; _______________________________________________<br>
+
+&gt;&gt; users mailing list<br>
+
+&gt;&gt; users@open-mpi.org<br>
+
+&gt;&gt; http://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+
+&gt;<br>
+
+&gt;<br>
+
+&gt;<br>
+
+&gt;<br>
+
+&gt;_______________________________________________<br>
+
+&gt;users mailing list<br>
+
+&gt;users@open-mpi.org<br>
+
+&gt;http://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+
+&gt;.<br>
+
+&gt;
+</BODY></HTML>
+
+
+<P><p><font face="Arial, Helvetica, sans-serif" size="2" style="font-size:13.5px">_______________________________________________________________<BR>Care2 makes it easy for everyone to live a healthy, green lifestyle
+and impact the causes you care about most. Over 12 Million members!
+http://www.care2.com
+
+Feed a child by searching the web! Learn how http://www.care2.com/toolbar</font>

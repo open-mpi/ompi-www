@@ -1,0 +1,36 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=koi8-r"><meta name="Generator" content="Microsoft Word 14 (filtered medium)"><style><!--
+/* Font Definitions */
+@font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0cm;
+	margin-bottom:.0001pt;
+	font-size:11.0pt;
+	font-family:"Calibri","sans-serif";
+	mso-fareast-language:EN-US;}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	font-family:"Calibri","sans-serif";
+	color:windowtext;}
+.MsoChpDefault
+	{mso-style-type:export-only;
+	mso-fareast-language:EN-US;}
+@page WordSection1
+	{size:612.0pt 792.0pt;
+	margin:2.0cm 42.5pt 2.0cm 3.0cm;}
+div.WordSection1
+	{page:WordSection1;}
+--></style></head><body lang="RU" link="blue" vlink="purple"><div class="WordSection1"><p class="MsoNormal"><span lang="EN-US">Hi all,</span></p><p class="MsoNormal"><span lang="EN-US">We experimented with MPI+OpenMP hybrid application (MPI_THREAD_MULTIPLE support level)  where several threads submits a lot of MPI_Irecv() requests simultaneously and encountered an intermittent bug OMPI_ERR_TEMP_OUT_OF_RESOURCE after MCA_PML_OB1_RECV_REQUEST_ALLOC()  because  OMPI_FREE_LIST_GET_MT()  returned NULL.  Investigating this bug we found that sometimes the thread calling ompi_free_list_grow()  don’t have any free items in LIFO list at exit because other threads  retrieved  all new items at opal_atomic_lifo_pop()  </span></p><p class="MsoNormal"><span lang="EN-US">So we suggest to change OMPI_FREE_LIST_GET_MT() as below:</span></p><p class="MsoNormal"><span lang="EN-US"> </span></p><p class="MsoNormal"><span lang="EN-US">#define OMPI_FREE_LIST_GET_MT(fl, item)                                                                \</span></p><p class="MsoNormal"><span lang="EN-US">    {                                                                                             \</span></p><p class="MsoNormal"><span lang="EN-US">        item = (ompi_free_list_item_t*) opal_atomic_lifo_pop(&amp;((fl)-&gt;super));             \</span></p><p class="MsoNormal"><span lang="EN-US">        if( OPAL_UNLIKELY(NULL == item) ) {                                               \</span></p><p class="MsoNormal"><span lang="EN-US">            if(opal_using_threads()) {                                                    \</span></p><p class="MsoNormal"><span lang="EN-US">                int rc;                                                                   \</span></p><p class="MsoNormal"><span lang="EN-US">                opal_mutex_lock(&amp;((fl)-&gt;fl_lock));                                        \</span></p><p class="MsoNormal"><span lang="EN-US">                do                                                                        \</span></p><p class="MsoNormal"><span lang="EN-US">                {                                                                         \</span></p><p class="MsoNormal"><span lang="EN-US">                    rc = ompi_free_list_grow((fl), (fl)-&gt;fl_num_per_alloc);               \</span></p><p class="MsoNormal"><span lang="EN-US">                    if( OPAL_UNLIKELY(rc != OMPI_SUCCESS)) break;                         \</span></p><p class="MsoNormal"><span lang="EN-US">                                                                                          \</span></p><p class="MsoNormal"><span lang="EN-US">                    item = (ompi_free_list_item_t*) opal_atomic_lifo_pop(&amp;((fl)-&gt;super)); \</span></p><p class="MsoNormal"><span lang="EN-US">                                                                                          \</span></p><p class="MsoNormal"><span lang="EN-US">                } while (!item);                                                          \</span></p><p class="MsoNormal"><span lang="EN-US">                opal_mutex_unlock(&amp;((fl)-&gt;fl_lock));                                      \</span></p><p class="MsoNormal"><span lang="EN-US">            } else {                                                                      \</span></p><p class="MsoNormal"><span lang="EN-US">                ompi_free_list_grow((fl), (fl)-&gt;fl_num_per_alloc);                        \</span></p><p class="MsoNormal"><span lang="EN-US">                item = (ompi_free_list_item_t*) opal_atomic_lifo_pop(&amp;((fl)-&gt;super));     \</span></p><p class="MsoNormal"><span lang="EN-US">            } /* opal_using_threads() */                                                  \</span></p><p class="MsoNormal"><span lang="EN-US">        } /* NULL == item */                                                              \</span></p><p class="MsoNormal"><span lang="EN-US">    }</span></p><p class="MsoNormal"><span lang="EN-US"> </span></p><p class="MsoNormal"><span lang="EN-US"> </span></p><p class="MsoNormal"><span lang="EN-US">Another workaround is to increase the value of  pml_ob1_free_list_inc parameter.</span></p><p class="MsoNormal"><span lang="EN-US"> </span></p><p class="MsoNormal"><span lang="EN-US">Regards,</span></p><p class="MsoNormal"><span lang="EN-US">Alexey</span></p><p class="MsoNormal"><span lang="EN-US"> </span></p></div></body></html>

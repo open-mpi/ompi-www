@@ -1,0 +1,50 @@
+diff -r '--exclude=*~' -u openmpi-1.6.3/ompi/mca/coll/tuned/coll_tuned_alltoallv.c openmpi-1.6.3.patched/ompi/mca/coll/tuned/coll_tuned_alltoallv.c
+--- openmpi-1.6.3/ompi/mca/coll/tuned/coll_tuned_alltoallv.c	2012-04-03 15:30:17.000000000 +0100
++++ openmpi-1.6.3.patched/ompi/mca/coll/tuned/coll_tuned_alltoallv.c	2013-01-24 15:13:25.838528015 +0000
+@@ -118,6 +118,7 @@
+     int i, size, rank, err;
+     char *psnd, *prcv;
+     int nreqs;
++    int sendto, recvfrom;
+     ptrdiff_t sext, rext;
+     MPI_Request *preq;
+     mca_coll_tuned_module_t *tuned_module = (mca_coll_tuned_module_t*) module;
+@@ -154,13 +155,14 @@
+ 
+     /* Post all receives first */
+     for (i = 0; i < size; ++i) {
+-        if (i == rank || 0 == rcounts[i]) {
++        recvfrom = (rank + size - i) % size;
++        if (recvfrom == rank || 0 == rcounts[recvfrom]) {
+             continue;
+         }
+ 
+-        prcv = ((char *) rbuf) + (rdisps[i] * rext);
+-        err = MCA_PML_CALL(irecv_init(prcv, rcounts[i], rdtype,
+-                                      i, MCA_COLL_BASE_TAG_ALLTOALLV, comm,
++        prcv = ((char *) rbuf) + (rdisps[recvfrom] * rext);
++        err = MCA_PML_CALL(irecv_init(prcv, rcounts[recvfrom], rdtype,
++                                      recvfrom, MCA_COLL_BASE_TAG_ALLTOALLV, comm,
+                                       preq++));
+         ++nreqs;
+         if (MPI_SUCCESS != err) {
+@@ -171,13 +173,14 @@
+ 
+     /* Now post all sends */
+     for (i = 0; i < size; ++i) {
+-        if (i == rank || 0 == scounts[i]) {
++        sendto = (rank + i) % size;
++        if (sendto == rank || 0 == scounts[sendto]) {
+             continue;
+         }
+ 
+-        psnd = ((char *) sbuf) + (sdisps[i] * sext);
+-        err = MCA_PML_CALL(isend_init(psnd, scounts[i], sdtype,
+-                                      i, MCA_COLL_BASE_TAG_ALLTOALLV,
++        psnd = ((char *) sbuf) + (sdisps[sendto] * sext);
++        err = MCA_PML_CALL(isend_init(psnd, scounts[sendto], sdtype,
++                                      sendto, MCA_COLL_BASE_TAG_ALLTOALLV,
+                                       MCA_PML_BASE_SEND_STANDARD, comm,
+                                       preq++));
+         ++nreqs;
+

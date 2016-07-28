@@ -1,0 +1,71 @@
+<div dir="ltr"><br><div class="gmail_extra">Hi, </div><div class="gmail_extra">Thanks for the reply,</div><div class="gmail_extra"><br></div><div class="gmail_extra">   &gt; My requirements:<br><div class="gmail_quote"><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+<div class="im">
+&gt; 1. Avoid the OS from scheduling tasks on cores 0-7 allocated to my<br>
+&gt; process.<br>
+&gt; 2. Avoid rescheduling of processes to other cores.<br>
+&gt;<br>
+&gt; My solution: I use Linux&#39;s CPU-shielding.<br>
+&gt; [ Man page:<br>
+&gt; <a href="http://www.kernel.org/doc/man-pages/online/pages/man7/cpuset.7.html" target="_blank">http://www.kernel.org/doc/man-pages/online/pages/man7/cpuset.7.html</a><br>
+&gt; ]<br>
+&gt; I create a cpuset called &quot;socket1&quot; with cores 8-15 in the dev fs. I<br>
+&gt; iterate through all the tasks in /dev/cpuset/tasks and copy them to<br>
+&gt; /dev/cpuset/socket1/tasks<br>
+<br>
+</div>Most of these existing tasks are system tasks. Some actually *want* to<br>
+run on specific cores outside of socket1. For instance some kernel<br>
+threads are doing the scheduler load balancing on each core. Others are<br>
+doing defered work in the kernel that your application may need. I<br>
+wonder what happens when you move them. The kernel may reject your</blockquote><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+request, or it may actually break things.<br></blockquote><div><br></div><div>Yes, when I  move all system tasks, the movable kernel tasks are easily moved without complains. The ones that can&#39;t be moved return an error code. But since their CPU usage is very less, I decide to ignore them anyway. Nothing breaks really.<br>
+
+</div><div><br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+Also most of these tasks do nothing but sleeping 99.9% of the times<br>
+anyway. If you&#39;re worried about having too many system tasks on your<br>
+applications&#39; core, just make sure you don&#39;t install useless packages<br>
+(or disable some services at startup).<br></blockquote><div>For my use case, I have ensured that the heavy tasks that I wanted to be moved out of socket0 could be moved without complaints. The non-movable ones, as I mentioned, were left as is.</div>
+
+<div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+If you *really* want to have 100% CPU for your application on cores 0-7,<br>
+be aware that other things such as interrupts will be stealing some CPU<br>
+cycles anyway. </blockquote><div>Noted. As mentioned, the tasks that really matter were safely moved to a different socket.</div><div> <br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+<div class="im">&gt; I create a cpuset called &quot;socket0&quot; with cores 0-7 .<br>
+&gt; At the start of the application, (before MPI_Init()), I schedule my<br>
+&gt; MPI process on the cpuset as follows:<br>
+&gt; ------------------------------------------------------<br>
+&gt; sprintf(str,&quot;/bin/echo %d &gt;&gt; /dev/cpuset/socket0/tasks &quot;,mypid);<br>
+&gt; system(str);<br>
+&gt; ------------------------------------------------------<br>
+&gt; In order to ensure that my processes remain bound to the cores, I am<br>
+&gt; passing the --bind-to-core option to mpirun. I do this, instead of<br>
+&gt; using sched_setaffinity from within the application. Is there a chance<br>
+&gt; that mpirun&#39;s &quot;binding-to-core&quot; will clash with the above ?<br>
+<br>
+</div>Make sure you also specified the NUMA node in your cpuset &quot;mems&quot; file<br>
+too.That&#39;s required before the cpuset can be used (otherwise adding a</blockquote><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+task will fail). And make sure that the application can add itself to<br>
+the cpuset, usually only root can add tasks to cpusets.<br></blockquote><div>Yes, I have ensured all of these. The application has enough rights to add itself to the cpuset.</div><div><br></div><div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+And you may want to open/write/close on /dev/cpuset/socket0/tasks and<br>
+check the return values instead of this system() call.<br></blockquote><div>Checked. Everything works as expected.</div><div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+<br>
+If all the above works and does not return errors (you should check that<br>
+your application&#39;s PID is in /dev/cpuset/socket0/tasks while running),<br>
+bind-to-core won&#39;t clash with it, at least when using a OMPI that uses<br>
+hwloc for binding (v1.5.2 or later if I remember correctly).<br></blockquote><div>My concern is that hwloc is used before the application begins executing and so mpirun might use it to bind the application to different cores than the ones I want them to bind to. If there were a way to specify the cores through the hostfile, this problem should be solved. Is there? I sit possible to specify the &quot;cores&quot; in the hostfile.</div>
+
+<div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<div class="im"><br>
+&gt; While this solution seems to work temporarily, I am not sure whether<br>
+</div>&gt; this is good solution.<br>
+<br>
+Usually the administrator or PBS/Torque/... creates the cpuset and<br>
+places tasks in there for you.<br></blockquote><div>Yes, this is what was done in my case for the kernel tasks.</div><div><br></div></div></div></div>
+

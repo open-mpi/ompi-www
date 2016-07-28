@@ -1,0 +1,181 @@
+>From df10dec8a1d5b39572f0278e3147e34f90fcaf8b Mon Sep 17 00:00:00 2001
+From: Brice Goglin <bgoglin@inria.fr>
+Date: Mon, 5 Jul 2010 09:58:13 +0200
+Subject: [PATCH] Add --list <type|depth> to hwloc-calc (to list the indexes
+ of objects of a given type/depth that cover a CPU set).
+ Undocument the old --PUlist and --nodelist that it supersedes.
+
+Somehow requested by Jirka Hladky
+---
+ utils/hwloc-calc.1in |   20 +++++++++-------
+ utils/hwloc-calc.c   |   59 +++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 53 insertions(+), 26 deletions(-)
+
+diff --git a/utils/hwloc-calc.1in b/utils/hwloc-calc.1in
+index 8ecd3c8..5d64e7a 100644
+--- a/utils/hwloc-calc.1in
++++ b/utils/hwloc-calc.1in
+@@ -35,18 +35,20 @@ Use OS/physical indexes instead of logical indexes for output.
+ \fB\-\-lo\fR \fB\-\-logical\-output\fR
+ Use logical indexes instead of physical/OS indexes for output (default).
+ .TP
+-\fB\-\-proclist\fR
+-Report the comma-separated list of processors' indexes instead of the cpu mask string.
++\fB\-\-list <type|depth>\fR
++Find the list of objects of the given type or depth that cover the CPU set and
++report the comma-separated list of their indexes instead of the cpu mask string.
+ When combined with \fB\-\-physical\fR, the list is convenient to pass to external
+-tools such as taskset or numactl \fB\-\-physcpubind\fR.
+-.TP
+-\fB\-\-nodelist\fR
+-Report the comma-separated list of memory nodes' indexes instead of the cpu mask string.
+-When combined with \fB\-\-physical\fR, the list is convenient to pass to external
+-tools such as numactl \fB\-\-membind\fR.
++tools such as taskset or numactl \fB\-\-physcpubind\fR or \fB\-\-membind\fR.
++Contrary to \-\-objects where all reported objects are included inside the CPU set,
++those object may only intersect it. This is convenient for finding some objects
++above some others.
+ .TP
+ \fB\-\-objects\fR
+ Report the list of highest objects instead of the cpu mask string.
++Contrary to \-\-list where reported objects may only intersects the CPU set,
++those objects are exactly included in the CPU set and none of their parents
++may be included.
+ .TP
+ \fB\-\-single\fR
+ Singlify the output to a single CPU.
+@@ -120,7 +122,7 @@ To display the list of NUMA nodes, by physical indexes, that intersect a given C
+ 
+ To display the physical index of a processor given by its logical index:
+ 
+-   hwloc-calc proc:2 --physical-output --proclist
++   hwloc-calc proc:2 --physical-output --list PU
+ 
+ To combine both physical and logical indexes as input:
+ 
+diff --git a/utils/hwloc-calc.c b/utils/hwloc-calc.c
+index 2020de0..4a984db 100644
+--- a/utils/hwloc-calc.c
++++ b/utils/hwloc-calc.c
+@@ -24,8 +24,7 @@ static void usage(FILE *where)
+   fprintf(where, "  --lo --logical-output\tuse logical indexes for output (default)\n");
+   fprintf(where, "  --pi --physical-input\tuse physical indexes for input\n");
+   fprintf(where, "  --po --physical-output\tuse physical indexes for output\n");
+-  fprintf(where, "  --PUlist\treport the list of processing units' indexes in the CPU set\n");
+-  fprintf(where, "  --nodelist\treport the list of memory nodes' indexes near the CPU set\n");
++  fprintf(where, "  --list <type|depth>\treport the list of object indexes covering the CPU set\n");
+   fprintf(where, "  --objects\treport the list of largest objects in the CPU set\n");
+   fprintf(where, "  --single\tsinglify the output to a single CPU\n");
+   fprintf(where, "  --taskset\tmanipulate taskset-specific cpuset strings\n");
+@@ -37,7 +36,7 @@ static int verbose = 0;
+ static int logicali = 1;
+ static int logicalo = 1;
+ static int nodelist = 0;
+-static int pulist = 0;
++static int listdepth = -1;
+ static int showobjs = 0;
+ static int singlify = 0;
+ static int taskset = 0;
+@@ -66,24 +65,15 @@ hwloc_calc_output(hwloc_topology_t topology, hwloc_cpuset_t set)
+     }
+     printf("\n");
+     hwloc_cpuset_free(remaining);
+-  } else if (pulist) {
++  } else if (listdepth != -1) {
+     hwloc_obj_t proc, prev = NULL;
+-    while ((proc = hwloc_get_next_obj_covering_cpuset_by_type(topology, set, HWLOC_OBJ_PU, prev)) != NULL) {
++    while ((proc = hwloc_get_next_obj_covering_cpuset_by_depth(topology, set, listdepth, prev)) != NULL) {
+       if (prev)
+ 	printf(",");
+       printf("%u", logicalo ? proc->logical_index : proc->os_index);
+       prev = proc;
+     }
+     printf("\n");
+-  } else if (nodelist) {
+-    hwloc_obj_t node, prev = NULL;
+-    while ((node = hwloc_get_next_obj_covering_cpuset_by_type(topology, set, HWLOC_OBJ_NODE, prev)) != NULL) {
+-      if (prev)
+-	printf(",");
+-      printf("%u", logicalo ? node->logical_index : node->os_index);
+-      prev = node;
+-    }
+-    printf("\n");
+   } else {
+     char *string = NULL;
+     if (taskset)
+@@ -102,6 +92,7 @@ int main(int argc, char *argv[])
+   hwloc_cpuset_t set;
+   int cmdline_args = 0;
+   char **orig_argv = argv;
++  hwloc_obj_type_t listtype = (hwloc_obj_type_t) -1;
+ 
+   set = hwloc_cpuset_alloc();
+ 
+@@ -119,12 +110,34 @@ int main(int argc, char *argv[])
+ 	usage(stdout);
+ 	return EXIT_SUCCESS;
+       }
+-      if (!strcasecmp(argv[1], "--pulist") || !strcmp(argv[1], "--proclist") /* backward compat with 0.9 */) {
+-	pulist = 1;
++      if (!strcmp(argv[1], "--list")) {
++	if (argc <= 2) {
++	  usage(stderr);
++	  return EXIT_SUCCESS;
++	}
++	listtype = hwloc_obj_type_of_string(argv[2]);
++	if (listtype == (hwloc_obj_type_t) -1) {
++	  char *endptr;
++	  unsigned depth = strtoul(argv[2], &endptr, 0);
++	  if (*endptr) {
++	    fprintf(stderr, "unrecognized list type or depth %s\n", argv[2]);
++	    usage(stderr);
++	    return EXIT_SUCCESS;
++	  }
++	  listdepth = depth;
++	}
++	argv++;
++	argc--;
++	goto next;
++      }
++      if (!strcasecmp(argv[1], "--pulist") || !strcmp(argv[1], "--proclist")) {
++	/* backward compat with 1.0 */
++	listtype = HWLOC_OBJ_PU;
+         goto next;
+       }
+       if (!strcmp(argv[1], "--nodelist")) {
+-	nodelist = 1;
++	/* backward compat with 1.0 */
++	listtype = HWLOC_OBJ_NODE;
+         goto next;
+       }
+       if (!strcmp(argv[1], "--objects")) {
+@@ -180,6 +193,17 @@ int main(int argc, char *argv[])
+     argv++;
+   }
+ 
++  if (listtype != (hwloc_obj_type_t) -1) {
++    listdepth = hwloc_get_type_depth(topology, listtype);
++    if (listdepth == HWLOC_TYPE_DEPTH_UNKNOWN) {
++      fprintf(stderr, "unavailable list type %s\n", hwloc_obj_type_string(listtype));
++      goto out;
++    } else  if (listdepth == HWLOC_TYPE_DEPTH_MULTIPLE) {
++      fprintf(stderr, "cannot list type %s with multiple depth, please use the relevant depth directly\n", hwloc_obj_type_string(listtype));
++      goto out;
++    }
++  }
++
+   if (cmdline_args) {
+     /* process command-line arguments */
+     hwloc_calc_output(topology, set);
+@@ -202,6 +226,7 @@ int main(int argc, char *argv[])
+     }
+   }
+ 
++ out:
+   hwloc_topology_destroy(topology);
+ 
+   hwloc_cpuset_free(set);
+-- 
+1.7.1
+
+

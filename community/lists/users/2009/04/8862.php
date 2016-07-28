@@ -1,0 +1,535 @@
+<?
+$subject_val = "[OMPI users] Fwd: shared libraries issue compiling 1.3.1/intel 10.1.022";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Fri Apr 10 12:24:30 2009" -->
+<!-- isoreceived="20090410162430" -->
+<!-- sent="Fri, 10 Apr 2009 18:24:25 +0200" -->
+<!-- isosent="20090410162425" -->
+<!-- name="Francesco Pietra" -->
+<!-- email="chiendarret_at_[hidden]" -->
+<!-- subject="[OMPI users] Fwd: shared libraries issue compiling 1.3.1/intel 10.1.022" -->
+<!-- id="b87c422a0904100924t59987ed5l7d77b60683c2947b_at_mail.gmail.com" -->
+<!-- charset="UTF-8" -->
+<!-- inreplyto="b87c422a0904100916j3d602db4ye8685427cf4b6f89_at_mail.gmail.com" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> [OMPI users] Fwd: shared libraries issue compiling 1.3.1/intel 10.1.022<br>
+<strong>From:</strong> Francesco Pietra (<em>chiendarret_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2009-04-10 12:24:25
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="8863.php">Mostyn Lewis: "Re: [OMPI users] shared libraries issue compiling 1.3.1/intel	10.1.022"</a>
+<li><strong>Previous message:</strong> <a href="8861.php">Jeff Squyres: "Re: [OMPI users] shared libraries issue compiling 1.3.1/intel10.1.022"</a>
+<li><strong>In reply to:</strong> <a href="8860.php">Francesco Pietra: "Re: [OMPI users] shared libraries issue compiling 1.3.1/intel 10.1.022"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="8864.php">Gus Correa: "Re: [OMPI users] Fwd: shared libraries issue compiling 1.3.1/intel 10.1.022"</a>
+<li><strong>Reply:</strong> <a href="8864.php">Gus Correa: "Re: [OMPI users] Fwd: shared libraries issue compiling 1.3.1/intel 10.1.022"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Sorry, the first line of the ouput below (copied manually) should be rad
+<br>
+<p>/usr/local/bin/mpirun -host deb64 -n 4 connectivity_c 2&gt;&amp;1 | tee connectivity.ou
+<br>
+<p><p>---------- Forwarded message ----------
+<br>
+From: Francesco Pietra &lt;chiendarret_at_[hidden]&gt;
+<br>
+Date: Fri, Apr 10, 2009 at 6:16 PM
+<br>
+Subject: Re: [OMPI users] shared libraries issue compiling 1.3.1/intel 10.1.022
+<br>
+To: Open MPI Users &lt;users_at_[hidden]&gt;
+<br>
+<p><p>Hi Gus:
+<br>
+<p>If you feel that the observations below are not relevant to openmpi,
+<br>
+please disregard the message. You have already kindly devoted so much
+<br>
+time to my problems.
+<br>
+<p>The &quot;limits.h&quot; issue is solved with 10.1.022 intel compilers: as I
+<br>
+felt, the problem was with the pre-10.1.021 version of the intel C++
+<br>
+and ifort compilers, a subtle bug observed also by gentoo people (web
+<br>
+intel). There remains an orted issue.
+<br>
+<p>The openmpi 1.3.1 installation was able to compile connectivity_c.c
+<br>
+and hello_c.c, though, running mpirun (output below between ===):
+<br>
+<p>=================
+<br>
+/usr/local/bin/mpirun -host deb64 (see above) -n 4 connectivity_c 2&gt;&amp;1
+<br>
+| tee connectivity.out
+<br>
+/usr/local/bin/orted: error while loading shared libraries: libimf.so:
+<br>
+cannot open shared object file: No such file or directory
+<br>
+--------------------------------------------------------------------------
+<br>
+A daemon (pid 8472) died unexpectedly with status 127 while attempting
+<br>
+to launch so we are aborting.
+<br>
+<p>There may be more information reported by the environment (see above).
+<br>
+<p>This may be because the daemon was unable to find all the needed shared
+<br>
+libraries on the remote node. You may set your LD_LIBRARY_PATH to have the
+<br>
+location of the shared libraries on the remote nodes and this will
+<br>
+automatically be forwarded to the remote nodes.
+<br>
+--------------------------------------------------------------------------
+<br>
+--------------------------------------------------------------------------
+<br>
+mpirun noticed that the job aborted, but has no info as to the process
+<br>
+that caused that situation.
+<br>
+--------------------------------------------------------------------------
+<br>
+mpirun: clean termination accomplished
+<br>
+=============
+<br>
+<p>At this point, Amber10 serial compiled nicely (all intel, like
+<br>
+openmpi), but parallel compilation, as expected, returned the same
+<br>
+problem above:
+<br>
+<p>=================
+<br>
+export TESTsander=/usr/local/amber10/exe/sander.MPI; make test.sander.BASIC
+<br>
+make[1]: Entering directory `/usr/local/amber10/test'
+<br>
+cd cytosine &amp;&amp; ./Run.cytosine
+<br>
+orted: error while loading shared libraries: libimf.so: cannot open
+<br>
+shared object file: No such file or directory
+<br>
+--------------------------------------------------------------------------
+<br>
+A daemon (pid 8371) died unexpectedly with status 127 while attempting
+<br>
+to launch so we are aborting.
+<br>
+<p>There may be more information reported by the environment (see above).
+<br>
+<p>This may be because the daemon was unable to find all the needed shared
+<br>
+libraries on the remote node. You may set your LD_LIBRARY_PATH to have the
+<br>
+location of the shared libraries on the remote nodes and this will
+<br>
+automatically be forwarded to the remote nodes.
+<br>
+--------------------------------------------------------------------------
+<br>
+--------------------------------------------------------------------------
+<br>
+mpirun noticed that the job aborted, but has no info as to the process
+<br>
+that caused that situation.
+<br>
+--------------------------------------------------------------------------
+<br>
+mpirun: clean termination accomplished
+<br>
+<p>&#194;&#160;./Run.cytosine: &#194;&#160;Program error
+<br>
+make[1]: *** [test.sander.BASIC] Error 1
+<br>
+make[1]: Leaving directory `/usr/local/amber10/test'
+<br>
+make: *** [test.sander.BASIC.MPI] Error 2
+<br>
+=====================
+<br>
+<p>Relevant info:
+<br>
+<p>The daemon was not ssh (thus my hypothesis that a firewall on the
+<br>
+router was killing ssh is not the case). During these procedures,
+<br>
+there were only deb64 and deb32 on the local network. On monoprocessor
+<br>
+deb32 (i386) there is nothing of openmpi or amber. Only ssh. Thus, my
+<br>
+.bashrc on deb32 can't correspond to that of deb 64 as far as
+<br>
+libraries are concerned.
+<br>
+<p>echo $LD_LIBRARY_PATH
+<br>
+/opt/intel/mkl/10.1.2.024/lib/em64t:/opt/intel/cce/10.1..022/lib:/opt/intel/fce/10.1.022/lib:/usr/local/lib
+<br>
+<p># dpkg --search libimf.so
+<br>
+intel-iforte101022: /opt/intel/fce/10.1.022/lib/libimf.so
+<br>
+intel-icce101022: /opt/intel/cce/10.1.022/lib/libimf.so
+<br>
+<p>i.e., libimf.so is on the unix path, still not found by mpirun.
+<br>
+<p>Before compiling I trie to carefully check all env variables and
+<br>
+paths. In particular, as to mpi:
+<br>
+<p>mpif90 -show /opt/intel/fce/10.1.022//bin/ifort -I/usr/local/include
+<br>
+-pthread -I/usr/local/lib -L/usr/local/lib -lmpi_f90 -lmpi_f77 -lmpi
+<br>
+-lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl -lutil
+<br>
+<p>thanks
+<br>
+francesco
+<br>
+<p><p><p>On Thu, Apr 9, 2009 at 9:29 PM, Gus Correa &lt;gus_at_[hidden]&gt; wrote:
+<br>
+<span class="quotelev1">&gt; Hi Francesco
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; Francesco Pietra wrote:
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; Hi:
+</span><br>
+<span class="quotelev2">&gt;&gt; As failure to find &quot;limits.h&quot; in my attempted compilations of Amber of
+</span><br>
+<span class="quotelev2">&gt;&gt; th fast few days (amd64 lenny, openmpi 1.3.1, intel compilers
+</span><br>
+<span class="quotelev2">&gt;&gt; 10.1.015) is probably (or I hope so) a bug of the version used of
+</span><br>
+<span class="quotelev2">&gt;&gt; intel compilers (I made with debian the same observations reported
+</span><br>
+<span class="quotelev2">&gt;&gt; for gentoo,
+</span><br>
+<span class="quotelev2">&gt;&gt; <a href="http://software.intel.com/en-us/forums/intel-c-compiler/topic/59886/">http://software.intel.com/en-us/forums/intel-c-compiler/topic/59886/</a>).
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; I made a deb package of 10.1.022, icc and ifort.
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; ./configure CC icc, CXX icp,
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; The Intel C++ compiler is called icpc, not icp.
+</span><br>
+<span class="quotelev1">&gt; Is this a typo on your message, or on the actual configure options?
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; F77 and FC ifort --with-libnuma=/usr (not
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; /usr/lib so that the numa.h issue is not raised), &quot;make clean&quot;,
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; If you really did &quot;make clean&quot; you may have removed useful things.
+</span><br>
+<span class="quotelev1">&gt; What did you do, &quot;make&quot; or &quot;make clean&quot;?
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; and
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; &quot;mak install&quot; gave no error signals. However, the compilation tests in
+</span><br>
+<span class="quotelev2">&gt;&gt; the examples did not pass and I really don't understand why.
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; Which compilation tests you are talking about?
+</span><br>
+<span class="quotelev1">&gt; From Amber or from the OpenMPI example programs (connectivity_c and
+</span><br>
+<span class="quotelev1">&gt; hello_c), or both?
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; The error, with both connectivity_c and hello_c (I was operating on
+</span><br>
+<span class="quotelev2">&gt;&gt; the parallel computer deb64 directly and have access to everything
+</span><br>
+<span class="quotelev2">&gt;&gt; there) was failure to find a shared library, libimf.so
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; To get the right Intel environment,
+</span><br>
+<span class="quotelev1">&gt; you need to put these commands inside your login files
+</span><br>
+<span class="quotelev1">&gt; (.bashrc or .cshrc), to setup the Intel environment variables correctly:
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; source /path/to/your/intel/cce/bin/iccvars.sh
+</span><br>
+<span class="quotelev1">&gt; source /path/to/your/intel/cce/bin/ifortvars.sh
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; and perhaps a similar one for mkl.
+</span><br>
+<span class="quotelev1">&gt; (I don't use MKL, I don't know much about it).
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; If your home directory is NFS mounted to all the computers you
+</span><br>
+<span class="quotelev1">&gt; use to run parallel programs,
+</span><br>
+<span class="quotelev1">&gt; then the same .bashrc/.csrhc will work on all computers.
+</span><br>
+<span class="quotelev1">&gt; However, if you have a separate home directory on each computer,
+</span><br>
+<span class="quotelev1">&gt; then you need to do this on each of them.
+</span><br>
+<span class="quotelev1">&gt; I.e., you have to include the &quot;source&quot; commands above
+</span><br>
+<span class="quotelev1">&gt; in the .bashrc/.cshrc files on your home directory in EACH computer.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; Also I presume you use bash/sh not tcsh/csh, right?
+</span><br>
+<span class="quotelev1">&gt; Otherwise you need to source iccvars.csh instead of iccvars.sh.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; # dpkg --search libimf.so
+</span><br>
+<span class="quotelev2">&gt;&gt; &#194;&#160; /opt/intel/fce/10.1.022/lib/libimf.so &#194;&#160;(the same for cce)
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; which path seems to be correctly sourced by iccvars.sh and
+</span><br>
+<span class="quotelev2">&gt;&gt; ifortvars.sh (incidentally, both files are -rw-r--r-- root root;
+</span><br>
+<span class="quotelev2">&gt;&gt; correct that non executable?)
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; The permissions here are not a problem.
+</span><br>
+<span class="quotelev1">&gt; You are supposed to *source* the files, not to execute them.
+</span><br>
+<span class="quotelev1">&gt; If you execute them instead of sourcing the files,
+</span><br>
+<span class="quotelev1">&gt; your Intel environment will *NOT* be setup.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; BTW, the easy way to check your environment is to type &quot;env&quot; on the
+</span><br>
+<span class="quotelev1">&gt; shell command prompt.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; echo $LD_LIBRARY_PATH
+</span><br>
+<span class="quotelev2">&gt;&gt; returned, inter alia,
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; /opt/intel/mkl/10.1.2.024/lib/em64t:/opt/intel/mkl/10.1.2.024/lib/em64t:/opt/intel/cce/10.1.022/lib:/opt/intel/fce/10.1.022/lib
+</span><br>
+<span class="quotelev2">&gt;&gt; (why twice the mkl?)
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; Hard to tell in which computer you were when you did this,
+</span><br>
+<span class="quotelev1">&gt; and hence what it should affect.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; You man have sourced twice the mkl shell that sets up the MKL environment
+</span><br>
+<span class="quotelev1">&gt; variables, which would write its library path more than
+</span><br>
+<span class="quotelev1">&gt; once.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; When the environment variables get this much confused,
+</span><br>
+<span class="quotelev1">&gt; with duplicate paths and so on, you may want to logout
+</span><br>
+<span class="quotelev1">&gt; and login again, to start fresh.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; Do you need MKL for Amber?
+</span><br>
+<span class="quotelev1">&gt; If you don't use it, keep things simple, and don't bother about it.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; I surely miss to understand something fundamental. Hope other eyes see
+</span><br>
+<span class="quotelev2">&gt;&gt; better
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; Jody helped you run the hello_c program successfully.
+</span><br>
+<span class="quotelev1">&gt; Try to repeat carefully the same steps.
+</span><br>
+<span class="quotelev1">&gt; You should get the same result,
+</span><br>
+<span class="quotelev1">&gt; the OpenMPI test programs should run.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; A kind person elsewhere suggested me on passing &quot;The use of -rpath
+</span><br>
+<span class="quotelev2">&gt;&gt; during linking is highly recommended as opposed to setting
+</span><br>
+<span class="quotelev2">&gt;&gt; LD_LIBRARY_PATH at run time, not the least because it hardcodes the
+</span><br>
+<span class="quotelev2">&gt;&gt; paths to the &quot;right&quot; library files in the executables themselves&quot;
+</span><br>
+<span class="quotelev2">&gt;&gt; Should this be relevant to the present issue, where to learn about
+</span><br>
+<span class="quotelev2">&gt;&gt; -rpath linking?
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; If you are talking about Amber,
+</span><br>
+<span class="quotelev1">&gt; you would have to tweak the Makefiles to tweak the linker -rpath.
+</span><br>
+<span class="quotelev1">&gt; And we don't know much about Amber's Makefiles,
+</span><br>
+<span class="quotelev1">&gt; so this may be a very tricky approach.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; If you are talking about the OpenMPI test programs,
+</span><br>
+<span class="quotelev1">&gt; I think it is just a matter of setting the Intel environment variables
+</span><br>
+<span class="quotelev1">&gt; right, sourcing the ifortvars.sh iccvars.sh properly,
+</span><br>
+<span class="quotelev1">&gt; to get the right runtime LD_LIBRARY_PATH.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; thanks
+</span><br>
+<span class="quotelev2">&gt;&gt; francesco pietra
+</span><br>
+<span class="quotelev2">&gt;&gt; _______________________________________________
+</span><br>
+<span class="quotelev2">&gt;&gt; users mailing list
+</span><br>
+<span class="quotelev2">&gt;&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev2">&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; I hope this helps.
+</span><br>
+<span class="quotelev1">&gt; Gus Correa
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; ---------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; Gustavo Correa
+</span><br>
+<span class="quotelev1">&gt; Lamont-Doherty Earth Observatory - Columbia University
+</span><br>
+<span class="quotelev1">&gt; Palisades, NY, 10964-8000 - USA
+</span><br>
+<span class="quotelev1">&gt; ---------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; users mailing list
+</span><br>
+<span class="quotelev1">&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="8863.php">Mostyn Lewis: "Re: [OMPI users] shared libraries issue compiling 1.3.1/intel	10.1.022"</a>
+<li><strong>Previous message:</strong> <a href="8861.php">Jeff Squyres: "Re: [OMPI users] shared libraries issue compiling 1.3.1/intel10.1.022"</a>
+<li><strong>In reply to:</strong> <a href="8860.php">Francesco Pietra: "Re: [OMPI users] shared libraries issue compiling 1.3.1/intel 10.1.022"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="8864.php">Gus Correa: "Re: [OMPI users] Fwd: shared libraries issue compiling 1.3.1/intel 10.1.022"</a>
+<li><strong>Reply:</strong> <a href="8864.php">Gus Correa: "Re: [OMPI users] Fwd: shared libraries issue compiling 1.3.1/intel 10.1.022"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

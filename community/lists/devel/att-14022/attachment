@@ -1,0 +1,95 @@
+<div dir="ltr">In the original implementation, the OOB ft_event did not do much of anything on checkpoint preparation and continue. We did not even close the sockets. However, during restart the OOB will need to renegotiate the socket connections - usually by calling the finalization function (close stale sockets) and then the initialization function (create new sockets) of that component.<div>
+<br></div><div>I&#39;m not sure if that is still an acceptable approach or not. We will want the OOB to be quieted across the checkpoint preparation and continue so that we don&#39;t lose any message or have messages cross the checkpoint line. So something maybe to return to in the next pass.</div>
+<div><br></div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Thu, Feb 6, 2014 at 4:45 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im"><br>
+On Feb 6, 2014, at 2:16 PM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+<br>
+&gt; Josh explained it to me a few days ago, that after a checkpoint has been<br>
+&gt; received TCP should no longer be used to not lose any messages. The<br>
+&gt; communication happens over named pipes and therefore (I think) OOB<br>
+&gt; ft_event() is used to quite anything besides the pipes. This all seems<br>
+&gt; to work but I was just confused as the functions for ft_event()<br>
+&gt; in oob/tcp and oob/ud do not seem to contain any functionality.<br>
+&gt;<br>
+&gt; So do I try to fix the ft_event() function in oob/base/ to call the<br>
+&gt; registered ft_event() function which does nothing or do I just remove<br>
+&gt; the call to orte oob ft_event().<br>
+<br>
+</div>Sounds like you&#39;ll need to tell the OOB components to stop processing messages, so that will require that you insert an event into the system. You have to account for two things:<br>
+<br>
+(a) the OOB base and OOB components are operating on the orte_event_base, but<br>
+<br>
+(b) each OOB component can have multiple active modules (one per NIC) that are operating on their own event base/thread.<br>
+<br>
+So you have to start by pushing an event that calls the OOB base, which then loops across the components calling their ft_event interface. Each component would then have to create an event for each active module, inserting that event into the module&#39;s event base/thread. When activated, each module would have to shutdown its message engine, and activate another event to notify its component that all is quiet.<br>
+
+<br>
+Once a component finds out that all its modules are quiet, it would then have to activate an event to the OOB base. Once the OOB base sees all components report quiet, then it would have to activate an event to take you to the next step in your process.<br>
+
+<br>
+In other words, you need to turn the quieting process into its own set of states and run it through the state machine. This is the only way to guarantee that you&#39;ll keep things orderly, and is the major change needed in the C/R procedure as it flows thru ORTE. You can&#39;t just progress thru a set of function calls as you&#39;ll inevitably run into a roadblock requiring that you wait for an event-driven process to complete.<br>
+
+<br>
+HTH<br>
+<span class="HOEnZb"><font color="#888888">Ralph<br>
+</font></span><div class="HOEnZb"><div class="h5"><br>
+&gt;<br>
+&gt; On Thu, Feb 06, 2014 at 10:49:25AM -0800, Ralph Castain wrote:<br>
+&gt;&gt; The only reason I can think of for an OOB ft-event would be to tell the OOB to stop sending any messages. You would need to push that into the event library and use a callback event to let you know when it was done.<br>
+
+&gt;&gt;<br>
+&gt;&gt; Of course, once you did that, the OOB would no longer be available to, for example, tell the local daemon that the app is ready for checkpoint :-)<br>
+&gt;&gt;<br>
+&gt;&gt; Afraid I&#39;ll have to defer to Josh H for any further guidance.<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On Feb 6, 2014, at 8:15 AM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; When I initially made the C/R code compile again I made following<br>
+&gt;&gt;&gt; change:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; diff --git a/orte/mca/rml/oob/rml_oob_component.c b/orte/mca/rml/oob/rml_oob_component.c<br>
+&gt;&gt;&gt; index f0b22fc..90ed086 100644<br>
+&gt;&gt;&gt; --- a/orte/mca/rml/oob/rml_oob_component.c<br>
+&gt;&gt;&gt; +++ b/orte/mca/rml/oob/rml_oob_component.c<br>
+&gt;&gt;&gt; @@ -185,8 +185,7 @@ orte_rml_oob_ft_event(int state) {<br>
+&gt;&gt;&gt;        ;<br>
+&gt;&gt;&gt;    }<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; -    if( ORTE_SUCCESS !=<br>
+&gt;&gt;&gt; -        (ret = orte_oob.ft_event(state)) ) {<br>
+&gt;&gt;&gt; +    if( ORTE_SUCCESS != (ret = orte_rml_oob_ft_event(state)) ) {<br>
+&gt;&gt;&gt;        ORTE_ERROR_LOG(ret);<br>
+&gt;&gt;&gt;        exit_status = ret;<br>
+&gt;&gt;&gt;        goto cleanup;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; This is, of course, wrong. Now the function calls itself in a loop until<br>
+&gt;&gt;&gt; it crashes. Looking at orte/mca/oob there is still a ft_event()<br>
+&gt;&gt;&gt; function, but it is disabled using &quot;#if 0&quot;. Looking at other functions<br>
+&gt;&gt;&gt; it seems I would need to create something like<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; #define ORTE_OOB_FT_EVENT(m)<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Looking at the modules in orte/mca/oob/ it seems ft_event is implemented<br>
+&gt;&gt;&gt; in some places but it never seems to have any real functionality. Is<br>
+&gt;&gt;&gt; ft_event() actually needed there?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;             Adrian<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Joshua Hursey<br>Assistant Professor of Computer Science<br>University of Wisconsin-La Crosse<br><a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a>
+</div>
+

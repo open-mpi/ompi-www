@@ -1,0 +1,123 @@
+We have done similar things in our code base, and I may explore that option here. Doing it in too many places gets to be icky, though, so I&#39;ll have to look at it before deciding on the course of action.<br><br>Thanks!<br>
+Ralph<br><br><br><div class="gmail_quote">On Tue, Jun 9, 2009 at 12:13 PM, tom fogal <span dir="ltr">&lt;<a href="mailto:tfogal@alumni.unh.edu">tfogal@alumni.unh.edu</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<div class="im">Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; writes:<br>
+&gt; I can&#39;t speak to all of the OMPI code, but I can certainly create<br>
+&gt; a new configure option --valgrind-friendly that would initialize<br>
+&gt; the OOB comm buffers and other RTE-related memory to eliminate such<br>
+&gt; warnings.<br>
+<br>
+</div>That would be excellent, thank you for offering.<br>
+<div class="im"><br>
+&gt; I would prefer to configure it out rather than adding a bunch of<br>
+&gt; &quot;if-then&quot; checks for envars to avoid having the performance hit when<br>
+&gt; not needed.<br>
+<br>
+</div>FWIW, we&#39;ve solved this before by using function pointers initialized<br>
+on load, e.g. (warning, untested pseudocode):<br>
+<br>
+  void mymethod(int stuff) {<br>
+    do(stuff);<br>
+  }<br>
+  void mymethod_debug(int stuff) {<br>
+    internal_consistency_check();<br>
+    do(stuff);<br>
+  }<br>
+  void (*method)(int);<br>
+  ...<br>
+  void init() {<br>
+    method = mymethod;<br>
+    if(getenv(&quot;DEBUGGING&quot;) != NULL) {<br>
+      method = mymethod_debug;<br>
+    }<br>
+  }<br>
+<br>
+  void algorithm() {<br>
+    ...<br>
+    method(42);<br>
+    ...<br>
+  }<br>
+<br>
+You&#39;d only pay the branch during the one-time init().  Of course, the<br>
+method can&#39;t be inlined anymore either.<br>
+<br>
+Anyway, I realize that&#39;s quite a bit more work.  Preferred, but the<br>
+configure check would suffice for most of my needs.<br>
+<br>
+&gt; Would that help?<br>
+<br>
+Tremendously, thank you.<br>
+<font color="#888888"><br>
+-tom<br>
+</font><div><div></div><div class="h5"><br>
+&gt; On Tue, Jun 9, 2009 at 11:40 AM, tom fogal &lt;<a href="mailto:tfogal@alumni.unh.edu">tfogal@alumni.unh.edu</a>&gt; wrote:<br>
+&gt;<br>
+&gt; &gt; jody &lt;<a href="mailto:jody.xha@gmail.com">jody.xha@gmail.com</a>&gt; writes:<br>
+&gt; &gt; &gt; I made a suppression file for the irrelevant memory leaks of ompi:  I<br>
+&gt; &gt; &gt; make no claim that it catches all possible ones, but it catches all<br>
+&gt; &gt; &gt; that appear in my code.<br>
+&gt; &gt; [snip]<br>
+&gt; &gt;<br>
+&gt; &gt; Thanks, Jody.<br>
+&gt; &gt;<br>
+&gt; &gt; What are the chances something like this could be added / maintained in<br>
+&gt; &gt; the OpenMPI tree?  It would be great to have something 1) maintained by<br>
+&gt; &gt; someone more knowledgeable about these errors than me, and 2) installed<br>
+&gt; &gt; by default when I setup my toolchain for parallel debugging.<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; On Tue, Jun 9, 2009 at 3:28 PM, Jeff Squyres&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+&gt; &gt; &gt; &gt; This is worth adding to the FAQ.<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; On Jun 9, 2009, at 2:31 AM, Ashley Pittman wrote:<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;&gt; On Mon, 2009-06-08 at 23:41 -0600, tom fogal wrote:<br>
+&gt; &gt; &gt; &gt;&gt; &gt; George Bosilca &lt;<a href="mailto:bosilca@eecs.utk.edu">bosilca@eecs.utk.edu</a>&gt; writes:<br>
+&gt; &gt; &gt; &gt;&gt; &gt; &gt; There is a whole page on valgrind web page about this topic.<br>
+&gt; &gt; Please<br>
+&gt; &gt; &gt; &gt;&gt; &gt; &gt; read<br>
+&gt; &gt; &gt; &gt;&gt; &gt; &gt;<br>
+&gt; &gt; <a href="http://valgrind.org/docs/manual/manual-core.html#manual-core.suppress" target="_blank">http://valgrind.org/docs/manual/manual-core.html#manual-core.suppress</a><br>
+&gt; &gt; &gt; &gt;&gt; &gt; &gt;   for more information.<br>
+&gt; &gt; &gt; &gt;&gt; &gt;<br>
+&gt; &gt; &gt; &gt;&gt; &gt; Even better, Ralph (et al.) is if we could just make valgrind think<br>
+&gt; &gt; &gt; &gt;&gt; &gt; this is defined memory.  One can do this with client requests:<br>
+&gt; &gt; &gt; &gt;&gt; &gt;<br>
+&gt; &gt; &gt; &gt;&gt; &gt;<br>
+&gt; &gt; <a href="http://valgrind.org/docs/manual/mc-manual.html#mc-manual.clientreqs" target="_blank">http://valgrind.org/docs/manual/mc-manual.html#mc-manual.clientreqs</a><br>
+&gt; &gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt; &gt;&gt; Using the Valgrind client requests unnecessarily is a very bad idea,<br>
+&gt; &gt; &gt; &gt;&gt; they are intended for where applications use their own memory<br>
+&gt; &gt; allocator<br>
+&gt; &gt; &gt; &gt;&gt; (i.e. replace malloc/free) or are using custom kernel modules or<br>
+&gt; &gt; &gt; &gt;&gt; hardware which Valgrind doesn&#39;t know about.<br>
+&gt; &gt;<br>
+&gt; &gt; Okay, sure, I realize it was a bit of an abuse of the intended use of<br>
+&gt; &gt; the tool.<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; &gt;&gt; The correct solution is either to not send un-initialised memory<br>
+&gt; &gt; &gt; &gt;&gt; or to suppress the error using a suppression file as George<br>
+&gt; &gt; &gt; &gt;&gt; said.  As the error is from MPI_Init() you can safely ignore it<br>
+&gt; &gt; &gt; &gt;&gt; from a end-user perspective.<br>
+&gt; &gt;<br>
+&gt; &gt; As I mentioned in my initial message, MPI_Init is only one such<br>
+&gt; &gt; error; I get them in a lot of MPI calls, seemingly anything that does<br>
+&gt; &gt; communication.  Though I&#39;ve heard differently on this list, this led me<br>
+&gt; &gt; to believe I was doing something wrong in my code.<br>
+&gt; &gt;<br>
+&gt; &gt; It seems like the only way I could verify that I&#39;m not causing these<br>
+&gt; &gt; errors myself is to grok the call stacks I&#39;m given for each vg error<br>
+&gt; &gt; and figure out where the uninitialized memory comes from, and then make<br>
+&gt; &gt; a judgement call for myself whether this makes sense to suppress.  Or<br>
+&gt; &gt; I could mail the list about every error I see and ask for confirmation<br>
+&gt; &gt; that it&#39;s benign/suppressable.  Most likely, I&#39;ll take the simple<br>
+&gt; &gt; approach and just use the suppression file I was given, but that&#39;s<br>
+&gt; &gt; prone to be fragile and break with a future OpenMPI release.<br>
+&gt; &gt;<br>
+&gt; &gt; What about an environment variable which enables slower,<br>
+&gt; &gt; valgrind-friendly behavior?  There&#39;s precedent in other libraries, e.g.<br>
+&gt; &gt; glib [1].<br>
+&gt; &gt;<br>
+&gt; &gt; -tom<br>
+&gt; &gt;<br>
+&gt; &gt; [1] <a href="http://library.gnome.org/devel/glib/stable/glib-running.html" target="_blank">http://library.gnome.org/devel/glib/stable/glib-running.html</a><br>
+</div></div></blockquote></div><br>
+

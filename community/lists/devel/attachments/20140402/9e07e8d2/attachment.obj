@@ -1,0 +1,1261 @@
+diff --git a/ompi/mca/pml/cm/pml_cm.h b/ompi/mca/pml/cm/pml_cm.h
+index d55d2b1..b4ab222 100644
+--- a/ompi/mca/pml/cm/pml_cm.h
++++ b/ompi/mca/pml/cm/pml_cm.h
+@@ -23,6 +23,8 @@
+ #include "ompi/request/request.h"
+ #include "ompi/mca/mtl/mtl.h"
+ 
++#include "pml_cm_request.h"
++
+ BEGIN_C_DECLS
+ 
+ struct mca_mtl_request_t;
+@@ -40,6 +42,11 @@ struct ompi_pml_cm_t {
+     int                   free_list_max;
+     int                   free_list_inc;
+     int                   default_priority;
++
++    /* Configuration defining the support of a "direct mode" for acceleration */
++    int                   direct_mode;
++    mca_pml_cm_request_t  *prealloced_send_req;
++    mca_pml_cm_request_t  *prealloced_recv_req;
+ };
+ typedef struct ompi_pml_cm_t ompi_pml_cm_t;
+ extern ompi_pml_cm_t ompi_pml_cm;
+diff --git a/ompi/mca/pml/cm/pml_cm_component.c b/ompi/mca/pml/cm/pml_cm_component.c
+index 7d7a7d0..16515ce 100644
+--- a/ompi/mca/pml/cm/pml_cm_component.c
++++ b/ompi/mca/pml/cm/pml_cm_component.c
+@@ -134,6 +134,24 @@ mca_pml_cm_component_close(void)
+     return mca_base_framework_close(&ompi_mtl_base_framework);
+ }
+ 
++#define PREALLOCATE_REQUEST(type)                                               \
++do {                                                                            \
++    mca_pml_cm_request_t *req, *used_req;                                       \
++    union {                                                                     \
++        mca_pml_cm_hvy_send_request_t a;                                        \
++        mca_pml_cm_hvy_recv_request_t b;                                        \
++    } size_test;                                                                \
++                                                                                \
++    req = malloc(ompi_mtl->mtl_request_size + sizeof(size_test));               \
++    if (req == NULL) {                                                          \
++        return NULL;                                                            \
++    }                                                                           \
++                                                                                \
++    mca_pml_cm_##type##_request_construct(                                      \
++        (mca_pml_cm_thin_##type##_request_t*)req);                              \
++    req->direct_req_mtl.ompi_req = (ompi_request_t*)req;                        \
++    ompi_pml_cm.prealloced_##type##_req = req;                                  \
++} while(0)
+ 
+ static mca_pml_base_module_t*
+ mca_pml_cm_component_init(int* priority,
+@@ -164,7 +182,16 @@ mca_pml_cm_component_init(int* priority,
+         *priority = 30;
+     }
+ 
+-    
++    /* At this point only MXM is known to support "direct mode" */
++    ompi_pml_cm.direct_mode =
++                    (strcmp(ompi_mtl_base_selected_component->mtl_version.mca_component_name, "mxm") == 0);
++    opal_output_verbose( 10, 0, "in cm pml direct-mode is %d\n", ompi_pml_cm.direct_mode);
++    if (ompi_pml_cm.direct_mode) {
++        /* Allocate a temporary buffer for direct (blocking) requests */
++        PREALLOCATE_REQUEST(send);
++        PREALLOCATE_REQUEST(recv);
++    }
++
+     /* update our tag / context id max values based on MTL
+        information */
+     ompi_pml_cm.super.pml_max_contextid = ompi_mtl->mtl_max_contextid;
+@@ -177,6 +204,11 @@ mca_pml_cm_component_init(int* priority,
+ static int
+ mca_pml_cm_component_fini(void)
+ {
++    if (ompi_pml_cm.direct_mode) {
++        free(ompi_pml_cm.prealloced_send_req);
++        free(ompi_pml_cm.prealloced_recv_req);
++    }
++
+     if (NULL != ompi_mtl) {
+         return OMPI_MTL_CALL(finalize(ompi_mtl));
+     }
+diff --git a/ompi/mca/pml/cm/pml_cm_recv.c b/ompi/mca/pml/cm/pml_cm_recv.c
+index 2d9771d..72efdd0 100644
+--- a/ompi/mca/pml/cm/pml_cm_recv.c
++++ b/ompi/mca/pml/cm/pml_cm_recv.c
+@@ -42,7 +42,7 @@ mca_pml_cm_irecv_init(void *addr,
+     if( OPAL_UNLIKELY(NULL == recvreq) ) return OMPI_ERR_OUT_OF_RESOURCE;
+     
+     MCA_PML_CM_HVY_RECV_REQUEST_INIT(recvreq, ompi_proc, comm, tag, src, 
+-                                     datatype, addr, count, true); 
++                                     datatype, addr, count, true);
+     
+     *request = (ompi_request_t*) recvreq;
+ 
+@@ -63,7 +63,7 @@ mca_pml_cm_irecv(void *addr,
+     mca_pml_cm_thin_recv_request_t *recvreq;
+     ompi_proc_t* ompi_proc;
+     
+-    MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq);
++    MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq, 0);
+     if( OPAL_UNLIKELY(NULL == recvreq) ) return OMPI_ERR_OUT_OF_RESOURCE;
+     
+     MCA_PML_CM_THIN_RECV_REQUEST_INIT(recvreq,
+@@ -72,9 +72,10 @@ mca_pml_cm_irecv(void *addr,
+                                       src,
+                                       datatype,
+                                       addr,
+-                                      count);
++                                      count,
++                                      0);
+     
+-    MCA_PML_CM_THIN_RECV_REQUEST_START(recvreq, comm, tag, src, ret);
++    MCA_PML_CM_THIN_RECV_REQUEST_START(recvreq, comm, tag, src, ret, 0);
+ 
+     if( OPAL_LIKELY(OMPI_SUCCESS == ret) ) *request = (ompi_request_t*) recvreq;
+ 
+@@ -95,7 +96,7 @@ mca_pml_cm_recv(void *addr,
+     mca_pml_cm_thin_recv_request_t *recvreq;
+     ompi_proc_t* ompi_proc;
+     
+-    MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq);
++    MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq, ompi_pml_cm.direct_mode);
+     if( OPAL_UNLIKELY(NULL == recvreq) ) return OMPI_ERR_OUT_OF_RESOURCE;
+ 
+     MCA_PML_CM_THIN_RECV_REQUEST_INIT(recvreq,
+@@ -104,10 +105,12 @@ mca_pml_cm_recv(void *addr,
+                                       src,
+                                       datatype,
+                                       addr,
+-                                      count);
++                                      count,
++                                      ompi_pml_cm.direct_mode);
+     
+     
+-    MCA_PML_CM_THIN_RECV_REQUEST_START(recvreq, comm, tag, src, ret);
++    MCA_PML_CM_THIN_RECV_REQUEST_START(recvreq, comm, tag, src, ret,
++                                       ompi_pml_cm.direct_mode);
+     if( OPAL_UNLIKELY(OMPI_SUCCESS != ret) ) {
+         /* BWB - XXX - need cleanup of request here */
+         MCA_PML_CM_THIN_RECV_REQUEST_RETURN(recvreq);
+@@ -139,7 +142,7 @@ mca_pml_cm_imrecv(void *buf,
+     ompi_communicator_t *comm = (*message)->comm;
+     int peer = (*message)->peer;
+ 
+-    MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq);
++    MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq, 0);
+     if( OPAL_UNLIKELY(NULL == recvreq) ) return OMPI_ERR_OUT_OF_RESOURCE;
+     
+     MCA_PML_CM_THIN_RECV_REQUEST_INIT(recvreq,
+@@ -148,9 +151,10 @@ mca_pml_cm_imrecv(void *buf,
+                                       peer,
+                                       datatype,
+                                       buf,
+-                                      count);
++                                      count,
++                                      0);
+     
+-    MCA_PML_CM_THIN_RECV_REQUEST_MATCHED_START(recvreq, message, ret);
++    MCA_PML_CM_THIN_RECV_REQUEST_MATCHED_START(recvreq, message, ret, 0);
+ 
+     if( OPAL_LIKELY(OMPI_SUCCESS == ret) ) *request = (ompi_request_t*) recvreq;
+ 
+@@ -171,7 +175,7 @@ mca_pml_cm_mrecv(void *buf,
+     ompi_communicator_t *comm = (*message)->comm;
+     int peer = (*message)->peer;
+ 
+-    MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq);
++    MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq, ompi_pml_cm.direct_mode);
+     if( OPAL_UNLIKELY(NULL == recvreq) ) return OMPI_ERR_OUT_OF_RESOURCE;
+ 
+     MCA_PML_CM_THIN_RECV_REQUEST_INIT(recvreq,
+@@ -180,10 +184,11 @@ mca_pml_cm_mrecv(void *buf,
+                                       peer,
+                                       datatype,
+                                       buf,
+-                                      count);
++                                      count,
++                                      ompi_pml_cm.direct_mode);
+     
+-    MCA_PML_CM_THIN_RECV_REQUEST_MATCHED_START(recvreq, 
+-                                               message, ret);
++    MCA_PML_CM_THIN_RECV_REQUEST_MATCHED_START(recvreq, message, ret,
++                                               ompi_pml_cm.direct_mode);
+     if( OPAL_UNLIKELY(OMPI_SUCCESS != ret) ) {
+         MCA_PML_CM_THIN_RECV_REQUEST_RETURN(recvreq);
+         return ret;
+diff --git a/ompi/mca/pml/cm/pml_cm_recvreq.c b/ompi/mca/pml/cm/pml_cm_recvreq.c
+index a2eeac1..3ee4671 100644
+--- a/ompi/mca/pml/cm/pml_cm_recvreq.c
++++ b/ompi/mca/pml/cm/pml_cm_recvreq.c
+@@ -44,6 +44,10 @@ mca_pml_cm_recv_request_free(struct ompi_request_t** request)
+     return OMPI_SUCCESS;
+ } 
+ 
++void mca_pml_cm_recv_direct_request_completion(struct mca_mtl_request_t *mtl_request)
++{
++    MCA_PML_CM_THIN_RECV_REQUEST_MPI_COMPLETE( ((mca_pml_cm_thin_recv_request_t*)mtl_request->ompi_req) );
++}
+ 
+ void mca_pml_cm_recv_request_completion(struct mca_mtl_request_t *mtl_request)
+ {
+@@ -56,7 +60,7 @@ void mca_pml_cm_recv_request_completion(struct mca_mtl_request_t *mtl_request)
+     }
+ }
+ 
+-static void 
++void
+ mca_pml_cm_recv_request_construct(mca_pml_cm_thin_recv_request_t* recvreq)
+ {
+     recvreq->req_base.req_ompi.req_free = mca_pml_cm_recv_request_free;
+diff --git a/ompi/mca/pml/cm/pml_cm_recvreq.h b/ompi/mca/pml/cm/pml_cm_recvreq.h
+index 0335eaf..34f27e7 100644
+--- a/ompi/mca/pml/cm/pml_cm_recvreq.h
++++ b/ompi/mca/pml/cm/pml_cm_recvreq.h
+@@ -52,26 +52,58 @@ OBJ_CLASS_DECLARATION(mca_pml_cm_hvy_recv_request_t);
+  *  @param rc (OUT)  OMPI_SUCCESS or error status on failure.
+  *  @return          Receive request.
+  */
+-#define MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq)                            \
+-    do {                                                                       \
+-    ompi_free_list_item_t*item;                                                \
+-    OMPI_FREE_LIST_GET_MT(&mca_pml_base_recv_requests, item);                     \
+-    recvreq = (mca_pml_cm_thin_recv_request_t*) item;                          \
+-    recvreq->req_base.req_pml_type = MCA_PML_CM_REQUEST_RECV_THIN;             \
+-    recvreq->req_mtl.ompi_req = (ompi_request_t*) recvreq;                     \
+-    recvreq->req_mtl.completion_callback = mca_pml_cm_recv_request_completion; \
++#define MCA_PML_CM_THIN_RECV_REQUEST_ALLOC(recvreq, direct)                    \
++do {                                                                           \
++    if (0 == direct) {                                                         \
++        ompi_free_list_item_t*item;                                            \
++        OMPI_FREE_LIST_GET_MT(&mca_pml_base_recv_requests, item);              \
++        recvreq = (mca_pml_cm_thin_recv_request_t*) item;                      \
++        recvreq->req_base.req_pml_type = MCA_PML_CM_REQUEST_RECV_THIN;         \
++        recvreq->req_mtl.ompi_req = (ompi_request_t*) recvreq;                 \
++        recvreq->req_mtl.completion_callback =                                 \
++            mca_pml_cm_recv_request_completion;                                \
++    } else {                                                                   \
++        recvreq = (mca_pml_cm_thin_recv_request_t*)ompi_pml_cm.prealloced_recv_req; \
++        recvreq->req_base.direct_req_mtl.ompi_req = (ompi_request_t*)recvreq;  \
++        recvreq->req_base.direct_req_mtl.completion_callback =                 \
++            mca_pml_cm_recv_direct_request_completion;                         \
++    }                                                                          \
+  } while (0)
+ 
+ #define MCA_PML_CM_HVY_RECV_REQUEST_ALLOC(recvreq)                             \
+ do {                                                                           \
+     ompi_free_list_item_t*item;                                                \
+-    OMPI_FREE_LIST_GET_MT(&mca_pml_base_recv_requests, item);                     \
++    OMPI_FREE_LIST_GET_MT(&mca_pml_base_recv_requests, item);                  \
+     recvreq = (mca_pml_cm_hvy_recv_request_t*) item;                           \
+     recvreq->req_base.req_pml_type = MCA_PML_CM_REQUEST_RECV_HEAVY;            \
+     recvreq->req_mtl.ompi_req = (ompi_request_t*) recvreq;                     \
+     recvreq->req_mtl.completion_callback = mca_pml_cm_recv_request_completion; \
+  } while (0)
+ 
++#define MCA_PML_CM_THIN_RECV_REQUEST_INIT_MINIMAL( request,             \
++                                                   ompi_proc,           \
++                                                   comm,                \
++                                                   src,                 \
++                                                   datatype,            \
++                                                   addr,                \
++                                                   count,               \
++                                                   convertor)           \
++do {                                                                    \
++    if( MPI_ANY_SOURCE == src ) {                                       \
++        ompi_proc = ompi_proc_local_proc;                               \
++    } else {                                                            \
++        ompi_proc = ompi_comm_peer_lookup( comm, src );                 \
++    }                                                                   \
++    (request)->req_base.req_free_called = false;                        \
++    (request)->req_base.req_pml_complete = false;                       \
++    opal_convertor_copy_and_prepare_for_recv(                           \
++                                  ompi_proc->proc_convertor,            \
++                                  &(datatype->super),                   \
++                                  count,                                \
++                                  addr,                                 \
++                                  0,                                    \
++                                  convertor );                          \
++} while(0)
+ 
+ /**
+  * Initialize a receive request with call parameters.
+@@ -90,29 +122,34 @@ do {                                                                           \
+                                            src,                         \
+                                            datatype,                    \
+                                            addr,                        \
+-                                           count )                      \
++                                           count,                       \
++                                           direct)                      \
+ do {                                                                    \
+     OMPI_REQUEST_INIT(&(request)->req_base.req_ompi, false);            \
+-    (request)->req_base.req_ompi.req_mpi_object.comm = comm;            \
+-    (request)->req_base.req_pml_complete = false;                       \
+-    (request)->req_base.req_free_called = false;                        \
+-    request->req_base.req_comm = comm;                                  \
+-    request->req_base.req_datatype = datatype;                          \
+-    OBJ_RETAIN(comm);                                                   \
+-    OBJ_RETAIN(datatype);                                               \
+-                                                                        \
+-    if( MPI_ANY_SOURCE == src ) {                                       \
+-        ompi_proc = ompi_proc_local_proc;                               \
++    if (0 == direct) {                                                  \
++        request->req_base.req_ompi.req_mpi_object.comm = comm;          \
++        request->req_base.req_comm = comm;                              \
++        request->req_base.req_datatype = datatype;                      \
++        OBJ_RETAIN(comm);                                               \
++        OBJ_RETAIN(datatype);                                           \
++        MCA_PML_CM_THIN_RECV_REQUEST_INIT_MINIMAL( request,             \
++                                                   ompi_proc,           \
++                                                   comm,                \
++                                                   src,                 \
++                                                   datatype,            \
++                                                   addr,                \
++                                                   count,               \
++                                                   &(request)->req_base.req_convertor); \
+     } else {                                                            \
+-        ompi_proc = ompi_comm_peer_lookup( comm, src );                 \
++        MCA_PML_CM_THIN_RECV_REQUEST_INIT_MINIMAL( request,             \
++                                                   ompi_proc,           \
++                                                   comm,                \
++                                                   src,                 \
++                                                   datatype,            \
++                                                   addr,                \
++                                                   count,               \
++                                                   &(request)->req_base.direct_convertor); \
+     }                                                                   \
+-    opal_convertor_copy_and_prepare_for_recv(                           \
+-                                  ompi_proc->proc_convertor,            \
+-                                  &(datatype->super),                   \
+-                                  count,                                \
+-                                  addr,                                 \
+-                                  0,                                    \
+-                                  &(request)->req_base.req_convertor ); \
+ } while(0)
+ 
+ #define MCA_PML_CM_HVY_RECV_REQUEST_INIT( request,                      \
+@@ -137,19 +174,14 @@ do {                                                                    \
+     request->req_count = count;                                         \
+     OBJ_RETAIN(comm);                                                   \
+     OBJ_RETAIN(datatype);                                               \
+-                                                                        \
+-    if( MPI_ANY_SOURCE == src ) {                                       \
+-        ompi_proc = ompi_proc_local_proc;                               \
+-    } else {                                                            \
+-        ompi_proc = ompi_comm_peer_lookup( comm, src );                 \
+-    }                                                                   \
+-    opal_convertor_copy_and_prepare_for_recv(                           \
+-                                  ompi_proc->proc_convertor,            \
+-                                  &(datatype->super),                   \
+-                                  count,                                \
+-                                  addr,                                 \
+-                                  0,                                    \
+-                                  &(request)->req_base.req_convertor ); \
++    MCA_PML_CM_THIN_RECV_REQUEST_INIT_MINIMAL( request,                 \
++                                               ompi_proc,               \
++                                               comm,                    \
++                                               src,                     \
++                                               datatype,                \
++                                               addr,                    \
++                                               count,                   \
++                                               &(request)->req_base.req_convertor); \
+  } while(0)
+ 
+ 
+@@ -159,7 +191,8 @@ do {                                                                    \
+  * @param request  Receive request.
+  * @return         OMPI_SUCESS or error status on failure.
+  */
+-#define MCA_PML_CM_THIN_RECV_REQUEST_START(request, comm, tag, src, ret) \
++
++#define MCA_PML_CM_THIN_RECV_REQUEST_START_COMMON(request)              \
+ do {                                                                    \
+     /* init/re-init the request */                                      \
+     request->req_base.req_pml_complete = false;                         \
+@@ -173,50 +206,51 @@ do {                                                                    \
+     request->req_base.req_ompi.req_status.MPI_TAG = OMPI_ANY_TAG;       \
+     request->req_base.req_ompi.req_status.MPI_ERROR = OMPI_SUCCESS;     \
+     request->req_base.req_ompi.req_status._cancelled = 0;               \
+-    ret = OMPI_MTL_CALL(irecv(ompi_mtl,                                 \
+-                              comm,                                     \
+-                              src,                                      \
+-                              tag,                                      \
+-                              &recvreq->req_base.req_convertor,         \
+-                              &recvreq->req_mtl));                      \
+ } while (0)
+ 
+-#define MCA_PML_CM_THIN_RECV_REQUEST_MATCHED_START(request, message, ret) \
++#define MCA_PML_CM_THIN_RECV_REQUEST_START(request, comm, tag, src,     \
++                                           ret, direct)                 \
+ do {                                                                    \
+-    /* init/re-init the request */                                      \
+-    request->req_base.req_pml_complete = false;                         \
+-    request->req_base.req_ompi.req_complete = false;                    \
+-    request->req_base.req_ompi.req_state = OMPI_REQUEST_ACTIVE;         \
+-                                                                        \
+-    /* always set the req_status.MPI_TAG to ANY_TAG before starting the \
+-     * request. This field is used if cancelled to find out if the request \
+-     * has been matched or not.                                         \
+-     */                                                                 \
+-    request->req_base.req_ompi.req_status.MPI_TAG = OMPI_ANY_TAG;       \
+-    request->req_base.req_ompi.req_status.MPI_ERROR = OMPI_SUCCESS;     \
+-    request->req_base.req_ompi.req_status._cancelled = 0;               \
+-    ret = OMPI_MTL_CALL(imrecv(ompi_mtl,                                \
+-                               &recvreq->req_base.req_convertor,        \
+-                               message,                                 \
+-                               &recvreq->req_mtl));                     \
++    if (0 == direct) {                                                  \
++        MCA_PML_CM_THIN_RECV_REQUEST_START_COMMON(request);             \
++        ret = OMPI_MTL_CALL(irecv(ompi_mtl,                             \
++                                  comm,                                 \
++                                  src,                                  \
++                                  tag,                                  \
++                                  &recvreq->req_base.req_convertor,     \
++                                  &recvreq->req_mtl));                  \
++    } else {                                                            \
++        request->req_base.req_pml_complete = false;                     \
++        ret = OMPI_MTL_CALL(irecv(ompi_mtl,                             \
++                                      comm,                             \
++                                      src,                              \
++                                      tag,                              \
++                                      &recvreq->req_base.direct_convertor, \
++                                      &recvreq->req_base.direct_req_mtl)); \
++    }                                                                   \
+ } while (0)
+ 
++#define MCA_PML_CM_THIN_RECV_REQUEST_MATCHED_START(request, message,    \
++                                                   ret, direct)         \
++do {                                                                    \
++    if (0 == direct) {                                                  \
++        MCA_PML_CM_THIN_RECV_REQUEST_START_COMMON(request);             \
++        ret = OMPI_MTL_CALL(imrecv(ompi_mtl,                            \
++                                   &recvreq->req_base.req_convertor,    \
++                                   message,                             \
++                                   &recvreq->req_mtl));                 \
++    } else {                                                            \
++        MCA_PML_CM_THIN_RECV_REQUEST_START_COMMON(request);             \
++        ret = OMPI_MTL_CALL(imrecv(ompi_mtl,                            \
++                                   &recvreq->req_base.direct_convertor, \
++                                   message,                             \
++                                   &recvreq->req_base.direct_req_mtl)); \
++    }                                                                   \
++} while (0)
+ 
+ #define MCA_PML_CM_HVY_RECV_REQUEST_START(request, ret)                 \
+ do {                                                                    \
+-/*     opal_output(0, "posting hvy request %d\n", request);                */ \
+-    /* init/re-init the request */                                      \
+-    request->req_base.req_pml_complete = false;                         \
+-    request->req_base.req_ompi.req_complete = false;                    \
+-    request->req_base.req_ompi.req_state = OMPI_REQUEST_ACTIVE;         \
+-                                                                        \
+-    /* always set the req_status.MPI_TAG to ANY_TAG before starting the \
+-     * request. This field is used if cancelled to find out if the request \
+-     * has been matched or not.                                         \
+-     */                                                                 \
+-    request->req_base.req_ompi.req_status.MPI_TAG = OMPI_ANY_TAG;       \
+-    request->req_base.req_ompi.req_status.MPI_ERROR = OMPI_SUCCESS;     \
+-    request->req_base.req_ompi.req_status._cancelled = 0;               \
++    MCA_PML_CM_THIN_RECV_REQUEST_START_COMMON(request);                 \
+     ret = OMPI_MTL_CALL(irecv(ompi_mtl,                                 \
+                               request->req_base.req_comm,               \
+                               request->req_peer,                        \
+@@ -233,7 +267,8 @@ do {                                                                    \
+  */
+ #define MCA_PML_CM_THIN_RECV_REQUEST_MPI_COMPLETE( recvreq )            \
+ do {                                                                    \
+-    ompi_request_complete(  &(recvreq->req_base.req_ompi), true );      \
++    ompi_request_complete( &(recvreq->req_base.req_ompi), true );       \
++    opal_convertor_cleanup( &(recvreq)->req_base.req_convertor );       \
+  } while (0)
+     
+ 
+@@ -315,6 +350,10 @@ do {                                                                    \
+ 
+ extern void mca_pml_cm_recv_request_completion(struct mca_mtl_request_t *mtl_request);
+ 
++extern void mca_pml_cm_recv_direct_request_completion(struct mca_mtl_request_t *mtl_request);
++
++extern void mca_pml_cm_recv_request_construct(mca_pml_cm_thin_recv_request_t* recvreq);
++
+ #endif
+ 
+ 
+diff --git a/ompi/mca/pml/cm/pml_cm_request.h b/ompi/mca/pml/cm/pml_cm_request.h
+index 3451da3..8660da7 100644
+--- a/ompi/mca/pml/cm/pml_cm_request.h
++++ b/ompi/mca/pml/cm/pml_cm_request.h
+@@ -43,12 +43,24 @@ struct mca_pml_cm_request_t {
+ /* START: These fields have to match the definition of the mca_pml_base_request_t */
+     ompi_request_t req_ompi;              /**< base request */
+     volatile bool req_pml_complete;       /**< flag indicating if the pt-2-pt layer is done with this request */
+-    mca_pml_cm_request_type_t req_pml_type;
+-    struct ompi_communicator_t *req_comm; /**< communicator pointer */
+-    struct ompi_datatype_t *req_datatype; /**< pointer to data type */
+-    volatile bool req_free_called;        /**< flag indicating if the user has freed this request */
+-    opal_convertor_t req_convertor;       /**< convertor that describes the memory layout */
+-/* END: These fields have to match the definition of the mca_pml_base_request_t */
++    union
++    {
++        struct
++        {
++        mca_pml_cm_request_type_t req_pml_type;
++        struct ompi_communicator_t *req_comm; /**< communicator pointer */
++        struct ompi_datatype_t *req_datatype; /**< pointer to data type */
++        volatile bool req_free_called;        /**< flag indicating if the user has freed this request */
++        opal_convertor_t req_convertor;       /**< convertor that describes the memory layout */
++
++        /* END: These fields have to match the definition of the mca_pml_base_request_t */
++        };
++        struct
++        {
++            opal_convertor_t direct_convertor;/**< convertor that describes the memory layout */
++            mca_mtl_request_t direct_req_mtl; /**< the mtl specific memory. This field will be the first in the struct */
++        };
++    };
+ };
+ typedef struct mca_pml_cm_request_t mca_pml_cm_request_t;
+ OBJ_CLASS_DECLARATION(mca_pml_cm_request_t);
+diff --git a/ompi/mca/pml/cm/pml_cm_send.c b/ompi/mca/pml/cm/pml_cm_send.c
+index 8dfa833..30776b8 100644
+--- a/ompi/mca/pml/cm/pml_cm_send.c
++++ b/ompi/mca/pml/cm/pml_cm_send.c
+@@ -34,11 +34,12 @@ mca_pml_cm_isend_init(void* buf,
+     mca_pml_cm_hvy_send_request_t *sendreq;
+     ompi_proc_t* ompi_proc;
+     
+-    MCA_PML_CM_HVY_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc);
++    MCA_PML_CM_HVY_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc, 0, 0);
+     if (OPAL_UNLIKELY(NULL == sendreq)) return OMPI_ERR_OUT_OF_RESOURCE;
+     
+     MCA_PML_CM_HVY_SEND_REQUEST_INIT(sendreq, ompi_proc, comm, tag, dst, 
+-                                     datatype, sendmode, true, false, buf, count);
++                                     datatype, sendmode, true, false,
++                                     0, buf, count);
+     
+     *request = (ompi_request_t*) sendreq;
+ 
+@@ -62,49 +63,51 @@ mca_pml_cm_isend(void* buf,
+         mca_pml_cm_hvy_send_request_t* sendreq;
+         ompi_proc_t* ompi_proc;
+         
+-        MCA_PML_CM_HVY_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc);
++        MCA_PML_CM_HVY_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc, 0, 0);
+         if (OPAL_UNLIKELY(NULL == sendreq)) return OMPI_ERR_OUT_OF_RESOURCE;
+         
+-        MCA_PML_CM_HVY_SEND_REQUEST_INIT(sendreq, 
+-                                         ompi_proc, 
+-                                         comm, 
+-                                         tag, 
+-                                         dst, 
++        MCA_PML_CM_HVY_SEND_REQUEST_INIT(sendreq,
++                                         ompi_proc,
++                                         comm,
++                                         tag,
++                                         dst,
+                                          datatype,
+                                          sendmode,
+                                          false,
+                                          false,
+-                                         buf, 
++                                         0,
++                                         buf,
+                                          count);
+-        
+-        MCA_PML_CM_HVY_SEND_REQUEST_START( sendreq, ret);
++
++        MCA_PML_CM_HVY_SEND_REQUEST_START( sendreq, ret, 0 );
+         
+         if (OPAL_LIKELY(OMPI_SUCCESS == ret)) *request = (ompi_request_t*) sendreq;
+ 
+     } else { 
+         mca_pml_cm_thin_send_request_t* sendreq;
+         ompi_proc_t* ompi_proc;
+-        MCA_PML_CM_THIN_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc);
++        MCA_PML_CM_THIN_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc, 0, 0);
+         if (OPAL_UNLIKELY(NULL == sendreq)) return OMPI_ERR_OUT_OF_RESOURCE;
+         
+-        MCA_PML_CM_THIN_SEND_REQUEST_INIT(sendreq, 
+-                                          ompi_proc, 
+-                                          comm, 
+-                                          tag, 
+-                                          dst, 
++        MCA_PML_CM_THIN_SEND_REQUEST_INIT(sendreq,
++                                          ompi_proc,
++                                          comm,
++                                          tag,
++                                          dst,
+                                           datatype,
+                                           sendmode,
+-                                          buf, 
++                                          0,
++                                          buf,
+                                           count);
+-        
+-        MCA_PML_CM_THIN_SEND_REQUEST_START(
+-                                           sendreq, 
++
++        MCA_PML_CM_THIN_SEND_REQUEST_START(sendreq,
+                                            comm,
+                                            tag,
+                                            dst,
+                                            sendmode,
+                                            false, 
+-                                           ret);
++                                           ret,
++                                           0);
+         
+         if (OPAL_LIKELY(OMPI_SUCCESS == ret)) *request = (ompi_request_t*) sendreq;
+         
+@@ -128,7 +131,8 @@ mca_pml_cm_send(void *buf,
+     if(sendmode == MCA_PML_BASE_SEND_BUFFERED) { 
+         mca_pml_cm_hvy_send_request_t *sendreq;
+         ompi_proc_t * ompi_proc;
+-        MCA_PML_CM_HVY_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc);
++        MCA_PML_CM_HVY_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc,
++                                          ompi_pml_cm.direct_mode, 1);
+         if (OPAL_UNLIKELY(NULL == sendreq)) return OMPI_ERR_OUT_OF_RESOURCE;
+         
+         MCA_PML_CM_HVY_SEND_REQUEST_INIT(sendreq,
+@@ -140,19 +144,23 @@ mca_pml_cm_send(void *buf,
+                                          sendmode,
+                                          false,
+                                          false,
++                                         ompi_pml_cm.direct_mode,
+                                          buf,
+                                          count);
+-        MCA_PML_CM_HVY_SEND_REQUEST_START(sendreq, ret);
++        MCA_PML_CM_HVY_SEND_REQUEST_START(sendreq, ret, ompi_pml_cm.direct_mode);
+         if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {
+             MCA_PML_CM_HVY_SEND_REQUEST_RETURN(sendreq);
+             return ret;
+         }
+         
+-        ompi_request_free( (ompi_request_t**)&sendreq );
++        if (0 == ompi_pml_cm.direct_mode) {
++            ompi_request_free( (ompi_request_t**)&sendreq );
++        }
+     } else { 
+         mca_pml_cm_thin_send_request_t *sendreq;
+         ompi_proc_t * ompi_proc;
+-        MCA_PML_CM_THIN_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc);
++        MCA_PML_CM_THIN_SEND_REQUEST_ALLOC(sendreq, comm, dst, ompi_proc,
++                                           ompi_pml_cm.direct_mode, 1);
+         if (OPAL_UNLIKELY(NULL == sendreq)) return OMPI_ERR_OUT_OF_RESOURCE;
+         
+         MCA_PML_CM_THIN_SEND_REQUEST_INIT(sendreq,
+@@ -162,19 +170,30 @@ mca_pml_cm_send(void *buf,
+                                           dst, 
+                                           datatype,
+                                           sendmode,
++                                          ompi_pml_cm.direct_mode,
+                                           buf,
+                                           count);
+-        MCA_PML_CM_SEND_REQUEST_START_SETUP((&sendreq->req_send));
+-            
+-        ret = OMPI_MTL_CALL(send(ompi_mtl,                             
+-                                 comm, 
+-                                 dst, 
+-                                 tag,  
+-                                 &sendreq->req_send.req_base.req_convertor,
+-                                 sendmode));
+-        /* Allow a quick path for the request return */
+-        sendreq->req_send.req_base.req_free_called = true;
+-        MCA_PML_CM_THIN_SEND_REQUEST_PML_COMPLETE(sendreq);
++        if (0 == ompi_pml_cm.direct_mode) {
++            MCA_PML_CM_SEND_REQUEST_START_SETUP(sendreq);
++
++            ret = OMPI_MTL_CALL(send(ompi_mtl,
++                                     comm,
++                                     dst,
++                                     tag,
++                                     &sendreq->req_base.req_convertor,
++                                     sendmode));
++
++            /* Allow a quick path for the request return */
++            sendreq->req_base.req_free_called = true;
++            MCA_PML_CM_THIN_SEND_REQUEST_PML_COMPLETE(sendreq);
++        } else {
++            ret = OMPI_MTL_CALL(send(ompi_mtl,
++                                     comm,
++                                     dst,
++                                     tag,
++                                     &sendreq->req_base.direct_convertor,
++                                     sendmode));
++        }
+     }
+     
+     return ret;
+diff --git a/ompi/mca/pml/cm/pml_cm_sendreq.c b/ompi/mca/pml/cm/pml_cm_sendreq.c
+index abb4f33..b342395 100644
+--- a/ompi/mca/pml/cm/pml_cm_sendreq.c
++++ b/ompi/mca/pml/cm/pml_cm_sendreq.c
+@@ -32,7 +32,7 @@
+ static int
+ mca_pml_cm_send_request_free(struct ompi_request_t** request)
+ {
+-    mca_pml_cm_send_request_t* sendreq = *(mca_pml_cm_send_request_t**)request;
++    mca_pml_cm_thin_send_request_t* sendreq = *(mca_pml_cm_thin_send_request_t**)request;
+     assert( false == sendreq->req_base.req_free_called );
+         
+     OPAL_THREAD_LOCK(&ompi_request_lock);
+@@ -52,10 +52,22 @@ mca_pml_cm_send_request_free(struct ompi_request_t** request)
+ }
+ 
+ void
++mca_pml_cm_send_empty_request_completion(struct mca_mtl_request_t *mtl_request)
++{
++    MCA_PML_CM_THIN_EMPTY_SEND_REQUEST_PML_COMPLETE((mca_pml_cm_request_t*)(mtl_request->ompi_req));
++}
++
++void
++mca_pml_cm_send_direct_request_completion(struct mca_mtl_request_t *mtl_request)
++{
++    MCA_PML_CM_THIN_DIRECT_SEND_REQUEST_PML_COMPLETE((mca_pml_cm_request_t*)(mtl_request->ompi_req));
++}
++
++void
+ mca_pml_cm_send_request_completion(struct mca_mtl_request_t *mtl_request)
+ {
+-    mca_pml_cm_send_request_t *base_request = 
+-        (mca_pml_cm_send_request_t*) mtl_request->ompi_req;
++    mca_pml_cm_thin_send_request_t *base_request =
++        (mca_pml_cm_thin_send_request_t*) mtl_request->ompi_req;
+     if( MCA_PML_CM_REQUEST_SEND_THIN == base_request->req_base.req_pml_type ) {
+         MCA_PML_CM_THIN_SEND_REQUEST_PML_COMPLETE(((mca_pml_cm_thin_send_request_t*) base_request));
+     } else {
+@@ -63,25 +75,19 @@ mca_pml_cm_send_request_completion(struct mca_mtl_request_t *mtl_request)
+     }
+ }
+ 
+-static void mca_pml_cm_send_request_construct(mca_pml_cm_hvy_send_request_t* sendreq)
++void mca_pml_cm_send_request_construct(mca_pml_cm_thin_send_request_t* sendreq)
+ {
+-    /* no need to reinit for every send -- never changes */
+-    sendreq->req_send.req_base.req_ompi.req_free = mca_pml_cm_send_request_free;
+-    sendreq->req_send.req_base.req_ompi.req_cancel = mca_pml_cm_cancel;
++    sendreq->req_base.req_ompi.req_free = mca_pml_cm_send_request_free;
++    sendreq->req_base.req_ompi.req_cancel = mca_pml_cm_cancel;
+ }
+ 
+-OBJ_CLASS_INSTANCE(mca_pml_cm_send_request_t, 
+-                   mca_pml_cm_request_t, 
+-                   NULL,
+-                   NULL);
+-
+ OBJ_CLASS_INSTANCE(mca_pml_cm_thin_send_request_t, 
+-                   mca_pml_cm_send_request_t, 
++                   mca_pml_cm_request_t,
+                    mca_pml_cm_send_request_construct, 
+                    NULL);
+ 
+ OBJ_CLASS_INSTANCE(mca_pml_cm_hvy_send_request_t, 
+-                   mca_pml_cm_send_request_t,
++                   mca_pml_cm_request_t,
+                    mca_pml_cm_send_request_construct,
+                    NULL);
+ 
+diff --git a/ompi/mca/pml/cm/pml_cm_sendreq.h b/ompi/mca/pml/cm/pml_cm_sendreq.h
+index a1bd2bb..51aa66d 100644
+--- a/ompi/mca/pml/cm/pml_cm_sendreq.h
++++ b/ompi/mca/pml/cm/pml_cm_sendreq.h
+@@ -26,16 +26,9 @@
+ #include "ompi/mca/mtl/mtl.h"
+ #include "opal/prefetch.h"
+ 
+-struct mca_pml_cm_send_request_t { 
++struct mca_pml_cm_thin_send_request_t {
+     mca_pml_cm_request_t req_base;
+     mca_pml_base_send_mode_t req_send_mode;
+-};
+-typedef struct mca_pml_cm_send_request_t mca_pml_cm_send_request_t;
+-OBJ_CLASS_DECLARATION(mca_pml_cm_send_request_t);
+-
+-
+-struct mca_pml_cm_thin_send_request_t { 
+-    mca_pml_cm_send_request_t req_send;
+     mca_mtl_request_t req_mtl;            /**< the mtl specific memory. This field should be the last in the struct */
+ };
+ typedef struct mca_pml_cm_thin_send_request_t mca_pml_cm_thin_send_request_t;
+@@ -43,7 +36,8 @@ OBJ_CLASS_DECLARATION(mca_pml_cm_thin_send_request_t);
+ 
+ 
+ struct mca_pml_cm_hvy_send_request_t {
+-    mca_pml_cm_send_request_t req_send;
++    mca_pml_cm_request_t req_base;
++    mca_pml_base_send_mode_t req_send_mode;
+     void *req_addr;                       /**< pointer to application buffer */
+     size_t req_count;                     /**< count of user datatype elements */
+     int32_t req_peer;                     /**< peer process - rank w/in this communicator */
+@@ -55,9 +49,8 @@ struct mca_pml_cm_hvy_send_request_t {
+ typedef struct mca_pml_cm_hvy_send_request_t mca_pml_cm_hvy_send_request_t;
+ OBJ_CLASS_DECLARATION(mca_pml_cm_hvy_send_request_t);
+ 
+-
+ #define MCA_PML_CM_THIN_SEND_REQUEST_ALLOC(sendreq, comm, dst,          \
+-                                           ompi_proc)                   \
++                                           ompi_proc, direct, no_ret)   \
+ do {                                                                    \
+     ompi_free_list_item_t* item;                                        \
+     ompi_proc = ompi_comm_peer_lookup( comm, dst );                     \
+@@ -65,31 +58,63 @@ do {                                                                    \
+     if(OPAL_UNLIKELY(NULL == ompi_proc)) {                              \
+         sendreq = NULL;                                                 \
+     } else {                                                            \
+-        OMPI_FREE_LIST_WAIT_MT(&mca_pml_base_send_requests, item);         \
+-        sendreq = (mca_pml_cm_thin_send_request_t*)item;                \
+-        sendreq->req_send.req_base.req_pml_type = MCA_PML_CM_REQUEST_SEND_THIN; \
+-        sendreq->req_mtl.ompi_req = (ompi_request_t*) sendreq;          \
+-        sendreq->req_mtl.completion_callback = mca_pml_cm_send_request_completion; \
++        if (0 == direct) {                                              \
++            OMPI_FREE_LIST_WAIT_MT(&mca_pml_base_send_requests, item);  \
++            sendreq = (mca_pml_cm_thin_send_request_t*)item;            \
++            sendreq->req_base.req_pml_type = MCA_PML_CM_REQUEST_SEND_THIN; \
++            sendreq->req_mtl.ompi_req = (ompi_request_t*) sendreq;      \
++            sendreq->req_mtl.completion_callback =                      \
++                            mca_pml_cm_send_request_completion;         \
++        } else {                                                        \
++            sendreq = (mca_pml_cm_thin_send_request_t*)ompi_pml_cm.prealloced_send_req; \
++            sendreq->req_base.direct_req_mtl.ompi_req = (ompi_request_t*) sendreq; \
++            sendreq->req_base.direct_req_mtl.completion_callback =      \
++                    no_ret ? mca_pml_cm_send_direct_request_completion: \
++                             mca_pml_cm_send_empty_request_completion;  \
++        }                                                               \
+     }                                                                   \
+ } while(0)
+ 
+ 
+ #define MCA_PML_CM_HVY_SEND_REQUEST_ALLOC(sendreq, comm, dst,           \
+-                                          ompi_proc)                    \
++                                          ompi_proc, direct, no_ret)    \
+ {                                                                       \
+     ompi_free_list_item_t* item;                                        \
+     ompi_proc = ompi_comm_peer_lookup( comm, dst );                     \
+     if(OPAL_UNLIKELY(NULL == ompi_proc)) {                              \
+         sendreq = NULL;                                                 \
+     } else {                                                            \
+-        OMPI_FREE_LIST_WAIT_MT(&mca_pml_base_send_requests, item);         \
+-        sendreq = (mca_pml_cm_hvy_send_request_t*)item;                 \
+-        sendreq->req_send.req_base.req_pml_type = MCA_PML_CM_REQUEST_SEND_HEAVY; \
+-        sendreq->req_mtl.ompi_req = (ompi_request_t*) sendreq;          \
+-        sendreq->req_mtl.completion_callback = mca_pml_cm_send_request_completion; \
++        if (0 == direct) {                                              \
++            OMPI_FREE_LIST_WAIT_MT(&mca_pml_base_send_requests, item);  \
++            sendreq = (mca_pml_cm_hvy_send_request_t*)item;             \
++            sendreq->req_base.req_pml_type = MCA_PML_CM_REQUEST_SEND_HEAVY; \
++            sendreq->req_mtl.ompi_req = (ompi_request_t*) sendreq;      \
++            sendreq->req_mtl.completion_callback =                      \
++                            mca_pml_cm_send_request_completion;         \
++        } else {                                                        \
++            sendreq = (mca_pml_cm_hvy_send_request_t*)ompi_pml_cm.prealloced_send_req; \
++            sendreq->req_base.direct_req_mtl.ompi_req = (ompi_request_t*) sendreq; \
++            sendreq->req_base.direct_req_mtl.completion_callback =      \
++                   no_ret ? mca_pml_cm_send_direct_request_completion:  \
++                            mca_pml_cm_send_empty_request_completion;   \
++        }                                                               \
+     }                                                                   \
+ }
+ 
++#define MCA_PML_CM_SEND_REQUEST_INIT_MINIMAL(req_send,                  \
++                                             ompi_proc,                 \
++                                             datatype,                  \
++                                             buf,                       \
++                                             count,                     \
++                                             convertor)                 \
++do {                                                                    \
++    opal_convertor_copy_and_prepare_for_send(ompi_proc->proc_convertor, \
++                                             &(datatype->super),        \
++                                             count,                     \
++                                             buf,                       \
++                                             0,                         \
++                                             convertor);                \
++} while (0)
+ 
+ #define MCA_PML_CM_SEND_REQUEST_INIT_COMMON(req_send,                   \
+                                             ompi_proc,                  \
+@@ -104,13 +129,9 @@ do {                                                                    \
+     OBJ_RETAIN(datatype);                                               \
+     (req_send)->req_base.req_comm = comm;                               \
+     (req_send)->req_base.req_datatype = datatype;                       \
+-    opal_convertor_copy_and_prepare_for_send(                           \
+-                                             ompi_proc->proc_convertor, \
+-                                             &(datatype->super),        \
+-                                             count,                     \
+-                                             buf,                       \
+-                                             0,                         \
+-                                             &(req_send)->req_base.req_convertor ); \
++    MCA_PML_CM_SEND_REQUEST_INIT_MINIMAL((req_send), ompi_proc,         \
++                                         datatype, buf, count,          \
++                                         &(req_send)->req_base.req_convertor); \
+     (req_send)->req_base.req_ompi.req_mpi_object.comm = comm;           \
+     (req_send)->req_base.req_ompi.req_status.MPI_SOURCE =               \
+         comm->c_my_rank;                                                \
+@@ -129,30 +150,41 @@ do {                                                                    \
+                                           sendmode,                     \
+                                           persistent,                   \
+                                           blocking,                     \
++                                          cut_init,                     \
+                                           buf,                          \
+                                           count)                        \
+     do {                                                                \
+-        OMPI_REQUEST_INIT(&(sendreq->req_send.req_base.req_ompi),       \
+-                          persistent);                                  \
+-        sendreq->req_tag = tag;                                         \
+-        sendreq->req_peer = dst;                                        \
+-        sendreq->req_addr = buf;                                        \
+-        sendreq->req_count = count;                                     \
+-        MCA_PML_CM_SEND_REQUEST_INIT_COMMON( (&sendreq->req_send),      \
+-                                             ompi_proc,                 \
+-                                             comm,                      \
+-                                             tag,                       \
+-                                             datatype,                  \
+-                                             sendmode,                  \
+-                                             buf,                       \
+-                                             count);                    \
+-        opal_convertor_get_packed_size(                                 \
+-                                       &sendreq->req_send.req_base.req_convertor, \
+-                                       &sendreq->req_count );           \
+-                                                                        \
+-        sendreq->req_blocking = blocking;                               \
+-        sendreq->req_send.req_base.req_pml_complete =                   \
+-            (persistent ? true:false);                                  \
++        if (0 == cut_init) {                                            \
++            OMPI_REQUEST_INIT(&(sendreq->req_base.req_ompi),            \
++                              persistent);                              \
++            sendreq->req_tag = tag;                                     \
++            sendreq->req_peer = dst;                                    \
++            sendreq->req_addr = buf;                                    \
++            sendreq->req_count = count;                                 \
++            MCA_PML_CM_SEND_REQUEST_INIT_COMMON( sendreq,               \
++                                                 ompi_proc,             \
++                                                 comm,                  \
++                                                 tag,                   \
++                                                 datatype,              \
++                                                 sendmode,              \
++                                                 buf,                   \
++                                                 count);                \
++            opal_convertor_get_packed_size(                             \
++                                           &sendreq->req_base.req_convertor, \
++                                           &sendreq->req_count );       \
++            sendreq->req_blocking = blocking;                           \
++            sendreq->req_base.req_pml_complete =                        \
++                (persistent ? true:false);                              \
++         } else {                                                       \
++             sendreq->req_base.req_free_called = true;                  \
++             sendreq->req_base.req_pml_complete = false;                \
++             MCA_PML_CM_SEND_REQUEST_INIT_MINIMAL(sendreq,              \
++                                                  ompi_proc,            \
++                                                  datatype,             \
++                                                  buf,                  \
++                                                  count,                \
++                                                  &sendreq->req_base.direct_convertor); \
++         }                                                              \
+     } while(0)
+ 
+ 
+@@ -163,20 +195,30 @@ do {                                                                    \
+                                            dst,                         \
+                                            datatype,                    \
+                                            sendmode,                    \
++                                           cut_init,                    \
+                                            buf,                         \
+                                            count)                       \
+     do {                                                                \
+-        OMPI_REQUEST_INIT(&(sendreq->req_send.req_base.req_ompi),       \
+-                          false);                                       \
+-        MCA_PML_CM_SEND_REQUEST_INIT_COMMON( (&sendreq->req_send),      \
+-                                             ompi_proc,                 \
+-                                             comm,                      \
+-                                             tag,                       \
+-                                             datatype,                  \
+-                                             sendmode,                  \
+-                                             buf,                       \
+-                                             count);                    \
+-        sendreq->req_send.req_base.req_pml_complete = false;            \
++        if (0 == cut_init)                                              \
++        {                                                               \
++            OMPI_REQUEST_INIT(&(sendreq->req_base.req_ompi), false);    \
++            MCA_PML_CM_SEND_REQUEST_INIT_COMMON( sendreq,               \
++                                                 ompi_proc,             \
++                                                 comm,                  \
++                                                 tag,                   \
++                                                 datatype,              \
++                                                 sendmode,              \
++                                                 buf,                   \
++                                                 count);                \
++            sendreq->req_base.req_pml_complete = false;                 \
++        } else {                                                        \
++            MCA_PML_CM_SEND_REQUEST_INIT_MINIMAL(sendreq,               \
++                                                 ompi_proc,             \
++                                                 datatype,              \
++                                                 buf,                   \
++                                                 count,                 \
++                                                 &(sendreq)->req_base.direct_convertor); \
++        }                                                               \
+     } while(0)
+ 
+ 
+@@ -196,17 +238,29 @@ do {                                                                    \
+                                            dst,                         \
+                                            sendmode,                    \
+                                            blocking,                    \
+-                                           ret)                         \
++                                           ret,                         \
++                                           direct)                      \
+ do {                                                                    \
+-    MCA_PML_CM_SEND_REQUEST_START_SETUP(&(sendreq)->req_send);          \
+-    ret = OMPI_MTL_CALL(isend(ompi_mtl,                                 \
+-                              comm,                                     \
+-                              dst,                                      \
+-                              tag,                                      \
+-                              &sendreq->req_send.req_base.req_convertor, \
+-                              sendmode,                                 \
+-                              blocking,                                 \
+-                              &sendreq->req_mtl));                      \
++    MCA_PML_CM_SEND_REQUEST_START_SETUP(sendreq);                       \
++    if (0 == direct) {                                                  \
++        ret = OMPI_MTL_CALL(isend(ompi_mtl,                             \
++                                  comm,                                 \
++                                  dst,                                  \
++                                  tag,                                  \
++                                  &sendreq->req_base.req_convertor,     \
++                                  sendmode,                             \
++                                  blocking,                             \
++                                  &sendreq->req_mtl));                  \
++    } else {                                                            \
++        ret = OMPI_MTL_CALL(isend(ompi_mtl,                             \
++                                  comm,                                 \
++                                  dst,                                  \
++                                  tag,                                  \
++                                  &sendreq->req_base.direct_convertor,  \
++                                  sendmode,                             \
++                                  blocking,                             \
++                                  &sendreq->req_base.direct_req_mtl));  \
++    }                                                                   \
+  } while (0)
+ 
+ #define MCA_PML_CM_HVY_SEND_REQUEST_BSEND_ALLOC(sendreq, ret)           \
+@@ -224,38 +278,40 @@ do {                                                                    \
+             iov.iov_base = (IOVBASE_TYPE*)sendreq->req_buff;            \
+             max_data = iov.iov_len = sendreq->req_count;                \
+             iov_count = 1;                                              \
+-            opal_convertor_pack( &sendreq->req_send.req_base.req_convertor, \
++            opal_convertor_pack( &sendreq->req_base.req_convertor,      \
+                                  &iov,                                  \
+                                  &iov_count,                            \
+                                  &max_data );                           \
+-            opal_convertor_prepare_for_send( &sendreq->req_send.req_base.req_convertor, \
++            opal_convertor_prepare_for_send( &sendreq->req_base.req_convertor, \
+                                              &(ompi_mpi_packed.dt.super),  \
+                                              max_data, sendreq->req_buff ); \
+         }                                                               \
+     }                                                                   \
+  } while(0);
+-        
+ 
+-#define MCA_PML_CM_HVY_SEND_REQUEST_START(sendreq, ret)                          \
++
++#define MCA_PML_CM_HVY_SEND_REQUEST_START(sendreq, ret, direct)                  \
+ do {                                                                             \
+     ret = OMPI_SUCCESS;                                                          \
+-    MCA_PML_CM_SEND_REQUEST_START_SETUP(&(sendreq)->req_send);                   \
+-    if (sendreq->req_send.req_send_mode == MCA_PML_BASE_SEND_BUFFERED) {         \
++    MCA_PML_CM_SEND_REQUEST_START_SETUP(sendreq);                                \
++    if (sendreq->req_send_mode == MCA_PML_BASE_SEND_BUFFERED) {                  \
+         MCA_PML_CM_HVY_SEND_REQUEST_BSEND_ALLOC(sendreq, ret);                   \
+     }                                                                            \
+     if (OMPI_SUCCESS == ret) {                                                   \
+         ret = OMPI_MTL_CALL(isend(ompi_mtl,                                      \
+-                                  sendreq->req_send.req_base.req_comm,           \
++                                  sendreq->req_base.req_comm,                    \
+                                   sendreq->req_peer,                             \
+                                   sendreq->req_tag,                              \
+-                                  &sendreq->req_send.req_base.req_convertor,     \
+-                                  sendreq->req_send.req_send_mode,               \
++                                  &sendreq->req_base.req_convertor,              \
++                                  sendreq->req_send_mode,                        \
+                                   sendreq->req_blocking,                         \
+-                                  &sendreq->req_mtl));                           \
++                                  (0 == direct) ?                                \
++                                  &sendreq->req_mtl :                            \
++                                  &sendreq->req_base.direct_req_mtl));           \
+         if(OMPI_SUCCESS == ret &&                                                \
+-           sendreq->req_send.req_send_mode == MCA_PML_BASE_SEND_BUFFERED) {      \
+-            sendreq->req_send.req_base.req_ompi.req_status.MPI_ERROR = 0;        \
+-            ompi_request_complete(&(sendreq)->req_send.req_base.req_ompi, true); \
++           sendreq->req_send_mode == MCA_PML_BASE_SEND_BUFFERED) {               \
++            sendreq->req_base.req_ompi.req_status.MPI_ERROR = 0;                 \
++            ompi_request_complete(&sendreq->req_base.req_ompi, true);            \
+         }                                                                        \
+     }                                                                            \
+  } while (0)
+@@ -263,33 +319,33 @@ do {
+ /*
+  * The PML has completed a send request. Note that this request
+  * may have been orphaned by the user or have already completed
+- * at the MPI level. 
++ * at the MPI level.
+  * This macro will never be called directly from the upper level, as it should
+  * only be an internal call to the PML.
+  */
+ #define MCA_PML_CM_HVY_SEND_REQUEST_PML_COMPLETE(sendreq)                          \
+ do {                                                                               \
+-    assert( false == sendreq->req_send.req_base.req_pml_complete );                \
++    assert( false == sendreq->req_base.req_pml_complete );                         \
+                                                                                    \
+-    if (sendreq->req_send.req_send_mode == MCA_PML_BASE_SEND_BUFFERED &&           \
++    if (sendreq->req_send_mode == MCA_PML_BASE_SEND_BUFFERED &&                    \
+         sendreq->req_count > 0 ) {                                                 \
+         mca_pml_base_bsend_request_free(sendreq->req_buff);                        \
+     }                                                                              \
+                                                                                    \
+     OPAL_THREAD_LOCK(&ompi_request_lock);                                          \
+-    if( false == sendreq->req_send.req_base.req_ompi.req_complete ) {              \
++    if( false == sendreq->req_base.req_ompi.req_complete ) {                       \
+         /* Should only be called for long messages (maybe synchronous) */          \
+-        ompi_request_complete(&(sendreq->req_send.req_base.req_ompi), true);       \
++        ompi_request_complete(&(sendreq->req_base.req_ompi), true);                \
+     }                                                                              \
+-    sendreq->req_send.req_base.req_pml_complete = true;                            \
++    sendreq->req_base.req_pml_complete = true;                                     \
+                                                                                    \
+-    if( sendreq->req_send.req_base.req_free_called ) {                             \
++    if( sendreq->req_base.req_free_called ) {                                      \
+         MCA_PML_CM_HVY_SEND_REQUEST_RETURN( sendreq );                             \
+     } else {                                                                       \
+-        if(sendreq->req_send.req_base.req_ompi.req_persistent) {                   \
++        if(sendreq->req_base.req_ompi.req_persistent) {                            \
+             /* rewind convertor */                                                 \
+             size_t offset = 0;                                                     \
+-            opal_convertor_set_position(&sendreq->req_send.req_base.req_convertor, \
++            opal_convertor_set_position(&sendreq->req_base.req_convertor,          \
+                                         &offset);                                  \
+         }                                                                          \
+     }                                                                              \
+@@ -303,11 +359,11 @@ do {
+ #define MCA_PML_CM_HVY_SEND_REQUEST_RETURN(sendreq)                     \
+     {                                                                   \
+         /*  Let the base handle the reference counts */                 \
+-        OBJ_RELEASE(sendreq->req_send.req_base.req_datatype);           \
+-        OBJ_RELEASE(sendreq->req_send.req_base.req_comm);               \
+-        OMPI_REQUEST_FINI(&sendreq->req_send.req_base.req_ompi);        \
+-        opal_convertor_cleanup( &(sendreq->req_send.req_base.req_convertor) ); \
+-        OMPI_FREE_LIST_RETURN_MT( &mca_pml_base_send_requests,             \
++        OBJ_RELEASE(sendreq->req_base.req_datatype);                    \
++        OBJ_RELEASE(sendreq->req_base.req_comm);                        \
++        OMPI_REQUEST_FINI(&sendreq->req_base.req_ompi);                 \
++        opal_convertor_cleanup( &(sendreq->req_base.req_convertor) );   \
++        OMPI_FREE_LIST_RETURN_MT( &mca_pml_base_send_requests,          \
+                                (ompi_free_list_item_t*)sendreq);        \
+     }
+ 
+@@ -320,37 +376,57 @@ do {
+  */
+ #define MCA_PML_CM_THIN_SEND_REQUEST_PML_COMPLETE(sendreq)                   \
+ do {                                                                         \
+-    assert( false == sendreq->req_send.req_base.req_pml_complete );          \
++    assert( false == sendreq->req_base.req_pml_complete );                   \
+                                                                              \
+     OPAL_THREAD_LOCK(&ompi_request_lock);                                    \
+-    if( false == sendreq->req_send.req_base.req_ompi.req_complete ) {        \
++    if( false == sendreq->req_base.req_ompi.req_complete ) {                 \
+         /* Should only be called for long messages (maybe synchronous) */    \
+-        ompi_request_complete(&(sendreq->req_send.req_base.req_ompi), true); \
++        ompi_request_complete(&(sendreq->req_base.req_ompi), true);          \
+     }                                                                        \
+-    sendreq->req_send.req_base.req_pml_complete = true;                      \
++    sendreq->req_base.req_pml_complete = true;                               \
+                                                                              \
+-    if( sendreq->req_send.req_base.req_free_called ) {                       \
++    if( sendreq->req_base.req_free_called ) {                                \
+         MCA_PML_CM_THIN_SEND_REQUEST_RETURN( sendreq );                      \
+     }                                                                        \
+     OPAL_THREAD_UNLOCK(&ompi_request_lock);                                  \
+  } while (0)
+-    
+-    
++
++#define MCA_PML_CM_THIN_DIRECT_SEND_REQUEST_PML_COMPLETE(sendreq)            \
++do {                                                                         \
++    OMPI_REQUEST_FINI(&(sendreq)->req_ompi);                                 \
++    opal_convertor_cleanup( &(sendreq)->direct_convertor );                  \
++} while (0)
++
++#define MCA_PML_CM_THIN_EMPTY_SEND_REQUEST_PML_COMPLETE(sendreq)             \
++do {                                                                         \
++    opal_convertor_cleanup( &(sendreq)->direct_convertor );                  \
++} while (0)
++
++
+ /*
+  * Release resources associated with a request
+  */
+ #define MCA_PML_CM_THIN_SEND_REQUEST_RETURN(sendreq)                    \
+     {                                                                   \
+         /*  Let the base handle the reference counts */                 \
+-        OBJ_RELEASE(sendreq->req_send.req_base.req_datatype);           \
+-        OBJ_RELEASE(sendreq->req_send.req_base.req_comm);               \
+-        OMPI_REQUEST_FINI(&sendreq->req_send.req_base.req_ompi);        \
+-        opal_convertor_cleanup( &(sendreq->req_send.req_base.req_convertor) ); \
+-        OMPI_FREE_LIST_RETURN_MT( &mca_pml_base_send_requests,             \
++        OBJ_RELEASE(sendreq->req_base.req_datatype);                    \
++        OBJ_RELEASE(sendreq->req_base.req_comm);                        \
++        OMPI_REQUEST_FINI(&sendreq->req_base.req_ompi);                 \
++        opal_convertor_cleanup( &(sendreq->req_base.req_convertor) );   \
++        OMPI_FREE_LIST_RETURN_MT( &mca_pml_base_send_requests,          \
+                                (ompi_free_list_item_t*)sendreq);        \
+     }
+ 
+ extern void
+ mca_pml_cm_send_request_completion(struct mca_mtl_request_t *mtl_request);
+ 
++extern void
++mca_pml_cm_send_direct_request_completion(struct mca_mtl_request_t *mtl_request);
++
++extern void
++mca_pml_cm_send_empty_request_completion(struct mca_mtl_request_t *mtl_request);
++
++void
++mca_pml_cm_send_request_construct(mca_pml_cm_thin_send_request_t* sendreq);
++
+ #endif
+diff --git a/ompi/mca/pml/cm/pml_cm_start.c b/ompi/mca/pml/cm/pml_cm_start.c
+index b868910..9309f4d 100644
+--- a/ompi/mca/pml/cm/pml_cm_start.c
++++ b/ompi/mca/pml/cm/pml_cm_start.c
+@@ -42,7 +42,7 @@ mca_pml_cm_start(size_t count, ompi_request_t** requests)
+         if (NULL == pml_request) { 
+             continue;
+         }
+-        /* If the persistent request is currebtly active - obtain the
++        /* If the persistent request is currently active - obtain the
+          * request lock and verify the status is incomplete. if the
+          * pml layer has not completed the request - mark the request
+          * as free called - so that it will be freed when the request
+@@ -73,11 +73,11 @@ mca_pml_cm_start(size_t count, ompi_request_t** requests)
+                 mca_pml_cm_hvy_send_request_t* sendreq = (mca_pml_cm_hvy_send_request_t*) pml_request;
+                 rc = mca_pml_cm_isend_init( sendreq->req_addr,
+                                             sendreq->req_count,
+-                                            sendreq->req_send.req_base.req_datatype,
++                                            sendreq->req_base.req_datatype,
+                                             sendreq->req_peer,
+                                             sendreq->req_tag,
+-                                            sendreq->req_send.req_send_mode,
+-                                            sendreq->req_send.req_base.req_comm,
++                                            sendreq->req_send_mode,
++                                            sendreq->req_base.req_comm,
+                                             &request );
+                 break;
+             }
+@@ -113,7 +113,7 @@ mca_pml_cm_start(size_t count, ompi_request_t** requests)
+             {
+                 mca_pml_cm_hvy_send_request_t* sendreq =
+                     (mca_pml_cm_hvy_send_request_t*)pml_request;
+-                MCA_PML_CM_HVY_SEND_REQUEST_START(sendreq, rc);
++                MCA_PML_CM_HVY_SEND_REQUEST_START(sendreq, rc, 0);
+                 if(rc != OMPI_SUCCESS)
+                     return rc;
+                 break;

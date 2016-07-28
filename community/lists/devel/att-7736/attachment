@@ -1,0 +1,315 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">By definition, if you bind to all available cpus in the OS, you are bound to nothing (i.e., "unbound") as your process runs on any available cpu.<div><br></div><div>PLPA doesn't care, and I personally don't care. I was just explaining why it generates an error in the odls.</div><div><br></div><div>A user app would detect its binding by (a) getting the affiinity mask from the OS, and then (b) seeing if the bits are set to '1' for all available processors. If it is, then you are not bound - there is no mechanism available for checking "are the bits set only for the processors I asked to be bound to". The OS doesn't track what you asked for, it only tracks where you are bound - and a mask with all '1's is defined as "unbound".</div><div><br></div><div>So the reason for my question was simple: a user asked us to "bind" their process. If their process checks to see if it is bound, it will return "no". The user would therefore be led to believe that OMPI had failed to execute their request, when in fact we did execute it - but the result was (as Nadia says) a "no-op".</div><div><br></div><div>After talking with Jeff, I think he has the right answer. It is a method we have used elsewhere, so it isn't unexpected behavior. Basically, he proposed that we use an mca param to control this behavior:</div><div><br></div><div>* default: generate an error message as the "bind" results in a no-op, and this is our current behavior</div><div><br></div><div>* warn: generate a warning that the binding wound up being a "no-op", but continue working</div><div><br></div><div>* quiet: just ignore it and keep going</div><div><br></div><div>Fairly trivial to implement, and Bull could set the default mca param file to "quiet" to get what they want. I'm not sure if that's what the community wants or not - like I said, it makes no diff to me so long as the code logic is understandable.</div><div><br></div><div><br><div><div>On Apr 12, 2010, at 8:27 AM, Terry Dontje wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">
+<div bgcolor="#ffffff" text="#000000">
+Ralph, I guess I am curious why is it that if there is only one socket
+we cannot bind to it?&nbsp; Does plpa actually error on this or is this a
+condition we decided was an error at odls?<br>
+<br>
+I am somewhat torn on whether this makes sense.&nbsp; On the one hand it is
+definitely useless as to the result if you allow it.&nbsp; However if you
+don't allow it and you have a script or running tests on multiple
+systems it would be nice to have this run because you are not really
+running into a resource starvation issue.<br>
+<br>
+At a minimum I think the error condition/message needs to be spelled
+out (defined).&nbsp;&nbsp;&nbsp; As to whether we allow binding when only one socket
+exist I could go either way slightly leaning towards allowing such a
+specification to work.<br>
+<br>
+--td<br>
+<br>
+<br>
+Ralph Castain wrote:
+<blockquote cite="mid:F945A06A-A0AC-46C8-97AA-4CE23C25270F@open-mpi.org" type="cite">
+  <pre wrap="">Guess I'll jump in here as I finally had a few minutes to look at the code and think about your original note. In fact, I believe your original statement is the source of contention.
+
+If someone tells us -bind-to-socket, but there is only one socket, then we really cannot bind them to anything. Any check by their code would reveal that they had not, in fact, been bound - raising questions as to whether or not OMPI is performing the request. Our operating standard has been to error out if the user specifies something we cannot do to avoid that kind of confusion. This is what generated the code in the system today.
+
+Now I can see an argument that -bind-to-socket with one socket maybe shouldn't generate an error, but that decision then has to get reflected in other code areas as well.
+
+As for the test you cite -  it actually performs a valuable function and was added to catch specific scenarios. In particular, if you follow the code flow up just a little, you will see that it is possible to complete the loop without ever actually setting a bit in the mask. This happens when none of the cpus in that socket have been assigned to us via an external bind. People actually use that as a means of suballocating nodes, so the test needs to be there. Again, if the user said "bind to socket", but none of that socket's cores are assigned for our use, that is an error.
+
+I haven't looked at your specific fix, but I agree with Terry's question. It seems to me that whether or not we were externally bound is irrelevant. Even if the overall result is what you want, I think a more logically understandable test would help others reading the code.
+
+But first we need to resolve the question: should this scenario return an error or not?
+
+
+On Apr 12, 2010, at 1:43 AM, Nadia Derbey wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">On Fri, 2010-04-09 at 14:23 -0400, Terry Dontje wrote:
+    </pre>
+    <blockquote type="cite">
+      <pre wrap="">Ralph Castain wrote: 
+      </pre>
+      <blockquote type="cite">
+        <pre wrap="">Okay, just wanted to ensure everyone was working from the same base
+code. 
+
+
+Terry, Brad: you might want to look this proposed change over.
+Something doesn't quite look right to me, but I haven't really
+walked through the code to check it.
+
+
+        </pre>
+      </blockquote>
+      <pre wrap="">At first blush I don't really get the usage of orte_odls_globals.bound
+in you patch.  It would seem to me that the insertion of that
+conditional would prevent the check it surrounds being done when the
+process has not been bounded prior to startup which is a common case.
+      </pre>
+    </blockquote>
+    <pre wrap="">Well, if you have a look at the algo in the ORTE_BIND_TO_SOCKET path
+(odls_default_fork_local_proc() in odls_default_module.c):
+
+&lt;set target_socket depending on the desired mapping&gt;
+&lt;set my paffinity mask to 0&gt;       (line 715)
+&lt;for each core in the socket&gt; {
+   &lt;get the associated phys_core&gt;
+   &lt;get the associated phys_cpu&gt;
+   &lt;if we are bound (orte_odls_globals.bound)&gt; {
+       &lt;if phys_cpu does not belong to the cpus I'm bound to&gt;
+           continue
+   }
+   &lt;set phys-cpu bit in my affinity mask&gt;
+}
+&lt;check if something is set in my affinity mask&gt;
+...
+
+
+What I'm saying is that the only way to have nothing set in the affinity
+mask (which would justify the last test) is to have never called the
+&lt;set phys_cpu in my affinity mask&gt; instruction. This means:
+ . the test on orte_odls_globals.bound is true
+ . call &lt;continue&gt; for all the cores in the socket.
+
+In the other path, what we are doing is checking if we have set one or
+more bits in a mask after having actually set them: don't you think it's
+useless?
+
+That's why I'm suggesting to call the last check only if
+orte_odls_globals.bound is true.
+
+Regards,
+Nadia
+    </pre>
+    <blockquote type="cite">
+      <pre wrap="">--td
+
+
+      </pre>
+      <blockquote type="cite">
+        <pre wrap="">On Apr 9, 2010, at 9:33 AM, Terry Dontje wrote:
+
+        </pre>
+        <blockquote type="cite">
+          <pre wrap="">Nadia Derbey wrote: 
+          </pre>
+          <blockquote type="cite">
+            <pre wrap="">On Fri, 2010-04-09 at 08:41 -0600, Ralph Castain wrote:
+
+            </pre>
+            <blockquote type="cite">
+              <pre wrap="">Just to check: is this with the latest trunk? Brad and Terry have been making changes to this section of code, including modifying the PROCESS_IS_BOUND test...
+
+
+
+              </pre>
+            </blockquote>
+            <pre wrap="">Well, it was on the v1.5. But I just checked: looks like
+ 1. the call to OPAL_PAFFINITY_PROCESS_IS_BOUND is still there in
+    odls_default_fork_local_proc()
+ 2. OPAL_PAFFINITY_PROCESS_IS_BOUND() is defined the same way
+
+But, I'll give it a try with the latest trunk.
+
+Regards,
+Nadia
+
+
+            </pre>
+          </blockquote>
+          <pre wrap="">The changes, I've done do not touch
+OPAL_PAFFINITY_PROCESS_IS_BOUND at all.  Also, I am only touching
+code related to the "bind-to-core" option so I really doubt if my
+changes are causing issues here.
+
+--td
+          </pre>
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">On Apr 9, 2010, at 3:39 AM, Nadia Derbey wrote:
+
+
+              </pre>
+              <blockquote type="cite">
+                <pre wrap="">Hi,
+
+I am facing a problem with a test that runs fine on some nodes, and
+fails on others.
+
+I have a heterogenous cluster, with 3 types of nodes:
+1) Single socket , 4 cores
+2) 2 sockets, 4cores per socket
+3) 2 sockets, 6 cores/socket
+
+I am using:
+. salloc to allocate the nodes,
+. mpirun binding/mapping options "-bind-to-socket -bysocket"
+
+# salloc -N 1 mpirun -n 4 -bind-to-socket -bysocket sleep 900
+
+This command fails if the allocated node is of type #1 (single socket/4
+cpus).
+BTW, in that case orte_show_help is referencing a tag
+("could-not-bind-to-socket") that does not exist in
+help-odls-default.txt.
+
+While it succeeds when run on nodes of type #2 or 3.
+I think a "bind to socket" should not return an error on a single socket
+machine, but rather be a noop.
+
+The problem comes from the test
+OPAL_PAFFINITY_PROCESS_IS_BOUND(mask, &amp;bound);
+called in odls_default_fork_local_proc() after the binding to the
+processors socket has been done:
+========
+  &lt;snip&gt;
+  OPAL_PAFFINITY_CPU_ZERO(mask);
+  for (n=0; n &lt; orte_default_num_cores_per_socket; n++) {
+      &lt;snip&gt;
+      OPAL_PAFFINITY_CPU_SET(phys_cpu, mask);
+  }
+  /* if we did not bind it anywhere, then that is an error */
+  OPAL_PAFFINITY_PROCESS_IS_BOUND(mask, &amp;bound);
+  if (!bound) {
+      orte_show_help("help-odls-default.txt",
+                     "odls-default:could-not-bind-to-socket", true);
+      ORTE_ODLS_ERROR_OUT(ORTE_ERR_FATAL);
+  }
+========
+OPAL_PAFFINITY_PROCESS_IS_BOUND() will return true if there bits set in
+the mask *AND* the number of bits set is lesser than the number of cpus
+on the machine. Thus on a single socket, 4 cores machine the test will
+fail. While on other the kinds of machines it will succeed.
+
+Again, I think the problem could be solved by changing the alogrithm,
+and assuming that ORTE_BIND_TO_SOCKET, on a single socket machine =
+noop.
+
+Another solution could be to call the test
+OPAL_PAFFINITY_PROCESS_IS_BOUND() at the end of the loop only if we are
+bound (orte_odls_globals.bound). Actually that is the only case where I
+see a justification to this test (see attached patch).
+
+And may be both solutions could be mixed.
+
+Regards,
+Nadia
+
+
+-- 
+Nadia Derbey <a class="moz-txt-link-rfc2396E" href="mailto:Nadia.Derbey@bull.net">&lt;Nadia.Derbey@bull.net&gt;</a>
+&lt;001_fix_process_binding_test.patch&gt;_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+
+                </pre>
+              </blockquote>
+              <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+
+
+              </pre>
+            </blockquote>
+          </blockquote>
+          <pre wrap="">-- 
+&lt;Mail Attachment.gif&gt;
+Terry D. Dontje | Principal Software Engineer
+Developer Tools Engineering | +1.650.633.7054
+Oracle - Performance Technologies
+95 Network Drive, Burlington, MA 01803
+Email <a class="moz-txt-link-abbreviated" href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a>
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+          </pre>
+        </blockquote>
+        <pre wrap="">
+____________________________________________________________________
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+        </pre>
+      </blockquote>
+      <pre wrap="">-- 
+Oracle
+Terry D. Dontje | Principal Software Engineer
+Developer Tools Engineering | +1.650.633.7054
+Oracle - Performance Technologies
+95 Network Drive, Burlington, MA 01803
+Email <a class="moz-txt-link-abbreviated" href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a>
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+      </pre>
+    </blockquote>
+    <pre wrap="">-- 
+Nadia Derbey <a class="moz-txt-link-rfc2396E" href="mailto:Nadia.Derbey@bull.net">&lt;Nadia.Derbey@bull.net&gt;</a>
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+  </pre>
+</blockquote>
+<br>
+<br>
+<div class="moz-signature">-- <br>
+
+
+<span>&lt;Mail Attachment.gif&gt;</span><br>
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">Terry D. Dontje | Principal Software Engineer<br>
+<div class="moz-signature"><font color="#666666" face="Verdana" size="2">Developer
+Tools
+Engineering | +1.650.633.7054<br>
+</font>
+<font color="#ff0000" face="Verdana" size="2">Oracle
+</font><font color="#666666" face="Verdana" size="2"><b> - Performance
+Technologies</b></font><br>
+<font color="#666666" face="Verdana" size="2">
+95 Network Drive, Burlington, MA 01803<br>
+Email <a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+</font><br>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/devel</blockquote></div><br></div></body></html>

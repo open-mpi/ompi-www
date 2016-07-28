@@ -1,0 +1,153 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    On OS-X, you can get this string from the sysctlbyname() call:<br>
+    <br>
+    &nbsp; &nbsp; const char *name = "machdep.cpu.brand_string";<br>
+    &nbsp;&nbsp;&nbsp; char buffer[ 64 ];<br>
+    &nbsp;&nbsp;&nbsp; size_t size = 64;<br>
+    &nbsp;&nbsp;&nbsp; if( !sysctlbyname( name, buffer, &amp;size, NULL, 0 ) )<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; memcpy( cpu_model, buffer, 12 * sizeof( int ) );<br>
+    <br>
+    if That doesn't work, you can get it from calling system_profiler
+    and parsing the output. <br>
+    <br>
+    On Widows (32 bit), the only way I've found is to actually use the
+    cpuid assembly call:<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; int ints[ 12 ];<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; // Use assembly to detect CPUID information...<br>
+    &nbsp;&nbsp;&nbsp; _asm<br>
+    &nbsp;&nbsp;&nbsp; {<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ; we must push/pop the registers &lt;&lt;CPUID&gt;&gt;
+    writes to, as the<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ; optimiser doesn't know about &lt;&lt;CPUID&gt;&gt;, and so
+    doesn't expect<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ; these registers to change.<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; push eax<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; push ebx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; push ecx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; push edx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ; eax = 0x80000002 --&gt; eax, ebx, ecx, edx: get processor
+    name string (part 1)<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov eax,0x80000002<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; cpuid<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 0 * TYPE int ], eax<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 1 * TYPE int ], ebx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 2 * TYPE int ], ecx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 3 * TYPE int ], edx<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ; eax = 0x80000003 --&gt; eax, ebx, ecx, edx: get processor
+    name string (part 2)<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov eax,0x80000003<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; cpuid<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 4 * TYPE int ], eax<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 5 * TYPE int ], ebx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 6 * TYPE int ], ecx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 7 * TYPE int ], edx<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ; eax = 0x80000004 --&gt; eax, ebx, ecx, edx: get processor
+    name string (part 3)<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov eax,0x80000004<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; cpuid<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 8 * TYPE int ], eax<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[&nbsp; 9 * TYPE int ], ebx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[ 10 * TYPE int ], ecx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mov ints[ 11 * TYPE int ], edx<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; pop edx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; pop ecx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; pop ebx<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; pop eax<br>
+    &nbsp;&nbsp;&nbsp; }<br>
+    &nbsp;&nbsp;&nbsp; ::memcpy( cpu_model, ints, 12 * sizeof( int ) );<br>
+    <br>
+    I don't know if that would work on Win64, though. Do you think those
+    could be added to hwloc? <br>
+    <br>
+    Thanks<br>
+    -robin<br>
+    <br>
+    <br>
+    <div class="moz-cite-prefix">On 10/25/2012 2:42 PM, Brice Goglin
+      wrote:<br>
+    </div>
+    <blockquote cite="mid:5089B236.6080304@inria.fr" type="cite">
+      <meta content="text/html; charset=ISO-8859-1"
+        http-equiv="Content-Type">
+      Hello,<br>
+      <br>
+      Assuming you found the socket hwloc object whose name you want, do<br>
+      &nbsp;&nbsp;&nbsp; hwloc_obj_get_info_by_name(obj, "CPUModel");<br>
+      you'll get const char * pointing to what you want.<br>
+      <br>
+      However, this info is only available on Linux and Solaris for now.
+      If you have any idea of to discover such info on other OS, please
+      let us know.<br>
+      <br>
+      Brice<br>
+      <br>
+      <br>
+      <br>
+      Le 25/10/2012 23:39, Robin Scher a &eacute;crit&nbsp;:
+      <blockquote cite="mid:5089B17C.1040809@uberware.net" type="cite">
+        <meta http-equiv="content-type" content="text/html;
+          charset=ISO-8859-1">
+        Is there a way to get this string (e.g. "<span style="color:
+          rgb(0, 0, 0); font-family: verdana, arial, helvetica;
+          font-size: 12px; font-style: normal; font-variant: normal;
+          font-weight: normal; letter-spacing: normal; line-height:
+          normal; orphans: 2; text-align: start; text-indent: 0px;
+          text-transform: none; white-space: normal; widows: 2;
+          word-spacing: 0px; -webkit-text-size-adjust: auto;
+          -webkit-text-stroke-width: 0px; background-color: rgb(255,
+          255, 255); display: inline !important; float: none; ">Intel(R)
+          Core(TM) i7 CPU M 620 @ 2.67GHz<span
+            class="Apple-converted-space">") consistently on Windows,
+            Linux, OS-X and Solaris?<br>
+            <br>
+            Thanks,<br>
+            -robin<br>
+            <br>
+          </span></span>
+        <div class="moz-signature">-- <br>
+          <b>Robin Scher</b> Uberware<br>
+          <a moz-do-not-send="true" class="moz-txt-link-abbreviated"
+            href="mailto:robin@uberware.net">robin@uberware.net</a><br>
+          +1 (213) 448-0443
+          <p><br>
+          </p>
+        </div>
+        <br>
+        <fieldset class="mimeAttachmentHeader"></fieldset>
+        <br>
+        <pre wrap="">_______________________________________________
+hwloc-users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a>
+<a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a></pre>
+      </blockquote>
+      <br>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+hwloc-users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</a></pre>
+    </blockquote>
+    <br>
+    <div class="moz-signature">-- <br>
+      <b>Robin Scher</b> Uberware<br>
+      <a class="moz-txt-link-abbreviated" href="mailto:robin@uberware.net">robin@uberware.net</a><br>
+      +1 (213) 448-0443
+      <p><br>
+      </p>
+    </div>
+  </body>
+</html>
+

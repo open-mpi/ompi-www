@@ -1,0 +1,113 @@
+<html><body>
+<p>There is no collective or point to point  operation that provides the assurance you describe.  MPI is built around what is called &quot;local completion semantic&quot;.<br>
+<br>
+If you need an operation that confirms that send count and recv counts match you can write it yourself.  The MPI standard has never tried to provide a built in collective for every kind of cooperative operation some application might want.<br>
+<br>
+It seems like your application works in a way that is not usual for parallel apps so it should not be surprising that the standard does not include a pre-packaged solution.  The MPI standard provides collective routines that are often needed and that perhaps a libmpi can implement in a more optimal way than the end user could with portable code.  <br>
+<br>
+                 Dick <br>
+<br>
+Dick Treumann  -  MPI Team           <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 07/27/2009 02:17:19 PM:<br>
+<br>
+&gt; [image removed] </tt><br>
+<tt>&gt; <br>
+&gt; Re: [OMPI users] Interaction of MPI_Send and MPI_Barrier</tt><br>
+<tt>&gt; <br>
+&gt; Shaun Jackman </tt><br>
+<tt>&gt; <br>
+&gt; to:</tt><br>
+<tt>&gt; <br>
+&gt; Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; 07/27/2009 02:19 PM</tt><br>
+<tt>&gt; <br>
+&gt; Sent by:</tt><br>
+<tt>&gt; <br>
+&gt; users-bounces@open-mpi.org</tt><br>
+<tt>&gt; <br>
+&gt; Please respond to Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; Hi Dick,<br>
+&gt; <br>
+&gt; Okay, it's good to know that even if using MPI_Barrier in this fashion <br>
+&gt; did appear to be working, it's not guaranteed to work. Is there an MPI <br>
+&gt; collective function that has the desired effect? that after all <br>
+&gt; processes call this function, any previously posted MPI_Send are <br>
+&gt; guaranteed to have arrived and that MPI_Test will find the message. <br>
+&gt; Without such a function, it seems it would be impossible to know if <br>
+&gt; there are any outstanding messages waiting to be received, if it <br>
+&gt; wasn't known in advance by the receiver to expect the message. <br>
+&gt; Assuming that each process keeps a counter of the number of messages <br>
+&gt; that it has sent and the number that it has received, it should be <br>
+&gt; possible to sum the two counters across all processes and determine if <br>
+&gt; any are outstanding. It could be accomplished with a single <br>
+&gt; MPI_Reduce(sent - received).<br>
+&gt; <br>
+&gt; Cheers,<br>
+&gt; Shaun<br>
+&gt; <br>
+&gt; Richard Treumann wrote:<br>
+&gt; &gt; No - it is not guaranteed. (it is highly probable though)<br>
+&gt; &gt; <br>
+&gt; &gt; The return from the MPI_Send only guarantees that the data is safely <br>
+&gt; &gt; held somewhere other than the send buffer so you are free to modify the <br>
+&gt; &gt; send buffer. The MPI standard does not say where the data is to be held. <br>
+&gt; &gt; It only says that once the MPI_Test is successful, the data will have <br>
+&gt; &gt; been delivered to the receive buffer.<br>
+&gt; &gt; <br>
+&gt; &gt; Consider this possible scenario:<br>
+&gt; &gt; <br>
+&gt; &gt; MPI_Send is for a small message<br>
+&gt; &gt; The data is sent toward the destination<br>
+&gt; &gt; To allow the MPI_Send to complete promptly ,lib MPI makes a temporary <br>
+&gt; &gt; copy of the message<br>
+&gt; &gt; The MPI_Send returns once the copy is made<br>
+&gt; &gt; the message gets lost in the network<br>
+&gt; &gt; the MPI_Barrier does its communication without packet loss and completes<br>
+&gt; &gt; the call to MPI_Test returns false<br>
+&gt; &gt; the send side gets no ack for the lost message and eventually <br>
+&gt; &gt; retransmits it from the saved temp<br>
+&gt; &gt; This time it gets through<br>
+&gt; &gt; A later MPI_Test succeeds<br>
+&gt; &gt; An ack eventually gets back to the sender and it throws away the temp <br>
+&gt; &gt; copy of the message it was keeping in case a retransmit was needed<br>
+&gt; &gt; <br>
+&gt; &gt; I am not saying any particular MPI library would work this way but it is <br>
+&gt; &gt; one kind of thing that a libmpi might do to give better performance <br>
+&gt; &gt; while maintaining the strict rules of MPI semantic. Since the <br>
+&gt; &gt; MPI_Barrier does not make any guarantee about the destination status of <br>
+&gt; &gt; sends done before it, this kind of optimization is legitimate.<br>
+&gt; &gt; <br>
+&gt; &gt; If you must know that the message is received once the barrier returns, <br>
+&gt; &gt; you need to MPI_Wait the message before you call barrier.<br>
+&gt; &gt; <br>
+&gt; &gt; Dick<br>
+&gt; &gt; <br>
+&gt; &gt; <br>
+&gt; &gt; &nbsp;&gt; Hi,<br>
+&gt; &gt; &nbsp;&gt;<br>
+&gt; &gt; &nbsp;&gt; Two processes run the following program:<br>
+&gt; &gt; &nbsp;&gt;<br>
+&gt; &gt; &nbsp;&gt; request = MPI_Irecv<br>
+&gt; &gt; &nbsp;&gt; MPI_Send (to the other process)<br>
+&gt; &gt; &nbsp;&gt; MPI_Barrier<br>
+&gt; &gt; &nbsp;&gt; flag = MPI_Test(request)<br>
+&gt; &gt; &nbsp;&gt;<br>
+&gt; &gt; &nbsp;&gt; Without the barrier, there's a race and MPI_Test may or may not return<br>
+&gt; &gt; &nbsp;&gt; true, indicating whether the message has been received. With the<br>
+&gt; &gt; &nbsp;&gt; barrier, is it guaranteed that the message will have been received,<br>
+&gt; &gt; &nbsp;&gt; and MPI_Test will return true?<br>
+&gt; &gt; &nbsp;&gt;<br>
+&gt; &gt; &nbsp;&gt; Cheers,<br>
+&gt; &gt; &nbsp;&gt; Shaun<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; </tt><tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt><tt><br>
+</tt></body></html>

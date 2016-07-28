@@ -1,0 +1,672 @@
+diff --git a/config/hwloc.m4 b/config/hwloc.m4
+index a5677b5..340aeac 100644
+--- a/config/hwloc.m4
++++ b/config/hwloc.m4
+@@ -1,6 +1,6 @@
+ dnl -*- Autoconf -*-
+ dnl
+-dnl Copyright © 2009-2012 Inria.  All rights reserved.
++dnl Copyright © 2009-2013 Inria.  All rights reserved.
+ dnl Copyright (c) 2009-2012 Université Bordeaux 1
+ dnl Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+ dnl                         University Research and Technology
+@@ -615,8 +615,13 @@ EOF])
+     fi
+ 
+     # PCI support
+-    hwloc_pci_happy=no
+-    if test "x$enable_pci" != "xno"; then
++    if test "x$enable_pci" != xno -a "x$enable_libpci" != "xyes"; then
++      hwloc_pci_happy=yes
++      HWLOC_PKG_CHECK_MODULES([PCIACCESS], [pciaccess], [pci_slot_match_iterator_create], [:], [hwloc_pci_happy=no])
++      if test x$hwloc_pci_happy = xyes; then hwloc_pci_lib=pciaccess; fi
++    fi
++    # PCI support with pciutils instead of pciaccess
++    if test "x$enable_pci" != "xno" -a "x$hwloc_pci_lib" != "xpciaccess"; then
+         hwloc_pci_happy=yes
+         HWLOC_PKG_CHECK_MODULES([PCI], [libpci], [pci_cleanup], [:], [
+           # manually check pciutils in case a old one without .pc is installed
+@@ -656,19 +661,39 @@ EOF])
+                     [hwloc_pci_happy=no])])
+             ], [hwloc_pci_happy=no])
+         ])
++	if test x$hwloc_pci_happy = xyes; then
++	  # pciutils could be used, but we don't want to force use it since it may GPL-taint hwloc
++	  if test x$enable_libpci = xyes; then
++	    hwloc_pci_lib=pciutils
++	  else
++	    # user didn't explicit request pciutils, disable PCI and warn the user
++	    hwloc_pci_happy=no
++	    hwloc_warn_may_use_libpci=yes
++	  fi
++	fi
+     fi
+     AC_SUBST(HWLOC_PCI_LIBS)
+     HWLOC_LIBS="$HWLOC_LIBS $HWLOC_PCI_LIBS"
+     # If we asked for pci support but couldn't deliver, fail
+-    AS_IF([test "$enable_pci" = "yes" -a "$hwloc_pci_happy" = "no"],
++    AS_IF([test "$enable_pci" = "yes" -a "$hwloc_pci_happy" = "no" -a "$hwloc_warn_may_use_libpci" != "yes"],
+           [AC_MSG_WARN([Specified --enable-pci switch, but could not])
+            AC_MSG_WARN([find appropriate support])
+            AC_MSG_ERROR([Cannot continue])])
+-    if test "x$hwloc_pci_happy" = "xyes"; then
++    # pciaccess specific enabling
++    if test "x$hwloc_pci_lib" = "xpciaccess"; then
++      HWLOC_PCIACCESS_REQUIRES=pciaccess
++      AC_DEFINE([HWLOC_HAVE_LIBPCIACCESS], [1], [Define to 1 if you have the `libpciaccess' library.])
++
++      hwloc_components="$hwloc_components libpci"
++      hwloc_libpci_component_maybeplugin=1
++    fi
++    # pciutils specific checks and enabling
++    if test "x$hwloc_pci_lib" = "xpciutils"; then
+       tmp_save_CFLAGS="$CFLAGS"
+       CFLAGS="$CFLAGS $HWLOC_PCI_CFLAGS"
+       tmp_save_LIBS="$LIBS"
+       LIBS="$LIBS $HWLOC_PCI_LIBS"
++
+       AC_CHECK_DECLS([PCI_LOOKUP_NO_NUMBERS],,[:],[[#include <pci/pci.h>]])
+       AC_CHECK_DECLS([PCI_LOOKUP_NO_NUMBERS],,[:],[[#include <pci/pci.h>]])
+       AC_CHECK_LIB([pci], [pci_find_cap], [enable_pci_caps=yes], [enable_pci_caps=no], [$HWLOC_PCI_ADDITIONAL_LIBS])
+@@ -694,15 +719,15 @@ EOF])
+         AC_DEFINE([HWLOC_HAVE_PCIDEV_DOMAIN], [1], [Define to 1 if struct pci_dev has a `domain' field.])
+       fi
+ 
+-      HWLOC_REQUIRES="libpci $HWLOC_REQUIRES"
+-      AC_DEFINE([HWLOC_HAVE_LIBPCI], [1], [Define to 1 if you have the `libpci' library.])
+-      AC_SUBST([HWLOC_HAVE_LIBPCI], [1])
+       CFLAGS="$tmp_save_CFLAGS"
+       LIBS="$tmp_save_LIBS"
+-    else
+-      AC_SUBST([HWLOC_HAVE_LIBPCI], [0])
++
++      HWLOC_PCI_REQUIRES=libpci
++      AC_DEFINE([HWLOC_HAVE_LIBPCI], [1], [Define to 1 if you have the `libpci' library.])
+     fi
+-    HWLOC_CFLAGS="$HWLOC_CFLAGS $HWLOC_PCI_CFLAGS"
++    HWLOC_LIBS="$HWLOC_LIBS $HWLOC_PCI_LIBS $HWLOC_PCIACCESS_LIBS"
++    HWLOC_CFLAGS="$HWLOC_CFLAGS $HWLOC_PCI_CFLAGS $HWLOC_PCIACCESS_CFLAGS"
++    HWLOC_REQUIRES="$HWLOC_PCI_REQUIRES $HWLOC_PCIACCESS_REQUIRES $HWLOC_REQUIRES"
+ 
+     # libxml2 support
+     hwloc_libxml2_happy=
+@@ -822,7 +847,7 @@ AC_DEFUN([HWLOC_DO_AM_CONDITIONALS],[
+ 		       [test "x$hwloc_have_cudart" = "xyes"])
+         AM_CONDITIONAL([HWLOC_HAVE_LIBXML2], [test "$hwloc_libxml2_happy" = "yes"])
+         AM_CONDITIONAL([HWLOC_HAVE_CAIRO], [test "$hwloc_cairo_happy" = "yes"])
+-        AM_CONDITIONAL([HWLOC_HAVE_LIBPCI], [test "$hwloc_pci_happy" = "yes"])
++        AM_CONDITIONAL([HWLOC_HAVE_PCI], [test "$hwloc_pci_happy" = "yes"])
+         AM_CONDITIONAL([HWLOC_HAVE_SET_MEMPOLICY], [test "x$enable_set_mempolicy" != "xno"])
+         AM_CONDITIONAL([HWLOC_HAVE_MBIND], [test "x$enable_mbind" != "xno"])
+         AM_CONDITIONAL([HWLOC_HAVE_BUNZIPP], [test "x$BUNZIPP" != "xfalse"])
+diff --git a/config/hwloc_internal.m4 b/config/hwloc_internal.m4
+index aafb20f..804aedf 100644
+--- a/config/hwloc_internal.m4
++++ b/config/hwloc_internal.m4
+@@ -9,7 +9,7 @@ dnl Copyright (c) 2004-2005 The Regents of the University of California.
+ dnl                         All rights reserved.
+ dnl Copyright (c) 2004-2008 High Performance Computing Center Stuttgart, 
+ dnl                         University of Stuttgart.  All rights reserved.
+-dnl Copyright ©  2010 inria.  All rights reserved.
++dnl Copyright © 2010-2013 Inria.  All rights reserved.
+ dnl Copyright © 2006-2011 Cisco Systems, Inc.  All rights reserved.
+ dnl
+ dnl See COPYING in top-level directory.
+@@ -63,7 +63,10 @@ AC_DEFUN([HWLOC_DEFINE_ARGS],[
+     # PCI?
+     AC_ARG_ENABLE([pci],
+                   AS_HELP_STRING([--disable-pci],
+-                                 [Disable the PCI device discovery using libpci]))
++                                 [Disable the PCI device discovery]))
++    AC_ARG_ENABLE([libpci],
++		  AS_HELP_STRING([--enable-libpci],
++				 [Use libpci for PCI support. Note that hwloc may be tainted by the pciutils GPL license.]))
+ 
+     # Linux libnuma
+     AC_ARG_ENABLE([libnuma],
+diff --git a/configure.ac b/configure.ac
+index 680b10c..b4fbd56 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1,7 +1,7 @@
+ # -*- shell-script -*-
+ #
+ # Copyright © 2009      CNRS
+-# Copyright © 2009-2010 inria.  All rights reserved.
++# Copyright © 2009-2013 Inria.  All rights reserved.
+ # Copyright © 2009, 2011-2012      Université Bordeaux 1
+ # Copyright © 2009-2010 Cisco Systems, Inc.  All rights reserved.
+ #
+@@ -180,6 +180,16 @@ append_env() {
+     eval "[$]1=\"$new_value\""
+ }
+ 
++# Warn about PCI support
++if test x$hwloc_warn_may_use_libpci = xyes; then
++  echo
++  echo "**********************************************************************"
++  echo "PCI support could not be enable because libpciaccess is not available."
++  echo "libpci could be used instead but hwloc may be tainted by the GPL"
++  echo "license of pciutils. Add --enable-libpci to enable it."
++  echo "**********************************************************************"
++fi
++
+ # Show which optional support we'll be building
+ hwloc_xml_status=basic
+ AS_IF([test "$hwloc_libxml2_happy" = "yes"], [hwloc_xml_status=full])
+diff --git a/doc/hwloc.doxy b/doc/hwloc.doxy
+index b81342c..599a169 100644
+--- a/doc/hwloc.doxy
++++ b/doc/hwloc.doxy
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 inria.  All rights reserved.
++ * Copyright © 2009-2013 Inria.  All rights reserved.
+  * Copyright © 2009-2011 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -144,7 +144,9 @@ is configured and build.
+ 
+ The hwloc core may also benefit from the following development packages:
+ <ul>
+-<li>pciutils (libpci) for I/O discovery.</li>
++<li>libpciaccess for I/O discovery.
++    libpci (from pciutils) may be used instead if <tt>--enable-libpci</tt>
++    is given at configure, but its GPL license may taint hwloc.</li>
+ <li>libnuma for memory binding and migration support on Linux.</li>
+ <li>libxml2 for full XML import/export support (otherwise, the
+     internal minimalistic parser will only be able to import
+diff --git a/include/private/private.h b/include/private/private.h
+index bc46fdb..68f5d3a 100644
+--- a/include/private/private.h
++++ b/include/private/private.h
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009      CNRS
+- * Copyright © 2009-2011 inria.  All rights reserved.
++ * Copyright © 2009-2013 Inria.  All rights reserved.
+  * Copyright © 2009-2012 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  *
+@@ -228,7 +228,7 @@ extern void hwloc_set_hpux_hooks(struct hwloc_topology *topology);
+ 
+ extern void hwloc_look_x86(struct hwloc_topology *topology, unsigned nbprocs);
+ 
+-#ifdef HWLOC_HAVE_LIBPCI
++#if (defined HWLOC_HAVE_LIBPCI) || (defined HWLOC_HAVE_LIBPCIACCESS)
+ extern void hwloc_look_libpci(struct hwloc_topology *topology);
+ #endif /* HWLOC_HAVE_LIBPCI */
+ 
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 213c34b..4463dd1 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -1,4 +1,4 @@
+-# Copyright © 2009-2010 inria.  All rights reserved.
++# Copyright © 2009-2013 Inria.  All rights reserved.
+ # Copyright © 2009-2010, 2012 Université Bordeaux 1
+ # Copyright © 2009-2010 Cisco Systems, Inc.  All rights reserved.
+ # Copyright © 2011-2012 Oracle and/or its affiliates.  All rights reserved.
+@@ -39,9 +39,9 @@ if HWLOC_HAVE_LIBXML2
+ sources += topology-xml-libxml.c
+ endif HWLOC_HAVE_LIBXML2
+ 
+-if HWLOC_HAVE_LIBPCI
++if HWLOC_HAVE_PCI
+ sources += topology-libpci.c
+-endif HWLOC_HAVE_LIBPCI
++endif HWLOC_HAVE_PCI
+ 
+ if HWLOC_HAVE_SOLARIS
+ sources += topology-solaris.c
+diff --git a/src/topology-libpci.c b/src/topology-libpci.c
+index c65c3db..d7a76c9 100644
+--- a/src/topology-libpci.c
++++ b/src/topology-libpci.c
+@@ -1,7 +1,7 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2011 inria.  All rights reserved.
+- * Copyright © 2009-2011 Université Bordeaux 1
++ * Copyright © 2009-2013 Inria.  All rights reserved.
++ * Copyright © 2009-2011, 2013 Université Bordeaux 1
+  * See COPYING in top-level directory.
+  */
+ 
+@@ -12,7 +12,7 @@
+ #include <private/debug.h>
+ #include <private/misc.h>
+ 
+-#ifdef HWLOC_HAVE_LIBPCI
++#if (defined HWLOC_HAVE_LIBPCI) || (defined HWLOC_HAVE_LIBPCIACCESS)
+ 
+ #include <pci/pci.h>
+ #include <stdio.h>
+@@ -24,7 +24,94 @@
+ #ifdef HWLOC_LINUX_SYS
+ #endif
+ 
+-#define CONFIG_SPACE_CACHESIZE 256
++#if (defined HWLOC_HAVE_LIBPCIACCESS) && (defined HWLOC_HAVE_LIBPCI)
++#error Cannot have both LIBPCI and LIBPCIACCESS enabled simultaneously
++#elif (!defined HWLOC_HAVE_LIBPCIACCESS) && (!defined HWLOC_HAVE_LIBPCI)
++#error Cannot have neither LIBPCI nor LIBPCIACCESS enabled simultaneously
++#endif
++
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++#include <pciaccess.h>
++#else /* HWLOC_HAVE_LIBPCI */
++#include <pci/pci.h>
++#endif
++
++#ifndef PCI_HEADER_TYPE
++#define PCI_HEADER_TYPE 0x0e
++#endif
++#ifndef PCI_HEADER_TYPE_BRIDGE
++#define PCI_HEADER_TYPE_BRIDGE 1
++#endif
++
++#ifndef PCI_CLASS_DEVICE
++#define PCI_CLASS_DEVICE 0x0a
++#endif
++#ifndef PCI_CLASS_BRIDGE_PCI
++#define PCI_CLASS_BRIDGE_PCI 0x0604
++#endif
++
++#ifndef PCI_REVISION_ID
++#define PCI_REVISION_ID 0x08
++#endif
++
++#ifndef PCI_SUBSYSTEM_VENDOR_ID
++#define PCI_SUBSYSTEM_VENDOR_ID 0x2c
++#endif
++#ifndef PCI_SUBSYSTEM_ID
++#define PCI_SUBSYSTEM_ID 0x2e
++#endif
++
++#ifndef PCI_PRIMARY_BUS
++#define PCI_PRIMARY_BUS 0x18
++#endif
++#ifndef PCI_SECONDARY_BUS
++#define PCI_SECONDARY_BUS 0x19
++#endif
++#ifndef PCI_SUBORDINATE_BUS
++#define PCI_SUBORDINATE_BUS 0x1a
++#endif
++
++#ifndef PCI_EXP_LNKSTA
++#define PCI_EXP_LNKSTA 18
++#endif
++
++#ifndef PCI_EXP_LNKSTA_SPEED
++#define PCI_EXP_LNKSTA_SPEED 0x000f
++#endif
++#ifndef PCI_EXP_LNKSTA_WIDTH
++#define PCI_EXP_LNKSTA_WIDTH 0x03f0
++#endif
++
++#ifndef PCI_CAP_ID_EXP
++#define PCI_CAP_ID_EXP 0x10
++#endif
++
++#ifndef PCI_CAP_NORMAL
++#define PCI_CAP_NORMAL 1
++#endif
++
++#ifndef PCI_STATUS
++#define PCI_STATUS 0x06
++#endif
++
++#ifndef PCI_CAPABILITY_LIST
++#define PCI_CAPABILITY_LIST 0x34
++#endif
++
++#ifndef PCI_STATUS_CAP_LIST
++#define PCI_STATUS_CAP_LIST 0x10
++#endif
++
++#ifndef PCI_CAP_LIST_ID
++#define PCI_CAP_LIST_ID 0
++#endif
++
++#ifndef PCI_CAP_LIST_NEXT
++#define PCI_CAP_LIST_NEXT 1
++#endif
++
++#define CONFIG_SPACE_CACHESIZE_TRY 256
++#define CONFIG_SPACE_CACHESIZE 64
+ 
+ static void
+ hwloc_pci_traverse_print_cb(struct hwloc_topology *topology __hwloc_attribute_unused, struct hwloc_obj *pcidev, int depth __hwloc_attribute_unused)
+@@ -291,6 +378,7 @@ hwloc_pci_find_hostbridge_parent(struct hwloc_topology *topology, struct hwloc_o
+   return parent;
+ }
+ 
++#ifdef HWLOC_HAVE_LIBPCI
+ /* Avoid letting libpci call exit(1) when no PCI bus is available. */
+ static jmp_buf err_buf;
+ static void
+@@ -309,21 +397,74 @@ static void
+ hwloc_pci_warning(char *msg __hwloc_attribute_unused, ...)
+ {
+ }
++#endif
++
++#ifndef HWLOC_HAVE_PCI_FIND_CAP
++static unsigned
++hwloc_pci_find_cap(const unsigned char *config, size_t config_size, unsigned cap)
++{
++  unsigned char seen[256] = { 0 };
++  unsigned char ptr;
++
++  if (!(config[PCI_STATUS] & PCI_STATUS_CAP_LIST))
++    return 0;
++
++  for (ptr = config[PCI_CAPABILITY_LIST] & ~3;
++       ptr;
++       ptr = config[ptr + PCI_CAP_LIST_NEXT] & ~3) {
++    unsigned char id;
++
++    if (ptr >= config_size)
++      return 0;
++
++    /* Looped around! */
++    if (seen[ptr])
++      return 0;
++    seen[ptr] = 1;
++
++    id = config[ptr + PCI_CAP_LIST_ID];
++    if (id == cap)
++      return ptr;
++    if (id == 0xff)
++      break;
++
++    if (ptr + PCI_CAP_LIST_NEXT >= (unsigned char) config_size)
++      return 0;
++  }
++  return 0;
++}
++#endif
+ 
+ void
+ hwloc_look_libpci(struct hwloc_topology *topology)
+ {
+-  struct pci_access *pciaccess;
+-  struct pci_dev *pcidev;
+   struct hwloc_obj fakehostbridge; /* temporary object covering the whole PCI hierarchy until its complete */
+   unsigned current_hostbridge;
+   int createdgroups = 0;
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++  int ret;
++  struct pci_device_iterator *iter;
++  struct pci_device *pcidev;
++#else /* HWLOC_HAVE_LIBPCI */
++  struct pci_access *pciaccess;
++  struct pci_dev *pcidev;
++#endif
+ 
+   fakehostbridge.first_child = NULL;
+   fakehostbridge.last_child = NULL;
+ 
+   hwloc_debug("%s", "\nScanning PCI buses...\n");
+ 
++  /* initialize PCI scanning */
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++  ret = pci_system_init();
++  if (ret) {
++    hwloc_debug("%s", "Can not initialize libpciaccess\n");
++    return;
++  }
++
++  iter = pci_slot_match_iterator_create(NULL);
++#else /* HWLOC_HAVE_LIBPCI */
+   pciaccess = pci_alloc();
+   pciaccess->error = hwloc_pci_error;
+   pciaccess->warning = hwloc_pci_warning;
+@@ -335,34 +476,64 @@ hwloc_look_libpci(struct hwloc_topology *topology)
+ 
+   pci_init(pciaccess);
+   pci_scan_bus(pciaccess);
++#endif
+ 
+-  pcidev = pciaccess->devices;
+-  while (pcidev) {
+-    char name[128];
+-    const char *resname;
+-    u8 config_space_cache[CONFIG_SPACE_CACHESIZE];
++  /* iterate over devices */
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++  for (pcidev = pci_device_next(iter);
++       pcidev;
++       pcidev = pci_device_next(iter))
++#else /* HWLOC_HAVE_LIBPCI */
++  for (pcidev = pciaccess->devices;
++       pcidev;
++       pcidev = pcidev->next)
++#endif
++  {
++    const char *vendorname, *devicename, *fullname;
++    unsigned char config_space_cache[CONFIG_SPACE_CACHESIZE_TRY];
++    unsigned config_space_cachesize = CONFIG_SPACE_CACHESIZE_TRY;
+     struct hwloc_obj *obj;
+     unsigned char headertype;
+     unsigned os_index;
+     unsigned isbridge;
+     unsigned domain;
+     unsigned device_class;
++    char name[128];
++    unsigned offset;
++#ifdef HWLOC_HAVE_PCI_FIND_CAP
++    struct pci_cap *cap;
++#endif
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++    pciaddr_t got;
++#endif
+ 
+     /* cache what we need of the config space */
+-    pci_read_block(pcidev, 0, config_space_cache, CONFIG_SPACE_CACHESIZE);
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++    pci_device_probe(pcidev);
++    pci_device_cfg_read(pcidev, config_space_cache, 0, CONFIG_SPACE_CACHESIZE_TRY, &got);
++    config_space_cachesize = got;
++#else /* HWLOC_HAVE_LIBPCI */
++    pci_read_block(pcidev, 0, config_space_cache, CONFIG_SPACE_CACHESIZE_TRY);
++#endif
+ 
+-    /* read some fields that may not always be available */
+-#ifdef HWLOC_HAVE_PCIDEV_DOMAIN
++    /* try to read the domain */
++#if (defined HWLOC_HAVE_LIBPCIACCESS) || (defined HWLOC_HAVE_PCIDEV_DOMAIN)
+     domain = pcidev->domain;
+ #else
+     domain = 0; /* default domain number */
+ #endif
++
++    /* try to read the device_class */
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++    device_class = pcidev->device_class >> 8;
++#else /* HWLOC_HAVE_LIBPCI */
+ #ifdef HWLOC_HAVE_PCIDEV_DEVICE_CLASS
+     device_class = pcidev->device_class;
+ #else
+     HWLOC_BUILD_ASSERT(PCI_CLASS_DEVICE < CONFIG_SPACE_CACHESIZE);
+     device_class = config_space_cache[PCI_CLASS_DEVICE] | (config_space_cache[PCI_CLASS_DEVICE+1] << 8);
+ #endif
++#endif
+ 
+     /* is this a bridge? */
+     HWLOC_BUILD_ASSERT(PCI_HEADER_TYPE < CONFIG_SPACE_CACHESIZE);
+@@ -390,15 +561,18 @@ hwloc_look_libpci(struct hwloc_topology *topology)
+ 
+     obj->attr->pcidev.linkspeed = 0; /* unknown */
+ #ifdef HWLOC_HAVE_PCI_FIND_CAP
+-    {
+-    struct pci_cap *cap = pci_find_cap(pcidev, PCI_CAP_ID_EXP, PCI_CAP_NORMAL);
+-    if (cap) {
+-      if (cap->addr + PCI_EXP_LNKSTA >= CONFIG_SPACE_CACHESIZE) {
+-        fprintf(stderr, "cannot read PCI_EXP_LNKSTA cap at %d (only %d cached)\n", cap->addr + PCI_EXP_LNKSTA, CONFIG_SPACE_CACHESIZE);
++    cap = pci_find_cap(pcidev, PCI_CAP_ID_EXP, PCI_CAP_NORMAL);
++    offset = cap ? cap->addr : 0;
++#else
++    offset = hwloc_pci_find_cap(config_space_cache, config_space_cachesize, PCI_CAP_ID_EXP);
++#endif /* HWLOC_HAVE_PCI_FIND_CAP */
++    if (offset > 0) {
++      if (offset + PCI_EXP_LNKSTA + 4 >= config_space_cachesize) {
++        fprintf(stderr, "cannot read PCI_EXP_LNKSTA cap at %d (only %d cached)\n", offset + PCI_EXP_LNKSTA, CONFIG_SPACE_CACHESIZE);
+       } else {
+         unsigned linksta, speed, width;
+         float lanespeed;
+-        memcpy(&linksta, &config_space_cache[cap->addr + PCI_EXP_LNKSTA], 4);
++        memcpy(&linksta, &config_space_cache[offset + PCI_EXP_LNKSTA], 4);
+         speed = linksta & PCI_EXP_LNKSTA_SPEED; /* PCIe generation */
+         width = (linksta & PCI_EXP_LNKSTA_WIDTH) >> 4; /* how many lanes */
+ 	/* PCIe Gen1 = 2.5GT/s signal-rate per lane with 8/10 encoding    = 0.25GB/s data-rate per lane
+@@ -409,8 +583,6 @@ hwloc_look_libpci(struct hwloc_topology *topology)
+         obj->attr->pcidev.linkspeed = lanespeed * width / 8; /* GB/s */
+       }
+     }
+-    }
+-#endif /* HWLOC_HAVE_PCI_FIND_CAP */
+ 
+     if (isbridge) {
+       HWLOC_BUILD_ASSERT(PCI_PRIMARY_BUS < CONFIG_SPACE_CACHESIZE);
+@@ -430,7 +602,10 @@ hwloc_look_libpci(struct hwloc_topology *topology)
+  * of arguments, and supports the PCI_LOOKUP_NO_NUMBERS flag.
+  */
+ 
+-    resname = pci_lookup_name(pciaccess, name, sizeof(name),
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++    vendorname = pci_device_get_vendor_name(pcidev);
++#else /* HWLOC_HAVE_LIBPCI */
++    vendorname = pci_lookup_name(pciaccess, name, sizeof(name),
+ #if HAVE_DECL_PCI_LOOKUP_NO_NUMBERS
+ 			      PCI_LOOKUP_VENDOR|PCI_LOOKUP_NO_NUMBERS,
+ 			      pcidev->vendor_id
+@@ -439,10 +614,14 @@ hwloc_look_libpci(struct hwloc_topology *topology)
+ 			      pcidev->vendor_id, 0, 0, 0
+ #endif
+ 			      );
+-    if (resname)
+-      hwloc_obj_add_info(obj, "PCIVendor", resname);
++#endif /* HWLOC_HAVE_LIBPCI */
++    if (vendorname)
++      hwloc_obj_add_info(obj, "PCIVendor", vendorname);
+ 
+-    resname = pci_lookup_name(pciaccess, name, sizeof(name),
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++    devicename = pci_device_get_device_name(pcidev);
++#else /* HWLOC_HAVE_LIBPCI */
++    devicename = pci_lookup_name(pciaccess, name, sizeof(name),
+ #if HAVE_DECL_PCI_LOOKUP_NO_NUMBERS
+ 			      PCI_LOOKUP_DEVICE|PCI_LOOKUP_NO_NUMBERS,
+ 			      pcidev->vendor_id, pcidev->device_id
+@@ -451,10 +630,19 @@ hwloc_look_libpci(struct hwloc_topology *topology)
+ 			      pcidev->vendor_id, pcidev->device_id, 0, 0
+ #endif
+ 			      );
+-    if (resname)
+-      hwloc_obj_add_info(obj, "PCIDevice", resname);
+-
+-    resname = pci_lookup_name(pciaccess, name, sizeof(name),
++#endif /* HWLOC_HAVE_LIBPCI */
++    if (devicename)
++      hwloc_obj_add_info(obj, "PCIDevice", devicename);
++
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++    snprintf(name, sizeof(name), "%s%s%s",
++            vendorname ? vendorname : "",
++            vendorname && devicename ? " " : "",
++            devicename ? devicename : "");
++    fullname = name;
++    obj->name = strdup(name);
++#else /* HWLOC_HAVE_LIBPCI */
++    fullname = pci_lookup_name(pciaccess, name, sizeof(name),
+ #if HAVE_DECL_PCI_LOOKUP_NO_NUMBERS
+ 			      PCI_LOOKUP_VENDOR|PCI_LOOKUP_DEVICE|PCI_LOOKUP_NO_NUMBERS,
+ 			      pcidev->vendor_id, pcidev->device_id
+@@ -463,21 +651,27 @@ hwloc_look_libpci(struct hwloc_topology *topology)
+ 			      pcidev->vendor_id, pcidev->device_id, 0, 0
+ #endif
+ 			      );
+-    if (resname)
+-      obj->name = strdup(resname);
++    if (fullname)
++      obj->name = strdup(fullname);
+     else
+-      resname = "??";
++      fullname = "??";
++#endif /* HWLOC_HAVE_LIBPCI */
+ 
+     hwloc_debug("  %04x:%02x:%02x.%01x %04x %04x:%04x %s\n",
+ 		domain, pcidev->bus, pcidev->dev, pcidev->func,
+ 		device_class, pcidev->vendor_id, pcidev->device_id,
+-		resname);
++		fullname);
+ 
+     hwloc_pci_add_object(&fakehostbridge, obj);
+-    pcidev = pcidev->next;
+   }
+ 
++  /* finalize device scanning */
++#ifdef HWLOC_HAVE_LIBPCIACCESS
++  pci_iterator_destroy(iter);
++  pci_system_cleanup();
++#else /* HWLOC_HAVE_LIBPCI */
+   pci_cleanup(pciaccess);
++#endif
+ 
+   hwloc_debug("%s", "\nPCI hierarchy after basic scan:\n");
+   hwloc_pci_traverse(topology, &fakehostbridge, hwloc_pci_traverse_print_cb);
+diff --git a/src/topology.c b/src/topology.c
+index 01e325e..5d8bc13 100644
+--- a/src/topology.c
++++ b/src/topology.c
+@@ -1,6 +1,6 @@
+ /*
+  * Copyright © 2009 CNRS
+- * Copyright © 2009-2012 inria.  All rights reserved.
++ * Copyright © 2009-2013 Inria.  All rights reserved.
+  * Copyright © 2009-2012 Université Bordeaux 1
+  * Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
+  * See COPYING in top-level directory.
+@@ -2369,7 +2369,7 @@ hwloc_discover(struct hwloc_topology *topology)
+ #endif
+ 	  )) {
+     hwloc_debug("%s", "\nLooking for PCI devices\n");
+-#ifdef HWLOC_HAVE_LIBPCI
++#if (defined HWLOC_HAVE_LIBPCI) || (defined HWLOC_HAVE_LIBPCIACCESS)
+     if (topology->is_thissystem) {
+       hwloc_look_libpci(topology);
+       print_objects(topology, 0, topology->levels[0][0]);
+diff --git a/utils/test-hwloc-ls.sh.in b/utils/test-hwloc-ls.sh.in
+old mode 100755
+new mode 100644
+index 3a4d3c3..e81393a
+--- a/utils/test-hwloc-ls.sh.in
++++ b/utils/test-hwloc-ls.sh.in
+@@ -3,7 +3,7 @@
+ 
+ #
+ # Copyright © 2009 CNRS
+-# Copyright © 2009-2012 Inria.  All rights reserved.
++# Copyright © 2009-2013 Inria.  All rights reserved.
+ # Copyright © 2009, 2011 Université Bordeaux 1
+ # See COPYING in top-level directory.
+ #
+@@ -35,10 +35,10 @@ $ls
+   $ls --taskset -v > $tmp/test.taskset
+   $ls --merge > $tmp/test.merge
+ 
+-@HWLOC_HAVE_LIBPCI_TRUE@  $ls --no-io > $tmp/test.no-io
+-@HWLOC_HAVE_LIBPCI_TRUE@  $ls --no-bridges > $tmp/test.no-bridges
+-@HWLOC_HAVE_LIBPCI_TRUE@  $ls --whole-io > $tmp/test.whole-io
+-@HWLOC_HAVE_LIBPCI_TRUE@  $ls -v --whole-io > $tmp/test.wholeio_verbose
++@HWLOC_HAVE_PCI_TRUE@  $ls --no-io > $tmp/test.no-io
++@HWLOC_HAVE_PCI_TRUE@  $ls --no-bridges > $tmp/test.no-bridges
++@HWLOC_HAVE_PCI_TRUE@  $ls --whole-io > $tmp/test.whole-io
++@HWLOC_HAVE_PCI_TRUE@  $ls -v --whole-io > $tmp/test.wholeio_verbose
+ 
+   $ls --whole-system > $tmp/test.whole-system
+   $ls --ps > $tmp/test.
+

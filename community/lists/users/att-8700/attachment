@@ -1,0 +1,109 @@
+Dear Rolf,<br><br>Thanks for your reply.<br>I&#39;ve created another PE and changed the submission script, explicitly specify the hostname with &quot;--host&quot;.<br>However the result is the same.<br><br># qconf -sp orte<br>
+pe_name            orte<br>slots              8<br>user_lists         NONE<br>xuser_lists        NONE<br>start_proc_args    /bin/true<br>stop_proc_args     /bin/true<br>allocation_rule    $fill_up<br>control_slaves     TRUE<br>
+job_is_first_task  FALSE<br>urgency_slots      min<br>accounting_summary TRUE<br><br>$ cat hpl-8cpu-test.sge<br>#!/bin/bash<br>#<br>#$ -N HPL_8cpu_GB<br>#$ -pe orte 8<br>#$ -cwd<br>#$ -j y<br>#$ -S /bin/bash<br>#$ -V<br>#<br>
+cd /home/admin/hpl-2.0<br>/opt/openmpi-gcc/bin/mpirun -v -np $NSLOTS --host node0001,node0001,node0001,node0001,node0002,node0002,node0002,node0002 ./bin/goto-openmpi-gcc/xhpl<br><br><br># pdsh -a ps ax --width=200|grep hpl<br>
+node0002: 18901 ?        S      0:00 /opt/openmpi-gcc/bin/mpirun -v -np 8 --host node0001,node0001,node0001,node0001,node0002,node0002,node0002,node0002 ./bin/goto-openmpi-gcc/xhpl<br>node0002: 18902 ?        RLl    0:29 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18903 ?        RLl    0:29 ./bin/goto-openmpi-gcc/xhpl<br>node0002: 18904 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br>node0002: 18905 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br>node0002: 18906 ?        RLl    0:29 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18907 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br>node0002: 18908 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br>node0002: 18909 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br><br>Any hint to debug this situation?<br>
+<br>Also, if I have 2 IB ports in each node, which IB bonding was done,
+will Open MPI automatically benefit from the double bandwidth?<br><br>Thanks a lot.<br><br>Best Regards,<br>PN<br><br><div class="gmail_quote">2009/4/1 Rolf Vandevaart <span dir="ltr">&lt;<a href="mailto:Rolf.Vandevaart@sun.com">Rolf.Vandevaart@sun.com</a>&gt;</span><br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div><div></div><div class="h5">On 03/31/09 11:43, PN wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Dear all,<br>
+<br>
+I&#39;m using Open MPI 1.3.1 and SGE 6.2u2 on CentOS 5.2<br>
+I have 2 compute nodes for testing, each node has a single quad core CPU.<br>
+<br>
+Here is my submission script and PE config:<br>
+$ cat hpl-8cpu.sge<br>
+#!/bin/bash<br>
+#<br>
+#$ -N HPL_8cpu_IB<br>
+#$ -pe mpi-fu 8<br>
+#$ -cwd<br>
+#$ -j y<br>
+#$ -S /bin/bash<br>
+#$ -V<br>
+#<br>
+cd /home/admin/hpl-2.0<br>
+# For IB<br>
+/opt/openmpi-gcc/bin/mpirun -v -np $NSLOTS -machinefile $TMPDIR/machines ./bin/goto-openmpi-gcc/xhpl<br>
+<br>
+I&#39;ve tested the mpirun command can be run correctly in command line.<br>
+<br>
+$ qconf -sp mpi-fu<br>
+pe_name            mpi-fu<br>
+slots              8<br>
+user_lists         NONE<br>
+xuser_lists        NONE<br>
+start_proc_args    /opt/sge/mpi/startmpi.sh -catch_rsh $pe_hostfile<br>
+stop_proc_args     /opt/sge/mpi/stopmpi.sh<br>
+allocation_rule    $fill_up<br>
+control_slaves     TRUE<br>
+job_is_first_task  FALSE<br>
+urgency_slots      min<br>
+accounting_summary TRUE<br>
+<br>
+<br>
+I&#39;ve checked the $TMPDIR/machines after submit, it was correct.<br>
+node0002<br>
+node0002<br>
+node0002<br>
+node0002<br>
+node0001<br>
+node0001<br>
+node0001<br>
+node0001<br>
+<br>
+However, I found that if I explicitly specify the &quot;-machinefile $TMPDIR/machines&quot;, all 8 mpi processes were spawned within a single node, i.e. node0002.<br>
+<br>
+However, if I omit &quot;-machinefile $TMPDIR/machines&quot; in the line mpirun, i.e.<br>
+/opt/openmpi-gcc/bin/mpirun -v -np $NSLOTS ./bin/goto-openmpi-gcc/xhpl<br>
+<br>
+The mpi processes can start correctly, 4 processes in node0001 and 4 processes in node0002.<br>
+<br>
+Is this normal behaviour of Open MPI?<br>
+</blockquote>
+<br></div></div>
+I just tried it both ways and I got the same result both times.  The processes are split between the nodes.  Perhaps to be extra sure, you can just run hostname?  And for what it is worth, as you have seen, you do not need to specify a machines file.  Open MPI will use the ones that were allocated by SGE.  You can also change your parallel queue to not run any scripts.  Like this:<br>
+
+<br>
+start_proc_args    /bin/true<br>
+stop_proc_args     /bin/true<div class="im"><br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<br>
+Also, I wondered if I have IB interface, for example, the hostname of IB become node0001-clust and node0002-clust, will Open MPI automatically use the IB interface?<br>
+</blockquote></div>
+Yes, it should use the IB interface.<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div class="im">
+<br>
+How about if I have 2 IB ports in each node, which IB bonding was done, will Open MPI automatically benefit from the double bandwidth?<br>
+<br>
+Thanks a lot.<br>
+<br>
+Best Regards,<br>
+PN<br>
+<br>
+<br></div>
+------------------------------------------------------------------------<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote>
+<br>
+<br>
+-- <br>
+<br>
+=========================<br><font color="#888888">
+<a href="mailto:rolf.vandevaart@sun.com" target="_blank">rolf.vandevaart@sun.com</a><br>
+781-442-3043<br>
+=========================<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</font></blockquote></div><br>
+

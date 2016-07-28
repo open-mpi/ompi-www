@@ -1,0 +1,197 @@
+diff --git a/config/hwloc.m4 b/config/hwloc.m4
+index 49955a6..12230e1 100644
+--- a/config/hwloc.m4
++++ b/config/hwloc.m4
+@@ -362,7 +362,7 @@ EOF])
+     #
+ 
+     AC_CHECK_HEADERS([unistd.h])
+-    AC_CHECK_HEADERS([dirent.h])
++    AC_CHECK_HEADERS([dirent.h], [hwloc_have_dirent=yes])
+     AC_CHECK_HEADERS([strings.h])
+     AC_CHECK_HEADERS([ctype.h])
+ 
+@@ -456,7 +456,13 @@ EOF])
+       #endif
+     ])
+ 
+-    AC_CHECK_DECLS([strtoull], [], [], [AC_INCLUDES_DEFAULT])
++    AC_CHECK_DECLS([strtoull], [], [AC_CHECK_FUNCS([strtoull])], [AC_INCLUDES_DEFAULT])
++    AC_CHECK_DECLS([_strtoui64], [], [], [AC_INCLUDES_DEFAULT])
++    AC_CHECK_DECLS([S_ISREG], [], [], [AC_INCLUDES_DEFAULT])
++    AC_CHECK_DECLS([S_ISDIR], [], [], [AC_INCLUDES_DEFAULT])
++    AC_CHECK_TYPES([ssize_t])
++    AC_CHECK_FUNCS([snprintf])
++    AC_CHECK_LIB([user32], [PostQuitMessage], [hwloc_have_user32="yes"])
+ 
+     # Do a full link test instead of just using AC_CHECK_FUNCS, which
+     # just checks to see if the symbol exists or not.  For example,
+@@ -1155,6 +1161,8 @@ AC_DEFUN([HWLOC_DO_AM_CONDITIONALS],[
+         AM_CONDITIONAL([HWLOC_HAVE_OPENCL], [test "$hwloc_opencl_happy" = "yes"])
+         AM_CONDITIONAL([HWLOC_HAVE_NVML], [test "$hwloc_nvml_happy" = "yes"])
+         AM_CONDITIONAL([HWLOC_HAVE_BUNZIPP], [test "x$BUNZIPP" != "xfalse"])
++        AM_CONDITIONAL([HWLOC_HAVE_DIRENT_H], [test "x$hwloc_have_dirent" = "xyes"])
++        AM_CONDITIONAL([HWLOC_HAVE_USER32], [test "x$hwloc_have_user32" = "xyes"])
+ 
+         AM_CONDITIONAL([HWLOC_BUILD_DOXYGEN],
+                        [test "x$hwloc_generate_doxs" = "xyes"])
+diff --git a/hwloc/distances.c b/hwloc/distances.c
+index f920196..2a1d2b0 100644
+--- a/hwloc/distances.c
++++ b/hwloc/distances.c
+@@ -9,6 +9,7 @@
+ #include <hwloc.h>
+ #include <private/private.h>
+ #include <private/debug.h>
++#include <private/misc.h>
+ 
+ #include <float.h>
+ #include <math.h>
+diff --git a/hwloc/pci-common.c b/hwloc/pci-common.c
+index dffac09..328d792 100644
+--- a/hwloc/pci-common.c
++++ b/hwloc/pci-common.c
+@@ -8,6 +8,7 @@
+ #include <hwloc/plugins.h>
+ #include <private/private.h>
+ #include <private/debug.h>
++#include <private/misc.h>
+ 
+ #include <fcntl.h>
+ #ifdef HAVE_UNISTD_H
+diff --git a/hwloc/topology-xml-nolibxml.c b/hwloc/topology-xml-nolibxml.c
+index 3d42be1..93ade23 100644
+--- a/hwloc/topology-xml-nolibxml.c
++++ b/hwloc/topology-xml-nolibxml.c
+@@ -12,6 +12,7 @@
+ #include <private/private.h>
+ #include <private/xml.h>
+ #include <private/debug.h>
++#include <private/misc.h>
+ 
+ #include <string.h>
+ #include <assert.h>
+diff --git a/include/hwloc/rename.h b/include/hwloc/rename.h
+index 75ac664..9df9895 100644
+--- a/include/hwloc/rename.h
++++ b/include/hwloc/rename.h
+@@ -548,6 +548,7 @@ extern "C" {
+ #define hwloc_flsl_from_fls32 HWLOC_NAME(flsl_from_fls32)
+ #define hwloc_weight_long HWLOC_NAME(weight_long)
+ #define hwloc_strncasecmp HWLOC_NAME(strncasecmp)
++#define hwloc_strcasecmp HWLOC_NAME(strcasecmp)
+ #define hwloc_cache_type_by_depth_type HWLOC_NAME(cache_type_by_depth_type)
+ #define hwloc_obj_type_is_io HWLOC_NAME(obj_type_is_io)
+ #define hwloc_obj_type_is_special HWLOC_NAME(obj_type_is_special)
+diff --git a/include/private/misc.h b/include/private/misc.h
+index dc06ddf..e3ad898 100644
+--- a/include/private/misc.h
++++ b/include/private/misc.h
+@@ -362,7 +362,7 @@ hwloc_weight_long(unsigned long w)
+ #endif /* HWLOC_BITS_PER_LONG == 64 */
+ }
+ 
+-#if !HAVE_DECL_STRTOULL
++#if !HAVE_DECL_STRTOULL && defined(HAVE_STRTOULL)
+ unsigned long long int strtoull(const char *nptr, char **endptr, int base);
+ #endif
+ 
+@@ -381,6 +381,21 @@ static __hwloc_inline int hwloc_strncasecmp(const char *s1, const char *s2, size
+ #endif
+ }
+ 
++static __hwloc_inline int hwloc_strcasecmp(const char *s1, const char *s2)
++{
++#ifdef HWLOC_HAVE_DECL_STRCASECMP
++  return strcasecmp(s1, s2);
++#else
++  while (1) {
++    char c1 = tolower(*s1), c2 = tolower(*s2);
++    if (!c1 || !c2 || c1 != c2)
++      return c1-c2;
++    s1++; s2++;
++  }
++  return 0;
++#endif
++}
++
+ static __hwloc_inline hwloc_obj_type_t hwloc_cache_type_by_depth_type(unsigned depth, hwloc_obj_cache_type_t type)
+ {
+   if (type == HWLOC_OBJ_CACHE_INSTRUCTION) {
+@@ -407,4 +422,25 @@ static __hwloc_inline int hwloc_obj_type_is_io (hwloc_obj_type_t type)
+   return type >= HWLOC_OBJ_BRIDGE && type <= HWLOC_OBJ_OS_DEVICE;
+ }
+ 
++#ifdef HWLOC_WIN_SYS
++#  ifndef HAVE_SSIZE_T
++typedef SSIZE_T ssize_t;
++#  endif
++#  ifndef HAVE_SNPRINTF
++#    define snprintf hwloc_snprintf
++#  endif
++#  if !HAVE_DECL_STRTOULL && !defined(HAVE_STRTOULL)
++#    define strtoull _strtoui64
++#  endif
++#  if !HAVE_DECL_S_ISREG
++#    define S_ISREG(mode) (mode & _S_IFREG)
++#  endif
++#  if !HAVE_DECL_S_ISDIR
++#    define S_ISDIR(mode) (mode & _S_IFDIR)
++#  endif
++#  ifndef HAVE_STRCASECMP
++#    define strcasecmp hwloc_strcasecmp
++#  endif
++#endif
++
+ #endif /* HWLOC_PRIVATE_MISC_H */
+diff --git a/utils/hwloc/Makefile.am b/utils/hwloc/Makefile.am
+index 0486a7a..f6dd15a 100644
+--- a/utils/hwloc/Makefile.am
++++ b/utils/hwloc/Makefile.am
+@@ -31,12 +31,14 @@ bin_PROGRAMS = \
+         hwloc-distances \
+         hwloc-distrib \
+         hwloc-info \
+-        hwloc-patch \
+-        hwloc-ps
++        hwloc-patch
+ 
+ if HWLOC_HAVE_X86_CPUID
+ bin_PROGRAMS += hwloc-gather-cpuid
+ endif HWLOC_HAVE_X86_CPUID
++if HWLOC_HAVE_DIRENT_H
++bin_PROGRAMS += hwloc-ps
++endif
+ 
+ if HWLOC_HAVE_LINUX
+ if HWLOC_HAVE_X86
+@@ -86,11 +88,13 @@ man1_pages = \
+         hwloc-distances.1 \
+         hwloc-distrib.1 \
+         hwloc-info.1 \
+-        hwloc-patch.1 \
+-        hwloc-ps.1
++        hwloc-patch.1
+ if HWLOC_HAVE_X86_CPUID
+ man1_pages += hwloc-gather-cpuid.1
+ endif HWLOC_HAVE_X86_CPUID
++if HWLOC_HAVE_DIRENT_H
++man1_pages += hwloc-ps.1
++endif
+ 
+ if HWLOC_HAVE_LINUX
+ if HWLOC_HAVE_X86
+diff --git a/utils/lstopo/Makefile.am b/utils/lstopo/Makefile.am
+index 0336bf7..c25df8f 100644
+--- a/utils/lstopo/Makefile.am
++++ b/utils/lstopo/Makefile.am
+@@ -45,6 +45,9 @@ if HWLOC_HAVE_WINDOWS
+ bin_PROGRAMS += lstopo lstopo-win
+ lstopo_SOURCES += lstopo-windows.c
+ lstopo_CPPFLAGS += -DLSTOPO_HAVE_GRAPHICS
++if HWLOC_HAVE_USER32
++lstopo_LDADD += -luser32
++endif
+ lstopo_win_SOURCES = $(lstopo_SOURCES)
+ lstopo_win_CPPFLAGS = $(lstopo_CPPFLAGS)
+ lstopo_win_CFLAGS = $(lstopo_CFLAGS) -mwindows

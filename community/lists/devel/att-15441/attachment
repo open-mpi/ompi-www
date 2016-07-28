@@ -1,0 +1,352 @@
+<div dir="ltr">Gilles,<div><br></div><div>At the moment ompi/mca/osc/sm/osc_sm_component.c is using the following:</div><div><br></div><div><div>#ifdef HAVE_GETPAGESIZE</div><div>        pagesize = getpagesize();</div><div>
+#else</div><div>        pagesize = 4096;</div><div>#endif</div></div><div><br></div><div>While other places in the code use <span style="color:rgb(0,0,0);font-family:arial,sans-serif;font-size:13px">sysconf(), but not always consistently.</span></div>
+<div><span style="color:rgb(0,0,0);font-family:arial,sans-serif;font-size:13px"><br></span></div><div>And on some systems _SC_PAGESIZE is spelled as _SC_PAGE_SIZE.</div><div>Fortunately configure already checks these variations for you.</div>
+<div><br></div><div>So, I suggest</div><div><br></div><div><div>#ifdef HAVE_GETPAGESIZE</div><div>        pagesize = getpagesize();</div><div>#elif defined(_SC_PAGESIZE )</div><div>        pagesize = <span style="color:rgb(0,0,0);font-family:arial,sans-serif;font-size:13px">sysconf(</span>_SC_PAGESIZE);</div>
+<div>#elif defined(_SC_PAGE_SIZE)</div><div><div>        pagesize = <span style="color:rgb(0,0,0);font-family:arial,sans-serif;font-size:13px">sysconf(</span>_SC_PAGE_SIZE);</div></div><div>#else</div><div>        pagesize = 65536; /* safer to overestimate than under */</div>
+<div>#endif</div></div><div><br></div><div><br></div><div class="gmail_extra">opal_pagesize() anyone?</div><div class="gmail_extra"><br></div><div class="gmail_extra">-Paul<br><br><div class="gmail_quote">On Fri, Aug 1, 2014 at 12:50 AM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+  
+    
+  
+  <div text="#000000" bgcolor="#FFFFFF">
+    <div>Paul,<br>
+      <br>
+      you are absolutly right !<br>
+      <br>
+      in ompi/mca/coll/ml/coll_ml_lmngr.c at line 53,<br>
+      cm-&gt;lmngr_alignment is hard coded to 4096<br>
+      <br>
+      as a proof of concept, i hard coded it to 65536 and now coll/ml
+      works just fine<br>
+      <br>
+      i will now write a patch that uses sysconf(_SC_PAGESIZE) instead<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/08/01 15:56, Paul Hargrove wrote:<br>
+    </div>
+    <blockquote type="cite">
+      <pre>Hmm, maybe this has nothing to do with big-endian.
+Below is a backtrace from ring_c on an IA64 platform (definitely
+little-endian) that looks very similar to me.
+
+It happens that sysconf(_SC_PAGESIZE) returns 64K on both of these systems.
+So, I wonder if that might be related.
+
+-Paul
+
+$ mpirun -mca btl sm,self -np 2 examples/ring_c&#39;
+[altix][[26769,1],0][/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/openmpi-1.9a1r32386/ompi/mca/coll/ml/coll_ml_lmngr.c:231:mca_coll_ml_lmngr_init]
+COLL-ML [altix:20418] *** Process received signal ***
+[altix:20418] Signal: Segmentation fault (11)
+[altix:20418] Signal code: Invalid permissions (2)
+[altix:20418] Failing at address: 0x16
+[altix][[26769,1],1][/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/openmpi-1.9a1r32386/ompi/mca/coll/ml/coll_ml_lmngr.c:231:mca_coll_ml_lmngr_init]
+COLL-ML [altix:20419] *** Process received signal ***
+[altix:20419] Signal: Segmentation fault (11)
+[altix:20419] Signal code: Invalid permissions (2)
+[altix:20419] Failing at address: 0x16
+[altix:20418] [ 0] [0xa000000000010800]
+[altix:20418] [ 1] /lib/libc.so.6.1(strlen-0x92e930)[0x200000000051b2a0]
+[altix:20418] [altix:20419] [ 0] [0xa000000000010800]
+[altix:20419] [ 1] [ 2]
+/lib/libc.so.6.1(strlen-0x92e930)[0x200000000051b2a0]
+[altix:20419] [ 2]
+/lib/libc.so.6.1(_IO_vfprintf-0x998610)[0x20000000004b15d0]
+[altix:20419] [ 3] /lib/libc.so.6.1(+0x82860)[0x20000000004b2860]
+[altix:20419] [ 4]
+/lib/libc.so.6.1(_IO_vfprintf-0x99f140)[0x20000000004aaaa0]
+[altix:20419] [ 5]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/openmpi/mca_coll_ml.so(+0xc5a70)[0x2000000001e55a70]
+[altix:20419] [ 6]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/openmpi/mca_coll_ml.so(+0xc84a0)[0x2000000001e584a0]
+[altix:20419] [ 7]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/openmpi/mca_coll_ml.so(mca_coll_ml_lmngr_alloc+0x100f520)[0x2000000001e59110]
+[altix:20419] [ 8]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/openmpi/mca_coll_ml.so(mca_coll_ml_allocate_block+0xf6e940)[0x2000000001db8540]
+[altix:20419] [ 9]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/openmpi/mca_coll_ml.so(+0x10130)[0x2000000001da0130]
+[altix:20419] [10]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/openmpi/mca_coll_ml.so(+0x19970)[0x2000000001da9970]
+[altix:20419] [11]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/openmpi/mca_coll_ml.so(mca_coll_ml_comm_query+0xf6d6b0)[0x2000000001db5830]
+[altix:20419] [12]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/libmpi.so.0(+0x22fbd0)[0x200000000028fbd0]
+[altix:20419] [13]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/libmpi.so.0(+0x22fac0)[0x200000000028fac0]
+[altix:20419] [14]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/libmpi.so.0(+0x22f7e0)[0x200000000028f7e0]
+[altix:20419] [15]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/libmpi.so.0(+0x22eac0)[0x200000000028eac0]
+[altix:20419] [16]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/libmpi.so.0(mca_coll_base_comm_select-0xbcbb90)[0x200000000027e080]
+[altix:20419] [17]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/libmpi.so.0(ompi_mpi_init-0xd38e70)[0x2000000000110db0]
+[altix:20419] [18]
+/eng/home/PHHargrove/OMPI/openmpi-trunk-linux-ia64/INST/lib/libmpi.so.0(MPI_Init-0xc8bf40)[0x20000000001bdcf0]
+[altix:20419] [19] examples/ring_c[0x4000000000000c00]
+[altix:20419] [20]
+/lib/libc.so.6.1(__libc_start_main-0x9f56b0)[0x2000000000454590]
+[altix:20419] [21] examples/ring_c[0x4000000000000a20]
+[altix:20419] *** End of error message ***
+/lib/libc.so.6.1(_IO_vfprintf-0x998610)[0x20000000004b15d0]
+[altix:20418] [ 3] /lib/libc.so.6.1(+0x82860)[0x20000000004b2860]
+[altix:20418] [ 4]
+/lib/libc.so.6.1(_IO_vfprintf-0x99f140)[0x20000000004aaaa0]
+
+
+
+
+On Thu, Jul 31, 2014 at 11:47 PM, Paul Hargrove <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre>Gilles&#39;s findings are consistent with mine which showed the SEGVs to be in
+the coll/ml code.
+I&#39;ve built with --enable-debug and so below is a backtrace (well, two
+actually) that might be helpful.
+Unfortunately the output of the two ranks did get slightly entangled.
+
+-Paul
+
+$ ../INST/bin/mpirun -mca btl sm,self -np 2 examples/ring_c&#39;
+[bd-login][[43502,1],0][/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/openmpi-1.9a1r32369/ompi/mca/coll/ml/coll_ml_lmngr.c:231:mca_coll_ml_lmngr_init]
+COLL-ML [bd-login:09106] *** Process received signal ***
+[bd-login][[43502,1],1][/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/openmpi-1.9a1r32369/ompi/mca/coll/ml/coll_ml_lmngr.c:231:mca_coll_ml_lmngr_init]
+COLL-ML [bd-login:09107] *** Process received signal ***
+[bd-login:09107] Signal: Segmentation fault (11)
+[bd-login:09107] Signal code: Address not mapped (1)
+[bd-login:09107] Failing at address: 0x10
+[bd-login:09107] [ 0] [bd-login:09106] Signal: Segmentation fault (11)
+[bd-login:09106] Signal code: Address not mapped (1)
+[bd-login:09106] Failing at address: 0x10
+[bd-login:09106] [ 0] [0xfffa96c0418]
+[bd-login:09106] [ 1] [0xfff8f580418]
+[bd-login:09107] [ 1] /lib64/libc.so.6(_IO_vfprintf-0x157168)[0x80c9b5b968]
+[bd-login:09107] [ 2] /lib64/libc.so.6(_IO_vfprintf-0x157168)[0x80c9b5b968]
+[bd-login:09106] [ 2] /lib64/libc.so.6[0x80c9b600b4]
+[bd-login:09106] [ 3] /lib64/libc.so.6[0x80c9b600b4]
+[bd-login:09107] [ 3] /lib64/libc.so.6(_IO_vfprintf-0x157010)[0x80c9b5bac0]
+[bd-login:09107] [ 4] /lib64/libc.so.6(_IO_vfprintf-0x157010)[0x80c9b5bac0]
+[bd-login:09106] [ 4]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(+0x66580)[0xfffa8296580]
+[bd-login:09106] [ 5]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(+0x67604)[0xfffa8297604]
+[bd-login:09106] [ 6]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(mca_coll_ml_lmngr_alloc-0x1af04)[0xfffa829784c]
+[bd-login:09106] [ 7]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(mca_coll_ml_allocate_block-0x607b4)[0xfffa8250d4c]
+[bd-login:09106]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(+0x66580)[0xfff8e156580]
+[bd-login:09107] [ 5]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(+0x67604)[0xfff8e157604]
+[bd-login:09107] [ 6]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(mca_coll_ml_lmngr_alloc-0x1af04)[0xfff8e15784c]
+[bd-login:09107] [ 7]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(mca_coll_ml_allocate_block-0x607b4)[0xfff8e110d4c]
+[bd-login:09107] [ 8]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(+0x165e4)[0xfff8e1065e4]
+[bd-login:09107] [ 9]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(+0x1a7d8)[0xfff8e10a7d8]
+[bd-login:09107] [10]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(mca_coll_ml_comm_query-0x61b50)[0xfff8e10f970]
+[bd-login:09107] [11] [ 8]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(+0x165e4)[0xfffa82465e4]
+[bd-login:09106] [ 9]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(+0x1a7d8)[0xfffa824a7d8]
+[bd-login:09106] [10]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/openmpi/mca_coll_ml.so(mca_coll_ml_comm_query-0x61b50)[0xfffa824f970]
+[bd-login:09106] [11]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(+0x165ba0)[0xfff8f4b5ba0]
+[bd-login:09107] [12]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(+0x165b14)[0xfff8f4b5b14]
+[bd-login:09107] [13]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(+0x165ba0)[0xfffa95f5ba0]
+[bd-login:09106] [12]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(+0x165b14)[0xfffa95f5b14]
+[bd-login:09106] [13]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(+0x1659a8)[0xfffa95f59a8]
+[bd-login:09106] [14]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(+0x1659a8)[0xfff8f4b59a8]
+[bd-login:09107] [14]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(+0x1657ac)[0xfffa95f57ac]
+[bd-login:09106] [15]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(+0x1657ac)[0xfff8f4b57ac]
+[bd-login:09107] [15]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(mca_coll_base_comm_select-0x9b89c)[0xfff8f4ae3ec]
+[bd-login:09107]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(mca_coll_base_comm_select-0x9b89c)[0xfffa95ee3ec]
+[bd-login:09106] [16] [16]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(ompi_mpi_init-0x13f790)[0xfff8f401408]
+[bd-login:09107] [17]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(ompi_mpi_init-0x13f790)[0xfffa9541408]
+[bd-login:09106] [17]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(MPI_Init-0xf28d4)[0xfffa9591c74]
+[bd-login:09106] [18] examples/ring_c[0x1000099c]
+[bd-login:09106] [19]
+/home/hargrov1/OMPI/openmpi-trunk-linux-ppc64-gcc/INST/lib/libmpi.so.0(MPI_Init-0xf28d4)[0xfff8f451c74]
+[bd-login:09107] [18] examples/ring_c[0x1000099c]
+[bd-login:09107] [19] /lib64/libc.so.6[0x80c9b2bcd8]
+[bd-login:09107] [20] /lib64/libc.so.6[0x80c9b2bcd8]
+[bd-login:09106] [20]
+/lib64/libc.so.6(__libc_start_main-0x184e00)[0x80c9b2bed0]
+[bd-login:09107] *** End of error message ***
+/lib64/libc.so.6(__libc_start_main-0x184e00)[0x80c9b2bed0]
+[bd-login:09106] *** End of error message ***
+--------------------------------------------------------------------------
+mpirun noticed that process rank 0 with PID 0 on node bd-login exited on
+signal 11 (Segmentation fault).
+--------------------------------------------------------------------------
+
+
+
+
+
+
+
+On Thu, Jul 31, 2014 at 11:39 PM, Gilles Gouaillardet &lt;
+<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>&gt; wrote:
+
+</pre>
+        <blockquote type="cite">
+          <pre> Paul and Ralph,
+
+for what it&#39;s worth :
+
+a) i faced the very same issue on my (sloooow) qemu emulated ppc64 vm
+b) i was able to run very basic programs when passing --mca coll ^ml to
+mpirun
+
+Cheers,
+
+Gilles
+
+On 2014/08/01 12:30, Ralph Castain wrote:
+
+Yes, I fear this will require some effort to chase all the breakage down given that (to my knowledge, at least) we lack PPC machines in the devel group.
+
+
+On Jul 31, 2014, at 5:46 PM, Paul Hargrove <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+
+
+ On the path to verifying George&#39;s atomics patch, I have started just by verifying that I can still build the UNPATCHED trunk on each of the platforms I listed.
+
+I have tried two PPC64/Linux systems so far and am seeing the same problem on both.  Though I can pass &quot;make check&quot; both platforms SEGV on
+   mpirun -mca btl sm,self -np 2 examples/ring_c
+
+Is this the expected state of the trunk on big-endian systems?
+I am thinking in particular of <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15365.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15365.php</a> in which Ralph wrote:
+
+ Yeah, my fix won&#39;t work for big endian machines - this is going to be an issue across the
+code base now, so we&#39;ll have to troll and fix it. I was doing the minimal change required to
+fix the trunk in the meantime.
+
+ If this big-endian failure is not known/expected let me know and I&#39;ll provide details.
+Since testing George&#39;s patch only requires &quot;make check&quot; I can proceed with that regardless.
+
+-Paul
+
+
+On Thu, Jul 31, 2014 at 4:25 PM, George Bosilca <a href="mailto:bosilca@icl.utk.edu" target="_blank">&lt;bosilca@icl.utk.edu&gt;</a> <a href="mailto:bosilca@icl.utk.edu" target="_blank">&lt;bosilca@icl.utk.edu&gt;</a> wrote:
+Awesome, thanks Paul. When the results will be in we will fix whatever is needed for these less common architectures.
+
+  George.
+
+
+
+On Thu, Jul 31, 2014 at 7:24 PM, Paul Hargrove <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+
+
+On Thu, Jul 31, 2014 at 4:22 PM, Paul Hargrove <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+
+On Thu, Jul 31, 2014 at 4:13 PM, George Bosilca <a href="mailto:bosilca@icl.utk.edu" target="_blank">&lt;bosilca@icl.utk.edu&gt;</a> <a href="mailto:bosilca@icl.utk.edu" target="_blank">&lt;bosilca@icl.utk.edu&gt;</a> wrote:
+Paul, I know you have a pretty diverse range computers. Can you try to compile and run a &quot;make check&quot; with the following patch?
+
+I will see what I can do for ARMv7, MIPS, PPC and IA64 (or whatever subset of those is still supported).
+The ARM and MIPS system are emulators and take forever to build OMPI.
+However, I am not even sure how soon I&#39;ll get to start this testing.
+
+
+Add SPARC (v8plus and v9) to that list.
+
+
+
+--
+Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a>
+Future Technologies Group
+Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a>
+Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a>
+
+_______________________________________________
+devel mailing <a href="mailto:listdevel@open-mpi.org" target="_blank">listdevel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15411.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15411.php</a>
+
+
+_______________________________________________
+devel mailing <a href="mailto:listdevel@open-mpi.org" target="_blank">listdevel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15412.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15412.php</a>
+
+
+
+--
+Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a>
+Future Technologies Group
+Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a>
+Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a>
+_______________________________________________
+devel mailing <a href="mailto:listdevel@open-mpi.org" target="_blank">listdevel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15414.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15414.php</a>
+
+
+
+_______________________________________________
+devel mailing <a href="mailto:listdevel@open-mpi.org" target="_blank">listdevel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15425.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15425.php</a>
+
+
+
+_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a href="http://www.open-mpi.org/community/lists/devel/2014/08/15436.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15436.php</a>
+
+</pre>
+        </blockquote>
+        <pre>--
+Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a>
+Future Technologies Group
+Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a>
+Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a>
+
+</pre>
+      </blockquote>
+      <pre></pre>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      <pre>_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15438.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15438.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15439.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15439.php</a><br></blockquote></div><br><br clear="all"><div>
+<br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>
+Computer and Data Sciences Department     Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font>
+</div></div>
+

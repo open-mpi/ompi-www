@@ -1,0 +1,245 @@
+Yes, that is correct - we reserve the first port in the range for a daemon, should one exist.<div><br></div><div>The problem is clearly that get_node_rank is returning the wrong value for the second process (your rank=1). If you want to dig deeper, look at the orte/mca/ess/generic code where it generates the nidmap and pidmap. There is a bug down there somewhere that gives the wrong answer when ppn &gt; 1.</div>
+<div><br></div><div><br><br><div class="gmail_quote">On Thu, Aug 19, 2010 at 12:12 PM, Philippe <span dir="ltr">&lt;<a href="mailto:philmpi@mytoaster.net">philmpi@mytoaster.net</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+Ralph,<br>
+<br>
+somewhere in ./orte/mca/oob/tcp/oob_tcp.c, there is this comment:<br>
+<br>
+                orte_node_rank_t nrank;<br>
+                /* do I know my node_local_rank yet? */<br>
+                if (ORTE_NODE_RANK_INVALID != (nrank =<br>
+orte_ess.get_node_rank(ORTE_PROC_MY_NAME)) &amp;&amp;<br>
+                    (nrank+1) &lt;<br>
+opal_argv_count(mca_oob_tcp_component.tcp4_static_ports)) {<br>
+                    /* any daemon takes the first entry, so we start<br>
+with the second */<br>
+<br>
+which seems constant with process #0 listening on 10001. the question<br>
+would be why process #1 attempt to connect to port 10000 then? or<br>
+maybe totally unrelated :-)<br>
+<br>
+btw, if I trick process #1 to open the connection to 10001 by shifting<br>
+the range, I now get this error and the process terminate immediately:<br>
+<br>
+[c0301b10e1:03919] [[0,9999],1]-[[0,0],0]<br>
+mca_oob_tcp_peer_recv_connect_ack: received unexpected process<br>
+identifier [[0,9999],0]<br>
+<br>
+good luck with the surgery and wishing you a prompt recovery!<br>
+<font color="#888888"><br>
+p.<br>
+</font><div><div></div><div class="h5"><br>
+On Thu, Aug 19, 2010 at 2:02 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt; Something doesn&#39;t look right - here is what the algo attempts to do:<br>
+&gt; given a port range of 10000-12000, the lowest rank&#39;d process on the node<br>
+&gt; should open port 10000. The next lowest rank on the node will open 10001,<br>
+&gt; etc.<br>
+&gt; So it looks to me like there is some confusion in the local rank algo. I&#39;ll<br>
+&gt; have to look at the generic module - must be a bug in it somewhere.<br>
+&gt; This might take a couple of days as I have surgery tomorrow morning, so<br>
+&gt; please forgive the delay.<br>
+&gt;<br>
+&gt; On Thu, Aug 19, 2010 at 11:13 AM, Philippe &lt;<a href="mailto:philmpi@mytoaster.net">philmpi@mytoaster.net</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; Ralph,<br>
+&gt;&gt;<br>
+&gt;&gt; I&#39;m able to use the generic module when the processes are on different<br>
+&gt;&gt; machines.<br>
+&gt;&gt;<br>
+&gt;&gt; what would be the values of the EV when two processes are on the same<br>
+&gt;&gt; machine (hopefully talking over SHM).<br>
+&gt;&gt;<br>
+&gt;&gt; i&#39;ve played with combination of nodelist and ppn but no luck. I get errors<br>
+&gt;&gt; like:<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; [c0301b10e1:03172] [[0,9999],1] -&gt; [[0,0],0] (node: c0301b10e1)<br>
+&gt;&gt; oob-tcp: Number of attempts to create TCP connection has been<br>
+&gt;&gt; exceeded.  Can not communicate with peer<br>
+&gt;&gt; [c0301b10e1:03172] [[0,9999],1] ORTE_ERROR_LOG: Unreachable in file<br>
+&gt;&gt; grpcomm_hier_module.c at line 303<br>
+&gt;&gt; [c0301b10e1:03172] [[0,9999],1] ORTE_ERROR_LOG: Unreachable in file<br>
+&gt;&gt; base/grpcomm_base_modex.c at line 470<br>
+&gt;&gt; [c0301b10e1:03172] [[0,9999],1] ORTE_ERROR_LOG: Unreachable in file<br>
+&gt;&gt; grpcomm_hier_module.c at line 484<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; It looks like MPI_INIT failed for some reason; your parallel process is<br>
+&gt;&gt; likely to abort.  There are many reasons that a parallel process can<br>
+&gt;&gt; fail during MPI_INIT; some of which are due to configuration or<br>
+&gt;&gt; environment<br>
+&gt;&gt; problems.  This failure appears to be an internal failure; here&#39;s some<br>
+&gt;&gt; additional information (which may only be relevant to an Open MPI<br>
+&gt;&gt; developer):<br>
+&gt;&gt;<br>
+&gt;&gt;  orte_grpcomm_modex failed<br>
+&gt;&gt;  --&gt; Returned &quot;Unreachable&quot; (-12) instead of &quot;Success&quot; (0)<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; *** The MPI_Init() function was called before MPI_INIT was invoked.<br>
+&gt;&gt; *** This is disallowed by the MPI standard.<br>
+&gt;&gt; *** Your MPI job will now abort.<br>
+&gt;&gt; [c0301b10e1:3172] Abort before MPI_INIT completed successfully; not<br>
+&gt;&gt; able to guarantee that all other processes were killed!<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; maybe a related question is how to assign the TCP port range and how<br>
+&gt;&gt; is it used? when the processes are on different machines, I use the<br>
+&gt;&gt; same range and that&#39;s ok as long as the range is free. but when the<br>
+&gt;&gt; processes are on the same node, what value should the range be for<br>
+&gt;&gt; each process? My range is 10000-12000 (for both processes) and I see<br>
+&gt;&gt; that process with rank #0 listen on port 10001 while process with rank<br>
+&gt;&gt; #1 try to establish a connect to port 10000.<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks so much!<br>
+&gt;&gt; p. still here... still trying... ;-)<br>
+&gt;&gt;<br>
+&gt;&gt; On Tue, Jul 27, 2010 at 12:58 AM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt;&gt; &gt; Use what hostname returns - don&#39;t worry about IP addresses as we&#39;ll<br>
+&gt;&gt; &gt; discover them.<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; On Jul 26, 2010, at 10:45 PM, Philippe wrote:<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt;&gt; Thanks a lot!<br>
+&gt;&gt; &gt;&gt;<br>
+&gt;&gt; &gt;&gt; now, for the ev &quot;OMPI_MCA_orte_nodes&quot;, what do I put exactly? our<br>
+&gt;&gt; &gt;&gt; nodes have a short/long name (it&#39;s rhel 5.x, so the command hostname<br>
+&gt;&gt; &gt;&gt; returns the long name) and at least 2 IP addresses.<br>
+&gt;&gt; &gt;&gt;<br>
+&gt;&gt; &gt;&gt; p.<br>
+&gt;&gt; &gt;&gt;<br>
+&gt;&gt; &gt;&gt; On Tue, Jul 27, 2010 at 12:06 AM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;<br>
+&gt;&gt; &gt;&gt; wrote:<br>
+&gt;&gt; &gt;&gt;&gt; Okay, fixed in r23499. Thanks again...<br>
+&gt;&gt; &gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt; On Jul 26, 2010, at 9:47 PM, Ralph Castain wrote:<br>
+&gt;&gt; &gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt; Doh - yes it should! I&#39;ll fix it right now.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt; Thanks!<br>
+&gt;&gt; &gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt; On Jul 26, 2010, at 9:28 PM, Philippe wrote:<br>
+&gt;&gt; &gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; Ralph,<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; i was able to test the generic module and it seems to be working.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; one question tho, the function orte_ess_generic_component_query in<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; &quot;orte/mca/ess/generic/ess_generic_component.c&quot; calls getenv with the<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; argument &quot;OMPI_MCA_enc&quot;, which seems to cause the module to fail to<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; load. shouldnt it be &quot;OMPI_MCA_ess&quot; ?<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; .....<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;   /* only pick us if directed to do so */<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;   if (NULL != (pick = getenv(&quot;OMPI_MCA_env&quot;)) &amp;&amp;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;                0 == strcmp(pick, &quot;generic&quot;)) {<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;       *priority = 1000;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;       *module = (mca_base_module_t *)&amp;orte_ess_generic_module;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; ...<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; p.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; On Thu, Jul 22, 2010 at 5:53 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt; wrote:<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt; Dev trunk looks okay right now - I think you&#39;ll be fine using it.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt; My new component -might- work with 1.5, but probably not with 1.4. I haven&#39;t<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt; checked either of them.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt; Anything at r23478 or above will have the new module. Let me know<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt; how it works for you. I haven&#39;t tested it myself, but am pretty sure it<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt; should work.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt; On Jul 22, 2010, at 3:22 PM, Philippe wrote:<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; Ralph,<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; Thank you so much!!<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; I&#39;ll give it a try and let you know.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; I know it&#39;s a tough question, but how stable is the dev trunk? Can<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; I<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; just grab the latest and run, or am I better off taking your<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; changes<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; and copy them back in a stable release? (if so, which one? 1.4?<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; 1.5?)<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; p.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; On Thu, Jul 22, 2010 at 3:50 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt; wrote:<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; It was easier for me to just construct this module than to<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; explain how to do so :-)<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; I will commit it this evening (couple of hours from now) as that<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; is our standard practice. You&#39;ll need to use the developer&#39;s trunk, though,<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; to use it.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Here are the envars you&#39;ll need to provide:<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Each process needs to get the same following values:<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; * OMPI_MCA_ess=generic<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; * OMPI_MCA_orte_num_procs=&lt;number of MPI procs&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; * OMPI_MCA_orte_nodes=&lt;a comma-separated list of nodenames where<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; MPI procs reside&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; * OMPI_MCA_orte_ppn=&lt;number of procs/node&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Note that I have assumed this last value is a constant for<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; simplicity. If that isn&#39;t the case, let me know - you could instead provide<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; it as a comma-separated list of values with an entry for each node.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; In addition, you need to provide the following value that will be<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; unique to each process:<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; * OMPI_MCA_orte_rank=&lt;MPI rank&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Finally, you have to provide a range of static TCP ports for use<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; by the processes. Pick any range that you know will be available across all<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; the nodes. You then need to ensure that each process sees the following<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; envar:<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; * OMPI_MCA_oob_tcp_static_ports=6000-6010  &lt;== obviously, replace<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; this with your range<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; You will need a port range that is at least equal to the ppn for<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; the job (each proc on a node will take one of the provided ports).<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; That should do it. I compute everything else I need from those<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; values.<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Does that work for you?<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Ralph<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt; &gt;&gt;<br>
+&gt;&gt; &gt;&gt; _______________________________________________<br>
+&gt;&gt; &gt;&gt; users mailing list<br>
+&gt;&gt; &gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; &gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt;<br>
+&gt;&gt; &gt; _______________________________________________<br>
+&gt;&gt; &gt; users mailing list<br>
+&gt;&gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; &gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></div></blockquote></div><br></div>
+

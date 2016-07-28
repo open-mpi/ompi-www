@@ -1,0 +1,737 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Kawashima-san,<br>
+      <br>
+      thanks a lot for the detailled explanation.<br>
+      FWIW, i was previously testing on Solaris 11 that behaves like
+      Linux : printf("%s", NULL) outputs '(null)'<br>
+      vs a SIGSEGV on Solaris 10<br>
+      <br>
+      i commited a16c1e44189366fbc8e967769e050f517a40f3f8 in order to
+      fix this issue<br>
+      (i moved the call to mca_base_var_register *after* MPI_Init)<br>
+      <br>
+      regarding the BUS error reported by Siegmar, i also commited
+      62bde1fcb554079143030bb305512c236672386f<br>
+      in order to fix it (this is based on code review only, i have no
+      sparc64 hardware to test it is enough)<br>
+      <br>
+      Siegmar, --enable-heterogeneous is known to be broken on the
+      trunk, and there are discussions on how to fix it.<br>
+      in the mean time, you can either apply the attached minimal
+      heterogeneous.diff patch or avoid the --enable-heterogeneous
+      option<br>
+      /* the attached patch "fixes" --enable-heterogeneous on
+      homogeneous clusters *only* */<br>
+      <br>
+      about attaching a process with gdb, i usually run<br>
+      gdb none &lt;pid&gt;<br>
+      on Linux and everything is fine<br>
+      on Solaris, i had to do<br>
+      gdb /usr/bin/java &lt;pid&gt;<br>
+      in order to get the symbols loaded by gdb<br>
+      and then<br>
+      thread 11<br>
+      f 3<br>
+      set _dbg=0<br>
+      /* but this is likely environment specific */<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/10/27 10:58, Ralph Castain wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:120D6330-6BE8-42DE-936C-B2619621AA19@open-mpi.org"
+      type="cite">
+      <pre wrap="">Oh yeah - that would indeed be very bad :-(
+
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">On Oct 26, 2014, at 6:06 PM, Kawashima, Takahiro <a class="moz-txt-link-rfc2396E" href="mailto:t-kawashima@jp.fujitsu.com">&lt;t-kawashima@jp.fujitsu.com&gt;</a> wrote:
+
+Siegmar, Oscar,
+
+I suspect that the problem is calling mca_base_var_register
+without initializing OPAL in JNI_OnLoad.
+
+ompi/mpi/java/c/mpi_MPI.c:
+----------------------------------------------------------------
+jint JNI_OnLoad(JavaVM *vm, void *reserved)
+{
+   libmpi = dlopen("libmpi." OPAL_DYN_LIB_SUFFIX, RTLD_NOW | RTLD_GLOBAL);
+
+   if(libmpi == NULL)
+   {
+       fprintf(stderr, "Java bindings failed to load liboshmem.\n");
+       exit(1);
+   }
+
+   mca_base_var_register("ompi", "mpi", "java", "eager",
+                         "Java buffers eager size",
+                         MCA_BASE_VAR_TYPE_INT, NULL, 0, 0,
+                         OPAL_INFO_LVL_5,
+                         MCA_BASE_VAR_SCOPE_READONLY,
+                         &amp;ompi_mpi_java_eager);
+
+   return JNI_VERSION_1_6;
+}
+----------------------------------------------------------------
+
+I suppose JNI_OnLoad is the first function in the libmpi_java.so
+which is called by JVM. So OPAL is not initialized yet.
+As shown in Siegmar's JRE log, SEGV occurred in asprintf called
+by mca_base_var_cache_files.
+
+Siegmar's hs_err_pid13080.log:
+----------------------------------------------------------------
+siginfo:si_signo=SIGSEGV: si_errno=0, si_code=1 (SEGV_MAPERR), si_addr=0x0000000000000000
+
+Stack: [0xffffffff7b400000,0xffffffff7b500000],  sp=0xffffffff7b4fc730,  free space=1009k
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+C  [libc.so.1+0x3c7f0]  strlen+0x50
+C  [libc.so.1+0xaf640]  vsnprintf+0x84
+C  [libc.so.1+0xaadb4]  vasprintf+0x20
+C  [libc.so.1+0xaaf04]  asprintf+0x28
+C  [libopen-pal.so.0.0.0+0xaf3cc]  mca_base_var_cache_files+0x160
+C  [libopen-pal.so.0.0.0+0xaed90]  mca_base_var_init+0x4e8
+C  [libopen-pal.so.0.0.0+0xb260c]  register_variable+0x214
+C  [libopen-pal.so.0.0.0+0xb36a0]  mca_base_var_register+0x104
+C  [libmpi_java.so.0.0.0+0x221e8]  JNI_OnLoad+0x128
+C  [libjava.so+0x10860]  Java_java_lang_ClassLoader_00024NativeLibrary_load+0xb8
+j  java.lang.ClassLoader$NativeLibrary.load(Ljava/lang/String;Z)V+-665819
+j  java.lang.ClassLoader$NativeLibrary.load(Ljava/lang/String;Z)V+0
+j  java.lang.ClassLoader.loadLibrary0(Ljava/lang/Class;Ljava/io/File;)Z+328
+j  java.lang.ClassLoader.loadLibrary(Ljava/lang/Class;Ljava/lang/String;Z)V+290
+j  java.lang.Runtime.loadLibrary0(Ljava/lang/Class;Ljava/lang/String;)V+54
+j  java.lang.System.loadLibrary(Ljava/lang/String;)V+7
+j  mpi.MPI.&lt;clinit&gt;()V+28
+----------------------------------------------------------------
+
+mca_base_var_cache_files passes opal_install_dirs.sysconfdir to
+asprintf.
+
+opal/mca/base/mca_base_var.c:
+----------------------------------------------------------------
+   asprintf(&amp;mca_base_var_files, "%s"OPAL_PATH_SEP".openmpi" OPAL_PATH_SEP
+            "mca-params.conf%c%s" OPAL_PATH_SEP "openmpi-mca-params.conf",
+            home, OPAL_ENV_SEP, opal_install_dirs.sysconfdir);
+----------------------------------------------------------------
+
+In this situation, opal_install_dirs.sysconfdir is still NULL.
+
+I run a MPI Java program that only calls MPI.Init() and
+MPI.Finalize() with MCA variable mpi_show_mca_params=1 on
+Linux to confirm this. mca_base_param_files contains "(null)".
+
+mpi_show_mca_params=1:
+----------------------------------------------------------------
+[ppc:12232] mca_base_param_files=/home/rivis/.openmpi/mca-params.conf:(null)/openmpi-mca-params.conf (default)
+[ppc:12232] mca_param_files=/home/rivis/.openmpi/mca-params.conf:(null)/openmpi-mca-params.conf (default)
+[ppc:12232] mca_base_override_param_file=(null)/openmpi-mca-params-override.conf (default)
+[ppc:12232] mca_base_suppress_override_warning=false (default)
+[ppc:12232] mca_base_param_file_prefix= (default)
+[ppc:12232] mca_base_param_file_path=(null)/amca-param-sets:/home/rivis/src/mpisample (default)
+[ppc:12232] mca_base_param_file_path_force= (default)
+[ppc:12232] mca_base_env_list= (default)
+[ppc:12232] mca_base_env_list_delimiter=; (default)
+[ppc:12232] mpi_java_eager=65536 (default)
+(snip)
+----------------------------------------------------------------
+
+GNU libc sets "(null)" for asprintf(buf, "%s", NULL) but
+Solaris libc raises SEGV for it. I think this is the difference
+of Siegmar's runs on Linux and Solaris.
+
+I think this mca_base_var_register should be moved to another
+place or opal_init_util or something should be called before
+this mca_base_var_register.
+
+Thanks,
+Takahiro
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Hi Gilles,
+
+thank you very much for the quick tutorial. Unfortunately I still
+can't get a backtrace.
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">You might need to configure with --enable-debug and add -g -O0
+to your CFLAGS and LDFLAGS
+
+Then once you attach with gdb, you have to find the thread that is polling :
+thread 1
+bt
+thread 2
+bt
+and so on until you find the good thread
+If _dbg is a local variable, you need to select the right frame
+before you can change the value :
+get the frame number from bt (generally 1 under linux)
+f &lt;frame number&gt;
+set _dbg=0
+
+I hope this helps
+</pre>
+          </blockquote>
+          <pre wrap="">
+"--enable-debug" is one of my default options. Now I used the
+following command to configure Open MPI. I always start the
+build process in an empty directory and I always remove
+/usr/local/openmpi-1.9.0_64_gcc, before I install a new version.
+
+tyr openmpi-dev-124-g91e9686-SunOS.sparc.64_gcc 112 head config.log \
+ | grep openmpi
+$ ../openmpi-dev-124-g91e9686/configure
+ --prefix=/usr/local/openmpi-1.9.0_64_gcc
+ --libdir=/usr/local/openmpi-1.9.0_64_gcc/lib64
+ --with-jdk-bindir=/usr/local/jdk1.8.0/bin
+ --with-jdk-headers=/usr/local/jdk1.8.0/include
+ JAVA_HOME=/usr/local/jdk1.8.0
+ LDFLAGS=-m64 -g -O0 CC=gcc CXX=g++ FC=gfortran
+ CFLAGS=-m64 -D_REENTRANT -g -O0
+ CXXFLAGS=-m64 FCFLAGS=-m64 CPP=cpp CXXCPP=cpp
+ CPPFLAGS=-D_REENTRANT CXXCPPFLAGS=
+ --enable-mpi-cxx --enable-cxx-exceptions --enable-mpi-java
+ --enable-heterogeneous --enable-mpi-thread-multiple
+ --with-threads=posix --with-hwloc=internal --without-verbs
+ --with-wrapper-cflags=-std=c11 -m64 --enable-debug
+tyr openmpi-dev-124-g91e9686-SunOS.sparc.64_gcc 113 
+
+
+"gbd" doesn't allow any backtrace for any thread.
+
+tyr java 124 /usr/local/gdb-7.6.1_64_gcc/bin/gdb
+GNU gdb (GDB) 7.6.1
+...
+(gdb) attach 18876
+Attaching to process 18876
+[New process 18876]
+Retry #1:
+Retry #2:
+Retry #3:
+Retry #4:
+0x7eadcb04 in ?? ()
+(gdb) info threads
+[New LWP 12]
+[New LWP 11]
+[New LWP 10]
+[New LWP 9]
+[New LWP 8]
+[New LWP 7]
+[New LWP 6]
+[New LWP 5]
+[New LWP 4]
+[New LWP 3]
+[New LWP 2]
+ Id   Target Id         Frame 
+ 12   LWP 2             0x7eadc6b0 in ?? ()
+ 11   LWP 3             0x7eadcbb8 in ?? ()
+ 10   LWP 4             0x7eadcbb8 in ?? ()
+ 9    LWP 5             0x7eadcbb8 in ?? ()
+ 8    LWP 6             0x7eadcbb8 in ?? ()
+ 7    LWP 7             0x7eadcbb8 in ?? ()
+ 6    LWP 8             0x7ead8b0c in ?? ()
+ 5    LWP 9             0x7eadcbb8 in ?? ()
+ 4    LWP 10            0x7eadcbb8 in ?? ()
+ 3    LWP 11            0x7eadcbb8 in ?? ()
+ 2    LWP 12            0x7eadcbb8 in ?? ()
+* 1    LWP 1             0x7eadcb04 in ?? ()
+(gdb) thread 1
+[Switching to thread 1 (LWP 1)]
+#0  0x7eadcb04 in ?? ()
+(gdb) bt
+#0  0x7eadcb04 in ?? ()
+#1  0x7eaca12c in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 2
+[Switching to thread 2 (LWP 12)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) bt
+#0  0x7eadcbb8 in ?? ()
+#1  0x7eac2638 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 3
+[Switching to thread 3 (LWP 11)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) bt
+#0  0x7eadcbb8 in ?? ()
+#1  0x7eac25a8 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 4
+[Switching to thread 4 (LWP 10)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) bt
+#0  0x7eadcbb8 in ?? ()
+#1  0x7eac2638 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 5
+[Switching to thread 5 (LWP 9)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) bt
+#0  0x7eadcbb8 in ?? ()
+#1  0x7eac2638 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 6
+[Switching to thread 6 (LWP 8)]
+#0  0x7ead8b0c in ?? ()
+(gdb) bt
+#0  0x7ead8b0c in ?? ()
+#1  0x7eacbcb0 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 7
+[Switching to thread 7 (LWP 7)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) bt
+#0  0x7eadcbb8 in ?? ()
+#1  0x7eac25a8 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 8
+[Switching to thread 8 (LWP 6)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) bt
+#0  0x7eadcbb8 in ?? ()
+#1  0x7eac25a8 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 9
+[Switching to thread 9 (LWP 5)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) bt
+#0  0x7eadcbb8 in ?? ()
+#1  0x7eac2638 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 10
+[Switching to thread 10 (LWP 4)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) bt
+#0  0x7eadcbb8 in ?? ()
+#1  0x7eac25a8 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 11
+[Switching to thread 11 (LWP 3)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) bt
+#0  0x7eadcbb8 in ?? ()
+#1  0x7eac25a8 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+(gdb) thread 12
+[Switching to thread 12 (LWP 2)]
+#0  0x7eadc6b0 in ?? ()
+(gdb) 
+
+
+
+I also tried to set _dbg in all available frames without success.
+
+(gdb) f 1
+#1  0x7eacb46c in ?? ()
+(gdb) set _dbg=0
+No symbol table is loaded.  Use the "file" command.
+(gdb) symbol-file /usr/local/openmpi-1.9.0_64_gcc/lib64/libmpi_java.so
+Reading symbols from 
+/export2/prog/SunOS_sparc/openmpi-1.9.0_64_gcc/lib64/libmpi_java.so.0.0.0...done.
+(gdb) f 1
+#1  0x7eacb46c in ?? ()
+(gdb) set _dbg=0
+No symbol "_dbg" in current context.
+(gdb) f 2
+#0  0x00000000 in ?? ()
+(gdb) set _dbg=0
+No symbol "_dbg" in current context.
+(gdb) 
+...
+
+
+With "list" I get source code from mpi_CartComm.c and not from mpi_MPI.c.
+If a switch threads, "list" continues in the old file.
+
+(gdb) thread 1
+[Switching to thread 1 (LWP 1)]
+#0  0x7eadcb04 in ?? ()
+(gdb) list 36
+31          distributed under the License is distributed on an "AS IS" BASIS,
+32          WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+33          See the License for the specific language governing permissions and
+34          limitations under the License.
+35      */
+36      /*
+37       * File         : mpi_CartComm.c
+38       * Headerfile   : mpi_CartComm.h
+39       * Author       : Sung-Hoon Ko, Xinying Li
+40       * Created      : Thu Apr  9 12:22:15 1998
+(gdb) thread 2
+[Switching to thread 2 (LWP 12)]
+#0  0x7eadcbb8 in ?? ()
+(gdb) list
+41       * Revision     : $Revision: 1.6 $
+42       * Updated      : $Date: 2003/01/16 16:39:34 $
+43       * Copyright: Northeast Parallel Architectures Center
+44       *            at Syracuse University 1998
+45       */
+46      #include "ompi_config.h"
+47      
+48      #include &lt;stdlib.h&gt;
+49      #ifdef HAVE_TARGETCONDITIONALS_H
+50      #include &lt;TargetConditionals.h&gt;
+(gdb) 
+
+
+Do you have any ideas, what's going wrong or if I must use a different
+symbol table?
+
+
+Kind regards
+
+Siegmar
+
+
+
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">
+Gilles
+
+
+Siegmar Gross <a class="moz-txt-link-rfc2396E" href="mailto:Siegmar.Gross@informatik.hs-fulda.de">&lt;Siegmar.Gross@informatik.hs-fulda.de&gt;</a> wrote:
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">Hi Gilles,
+
+I changed _dbg to a static variable, so that it is visible in the
+library, but unfortunately still not in the symbol table.
+
+
+tyr java 419 nm /usr/local/openmpi-1.9.0_64_gcc/lib64/libmpi_java.so | grep -i _dbg
+[271]   |  1249644|     4|OBJT |LOCL |0    |18     |_dbg.14258
+tyr java 420 /usr/local/gdb-7.6.1_64_gcc/bin/gdb
+GNU gdb (GDB) 7.6.1
+...
+(gdb) attach 13019
+Attaching to process 13019
+[New process 13019]
+Retry #1:
+Retry #2:
+Retry #3:
+Retry #4:
+0x7eadcb04 in ?? ()
+(gdb) symbol-file /usr/local/openmpi-1.9.0_64_gcc/lib64/libmpi_java.so
+Reading symbols from 
+</pre>
+            </blockquote>
+          </blockquote>
+          <pre wrap="">/export2/prog/SunOS_sparc/openmpi-1.9.0_64_gcc/lib64/libmpi_java.so.0.0.0...done.
+</pre>
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) set var _dbg.14258=0
+No symbol "_dbg" in current context.
+(gdb) 
+
+
+Kind regards
+
+Siegmar
+
+
+
+
+</pre>
+              <blockquote type="cite">
+                <pre wrap="">unfortunately I didn't get anything useful. It's probably my fault,
+because I'm still not very familiar with gdb or any other debugger.
+I did the following things.
+
+
+1st window:
+-----------
+
+tyr java 174 setenv OMPI_ATTACH 1
+tyr java 175 mpijavac InitFinalizeMain.java 
+warning: [path] bad path element
+ "/usr/local/openmpi-1.9.0_64_gcc/lib64/shmem.jar":
+ no such file or directory
+1 warning
+tyr java 176 mpiexec -np 1 java InitFinalizeMain
+
+
+
+2nd window:
+-----------
+
+tyr java 379 ps -aef | grep java
+noaccess  1345     1   0   May 22 ?         113:23 /usr/java/bin/java -server -Xmx128m 
+</pre>
+              </blockquote>
+            </blockquote>
+          </blockquote>
+          <pre wrap="">-XX:+UseParallelGC 
+</pre>
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">-XX:ParallelGCThreads=4 
+</pre>
+              <blockquote type="cite">
+                <pre wrap=""> fd1026  3661 10753   0 14:09:12 pts/14      0:00 mpiexec -np 1 java InitFinalizeMain
+ fd1026  3677 13371   0 14:16:55 pts/2       0:00 grep java
+ fd1026  3663  3661   0 14:09:12 pts/14      0:01 java -cp 
+</pre>
+              </blockquote>
+              <pre wrap="">/home/fd1026/work/skripte/master/parallel/prog/mpi/java:/usr/local/jun
+</pre>
+              <blockquote type="cite">
+                <pre wrap="">tyr java 380 /usr/local/gdb-7.6.1_64_gcc/bin/gdb
+GNU gdb (GDB) 7.6.1
+...
+(gdb) attach 3663
+Attaching to process 3663
+[New process 3663]
+Retry #1:
+Retry #2:
+Retry #3:
+Retry #4:
+0x7eadcb04 in ?? ()
+(gdb) symbol-file /usr/local/openmpi-1.9.0_64_gcc/lib64/libmpi_java.so
+Reading symbols from 
+</pre>
+              </blockquote>
+            </blockquote>
+          </blockquote>
+          <pre wrap="">/export2/prog/SunOS_sparc/openmpi-1.9.0_64_gcc/lib64/libmpi_java.so.0.0.0...done.
+</pre>
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <blockquote type="cite">
+                <pre wrap="">(gdb) set var _dbg=0
+No symbol "_dbg" in current context.
+(gdb) set var JNI_OnLoad::_dbg=0
+No symbol "_dbg" in specified context.
+(gdb) set JNI_OnLoad::_dbg=0
+No symbol "_dbg" in specified context.
+(gdb) info threads
+[New LWP 12]
+[New LWP 11]
+[New LWP 10]
+[New LWP 9]
+[New LWP 8]
+[New LWP 7]
+[New LWP 6]
+[New LWP 5]
+[New LWP 4]
+[New LWP 3]
+[New LWP 2]
+ Id   Target Id         Frame 
+ 12   LWP 2             0x7eadc6b0 in ?? ()
+ 11   LWP 3             0x7eadcbb8 in ?? ()
+ 10   LWP 4             0x7eadcbb8 in ?? ()
+ 9    LWP 5             0x7eadcbb8 in ?? ()
+ 8    LWP 6             0x7eadcbb8 in ?? ()
+ 7    LWP 7             0x7eadcbb8 in ?? ()
+ 6    LWP 8             0x7ead8b0c in ?? ()
+ 5    LWP 9             0x7eadcbb8 in ?? ()
+ 4    LWP 10            0x7eadcbb8 in ?? ()
+ 3    LWP 11            0x7eadcbb8 in ?? ()
+ 2    LWP 12            0x7eadcbb8 in ?? ()
+* 1    LWP 1             0x7eadcb04 in ?? ()
+(gdb) 
+
+
+
+It seems that "_dbg" is unknown and unavailable.
+
+tyr java 399 grep _dbg /export2/src/openmpi-1.9/openmpi-dev-124-g91e9686/ompi/mpi/java/c/*
+/export2/src/openmpi-1.9/openmpi-dev-124-g91e9686/ompi/mpi/java/c/mpi_MPI.c:        volatile 
+</pre>
+              </blockquote>
+            </blockquote>
+          </blockquote>
+          <pre wrap="">int _dbg = 1;
+</pre>
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <blockquote type="cite">
+                <pre wrap="">/export2/src/openmpi-1.9/openmpi-dev-124-g91e9686/ompi/mpi/java/c/mpi_MPI.c:        while 
+</pre>
+              </blockquote>
+            </blockquote>
+          </blockquote>
+          <pre wrap="">(_dbg) poll(NULL, 0, 1);
+</pre>
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <blockquote type="cite">
+                <pre wrap="">tyr java 400 nm /usr/local/openmpi-1.9.0_64_gcc/lib64/*.so | grep -i _dbg
+tyr java 401 nm /usr/local/openmpi-1.9.0_64_gcc/lib64/*.so | grep -i JNI_OnLoad
+[1057]  |              139688|                 444|FUNC |GLOB |0    |11     |JNI_OnLoad
+tyr java 402 
+
+
+
+How can I set _dbg to zero to continue mpiexec? I also tried to
+set a breakpoint for function JNI_OnLoad, but it seems, that the
+function isn't called before SIGSEGV.
+
+
+tyr java 177 unsetenv OMPI_ATTACH 
+tyr java 178 /usr/local/gdb-7.6.1_64_gcc/bin/gdb mpiexec
+GNU gdb (GDB) 7.6.1
+...
+(gdb) b mpi_MPI.c:JNI_OnLoad
+No source file named mpi_MPI.c.
+Make breakpoint pending on future shared library load? (y or [n]) y
+
+Breakpoint 1 (mpi_MPI.c:JNI_OnLoad) pending.
+(gdb) run -np 1 java InitFinalizeMain 
+Starting program: /usr/local/openmpi-1.9.0_64_gcc/bin/mpiexec -np 1 java InitFinalizeMain
+[Thread debugging using libthread_db enabled]
+[New Thread 1 (LWP 1)]
+[New LWP    2        ]
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0xffffffff7ea3c7f0, pid=3518, tid=2
+...
+
+
+
+tyr java 381 cat InitFinalizeMain.java 
+import mpi.*;
+
+public class InitFinalizeMain
+{
+ public static void main (String args[]) throws MPIException
+ {
+   MPI.Init (args);
+   System.out.print ("Hello!\n");
+   MPI.Finalize ();
+ }
+}
+
+
+SIGSEGV happens in MPI.Init(args), because I can print a message
+before I call the method.
+
+tyr java 192 unsetenv OMPI_ATTACH
+tyr java 193 mpijavac InitFinalizeMain.java
+tyr java 194 mpiexec -np 1 java InitFinalizeMain
+Before MPI.Init()
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0xffffffff7ea3c7f0, pid=3697, tid=2
+...
+
+
+
+Any ideas, how I can continue? I couldn't find a C function for
+MPI.Init() in a C file. Do you know, which function is called first,
+so that I can set a breakpoint? By the way, I get the same error
+for Solaris 10 x86_64.
+
+tyr java 388 ssh sunpc1
+...
+sunpc1 java 106 mpijavac InitFinalizeMain.java
+sunpc1 java 107 uname -a
+SunOS sunpc1 5.10 Generic_147441-21 i86pc i386 i86pc Solaris
+sunpc1 java 108 isainfo -k
+amd64
+sunpc1 java 109 mpiexec -np 1 java InitFinalizeMain
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0xfffffd7fff1d77f0, pid=20256, tid=2
+
+
+Thank you very much for any help in advance.
+
+Kind regards
+
+Siegmar
+
+
+
+</pre>
+                <blockquote type="cite">
+                  <pre wrap="">thank you very much for your help.
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">how did you configure openmpi ? which java version did you use ?
+
+i just found a regression and you currently have to explicitly add
+CFLAGS=-D_REENTRANT CPPFLAGS=-D_REENTRANT
+to your configure command line
+</pre>
+                  </blockquote>
+                  <pre wrap="">
+I added "-D_REENTRANT" to my command.
+
+../openmpi-dev-124-g91e9686/configure --prefix=/usr/local/openmpi-1.9.0_64_gcc \
+ --libdir=/usr/local/openmpi-1.9.0_64_gcc/lib64 \
+ --with-jdk-bindir=/usr/local/jdk1.8.0/bin \
+ --with-jdk-headers=/usr/local/jdk1.8.0/include \
+ JAVA_HOME=/usr/local/jdk1.8.0 \
+ LDFLAGS="-m64" CC="gcc" CXX="g++" FC="gfortran" \
+ CFLAGS="-m64 -D_REENTRANT" CXXFLAGS="-m64" FCFLAGS="-m64" \
+ CPP="cpp" CXXCPP="cpp" \
+ CPPFLAGS="-D_REENTRANT" CXXCPPFLAGS="" \
+ --enable-mpi-cxx \
+ --enable-cxx-exceptions \
+ --enable-mpi-java \
+ --enable-heterogeneous \
+ --enable-mpi-thread-multiple \
+ --with-threads=posix \
+ --with-hwloc=internal \
+ --without-verbs \
+ --with-wrapper-cflags="-std=c11 -m64" \
+ --enable-debug \
+ |&amp; tee log.configure.$SYSTEM_ENV.$MACHINE_ENV.64_gcc
+
+I use Java 8.
+
+tyr openmpi-1.9 112 java -version
+java version "1.8.0"
+Java(TM) SE Runtime Environment (build 1.8.0-b132)
+Java HotSpot(TM) 64-Bit Server VM (build 25.0-b70, mixed mode)
+tyr openmpi-1.9 113 
+
+Unfortunately I still get a SIGSEGV with openmpi-dev-124-g91e9686.
+I have applied your patch and will try to debug my small Java
+program tomorrow or next week and then let you know the result.
+</pre>
+                </blockquote>
+              </blockquote>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+        <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2014/10/25590.php">http://www.open-mpi.org/community/lists/users/2014/10/25590.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/users/2014/10/25590.php">&lt;http://www.open-mpi.org/community/lists/users/2014/10/25590.php&gt;</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2014/10/25591.php">http://www.open-mpi.org/community/lists/users/2014/10/25591.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

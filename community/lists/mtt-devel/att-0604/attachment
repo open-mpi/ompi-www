@@ -1,0 +1,209 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+</head>
+<body dir="auto">
+<div>Mike -</div>
+<div><br>
+</div>
+<div>Can you verify that this commit is ok?<br>
+<br>
+Sent from my phone.<span class="Apple-style-span" style="-webkit-tap-highlight-color: rgba(26, 26, 26, 0.292969); -webkit-composition-fill-color: rgba(175, 192, 227, 0.230469); -webkit-composition-frame-color: rgba(77, 128, 180, 0.230469); ">&nbsp;No type good.&nbsp;</span></div>
+<div><br>
+Begin forwarded message:<br>
+<br>
+</div>
+<blockquote type="cite">
+<div><b>From:</b> &lt;<a href="mailto:svn-commit-mailer@open-mpi.org">svn-commit-mailer@open-mpi.org</a>&gt;<br>
+<b>Date:</b> March 1, 2013, 4:50:56 PM EST<br>
+<b>To:</b> &lt;<a href="mailto:svn-full@open-mpi.org">svn-full@open-mpi.org</a>&gt;<br>
+<b>Subject:</b> <b>[OMPI svn-full] svn:open-mpi r28142 - trunk/ompi/mca/common/cuda</b><br>
+<b>Reply-To:</b> &lt;<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+<br>
+</div>
+</blockquote>
+<blockquote type="cite">
+<div><span>Author: rolfv (Rolf Vandevaart)</span><br>
+<span>Date: 2013-03-01 16:50:56 EST (Fri, 01 Mar 2013)</span><br>
+<span>New Revision: 28142</span><br>
+<span>URL: <a href="https://svn.open-mpi.org/trac/ompi/changeset/28142">https://svn.open-mpi.org/trac/ompi/changeset/28142</a></span><br>
+<span></span><br>
+<span>Log:</span><br>
+<span>Add a search path. &nbsp;Refactor code.</span><br>
+<span></span><br>
+<span>Text files modified: </span><br>
+<span>&nbsp;&nbsp;trunk/ompi/mca/common/cuda/common_cuda.c | &nbsp;&nbsp;116 &#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;&#43;----------------------
+</span><br>
+<span>&nbsp;&nbsp;1 files changed, 52 insertions(&#43;), 64 deletions(-)</span><br>
+<span></span><br>
+<span>Modified: trunk/ompi/mca/common/cuda/common_cuda.c</span><br>
+<span>==============================================================================</span><br>
+<span>--- trunk/ompi/mca/common/cuda/common_cuda.c &nbsp; &nbsp;Fri Mar &nbsp;1 14:13:06 2013 &nbsp; &nbsp;(r28141)</span><br>
+<span>&#43;&#43;&#43; trunk/ompi/mca/common/cuda/common_cuda.c &nbsp; &nbsp;2013-03-01 16:50:56 EST (Fri, 01 Mar 2013) &nbsp; &nbsp;(r28142)</span><br>
+<span>@@ -463,11 &#43;463,15 @@</span><br>
+<span>&nbsp;* This function will open and load the symbols needed from the CUDA driver</span><br>
+<span>&nbsp;* library. &nbsp;Any failure will result in a message and we will return 1.</span><br>
+<span>&nbsp;*/</span><br>
+<span>&#43;#define NUMLIBS 2</span><br>
+<span>static int mca_common_cuda_load_libcuda(void)</span><br>
+<span>{</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;opal_lt_dladvise advise;</span><br>
+<span>- &nbsp;&nbsp;&nbsp;int retval;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;int retval, i;</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;int advise_support = 1;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;bool loaded = true;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;char *errs[NUMLIBS] = {NULL, NULL};</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;char *cudalibs[NUMLIBS] = {&quot;libcuda.so&quot;, &quot;libcuda.so.1&quot;};</span><br>
+<span></span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;if (0 != (retval = opal_lt_dlinit())) {</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (OPAL_ERR_NOT_SUPPORTED == retval) {</span><br>
+<span>@@ -491,6 &#43;495,14 @@</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span></span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;/* Make sure we check in lib64 also in the case where there are both</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;* 32 and 64 bit libraries installed. &nbsp;Otherwise, we may fail trying to</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;* load the 32 bit library. */</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;opal_lt_dladdsearchdir(&quot;/usr/lib64&quot;);</span><br>
+<span>&#43;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;/* Now walk through all the potential names libcuda and find one</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;* that works. &nbsp;If it does, all is good. &nbsp;If not, print out all</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;* the messages about why things failed. */</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;if (advise_support) {</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (0 != (retval = opal_lt_dladvise_global(&amp;advise))) {</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opal_show_help(&quot;help-mpi-common-cuda.txt&quot;, &quot;unknown ltdl error&quot;, true,</span><br>
+<span>@@ -498,84 &#43;510,60 @@</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opal_lt_dladvise_destroy(&amp;advise);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 1;</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>-</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* </span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* Try and open libcuda.so and libcuda.so.1. &nbsp;Note that we are not using</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* opal_lt_dladvise_ext() as we do not need ltdl to add any suffixes to</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* the library names being handed in.</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libcuda_handle = opal_lt_dlopenadvise(&quot;libcuda.so&quot;, advise);</span><br>
+<span>-</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* If the first open fails, save the error message so that it can be printed</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* out of the second open fails as well. &nbsp;If the second open succeeds, then
+</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* we do not caer that the first open failed. */</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL == libcuda_handle) {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;char *err1;</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const char *str1 = opal_lt_dlerror();</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL != str1) {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;err1 = strdup(str1);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} else {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;err1 = strdup(&quot;lt_dlerror() returned NULL.&quot;);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libcuda_handle = opal_lt_dlopenadvise(&quot;libcuda.so.1&quot;, advise);</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for (i = 0; i &lt; NUMLIBS; i&#43;&#43;) {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const char *str;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libcuda_handle = opal_lt_dlopenadvise(cudalibs[i], advise);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL == libcuda_handle) {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;char *err2;</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const char *str2 = opal_lt_dlerror();</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL != str2) {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;err2 = strdup(str2);</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str = opal_lt_dlerror();</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL != str) {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errs[i] = strdup(str);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} else {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;err2 = strdup(&quot;lt_dlerror() returned NULL.&quot;);</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errs[i] = strdup(&quot;lt_dlerror() returned NULL.&quot;);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opal_show_help(&quot;help-mpi-common-cuda.txt&quot;, &quot;dlopen failed&quot;, true,</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;libcuda.so&quot;, err1, &quot;libcuda.so.1&quot;, err2);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;free(err1);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;free(err2);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opal_lt_dladvise_destroy(&amp;advise);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 1;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opal_output_verbose(10, mca_common_cuda_output,</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;CUDA: Library open error: %s&quot;,</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errs[i]);</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} else {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;loaded = true;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;free(err1);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>-</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opal_lt_dladvise_destroy(&amp;advise);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;} else {</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* No lt_dladvise support. &nbsp;This should rarely happen. */</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* </span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* Try and open libcuda.so and libcuda.so.1. &nbsp;Note that we are not using</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* opal_lt_dladvise_ext() as we do not need ltdl to add any suffixes to</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* the library names being handed in.</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libcuda_handle = opal_lt_dlopen(&quot;libcuda.so&quot;);</span><br>
+<span>-</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* If the first open fails, save the error message so that it can be printed</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* out of the second open fails as well. &nbsp;If the second open succeeds, then
+</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* we do not caer that the first open failed. */</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL == libcuda_handle) {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;char *err1;</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const char *str1 = opal_lt_dlerror();</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL != str1) {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;err1 = strdup(str1);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} else {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;err1 = strdup(&quot;lt_dlerror() returned NULL.&quot;);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libcuda_handle = opal_lt_dlopen(&quot;libcuda.so.1&quot;);</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for (i = 0; i &lt; NUMLIBS; i&#43;&#43;) {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const char *str;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libcuda_handle = opal_lt_dlopen(cudalibs[i]);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL == libcuda_handle) {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;char *err2;</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;const char *str2 = opal_lt_dlerror();</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL != str2) {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;err2 = strdup(str2);</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;str = opal_lt_dlerror();</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL != str) {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errs[i] = strdup(str);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} else {</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;err2 = strdup(&quot;lt_dlerror() returned NULL.&quot;);</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;errs[i] = strdup(&quot;lt_dlerror() returned NULL.&quot;);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opal_show_help(&quot;help-mpi-common-cuda.txt&quot;, &quot;dlopen failed&quot;, true,</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;libcuda.so&quot;, err1, &quot;libcuda.so.1&quot;, err2);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;free(err1);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;free(err2);</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 1;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} else {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;loaded = true;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;break;</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>- &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;free(err1);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span></span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;if (loaded != true) {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opal_show_help(&quot;help-mpi-common-cuda.txt&quot;, &quot;dlopen failed&quot;, true,</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cudalibs[0], errs[0], cudalibs[1], errs[1]);</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;}</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;/* Cleanup error messages. &nbsp;Need to do this after printing them. */</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;for (i = 0; i &lt; NUMLIBS; i&#43;&#43;) {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (NULL != errs[i]) {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;free(errs[i]);</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;}</span><br>
+<span>&#43;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;if (loaded != true) {</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 1;</span><br>
+<span>&#43; &nbsp;&nbsp;&nbsp;}</span><br>
+<span>&#43;</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;/* Map in the functions that we need */</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;OMPI_CUDA_DLSYM(libcuda_handle, cuStreamCreate);</span><br>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;OMPI_CUDA_DLSYM(libcuda_handle, cuCtxGetCurrent);</span><br>
+<span>_______________________________________________</span><br>
+<span>svn-full mailing list</span><br>
+<span><a href="mailto:svn-full@open-mpi.org">svn-full@open-mpi.org</a></span><br>
+<span><a href="http://www.open-mpi.org/mailman/listinfo.cgi/svn-full">http://www.open-mpi.org/mailman/listinfo.cgi/svn-full</a></span><br>
+</div>
+</blockquote>
+</body>
+</html>
+

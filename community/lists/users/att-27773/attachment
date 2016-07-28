@@ -1,0 +1,126 @@
+<div dir="ltr"><div>Maybe here you found what need:<br><a href="https://www.open-mpi.org/faq/?category=tuning#setting-mca-params">https://www.open-mpi.org/faq/?category=tuning#setting-mca-params</a><br>also  you can try run gdb via mpirun to get debug info:<br></div><div>mpirun -np 2 xterm -e gdb ./your_program<br></div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">2015-09-28 14:43 GMT+03:00 Sven Schumacher <span dir="ltr">&lt;<a href="mailto:schumacher@tfd.uni-hannover.de" target="_blank">schumacher@tfd.uni-hannover.de</a>&gt;</span>:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hello,<br>
+<br>
+I&#39;ve set up our new cluster using Infiniband using a combination of:<br>
+Debian, Torque/Maui, BeeGeeFS (formerly FHGFS)<br>
+<br>
+Every node has two infiniband-ports, both of them having an IP-Adress.<br>
+One port shall be used for BeeGeeFS (which is working well) and the<br>
+other one for MPI-Communication.<br>
+<br>
+I&#39;m using openmpi in version 1.8.5, compiled with gcc/gfortran 4.9.2 and<br>
+ibverbs support.<br>
+Configure command was the following:<br>
+<br>
+Output of &quot;ompi_info --parsable  -a -c&quot; is attached as txt-file (all<br>
+nodes are configured the same)<br>
+<br>
+<br>
+The following infiniband-related kernel-modules are loaded:<br>
+&gt; mlx4_core             206165  1 mlx4_ib<br>
+&gt; rdma_ucm               22055  0<br>
+&gt; ib_uverbs              44693  1 rdma_ucm<br>
+&gt; rdma_cm                39518  2 ib_iser,rdma_ucm<br>
+&gt; iw_cm                  31011  1 rdma_cm<br>
+&gt; ib_umad                17311  0<br>
+&gt; mlx4_ib               136293  0<br>
+&gt; ib_cm                  39055  3 rdma_cm,ib_srp,ib_ipoib<br>
+&gt; ib_sa                  26986  6<br>
+&gt; rdma_cm,ib_cm,mlx4_ib,ib_srp,rdma_ucm,ib_ipoib<br>
+&gt; ib_mad                 39969  4 ib_cm,ib_sa,mlx4_ib,ib_umad<br>
+&gt; ib_core                68904  12<br>
+&gt; rdma_cm,ib_cm,ib_sa,iw_cm,mlx4_ib,ib_mad,ib_srp,ib_iser,ib_umad,ib_uverbs,rdma_ucm,ib_ipoib<br>
+&gt; ib_addr                17148  3 rdma_cm,ib_core,rdma_ucm<br>
+&gt; ib_iser                44204  0<br>
+&gt; iscsi_tcp              17580  0<br>
+&gt; libiscsi_tcp           21554  1 iscsi_tcp<br>
+&gt; libiscsi               48004  3 libiscsi_tcp,iscsi_tcp,ib_iser<br>
+&gt; scsi_transport_iscsi    77478  4 iscsi_tcp,ib_iser,libiscsi<br>
+&gt; ib_ipoib               85167  0<br>
+&gt; ib_srp                 39710  0<br>
+&gt; scsi_transport_srp     18194  1 ib_srp<br>
+&gt; scsi_tgt               17698  1 scsi_transport_srp<br>
+<br>
+When using mpiexec to execute a job running on a single node using 8<br>
+cores everything works fine, but when mpiexec has to start a second<br>
+process on another node it doesn&#39;t start that process.<br>
+What I already did:<br>
+<br>
+Testing ssh-logins: Works (without a password using ssh-keys).<br>
+Testing name-resolution: works<br>
+<br>
+Used a &quot;hello Word&quot;-mpi-Program:<br>
+&gt; #include &lt;mpi.h&gt;<br>
+&gt; #include &lt;stdio.h&gt;<br>
+&gt;<br>
+&gt; int main(int argc, char** argv) {<br>
+&gt;     // Initialize the MPI environment<br>
+&gt;     MPI_Init(NULL, NULL);<br>
+&gt;<br>
+&gt;     // Get the number of processes<br>
+&gt;     int world_size;<br>
+&gt;     MPI_Comm_size(MPI_COMM_WORLD, &amp;world_size);<br>
+&gt;<br>
+&gt;     // Get the rank of the process<br>
+&gt;     int world_rank;<br>
+&gt;     MPI_Comm_rank(MPI_COMM_WORLD, &amp;world_rank);<br>
+&gt;<br>
+&gt;     // Get the name of the processor<br>
+&gt;     char processor_name[MPI_MAX_PROCESSOR_NAME];<br>
+&gt;     int name_len;<br>
+&gt;     MPI_Get_processor_name(processor_name, &amp;name_len);<br>
+&gt;<br>
+&gt;     // Print off a hello world message<br>
+&gt;     printf(&quot;Hello world from processor %s, rank %d&quot;<br>
+&gt;            &quot; out of %d processors\n&quot;,<br>
+&gt;            processor_name, world_rank, world_size);<br>
+&gt;<br>
+&gt;     // Finalize the MPI environment.<br>
+&gt;     MPI_Finalize();<br>
+&gt; }<br>
+<br>
+<br>
+This throws an error (on a single node it produces the following error<br>
+messages, but doesn&#39;t produce any output , when run on two nodes):<br>
+&gt; [hydra001:20324] 1 more process has sent help message<br>
+&gt; help-mpi-btl-openib-cpc-base.txt / no cpcs for port<br>
+&gt; [hydra001:20324] Set MCA parameter &quot;orte_base_help_aggregate&quot; to 0 to<br>
+&gt; see all help / error messages<br>
+<br>
+&gt; --------------------------------------------------------------------------<br>
+&gt; No OpenFabrics connection schemes reported that they were able to be<br>
+&gt; used on a specific port.  As such, the openib BTL (OpenFabrics<br>
+&gt; support) will be disabled for this port.<br>
+&gt;<br>
+&gt;   Local host:           hydra001<br>
+&gt;   Local device:         mlx4_0<br>
+&gt;   Local port:           1<br>
+&gt;   CPCs attempted:       udcm<br>
+&gt; --------------------------------------------------------------------------<br>
+&gt; Hello world from processor hydra001, rank 0 out of 1 processors<br>
+<br>
+So, where can I find a documented list of all these MCA parameters? It<br>
+doesn&#39;t seem there is such a list on <a href="http://open-mpi.org" rel="noreferrer" target="_blank">open-mpi.org</a> or I didn&#39;t find it...<br>
+so thanks in advance for directing me to right place<br>
+<span class="HOEnZb"><font color="#888888"><br>
+Sven Schumacher<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+--<br>
+Sven Schumacher - Systemadministrator Tel: (0511)762-2753<br>
+Leibniz Universitaet Hannover<br>
+Institut für Turbomaschinen und Fluid-Dynamik       - TFD<br>
+Appelstraße 9 - 30167 Hannover<br>
+Institut für Kraftwerkstechnik und Wärmeübertragung - IKW<br>
+Callinstraße 36 - 30167 Hannover<br>
+<br>
+</font></span><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/09/27695.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/09/27695.php</a><br></blockquote></div><br><br clear="all"><br>-- <br><div class="gmail_signature"><div dir="ltr">-- <br>С уважением.</div></div>
+</div>
+

@@ -1,0 +1,244 @@
+Thanks.<br><br>$ cat hpl-8cpu-test.sge<br>#!/bin/bash<br>#<br>#$ -N HPL_8cpu_GB<br>#$ -pe orte 8<br>#$ -cwd<br>#$ -j y<br>#$ -S /bin/bash<br>#$ -V<br>#<br>/opt/openmpi-gcc/bin/mpirun --display-allocation --display-map -v -np $NSLOTS --host node0001,node0002 hostname<br>
+<br><br>$ cat HPL_8cpu_GB.o46<br><br>======================   ALLOCATED NODES   ======================<br><br> Data for node: Name: node0001  Num slots: 4    Max slots: 0<br> Data for node: Name: <a href="http://node0002.v5cluster.com">node0002.v5cluster.com</a>    Num slots: 4    Max slots: 0<br>
+<br>=================================================================<br><br> ========================   JOB MAP   ========================<br><br> Data for node: Name: node0001  Num procs: 8<br>        Process OMPI jobid: [10982,1] Process rank: 0<br>
+        Process OMPI jobid: [10982,1] Process rank: 1<br>        Process OMPI jobid: [10982,1] Process rank: 2<br>        Process OMPI jobid: [10982,1] Process rank: 3<br>        Process OMPI jobid: [10982,1] Process rank: 4<br>
+        Process OMPI jobid: [10982,1] Process rank: 5<br>        Process OMPI jobid: [10982,1] Process rank: 6<br>        Process OMPI jobid: [10982,1] Process rank: 7<br><br> =============================================================<br>
+node0001<br>node0001<br>node0001<br>node0001<br>node0001<br>node0001<br>node0001<br>node0001<br><br>I&#39;m not sure why node0001 miss the domain name, is this related?<br>However the result is correct when I run &quot;qconf -sel&quot;<br>
+<br>$ qconf -sel<br><a href="http://node0001.v5cluster.com">node0001.v5cluster.com</a><br><a href="http://node0002.v5cluster.com">node0002.v5cluster.com</a><br><br><br><br><br><br><div class="gmail_quote">2009/4/1 Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@lanl.gov">rhc@lanl.gov</a>&gt;</span><br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Rolf has correctly reminded me that display-allocation occurs prior to host filtering, so you will see all of the allocated nodes. You&#39;ll see the impact of the host specifications in display-map,<br>
+
+<br>
+Sorry for the confusion - thanks to Rolf for pointing it out.<br><font color="#888888">
+Ralph</font><div><div></div><div class="h5"><br>
+<br>
+On Apr 1, 2009, at 7:40 AM, Ralph Castain wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+As an FYI: you can debug allocation issues more easily by:<br>
+<br>
+mpirun --display-allocation --do-not-launch -n 1 foo<br>
+<br>
+This will read the allocation, do whatever host filtering you specify with -host and -hostfile options, report out the result, and then terminate without trying to launch anything. I found it most useful for debugging these situations.<br>
+
+<br>
+If you want to know where the procs would have gone, then you can do:<br>
+<br>
+mpirun --display-allocation --display-map --do-not-launch -n 8 foo<br>
+<br>
+In this case, the #procs you specify needs to be the number you actually wanted so that the mapper will properly run. However, the executable can be bogus and nothing will actually launch. It&#39;s the closest you can come to a dry run of a job.<br>
+
+<br>
+HTH<br>
+Ralph<br>
+<br>
+<br>
+On Apr 1, 2009, at 7:10 AM, Rolf Vandevaart wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+It turns out that the use of --host and --hostfile act as a filter of which nodes to run on when you are running under SGE.  So, listing them several times does not affect where the processes land.  However, this still does not explain why you are seeing what you are seeing.  One thing you can try is to add this to the mpirun command.<br>
+
+<br>
+-mca ras_gridengine_verbose 100<br>
+<br>
+This will provide some additional information as to what Open MPI is seeing as nodes and slots from SGE.  (Is there any chance that node0002 actually has 8 slots?)<br>
+<br>
+I just retried on my cluster of 2 CPU sparc solaris nodes.  When I run with np=2, the two MPI processes will all land on a single node, because that node has two slots.  When I go up to np=4, then they move on to the other node.  The --host acts as a filter to where they should run.<br>
+
+<br>
+In terms of the using &quot;IB bonding&quot;, I do not know what that means exactly.  Open MPI does stripe over multiple IB interfaces, so I think the answer is yes.<br>
+<br>
+Rolf<br>
+<br>
+PS:  Here is what my np=4 job script looked like.  (I just changed np=2 for the other run)<br>
+<br>
+burl-ct-280r-0 148 =&gt;more run.sh<br>
+#! /bin/bash<br>
+#$ -S /bin/bash<br>
+#$ -V<br>
+#$ -cwd<br>
+#$ -N Job1<br>
+#$ -pe orte 200<br>
+#$ -j y<br>
+#$ -l h_rt=00:20:00      # Run time (hh:mm:ss) - 10 min<br>
+<br>
+echo $NSLOTS<br>
+/opt/SUNWhpc/HPC8.2/sun/bin/mpirun -mca ras_gridengine_verbose 100 -v -np 4 -host burl-ct-280r-1,burl-ct-280r-0 -mca btl self,sm,tcp hostname<br>
+<br>
+Here is the output (somewhat truncated)<br>
+burl-ct-280r-0 150 =&gt;more Job1.o199<br>
+200<br>
+[burl-ct-280r-2:22132] ras:gridengine: JOB_ID: 199<br>
+[burl-ct-280r-2:22132] ras:gridengine: PE_HOSTFILE: /ws/ompi-tools/orte/sge/sge6_2u1/default/spool/burl-ct-280r-2/active_jobs/199.1/pe_hostfile<br>
+[..snip..]<br>
+[burl-ct-280r-2:22132] ras:gridengine: burl-ct-280r-0: PE_HOSTFILE shows slots=2<br>
+[burl-ct-280r-2:22132] ras:gridengine: burl-ct-280r-1: PE_HOSTFILE shows slots=2<br>
+[..snip..]<br>
+burl-ct-280r-1<br>
+burl-ct-280r-1<br>
+burl-ct-280r-0<br>
+burl-ct-280r-0<br>
+burl-ct-280r-0 151 =&gt;<br>
+<br>
+<br>
+On 03/31/09 22:39, PN wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Dear Rolf,<br>
+Thanks for your reply.<br>
+I&#39;ve created another PE and changed the submission script, explicitly specify the hostname with &quot;--host&quot;.<br>
+However the result is the same.<br>
+# qconf -sp orte<br>
+pe_name            orte<br>
+slots              8<br>
+user_lists         NONE<br>
+xuser_lists        NONE<br>
+start_proc_args    /bin/true<br>
+stop_proc_args     /bin/true<br>
+allocation_rule    $fill_up<br>
+control_slaves     TRUE<br>
+job_is_first_task  FALSE<br>
+urgency_slots      min<br>
+accounting_summary TRUE<br>
+$ cat hpl-8cpu-test.sge<br>
+#!/bin/bash<br>
+#<br>
+#$ -N HPL_8cpu_GB<br>
+#$ -pe orte 8<br>
+#$ -cwd<br>
+#$ -j y<br>
+#$ -S /bin/bash<br>
+#$ -V<br>
+#<br>
+cd /home/admin/hpl-2.0<br>
+/opt/openmpi-gcc/bin/mpirun -v -np $NSLOTS --host node0001,node0001,node0001,node0001,node0002,node0002,node0002,node0002 ./bin/goto-openmpi-gcc/xhpl<br>
+# pdsh -a ps ax --width=200|grep hpl<br>
+node0002: 18901 ?        S      0:00 /opt/openmpi-gcc/bin/mpirun -v -np 8 --host node0001,node0001,node0001,node0001,node0002,node0002,node0002,node0002 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18902 ?        RLl    0:29 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18903 ?        RLl    0:29 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18904 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18905 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18906 ?        RLl    0:29 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18907 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18908 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br>
+node0002: 18909 ?        RLl    0:28 ./bin/goto-openmpi-gcc/xhpl<br>
+Any hint to debug this situation?<br>
+Also, if I have 2 IB ports in each node, which IB bonding was done, will Open MPI automatically benefit from the double bandwidth?<br>
+Thanks a lot.<br>
+Best Regards,<br>
+PN<br>
+2009/4/1 Rolf Vandevaart &lt;<a href="mailto:Rolf.Vandevaart@sun.com" target="_blank">Rolf.Vandevaart@sun.com</a> &lt;mailto:<a href="mailto:Rolf.Vandevaart@sun.com" target="_blank">Rolf.Vandevaart@sun.com</a>&gt;&gt;<br>
+
+  On 03/31/09 11:43, PN wrote:<br>
+      Dear all,<br>
+      I&#39;m using Open MPI 1.3.1 and SGE 6.2u2 on CentOS 5.2<br>
+      I have 2 compute nodes for testing, each node has a single quad<br>
+      core CPU.<br>
+      Here is my submission script and PE config:<br>
+      $ cat hpl-8cpu.sge<br>
+      #!/bin/bash<br>
+      #<br>
+      #$ -N HPL_8cpu_IB<br>
+      #$ -pe mpi-fu 8<br>
+      #$ -cwd<br>
+      #$ -j y<br>
+      #$ -S /bin/bash<br>
+      #$ -V<br>
+      #<br>
+      cd /home/admin/hpl-2.0<br>
+      # For IB<br>
+      /opt/openmpi-gcc/bin/mpirun -v -np $NSLOTS -machinefile<br>
+      $TMPDIR/machines ./bin/goto-openmpi-gcc/xhpl<br>
+      I&#39;ve tested the mpirun command can be run correctly in command line.<br>
+      $ qconf -sp mpi-fu<br>
+      pe_name            mpi-fu<br>
+      slots              8<br>
+      user_lists         NONE<br>
+      xuser_lists        NONE<br>
+      start_proc_args    /opt/sge/mpi/startmpi.sh -catch_rsh $pe_hostfile<br>
+      stop_proc_args     /opt/sge/mpi/stopmpi.sh<br>
+      allocation_rule    $fill_up<br>
+      control_slaves     TRUE<br>
+      job_is_first_task  FALSE<br>
+      urgency_slots      min<br>
+      accounting_summary TRUE<br>
+      I&#39;ve checked the $TMPDIR/machines after submit, it was correct.<br>
+      node0002<br>
+      node0002<br>
+      node0002<br>
+      node0002<br>
+      node0001<br>
+      node0001<br>
+      node0001<br>
+      node0001<br>
+      However, I found that if I explicitly specify the &quot;-machinefile<br>
+      $TMPDIR/machines&quot;, all 8 mpi processes were spawned within a<br>
+      single node, i.e. node0002.<br>
+      However, if I omit &quot;-machinefile $TMPDIR/machines&quot; in the line<br>
+      mpirun, i.e.<br>
+      /opt/openmpi-gcc/bin/mpirun -v -np $NSLOTS<br>
+      ./bin/goto-openmpi-gcc/xhpl<br>
+      The mpi processes can start correctly, 4 processes in node0001<br>
+      and 4 processes in node0002.<br>
+      Is this normal behaviour of Open MPI?<br>
+  I just tried it both ways and I got the same result both times.  The<br>
+  processes are split between the nodes.  Perhaps to be extra sure,<br>
+  you can just run hostname?  And for what it is worth, as you have<br>
+  seen, you do not need to specify a machines file.  Open MPI will use<br>
+  the ones that were allocated by SGE.  You can also change your<br>
+  parallel queue to not run any scripts.  Like this:<br>
+  start_proc_args    /bin/true<br>
+  stop_proc_args     /bin/true<br>
+      Also, I wondered if I have IB interface, for example, the<br>
+      hostname of IB become node0001-clust and node0002-clust, will<br>
+      Open MPI automatically use the IB interface?<br>
+  Yes, it should use the IB interface.<br>
+      How about if I have 2 IB ports in each node, which IB bonding<br>
+      was done, will Open MPI automatically benefit from the double<br>
+      bandwidth?<br>
+      Thanks a lot.<br>
+      Best Regards,<br>
+      PN<br>
+      ------------------------------------------------------------------------<br>
+      _______________________________________________<br>
+      users mailing list<br>
+      <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a> &lt;mailto:<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&gt;<br>
+      <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+  --     =========================<br>
+  <a href="mailto:rolf.vandevaart@sun.com" target="_blank">rolf.vandevaart@sun.com</a> &lt;mailto:<a href="mailto:rolf.vandevaart@sun.com" target="_blank">rolf.vandevaart@sun.com</a>&gt;<br>
+  781-442-3043<br>
+  =========================<br>
+  _______________________________________________<br>
+  users mailing list<br>
+  <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a> &lt;mailto:<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&gt;<br>
+  <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+------------------------------------------------------------------------<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote>
+<br>
+<br>
+-- <br>
+<br>
+=========================<br>
+<a href="mailto:rolf.vandevaart@sun.com" target="_blank">rolf.vandevaart@sun.com</a><br>
+781-442-3043<br>
+=========================<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br>
+

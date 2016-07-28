@@ -1,0 +1,98 @@
+Index: MTT/Messages.pm
+===================================================================
+--- MTT/Messages.pm	(revision 1084)
++++ MTT/Messages.pm	(working copy)
+@@ -17,7 +17,7 @@
+ use Text::Wrap;
+ use vars qw(@EXPORT);
+ use base qw(Exporter);
+-@EXPORT = qw(Messages Error Warning BigWarning Abort Debug Verbose Trace DebugDump FuncName ModuleName);
++@EXPORT = qw(Messages Error Warning BigWarning Abort Debug Verbose Timing Trace DebugDump FuncName ModuleName);
+ 
+ # Is debugging enabled?
+ my $_debug;
+@@ -26,6 +26,9 @@
+ my $_verbose;
+ 
+ # Path where mtt was invoked
++my $_benchmark;
++
++# Path where mtt was invoked
+ my $_cwd;
+ 
+ # Max length of string to pass to wrap() (it seems that at least some
+@@ -42,10 +45,12 @@
+ sub Messages {
+     my $debug_save = $_debug;
+     my $verbose_save = $_verbose;
++    my $benchmark_save = $_benchmark;
+     my $cwd_save = $_cwd;
+ 
+     $_debug = shift;
+     $_verbose = shift;
++    $_benchmark = shift;
+     $_cwd = shift;
+ 
+     my $textwrap = $MTT::Globals::Values->{textwrap};
+@@ -172,6 +177,25 @@
+         if (defined($LOGFILE));
+ }
+ 
++sub Timing {
++    my ($label, $timestr) = @_;
++
++    my $str = "Timing for \"$label\": $timestr\n";
++
++    if ($_benchmark) {
++        if (length($str) < $_max_wrap_len) {
++            my $s = wrap("", "   ", $str);
++            print $s;
++            print $LOGFILE $s
++                if (defined($LOGFILE));
++        } else {
++            print $str;
++            print $LOGFILE $str
++                if (defined($LOGFILE));
++        }
++    }
++}
++
+ # Return just the root function name
+ # (without the '::' prefixes)
+ sub FuncName {
+Index: MTT/DoCommand.pm
+===================================================================
+--- MTT/DoCommand.pm	(revision 1084)
++++ MTT/DoCommand.pm	(working copy)
+@@ -20,6 +20,7 @@
+ use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
+ use MTT::Messages;
+ use Data::Dumper;
++use Benchmark;
+ 
+ #--------------------------------------------------------------------------
+ 
+@@ -169,6 +170,9 @@
+     my ($merge_output, $cmd, $timeout, 
+         $max_stdout_lines, $max_stderr_lines) = @_;
+ 
++    # Time the command
++    my $start = new Benchmark;
++
+     Debug("Running command: $cmd\n");
+ 
+     # Perl kills me here.  It does its own buffering of pipes which
+@@ -429,6 +433,12 @@
+     $msg .= "\n";
+     Debug($msg);
+ 
++    # Display timing info
++
++    my $finish = new Benchmark;
++    my $timediff = timediff($finish, $start);
++    Timing($cmd, timestr($timediff));
++
+     # Return an anonymous hash containing the relevant data
+ 
+     $ret->{result_stdout} = join('', @out);
+

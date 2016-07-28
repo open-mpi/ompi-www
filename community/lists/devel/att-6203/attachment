@@ -1,0 +1,163 @@
+Couple of other things to help stimulate the thinking:<br><br>1. it isn&#39;t that OMPI -couldn&#39;t- receive a message, but rather that it -didn&#39;t- receive a message. This may or may not indicate that there is a problem. Could just be an application that doesn&#39;t need to communicate for awhile, as per my example. I admit, though, that 10 minutes is a tad long...but I&#39;ve seen some bizarre apps around here :-)<br>
+<br>2. instead of putting things to sleep or even adjusting the loop rate, you might want to consider using the orte_notifier capability and notify the system that the job may be stalled. Or perhaps adding an API to the orte_errmgr framework to notify it that nothing has been received for awhile, and let people implement different strategies for detecting what might be &quot;wrong&quot; and what they want to do about it.<br>
+<br>My point with this second bullet is that there are other response options than hardwiring putting the process to sleep. You could let someone know so a human can decide what, if anything, to do about it, or provide a hook so that people can explore/utilize different response strategies...or both!<br>
+<br>HTH<br>Ralph<br><br><br><div class="gmail_quote">On Tue, Jun 9, 2009 at 6:52 AM, Sylvain Jeaugey <span dir="ltr">&lt;<a href="mailto:sylvain.jeaugey@bull.net">sylvain.jeaugey@bull.net</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+I understand your point of view, and mostly share it.<br>
+<br>
+I think the biggest point in my example is that sleep occurs only after (I was wrong in my previous e-mail) 10 minutes of inactivity, and this value is fully configurable. I didn&#39;t intend to call sleep after 2 seconds. Plus, as said before, I planned to have the library do show_help() when this happens (something like : &quot;Open MPI couldn&#39;t receive a message for 10 minutes, lowering pressure&quot;) so that the application that really needs more than 10 minutes to receive a message can increase it.<br>
+
+<br>
+Looking at the tick rate code, I couldn&#39;t see how changing it would make CPU usage drop. If I understand correctly your e-mail, you block in the kernel using poll(), is that right ? So, you may well loose 10 us because of that kernel call, but this is a lot less than the 1 ms I&#39;m currently loosing with usleep. This makes sense - although being hard to implement since all btl must have this ability.<br>
+
+<br>
+Thanks for your comments, I will continue to think about it.<br><font color="#888888">
+<br>
+Sylvain</font><div><div></div><div class="h5"><br>
+<br>
+On Tue, 9 Jun 2009, Ralph Castain wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+My concern with any form of sleep is with the impact on the proc - since opal_progress might not be running in a separate thread, won&#39;t the sleep apply to the process as a whole? In that case, the process isn&#39;t free to continue computing.<br>
+
+<br>
+I can envision applications that might call down into the MPI library and have opal_progress not find anything, but there is nothing wrong. The application could continue computations just fine. I would hate to see us put the process to sleep just because the MPI library wasn&#39;t busy enough.<br>
+
+<br>
+Hence my suggestion to just change the tick rate. It would definitely cause a higher latency for the first message that arrived while in this state, which is bothersome, but would meet the stated objective without interfering with the process itself.<br>
+
+<br>
+LANL has also been looking at this problem of stalled jobs, but from a different approach. We monitor (using a separate job) progress in terms of output files changing in size plus other factors as specified by the user. If we don&#39;t see any progress in those terms over some time, then we kill the job. We chose that path because of the concerns expressed above - e.g., on our RR machine, intense computations can be underway on the Cell blades while the Opteron MPI processes wait for us to reach a communication point. We -want- those processes spinning away so that, when the comm starts, it can proceed as quickly as possible.<br>
+
+<br>
+Just some thoughts...<br>
+Ralph<br>
+<br>
+<br>
+On Jun 9, 2009, at 5:28 AM, Terry Dontje wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Sylvain Jeaugey wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Hi Ralph,<br>
+<br>
+I&#39;m entirely convinced that MPI doesn&#39;t have to save power in a normal scenario. The idea is just that if an MPI process is blocked (i.e. has not performed progress for -say- 5 minutes (default in my implementation), we stop busy polling and have the process drop from 100% CPU usage to 0%.<br>
+
+<br>
+I do not call sleep() but usleep(). The result if quite the same, but is less hurting performance in case of (unexpected) restart.<br>
+<br>
+However, the goal of my RFC was also to know if there was a more clean way to achieve my goal, and from what I read, I guess I should look at the &quot;tick&quot; rate instead of trying to do my own delaying.<br>
+<br>
+</blockquote>
+One way around this is to make all blocked communications (even SM) to use poll to block for incoming messages.  Jeff and I have discussed this and had many false starts on it.  The biggest issue is coming up with a way to have blocks on the SM btl converted to the system poll call without requiring a socket write for every packet.<br>
+
+<br>
+The usleep solution works but is kind of ugly IMO.  I think when I looked at doing that the overhead increased signifcantly for certain communications.  Maybe not for toy benchmarks but for less synchronized processes I saw the usleep adding overhead where I didn&#39;t want it too.<br>
+
+<br>
+--td<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Don&#39;t worry, I was quite expecting the configure-in requirement. However, I don&#39;t think my patch is good for inclusion, it is only an example to describe what I want to achieve.<br>
+<br>
+Thanks a lot for your comments,<br>
+Sylvain<br>
+<br>
+On Mon, 8 Jun 2009, Ralph Castain wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+I&#39;m not entirely convinced this actually achieves your goals, but I can see some potential benefits. I&#39;m also not sure that power consumption is that big of an issue that MPI needs to begin chasing &quot;power saver&quot; modes of operation, but that can be a separate debate some day.<br>
+
+<br>
+I&#39;m assuming you don&#39;t mean that you actually call &quot;sleep()&quot; as this would be very bad - I&#39;m assuming you just change the opal_progress &quot;tick&quot; rate instead. True? If not, and you really call &quot;sleep&quot;, then I would have to oppose adding this to the code base pending discussion with others who can corroborate that this won&#39;t cause problems.<br>
+
+<br>
+Either way, I could live with this so long as it was done as a &quot;configure-in&quot; capability. Just having the params default to a value that causes the system to behave similarly to today isn&#39;t enough - we still wind up adding logic into a very critical timing loop for no reason. A simple configure option of --enable-mpi-progress-monitoring would be sufficient to protect the code.<br>
+
+<br>
+HTH<br>
+Ralph<br>
+<br>
+<br>
+On Jun 8, 2009, at 9:50 AM, Sylvain Jeaugey wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+What : when nothing has been received for a very long time - e.g. 5 minutes, stop busy polling in opal_progress and switch to a usleep-based one.<br>
+<br>
+Why : when we have long waits, and especially when an application is deadlock&#39;ed, detecting it is not easy and a lot of power is wasted until the end of the time slice (if there is one).<br>
+<br>
+Where : an example of how it could be implemented is available at <a href="http://bitbucket.org/jeaugeys/low-pressure-opal-progress/" target="_blank">http://bitbucket.org/jeaugeys/low-pressure-opal-progress/</a><br>
+<br>
+Principle<br>
+=========<br>
+<br>
+opal_progress() ensures the progression of MPI communication. The current algorithm is a loop calling progress on all registered components. If the program is blocked, the loop will busy-poll indefinetely.<br>
+<br>
+Going to sleep after a certain amount of time with nothing received is interesting for two things :<br>
+- Administrator can easily detect whether a job is deadlocked : all the processes are in sleep(). Currently, all processors are using 100% cpu and it is very hard to know if progression is still happening or not.<br>
+- When there is nothing to receive, power usage is highly reduced.<br>
+<br>
+However, it could hurt performance in some cases, typically if we go to sleep just before the message arrives. This will highly depend on the parameters you give to the sleep mechanism.<br>
+<br>
+At first, we can start with the following assumption : if the sleep takes T usec, then sleeping after 10000xT should slow down Receives by a factor less than 0.01 %.<br>
+<br>
+However, other processes may suffer from you being late, and be delayed by T usec (which may represent more than 0.01% for them).<br>
+<br>
+So, the goal of this mechanism is mainly to detect far-too-long-waits and should quite never be used in normal MPI jobs. It could also trigger a warning message when starting to sleep, or at least a trace in the notifier.<br>
+
+<br>
+Details of Implementation<br>
+=========================<br>
+<br>
+Three parameters fully control the behaviour of this mechanism :<br>
+* opal_progress_sleep_count : number of unsuccessful opal_progress() calls before we start the timer (to prevent latency impact). It defaults to -1, which completely deactivates the sleep (and is therefore equivalent to the former code). A value of 1000 can be thought of as a starting point to enable this mechanism.<br>
+
+* opal_progress_sleep_trigger : time to wait before going to low-pressure-powersave mode. Default : 600 (in seconds) = 10 minutes.<br>
+* opal_progress_sleep_duration : time we sleep at each further unsuccessful call to opal_progress(). Default : 1000 (in us) = 1 ms.<br>
+<br>
+The duration is big enough to make the process show 0% CPU in top, but low enough to preserve a good trigger/duration ratio.<br>
+<br>
+The trigger is voluntary high to keep a good trigger/duration ratio. Indeed, to prevent delays from causing chain reactions, trigger should be higher than duration * numprocs.<br>
+<br>
+Possible Improvements &amp; Pitfalls<br>
+================================<br>
+<br>
+* Trigger could be set automatically at max(trigger, duration * numprocs * 2).<br>
+<br>
+* poll_start and poll_count could be fields of the opal_condition_t struct.<br>
+<br>
+* The sleep section may be exported in a #define and reported in all the progress pathes (I&#39;m not sure my patch is good for progress threads for example)<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+</blockquote>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+</blockquote>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br>
+

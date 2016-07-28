@@ -1,0 +1,77 @@
+<html><body>
+<p>I am not 100% sure I understand your situation.  It it this?<br>
+<br>
+Process A has an ongoing stream of inputs. For each input unit, A does some processing and then passes on work to B via a message.  B receives the message from A and does some additional work before sending a message to C.  C receives the message from B and does more work before spitting out an answer.  At any time, whoever is interested in the answers coming from C can tell C to quit spitting out answers and shut down the pipeline.<br>
+<br>
+Is this right?<br>
+<br>
+If so, I think the best answer is to let the shutdown flow through the same pipeline, flushing the messages ahead of the shutdown.  The reason for this is that an MPI program cannot be cleanly terminated until all sends are matched by receives.  If A has tried to send a message to B but B has not yet received it and you try to terminate B, you guarantee A cannot terminate cleanly.<br>
+<br>
+If the message A sends B and the message B sends C can be designed to indicate &quot;shutdown&quot; then here is the clean solution.  For example, if you know the first word of a working message is always a positive number, you could send a message that has a -1 in the first word to indicated &quot;shutdown&quot;. As each message arrives at B or C, the first step is to check for -1.<br>
+<br>
+When C is told to shut down, it sends a message to A that says &quot;flush the pipe&quot;.  Before each time A picks up a new input to process, A does an Iprobe for a &quot;flush the pipe&quot; message from C . If C has sent a &quot;flush the pipe&quot; message, A receives that message, A discards the input, sends a &quot;shutdown&quot; to B and calls MPI_Finalize.  Each time B gets a message from A it looks to see if the message is a &quot;shutdown&quot; or real work.  If it is a &quot;shutdown&quot;, B forwards the &quot;shutdown&quot;  to C and B calls MPI_Finalize.  Each time C gets a message from B it looks to see if the message is a &quot;shutdown&quot; or real work.  If it is a &quot;shutdown&quot;, then C calls MPI_Finalize.  <br>
+<br>
+The pipeline has been flushed so none of them has an unmatched send or receive.  A and B are waiting in MPI_Finalize by the time C actually calls MPI_Finalize so everything cleans up neatly.<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+Dick Treumann  -  MPI Team           <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 02/22/2009 10:49:27 PM:<br>
+<br>
+&gt; [image removed] </tt><br>
+<tt>&gt; <br>
+&gt; [OMPI users] How to quit asynchronous processes</tt><br>
+<tt>&gt; <br>
+&gt; Tee Wen Kai </tt><br>
+<tt>&gt; <br>
+&gt; to:</tt><br>
+<tt>&gt; <br>
+&gt; users</tt><br>
+<tt>&gt; <br>
+&gt; 02/22/2009 10:50 PM</tt><br>
+<tt>&gt; <br>
+&gt; Sent by:</tt><br>
+<tt>&gt; <br>
+&gt; users-bounces@open-mpi.org</tt><br>
+<tt>&gt; <br>
+&gt; Please respond to teewenkai, Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; Hi,</tt><br>
+<tt>&gt; &nbsp;</tt><br>
+<tt>&gt; I have three processes A,B &amp; C. A will receive some data and process<br>
+&gt; and after that will pass results to B. Thereafter, A will go back to<br>
+&gt; get data and process and prepare to send them to B again. Same goes <br>
+&gt; for B to C where C will provide the final output. As all the <br>
+&gt; processes are running asynchronously, I can't find a method to quit <br>
+&gt; all processes gracefully. I have tried to use C to issue MPI_Abort <br>
+&gt; when quit command is received with processes A and B entering the <br>
+&gt; SIGTERM handler to free all the allocated memories. However, the <br>
+&gt; processes may be in the midst of a communication when SIGTERM signal<br>
+&gt; is raise, resulting in some error msg like &quot;remote connection close&quot;<br>
+&gt; etc. To prevent such error messages from displaying, I couldn't use <br>
+&gt; MPI_Finalize. </tt><br>
+<tt>&gt; &nbsp;</tt><br>
+<tt>&gt; I seek your advice on methods to quit asynchonous processes properly<br>
+&gt; without all these error messages. And I would also like to find out <br>
+&gt; what will be the outcome eventually if I don't close the processes <br>
+&gt; with an MPI_Finalize command, will it lead to eventual memory leak etc?</tt><br>
+<tt>&gt; &nbsp;</tt><br>
+<tt>&gt; Thank you very much.</tt><br>
+<tt>&gt; &nbsp;</tt><br>
+<tt>&gt; Regards</tt><br>
+<tt>&gt; Wenkai</tt><br>
+<tt>&gt; <br>
+&gt; <br>
+&gt; Get your preferred Email name! <br>
+&gt; Now you can @ymail.com and @rocketmail.com.<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt></body></html>

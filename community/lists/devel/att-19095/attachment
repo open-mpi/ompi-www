@@ -1,0 +1,100 @@
+There is a mechanism to select the collective algorithm upon communicator creation. It is not using MPI_T (as this mechanism didn&#39;t exist at the tuned conception), but it behave in a similar manner. You simply update an MCA param (I do not remember the name and I&#39;m not close to my computer), and the next communicator creation will automatically adapt its behavior.<div><br></div><div>That being said it would be illegal in MQPI lingo to change the collective algorithm on an existing comomunicator, especially for reduction operations. It is clearly specified that if you execute multiple times a collective between the same processes with the same values and in the context of the same run you should get the exact same result.</div><div><div><br></div><div>George.<br><br>On Friday, June 10, 2016, Gilles Gouaillardet &lt;<a href="mailto:gilles@rist.or.jp">gilles@rist.or.jp</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Folks,<br>
+<br>
+<br>
+i was thinking of using the MPI_T interface in order to try within the same MPI test program *all* the available algo of a given collective.<br>
+<br>
+<br>
+That cannot currently be done because the mca parameter is registered with<br>
+<br>
+{flag=0, scope=MCA_BASE_VAR_SCOPE_READONLY}<br>
+<br>
+<br>
+i made a proof of concept by changing this to<br>
+<br>
+{flag=MCA_BASE_VAR_FLAG_SETTABLE, scope=MCA_VAR_SCOPE_ALL}<br>
+<br>
+(see the inline patch below)<br>
+<br>
+<br>
+strictly speaking, it does not work since the updated values are used next time a communicator is created.<br>
+<br>
+for example, changing a value on MPI_COMM_WORLD has no effect,<br>
+<br>
+but changing a value, MPI_Comm_dup(MPI_COMM_WORLD) and using the dup&#39;ed communicator works.<br>
+<br>
+btw, i guess any communicator could be used to set the value.<br>
+<br>
+<br>
+as far as i am concerned, that is good enough for me<br>
+<br>
+<br>
+any objections to make some coll/tuned parameters writable by MPI_T ?<br>
+<br>
+if no, did i implement it correctly ?<br>
+<br>
+<br>
+Cheers,<br>
+<br>
+<br>
+Gilles<br>
+<br>
+<br>
+here is the function that sets a value :<br>
+<br>
+int setValue_int_comm(int index, MPI_Comm comm, int *val) {<br>
+  int err,count;<br>
+  MPI_T_cvar_handle handle;<br>
+  /* This example assumes that the variable index */<br>
+  /* can be bound to a communicator */<br>
+err=MPI_T_cvar_handle_alloc(index,&amp;comm,&amp;handle,&amp;count);<br>
+  if (err!=MPI_SUCCESS) return err;<br>
+  /* The following assumes that the variable is */<br>
+  /* represented by a single integer */<br>
+  err=MPI_T_cvar_write(handle,val);<br>
+  if (err!=MPI_SUCCESS) return err;<br>
+  err=MPI_T_cvar_handle_free(&amp;handle);<br>
+  return err;<br>
+}<br>
+<br>
+and here is the proof of concept<br>
+<br>
+diff --git a/ompi/mca/coll/tuned/coll_tuned_bcast_decision.c b/ompi/mca/coll/tuned/coll_tuned_bcast_decision.c<br>
+index 81345b2..31ca217 100644<br>
+--- a/ompi/mca/coll/tuned/coll_tuned_bcast_decision.c<br>
++++ b/ompi/mca/coll/tuned/coll_tuned_bcast_decision.c<br>
+@@ -76,9 +76,9 @@ int ompi_coll_tuned_bcast_intra_check_forced_init (coll_tuned_force_algorithm_mc<br>
+mca_base_component_var_register(&amp;mca_coll_tuned_component.super.collm_version,<br>
+                                         &quot;bcast_algorithm&quot;,<br>
+                                         &quot;Which bcast algorithm is used. Can be locked down to choice of: 0 ignore, 1 basic linear, 2 chain, 3: pipeline, 4: split binary tree, 5: binary tree, 6: binomial tree.&quot;,<br>
+-                                        MCA_BASE_VAR_TYPE_INT, new_enum, 0, 0,<br>
++                                        MCA_BASE_VAR_TYPE_INT, new_enum, 0, MCA_BASE_VAR_FLAG_SETTABLE,<br>
+                                         OPAL_INFO_LVL_5,<br>
+- MCA_BASE_VAR_SCOPE_READONLY,<br>
++                                        MCA_BASE_VAR_SCOPE_ALL,<br>
+&amp;coll_tuned_bcast_forced_algorithm);<br>
+     OBJ_RELEASE(new_enum);<br>
+     if (mca_param_indices-&gt;algorithm_param_index &lt; 0) {<br>
+diff --git a/ompi/mca/coll/tuned/coll_tuned_component.c b/ompi/mca/coll/tuned/coll_tuned_component.c<br>
+index 9756359..ea389fd 100644<br>
+--- a/ompi/mca/coll/tuned/coll_tuned_component.c<br>
++++ b/ompi/mca/coll/tuned/coll_tuned_component.c<br>
+@@ -164,9 +164,9 @@ static int tuned_register(void)<br>
+     (void) mca_base_component_var_register(&amp;mca_coll_tuned_component.super.collm_version,<br>
+                                            &quot;use_dynamic_rules&quot;,<br>
+                                            &quot;Switch used to decide if we use static (compiled/if statements) or dynamic (built at runtime) decision function rules&quot;,<br>
+- MCA_BASE_VAR_TYPE_BOOL, NULL, 0, 0,<br>
++ MCA_BASE_VAR_TYPE_BOOL, NULL, 0, MCA_BASE_VAR_FLAG_SETTABLE,<br>
+                                            OPAL_INFO_LVL_6,<br>
+- MCA_BASE_VAR_SCOPE_READONLY,<br>
++ MCA_BASE_VAR_SCOPE_ALL,<br>
+&amp;ompi_coll_tuned_use_dynamic_rules);<br>
+<br>
+     ompi_coll_tuned_dynamic_rules_filename = NULL;<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a>devel@open-mpi.org</a><br>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/06/19094.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/06/19094.php</a><br>
+</blockquote></div></div>
+

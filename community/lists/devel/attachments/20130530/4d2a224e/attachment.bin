@@ -1,0 +1,65 @@
+
+diff -r d7bc9e2b72ff -r 76abadd758bc opal/util/keyval/keyval_lex.l
+--- a/opal/util/keyval/keyval_lex.l	Wed May 29 11:19:21 2013 +0200
++++ b/opal/util/keyval/keyval_lex.l	Wed May 29 11:20:53 2013 +0200
+@@ -57,25 +57,23 @@
+ 
+ %%
+ 
+-{WHITE}*\n          { opal_util_keyval_yynewlines++; return OPAL_UTIL_KEYVAL_PARSE_NEWLINE; }
+-#.*\n               { opal_util_keyval_yynewlines++; return OPAL_UTIL_KEYVAL_PARSE_NEWLINE; }
+-"//".*\n            { opal_util_keyval_yynewlines++; return OPAL_UTIL_KEYVAL_PARSE_NEWLINE; }
++\n                  { opal_util_keyval_yynewlines++; return OPAL_UTIL_KEYVAL_PARSE_NEWLINE; }
++{WHITE}*            ;
++#.*                 ;
++"//".*              ;
+ 
+-"/*"                { BEGIN(comment);
+-                      return OPAL_UTIL_KEYVAL_PARSE_NEWLINE; }
++"/*"                { BEGIN(comment); }
+ <comment>[^*\n]*       ; /* Eat up non '*'s */
+ <comment>"*"+[^*/\n]*  ; /* Eat '*'s not followed by a '/' */
+-<comment>\n         { opal_util_keyval_yynewlines++;
+-                      return OPAL_UTIL_KEYVAL_PARSE_NEWLINE; } 
+-<comment>"*"+"/"    { BEGIN(INITIAL); /* Done with Block Comment */
+-                      return OPAL_UTIL_KEYVAL_PARSE_NEWLINE; }
++<comment>\n         { opal_util_keyval_yynewlines++; }
++<comment>"*"+"/"    { BEGIN(INITIAL); /* Done with Block Comment */ }
+ 
+ {WHITE}*"="{WHITE}* { BEGIN(VALUE); return OPAL_UTIL_KEYVAL_PARSE_EQUAL; }
+ {WHITE}+            ; /* whitespace */
+ {CHAR}+             { return OPAL_UTIL_KEYVAL_PARSE_SINGLE_WORD; }
+ 
+-<VALUE>{WHITE}*\n   { BEGIN(INITIAL); return OPAL_UTIL_KEYVAL_PARSE_NEWLINE; }
+-<VALUE>[^\n]*[^\t \n]/[\t ]*      { return OPAL_UTIL_KEYVAL_PARSE_VALUE; }
++<VALUE>[^\n]*[^\t \n]/[\t ]*      { BEGIN(INITIAL); return OPAL_UTIL_KEYVAL_PARSE_VALUE; }
++<VALUE>{WHITE}*$                  { BEGIN(INITIAL); }
+ 
+ .	            { return OPAL_UTIL_KEYVAL_PARSE_ERROR; }
+ 
+diff -r d7bc9e2b72ff -r 76abadd758bc opal/util/keyval_parse.c
+--- a/opal/util/keyval_parse.c	Wed May 29 11:19:21 2013 +0200
++++ b/opal/util/keyval_parse.c	Wed May 29 11:20:53 2013 +0200
+@@ -115,6 +115,11 @@
+ 
+     val = opal_util_keyval_yylex();
+     if (opal_util_keyval_parse_done || OPAL_UTIL_KEYVAL_PARSE_EQUAL != val) {
++        if (OPAL_UTIL_KEYVAL_PARSE_NEWLINE == val) {
++            /* for more explicit error messages */
++            opal_util_keyval_yynewlines--;
++            opal_util_keyval_yytext = key_buffer;
++        }
+         parse_error(2);
+         return OPAL_ERROR;
+     }
+@@ -122,8 +127,7 @@
+     /* Next we get the value */
+ 
+     val = opal_util_keyval_yylex();
+-    if (OPAL_UTIL_KEYVAL_PARSE_SINGLE_WORD == val ||
+-        OPAL_UTIL_KEYVAL_PARSE_VALUE == val) {
++    if (OPAL_UTIL_KEYVAL_PARSE_VALUE == val) {
+         keyval_callback(key_buffer, opal_util_keyval_yytext);
+ 
+         /* Now we need to see the newline */
+

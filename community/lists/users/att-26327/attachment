@@ -1,0 +1,257 @@
+<div dir="ltr"><div><div><div><span style="color:rgb(0,0,0)">Dear <span class="im">Andrew Burns,<br></span></span></div><span style="color:rgb(0,0,0)"><span class="im">Many thanks to you for providing steps to check my programs. The combined program is now running parallel. But the values from one of the program are appearing as NaN. The possible reason may be the MPI_COMM_WORLD. I am still trying to sort it out. I have attached here the related files and outputs for your kind suggestions:<br><br></span></span></div><span style="color:rgb(0,0,0)"><span class="im">Regards<br></span></span></div><span class="im"><span style="color:rgb(0,0,0)">Ashfaq</span><br></span></div><div class="gmail_extra"><br><div class="gmail_quote">On Fri, Feb 6, 2015 at 6:35 PM, Burns, Andrew J CTR (US) <span dir="ltr">&lt;<a href="mailto:andrew.j.burns35.ctr@mail.mil" target="_blank">andrew.j.burns35.ctr@mail.mil</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Classification: UNCLASSIFIED<br>
+Caveats: NONE<br>
+<br>
+The placing of clminitialize and clmstop feel a little awkward, but it doesn&#39;t look like they would break the program. If you were<br>
+calling MPI_Init more than once it would throw an error and if Finalize were called early in clmstop the only serial section would<br>
+be the deallocation.<br>
+<br>
+<br>
+<br>
+One other thought is to ensure that you are properly launching the program as multicore.<br>
+<br>
+The command should be similar to as follows (where NPROCS is the number of cores being used):<br>
+<br>
+mpirun -n NPROCS ./program<br>
+<br>
+If you were to launch the program with simply &quot;./program&quot; it would run as serial. It would also run as serial if you were to call<br>
+&quot;mpirun ./program&quot; since no number of processes are specified.<br>
+<br>
+<br>
+<br>
+<br>
+If the program is properly launched in parallel and then converts to serial, you should be able to track down the location where<br>
+this happens by inserting some core polling similar to the following pseudocode:<br>
+<br>
+for (i = 0; i &lt; numprocs; ++i)<br>
+{<br>
+  if (i = coreid)<br>
+  {<br>
+    print(&quot;core &quot;, id, &quot; out of &quot;, numprocs)<br>
+  }<br>
+  MPI_Barrier()<br>
+}<br>
+<br>
+<br>
+<br>
+You will want to check all of the calls inside the main loop to ensure that none of them call finalize.<br>
+<span class=""><br>
+-Andrew Burns<br>
+<br>
+-----Original Message-----<br>
+From: users [mailto:<a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a>] On Behalf Of Muhammad Ashfaqur Rahman<br>
+</span><span class="">Sent: Friday, February 06, 2015 9:50 AM<br>
+To: Open MPI Users<br>
+</span><div><div class="h5">Subject: Re: [OMPI users] prob in running two mpi merged program (UNCLASSIFIED)<br>
+<br>
+Dear Andrew Burns,<br>
+Many thanks for your correct understanding and descriptive suggestion.<br>
+I have now changed the FLAGS of one program for not to take any MPI tags, i.e., switched off MPI. And then for the another set kept<br>
+open for MPI options.<br>
+After that call the MPI_Initialize to the beginning of Main program (aadmn.F here) and call MPI_Finalize containing program<br>
+(clmstop.F90 here) at the end part.<br>
+After compilation it is still serial.<br>
+I have attached here the FILES containing MPI calling and Makefile for your kind consideration.<br>
+<br>
+<br>
+Regards<br>
+Ashfaq<br>
+<br>
+On Thu, Feb 5, 2015 at 8:25 PM, Burns, Andrew J CTR (US) &lt;<a href="mailto:andrew.j.burns35.ctr@mail.mil">andrew.j.burns35.ctr@mail.mil</a>&gt; wrote:<br>
+<br>
+<br>
+        Classification: UNCLASSIFIED<br>
+        Caveats: NONE<br>
+<br>
+        Okay, I think I may get what&#39;s going on. I think you&#39;re calling one mpi capable program from within another mpi program.<br>
+What you<br>
+        have to do is assume that the program that is being called already had MPI_Init called and that MPI_Finalize will be called<br>
+after<br>
+        the program returns.<br>
+<br>
+        Example (pseudocode for brevity):<br>
+<br>
+        int main()<br>
+        {<br>
+          MPI_Init();<br>
+<br>
+          int x;<br>
+<br>
+          int p2result = Program2(x, comm);<br>
+<br>
+          MPI_Bcast(p2result, comm);<br>
+<br>
+          MPI_Finalize();<br>
+        }<br>
+<br>
+        int Program2(int x, MPI_Comm comm)<br>
+        {<br>
+          int returnval;<br>
+          MPI_AllReduce(&amp;returnval, x, comm);<br>
+          return returnval;<br>
+        }<br>
+<br>
+<br>
+<br>
+        If the second program were to be:<br>
+<br>
+        int Program2(int x, MPI_Comm comm)<br>
+        {<br>
+          MPI_Init();<br>
+          int returnval;<br>
+          MPI_AllReduce(&amp;returnval, x, comm);<br>
+          return returnval;<br>
+          MPI_Finalize()<br>
+        }<br>
+<br>
+        The program would return to serial when MPI_Finalize is first called, potentially throwing several errors.<br>
+<br>
+        -Andrew Burns<br>
+<br>
+        -----Original Message-----<br>
+        From: users [mailto:<a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a>] On Behalf Of Muhammad Ashfaqur Rahman<br>
+        Sent: Wednesday, February 04, 2015 3:42 PM<br>
+        To: Open MPI Users<br>
+<br>
+        Subject: Re: [OMPI users] prob in running two mpi merged program (UNCLASSIFIED)<br>
+<br>
+        Dear Andrew Burns,<br>
+        Thank you for your ideas. Your guess is partly correct, I am trying to merge two sets of programs into one executable and<br>
+then run<br>
+        in mpi.<br>
+        As per your suggestion, I have omitted the MPI_Finalize from of one set. And also commented the MPI_Barrier in some parts.<br>
+        But still it is serial.<br>
+        For your idea: attached here Makefile.<br>
+<br>
+<br>
+        Regards<br>
+        Ashfaq<br>
+<br>
+<br>
+        On Tue, Feb 3, 2015 at 6:26 PM, Burns, Andrew J CTR (US) &lt;<a href="mailto:andrew.j.burns35.ctr@mail.mil">andrew.j.burns35.ctr@mail.mil</a>&gt; wrote:<br>
+<br>
+<br>
+                Classification: UNCLASSIFIED<br>
+                Caveats: NONE<br>
+<br>
+                If I could venture a guess, it sounds like you are trying to merge two separate programs into one executable and run<br>
+them in<br>
+        parallel<br>
+                via MPI.<br>
+<br>
+                The problem sounds like an issue where your program starts in parallel but then changes back to serial while the<br>
+program is<br>
+        still<br>
+                executing.<br>
+<br>
+                I can&#39;t be entirely sure without looking at the code itself.<br>
+<br>
+                One guess is that MPI_Finalize is in the wrong location. Finalize should be called to end the parallel section and<br>
+move the<br>
+        program<br>
+                back to serial. Typically this means that Finalize will be very close to the last line of the program.<br>
+<br>
+                It may also be possible that with the way your program is structured, the effect is effectively serial since only<br>
+one core<br>
+        is<br>
+                processing at any given moment. This may be due to extensive use of barrier or similar functions.<br>
+<br>
+                Andrew Burns<br>
+                Lockheed Martin<br>
+                Software Engineer<br>
+                410-306-0409<br>
+                ARL DSRC<br>
+                <a href="mailto:andrew.j.burns2@us.army.mil">andrew.j.burns2@us.army.mil</a><br>
+                <a href="mailto:andrew.j.burns35.ctr@mail.mil">andrew.j.burns35.ctr@mail.mil</a><br>
+<br>
+                -----Original Message-----<br>
+                From: users [mailto:<a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a>] On Behalf Of Ralph Castain<br>
+                Sent: Tuesday, February 03, 2015 9:05 AM<br>
+                To: Open MPI Users<br>
+                Subject: Re: [OMPI users] prob in running two mpi merged program<br>
+<br>
+                I&#39;m afraid I don&#39;t quite understand what you are saying, so let&#39;s see if I can clarify. You have two fortran MPI<br>
+programs.<br>
+        You start<br>
+                one using &quot;mpiexec&quot;. You then start the other one as a singleton - i.e., you just run &quot;myapp&quot; without using mpiexec.<br>
+The two<br>
+        apps are<br>
+                attempting to execute an MPI_Connect/accept so they can &quot;join&quot;.<br>
+<br>
+                Is that correct? You mention MPICH in your statement about one of the procs - are you using MPICH or Open MPI? If<br>
+the<br>
+        latter, which<br>
+                version are you using?<br>
+<br>
+                Ralph<br>
+<br>
+<br>
+                On Mon, Feb 2, 2015 at 11:35 PM, Muhammad Ashfaqur Rahman &lt;<a href="mailto:ashfaq226@gmail.com">ashfaq226@gmail.com</a>&gt; wrote:<br>
+<br>
+<br>
+                        Dear All,<br>
+                        Take my greetings. I am new in mpi usage. I have problems in parallel run, when two fortran mpi programs are<br>
+merged<br>
+        to one<br>
+                executable. If these two are separate, then they are running parallel.<br>
+<br>
+                        One program has used spmd and another one  has used mpich header directly.<br>
+<br>
+                        Other issue is that while trying to run the above mentioned merged program in mpi, it&#39;s first started with<br>
+separate<br>
+        parallel<br>
+                instances of same step and then after some steps it becomes serial.<br>
+<br>
+                        Please help me in this regards<br>
+<br>
+                        Ashfaq<br>
+                        Ph.D Student<br>
+                        Dept. of Meteorology<br>
+<br>
+                        _______________________________________________<br>
+                        users mailing list<br>
+                        <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+                        Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                        Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/02/26264.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/02/26264.php</a><br>
+<br>
+<br>
+<br>
+<br>
+                Classification: UNCLASSIFIED<br>
+                Caveats: NONE<br>
+<br>
+<br>
+<br>
+                _______________________________________________<br>
+                users mailing list<br>
+                <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+                Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/02/26266.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/02/26266.php</a><br>
+<br>
+<br>
+<br>
+<br>
+<br>
+        Classification: UNCLASSIFIED<br>
+        Caveats: NONE<br>
+<br>
+<br>
+<br>
+        _______________________________________________<br>
+        users mailing list<br>
+        <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+        Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+        Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/02/26293.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/02/26293.php</a><br>
+<br>
+<br>
+<br>
+<br>
+</div></div>Classification: UNCLASSIFIED<br>
+Caveats: NONE<br>
+<br>
+<br>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/02/26300.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/02/26300.php</a><br></blockquote></div><br></div>
+

@@ -1,0 +1,195 @@
+>From 51c2b86df81b17ac5cdc4cfe6bbdaf42eb554b4f Mon Sep 17 00:00:00 2001
+From: Brice Goglin <bgoglin@debian.org>
+Date: Tue, 25 May 2010 22:55:26 +0200
+Subject: [PATCH] Add linesize cache attribute
+
+---
+ include/hwloc.h          |    1 +
+ src/topology-aix.c       |    1 +
+ src/topology-darwin.c    |    1 +
+ src/topology-linux.c     |   11 +++++++++++
+ src/topology-synthetic.c |    1 +
+ src/topology-windows.c   |    2 ++
+ src/topology-x86.c       |    1 +
+ src/topology-xml.c       |   10 ++++++++++
+ src/topology.c           |    2 ++
+ src/traversal.c          |    5 +++--
+ 10 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/include/hwloc.h b/include/hwloc.h
+index 1f275d5..c3a1b38 100644
+--- a/include/hwloc.h
++++ b/include/hwloc.h
+@@ -302,6 +302,7 @@ union hwloc_obj_attr_u {
+   struct hwloc_cache_attr_s {
+     uint64_t size;			  /**< \brief Size of cache in bytes */
+     unsigned depth;			  /**< \brief Depth of cache */
++    unsigned linesize;			  /**< \brief Cache-line size in bytes */
+   } cache;
+   /** \brief Machine-specific Object Attributes */
+   struct hwloc_machine_attr_s {
+diff --git a/src/topology-aix.c b/src/topology-aix.c
+index b6bfe8d..886aed6 100644
+--- a/src/topology-aix.c
++++ b/src/topology-aix.c
+@@ -214,6 +214,7 @@ look_rset(int sdl, hwloc_obj_type_t type, struct hwloc_topology *topology, int l
+ 	break;
+       case HWLOC_OBJ_CACHE:
+ 	obj->attr->cache.size = 0; /* TODO: ? */
++	obj->attr->cache.linesize = 0; /* TODO: ? */
+ 	obj->attr->cache.depth = 2;
+ 	break;
+       case HWLOC_OBJ_GROUP:
+diff --git a/src/topology-darwin.c b/src/topology-darwin.c
+index 5d2d157..6a9f7b5 100644
+--- a/src/topology-darwin.c
++++ b/src/topology-darwin.c
+@@ -122,6 +122,7 @@ hwloc_look_darwin(struct hwloc_topology *topology)
+                 i, j, obj->cpuset);
+             obj->attr->cache.depth = i;
+             obj->attr->cache.size = cachesize[i];
++            obj->attr->cache.linesize = 0; /* TODO */
+           } else {
+             hwloc_debug_1arg_cpuset("node %u has cpuset %s\n",
+                 j, obj->cpuset);
+diff --git a/src/topology-linux.c b/src/topology-linux.c
+index fcc8274..c35327b 100644
+--- a/src/topology-linux.c
++++ b/src/topology-linux.c
+@@ -1365,6 +1365,7 @@ look_sysfscpu(struct hwloc_topology *topology, const char *path)
+ 	struct hwloc_obj *cache;
+ 	hwloc_cpuset_t cacheset;
+ 	unsigned long kB = 0;
++	unsigned linesize = 0;
+ 	int depth; /* 0 for L1, .... */
+ 
+ 	/* get the cache level depth */
+@@ -1403,6 +1404,15 @@ look_sysfscpu(struct hwloc_topology *topology, const char *path)
+ 	  fclose(fd);
+ 	}
+ 
++	/* get the line size */
++	sprintf(mappath, "%s/cpu%d/cache/index%d/coherency_line_size", path, i, j);
++	fd = hwloc_fopen(mappath, "r", topology->backend_params.sysfs.root_fd);
++	if (fd) {
++	  if (fgets(str2,sizeof(str2), fd))
++	    linesize = atol(str2); /* in bytes */
++	  fclose(fd);
++	}
++
+ 	sprintf(mappath, "%s/cpu%d/cache/index%d/shared_cpu_map", path, i, j);
+ 	cacheset = hwloc_parse_cpumap(mappath, topology->backend_params.sysfs.root_fd);
+         if (cacheset) {
+@@ -1415,6 +1425,7 @@ look_sysfscpu(struct hwloc_topology *topology, const char *path)
+             cache = hwloc_alloc_setup_object(HWLOC_OBJ_CACHE, -1);
+             cache->attr->cache.size = kB << 10;
+             cache->attr->cache.depth = depth+1;
++            cache->attr->cache.linesize = linesize;
+             cache->cpuset = cacheset;
+             hwloc_debug_1arg_cpuset("cache depth %d has cpuset %s\n",
+                        depth, cacheset);
+diff --git a/src/topology-synthetic.c b/src/topology-synthetic.c
+index fe37d20..99e64c4 100644
+--- a/src/topology-synthetic.c
++++ b/src/topology-synthetic.c
+@@ -274,6 +274,7 @@ hwloc__look_synthetic(struct hwloc_topology *topology,
+       break;
+     case HWLOC_OBJ_CACHE:
+       obj->attr->cache.depth = topology->backend_params.synthetic.depth[level];
++      obj->attr->cache.linesize = 64;
+       if (obj->attr->cache.depth == 1)
+ 	/* 32Kb in L1 */
+ 	obj->attr->cache.size = 32*1024;
+diff --git a/src/topology-windows.c b/src/topology-windows.c
+index 3193652..31313b0 100644
+--- a/src/topology-windows.c
++++ b/src/topology-windows.c
+@@ -284,6 +284,7 @@ hwloc_look_windows(struct hwloc_topology *topology)
+ 	    }
+ 	  case HWLOC_OBJ_CACHE:
+ 	    obj->attr->cache.size = procInfo[i].Cache.Size;
++	    obj->attr->cache.linesize = procInfo[i].Cache.LineSize;
+ 	    obj->attr->cache.depth = procInfo[i].Cache.Level;
+ 	    break;
+ 	  case HWLOC_OBJ_GROUP:
+@@ -395,6 +396,7 @@ hwloc_look_windows(struct hwloc_topology *topology)
+ 	    }
+ 	  case HWLOC_OBJ_CACHE:
+ 	    obj->attr->cache.size = procInfo->Cache.CacheSize;
++	    obj->attr->cache.linesize = procInfo->Cache.LineSize;
+ 	    obj->attr->cache.depth = procInfo->Cache.Level;
+ 	    break;
+ 	  default:
+diff --git a/src/topology-x86.c b/src/topology-x86.c
+index 653353c..8946685 100644
+--- a/src/topology-x86.c
++++ b/src/topology-x86.c
+@@ -333,6 +333,7 @@ static void summarize(hwloc_topology_t topology, struct procinfo *infos, unsigne
+           cache = hwloc_alloc_setup_object(HWLOC_OBJ_CACHE, cacheid);
+           cache->attr->cache.depth = level;
+           cache->attr->cache.size = infos[i].cache[l].size;
++          cache->attr->cache.linesize = infos[i].cache[l].linesize;
+           cache->cpuset = cache_cpuset;
+           hwloc_debug_2args_cpuset("os L%u cache %u has cpuset %s\n",
+               level, cacheid, cache_cpuset);
+diff --git a/src/topology-xml.c b/src/topology-xml.c
+index ae11fee..0fec2ea 100644
+--- a/src/topology-xml.c
++++ b/src/topology-xml.c
+@@ -137,6 +137,14 @@ hwloc__xml_import_object_attr(struct hwloc_topology *topology __hwloc_attribute_
+       fprintf(stderr, "ignoring cache_size attribute for non-cache object type\n");
+   }
+ 
++  else if (!strcmp(name, "cache_linesize")) {
++    unsigned long lvalue = strtoul(value, NULL, 10);
++    if (obj->type == HWLOC_OBJ_CACHE)
++      obj->attr->cache.linesize = lvalue;
++    else
++      fprintf(stderr, "ignoring cache_linesize attribute for non-cache object type\n");
++  }
++
+   else if (!strcmp(name, "local_memory"))
+     obj->memory.local_memory = strtoull(value, NULL, 10);
+ 
+@@ -498,6 +506,8 @@ hwloc__xml_export_object (hwloc_topology_t topology, hwloc_obj_t obj, xmlNodePtr
+     xmlNewProp(node, BAD_CAST "cache_size", BAD_CAST tmp);
+     sprintf(tmp, "%u", obj->attr->cache.depth);
+     xmlNewProp(node, BAD_CAST "depth", BAD_CAST tmp);
++    sprintf(tmp, "%u", (unsigned) obj->attr->cache.linesize);
++    xmlNewProp(node, BAD_CAST "cache_linesize", BAD_CAST tmp);
+     break;
+   case HWLOC_OBJ_GROUP:
+     sprintf(tmp, "%u", obj->attr->group.depth);
+diff --git a/src/topology.c b/src/topology.c
+index 267c7e3..9b67cbb 100644
+--- a/src/topology.c
++++ b/src/topology.c
+@@ -730,6 +730,8 @@ hwloc__insert_object_by_cpuset(struct hwloc_topology *topology, hwloc_obj_t cur,
+ 	  case HWLOC_OBJ_CACHE:
+ 	    merge_sizes(obj, child, attr->cache.size);
+ 	    check_sizes(obj, child, attr->cache.size);
++	    merge_sizes(obj, child, attr->cache.linesize);
++	    check_sizes(obj, child, attr->cache.linesize);
+ 	    break;
+ 	  default:
+ 	    break;
+diff --git a/src/traversal.c b/src/traversal.c
+index f9d5346..9c36d9a 100644
+--- a/src/traversal.c
++++ b/src/traversal.c
+@@ -225,9 +225,10 @@ hwloc_obj_attr_snprintf(char * __hwloc_restrict string, size_t size, hwloc_obj_t
+ 
+   switch (obj->type) {
+   case HWLOC_OBJ_CACHE:
+-    hwloc_snprintf(specific, sizeof(specific), "%lu%s",
++    hwloc_snprintf(specific, sizeof(specific), "%lu%s%sline=%u",
+ 		   (unsigned long) hwloc_memory_size_printf_value(obj->attr->cache.size, verbose),
+-		   hwloc_memory_size_printf_unit(obj->attr->cache.size, verbose));
++		   hwloc_memory_size_printf_unit(obj->attr->cache.size, verbose),
++		   separator, obj->attr->cache.linesize);
+     break;
+   default:
+     break;
+-- 
+1.7.0
+

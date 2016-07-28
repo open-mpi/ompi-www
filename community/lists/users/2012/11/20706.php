@@ -1,0 +1,310 @@
+<?
+$subject_val = "Re: [OMPI users] EXTERNAL: Re:  gathering problem";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Mon Nov 12 17:15:17 2012" -->
+<!-- isoreceived="20121112221517" -->
+<!-- sent="Mon, 12 Nov 2012 22:15:03 +0000" -->
+<!-- isosent="20121112221503" -->
+<!-- name="Hodge, Gary C" -->
+<!-- email="gary.c.hodge_at_[hidden]" -->
+<!-- subject="Re: [OMPI users] EXTERNAL: Re:  gathering problem" -->
+<!-- id="3258BBCAE92D924BB7419ABF3554AC041301B0_at_HVXDSP24.us.lmco.com" -->
+<!-- charset="us-ascii" -->
+<!-- inreplyto="41991C16-3811-45FA-A8FB-5786324338F7_at_icl.utk.edu" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI users] EXTERNAL: Re:  gathering problem<br>
+<strong>From:</strong> Hodge, Gary C (<em>gary.c.hodge_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2012-11-12 17:15:03
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="20707.php">Ralph Castain: "Re: [OMPI users] EXTERNAL: Re:  gathering problem"</a>
+<li><strong>Previous message:</strong> <a href="20705.php">Craig Tierney: "Re: [OMPI users] mpif90 wrapper is using -pthread as option to ifort, but option is depreciated"</a>
+<li><strong>In reply to:</strong> <a href="20696.php">George Bosilca: "Re: [OMPI users] gathering problem"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="20707.php">Ralph Castain: "Re: [OMPI users] EXTERNAL: Re:  gathering problem"</a>
+<li><strong>Reply:</strong> <a href="20707.php">Ralph Castain: "Re: [OMPI users] EXTERNAL: Re:  gathering problem"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Today I tried a test where all sender and receiver processes were located on nodes on the same blade chassis.
+<br>
+With this process deployment, I did not detect any delayed send/receive processing, all tests ran as expected!!!
+<br>
+<p>In the failing test below, the sender (proc39) was on the second blade chassis and the receiver (proc28) was on the first blade chassis.
+<br>
+<p>So I must have some problem in the Infiniband fabric?
+<br>
+<p>Each chassis has a switch to which all blades are internally connected.  The two switches are connected by 4 external cables.
+<br>
+<p>Are there any tests I can run to diagnose why there are intermittent connection problems between the switches?
+<br>
+<p><p>From: users-bounces_at_[hidden] [mailto:users-bounces_at_[hidden]] On Behalf Of George Bosilca
+<br>
+Sent: Friday, November 09, 2012 6:02 PM
+<br>
+To: Open MPI Users
+<br>
+Subject: EXTERNAL: Re: [OMPI users] gathering problem
+<br>
+<p>Gary,
+<br>
+<p>Looking at the trace it become clear that the culprit is the receiving process and not the sending one.
+<br>
+<p>Let me walk you over. I split the trace in several groups. The first one will look at the sender (proc39) and the receiver (proc28) for the first message.
+<br>
+<p>PROC39: 59.2268409810; SEND_REQ_ACTIVATE, count=81536, peer=28
+<br>
+PROC39: 59.2268649811; SEND_REQ_XFER_BEGIN, count=81536, peer=28
+<br>
+PROC39: 59.2270019811; SEND_REQ_XFER_CONTINUE, count=27178, peer=28
+<br>
+PROC39: 59.2270509811; SEND_REQ_XFER_CONTINUE, count=54358, peer=28
+<br>
+PROC39: 59.2270809811; SEND_REQ_XFER_END, count=81536, peer=28
+<br>
+PROC39: 59.2270869811; SEND_REQ_COMPLETE, count=81536, peer=28
+<br>
+PROC39: 59.2270939811; SEND_REQ_NOTIFY, count=81536, peer=28
+<br>
+<p>PROC28: 59.2271299611; RECV_MSG_ARRIVED, count=0, peer=39
+<br>
+PROC28: 59.2271389612; RECV_SEARCH_POSTED_Q_BEGIN, count=0, peer=39
+<br>
+PROC28: 59.2271439611; RECV_REQ_REMOVE_FROM_POSTED_Q, count=172084, peer=39
+<br>
+PROC28: 59.2271479612; RECV_MSG_MATCH_POSTED_REQ, count=172084, peer=39
+<br>
+PROC28: 59.2271519612; RECV_SEARCH_POSTED_Q_END, count=0, peer=39
+<br>
+PROC28: 59.2271559612; RECV_REQ_XFER_BEGIN, count=172084, peer=39
+<br>
+PROC28: 59.2271609611; RECV_REQ_XFER_CONTINUE, count=27178, peer=39
+<br>
+PROC28: 59.2271759611; RECV_REQ_XFER_CONTINUE, count=54358, peer=39
+<br>
+PROC28: 59.4331819612; RECV_REQ_XFER_END, count=172084, peer=39
+<br>
+PROC28: 59.4332009612; RECV_REQ_COMPLETE, count=172084, peer=39
+<br>
+<p>You can see that the sender send the matching information (27178 bytes line 2). This message arrives on the receiver at line 1. There seems to be a small time drift between the two, so don't use the absolute time to compare. The first piece of data (aka 27178 bytes) is then copied on the receiver memory (line 7). As the pipeline protocol is on, the receiver ask for the second piece of data right after (line 8). The receiver will detect the completion of the last piece of data transfer at line 9, which is about 1.8 ms later.
+<br>
+<p>On the sender side, don't take in account the completion time, it is irrelevant, as it is only the local reception (and thus barely indicate the cost of the local memcpy).
+<br>
+<p>Now on to the second communication:
+<br>
+<p>PROC39: 59.2283769811; SEND_REQ_ACTIVATE, count=81536, peer=28
+<br>
+PROC39: 59.2283959811; SEND_REQ_XFER_BEGIN, count=81536, peer=28
+<br>
+PROC39: 59.4331379811; SEND_REQ_XFER_CONTINUE, count=27178, peer=28
+<br>
+PROC39: 59.4332049811; SEND_REQ_XFER_CONTINUE, count=54358, peer=28
+<br>
+PROC39: 59.4332569811; SEND_REQ_XFER_END, count=81536, peer=28
+<br>
+PROC39: 59.4332659811; SEND_REQ_COMPLETE, count=81536, peer=28
+<br>
+PROC39: 59.4332769811; SEND_REQ_NOTIFY, count=81536, peer=28
+<br>
+<p>PROC28: 59.4332059611; RECV_MSG_ARRIVED, count=0, peer=39
+<br>
+PROC28: 59.4332109612; RECV_SEARCH_POSTED_Q_BEGIN, count=0, peer=39
+<br>
+PROC28: 59.4332149612; RECV_MSG_INSERT_IN_UNEX_Q, count=0, peer=39
+<br>
+PROC28: 59.4332199611; RECV_SEARCH_POSTED_Q_END, count=0, peer=39
+<br>
+PROC28: 59.4332269612; RECV_REQ_NOTIFY, count=172084, peer=39
+<br>
+PROC28: 59.4332539611; RECV_REQ_ACTIVATE, count=172084, peer=39
+<br>
+PROC28: 59.4332589612; RECV_SEARCH_UNEX_Q_BEGIN, count=172084, peer=39
+<br>
+PROC28: 59.4332629612; RECV_REQ_MATCH_UNEX, count=172084, peer=39
+<br>
+PROC28: 59.4332669611; RECV_MSG_REMOVE_FROM_UNEX_Q, count=0, peer=39
+<br>
+PROC28: 59.4332719612; RECV_SEARCH_UNEX_Q_END, count=172084, peer=39
+<br>
+PROC28: 59.4332759612; RECV_REQ_XFER_BEGIN, count=172084, peer=39
+<br>
+PROC28: 59.4332809611; RECV_REQ_XFER_CONTINUE, count=27178, peer=39
+<br>
+<p>Here the things are getting interesting. You can see that the matching information of the second send (line 1 on the receiving side) is received before the first receive is reported back to the MPI layer (line 5). In other words, the second receive is __unexpected__ (line 3 clearly highlight this). Later on when the MPI irecv is posted, it is matched (line 8) and then the confirmation is sent to the sender at line 11. Take a look at the time, this explains why the second send look so slow.
+<br>
+<p>If there is something that should be understood better is the lag on the receiver for the detection of the completion of the first operation (as highlighted by the following two lines):
+<br>
+<p>PROC28: 59.2271759611; RECV_REQ_XFER_CONTINUE, count=54358, peer=39
+<br>
+PROC28: 59.4331819612; RECV_REQ_XFER_END, count=172084, peer=39
+<br>
+<p>&nbsp;&nbsp;george.
+<br>
+<p><p>On Nov 9, 2012, at 12:36 , &quot;Hodge, Gary C&quot; &lt;gary.c.hodge_at_[hidden]&lt;mailto:gary.c.hodge_at_[hidden]&gt;&gt; wrote:
+<br>
+<p><p>Answering my own question, I have downloaded openMPI 1.6.2 and still get the delay in the MPI_Send.  Previously, I was using openMPI 1.4.1
+<br>
+<p>I configured 1.6.2 with -enable-peruse and have implemented PERUSE callbacks.
+<br>
+Here is a trace of gb2 (PROC39) sending messages to ob (PROC28)
+<br>
+<p>PROC39: 59.2268409810; SEND_REQ_ACTIVATE, count=81536, peer=28
+<br>
+PROC39: 59.2268649811; SEND_REQ_XFER_BEGIN, count=81536, peer=28
+<br>
+PROC39: 59.2270019811; SEND_REQ_XFER_CONTINUE, count=27178, peer=28
+<br>
+PROC39: 59.2270509811; SEND_REQ_XFER_CONTINUE, count=54358, peer=28
+<br>
+PROC39: 59.2270809811; SEND_REQ_XFER_END, count=81536, peer=28
+<br>
+PROC39: 59.2270869811; SEND_REQ_COMPLETE, count=81536, peer=28
+<br>
+PROC39: 59.2270939811; SEND_REQ_NOTIFY, count=81536, peer=28
+<br>
+PROC28: 59.2271299611; RECV_MSG_ARRIVED, count=0, peer=39
+<br>
+PROC28: 59.2271389612; RECV_SEARCH_POSTED_Q_BEGIN, count=0, peer=39
+<br>
+PROC28: 59.2271439611; RECV_REQ_REMOVE_FROM_POSTED_Q, count=172084, peer=39
+<br>
+PROC28: 59.2271479612; RECV_MSG_MATCH_POSTED_REQ, count=172084, peer=39
+<br>
+PROC28: 59.2271519612; RECV_SEARCH_POSTED_Q_END, count=0, peer=39
+<br>
+PROC28: 59.2271559612; RECV_REQ_XFER_BEGIN, count=172084, peer=39
+<br>
+PROC28: 59.2271609611; RECV_REQ_XFER_CONTINUE, count=27178, peer=39
+<br>
+PROC28: 59.2271759611; RECV_REQ_XFER_CONTINUE, count=54358, peer=39
+<br>
+PROC39: 59.2283769811; SEND_REQ_ACTIVATE, count=81536, peer=28
+<br>
+PROC39: 59.2283959811; SEND_REQ_XFER_BEGIN, count=81536, peer=28
+<br>
+PROC39: 59.4331379811; SEND_REQ_XFER_CONTINUE, count=27178, peer=28
+<br>
+PROC28: 59.4331819612; RECV_REQ_XFER_END, count=172084, peer=39
+<br>
+PROC28: 59.4332009612; RECV_REQ_COMPLETE, count=172084, peer=39
+<br>
+PROC39: 59.4332049811; SEND_REQ_XFER_CONTINUE, count=54358, peer=28
+<br>
+PROC28: 59.4332059611; RECV_MSG_ARRIVED, count=0, peer=39
+<br>
+PROC28: 59.4332109612; RECV_SEARCH_POSTED_Q_BEGIN, count=0, peer=39
+<br>
+PROC28: 59.4332149612; RECV_MSG_INSERT_IN_UNEX_Q, count=0, peer=39
+<br>
+PROC28: 59.4332199611; RECV_SEARCH_POSTED_Q_END, count=0, peer=39
+<br>
+PROC28: 59.4332269612; RECV_REQ_NOTIFY, count=172084, peer=39
+<br>
+PROC28: 59.4332539611; RECV_REQ_ACTIVATE, count=172084, peer=39
+<br>
+PROC39: 59.4332569811; SEND_REQ_XFER_END, count=81536, peer=28
+<br>
+PROC28: 59.4332589612; RECV_SEARCH_UNEX_Q_BEGIN, count=172084, peer=39
+<br>
+PROC28: 59.4332629612; RECV_REQ_MATCH_UNEX, count=172084, peer=39
+<br>
+PROC39: 59.4332659811; SEND_REQ_COMPLETE, count=81536, peer=28
+<br>
+PROC28: 59.4332669611; RECV_MSG_REMOVE_FROM_UNEX_Q, count=0, peer=39
+<br>
+PROC28: 59.4332719612; RECV_SEARCH_UNEX_Q_END, count=172084, peer=39
+<br>
+PROC28: 59.4332759612; RECV_REQ_XFER_BEGIN, count=172084, peer=39
+<br>
+PROC39: 59.4332769811; SEND_REQ_NOTIFY, count=81536, peer=28
+<br>
+PROC28: 59.4332809611; RECV_REQ_XFER_CONTINUE, count=27178, peer=39
+<br>
+PROC39: 59.4332849811; ERROR: component gb2 exceeded send time limit by 0.104915 seconds.
+<br>
+PROC39: 59.4332849811; WARNING: component gb2 increased page faults R=130898,0; P=130898,0; S=132207,0
+<br>
+<p>Notice the 205 ms delay between the hi-lighted SEND_REQ_XFER_BEGIN and the subsequent SEND_REQ_XFER_CONTINUE
+<br>
+Also notice that there was no such delay in the previous send request.
+<br>
+<p>The last two lines are my own debug that monitor excessive time spent in an MPI_Send and monitor increasing number of page faults.
+<br>
+After the delaying MPI_Send, the page faults have increased by 1309 (132207 - 130898) !!!
+<br>
+<p>I looked at the PML code (pml_ob1_sendreq.c) and I suspect that something is going awry in the mca_bml_base_prepare_src function.
+<br>
+I believe that this is the function in which the openib BTL makes calls to register the user memory.
+<br>
+<p>This delay in the MPI_Send kills any hope of meeting our real-time requirements, so any help is greatly appreciated.
+<br>
+<p><p>From: Hodge, Gary C
+<br>
+Sent: Monday, November 05, 2012 12:27 PM
+<br>
+To: users_at_[hidden]&lt;mailto:users_at_[hidden]&gt;
+<br>
+Subject: gathering problem
+<br>
+<p>I continue to have a problem where 2 processes are sending to the same process and one of the sending processes hangs for 150 to 550 ms in the call to MPI_Send.
+<br>
+<p>Each process runs on a different node and the receiving process has posted an MPI_Irecv 17 ms before the hanging send.
+<br>
+The posted receives are for 172K buffers and the sending processes are sending 81K size messages.
+<br>
+I have set mpi_leave_pinned to 1 and have increased the btl_openib_receive_queues to ...:S,65536,512,256,64
+<br>
+<p>How do I trace the various phases of message passing to diagnose where the send is hanging up?
+<br>
+<p><p>_______________________________________________
+<br>
+users mailing list
+<br>
+users_at_[hidden]&lt;mailto:users_at_[hidden]&gt;
+<br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+<br>
+<p><p><hr>
+<ul>
+<li>text/html attachment: <a href="http://www.open-mpi.org/community/lists/users/att-20706/attachment">attachment</a>
+</ul>
+<!-- attachment="attachment" -->
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="20707.php">Ralph Castain: "Re: [OMPI users] EXTERNAL: Re:  gathering problem"</a>
+<li><strong>Previous message:</strong> <a href="20705.php">Craig Tierney: "Re: [OMPI users] mpif90 wrapper is using -pthread as option to ifort, but option is depreciated"</a>
+<li><strong>In reply to:</strong> <a href="20696.php">George Bosilca: "Re: [OMPI users] gathering problem"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="20707.php">Ralph Castain: "Re: [OMPI users] EXTERNAL: Re:  gathering problem"</a>
+<li><strong>Reply:</strong> <a href="20707.php">Ralph Castain: "Re: [OMPI users] EXTERNAL: Re:  gathering problem"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

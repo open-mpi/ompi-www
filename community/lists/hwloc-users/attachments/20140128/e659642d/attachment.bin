@@ -1,0 +1,52 @@
+commit 9fdf2b92e740d45ef632681f16977b18ad907ffc
+Author: Brice Goglin <Brice.Goglin@inria.fr>
+Date:   Tue Jan 28 15:41:57 2014 +0100
+
+    Fix cpuid on windows 64bits and get the x86 backend reenabled there
+    
+    unsigned long isn't 64bits, so the cpuid assembly code fails to
+    build during configure, and the entire x86 backend gets disabled.
+    
+    Use hwloc_uint64_t instead.
+
+diff --git a/config/hwloc.m4 b/config/hwloc.m4
+index 3806933..05414af 100644
+--- a/config/hwloc.m4
++++ b/config/hwloc.m4
+@@ -995,8 +995,23 @@ EOF])
+     AC_MSG_CHECKING([for cpuid])
+     old_CPPFLAGS="$CPPFLAGS"
+     CPPFLAGS="$CPPFLAGS -I$HWLOC_top_srcdir/include"
++    # We need hwloc_uint64_t but we can't use before configure ends,
++    # so pass #include/#define manually here for now.
++    CPUID_CHECK_HEADERS=
++    CPUID_CHECK_DEFINE=
++    if test "x$hwloc_windows" = xyes; then
++      CPUID_CHECK_HEADERS="#include <windows.h>"
++      CPUID_CHECK_DEFINE="#define hwloc_uint64_t DWORDLONG"
++    else
++      CPUID_CHECK_DEFINE="#define hwloc_uint64_t uint64_t"
++      if test "x$ac_cv_header_stdint_h" = xyes; then
++        CPUID_CHECK_HEADERS="#include <stdint.h>"
++      fi
++    fi
+     AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+         #include <stdio.h>
++        $CPUID_CHECK_HEADERS
++        $CPUID_CHECK_DEFINE
+         #define __hwloc_inline
+         #include <private/cpuid.h>
+       ]], [[
+diff --git a/include/private/cpuid.h b/include/private/cpuid.h
+index 9234848..e34d276 100644
+--- a/include/private/cpuid.h
++++ b/include/private/cpuid.h
+@@ -54,7 +54,7 @@ static __hwloc_inline void hwloc_cpuid(unsigned *eax, unsigned *ebx, unsigned *e
+   /* Note: gcc might want to use bx or the stack for %1 addressing, so we can't
+    * use them :/ */
+ #ifdef HWLOC_X86_64_ARCH
+-  unsigned long sav_rbx;
++  hwloc_uint64_t sav_rbx;
+   asm(
+   "mov %%rbx,%2\n\t"
+   "cpuid\n\t"

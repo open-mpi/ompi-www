@@ -1,0 +1,27 @@
+Ah - thanks! That really helped clarify things. Much appreciated.<div><br></div><div>Will look at the patch in this light...<br><br><div class="gmail_quote">On Tue, Jun 7, 2011 at 1:00 PM, Wesley Bland <span dir="ltr">&lt;<a href="mailto:wbland@eecs.utk.edu">wbland@eecs.utk.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div>
+            <div><div class="im"><blockquote type="cite" style="border-left-style:solid;border-width:1px;margin-left:0px;padding-left:10px"><span><div><div><div><div><br></div><div>Perhaps it would help if you folks could provide a little explanation about how you use epoch? While the value sounds similar, your explanations are beginning to sound very different from what we are doing and/or had envisioned.</div>
+
+<div><br></div><div>I&#39;m not sure how you can talk about an epoch being too high or too low, unless you are envisioning an overall system where procs try to maintain some global notion of the value - which sounds like a race condition begging to cause problems.</div>
+
+<div> </div></div></div></div></span></blockquote></div><div>When we say epoch we mean a value that is stored locally. When a failure is detected the detector notifies the HNP who notifies everyone else. Thus everyone will _eventually_ receive the notification that the process has failed. It may take a while for you to receive the notification, but in the meantime you will behave normally. When you do receive the notification that the failure occurred, you update your local copy of the epoch.</div>
+<div><br></div><div>This is similar to the definition of the &quot;perfect&quot; failure detector that Josh references. It doesn&#39;t matter if you don&#39;t find about the failure immediately, as long as you find out about it eventually. If you aren&#39;t actually in the same jobid as the failed process you might never find out about the failure because it does not apply to you.</div>
+<div class="im"><blockquote type="cite" style="border-left-style:solid;border-width:1px;margin-left:0px;padding-left:10px"><span><div><div><div><div>Are you then thinking that MPI processes are going to detect failure instead of local orteds?? Right now, no MPI process would ever report failure of a peer - the orted detects failure using the sigchild and reports it. What mechanism would the MPI procs use, and how would that be more reliable than sigchild??</div>
+</div></div></div></span></blockquote></div><div>Definitely not. ORTEDs are the processes that detect and report the failures. They can detect the failure of other ORTEDs or of applications. Basically anything to which they have a connection.</div>
+<div class="im"><blockquote type="cite" style="border-left-style:solid;border-width:1px;margin-left:0px;padding-left:10px"><span><div><div><div>
+<div><br></div><div>So right now the HNP can -never- receive more than one failure report at a time for a process. The only issue we&#39;ve been working is that there are several pathways for reporting that error - e.g., if the orted detects the process fails and reports it, and then the orted itself fails, we can get multiple failure events back at the HNP before we respond to the first one.</div>
+
+<div><br></div><div>Not the same issue as having MPI procs reporting failures...</div></div></div></div></span></blockquote></div><div>This is where the epoch becomes necessary. When reporting a failure, you tell the HNP which process failed by name, including the epoch. Thus the HNP will not make a process as having failed twice (thus incrementing the epoch twice and notifying everyone about the failure twice). The HNP might receive multiple notifications because more than one ORTED could (and often will) detect the failure. It is easier to have the HNP decide what is a failure and what is a duplicate rather than have the ORTEDs reach some consensus about the fact that a process has failed. Much less overhead this way.</div>
+<div class="im"><blockquote type="cite" style="border-left-style:solid;border-width:1px;margin-left:0px;padding-left:10px"><span><div><div><div><blockquote style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<div><div><div><br></div><div>I&#39;m not sure what ORCM does in the respect, but I don&#39;t know of anything in ORTE that would track this data other than the process state and that doesn&#39;t keep track of anything beyond one failure (which admittedly isn&#39;t an issue until we implement process recovery).</div>
+
+</div></div></blockquote><div><br></div><div>We aren&#39;t having any problems with process recovery and process state - without tracking epochs. We only track &quot;incarnations&quot; so that we can pass it down to the apps, which use that info to guide their restart.</div>
+
+<div><br></div><div>Could you clarify why you are having a problem in this regard? Might help to better understand your proposed changes.</div></div></div></div></span></blockquote></div><div>I think we&#39;re talking about the same thing here. The only difference is that I&#39;m not looking at the ORCM code so I don&#39;t have the &quot;incarnations&quot;.</div>
+
+            </div>
+        </div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br></div>
+

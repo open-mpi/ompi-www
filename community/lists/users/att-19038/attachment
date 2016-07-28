@@ -1,0 +1,420 @@
+No I havent tried using valgrind. <div><br></div><div>here is the latest code - </div><div><br></div><div><div><br></div><div>#include &quot;mpi.h&quot;</div><div>#include &lt;stdio.h&gt;</div><div>#include &lt;stdlib.h&gt;</div>
+<div>#include &lt;string.h&gt;</div><div>#define  ARRAYSIZE<span class="Apple-tab-span" style="white-space:pre">	</span>200000</div><div>#define  MASTER<span class="Apple-tab-span" style="white-space:pre">		</span>0</div>
+<div><br></div><div>int  *data;</div><div><br></div><div><br></div><div>int main(int argc, char* argv[])</div><div>{</div><div>int   numtasks, taskid, rc, dest, offset, i, j, tag1, tag2, source, chunksize, namelen; </div>
+<div>int mysum, sum;</div><div>int update(int myoffset, int chunk, int myid);</div><div>char myname[MPI_MAX_PROCESSOR_NAME];</div><div>MPI_Status status;</div><div>double start, stop, time;</div><div>double totaltime;</div>
+<div>FILE *fp;</div><div>char line[128];</div><div>char element;</div><div>int n;</div><div>int k=0;</div><div><br></div><div><br></div><div><br></div><div>/***** Initializations *****/</div><div>MPI_Init(&amp;argc, &amp;argv);</div>
+<div>MPI_Comm_size(MPI_COMM_WORLD, &amp;numtasks);</div><div>if (numtasks % 4 != 0) {</div><div>   printf(&quot;Quitting. Number of MPI tasks must be divisible by 4.\n&quot;);</div><div>   MPI_Abort(MPI_COMM_WORLD, rc);</div>
+<div>   MPI_Finalize();</div><div>   }</div><div>MPI_Comm_rank(MPI_COMM_WORLD,&amp;taskid); </div><div>MPI_Get_processor_name(myname, &amp;namelen);</div><div>printf (&quot;MPI task %d has started on host %s...\n&quot;, taskid, myname);</div>
+<div>chunksize = (ARRAYSIZE / numtasks);</div><div>tag2 = 1;</div><div>tag1 = 2;</div><div><br></div><div><br></div><div>/***** Master task only ******/</div><div>if (taskid == MASTER){</div><div>  </div><div> </div><div>
+  /* Initialize the array */</div><div>  data = malloc(ARRAYSIZE * sizeof(int));</div><div>  if(NULL == data){</div><div>    printf(&quot;Data null&quot;);</div><div>  }</div><div>  sum = 0;</div><div>  for(i=0; i&lt;ARRAYSIZE; i++) {</div>
+<div>    data[i] =  i * 1 ;</div><div>    sum = sum + data[i];</div><div>    }</div><div>  printf(&quot;Initialized array sum = %d\n&quot;,sum);</div><div><br></div><div><br></div><div><br></div><div>  /* Send each task its portion of the array - master keeps 1st part */</div>
+<div>  offset = chunksize;</div><div>  for (dest=1; dest&lt;numtasks; dest++) {</div><div>    MPI_Send(&amp;offset, 1, MPI_INT, dest, tag1, MPI_COMM_WORLD);</div><div>    MPI_Send(&amp;data[offset], chunksize, MPI_INT, dest, tag2, MPI_COMM_WORLD);</div>
+<div>    printf(&quot;Sent %d elements to task %d offset= %d\n&quot;,chunksize,dest,offset);</div><div>    offset = offset + chunksize;</div><div>    }</div><div><br></div><div>  /* Master does its part of the work */</div>
+<div>  offset = 0;</div><div>  mysum = update(offset, chunksize, taskid);</div><div><br></div><div>  /* Wait to receive results from each task */</div><div>  for (i=1; i&lt;numtasks; i++) {</div><div>    source = i;</div>
+<div>    MPI_Recv(&amp;offset, 1, MPI_INT, source, tag1, MPI_COMM_WORLD, &amp;status);</div><div>    MPI_Recv(&amp;data[offset], chunksize, MPI_INT, source, tag2,</div><div>      MPI_COMM_WORLD, &amp;status);</div><div>    }</div>
+<div><br></div><div>  /* Get final sum and print sample results */  </div><div>  MPI_Reduce(&amp;mysum, &amp;sum, 1, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);</div><div> /* printf(&quot;Sample results: \n&quot;);</div><div>
+  offset = 0;</div><div>  for (i=0; i&lt;numtasks; i++) {</div><div>    for (j=0; j&lt;5; j++) </div><div>      printf(&quot;  %d&quot;,data[offset+j]);ARRAYSIZE</div><div>    printf(&quot;\n&quot;);</div><div>    offset = offset + chunksize;</div>
+<div>    }*/</div><div>  printf(&quot;\n*** Final sum= %d ***\n&quot;,sum);</div><div><br></div><div>  }  /* end of master section */</div><div><br></div><div><br></div><div><br></div><div>/***** Non-master tasks only *****/</div>
+<div><br></div><div>if (taskid &gt; MASTER) {</div><div><br></div><div>  /* Receive my portion of array from the master task */</div><div>  start= MPI_Wtime();</div><div>  source = MASTER;</div><div>  MPI_Recv(&amp;offset, 1, MPI_INT, source, tag1, MPI_COMM_WORLD, &amp;status);</div>
+<div>  MPI_Recv(&amp;data[offset], chunksize, MPI_INT, source, tag2,MPI_COMM_WORLD, &amp;status);</div><div><br></div><div>  mysum = update(offset, chunksize, taskid);</div><div>  stop = MPI_Wtime();</div><div>  time = stop -start;</div>
+<div>  printf(&quot;time taken by process %d to recieve elements and caluclate own sum is = %lf seconds \n&quot;, taskid, time);</div><div>  totaltime = totaltime + time;</div><div><br></div><div>  /* Send my results back to the master task */</div>
+<div>  dest = MASTER;</div><div>  MPI_Send(&amp;offset, 1, MPI_INT, dest, tag1, MPI_COMM_WORLD);</div><div>  MPI_Send(&amp;data[offset], chunksize, MPI_INT, MASTER, tag2, MPI_COMM_WORLD);</div><div><br></div><div>  MPI_Reduce(&amp;mysum, &amp;sum, 1, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);</div>
+<div><br></div><div>  } /* end of non-master */</div><div><br></div><div>// printf(&quot;Total time taken for distribution is -  %lf  seconds&quot;, totaltime);</div><div>MPI_Finalize();</div><div><br></div><div>}   /* end of main */</div>
+<div><br></div><div><br></div><div>int update(int myoffset, int chunk, int myid) {</div><div>  int i,j; </div><div>  int mysum;</div><div>  int mydata[myoffset+chunk];</div><div>  /* Perform addition to each of my array elements and keep my sum */</div>
+<div>  mysum = 0;</div><div> /*  printf(&quot;task %d has elements:&quot;,myid);</div><div>  for(j = myoffset; j&lt;myoffset+chunk; j++){</div><div>      printf(&quot;\t%d&quot;, data[j]);</div><div>  }</div><div> printf(&quot;\n&quot;);*/</div>
+<div>  for(i=myoffset; i &lt; myoffset + chunk; i++) {</div><div>    </div><div>    //data[i] = data[i] + i;</div><div>    mysum = mysum + data[i];</div><div>    }</div><div>  printf(&quot;Task %d has sum = %d\n&quot;,myid,mysum);</div>
+<div>  return(mysum);</div><div>}</div><div><br></div><br><div class="gmail_quote">On Thu, Apr 19, 2012 at 5:59 PM, Jeffrey Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Send the most recent version of your code.<br>
+<br>
+Have you tried running it through a memory-checking debugger, like valgrind?<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On Apr 19, 2012, at 4:24 AM, Rohan Deshpande wrote:<br>
+<br>
+&gt; Hi Pascal,<br>
+&gt;<br>
+&gt; The offset is received from the master task. so no need to initialize for non master tasks?<br>
+&gt;<br>
+&gt; not sure what u meant exactly.<br>
+&gt;<br>
+&gt; Thanks<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; On Thu, Apr 19, 2012 at 3:36 PM, &lt;<a href="mailto:pascal.deveze@bull.net">pascal.deveze@bull.net</a>&gt; wrote:<br>
+&gt; I do not see where you initialize the offset on the &quot;Non-master tasks&quot;. This could be the problem.<br>
+&gt;<br>
+&gt; Pascal<br>
+&gt;<br>
+&gt; <a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a> a écrit sur 19/04/2012 09:18:31 :<br>
+&gt;<br>
+&gt; &gt; De : Rohan Deshpande &lt;<a href="mailto:rohand87@gmail.com">rohand87@gmail.com</a>&gt;<br>
+&gt; &gt; A : Open MPI Users &lt;<a href="mailto:users@open-mpi.org">users@open-mpi.org</a>&gt;<br>
+&gt; &gt; Date : 19/04/2012 09:18<br>
+&gt; &gt; Objet : Re: [OMPI users] machine exited on signal 11 (Segmentation fault).<br>
+&gt; &gt; Envoyé par : <a href="mailto:users-bounces@open-mpi.org">users-bounces@open-mpi.org</a><br>
+&gt; &gt;<br>
+&gt; &gt; Hi Jeffy,<br>
+&gt; &gt;<br>
+&gt; &gt; I checked the SEND RECV buffers and it looks ok to me. The code I<br>
+&gt; &gt; have sent works only when I statically initialize the array.<br>
+&gt; &gt;<br>
+&gt; &gt; The code fails everytime I use malloc to initialize the array.<br>
+&gt; &gt;<br>
+&gt; &gt; Can you please look at code and let me know what is wrong.<br>
+&gt;<br>
+&gt; &gt; On Wed, Apr 18, 2012 at 8:11 PM, Jeffrey Squyres &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+&gt; &gt; As a guess, you&#39;re passing in a bad address.<br>
+&gt; &gt;<br>
+&gt; &gt; Double check the buffers that you&#39;re sending to MPI_SEND/MPI_RECV/etc.<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; On Apr 17, 2012, at 10:43 PM, Rohan Deshpande wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; After using malloc i am getting following error<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;  *** Process received signal ***<br>
+&gt; &gt; &gt;  Signal: Segmentation fault (11)<br>
+&gt; &gt; &gt;  Signal code: Address not mapped (1)<br>
+&gt; &gt; &gt; Failing at address: 0x1312d08<br>
+&gt; &gt; &gt;  [ 0] [0x5e840c]<br>
+&gt; &gt; &gt; [ 1] /usr/local/lib/openmpi/mca_btl_tcp.so(+0x5bdb) [0x119bdb]<br>
+&gt; &gt; &gt;  /usr/local/lib/libopen-pal.so.0(+0x19ce0) [0xb2cce0]<br>
+&gt; &gt; &gt;  /usr/local/lib/libopen-pal.so.0(opal_event_loop+0x27) [0xb2cf47]<br>
+&gt; &gt; &gt;  /usr/local/lib/libopen-pal.so.0(opal_progress+0xda) [0xb200ba]<br>
+&gt; &gt; &gt;  /usr/local/lib/openmpi/mca_pml_ob1.so(+0x3f75) [0xa9ef75]<br>
+&gt; &gt; &gt;  [ 6] /usr/local/lib/libmpi.so.0(MPI_Recv+0x136) [0xea7c46]<br>
+&gt; &gt; &gt;  [ 7] mpi_array(main+0x501) [0x8048e25]<br>
+&gt; &gt; &gt; [ 8] /lib/libc.so.6(__libc_start_main+0xe6) [0x2fece6]<br>
+&gt; &gt; &gt;  [ 9] mpi_array() [0x8048891]<br>
+&gt; &gt; &gt;  *** End of error message ***<br>
+&gt; &gt; &gt; [machine4][[3968,1],0][btl_tcp_frag.c:216:mca_btl_tcp_frag_recv]<br>
+&gt; &gt; mca_btl_tcp_frag_recv: readv failed: Connection reset by peer (104)<br>
+&gt; &gt; &gt; --------------------------------------------------------------------------<br>
+&gt; &gt; &gt; mpirun noticed that process rank 1 with PID 2936 on node machine4<br>
+&gt; &gt; exited on signal 11 (Segmentation fault).<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Can someone help please.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Thanks<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; On Tue, Apr 17, 2012 at 6:01 PM, Jeffrey Squyres &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+&gt; &gt; &gt; Try malloc&#39;ing your array instead of creating it statically on the<br>
+&gt; &gt; stack.  Something like:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; int *data;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; int main(..) {<br>
+&gt; &gt; &gt; {<br>
+&gt; &gt; &gt;    data = malloc(ARRAYSIZE * sizeof(int));<br>
+&gt; &gt; &gt;    if (NULL == data) {<br>
+&gt; &gt; &gt;        perror(&quot;malloc&quot;);<br>
+&gt; &gt; &gt;        exit(1);<br>
+&gt; &gt; &gt;    }<br>
+&gt; &gt; &gt;    // ...<br>
+&gt; &gt; &gt; }<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; On Apr 17, 2012, at 5:05 AM, Rohan Deshpande wrote:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; Hi,<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; I am trying to distribute large amount of data using MPI.<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; When I exceed the certain data size the segmentation fault occurs.<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; Here is my code,<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; #include &quot;mpi.h&quot;<br>
+&gt; &gt; &gt; &gt; #include &lt;stdio.h&gt;<br>
+&gt; &gt; &gt; &gt; #include &lt;stdlib.h&gt;<br>
+&gt; &gt; &gt; &gt; #include &lt;string.h&gt;<br>
+&gt; &gt; &gt; &gt; #define  ARRAYSIZE    2000000<br>
+&gt; &gt; &gt; &gt; #define  MASTER        0<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; int  data[ARRAYSIZE];<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; int main(int argc, char* argv[])<br>
+&gt; &gt; &gt; &gt; {<br>
+&gt; &gt; &gt; &gt; int   numtasks, taskid, rc, dest, offset, i, j, tag1, tag2,<br>
+&gt; &gt; source, chunksize, namelen;<br>
+&gt; &gt; &gt; &gt; int mysum, sum;<br>
+&gt; &gt; &gt; &gt; int update(int myoffset, int chunk, int myid);<br>
+&gt; &gt; &gt; &gt; char myname[MPI_MAX_PROCESSOR_NAME];<br>
+&gt; &gt; &gt; &gt; MPI_Status status;<br>
+&gt; &gt; &gt; &gt; double start, stop, time;<br>
+&gt; &gt; &gt; &gt; double totaltime;<br>
+&gt; &gt; &gt; &gt; FILE *fp;<br>
+&gt; &gt; &gt; &gt; char line[128];<br>
+&gt; &gt; &gt; &gt; char element;<br>
+&gt; &gt; &gt; &gt; int n;<br>
+&gt; &gt; &gt; &gt; int k=0;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; /***** Initializations *****/<br>
+&gt; &gt; &gt; &gt; MPI_Init(&amp;argc, &amp;argv);<br>
+&gt; &gt; &gt; &gt; MPI_Comm_size(MPI_COMM_WORLD, &amp;numtasks);<br>
+&gt; &gt; &gt; &gt; MPI_Comm_rank(MPI_COMM_WORLD,&amp;taskid);<br>
+&gt; &gt; &gt; &gt; MPI_Get_processor_name(myname, &amp;namelen);<br>
+&gt; &gt; &gt; &gt; printf (&quot;MPI task %d has started on host %s...\n&quot;, taskid, myname);<br>
+&gt; &gt; &gt; &gt; chunksize = (ARRAYSIZE / numtasks);<br>
+&gt; &gt; &gt; &gt; tag2 = 1;<br>
+&gt; &gt; &gt; &gt; tag1 = 2;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; /***** Master task only ******/<br>
+&gt; &gt; &gt; &gt; if (taskid == MASTER){<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;    /* Initialize the array */<br>
+&gt; &gt; &gt; &gt;   sum = 0;<br>
+&gt; &gt; &gt; &gt;   for(i=0; i&lt;ARRAYSIZE; i++) {<br>
+&gt; &gt; &gt; &gt;     data[i] =  i * 1 ;<br>
+&gt; &gt; &gt; &gt;     sum = sum + data[i];<br>
+&gt; &gt; &gt; &gt;     }<br>
+&gt; &gt; &gt; &gt;   printf(&quot;Initialized array sum = %d\n&quot;,sum);<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   /* Send each task its portion of the array - master keeps 1st part */<br>
+&gt; &gt; &gt; &gt;   offset = chunksize;<br>
+&gt; &gt; &gt; &gt;   for (dest=1; dest&lt;numtasks; dest++) {<br>
+&gt; &gt; &gt; &gt;     MPI_Send(&amp;offset, 1, MPI_INT, dest, tag1, MPI_COMM_WORLD);<br>
+&gt; &gt; &gt; &gt;     MPI_Send(&amp;data[offset], chunksize, MPI_INT, dest, tag2,<br>
+&gt; &gt; MPI_COMM_WORLD);<br>
+&gt; &gt; &gt; &gt;     printf(&quot;Sent %d elements to task %d offset= %d<br>
+&gt; &gt; \n&quot;,chunksize,dest,offset);<br>
+&gt; &gt; &gt; &gt;     offset = offset + chunksize;<br>
+&gt; &gt; &gt; &gt;     }<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   /* Master does its part of the work */<br>
+&gt; &gt; &gt; &gt;   offset = 0;<br>
+&gt; &gt; &gt; &gt;   mysum = update(offset, chunksize, taskid);<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   /* Wait to receive results from each task */<br>
+&gt; &gt; &gt; &gt;   for (i=1; i&lt;numtasks; i++) {<br>
+&gt; &gt; &gt; &gt;     source = i;<br>
+&gt; &gt; &gt; &gt;     MPI_Recv(&amp;offset, 1, MPI_INT, source, tag1, MPI_COMM_WORLD, &amp;status);<br>
+&gt; &gt; &gt; &gt;     MPI_Recv(&amp;data[offset], chunksize, MPI_INT, source, tag2,<br>
+&gt; &gt; &gt; &gt;       MPI_COMM_WORLD, &amp;status);<br>
+&gt; &gt; &gt; &gt;     }<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   /* Get final sum and print sample results */<br>
+&gt; &gt; &gt; &gt;   MPI_Reduce(&amp;mysum, &amp;sum, 1, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);<br>
+&gt; &gt; &gt; &gt;  /* printf(&quot;Sample results: \n&quot;);<br>
+&gt; &gt; &gt; &gt;   offset = 0;<br>
+&gt; &gt; &gt; &gt;   for (i=0; i&lt;numtasks; i++) {<br>
+&gt; &gt; &gt; &gt;     for (j=0; j&lt;5; j++)<br>
+&gt; &gt; &gt; &gt;       printf(&quot;  %d&quot;,data[offset+j]);ARRAYSIZE<br>
+&gt; &gt; &gt; &gt;     printf(&quot;\n&quot;);<br>
+&gt; &gt; &gt; &gt;     offset = offset + chunksize;<br>
+&gt; &gt; &gt; &gt;     }*/<br>
+&gt; &gt; &gt; &gt;   printf(&quot;\n*** Final sum= %d ***\n&quot;,sum);<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   }  /* end of master section */<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; #include &lt;stdlib.h&gt;<br>
+&gt; &gt; &gt; &gt; /***** Non-master tasks only *****/<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; if (taskid &gt; MASTER) {<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   /* Receive my portion of array from the master task */<br>
+&gt; &gt; &gt; &gt;   start= MPI_Wtime();<br>
+&gt; &gt; &gt; &gt;   source = MASTER;<br>
+&gt; &gt; &gt; &gt;   MPI_Recv(&amp;offset, 1, MPI_INT, source, tag1, MPI_COMM_WORLD, &amp;status);<br>
+&gt; &gt; &gt; &gt;   MPI_Recv(&amp;data[offset], chunksize, MPI_INT, source,<br>
+&gt; &gt; tag2,MPI_COMM_WORLD, &amp;status);<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   mysum = update(offset, chunksize, taskid);<br>
+&gt; &gt; &gt; &gt;   stop = MPI_Wtime();<br>
+&gt; &gt; &gt; &gt;   time = stop -start;<br>
+&gt; &gt; &gt; &gt;   printf(&quot;time taken by process %d to recieve elements and<br>
+&gt; &gt; caluclate own sum is = %lf seconds \n&quot;, taskid, time);<br>
+&gt; &gt; &gt; &gt;   totaltime = totaltime + time;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   /* Send my results back to the master task */<br>
+&gt; &gt; &gt; &gt;   dest = MASTER;<br>
+&gt; &gt; &gt; &gt;   MPI_Send(&amp;offset, 1, MPI_INT, dest, tag1, MPI_COMM_WORLD);<br>
+&gt; &gt; &gt; &gt;   MPI_Send(&amp;data[offset], chunksize, MPI_INT, MASTER, tag2,<br>
+&gt; &gt; MPI_COMM_WORLD);<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   MPI_Reduce(&amp;mysum, &amp;sum, 1, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;   } /* end of non-master */<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; // printf(&quot;Total time taken for distribution is -  %lf<br>
+&gt; &gt;  seconds&quot;, totaltime);<br>
+&gt; &gt; &gt; &gt; MPI_Finalize();<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; }   /* end of main */<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; int update(int myoffset, int chunk, int myid) {<br>
+&gt; &gt; &gt; &gt;   int i,j;<br>
+&gt; &gt; &gt; &gt;   int mysum;<br>
+&gt; &gt; &gt; &gt;   int mydata[myoffset+chunk];<br>
+&gt; &gt; &gt; &gt;   /* Perform addition to each of my array elements and keep my sum */<br>
+&gt; &gt; &gt; &gt;   mysum = 0;<br>
+&gt; &gt; &gt; &gt;  /*  printf(&quot;task %d has elements:&quot;,myid);<br>
+&gt; &gt; &gt; &gt;   for(j = myoffset; j&lt;myoffset+chunk; j++){<br>
+&gt; &gt; &gt; &gt;       printf(&quot;\t%d&quot;, data[j]);<br>
+&gt; &gt; &gt; &gt;   }<br>
+&gt; &gt; &gt; &gt;  printf(&quot;\n&quot;);*/<br>
+&gt; &gt; &gt; &gt;   for(i=myoffset; i &lt; myoffset + chunk; i++) {<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;     //data[i] = data[i] + i;<br>
+&gt; &gt; &gt; &gt;     mysum = mysum + data[i];<br>
+&gt; &gt; &gt; &gt;     }<br>
+&gt; &gt; &gt; &gt;   printf(&quot;Task %d has sum = %d\n&quot;,myid,mysum);<br>
+&gt; &gt; &gt; &gt;   return(mysum);<br>
+&gt; &gt; &gt; &gt; }<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; When I run it with ARRAYSIZE = 2000000 The program works fine.<br>
+&gt; &gt; But when I increase the size ARRAYSIZE = 20000000. The program ends<br>
+&gt; &gt; with segmentation fault.<br>
+&gt; &gt; &gt; &gt; I am running it on a cluster (machine 4 is master, machine 5,6<br>
+&gt; &gt; are slaves)  and np=20<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; MPI task 0 has started on host machine4<br>
+&gt; &gt; &gt; &gt; MPI task 2 has started on host machine4<br>
+&gt; &gt; &gt; &gt; MPI task 3 has started on host machine4<br>
+&gt; &gt; &gt; &gt; MPI task 14 has started on host machine4<br>
+&gt; &gt; &gt; &gt; MPI task 8 has started on host machine6<br>
+&gt; &gt; &gt; &gt; MPI task 10 has started on host machine6<br>
+&gt; &gt; &gt; &gt; MPI task 13 has started on host machine4<br>
+&gt; &gt; &gt; &gt; MPI task 4 has started on host machine5<br>
+&gt; &gt; &gt; &gt; MPI task 6 has started on host machine5<br>
+&gt; &gt; &gt; &gt; MPI task 7 has started on host machine5<br>
+&gt; &gt; &gt; &gt; MPI task 16 has started on host machine5<br>
+&gt; &gt; &gt; &gt; MPI task 11 has started on host machine6<br>
+&gt; &gt; &gt; &gt; MPI task 12 has started on host machine4<br>
+&gt; &gt; &gt; &gt; MPI task 5 has started on hostmachine5<br>
+&gt; &gt; &gt; &gt; MPI task 17 has started on host machine5<br>
+&gt; &gt; &gt; &gt; MPI task 18 has started on host machine5<br>
+&gt; &gt; &gt; &gt; MPI task 15 has started on host machine4<br>
+&gt; &gt; &gt; &gt; MPI task 19 has started on host machine5<br>
+&gt; &gt; &gt; &gt; MPI task 1 has started on host machine4<br>
+&gt; &gt; &gt; &gt; MPI task 9 has started on host machine6<br>
+&gt; &gt; &gt; &gt; Initialized array sum = 542894464<br>
+&gt; &gt; &gt; &gt; Sent 1000000 elements to task 1 offset= 1000000<br>
+&gt; &gt; &gt; &gt; Task 1 has sum = 1055913696<br>
+&gt; &gt; &gt; &gt; time taken by process 1 to recieve elements and caluclate own<br>
+&gt; &gt; sum is = 0.249345 seconds<br>
+&gt; &gt; &gt; &gt; Sent 1000000 elements to task 2 offset= 2000000<br>
+&gt; &gt; &gt; &gt; Sent 1000000 elements to task 3 offset= 3000000<br>
+&gt; &gt; &gt; &gt; Task 2 has sum = 328533728<br>
+&gt; &gt; &gt; &gt; time taken by process 2 to recieve elements and caluclate own<br>
+&gt; &gt; sum is = 0.274285 seconds<br>
+&gt; &gt; &gt; &gt; Sent 1000000 elements to task 4 offset= 4000000<br>
+&gt; &gt; &gt; &gt; --------------------------------------------------------------------------<br>
+&gt; &gt; &gt; &gt; mpirun noticed that process rank 3 with PID 5695 on node<br>
+&gt; &gt; machine4 exited on signal 11 (Segmentation fault).<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; Any idea what could be wrong here?<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; --<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; Best Regards,<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; ROHAN DESHPANDE<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; &gt; users mailing list<br>
+&gt; &gt; &gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt; &gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; --<br>
+&gt; &gt; &gt; Jeff Squyres<br>
+&gt; &gt; &gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; &gt; &gt; For corporate legal information go to: <a href="http://www.cisco.com/web/" target="_blank">http://www.cisco.com/web/</a><br>
+&gt; &gt; about/doing_business/legal/cri/<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; users mailing list<br>
+&gt; &gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; users mailing list<br>
+&gt; &gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; --<br>
+&gt; &gt; Jeff Squyres<br>
+&gt; &gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; &gt; For corporate legal information go to: <a href="http://www.cisco.com/web/" target="_blank">http://www.cisco.com/web/</a><br>
+&gt; &gt; about/doing_business/legal/cri/<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; users mailing list<br>
+&gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; --<br>
+&gt; &gt;<br>
+&gt; &gt; Best Regards,<br>
+&gt; &gt;<br>
+&gt; &gt; ROHAN DESHPANDE<br>
+&gt; &gt;<br>
+&gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; users mailing list<br>
+&gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt;<br>
+&gt; Best Regards,<br>
+&gt;<br>
+&gt; ROHAN DESHPANDE<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br><div><span style="font-size:13px;border-collapse:collapse"><font color="#000099" face="verdana, sans-serif"><br><font>Best Regards,</font></font></span></div>
+<div><span style="font-size:13px;border-collapse:collapse"><font face="verdana, sans-serif"><font color="#000099"><br>ROHAN DESHPANDE</font><font>  </font></font></span></div><div><span style="font-size:13px"><br><font color="#666666" face="georgia, serif"><br>
+</font></span></div><br>
+</div>
+

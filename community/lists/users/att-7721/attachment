@@ -1,0 +1,136 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+gaurav gupta wrote:
+<blockquote
+ cite="mid:f4e1c520901182320u7d29b403n7b0165f45d37589@mail.gmail.com"
+ type="cite">Hello,<br>
+  <br>
+I want to know that which task is running on which node. Is there any
+way to know this. <br>
+Is there any profiling tool provided along with openmpi to calculate
+time taken in various steps.<br clear="all">
+  <br>
+-- <br>
+GAURAV GUPTA<br>
+B.Tech III Yr. , Department of Computer Science &amp; Engineering<br>
+IT BHU , Varanasi<br>
+Contacts<br>
+Phone No: +91-99569-49491<br>
+  <br>
+e-mail : <br>
+  <a moz-do-not-send="true" href="mailto:gaurav.gupta@acm.org">gaurav.gupta@acm.org</a><br>
+  <a moz-do-not-send="true" href="mailto:gaurav.gupta.cse06@itbhu.ac.in">gaurav.gupta.cse06@itbhu.ac.in</a><br>
+  <a moz-do-not-send="true" href="mailto:1989.gaurav@gmail.com">1989.gaurav@gmail.com</a>
+  <br>
+  <pre wrap="">
+<hr size="4" width="90%">
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></pre>
+</blockquote>
+Hi Gupta,<br>
+<br>
+I ran into the same problem. In my case I wanted to define the root
+node on a specific host for a synchronization step using rsync between
+the hosts running the processes. Here is some linux C code that might
+help you. It builds an array mpi_host with the hostname of each node,
+and an index array mpi_host_rank that shows which processes are running
+on the same node. The BUG, MY_MALLOC and my_printf macro's are wrappers
+for C-functions assert, malloc and printf. The code assumes
+name-resolution is the same on all nodes.<br>
+<br>
+#define LINE_MAX 1024<br>
+#define MPI_NPROCS_MAX 256<br>
+#define INVALID (-1)<br>
+<br>
+int mpi_nprocs;<br>
+int mpi_id;<br>
+int mpi_nhosts;<br>
+int mpi_root_id;<br>
+char *mpi_hosts;<br>
+char *mpi_host[MPI_NPROCS_MAX];<br>
+int mpi_host_rank[MPI_NPROCS_MAX];<br>
+<br>
+int main(void)<br>
+{<br>
+&nbsp;&nbsp;&nbsp; int iproc;<br>
+&nbsp;&nbsp;&nbsp; char hostname[LINE_MAX];<br>
+<br>
+&nbsp;&nbsp;&nbsp; mpi_nprocs = 1;<br>
+&nbsp;&nbsp;&nbsp; mpi_id = 0;<br>
+&nbsp;&nbsp;&nbsp; mpi_nhosts = 1;<br>
+&nbsp;&nbsp;&nbsp; mpi_root_id = 0;<br>
+<br>
+&nbsp;&nbsp;&nbsp; MPI_Init(&amp;argc, &amp;argv);<br>
+&nbsp;&nbsp;&nbsp; MPI_Comm_size(MPI_COMM_WORLD, &amp;mpi_nprocs);<br>
+&nbsp;&nbsp;&nbsp; BUG(mpi_nprocs &gt; MPI_NPROCS_MAX)<br>
+&nbsp;&nbsp;&nbsp; MPI_Comm_rank(MPI_COMM_WORLD, &amp;mpi_id);<br>
+&nbsp;&nbsp;&nbsp; <br>
+&nbsp;&nbsp;&nbsp; BUG(gethostname(hostname, LINE_MAX) != 0)<br>
+<br>
+&nbsp;&nbsp;&nbsp; REGISTER_MALLOC(mpi_hosts, char, LINE_MAX * mpi_nprocs)<br>
+&nbsp;&nbsp;&nbsp; for (iproc = 0; iproc &lt; mpi_nprocs; iproc++)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mpi_host[iproc] = mpi_hosts + iproc * LINE_MAX;<br>
+&nbsp;&nbsp;&nbsp; if (mpi_nprocs == 1)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; strcpy(mpi_host[0], hostname);<br>
+&nbsp;&nbsp;&nbsp; else<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; MPI_Allgather(hostname, LINE_MAX, MPI_CHAR,<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mpi_hosts, LINE_MAX, MPI_CHAR, MPI_COMM_WORLD);<br>
+<br>
+&nbsp;&nbsp;&nbsp; MPI_Barrier(MPI_COMM_WORLD);<br>
+&nbsp;&nbsp;&nbsp; for (iproc = 0; iproc &lt; mpi_nprocs; iproc++)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mpi_host_rank[iproc] = INVALID;<br>
+&nbsp;&nbsp;&nbsp; mpi_nhosts = 0;<br>
+<br>
+&nbsp;&nbsp;&nbsp; for (iproc = 0; iproc &lt; mpi_nprocs; iproc++)<br>
+&nbsp;&nbsp;&nbsp; {<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; int jproc;<br>
+<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; if (mpi_host_rank[iproc] != INVALID) continue;<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; ++mpi_nhosts;<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; BUG(mpi_nhosts &gt; mpi_nprocs)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mpi_host_rank[iproc] = mpi_nhosts - 1;<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; for (jproc = iproc + 1; jproc &lt; mpi_nprocs; jproc++)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; {<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; if (mpi_host_rank[jproc] != INVALID) continue;<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; if (strcasecmp(mpi_host[jproc], mpi_host[iproc]) == 0)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mpi_host_rank[jproc] = mpi_host_rank[iproc];<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; }<br>
+&nbsp;&nbsp;&nbsp; }<br>
+<br>
+&nbsp;&nbsp;&nbsp; //find specific host if available<br>
+&nbsp;&nbsp;&nbsp; mpi_root_id = 0;<br>
+&nbsp;&nbsp;&nbsp; for (iproc = 0; iproc &lt; mpi_nprocs; iproc++)<br>
+&nbsp;&nbsp;&nbsp; {<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; if (strcasecmp(mpi_host[iproc], "nodep140") == 0)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; {<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mpi_root_id = iproc;<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; break;<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; }<br>
+&nbsp;&nbsp;&nbsp; }<br>
+<br>
+&nbsp;&nbsp;&nbsp; BUG(mpi_nprocs &lt; 1)<br>
+&nbsp;&nbsp;&nbsp; BUG(mpi_nhosts &lt; 1)<br>
+<br>
+&nbsp;&nbsp;&nbsp; my_printf("hostname=%s\n", hostname);<br>
+&nbsp;&nbsp;&nbsp; my_printf("mpi_nprocs=%d\n", mpi_nprocs);<br>
+&nbsp;&nbsp;&nbsp; my_printf("mpi_id=%d\n", mpi_id);<br>
+&nbsp;&nbsp;&nbsp; for (iproc = 0; iproc &lt; mpi_nprocs; iproc++)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; my_printf("iproc=%d host=%s\n", iproc, mpi_host[iproc]);<br>
+&nbsp;&nbsp;&nbsp; my_printf("mpi_nhosts=%d\n", mpi_nhosts);<br>
+&nbsp;&nbsp;&nbsp; for (iproc = 0; iproc &lt; mpi_nprocs; iproc++)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; my_printf("iproc=%d host_rank=%d\n", iproc,
+mpi_host_rank[iproc]);<br>
+&nbsp;&nbsp;&nbsp; my_printf("mpi_root_id=%d host=%s host rank=%d\n",<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; mpi_root_id, mpi_host[mpi_root_id], mpi_host_rank[mpi_root_id]);<br>
+}<br>
+<br>
+<br>
+</body>
+</html>
+

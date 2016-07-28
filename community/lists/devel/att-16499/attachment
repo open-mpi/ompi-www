@@ -1,0 +1,303 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=windows-1252"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Per his prior notes, he is using mpirun to launch his jobs. Brice has confirmed that OMPI doesn’t have that hwloc warning in it. So either he has inadvertently linked against the Ubuntu system version of hwloc, or the message must be coming from Slurm.<div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Dec 10, 2014, at 6:14 PM, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@iferc.org" class="">gilles.gouaillardet@iferc.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class="">
+  
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type" class="">
+  
+  <div text="#000000" bgcolor="#FFFFFF" class="">
+    <div class="moz-cite-prefix">Pim,<br class="">
+      <br class="">
+      at this stage, all i can do is acknowledge your slurm is
+      configured to use cgroups.<br class="">
+      <br class="">
+      and based on your previous comment (e.g. problem only occurs with
+      several jobs on the same node)<br class="">
+      that *could* be a bug in OpenMPI (or hwloc).<br class="">
+      <br class="">
+      by the way, how do you start your mpi application ?<br class="">
+      - do you use mpirun ?<br class="">
+      - do you use srun --resv-ports ?<br class="">
+      <br class="">
+      i'll try to reproduce this in my test environment.<br class="">
+      <br class="">
+      Cheers,<br class="">
+      <br class="">
+      Gilles<br class="">
+      <br class="">
+      On 2014/12/11 2:45, Pim Schellart wrote:<br class="">
+    </div>
+    <blockquote cite="mid:2679CA05-8F14-42FD-BB3A-FA2B8B95D881@gmail.com" type="cite" class="">
+      <pre wrap="" class="">Dear Gilles et al.,
+
+we tested with openmpi compiled from source (version 1.8.3) both with:
+
+./configure --prefix=/usr/local/openmpi --disable-silent-rules --with-libltdl=external --with-devel-headers --with-slurm --enable-heterogeneous --disable-vt --sysconfdir=/etc/openmpi
+
+and
+
+./configure --prefix=/usr/local/openmpi --with-hwloc=/usr --disable-silent-rules --with-libltdl=external --with-devel-headers --with-slurm --enable-heterogeneous --disable-vt --sysconfdir=/etc/openmpi
+
+(e.g. with embedded and external hwloc) and the issue remains the same. Meanwhile we have found another interesting detail. A job is started consisting of four tasks split over two nodes. If this is the only job running on those nodes the out-of-order warnings do not appear. However, if multiple jobs are running the warnings do appear but only for the jobs that are started later. We suspect that this is because for the first started job the CPU cores assigned are 0 and 1 whereas they are different for the later started jobs. I attached the output (including lstopo —of xml output (called for each task)) for both the working and broken case again.
+
+Kind regards,
+
+Pim Schellart
+
+</pre>
+      <br class="">
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br class="">
+      <pre wrap="" class="">
+</pre>
+      <blockquote type="cite" class="">
+        <pre wrap="" class="">On 09 Dec 2014, at 09:38, Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;gilles.gouaillardet@iferc.org&gt;</a> wrote:
+
+Pim,
+
+if you configure OpenMPI with --with-hwloc=external (or something like
+--with-hwloc=/usr) it is very likely
+OpenMPI will use the same hwloc library (e.g. the "system" library) that
+is used by SLURM
+
+/* i do not know how Ubuntu packages OpenMPI ... */
+
+
+The default (e.g. no --with-hwloc parameter in the configure command
+line) is to use the hwloc library that is embedded within OpenMPI
+
+Gilles
+
+On 2014/12/09 17:34, Pim Schellart wrote:
+</pre>
+        <blockquote type="cite" class="">
+          <pre wrap="" class="">Ah, ok so that was where the confusion came from, I did see hwloc in the SLURM sources but couldn’t immediately figure out where exactly it was used. We will try compiling openmpi with the embedded hwloc. Any particular flags I should set?
+
+</pre>
+          <blockquote type="cite" class="">
+            <pre wrap="" class="">On 09 Dec 2014, at 09:30, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+
+There is no linkage between slurm and ompi when it comes to hwloc. If you directly launch your app using srun, then slurm will use its version of hwloc to do the binding. If you use mpirun to launch the app, then we’ll use our internal version to do it.
+
+The two are completely isolated from each other.
+
+
+</pre>
+            <blockquote type="cite" class="">
+              <pre wrap="" class="">On Dec 9, 2014, at 12:25 AM, Pim Schellart <a class="moz-txt-link-rfc2396E" href="mailto:p.schellart@gmail.com">&lt;p.schellart@gmail.com&gt;</a> wrote:
+
+The version that “lstopo --version” reports is the same (1.8) on all nodes, but we may indeed be hitting the second issue. We can try to compile a new version of openmpi, but how do we ensure that the external programs (e.g. SLURM) are using the same hwloc version as the one embedded in openmpi? Is it enough to just compile hwloc 1.9 separately as well and link against that? Also, if this is an issue, should we file a bug against hwloc or openmpi on Ubuntu for mismatching versions?
+
+</pre>
+              <blockquote type="cite" class="">
+                <pre wrap="" class="">On 09 Dec 2014, at 00:50, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+
+Hmmm…they probably linked that to the external, system hwloc version, so it sounds like one or more of your nodes has a different hwloc rpm on it.
+
+I couldn’t leaf thru your output well enough to see all the lstopo versions, but you might check to ensure they are the same.
+
+Looking at the code base, you may also hit a problem here. OMPI 1.6 series was based on hwloc 1.3 - the output you sent indicated you have hwloc 1.8, which is quite a big change. OMPI 1.8 series is based on hwloc 1.9, so at least that is closer (though probably still a mismatch).
+
+Frankly, I’d just download and install an OMPI tarball myself and avoid these headaches. This mismatch in required versions is why we embed hwloc as it is a critical library for OMPI, and we had to ensure that the version matched our internal requirements.
+
+
+</pre>
+                <blockquote type="cite" class="">
+                  <pre wrap="" class="">On Dec 8, 2014, at 8:50 AM, Pim Schellart <a class="moz-txt-link-rfc2396E" href="mailto:p.schellart@gmail.com">&lt;p.schellart@gmail.com&gt;</a> wrote:
+
+It is the default openmpi that comes with Ubuntu 14.04.
+
+</pre>
+                  <blockquote type="cite" class="">
+                    <pre wrap="" class="">On 08 Dec 2014, at 17:17, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+
+Pim: is this an OMPI you built, or one you were given somehow? If you built it, how did you configure it?
+
+</pre>
+                    <blockquote type="cite" class="">
+                      <pre wrap="" class="">On Dec 8, 2014, at 8:12 AM, Brice Goglin <a class="moz-txt-link-rfc2396E" href="mailto:Brice.Goglin@inria.fr">&lt;Brice.Goglin@inria.fr&gt;</a> wrote:
+
+It likely depends on how SLURM allocates the cpuset/cgroup inside the
+nodes. The XML warning is related to these restrictions inside the node.
+Anyway, my feeling is that there's a old OMPI or a old hwloc somewhere.
+
+How do we check after install whether OMPI uses the embedded or the
+system-wide hwloc?
+
+Brice
+
+
+
+
+Le 08/12/2014 17:07, Pim Schellart a écrit :
+</pre>
+                      <blockquote type="cite" class="">
+                        <pre wrap="" class="">Dear Ralph,
+
+the nodes are called coma## and as you can see in the logs the nodes of the broken example are the same as the nodes of the working one, so that doesn’t seem to be the cause. Unless (very likely) I’m missing something. Anything else I can check?
+
+Regards,
+
+Pim
+
+</pre>
+                        <blockquote type="cite" class="">
+                          <pre wrap="" class="">On 08 Dec 2014, at 17:03, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+
+As Brice said, OMPI has its own embedded version of hwloc that we use, so there is no Slurm interaction to be considered. The most likely cause is that one or more of your nodes is picking up a different version of OMPI. So things “work” if you happen to get nodes where all the versions match, and “fail” when you get a combination that includes a different version.
+
+Is there some way you can narrow down your search to find the node(s) that are picking up the different version?
+
+
+</pre>
+                          <blockquote type="cite" class="">
+                            <pre wrap="" class="">On Dec 8, 2014, at 7:48 AM, Pim Schellart <a class="moz-txt-link-rfc2396E" href="mailto:p.schellart@gmail.com">&lt;p.schellart@gmail.com&gt;</a> wrote:
+
+Dear Brice,
+
+I am not sure why this is happening since all code seems to be using the same hwloc library version (1.8) but it does :) An MPI program is started through SLURM on two nodes with four CPU cores total (divided over the nodes) using the following script:
+
+#! /bin/bash
+#SBATCH -N 2 -n 4
+/usr/bin/mpiexec /usr/bin/lstopo --version
+/usr/bin/mpiexec /usr/bin/lstopo --of xml
+/usr/bin/mpiexec  /path/to/my_mpi_code
+
+When this is submitted multiple times it gives “out-of-order” warnings in about 9/10 cases but works without warnings in 1/10 cases. I attached the output (with xml) for both the working and `broken` case. Note that the xml is of course printed (differently) multiple times for each task/core. As always, any help would be appreciated.
+
+Regards,
+
+Pim Schellart
+
+P.S. $ mpirun --version
+mpirun (Open MPI) 1.6.5
+
+&lt;broken.log&gt;&lt;working.log&gt;
+
+</pre>
+                            <blockquote type="cite" class="">
+                              <pre wrap="" class="">On 07 Dec 2014, at 13:50, Brice Goglin <a class="moz-txt-link-rfc2396E" href="mailto:Brice.Goglin@inria.fr">&lt;Brice.Goglin@inria.fr&gt;</a> wrote:
+
+Hello
+The github issue you're refering to was closed 18 months ago. The
+warning (it's not an error) is only supposed to appear if you're
+importing in a recent hwloc a XML that was exported from a old hwloc. I
+don't see how that could happen when using Open MPI since the hwloc
+versions on both sides is the same.
+Make sure you're not confusing with another error described here
+
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/projects/hwloc/doc/v1.10.0/a00028.php#faq_os_error">http://www.open-mpi.org/projects/hwloc/doc/v1.10.0/a00028.php#faq_os_error</a>
+Otherwise please report the exact Open MPI and/or hwloc versions as well
+as the XML lstopo output on the nodes that raise the warning (lstopo
+foo.xml). Send these to hwloc mailing lists such as
+<a class="moz-txt-link-abbreviated" href="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</a> or <a class="moz-txt-link-abbreviated" href="mailto:hwloc-devel@open-mpi.org">hwloc-devel@open-mpi.org</a>
+Thanks
+Brice
+
+
+Le 07/12/2014 13:29, Pim Schellart a écrit :
+</pre>
+                              <blockquote type="cite" class="">
+                                <pre wrap="" class="">Dear OpenMPI developers,
+
+this might be a bit off topic but when using the SLURM scheduler (with cpuset support) on Ubuntu 14.04 (openmpi 1.6) hwloc sometimes gives a "out-of-order topology discovery” error. According to issue #103 on github (<a class="moz-txt-link-freetext" href="https://github.com/open-mpi/hwloc/issues/103">https://github.com/open-mpi/hwloc/issues/103</a>) this error was discussed before and it was possible to sort it out in “insert_object_by_parent”, is this still considered? If not, what (top level) hwloc API call should we look for in the SLURM sources to start debugging? Any help will be most welcome.
+
+Kind regards,
+
+Pim Schellart
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16441.php">http://www.open-mpi.org/community/lists/devel/2014/12/16441.php</a>
+</pre>
+                              </blockquote>
+                            </blockquote>
+                            <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16447.php">http://www.open-mpi.org/community/lists/devel/2014/12/16447.php</a>
+</pre>
+                          </blockquote>
+                          <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16448.php">http://www.open-mpi.org/community/lists/devel/2014/12/16448.php</a>
+</pre>
+                        </blockquote>
+                        <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16449.php">http://www.open-mpi.org/community/lists/devel/2014/12/16449.php</a>
+</pre>
+                      </blockquote>
+                      <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16450.php">http://www.open-mpi.org/community/lists/devel/2014/12/16450.php</a>
+</pre>
+                    </blockquote>
+                    <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16451.php">http://www.open-mpi.org/community/lists/devel/2014/12/16451.php</a>
+</pre>
+                  </blockquote>
+                  <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16452.php">http://www.open-mpi.org/community/lists/devel/2014/12/16452.php</a>
+</pre>
+                </blockquote>
+                <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16453.php">http://www.open-mpi.org/community/lists/devel/2014/12/16453.php</a>
+</pre>
+              </blockquote>
+              <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16458.php">http://www.open-mpi.org/community/lists/devel/2014/12/16458.php</a>
+</pre>
+            </blockquote>
+            <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16460.php">http://www.open-mpi.org/community/lists/devel/2014/12/16460.php</a>
+</pre>
+          </blockquote>
+          <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16464.php">http://www.open-mpi.org/community/lists/devel/2014/12/16464.php</a>
+</pre>
+        </blockquote>
+        <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16465.php">http://www.open-mpi.org/community/lists/devel/2014/12/16465.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="" class=""></pre>
+      <br class="">
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br class="">
+      <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16492.php">http://www.open-mpi.org/community/lists/devel/2014/12/16492.php</a></pre>
+    </blockquote>
+    <br class="">
+  </div>
+
+_______________________________________________<br class="">devel mailing list<br class=""><a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/devel<br class="">Link to this post: http://www.open-mpi.org/community/lists/devel/2014/12/16498.php</div></blockquote></div><br class=""></div></body></html>

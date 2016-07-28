@@ -1,0 +1,95 @@
+Scott,<div><br></div><div>out of curiosity ...</div><div><br></div><div>generally speaking, and when HT is more efficient, how is it used ?</div><div>- flat MPI, with one task per thread</div><div>- Hybrid MPI+OpenMP, a task is bound to a core or socket, but never to a thread</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Thursday, March 24, 2016, Atchley, Scott &lt;<a href="mailto:atchleyes@ornl.gov">atchleyes@ornl.gov</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi Aurélien,<br>
+<br>
+I have said the same thing to many users over the years. Our colleagues at NERSC, however, have found that 20% of their codes work better when using HT. Some codes benefit from SMT2 (i.e. HT) and even SMT4 (available on Power8) in order to provide enough latency hiding of memory accesses.<br>
+<br>
+As with everything in computer science, the answer is “It depends”. Try with and without for each new generation of hardware.<br>
+<br>
+Scott<br>
+<br>
+&gt; On Mar 23, 2016, at 4:32 PM, Aurélien Bouteiller &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;bouteill@icl.utk.edu&#39;)">bouteill@icl.utk.edu</a>&gt; wrote:<br>
+&gt;<br>
+&gt; To add to what Ralf said, you probably do not want to use Hyper Threads for HPC workloads, as that generally results in very poor performance (as you noticed). Set the number of slots to the number of real cores (not HT), that would yield optimal results 95% of the time.<br>
+&gt;<br>
+&gt; Aurélien<br>
+&gt;<br>
+&gt; --<br>
+&gt; Aurélien Bouteiller, Ph.D. ~~ <a href="https://icl.cs.utk.edu/~bouteill/" target="_blank">https://icl.cs.utk.edu/~bouteill/</a><br>
+&gt;<br>
+&gt;&gt; Le 23 mars 2016 à 16:24, Ralph Castain &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;rhc@open-mpi.org&#39;)">rhc@open-mpi.org</a>&gt; a écrit :<br>
+&gt;&gt;<br>
+&gt;&gt; “Slots” are an abstraction commonly used by schedulers as a way of indicating how many processes are allowed to run on a given node. It has nothing to do with hardware, either cores or HTs.<br>
+&gt;&gt;<br>
+&gt;&gt; MPI programmers frequently like to bind a process to one or more hardware assets (cores or HTs). Thus, you will see confusion in the community where people mix the term “slot” with “cores” or “cpus”. This is unfortunate as it the terms really do mean very different things.<br>
+&gt;&gt;<br>
+&gt;&gt; In OMPI, we chose to try and “help” the user by not requiring them to specify detailed info in a hostfile. So if you don’t specify the number of “slots” for a given node, we will sense the number of cores on that node and set the slots to match that number. This best matches user expectations today.<br>
+&gt;&gt;<br>
+&gt;&gt; If you do specify the number of slots, then we use that to guide the desired number of processes assigned to each node. We then bind each of those processes according to the user-provided guidance.<br>
+&gt;&gt;<br>
+&gt;&gt; HTH<br>
+&gt;&gt; Ralph<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; On Mar 23, 2016, at 9:35 AM, Federico Reghenzani &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;federico1.reghenzani@mail.polimi.it&#39;)">federico1.reghenzani@mail.polimi.it</a>&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Ok, I&#39;ve investigated further today, it seems &quot;--map-by hwthread&quot; does not remove the problem. However, if I specified in the hostfile &quot;node0 slots=32&quot; it runs really slower than specifying only &quot;node0&quot;. In both cases I run mpirun with -np 32. So I&#39;m quite sure I didn&#39;t understand what slots are.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; __<br>
+&gt;&gt;&gt; Federico Reghenzani<br>
+&gt;&gt;&gt; M.Eng. Student @ Politecnico di Milano<br>
+&gt;&gt;&gt; Computer Science and Engineering<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 2016-03-22 18:56 GMT+01:00 Federico Reghenzani &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;federico1.reghenzani@mail.polimi.it&#39;)">federico1.reghenzani@mail.polimi.it</a>&gt;:<br>
+&gt;&gt;&gt; Hi guys,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I&#39;m really confused about slots in resource allocation: I thought that slots are the number of processes spawnable in a certain node, so it should correspond to the number of Processing Elements of the node. For example, on each of my nodes I have 2 processors, total 16 cores with hyperthreading, so a total of 32 processing elements per node (i.e. 32 hw threads). However, considering a single node, passing in the hostfile 32 slots and requesting &quot;-np 32&quot; results is a performance degradation of 20x slower than using only &quot;-np 16&quot;. The problem disappears specifing --map-by hwthread.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Investigating on the problem I found these counterintuitive things:<br>
+&gt;&gt;&gt; - here is stated &quot;slots are Open MPI&#39;s representation of how many processors are available&quot;<br>
+&gt;&gt;&gt; - here is stated &quot;Slots indicate how many processes can potentially execute on a node. For best performance, the number of slots may be chosen to be the number of cores on the node or the number of processor sockets&quot;<br>
+&gt;&gt;&gt; - I tried to remove the slots information from the hostfile, so according to this should be interpreted as &quot;1&quot;, but it spawns anyway 32 processes<br>
+&gt;&gt;&gt; - I&#39;m not sure what --map-by and --rank-by do<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; In custom RAS we are developing, what we have to send to mpirun? The number of processor sockets, the number of cores or the number of hwthread available? How --map-by and --rank-by affect the spawn policy?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thank you!<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; OFFTOPIC: is someone going to EuroMPI 2016 in September? We will be there to present our migration technique.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt; Federico<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; __<br>
+&gt;&gt;&gt; Federico Reghenzani<br>
+&gt;&gt;&gt; M.Eng. Student @ Politecnico di Milano<br>
+&gt;&gt;&gt; Computer Science and Engineering<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt; <a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;devel@open-mpi.org&#39;)">devel@open-mpi.org</a><br>
+&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18723.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18723.php</a><br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;devel@open-mpi.org&#39;)">devel@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18724.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18724.php</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;devel@open-mpi.org&#39;)">devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18725.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18725.php</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;devel@open-mpi.org&#39;)">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18726.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18726.php</a></blockquote></div>
+

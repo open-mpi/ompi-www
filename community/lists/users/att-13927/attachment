@@ -1,0 +1,122 @@
+What interconnect are you using? Infiniband? Use  &quot;--without-memory-manager&quot; option while building ompi in order to disable ptmalloc.<br><br>Regards<br>--Nysal<br><br><div class="gmail_quote">On Sun, Aug 8, 2010 at 7:49 PM, Nicolas Deladerriere <span dir="ltr">&lt;<a href="mailto:nicolas.deladerriere@gmail.com">nicolas.deladerriere@gmail.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Yes, I&#39;am using 24G machine on 64 bit Linux OS.<br>If I compile without wrapper, I did not get any problems.<br>
+<br>It seems that when I am linking with openmpi, my program use a kind of openmpi implemented malloc. Is it possible to switch it off in order ot only use malloc from libc ?<br>
+<br>Nicolas<br><br><div class="gmail_quote">2010/8/8 Terry Frankcombe <span dir="ltr">&lt;<a href="mailto:terry@chem.gu.se" target="_blank">terry@chem.gu.se</a>&gt;</span><div><div></div><div class="h5"><br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+
+You&#39;re trying to do a 6GB allocate.  Can your underlying system handle<br>
+that?  IF you compile without the wrapper, does it work?<br>
+<br>
+I see your executable is using the OMPI memory stuff.  IIRC there are<br>
+switches to turn that off.<br>
+<div><div></div><div><br>
+<br>
+On Fri, 2010-08-06 at 15:05 +0200, Nicolas Deladerriere wrote:<br>
+&gt; Hello,<br>
+&gt;<br>
+&gt; I&#39;am having an sigsegv error when using simple program compiled and<br>
+&gt; link with openmpi.<br>
+&gt; I have reproduce the problem using really simple fortran code. It<br>
+&gt; actually does not even use MPI, but just link with mpi shared<br>
+&gt; libraries. (problem does not appear when I do not link with mpi<br>
+&gt; libraries)<br>
+&gt;    % cat allocate.F90<br>
+&gt;    program test<br>
+&gt;    implicit none<br>
+&gt;        integer, dimension(:), allocatable :: z<br>
+&gt;        integer(kind=8) :: l<br>
+&gt;<br>
+&gt;        write(*,*) &quot;l ?&quot;<br>
+&gt;        read(*,*) l<br>
+&gt;<br>
+&gt;        ALLOCATE(z(l))<br>
+&gt;        z(1) = 111<br>
+&gt;        z(l) = 222<br>
+&gt;        DEALLOCATE(z)<br>
+&gt;<br>
+&gt;    end program test<br>
+&gt;<br>
+&gt; I am using openmpi 1.4.2 and gfortran for my tests. Here is the<br>
+&gt; compilation :<br>
+&gt;<br>
+&gt;    % ./openmpi-1.4.2/build/bin/mpif90 --showme -g -o testallocate<br>
+&gt; allocate.F90<br>
+&gt;    gfortran -g -o testallocate allocate.F90<br>
+&gt; -I/s0/scr1/TOMOT_19311_HAL_/openmpi-1.4.2/build/include -pthread<br>
+&gt; -I/s0/scr1/TOMOT_19311_HAL_/openmpi-1.4.2/build/lib<br>
+&gt; -L/s0/scr1/TOMOT_19311_HAL_/openmpi-1.4.2/build/lib -lmpi_f90<br>
+&gt; -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl<br>
+&gt; -lutil -lm -ldl -pthread<br>
+&gt;<br>
+&gt; When I am running that test with different length, I sometimes get a<br>
+&gt; &quot;Segmentation fault&quot; error. Here are two examples using two specific<br>
+&gt; values, but error happens for many other values of length (I did not<br>
+&gt; manage to find which values of lenght gives that error)<br>
+&gt;<br>
+&gt;    %  ./testallocate<br>
+&gt;     l ?<br>
+&gt;    1600000000<br>
+&gt;    Segmentation fault<br>
+&gt;    % ./testallocate<br>
+&gt;     l ?<br>
+&gt;    2000000000<br>
+&gt;<br>
+&gt; I used debugger with re-compiled version of openmpi using debug flag.<br>
+&gt; I got the folowing error in function sYSMALLOc<br>
+&gt;<br>
+&gt;    Program received signal SIGSEGV, Segmentation fault.<br>
+&gt;    0x00002aaaab70b3b3 in sYSMALLOc (nb=6400000016, av=0x2aaaab930200)<br>
+&gt; at malloc.c:3239<br>
+&gt;    3239        set_head(remainder, remainder_size | PREV_INUSE);<br>
+&gt;    Current language:  auto; currently c<br>
+&gt;    (gdb) bt<br>
+&gt;    #0  0x00002aaaab70b3b3 in sYSMALLOc (nb=6400000016,<br>
+&gt; av=0x2aaaab930200) at malloc.c:3239<br>
+&gt;    #1  0x00002aaaab70d0db in opal_memory_ptmalloc2_int_malloc<br>
+&gt; (av=0x2aaaab930200, bytes=6400000000) at malloc.c:4322<br>
+&gt;    #2  0x00002aaaab70b773 in opal_memory_ptmalloc2_malloc<br>
+&gt; (bytes=6400000000) at malloc.c:3435<br>
+&gt;    #3  0x00002aaaab70a665 in opal_memory_ptmalloc2_malloc_hook<br>
+&gt; (sz=6400000000, caller=0x2aaaabf8534d) at hooks.c:667<br>
+&gt;    #4  0x00002aaaabf8534d in _gfortran_internal_free ()<br>
+&gt; from /usr/lib64/libgfortran.so.1<br>
+&gt;    #5  0x0000000000400bcc in MAIN__ () at allocate.F90:11<br>
+&gt;    #6  0x0000000000400c4e in main ()<br>
+&gt;    (gdb) display<br>
+&gt;    (gdb) list<br>
+&gt;    3234      if ((unsigned long)(size) &gt;= (unsigned long)(nb +<br>
+&gt; MINSIZE)) {<br>
+&gt;    3235        remainder_size = size - nb;<br>
+&gt;    3236        remainder = chunk_at_offset(p, nb);<br>
+&gt;    3237        av-&gt;top = remainder;<br>
+&gt;    3238        set_head(p, nb | PREV_INUSE | (av != &amp;main_arena ?<br>
+&gt; NON_MAIN_ARENA : 0));<br>
+&gt;    3239        set_head(remainder, remainder_size | PREV_INUSE);<br>
+&gt;    3240        check_malloced_chunk(av, p, nb);<br>
+&gt;    3241        return chunk2mem(p);<br>
+&gt;    3242      }<br>
+&gt;    3243<br>
+&gt;<br>
+&gt;<br>
+&gt; I also did the same test in C and I got the same problem.<br>
+&gt;<br>
+&gt; Does someone has any idea that could help me understand what&#39;s going<br>
+&gt; on ?<br>
+&gt;<br>
+&gt; Regards<br>
+&gt; Nicolas<br>
+&gt;<br>
+</div></div>&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div></div></div><br>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br>
+

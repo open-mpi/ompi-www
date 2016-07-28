@@ -1,0 +1,284 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+    Here's, hopefully, more useful info.&nbsp; Note reading the job2core.pdf
+    presentation, that was&nbsp; mentioned earlier, more closely will also
+    clarify a couple points (I've put those points inline below).<br>
+    <br>
+    On 7/15/2011 12:01 AM, Ralph Castain wrote:
+    <blockquote
+      cite="mid:4779E8FF-B766-46A0-A9C9-1E03397C5CB3@open-mpi.org"
+      type="cite">
+      <pre wrap="">
+On Jul 14, 2011, at 5:46 PM, Jeff Squyres wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Looping in the users mailing list so that Ralph and Oracle can comment...
+</pre>
+      </blockquote>
+      <pre wrap="">
+Not entirely sure what I can contribute here, but I'll try - see below for some clarifications. I think the discussion here is based on some misunderstanding of how OMPI works.
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">
+
+On Jul 14, 2011, at 2:34 PM, Rayson Ho wrote:
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">(CC'ing Jeff from the Open-MPI project...)
+
+On Thu, Jul 14, 2011 at 1:35 PM, Tad Kollar <a class="moz-txt-link-rfc2396E" href="mailto:tad.kollar@gmail.com">&lt;tad.kollar@gmail.com&gt;</a> wrote:
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">As I thought more about it, I was afraid that might be the case, but hoped
+sge_shepherd would do some magic for tightly-integrated jobs.
+</pre>
+          </blockquote>
+          <pre wrap="">
+To SGE, if each of the tasks is not started by sge_shepherd, then the
+only option is to set the binding mask to the allocation, which in
+your original case, was the whole system (48 CPUs).
+
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">We're running OpenMPI 1.5.3 if that makes a difference. Do you know of
+anyone using an MVAPICH2 1.6 pe that can handle binding?
+</pre>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">
+OMPI uses its own binding scheme - we stick within the overall binding envelope given to us, but we don't use external bindings of individual procs. Reason is simple: SGE has no visibility into the MPI procs we spawn. All SGE sees is mpirun and the daemons (called orteds) we launch on each node, and so it can't provide a binding scheme for the MPI procs (it actually has no idea how many procs are on each node as OMPI's mapper can support a multitude of algorithms, all invisible to SGE).
+
+
+</pre>
+    </blockquote>
+    However, if one reads the job2core.pdf presentation on page 14 it
+    talks about how SGE will pass a rankfile to Open MPI which is how
+    SGE drives the binding it wants for an Open MPI job.<br>
+    <blockquote
+      cite="mid:4779E8FF-B766-46A0-A9C9-1E03397C5CB3@open-mpi.org"
+      type="cite">
+      <pre wrap=""></pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre wrap="">
+I just downloaded Open MPI 1.5.4a and grep'ed the source, looks like
+it is not looking at the SGE_BINDING env variable that is set by SGE.
+</pre>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">
+No, we don't. However, the orteds do check to see if they have been bound, and if so, to what processors. Those bindings are then used as an envelope limiting the processors we use to bind the procs we spawn.
+
+</pre>
+    </blockquote>
+    I believe SGE_BINDING is an env-var to SGE that tells it what
+    binding to use for the job and SGE will then, as mentioned above,
+    generate a rankfile to be used by Open MPI.<br>
+    <blockquote
+      cite="mid:4779E8FF-B766-46A0-A9C9-1E03397C5CB3@open-mpi.org"
+      type="cite">
+      <pre wrap=""></pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre wrap="">
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">The serial case worked (its affinity list was '0' instead of '0-47'), so at
+least we know that's in good shape :-)
+</pre>
+          </blockquote>
+          <pre wrap="">
+Please also submit a few more jobs and see if the new hwloc code is
+able to handle multiple jobs running on your AMD MC server.
+
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">My ultimate goal is for affinity support to be enabled and scheduled
+automatically for all MPI users, i.e. without them having to do any more
+than they would for a no-affinity job (otherwise I have a feeling most of
+them would just ignore it). What do you think it will take to get to that
+point?
+</pre>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">
+We tried to do this once - I set a default param to auto-bind processes. Major error. I was lynched by the MPI user community until we removed that param.
+
+Reason is simple: suppose you have MPI processes that launch threads. Remember, there is no thread-level binding out there - all the OS will let you do is bind at the process level. So now you bind someone's MPI process to some core(s), which forces all the threads from that process to stay within that binding....thereby potentially creating a horrendous thread-contention problem.
+
+It doesn't take threading to cause problems - some applications just don't work as well when bound. It's true that the benchmarks generally do, but they aren't representative of real applications.
+
+Bottom line: defaulting to binding processes was something the MPI community appears to have rejected, with reason. Might argue about whether or not they are correct, but that appears to be the consensus, and it is the position OMPI has adopted. User ignorance of when to bind and when not to bind is not a valid reason to impact everyone.
+
+
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre wrap="">
+That's my goal since 2008...
+
+I started a mail thread, "processor affinity -- OpenMPI / batchsystem
+integration" to the Open MPI list in 2008. And in 2009, the conclusion
+was that Sun was saying that the binding info is set in the
+environment and Open MPI would perform the binding itself (so I
+assumed that was done):
+</pre>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">
+It is done - we just use OMPI's binding schemes and not the ones provided natively by SGE. Like I said above, SGE doesn't see the MPI procs and can't provide a binding pattern for them - so looking at the SUNW_MP_BIND envar is pointless.
+
+</pre>
+    </blockquote>
+    Note SUNW_MP_BIND has *nothing* to do with&nbsp; Open MPI but is a way
+    that SGE feeds binding to OpenMP (note no "I") applications.&nbsp; So
+    Ralph is right that this env-var is pointless from an Open MPI
+    perspective.<br>
+    <br>
+    <blockquote
+      cite="mid:4779E8FF-B766-46A0-A9C9-1E03397C5CB3@open-mpi.org"
+      type="cite">
+      <pre wrap="">
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre wrap="">
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2009/10/10938.php">http://www.open-mpi.org/community/lists/users/2009/10/10938.php</a>
+
+Revisiting the presentation (see: job2core.pdf link at the above URL),
+Sun's variable name is $SUNW_MP_BIND, so it is most likely Sun Cluster
+Toolkit implementation specific rather than a feature in Open MPI --
+and looking at the Open MPI code I don't see SUNW_MP_BIND referenced
+anywhere.
+
+I believe it is a matter of integrating the thread binding support
+between the 2 -- both SGE &amp; Open MPI support thread binding.
+</pre>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">
+</pre>
+    </blockquote>
+    First, Sun ClusterTools version 7 and above is directly based off of
+    Open MPI.&nbsp; Second, as mentioned before SUNW_MP_BIND is an env-var to
+    control OpenMP binding not MPI binding (Open MPI or ClusterTools).<br>
+    <blockquote
+      cite="mid:4779E8FF-B766-46A0-A9C9-1E03397C5CB3@open-mpi.org"
+      type="cite">
+      <pre wrap="">
+I don't believe this is accurate - certainly OMPI doesn't support thread-level binding, and I haven't seen an OS that does yet. Might happen  someday...but I suspect you mean "process" and not "thread".
+
+</pre>
+    </blockquote>
+    Someday my prince will come and we will have thread binding for
+    everyone.&nbsp; Well almost...<br>
+    <br>
+    --td<br>
+    <blockquote
+      cite="mid:4779E8FF-B766-46A0-A9C9-1E03397C5CB3@open-mpi.org"
+      type="cite">
+      <pre wrap="">
+HTH
+Ralph
+
+
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre wrap="">The
+harder part is to handle cross node binding as SGE binds threads
+locally only (not directly controlled by qmaster) -- may be a call to
+"qstat -cb -j &lt;job id&gt;" would do the trick, and the info is parsed and
+passed to mpirun via the "--rankfile" option.
+
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/faq/?category=tuning#using-paffinity-v1.4">http://www.open-mpi.org/faq/?category=tuning#using-paffinity-v1.4</a>
+
+Rayson
+
+
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">Thanks!
+Tad
+
+</pre>
+          </blockquote>
+        </blockquote>
+        <pre wrap="">
+
+-- 
+Jeff Squyres
+<a class="moz-txt-link-abbreviated" href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>
+For corporate legal information go to:
+<a class="moz-txt-link-freetext" href="http://www.cisco.com/web/about/doing_business/legal/cri/">http://www.cisco.com/web/about/doing_business/legal/cri/</a>
+
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</pre>
+    </blockquote>
+    <br>
+    <div class="moz-signature">-- <br>
+      <meta content="text/html; charset=ISO-8859-1"
+        http-equiv="Content-Type">
+      <div class="moz-signature">
+        <meta http-equiv="content-type" content="text/html;
+          charset=ISO-8859-1">
+        <title></title>
+        <img moz-do-not-send="false"
+          src="cid:part1.00030006.05090901@oracle.com" alt="Oracle"><br>
+        <div class="moz-signature">
+          <div class="moz-signature">
+            <div class="moz-signature">
+              <div class="moz-signature">Terry D. Dontje | Principal
+                Software Engineer<br>
+                <div class="moz-signature"><font size="2"
+                    color="#666666" face="Verdana">Developer
+                    Tools
+                    Engineering | +1.781.442.2631<br>
+                  </font>
+                  <font size="2" color="#ff0000" face="Verdana">Oracle
+                  </font><font size="2" color="#666666" face="Verdana"><b>
+                      - Performance
+                      Technologies</b></font><br>
+                  <font size="2" color="#666666" face="Verdana">
+                    95 Network Drive, Burlington, MA 01803<br>
+                    Email <a moz-do-not-send="true"
+                      href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+                  </font><br>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <br>
+    </div>
+  </body>
+</html>
+

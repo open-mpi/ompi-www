@@ -1,0 +1,337 @@
+<div dir="ltr"><div>done</div><div>credit goes to Valentin as a creator of this feature!<br><br></div><div class="gmail_quote">On Wed, Jan 25, 2012 at 3:11 PM, Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+
+<blockquote style="margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-color:rgb(204,204,204);border-left-width:1px;border-left-style:solid" class="gmail_quote">Yummy -- thanks Mike!<br>
+<br>
+Can you add this field (and any others you have added) to the wiki?<br>
+<br>
+    <a href="https://svn.open-mpi.org/trac/mtt/wiki/MTTINIFileFields" target="_blank">https://svn.open-mpi.org/trac/mtt/wiki/MTTINIFileFields</a><br>
+<br>
+This is our *only* documentation; it&#39;s important to keep it up to date.<br>
+<br>
+Thanks!<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On Jan 25, 2012, at 6:02 AM, <a href="mailto:miked@osl.iu.edu">miked@osl.iu.edu</a> wrote:<br>
+<br>
+&gt; Author: miked<br>
+&gt; Date: <a href="tel:2012-01-25%2006" value="+12012012506">2012-01-25 06</a>:02:47 EST (Wed, 25 Jan 2012)<br>
+&gt; New Revision: 1433<br>
+&gt; URL: <a href="https://svn.open-mpi.org/trac/mtt/changeset/1433" target="_blank">https://svn.open-mpi.org/trac/mtt/changeset/1433</a><br>
+&gt;<br>
+&gt; Log:<br>
+&gt; * Introduce mtt.break_threshold_timeout_and_fail ini param to specify % of overall failed tests to trigger stop execution.<br>
+&gt;<br>
+&gt;<br>
+&gt; Text files modified:<br>
+&gt;   trunk/lib/MTT/Reporter/TextFile.pm |     9 ++++-<br>
+&gt;   trunk/lib/MTT/Test/Run.pm          |    30 ++++++++++++++++----<br>
+&gt;   trunk/lib/MTT/Test/RunEngine.pm    |    60 +++++++++++++++++++++++++++++++--------<br>
+&gt;   trunk/lib/MTT/Util.pm              |     6 ++++<br>
+&gt;   trunk/lib/MTT/Values.pm            |     3 +<br>
+&gt;   5 files changed, 86 insertions(+), 22 deletions(-)<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Reporter/TextFile.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Reporter/TextFile.pm        (original)<br>
+&gt; +++ trunk/lib/MTT/Reporter/TextFile.pm        <a href="tel:2012-01-25%2006" value="+12012012506">2012-01-25 06</a>:02:47 EST (Wed, 25 Jan 2012)<br>
+&gt; @@ -230,8 +230,13 @@<br>
+&gt;     my $filename = &quot;All_phase-summary.txt&quot;;<br>
+&gt;     my $file = &quot;$dirname/&quot; . MTT::Files::make_safe_filename(&quot;$filename&quot;);<br>
+&gt;<br>
+&gt; -    my $body = join(&quot;\n&quot;, ($summary_header, $table-&gt;render, $perf_stat, $summary_footer));<br>
+&gt; -<br>
+&gt; +    my $body;<br>
+&gt; +    if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold}){<br>
+&gt; +        $body = join(&quot;\n&quot;, ($summary_header, $table-&gt;render, $perf_stat, $MTT::Globals::Internals-&gt;{stopped_on_break_threshold_message}, $summary_footer));<br>
+&gt; +    }<br>
+&gt; +    else{<br>
+&gt; +        $body = join(&quot;\n&quot;, ($summary_header, $table-&gt;render, $perf_stat, $summary_footer));<br>
+&gt; +    }<br>
+&gt;     print $body;<br>
+&gt;     _output_results($file, $body);<br>
+&gt;<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Test/Run.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Test/Run.pm (original)<br>
+&gt; +++ trunk/lib/MTT/Test/Run.pm <a href="tel:2012-01-25%2006" value="+12012012506">2012-01-25 06</a>:02:47 EST (Wed, 25 Jan 2012)<br>
+&gt; @@ -64,8 +64,11 @@<br>
+&gt; #--------------------------------------------------------------------------<br>
+&gt;<br>
+&gt; sub Run {<br>
+&gt; -    my ($ini, $ini_full, $install_dir, $runs_data_dir, $force) = @_;<br>
+&gt; +    my ($ini, $ini_full, $install_dir, $runs_data_dir, $force, $count_total_tests_number) = @_;<br>
+&gt;<br>
+&gt; +    if ($count_total_tests_number ne &quot;yes&quot;){<br>
+&gt; +        Run($ini, $ini_full, $install_dir, $runs_data_dir, $force,&quot;yes&quot;);<br>
+&gt; +    }<br>
+&gt;     # Save the environment<br>
+&gt;     my %ENV_SAVE = %ENV;<br>
+&gt;<br>
+&gt; @@ -188,7 +191,7 @@<br>
+&gt;                                     _do_run($ini, $section, $test_build,<br>
+&gt;                                             $mpi_get, $mpi_install,<br>
+&gt;                                             $install_dir, $runs_data_dir,<br>
+&gt; -                                            $force);<br>
+&gt; +                                            $force,$count_total_tests_number);<br>
+&gt;                                     delete $MTT::Globals::Internals-&gt;{mpi_get_name};<br>
+&gt;                                     delete $MTT::Globals::Internals-&gt;{mpi_install_name};<br>
+&gt;                                     delete $MTT::Globals::Internals-&gt;{test_get_name};<br>
+&gt; @@ -196,12 +199,24 @@<br>
+&gt;                                     delete $MTT::Globals::Internals-&gt;{test_run_name};<br>
+&gt;                                     %ENV = %ENV_SAVE;<br>
+&gt;                                 }<br>
+&gt; +                                last<br>
+&gt; +                                if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold});<br>
+&gt;                             }<br>
+&gt; +                            last<br>
+&gt; +                            if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold});<br>
+&gt;                         }<br>
+&gt; +                        last<br>
+&gt; +                        if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold});<br>
+&gt;                     }<br>
+&gt; +                    last<br>
+&gt; +                    if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold});<br>
+&gt;                 }<br>
+&gt; +                last<br>
+&gt; +                if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold});<br>
+&gt;             }<br>
+&gt;         }<br>
+&gt; +        last<br>
+&gt; +        if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold});<br>
+&gt;     }<br>
+&gt;<br>
+&gt;     Verbose(&quot;*** Run test phase complete\n&quot;);<br>
+&gt; @@ -211,7 +226,7 @@<br>
+&gt;<br>
+&gt; sub _do_run {<br>
+&gt;     my ($ini, $section, $test_build, $mpi_get, $mpi_install, $install_dir,<br>
+&gt; -        $runs_data_dir, $force) = @_;<br>
+&gt; +        $runs_data_dir, $force, $count_total_tests_number) = @_;<br>
+&gt;<br>
+&gt;     # Simple section name<br>
+&gt;     my $simple_section = GetSimpleSection($section);<br>
+&gt; @@ -528,9 +543,13 @@<br>
+&gt;     # If we got a list of tests to run, invoke the run engine to<br>
+&gt;     # actually run them.<br>
+&gt;     if ($ret &amp;&amp; $ret-&gt;{test_result}) {<br>
+&gt; -        MTT::Test::RunEngine::RunEngine($ini, $section, $install_dir,<br>
+&gt; +        my $return_value;<br>
+&gt; +        $return_value = MTT::Test::RunEngine::RunEngine($ini, $section, $install_dir,<br>
+&gt;                                         $runs_data_dir, $mpi_details,<br>
+&gt; -                                        $test_build, $force, $ret);<br>
+&gt; +                                        $test_build, $force, $ret, $count_total_tests_number);<br>
+&gt; +        if ($count_total_tests_number eq &quot;yes&quot;){<br>
+&gt; +            $MTT::Globals::Internals-&gt;{total_tests_counter} += $return_value;<br>
+&gt; +        }<br>
+&gt;     }<br>
+&gt;<br>
+&gt;     # Unload any loaded environment modules<br>
+&gt; @@ -545,7 +564,6 @@<br>
+&gt;         # means reverting to an env snapshot.<br>
+&gt;         MTT::EnvImporter::unload(reverse @env_importers);<br>
+&gt;     }<br>
+&gt; -<br>
+&gt; }<br>
+&gt;<br>
+&gt; #--------------------------------------------------------------------------<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Test/RunEngine.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Test/RunEngine.pm   (original)<br>
+&gt; +++ trunk/lib/MTT/Test/RunEngine.pm   <a href="tel:2012-01-25%2006" value="+12012012506">2012-01-25 06</a>:02:47 EST (Wed, 25 Jan 2012)<br>
+&gt; @@ -38,10 +38,14 @@<br>
+&gt; my $section;<br>
+&gt; my $mpi_details_name;<br>
+&gt; my $test_run_full_name;<br>
+&gt; +my $break_threshold;<br>
+&gt;<br>
+&gt; # Keep track of how many tests have passed, failed, skipped, and timed out<br>
+&gt; my $test_results_count;<br>
+&gt;<br>
+&gt; +#same as test_results_count but global over all envokations of RunEngine<br>
+&gt; +my $test_results_count_global;<br>
+&gt; +<br>
+&gt; # Submit results after each run or after *all* the runs<br>
+&gt; my $report_after_each_result = 0;<br>
+&gt; my $report_results_count = 0;<br>
+&gt; @@ -56,7 +60,7 @@<br>
+&gt;     my ($install_dir, $runs_data_dir, $mpi_details, $test_build, $force, $ret);<br>
+&gt;<br>
+&gt;     # Make sure though, that the $ini remains a global<br>
+&gt; -    ($ini, $section, $install_dir, $runs_data_dir, $mpi_details, $test_build, $force, $ret) = @_;<br>
+&gt; +    ($ini, $section, $install_dir, $runs_data_dir, $mpi_details, $test_build, $force, $ret, my $count_total_tests_number) = @_;<br>
+&gt;<br>
+&gt;     my $test_results;<br>
+&gt;     $group_reports = MTT::Values::Value($ini, &quot;mtt&quot;, &quot;submit_group_results&quot;);<br>
+&gt; @@ -81,12 +85,16 @@<br>
+&gt;     my $variants_count_total =<br>
+&gt;         $test_count_total * $np_count_total * $argv_count_total * $exec_count_total;<br>
+&gt;<br>
+&gt; +    if ($count_total_tests_number eq &quot;yes&quot;){<br>
+&gt; +        return $variants_count_total;<br>
+&gt; +    }<br>
+&gt;     # Set some thresholds for an early exit<br>
+&gt; -    my $break_threshold;<br>
+&gt; +    $break_threshold = undef;<br>
+&gt;     $break_threshold-&gt;{MTT::Values::PASS}      = Value($ini, $section, &quot;break_threshold_pass&quot;);<br>
+&gt;     $break_threshold-&gt;{MTT::Values::FAIL}      = Value($ini, $section, &quot;break_threshold_fail&quot;);<br>
+&gt;     $break_threshold-&gt;{MTT::Values::TIMED_OUT} = Value($ini, $section, &quot;break_threshold_timeout&quot;);<br>
+&gt;     $break_threshold-&gt;{MTT::Values::SKIPPED}   = Value($ini, $section, &quot;break_threshold_skipped&quot;);<br>
+&gt; +    $break_threshold-&gt;{MTT::Values::TIMED_OUT_OR_FAIL} = Value($ini, &quot;mtt&quot;, &quot;break_threshold_timeout_and_fail&quot;);<br>
+&gt;<br>
+&gt;     # This boolean value defaults to 0, and allows the user to submit results<br>
+&gt;     # after each test to ensure at least *some* results are submitted (in case<br>
+&gt; @@ -208,25 +216,29 @@<br>
+&gt;             $run-&gt;{wdir} = $wdir;<br>
+&gt;         }<br>
+&gt;         # Just one np, or an array of np values?<br>
+&gt; +<br>
+&gt;         if (ref($all_np) eq &quot;&quot;) {<br>
+&gt; -            $test_results-&gt;{$all_np} =<br>
+&gt; -                _run_one_np($install_dir, $run, $mpi_details, $all_np, $force);<br>
+&gt; +            $test_results-&gt;{$all_np} = _run_one_np($install_dir, $run, $mpi_details, $all_np, $force);<br>
+&gt;         } else {<br>
+&gt;             foreach my $this_np (@$all_np) {<br>
+&gt;                 # See if we&#39;re supposed to terminate.<br>
+&gt;                 last<br>
+&gt; -                    if (MTT::Util::time_to_terminate());<br>
+&gt; +                   if (MTT::Util::time_to_terminate());<br>
+&gt; +<br>
+&gt; +                $test_results-&gt;{$all_np} = _run_one_np($install_dir, $run, $mpi_details, $this_np,$force);<br>
+&gt;<br>
+&gt; -                $test_results-&gt;{$this_np} =<br>
+&gt; -                    _run_one_np($install_dir, $run, $mpi_details, $this_np,<br>
+&gt; -                                $force);<br>
+&gt; +                last<br>
+&gt; +                   if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold});<br>
+&gt;             }<br>
+&gt;         }<br>
+&gt; +<br>
+&gt; +        last<br>
+&gt; +           if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold});<br>
+&gt;         ++$test_count;<br>
+&gt;<br>
+&gt;         # Write out the &quot;to be saved&quot; test run results<br>
+&gt;         MTT::Test::SaveRuns($runs_data_dir);<br>
+&gt; -<br>
+&gt; +<br>
+&gt;         $MTT::Test::Run::mpi_details = $save_run_mpi_details;<br>
+&gt;<br>
+&gt;         # Output a progress bar<br>
+&gt; @@ -247,6 +259,7 @@<br>
+&gt;<br>
+&gt;         MTT::Reporter::QueueSubmit();<br>
+&gt;     }<br>
+&gt; +<br>
+&gt; }<br>
+&gt;<br>
+&gt; sub _run_one_np {<br>
+&gt; @@ -290,16 +303,30 @@<br>
+&gt;                 foreach my $e (@$execs) {<br>
+&gt;                     # See if we&#39;re supposed to terminate.<br>
+&gt;                     last<br>
+&gt; -                        if (MTT::Util::time_to_terminate());<br>
+&gt; +                    if (MTT::Util::time_to_terminate());<br>
+&gt; +<br>
+&gt;                     _run_one_test($install_dir, $run, $mpi_details, $e, $name,<br>
+&gt; -                                  $variant++, $force);<br>
+&gt; +                        $variant++, $force);<br>
+&gt; +<br>
+&gt; +                    last<br>
+&gt; +                    if (MTT::Util::check_break_threshold(<br>
+&gt; +                            $test_results_count_global,<br>
+&gt; +                            $break_threshold,<br>
+&gt; +                            $MTT::Globals::Internals-&gt;{total_tests_counter})<br>
+&gt; +                    );<br>
+&gt;                 }<br>
+&gt;             }<br>
+&gt; -<br>
+&gt; +            last<br>
+&gt; +            if (MTT::Util::check_break_threshold(<br>
+&gt; +                    $test_results_count_global,<br>
+&gt; +                    $break_threshold,<br>
+&gt; +                    $MTT::Globals::Internals-&gt;{total_tests_counter})<br>
+&gt; +            );<br>
+&gt; +<br>
+&gt;             $MTT::Test::Run::test_argv = undef;<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt; -<br>
+&gt; +<br>
+&gt;     $MTT::Test::Run::test_np = undef;<br>
+&gt; }<br>
+&gt;<br>
+&gt; @@ -457,6 +484,13 @@<br>
+&gt;     $test_results_count-&gt;{$report-&gt;{test_result}}++<br>
+&gt;         if (exists($report-&gt;{test_result}));<br>
+&gt;<br>
+&gt; +    $test_results_count_global-&gt;{$report-&gt;{test_result}}++<br>
+&gt; +                if (exists($report-&gt;{test_result}));<br>
+&gt; +<br>
+&gt; +    $test_results_count_global-&gt;{MTT::Values::TIMED_OUT_OR_FAIL}++<br>
+&gt; +                if (exists($report-&gt;{test_result}) &amp;&amp;<br>
+&gt; +                    (MTT::Values::FAIL == $report-&gt;{test_result} || MTT::Values::TIMED_OUT == $report-&gt;{test_result}));<br>
+&gt; +<br>
+&gt;     # If there is an after_each step, run it<br>
+&gt;     $ENV{MTT_TEST_RUN_RESULT_MESSAGE} =<br>
+&gt;         (MTT::Values::PASS == $report-&gt;{test_result} ? &quot;passed&quot; :<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Util.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Util.pm     (original)<br>
+&gt; +++ trunk/lib/MTT/Util.pm     <a href="tel:2012-01-25%2006" value="+12012012506">2012-01-25 06</a>:02:47 EST (Wed, 25 Jan 2012)<br>
+&gt; @@ -205,6 +205,12 @@<br>
+&gt;<br>
+&gt;         if (($count-&gt;{$result} / $total) &gt; $threshold-&gt;{$result}) {<br>
+&gt;             Verbose(&quot;--&gt; Threshold ($per) exceeded for \&quot;$result_label\&quot;: $count-&gt;{$result} out of $total.\n&quot;);<br>
+&gt; +            $MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold} = &quot;true&quot;;<br>
+&gt; +            $MTT::Globals::Internals-&gt;{stopped_on_break_threshold_message} = &quot;--&gt; Threshold ($per) exceeded for \&quot;$result_label\&quot;: $count-&gt;{$result} out of $total.\n&quot;;<br>
+&gt; +            print STDOUT &quot;--&gt; Threshold ($per) exceeded for \&quot;$result_label\&quot;: $count-&gt;{$result} out of $total.\n&quot;;<br>
+&gt; +            if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold}){<br>
+&gt; +                print STDOUT &quot;0xdeadbeef: it works&quot;;<br>
+&gt; +            }<br>
+&gt;             return 1;<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Values.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Values.pm   (original)<br>
+&gt; +++ trunk/lib/MTT/Values.pm   <a href="tel:2012-01-25%2006" value="+12012012506">2012-01-25 06</a>:02:47 EST (Wed, 25 Jan 2012)<br>
+&gt; @@ -45,6 +45,7 @@<br>
+&gt;     PASS =&gt; 1,<br>
+&gt;     SKIPPED =&gt; 2,<br>
+&gt;     TIMED_OUT =&gt; 3,<br>
+&gt; +    TIMED_OUT_OR_FAIL =&gt;4,<br>
+&gt; };<br>
+&gt;<br>
+&gt; # Map to human-readable English labels<br>
+&gt; @@ -53,7 +54,7 @@<br>
+&gt; $result_messages-&gt;{MTT::Values::PASS}      = &quot;pass&quot;;<br>
+&gt; $result_messages-&gt;{MTT::Values::TIMED_OUT} = &quot;timeout&quot;;<br>
+&gt; $result_messages-&gt;{MTT::Values::SKIPPED}   = &quot;skipped&quot;;<br>
+&gt; -<br>
+&gt; +$result_messages-&gt;{MTT::Values::TIMED_OUT_OR_FAIL} = &quot;timeout_and_fail&quot;;<br>
+&gt; # current $ini and $section parameters (we use it in funclets)<br>
+&gt; our $evaluate_string_ini;<br>
+&gt; our $evaluate_string_section;<br>
+&gt; _______________________________________________<br>
+&gt; mtt-svn mailing list<br>
+&gt; <a href="mailto:mtt-svn@open-mpi.org">mtt-svn@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/mtt-svn" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/mtt-svn</a><br>
+<br>
+<br>
+</div></div><span class="HOEnZb"><font color="#888888">--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to:<br>
+<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+<br>
+_______________________________________________<br>
+mtt-devel mailing list<br>
+<a href="mailto:mtt-devel@open-mpi.org">mtt-devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/mtt-devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/mtt-devel</a><br>
+</font></span></blockquote></div><br></div>
+

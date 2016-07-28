@@ -1,0 +1,11 @@
+<div dir="ltr"><div><div><div><div><div><div><div><div><div><div><div><div><div><div>Folks,<br><br>while debugging the dynamic/intercomm_create from the ibm test suite, i found something odd.<br><br></div>i ran *without* any batch manager on a VM (one socket and four cpus)<br>
+</div>mpirun -np 1 ./dynamic/intercomm_create<br><br></div><div>it hangs by default<br>it works with --mca coll ^ml<br></div><div><br></div>basically :<br></div>- task 0 spawns task 1<br></div>- task 0 spawns task 2<br></div>
+- a communicator is created for the 3 tasks via MPI_Intercomm_create()<br><br></div>MPI_Intercomm_create() calls ompi_comm_get_rprocs() which calls ompi_proc_set_locality()<br><br></div>then, on task 1, ompi_proc_set_locality() calls<br>
+</div>opal_dstore.fetch(opal_dstore_internal, &quot;task 2&quot;-&gt;proc_name, ...) which fails and this is OK<br></div>then <br></div>opal_dstore_fetch(opal_dstore_nonpeer, &quot;task 2&quot;-&gt;proc_name, ...) which fails and this is *not* OK<br>
+<br></div>/* on task 2, the first fetch for &quot;task 1&quot; fails but the second success */<br><br></div>my analysis is that when task 2 was created, it updated its opal_dstore_nonpeer with info from &quot;task 1&quot; which was previously spawned by task 0.<br>
+</div><div>when task 1 was spawned, task 2 did not exist yet and hence opal_dstore_nonpeer contains no reference to task 2.<br></div><div>but when task 2 was spawned, opal_dstore_nonpeer of task 1 has not been updated, hence the failure<br>
+<br></div><div>(on task 1, proc_flags of task 2 has incorrect locality, this likely confuses coll ml and hang the test)<br><br></div><div>should task1 have received new information when task 2 was spawned ?<br></div><div>
+shoud task2 have sent information to task1 when it was spawned ?<br></div><div>should task1 have (tried to) get fresh information before invoking MPI_Intercomm_create() ?<br><br></div><div>incidentally, i found ompi_proc_set_locality calls opal_dstore.store with <br>
+identifier &amp;proc (the argument is &amp;proc-&gt;proc_name everywhere else, so this<br>is likely a bug/typo. the attached patch fixes this.<br><br></div><div>Thanks in advance for your feedback,<br><br>Gilles<br></div>
+</div>
+

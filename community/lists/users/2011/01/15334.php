@@ -1,0 +1,180 @@
+<?
+$subject_val = "Re: [OMPI users] Newbie question";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Tue Jan 11 01:11:09 2011" -->
+<!-- isoreceived="20110111061109" -->
+<!-- sent="Mon, 10 Jan 2011 22:06:18 -0800" -->
+<!-- isosent="20110111060618" -->
+<!-- name="Tena Sakai" -->
+<!-- email="tsakai_at_[hidden]" -->
+<!-- subject="Re: [OMPI users] Newbie question" -->
+<!-- id="C951335A.DB8A%tsakai_at_gallo.ucsf.edu" -->
+<!-- charset="Windows-1252" -->
+<!-- inreplyto="AANLkTinrgY1E0q2RHuVohwSX43dsXCuARkhJzHUre=6Q_at_mail.gmail.com" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI users] Newbie question<br>
+<strong>From:</strong> Tena Sakai (<em>tsakai_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2011-01-11 01:06:18
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="15335.php">Siegmar Gross: "Re: [OMPI users] Newbie question"</a>
+<li><strong>Previous message:</strong> <a href="15333.php">pooja varshneya: "Re: [OMPI users] Newbie question"</a>
+<li><strong>In reply to:</strong> <a href="15333.php">pooja varshneya: "Re: [OMPI users] Newbie question"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="15337.php">Terry Dontje: "Re: [OMPI users] Newbie question"</a>
+<li><strong>Reply:</strong> <a href="15337.php">Terry Dontje: "Re: [OMPI users] Newbie question"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Hi,
+<br>
+<p>Thanks for your reply.
+<br>
+<p>I am afraid your terse response doesn&#146;t shed much light.  What I need is &#147;hosts&#148;
+<br>
+parameter I can use to mpi.spawn.Rslaves() function.  Can you explain or better
+<br>
+yet give an example as to how I can get this via mpirun?
+<br>
+<p>Looking at mpirun man page, I found an example:
+<br>
+&nbsp;&nbsp;mpirun &#150;H aa,aa,bb  ./a.out
+<br>
+and similar ones.  But they all execute a program (like a.out above).  That&#146;&#146;s not
+<br>
+what I want.  What I want is to spawn a bunch of R slaves to other machines on
+<br>
+the network.  I can spawn R slaves, as many as I like, to the local machine, but
+<br>
+I don&#146;t know how to do this with machines on the network.  That&#146;s what &#147;hosts&#148;
+<br>
+parameter of mpi.spawn.Rslaves() enables me to do, I think.  If I can do that, then
+<br>
+Rmpi has function(s) to send command to each of the spawned slaves.
+<br>
+<p>My question is how can I get open MPI to give me those &#147;hosts&#148; parameters.
+<br>
+<p>Can you please help me?
+<br>
+<p>Thank you in advance.
+<br>
+<p>Tena Sakai
+<br>
+tsakai_at_[hidden]
+<br>
+<p><p>On 1/10/11 8:14 PM, &quot;pooja varshneya&quot; &lt;pooja.varshneya_at_[hidden]&gt; wrote:
+<br>
+<p>You can use mpirun.
+<br>
+<p>On Mon, Jan 10, 2011 at 8:04 PM, Tena Sakai &lt;tsakai_at_[hidden]&gt; wrote:
+<br>
+Hi,
+<br>
+<p>I am an mpi newbie.  My open MPI is v 1.4.3, which I compiled
+<br>
+on a linux machine.
+<br>
+<p>I am using a language called R, which has an mpi interface/package.
+<br>
+It appears that it is happy, on the surface, with the open MPI I installed.
+<br>
+<p>There is an R function called mpi.spawn.Rslaves().  An argument to
+<br>
+this function is nslaves.  I can issue, for example,
+<br>
+&nbsp;&nbsp;mpi.spawn.Rslaves( nslaves=20 )
+<br>
+And it spawns 20 slave processes.  The trouble is that it is all on the
+<br>
+same node as that of the master.  I want, instead, these 20 (or more)
+<br>
+slaves spawned on other machines on the network.
+<br>
+<p>It so happens the mpi.spawn.Rslaves() has an extra argument called
+<br>
+hosts.  Here&#146;s the definition of hosts from the api document: &#147;NULL or
+<br>
+LAM node numbers to specify where R slaves to be spawned.&#148;  I have
+<br>
+no idea what LAM node is, but there  is a funciton called lamhosts().
+<br>
+which returns a bit verbose message:
+<br>
+<p>&nbsp;&nbsp;It seems that there is no lamd running on the host compute-0-0.local.
+<br>
+<p>&nbsp;&nbsp;This indicates that the LAM/MPI runtime environment is not operating.
+<br>
+&nbsp;&nbsp;The LAM/MPI runtime environment is necessary for the &quot;lamnodes&quot; command.
+<br>
+<p>&nbsp;&nbsp;Please run the &quot;lamboot&quot; command the start the LAM/MPI runtime
+<br>
+&nbsp;&nbsp;environment.  See the LAM/MPI documentation for how to invoke
+<br>
+&nbsp;&nbsp;&quot;lamboot&quot; across multiple machines.
+<br>
+<p>Here&#146;s my question.  Is there such command as lamboot in open MPI 1.4.3?
+<br>
+Or am I using a wrong mpi software?  In a FAQ I read that there are other
+<br>
+MPI software (FT-mpi, LA-mpi, LAM-mpi), but I had notion that open MPI
+<br>
+is to have functionalities of all.  Is this a wrong impression?
+<br>
+<p>Thank you for your help.
+<br>
+<p>Tena Sakai
+<br>
+tsakai_at_[hidden] &lt;<a href="http://tsakai&#64;gallo.ucsf.edu">http://tsakai&#64;gallo.ucsf.edu</a>&gt;
+<br>
+<p>_______________________________________________
+<br>
+users mailing list
+<br>
+users_at_[hidden]
+<br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+<br>
+<p><p><p><hr>
+<ul>
+<li>text/html attachment: <a href="http://www.open-mpi.org/community/lists/users/att-15334/attachment">attachment</a>
+</ul>
+<!-- attachment="attachment" -->
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="15335.php">Siegmar Gross: "Re: [OMPI users] Newbie question"</a>
+<li><strong>Previous message:</strong> <a href="15333.php">pooja varshneya: "Re: [OMPI users] Newbie question"</a>
+<li><strong>In reply to:</strong> <a href="15333.php">pooja varshneya: "Re: [OMPI users] Newbie question"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="15337.php">Terry Dontje: "Re: [OMPI users] Newbie question"</a>
+<li><strong>Reply:</strong> <a href="15337.php">Terry Dontje: "Re: [OMPI users] Newbie question"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

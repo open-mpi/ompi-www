@@ -1,0 +1,198 @@
+<div dir="ltr">Yikes - looks like a bug crept into there at the last minute. I actually had it working just fine - not sure what happened here. I&#39;m on travel this week, but I&#39;ll try to dig into this a bit and spot the issue.<div><br></div><div>Thanks!</div><div>Ralph</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Mon, Feb 2, 2015 at 3:50 AM, Mark Santcroos <span dir="ltr">&lt;<a href="mailto:mark.santcroos@rutgers.edu" target="_blank">mark.santcroos@rutgers.edu</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi Ralph,<br>
+<br>
+Great, the semantics look exactly as what I need!<br>
+<br>
+(To aid in debugging I added &quot;--debug-devel&quot; to orte-dvm.c which was useful to detect and come by some initial bumps)<br>
+<br>
+The current status:<br>
+<br>
+* I can submit applications and see their output on the orte-dvm console<br>
+<br>
+* The following message is reported infinitely on the orte-submit console:<br>
+<br>
+[warn] opal_libevent2022_event_base_loop: reentrant invocation.  Only one event_base_loop can run on each event_base at once.<br>
+<br>
+* orte-submit doesn&#39;t return, while I see &quot;[nid02819:20571] [[2120,0],0] dvm: job [2120,9] has completed&quot; on the orte-dvm console.<br>
+<br>
+* On the orte-dvm console I see the following when submitting (so also for &quot;successful&quot; runs):<br>
+<br>
+[nid02434:00564] [[9021,0],0] Releasing job data for [INVALID]<br>
+[nid03388:26474] [[9021,0],2] ORTE_ERROR_LOG: Not found in file ../../../../orte/mca/odls/base/odls_base_default_fns.c at line 433<br>
+[nid03534:31545] procdir: /tmp/openmpi-sessions-62758@nid03534_0/9021/1/0<br>
+[nid03534:31545] jobdir: /tmp/openmpi-sessions-62758@nid03534_0/9021/1<br>
+[nid03534:31545] top: openmpi-sessions-62758@nid03534_0<br>
+[nid03534:31545] tmp: /tmp<br>
+[nid03534:31545] sess_dir_finalize: proc session dir does not exist<br>
+<br>
+* If I dont specify any &quot;-np&quot; on the orte-submit, then I see on the orte-dvm console:<br>
+<br>
+[nid02434:00564] [[9021,0],0] Releasing job data for [INVALID]<br>
+[nid03388:26474] [[9021,0],2] ORTE_ERROR_LOG: Not found in file ../../../../orte/mca/odls/base/odls_base_default_fns.c at line 433<br>
+[nid03534:31544] [[9021,0],1] ORTE_ERROR_LOG: Not found in file ../../../../orte/mca/odls/base/odls_base_default_fns.c at line 433<br>
+<br>
+* It only seems to work for single nodes (probably related to the previous point).<br>
+<br>
+<br>
+Is this all expected behaviour given the current implementation?<br>
+<br>
+<br>
+Thanks!<br>
+<br>
+Mark<br>
+<div><div class="h5"><br>
+<br>
+<br>
+&gt; On 02 Feb 2015, at 4:21 , Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt;<br>
+&gt; I have pushed the changes to the OMPI master. It took a little bit more than I had hoped due to the changes to the ORTE infrastructure, but hopefully this will meet your needs. It consists of two new tools:<br>
+&gt;<br>
+&gt; (a) orte-dvm - starts the virtual machine by launching a daemon on every node of the allocation, as constrained by -host and/or -hostfile. Check the options for outputting the URI as you’ll need that info for the other tool. The DVM remains “up” until you issue the orte-submit -terminate command, or hit the orte-dvm process with a sigterm.<br>
+&gt;<br>
+&gt; (b) orte-submit - takes the place of mpirun. Basically just packages your app and arguments and sends it to orte-dvm for execution. Requires the URI of orte-dvm. The tool exits once the job has completed execution, though you can run multiple jobs in parallel by backgrounding orte-submit or issuing commands from separate shells.<br>
+&gt;<br>
+&gt; I’ve added man pages for both tools, though they may not be complete. Also, I don’t have all the mapping/ranking/binding options supported just yet as I first wanted to see if this meets your basic needs before worrying about the detail.<br>
+&gt;<br>
+&gt; Let me know what you think<br>
+&gt; Ralph<br>
+&gt;<br>
+&gt;<br>
+&gt;&gt; On Jan 21, 2015, at 4:07 PM, Mark Santcroos &lt;<a href="mailto:mark.santcroos@rutgers.edu">mark.santcroos@rutgers.edu</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; Hi Ralph,<br>
+&gt;&gt;<br>
+&gt;&gt; All makes sense! Thanks a lot!<br>
+&gt;&gt;<br>
+&gt;&gt; Looking forward to your modifications.<br>
+&gt;&gt; Please don&#39;t hesitate to through things with rough-edges to me!<br>
+&gt;&gt;<br>
+&gt;&gt; Cheers,<br>
+&gt;&gt;<br>
+&gt;&gt; Mark<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; On 21 Jan 2015, at 23:21 , Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Let me address your questions up here so you don’t have to scan thru the entire note.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; PMIx rationale: PMI has been around for a long time, primarily used inside the MPI library implementations to perform wireup. It provided a link from the MPI library to the local resource manager. However, as we move towards exascale, two things became apparent:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 1. the current PMI implementations don’t scale adequately to get there. The API created too many communications and assumed everything was a blocking operation, thus preventing asynchronous progress<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 2. there were increasing requests for application-level interactions to the resource manager. People want ways to spawn jobs (and not just from within MPI), request pre-location of data, control power, etc. Rather than having every RM write its own interface (and thus make everyone’s code non-portable), we at Intel decided to extend the existing PMI definitions to support those functions. Thus, an application developer can directly access PMIx functions to perform all those operations.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; PMIx v1.0 is about to be released - it’ll be backward compatible with PMI-1 and PMI-2, plus add non-blocking operations and significantly reduce the number of communications. PMIx 2.0 is slated for this summer and will include the advanced controls capabilities.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; ORCM is being developed because we needed a BSD-licensed, fully featured resource manager. This will allow us to integrate the RM even more tightly to the file system, networking, and other subsystems, thus achieving higher launch performance and providing desired features such as QoS management. PMIx is a part of that plan, but as you say, they each play their separate roles in the overall stack.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Persistent ORTE: there is a learning curve on ORTE, I fear. We do have some videos on the web site that can help get you started, and I’ve given a number of “classes&quot; at Intel now for that purpose. I still have it on my “to-do” list that I summarize those classes and post them on the web site.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; For now, let me summarize how things work. At startup, mpirun reads the allocation (usually from the environment, but it depends on the host RM) and launches a daemon on each allocated node. Each daemon reads its local hardware environment and “phones home” to let mpirun know it is alive. Once all daemons have reported, mpirun maps the processes to the nodes and sends that map to all the daemons in a scalable broadcast pattern.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Upon receipt of the launch message, each daemon parses it to identify which procs it needs to locally spawn. Once spawned, each proc connects back to its local daemon via a Unix domain socket for wireup support. As procs complete, the daemon maintains bookkeeping and reports back to mpirun once all procs are done. When all procs are reported complete (or one reports as abnormally terminated), mpirun sends a “die” message to every daemon so it will cleanly terminate.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; What I will do is simply tell mpirun to not do that last step, but instead to wait to receive a “terminate” cmd before ending the daemons. This will allow you to reuse the existing DVM, making each independent job start a great deal faster. You’ll need to either manually terminate the DVM, or the RM will do so when the allocation expires.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; HTH<br>
+&gt;&gt;&gt; Ralph<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; On Jan 21, 2015, at 12:52 PM, Mark Santcroos &lt;<a href="mailto:mark.santcroos@rutgers.edu">mark.santcroos@rutgers.edu</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Hi Ralph,<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; On 21 Jan 2015, at 21:20 , Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Hi Mark<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; On Jan 21, 2015, at 11:21 AM, Mark Santcroos &lt;<a href="mailto:mark.santcroos@rutgers.edu">mark.santcroos@rutgers.edu</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Hi Ralph, all,<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; To give some background, I&#39;m part of the RADICAL-Pilot [1] development team.<br>
+&gt;&gt;&gt;&gt;&gt;&gt; RADICAL-Pilot is a Pilot System, an implementation of the Pilot (job) concept, which is in its most minimal form takes care of the decoupling of resource acquisition and workload management.<br>
+&gt;&gt;&gt;&gt;&gt;&gt; So instead of launching your real_science.exe through PBS, you submit a Pilot, which will allow you to perform application level scheduling.<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Most obvious use-case if you want to run many (relatively) small tasks, then you really don;t want to go through the batch system every time. That is besides the fact that these machines are very bad in managing many tasks anyway.<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Yeah, we sympathize.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Thats always good :-)<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Of course, one obvious solution is to get an allocation and execute a shell script that runs the tasks within that allocation - yes?<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Not really. Most of our use-cases have dynamic runtime properties, which means that at t=0 the exact workload is not known.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; In addition, I don&#39;t think such a script would allow me to work around the aprun bottleneck, as I&#39;m not aware of a way to start MPI tasks that span multiple nodes from a Cray worker node.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; I looked a bit better at ORCM and it clearly overlaps with what I want to achieve.<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Agreed. In ORCM, we allow a user to request a “session” that results in allocation of resources. Each session is given an “orchestrator” - the ORCM “shepherd” daemon - responsible for executing the individual tasks across the assigned allocation, and a collection of “lamb” daemons (one on each node of the allocation) that forms a distributed VM. The orchestrator can execute the tasks very quickly since it doesn’t have to go back to the scheduler, and we allow it to do so according to any provided precedence requirement. Again, for simplicity, a shell script is the default mechanism for submitting the individual tasks.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Yeah, similar solution to a similar problem.<br>
+&gt;&gt;&gt;&gt; I noticed that Exascale is also part of the motivation? How does this relate to the pmix effort? Different part of the stack I guess.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; One thing I noticed is that parts of it runs as root, why is that?<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; ORCM is a full resource manager, which means it has a scheduler (rudimentary today) and boot-time daemons that must run as root so they can fork/exec the session-level daemons (that run at the user level). The orchestrator and its daemons all run at the user-level.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Ok. Our solution is user-space only, as one of our features is that we are able to run across different type of systems. Both approaches come with a tradeoff obviously.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; We used to have a cmd line option in ORTE for what you propose - it wouldn’t be too hard to restore. Is there some reason to do so?<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Can you point me to something that I could look for in the repo history, then I can see if it serves my purpose.<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; It would be back in the svn repo, I fear - would take awhile to hunt it down. Basically, it just (a) started all the daemons to create a VM, and (b) told mpirun to stick around as a persistent daemon. All subsequent calls to mpirun would reference back to the persistent one, thus using it to launch the jobs against the standing VM instead of starting a new one every time.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; *nod* That&#39;s what I tried to do this afternoon actually with the &quot;--ompi-server&quot;, but that was not meant to be.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; For ORCM, we just took that capability and expressed it as the “shepherd” plus “lamb” daemon architecture described above.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; ACK.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; If you don’t want to replace the base RM, then using ORTE to establish a persistent VM is probably the way to go.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Indeed, thats what it sounds like. Plus that ORTE is generic enough that I can re-use it on other type of systems too.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; I can probably make it do that again fairly readily. We have a developer’s meeting next week, which usually means I have some free time (during evenings and topics I’m not involved with), so I can take a crack at this then if that would be timely enough.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Happy to accept that offer. At this stage I&#39;m not sure if I would want a CLI or would be more interested to be able to do this programmatically though.<br>
+&gt;&gt;&gt;&gt; Also more than willing to assist in any way I can.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; I tried to see how it all worked, but because of the modular nature of ompi that was quite daunting. There is some learning curve I guess :-)<br>
+&gt;&gt;&gt;&gt; So it seems that mpirun is persistent, and opens up a listening port, then some orded&#39;s get launched that phone home.<br>
+&gt;&gt;&gt;&gt; From there I got lost in the MCA maze. How do the tasks get unto the compute nodes and started?<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Thanks a lot again, I appreciate your help.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Mark<br>
+&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/01/26227.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/01/26227.php</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/01/26228.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/01/26228.php</a><br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/01/26229.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/01/26229.php</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div>&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/02/26249.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/02/26249.php</a><br>
+<span class=""><br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</span>Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/02/26254.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/02/26254.php</a></blockquote></div><br></div>
+

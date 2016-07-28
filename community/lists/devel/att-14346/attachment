@@ -1,0 +1,257 @@
+<div dir="ltr"><div><div>And I managed to run Open MPI with MPJ Express. I added the following code and it worked like a charm.<br></div><br></div><b>In Java</b><br><div><span style="font-family:courier new,monospace">  /*<br>
+
+   * Static Block for loading the libnativempjdev.so<br>   */<br>  static {<br>    System.loadLibrary(&quot;nativempjdev&quot;);<br>    <br>    if(!loadGlobalLibraries()) {<br>        System.out.println(&quot;MPJ Express failed to load required libraries&quot;);<br>
+
+        System.exit(1);<br>    }<br>  }</span><br><br></div><div><b>In C</b><br><br><span style="font-family:courier new,monospace">JNIEXPORT jboolean JNICALL Java_mpjdev_natmpjdev_Comm_loadGlobalLibraries<br> (JNIEnv *env, jclass thisObject) {<br>
+
+    //This will make sure the library is loaded<br>    // in the case of Open MPI<br>    if (NULL == (mpilibhandle = dlopen(&quot;libmpi.so&quot;,<br>                                       RTLD_NOW | RTLD_GLOBAL))) {<br>
+        return JNI_FALSE;<br>
+    }<br>    return JNI_TRUE;<br>}</span><br><br></div><div>It works for Open MPI but for MPICH3 I have to comment the dlopen. Is there any way to tell the compiler if its using Open MPI (mpicc) then use dlopen else keep it commented? Or some thing else?<br>
+
+<br><b>On Java bindings to have some insight into the internals of the MPI implementation</b><br><div><br></div><div></div><div>Yes, there are some places where we need to be sync with the internals of the native MPI implementation. These are in section 8.1.2 of MPI 2.1 (<a href="http://www.mpi-forum.org/docs/mpi-2.1/mpi21-report.pdf">http://www.mpi-forum.org/docs/mpi-2.1/mpi21-report.pdf</a>). For example the MPI_TAG_UB. For the pure Java devices of MPJ Express we have always used <span style="font-family:courier new,monospace">Integer.MAX_VALUE</span>.<br>
+
+</div><div><br></div><div><b>Datatypes?</b><br></div><div><br></div><div>MPJ Express uses an internal buffering layer to buffer the user data into a <span style="font-family:courier new,monospace">ByteBuffer</span>. In this way for the native device we end up using the <span style="font-family:courier new,monospace">MPI_BYTE</span> datatype most of the time. <span style="font-family:courier new,monospace">ByteBuffer </span>simplifies matters since it is directly accessible from the native code.<br>
+
+<br>With our current implementation there is one exception to it i.e. in the <span style="font-family:courier new,monospace">Reduce</span>, <span style="font-family:courier new,monospace">Allreduce</span> and<span style="font-family:courier new,monospace"> Reduce_scatter</span> where the native MPI implementation needs to know which Java datatype its going to process. Same goes for <span style="font-family:courier new,monospace">MPI.Op</span><br>
+
+<br><b>On Are your bindings similar in style/signature to ours?</b><br><br></div><div>I checked it and there are differences. MPJ Express (and FastMPJ also) implements the mpiJava 1.2 specifications. There is also MPJ API (this is very close to mpiJava 1.2 API). <br>
+
+<br></div><div><b>Example 1: Getting the rank and size of COMM_WORLD</b><br><b><br></b></div><div><b>MPJ Express (the mpiJava 1.2 API):</b><br><span style="font-family:courier new,monospace"> public int Size() throws MPIException;<br>
+
+ public int Rank() throws MPIException;</span><br><br></div><div><b>MPJ API:</b><br><span style="font-family:courier new,monospace"> public int size() throws MPJException;<br> public int rank() throws MPJException;</span><br>
+
+<br></div><div><b>Open MPI&#39;s Java bindings:</b><br><span style="font-family:courier new,monospace"> public final int getRank() throws MPIException;<br> public final int getSize() throws MPIException;</span><br><b><br>
+
+</b></div><div><b>Example 2: Point-to-Point communication</b><br><br><b>MPJ Express (the mpiJava 1.2 API):</b><span style="font-family:courier new,monospace"><br> public void Send(Object buf, int offset, int count, Datatype datatype, int dest, int tag) throws MPIException <br>
+
+<br> public Status Recv(Object buf, int offset, int count, Datatype datatype,
+<br>      int source, int tag) throws MPIException</span><br><br><b>MPJ API:</b><br><span style="font-family:courier new,monospace"> public void send(Object buf, int offset, int count, Datatype datatype, int dest, int tag) throws MPJException;<br>
+
+<br> public Status recv(Object buf, int offset, int count, Datatype datatype, int source, int tag) throws MPJException</span><br><br><b>Open MPI&#39;s Java bindings:</b><br><span style="font-family:courier new,monospace"> public final void send(Object buf, int count, Datatype type, int dest, int tag) throws MPIException<br>
+
+<br> public final Status recv(Object buf, int count, Datatype type, int source, int tag) throws MPIException</span><br><br></div><div><b>Example 3: Collective communication</b><br><b><br>MPJ Express (the mpiJava 1.2 API):</b><span style="font-family:courier new,monospace"><br>
+
+ public void Bcast(Object buf, int offset, int count, Datatype type, int root)<br>      throws MPIException;</span><br><br><b>MPJ API:</b><br><span style="font-family:courier new,monospace"> public void bcast(Object buffer, int offset, int count, Datatype datatype, int root) throws MPJException;</span><br>
+
+<br></div><div><b>Open MPI&#39;s Java bindings:<br></b><span style="font-family:courier new,monospace"> public final void bcast(Object buf, int count, Datatype type, int root) throws MPIException;<br></span><b><br></b><br>
+
+I couldn&#39;t find which API the Open MPI&#39;s Java bindings implement? But while reading your README.JAVA.txt and your code I realised that you are trying to avoid buffering overhead by giving the user the flexibility to directly allocate data onto a <span style="font-family:courier new,monospace">ByteBuffer</span> using <span style="font-family:courier new,monospace">MPI.new&lt;Type&gt;Buffer</span>, hence not following the mpiJava 1.2 specs (for communication operations)?<br>
+
+<br><br></div><div><b>On Performance Comparison</b><br><br></div><div>Yes this is interesting, I have managed to do two kind of tests: Ping-Pong (Latency and Bandwidth) and Collective Communications (Bcast).<br><br></div>
+
+<div>Attached are graphs and the programs (testcases) that I used. The tests were done using Infiniband, more on the platform here <a href="http://www.nust.edu.pk/INSTITUTIONS/Centers/RCMS/AboutUs/facilities/screc/Pages/Resources.aspx">http://www.nust.edu.pk/INSTITUTIONS/Centers/RCMS/AboutUs/facilities/screc/Pages/Resources.aspx</a><br>
+
+<br></div><div></div><div>One reason for Open MPI&#39;s java bindings low performance (in the Bandwidth.png graph) is the way the test case was written (Bandwidth_OpenMPi.java). It allocates a total of 16M of byte array and uses the same array in send/recv for each data point (by varying <span style="font-family:courier new,monospace">count</span>). <br>
+
+</div><div><span style="font-family:courier new,monospace"><br><font face="arial,helvetica,sans-serif">This could be mainly because of the following code in <span style="font-family:courier new,monospace">mpi_Comm.c</span> (let me know if I am mistaken)<br>
+
+<br><span style="font-family:courier new,monospace">static void* getArrayPtr(void** bufBase, JNIEnv *env,<br>                         jobject buf, int baseType, int offset)<br>{<br>    switch(baseType)<br>    {<br>           ... <br>
+
+           ...<br>          case 1: {<br>            jbyte* els = (*env)-&gt;GetByteArrayElements(env, buf, NULL);<br>            *bufBase = els;<br>            return els + offset;<br>        }</span></font><br><font face="arial,helvetica,sans-serif"><span style="font-family:courier new,monospace">           ... <br>
+
+           ...<br>}</span><br></font></span></div><div><br><span style="font-family:courier new,monospace">Get&lt;PrimitiveType&gt;ArrayElements</span> routine every time gets the entire array even if the user wants to send some elements (the <span style="font-family:courier new,monospace">count</span>). This might be one reason for Open MPI&#39; Java bindings to advocate for the <span style="font-family:courier new,monospace">MPI.new&lt;Type&gt;Buffer</span>. The other reason is naturally the buffering overhead.<br>
+
+<br></div><div>From the above experience, for the bandwidth of Bcast operation, I modified the test case to only allocate as much array as need for that Bcast and took the results. For a fairer comparison between MPJ Express and Open MPI&#39;s Java bindings I didn&#39;t use the <span style="font-family:courier new,monospace">MPI.new&lt;Type&gt;Buffer.</span></div>
+
+<div><br></div><div>regards<br></div><div><div><div class="gmail_extra"><div><div dir="ltr"><span style="color:rgb(0,0,0)">Bibrak Qamar</span><br style="color:rgb(0,0,0)"><span style="color:rgb(0,0,0)"><br></span><font color="#888888"></font></div>
+
+</div>
+<br><br><div class="gmail_quote">On Wed, Mar 12, 2014 at 6:42 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+
+Here&#39;s what I had to do to load the library correctly (we were only using ORTE, so substitute &quot;libmpi&quot;) - this was called at the beginning of &quot;init&quot;:<br>
+<br>
+    /* first, load the required ORTE library */<br>
+#if OPAL_WANT_LIBLTDL<br>
+    lt_dladvise advise;<br>
+<br>
+    if (lt_dlinit() != 0) {<br>
+        fprintf(stderr, &quot;LT_DLINIT FAILED - CANNOT LOAD LIBMRPLUS\n&quot;);<br>
+        return JNI_FALSE;<br>
+    }<br>
+<br>
+#if OPAL_HAVE_LTDL_ADVISE<br>
+    /* open the library into the global namespace */<br>
+    if (lt_dladvise_init(&amp;advise)) {<br>
+        fprintf(stderr, &quot;LT_DLADVISE INIT FAILED - CANNOT LOAD LIBMRPLUS\n&quot;);<br>
+        return JNI_FALSE;<br>
+    }<br>
+<br>
+    if (lt_dladvise_ext(&amp;advise)) {<br>
+        fprintf(stderr, &quot;LT_DLADVISE EXT FAILED - CANNOT LOAD LIBMRPLUS\n&quot;);<br>
+        lt_dladvise_destroy(&amp;advise);<br>
+        return JNI_FALSE;<br>
+    }<br>
+<br>
+    if (lt_dladvise_global(&amp;advise)) {<br>
+        fprintf(stderr, &quot;LT_DLADVISE GLOBAL FAILED - CANNOT LOAD LIBMRPLUS\n&quot;);<br>
+        lt_dladvise_destroy(&amp;advise);<br>
+        return JNI_FALSE;<br>
+    }<br>
+<br>
+    /* we don&#39;t care about the return value<br>
+     * on dlopen - it might return an error<br>
+     * because the lib is already loaded,<br>
+     * depending on the way we were built<br>
+     */<br>
+    lt_dlopenadvise(&quot;libopen-rte&quot;, advise);<br>
+    lt_dladvise_destroy(&amp;advise);<br>
+#else<br>
+    fprintf(stderr, &quot;NO LT_DLADVISE - CANNOT LOAD LIBMRPLUS\n&quot;);<br>
+    /* need to balance the ltdl inits */<br>
+    lt_dlexit();<br>
+    /* if we don&#39;t have advise, then we are hosed */<br>
+    return JNI_FALSE;<br>
+#endif<br>
+#endif<br>
+    /* if dlopen was disabled, then all symbols<br>
+     * should have been pulled up into the libraries,<br>
+     * so we don&#39;t need to do anything as the symbols<br>
+     * are already available.<br>
+     */<br>
+<div><div class="h5"><br>
+On Mar 12, 2014, at 6:32 AM, Jeff Squyres (jsquyres) &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+<br>
+&gt; Check out how we did this with the embedded java bindings in Open MPI; see the comment describing exactly this issue starting here:<br>
+&gt;<br>
+&gt;    <a href="https://svn.open-mpi.org/trac/ompi/browser/trunk/ompi/mpi/java/c/mpi_MPI.c#L79" target="_blank">https://svn.open-mpi.org/trac/ompi/browser/trunk/ompi/mpi/java/c/mpi_MPI.c#L79</a><br>
+&gt;<br>
+&gt; Feel free to compare MPJ to the OMPI java bindings -- they&#39;re shipping in 1.7.4 and have a bunch of improvements in the soon-to-be-released 1.7.5, but you must enable them since they aren&#39;t enabled by default:<br>
+
+
+&gt;<br>
+&gt;    ./configure --enable-mpi-java ...<br>
+&gt;<br>
+&gt; FWIW, we found a few places in the Java bindings where it was necessary for the bindings to have some insight into the internals of the MPI implementation.  Did you find the same thing with MPJ Express?<br>
+&gt;<br>
+&gt; Are your bindings similar in style/signature to ours?<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; On Mar 12, 2014, at 6:40 AM, Bibrak Qamar &lt;<a href="mailto:bibrakc@gmail.com">bibrakc@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; Hi all,<br>
+&gt;&gt;<br>
+&gt;&gt; I am writing a new device for MPJ Express that uses a native MPI library for communication. Its based on JNI wrappers like the original mpiJava. The device works fine with MPICH3  (and MVAPICH2.2). Here is the issue with loading Open MPI 1.7.4 from MPJ Express.<br>
+
+
+&gt;&gt;<br>
+&gt;&gt; I have generated the following error message from a simple JNI to MPI application for clarity purposes and also to regenerate the error easily. I have attached the app for your consideration.<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; [bibrak@localhost JNI_to_MPI]$ mpirun -np 2 java -cp . -Djava.library.path=/home/bibrak/work/JNI_to_MPI/ simpleJNI_MPI<br>
+&gt;&gt; [localhost.localdomain:29086] mca: base: component_find: unable to open /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_mmap: /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_mmap.so: undefined symbol: opal_show_help (ignored)<br>
+
+
+&gt;&gt; [localhost.localdomain:29085] mca: base: component_find: unable to open /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_mmap: /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_mmap.so: undefined symbol: opal_show_help (ignored)<br>
+
+
+&gt;&gt; [localhost.localdomain:29085] mca: base: component_find: unable to open /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_posix: /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_posix.so: undefined symbol: opal_shmem_base_framework (ignored)<br>
+
+
+&gt;&gt; [localhost.localdomain:29086] mca: base: component_find: unable to open /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_posix: /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_posix.so: undefined symbol: opal_shmem_base_framework (ignored)<br>
+
+
+&gt;&gt; [localhost.localdomain:29086] mca: base: component_find: unable to open /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_sysv: /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_sysv.so: undefined symbol: opal_show_help (ignored)<br>
+
+
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; It looks like opal_init failed for some reason; your parallel process is<br>
+&gt;&gt; likely to abort.  There are many reasons that a parallel process can<br>
+&gt;&gt; fail during opal_init; some of which are due to configuration or<br>
+&gt;&gt; environment problems.  This failure appears to be an internal failure;<br>
+&gt;&gt; here&#39;s some additional information (which may only be relevant to an<br>
+&gt;&gt; Open MPI developer):<br>
+&gt;&gt;<br>
+&gt;&gt;  opal_shmem_base_select failed<br>
+&gt;&gt;  --&gt; Returned value -1 instead of OPAL_SUCCESS<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; [localhost.localdomain:29085] mca: base: component_find: unable to open /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_sysv: /home/bibrak/work/installs/OpenMPI_installed/lib/openmpi/mca_shmem_sysv.so: undefined symbol: opal_show_help (ignored)<br>
+
+
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; It looks like orte_init failed for some reason; your parallel process is<br>
+&gt;&gt; likely to abort.  There are many reasons that a parallel process can<br>
+&gt;&gt; fail during orte_init; some of which are due to configuration or<br>
+&gt;&gt; environment problems.  This failure appears to be an internal failure;<br>
+&gt;&gt; here&#39;s some additional information (which may only be relevant to an<br>
+&gt;&gt; Open MPI developer):<br>
+&gt;&gt;<br>
+&gt;&gt;  opal_init failed<br>
+&gt;&gt;  --&gt; Returned value Error (-1) instead of ORTE_SUCCESS<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; It looks like MPI_INIT failed for some reason; your parallel process is<br>
+&gt;&gt; likely to abort.  There are many reasons that a parallel process can<br>
+&gt;&gt; fail during MPI_INIT; some of which are due to configuration or environment<br>
+&gt;&gt; problems.  This failure appears to be an internal failure; here&#39;s some<br>
+&gt;&gt; additional information (which may only be relevant to an Open MPI<br>
+&gt;&gt; developer):<br>
+&gt;&gt;<br>
+&gt;&gt;  ompi_mpi_init: ompi_rte_init failed<br>
+&gt;&gt;  --&gt; Returned &quot;Error&quot; (-1) instead of &quot;Success&quot; (0)<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; *** An error occurred in MPI_Init<br>
+&gt;&gt; *** on a NULL communicator<br>
+&gt;&gt; *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,<br>
+&gt;&gt; ***    and potentially your MPI job)<br>
+&gt;&gt; [localhost.localdomain:29086] Local abort before MPI_INIT completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; It looks like opal_init failed for some reason; your parallel process is<br>
+&gt;&gt; likely to abort.  There are many reasons that a parallel process can<br>
+&gt;&gt; fail during opal_init; some of which are due to configuration or<br>
+&gt;&gt; environment problems.  This failure appears to be an internal failure;<br>
+&gt;&gt; here&#39;s some additional information (which may only be relevant to an<br>
+&gt;&gt; Open MPI developer):<br>
+&gt;&gt;<br>
+&gt;&gt;  opal_shmem_base_select failed<br>
+&gt;&gt;  --&gt; Returned value -1 instead of OPAL_SUCCESS<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; -------------------------------------------------------<br>
+&gt;&gt; Primary job  terminated normally, but 1 process returned<br>
+&gt;&gt; a non-zero exit code.. Per user-direction, the job has been aborted.<br>
+&gt;&gt; -------------------------------------------------------<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; mpirun detected that one or more processes exited with non-zero status, thus causing<br>
+&gt;&gt; the job to be terminated. The first process to do so was:<br>
+&gt;&gt;<br>
+&gt;&gt;  Process name: [[41236,1],1]<br>
+&gt;&gt;  Exit code:    1<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; This is a thread that I found where the Open MPI developers were having issues while integrating mpiJava into their stack.<br>
+&gt;&gt;<br>
+&gt;&gt; <a href="http://mail-archives.apache.org/mod_mbox/hadoop-common-dev/201202.mbox/%3C5EA543BD-A12E-4729-B66A-C746BC789EC3@open-mpi.org%3E" target="_blank">http://mail-archives.apache.org/mod_mbox/hadoop-common-dev/201202.mbox/%3C5EA543BD-A12E-4729-B66A-C746BC789EC3@open-mpi.org%3E</a><br>
+
+
+&gt;&gt;<br>
+&gt;&gt; I don&#39;t have better understanding of the internals of Open MPI, so my question is how to use Open MPI using JNI wrappers? Any guidelines in this regard?<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks<br>
+&gt;&gt; Bibrak<br>
+&gt;&gt;<br>
+&gt;&gt; &lt;JNI_to_MPI.tar.gz&gt;_______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/03/14335.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/03/14335.php</a><br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Jeff Squyres<br>
+&gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/03/14337.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/03/14337.php</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/03/14338.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/03/14338.php</a><br>
+</blockquote></div><br></div></div></div></div></div>
+

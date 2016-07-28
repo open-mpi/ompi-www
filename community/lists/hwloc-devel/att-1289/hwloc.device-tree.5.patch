@@ -1,0 +1,405 @@
+Index: include/private/private.h
+===================================================================
+--- include/private/private.h	(revision 2427)
++++ include/private/private.h	(working copy)
+@@ -112,7 +112,7 @@
+ 
+ 
+ extern void hwloc_setup_pu_level(struct hwloc_topology *topology, unsigned nb_pus);
+-extern void hwloc_setup_misc_level_from_distances(struct hwloc_topology *topology, unsigned nbobjs, struct hwloc_obj **objs, unsigned *_distances/*[nbnobjs][nbobjs]*/);
++extern void hwloc_setup_misc_level_from_distances(struct hwloc_topology *topology, unsigned nbobjs, struct hwloc_obj **objs, unsigned *_distances/*[nbnobjs][nbobjs]*/, unsigned *distance_indexes);
+ extern int hwloc_get_sysctlbyname(const char *name, int64_t *n);
+ extern int hwloc_get_sysctl(int name[], unsigned namelen, int *n);
+ extern unsigned hwloc_fallback_nbprocessors(struct hwloc_topology *topology);
+Index: src/topology-linux.c
+===================================================================
+--- src/topology-linux.c	(revision 2427)
++++ src/topology-linux.c	(working copy)
+@@ -98,6 +98,8 @@
+ #ifdef HAVE_OPENAT
+ /* Use our own filesystem functions if we have openat */
+ 
++#define HWLOC_NBMAXCPUS 1024 /* FIXME: drop */
++
+ static FILE *
+ hwloc_fopenat(const char *path, const char *mode, int fsroot_fd)
+ {
+@@ -1302,7 +1304,7 @@
+ look_sysfsnode(struct hwloc_topology *topology, const char *path, unsigned *found)
+ {
+   unsigned osnode;
+-  unsigned nbnodes = 1;
++  unsigned nbnodes = 0;
+   DIR *dir;
+   struct dirent *dirent;
+   hwloc_obj_t node;
+@@ -1314,12 +1316,9 @@
+     {
+       while ((dirent = readdir(dir)) != NULL)
+ 	{
+-	  unsigned long numnode;
+ 	  if (strncmp(dirent->d_name, "node", 4))
+ 	    continue;
+-	  numnode = strtoul(dirent->d_name+4, NULL, 0);
+-	  if (nbnodes < numnode+1)
+-	    nbnodes = numnode+1;
++	  ++nbnodes;
+ 	}
+       closedir(dir);
+     }
+@@ -1329,10 +1328,30 @@
+ 
+   /* For convenience, put these declarations inside a block.  Saves us
+      from a bunch of mallocs, particularly with the 2D array. */
++  dir = hwloc_opendir(path, topology->backend_params.sysfs.root_fd);
++  if (NULL == dir)
++    return;
++
+   {
+       hwloc_obj_t nodes[nbnodes];
+       unsigned distances[nbnodes][nbnodes];
+-      for (osnode=0; osnode < nbnodes; osnode++) {
++      unsigned distance_indexes[nbnodes];
++      for (unsigned nnode = 0; ; ++nnode)
++        {
++          while (1)
++	    {
++              dirent = readdir(dir);
++              if (NULL == dirent)
++                break;
++              if (0 == strncmp(dirent->d_name, "node", 4))
++                break;
++            }
++          if (NULL == dirent)
++            break;
++
++          unsigned int osnode = strtoul(dirent->d_name+4, NULL, 0);
++          distance_indexes[nnode] = osnode;
++
+           char nodepath[SYSFS_NUMA_NODE_PATH_LEN];
+           hwloc_cpuset_t cpuset;
+ 
+@@ -1351,18 +1370,256 @@
+           hwloc_debug_1arg_cpuset("os node %u has cpuset %s\n",
+                                   osnode, node->cpuset);
+           hwloc_insert_object_by_cpuset(topology, node);
+-          nodes[osnode] = node;
++          nodes[nnode] = node;
+ 
+           sprintf(nodepath, "%s/node%u/distance", path, osnode);
+-          hwloc_parse_node_distance(nodepath, nbnodes, distances[osnode], topology->backend_params.sysfs.root_fd);
++          hwloc_parse_node_distance(nodepath, nbnodes, distances[nnode], topology->backend_params.sysfs.root_fd);
++        }
++      hwloc_setup_misc_level_from_distances(topology, nbnodes, nodes, (unsigned*) distances, distance_indexes);
++  }
++  *found = nbnodes;
++}
++
++/* IBM PowerPC device-tree helpers */
++static inline int
++of_get_str(const char *p, const char *p1, char *buf, size_t nbuf, int root_fd)
++{
++  char fname[256];
++  int ret = -1;
++  sprintf(fname, "%s/%s", p, p1);
++  FILE *file = hwloc_fopen(fname, "r", root_fd);
++  if (NULL == file)
++    return ret;
++  if (NULL != fgets(buf, nbuf, file))
++    ret = 0;
++  fclose(file);
++  buf[nbuf-1] = 0;
++  return ret;
++}
++
++static inline size_t 
++of_get_int_arr(const char *p, const char *p1, unsigned int *buf, size_t nbuf,
++    int root_fd)
++{
++  char fname[256];
++  size_t cb = 0;
++  sprintf(fname, "%s/%s", p, p1);
++  FILE *file = hwloc_fopen(fname, "r", root_fd);
++  if (NULL == file)
++    return cb;
++  cb = fread(buf, 1, nbuf, file);
++  fclose(file);
++  return cb;
++}
++
++/*
++The look_powerpc_device_tree_discover_cache function is supposed to fetch
++the L1/L2/... cache and CPU threads information which is absent in sysfs when
++running RHEL5.* kernels.
++*/
++typedef struct {
++  unsigned int n;
++  struct {
++    hwloc_cpuset_t cpuset;
++    unsigned int ibm_phandle;
++    unsigned int l2_cache;
++#ifdef HWLOC_DEBUG
++    char name[64];
++#endif
++  } p[HWLOC_NBMAXCPUS];
++} ppcnodes_t;
++
++static int
++look_powerpc_device_tree_discover_cache(ppcnodes_t *pnodes,
++    unsigned int ibm_phandle, unsigned int *level, hwloc_cpuset_t cpuset)
++{
++  int ret = -1;
++  if ((NULL == level) || (NULL == cpuset))
++    return ret;
++  for (unsigned int i = 0; i < pnodes->n; ++i) {
++    if (ibm_phandle != pnodes->p[i].l2_cache)
++      continue;
++    if (NULL != pnodes->p[i].cpuset) {
++      hwloc_cpuset_or(cpuset, cpuset, pnodes->p[i].cpuset);
++      ret = 0;
++    } else {
++      ++(*level);
++      if (0 == look_powerpc_device_tree_discover_cache(pnodes,
++            pnodes->p[i].ibm_phandle, level, cpuset))
++        ret = 0;
++    }
++  }
++  return ret;
++}
++  
++static void
++look_powerpc_device_tree(struct hwloc_topology *topology)
++{
++  ppcnodes_t nodes;
++  nodes.n = 0;
++  const char ofroot[] = "/proc/device-tree/cpus";
++
++  int root_fd = topology->backend_params.sysfs.root_fd;
++  DIR *dt = hwloc_opendir(ofroot, root_fd);
++  if (NULL == dt)
++    return;
++
++  struct dirent *dirent;
++  while (NULL != (dirent = readdir(dt))) {
++
++    char cpu[256];
++    sprintf(cpu, "%s/%s", ofroot, dirent->d_name);
++
++    char device_type[64];
++    if (0 > of_get_str(cpu, "device_type", device_type, sizeof(device_type),
++        root_fd))
++      continue;
++
++    // cpumask_t cpumask = {0};
++    hwloc_cpuset_t cpuset = NULL;
++    if (0 == strcmp(device_type, "cpu")) {
++      unsigned int threads[128], nthreads = 0;
++      nthreads = of_get_int_arr(cpu, "ibm,ppc-interrupt-server#s",
++          threads, sizeof(threads), root_fd) / sizeof(threads[0]);
++      if (0 != nthreads) {
++        cpuset = hwloc_cpuset_alloc();
++        for (unsigned int i = 0; i < nthreads; ++i)
++          hwloc_cpuset_set(cpuset, threads[i]);
+       }
++    }
+ 
+-      hwloc_setup_misc_level_from_distances(topology, nbnodes, nodes, (unsigned*) distances);
++    if ((0 == strcmp(device_type, "cpu")) ||
++        (0 == strcmp(device_type, "cache"))) {
++      /* Save core number and cache phandle */
++      unsigned int l2_cache = -1, ibm_phandle = -1;
++      of_get_int_arr(cpu, "l2-cache", &l2_cache, sizeof(l2_cache), root_fd);
++      of_get_int_arr(cpu, "ibm,phandle", &ibm_phandle, sizeof(ibm_phandle),
++        root_fd);
++      if ( ((unsigned)-1 != ibm_phandle) || ((unsigned)-1 != l2_cache)) {
++        nodes.p[nodes.n].ibm_phandle = ibm_phandle;
++        nodes.p[nodes.n].cpuset = (NULL == cpuset)?NULL:hwloc_cpuset_dup(cpuset);
++        nodes.p[nodes.n].l2_cache = l2_cache;
++#ifdef HWLOC_DEBUG
++        strncpy(nodes.p[nodes.n].name, dirent->d_name, sizeof(nodes.p[0].name)-1);
++#endif
++        ++nodes.n;
++      }
++    }
++
++    if (0 == strcmp(device_type, "cpu")) {
++      /* PARP: For a cpu node, the first and only value of the “reg” property 
++         shall be the number of the per-processor interrupt
++         line assigned to the processor represented by the node */
++      unsigned int reg = -1;
++      if (0 != of_get_int_arr(cpu, "reg", &reg, sizeof(reg), root_fd)) {
++        /* Add core */
++        struct hwloc_obj *core = hwloc_alloc_setup_object(HWLOC_OBJ_CORE, reg);
++        core->cpuset = hwloc_cpuset_dup(cpuset);
++        hwloc_insert_object_by_cpuset(topology, core);
++
++        /* Add socket */
++        /* -1 - to discuss */
++        struct hwloc_obj *socket = hwloc_alloc_setup_object(HWLOC_OBJ_SOCKET, -1);
++	socket->cpuset = hwloc_cpuset_dup(cpuset);
++        hwloc_insert_object_by_cpuset(topology, socket);
++      }
++
++      /* Add L1 cache */
++      /* Ignore Instruction caches */
++
++      /* d-cache-block-size - ignore */
++      /* d-cache-line-size - to read, in bytes */
++      /* d-cache-sets - ignore */
++      /* d-cache-size - to read, in bytes */ 
++      /* d-tlb-sets - ignore */
++      /* d-tlb-size - ignore, always 0 on power6 */
++      /* i-cache-* and i-tlb-* represent instruction cache, ignore */
++      unsigned int d_cache_line_size = 0, d_cache_size = 0;
++      if ( (0 != of_get_int_arr(cpu, "d-cache-line-size",
++              &d_cache_line_size, sizeof(d_cache_line_size), root_fd)) &&
++          (0 != of_get_int_arr(cpu, "d-cache-size",
++                   &d_cache_size, sizeof(d_cache_size), root_fd))  ) {
++        struct hwloc_obj *cache =
++            hwloc_alloc_setup_object(HWLOC_OBJ_CACHE, -1);
++        cache->attr->cache.size = d_cache_size;
++        cache->attr->cache.depth = 1;
++        cache->attr->cache.linesize = d_cache_line_size;
++        cache->cpuset = hwloc_cpuset_dup(cpuset);
++        hwloc_debug_cpuset("cache depth 1 has cpuset %s\n", cache->cpuset);
++        hwloc_insert_object_by_cpuset(topology, cache);
++      }
++    }
++    hwloc_cpuset_free(cpuset);
+   }
++  closedir(dt);
+ 
+-  *found = nbnodes;
++  /* No cores and L2 cache were found, exiting */
++  if (0 == nodes.n) {
++    hwloc_debug("No cores and L2 cache were found in %s, exiting\n", ofroot);
++    return;
++  }
++
++#ifdef HWLOC_DEBUG
++  for (unsigned int i; i < nodes.n; ++i)
++    printf("%i: %s  ibm,phandle=%08X l2_cache=%08X cpuset=%08X\n",
++      i, nodes.p[i].name, nodes.p[i].ibm_phandle, nodes.p[i].l2_cache,
++      (unsigned int) nodes.p[i].cpuset);
++#endif
++
++  /* Scan L2/L3/... caches */
++  dt = hwloc_opendir(ofroot, root_fd);
++  if (NULL == dt)
++    return; /* No device-tree, exiting (cannot possibly happen though) */
++
++  while (NULL != (dirent = readdir(dt))) {
++    char cache[256];
++    sprintf(cache, "%s/%s", ofroot, dirent->d_name);
++    char device_type[64];
++
++    if (0 > of_get_str(cache, "device_type",
++        device_type, sizeof(device_type), root_fd))
++      continue;
++    if (0 != strcmp(device_type, "cache"))
++      continue;
++    unsigned int ibm_phandle = 0;  
++    if (0 == of_get_int_arr(cache, "ibm,phandle",
++        &ibm_phandle, sizeof(ibm_phandle), root_fd))
++      continue;
++
++    /* Calculate cache level and CPU mask */
++    unsigned int level = 2;
++    hwloc_cpuset_t cpuset = hwloc_cpuset_alloc();
++    if (0 == look_powerpc_device_tree_discover_cache(&nodes,
++          ibm_phandle, &level, cpuset)) {
++      /* Check for "cache-unified" - if it is present, CPU has unified L1 cache */
++      /* d-cache-line-size - to read, in bytes */
++      /* d-cache-sets - ignore */
++      /* d-cache-size - to read, in bytes */ 
++      /* i-cache-* represent instruction cache, ignore */
++      unsigned int d_cache_line_size = 0, d_cache_size = 0;
++      if ( (0 != of_get_int_arr(cache, "d-cache-line-size",
++              &d_cache_line_size, sizeof(d_cache_line_size), root_fd)) &&
++          (0 != of_get_int_arr(cache, "d-cache-size",
++              &d_cache_size, sizeof(d_cache_size), root_fd)) ) {
++        struct hwloc_obj *c = hwloc_alloc_setup_object(HWLOC_OBJ_CACHE, -1);
++        c->attr->cache.size = d_cache_size;
++        c->attr->cache.depth = level;
++        c->attr->cache.linesize = d_cache_line_size;
++        c->cpuset = hwloc_cpuset_dup(cpuset);
++        hwloc_debug_1arg_cpuset("cache depth %d has cpuset %s\n", level, c->cpuset);
++        hwloc_insert_object_by_cpuset(topology, c);
++      }
++    }
++    hwloc_cpuset_free(cpuset);
++  }
++  closedir(dt);
++
++  /* Do cleanup */
++  for (unsigned int i = 0; i < nodes.n; ++i)
++    hwloc_cpuset_free(nodes.p[i].cpuset);
+ }
+ 
++
+ /* Look at Linux' /sys/devices/system/cpu/cpu%d/topology/ */
+ static void
+ look_sysfscpu(struct hwloc_topology *topology, const char *path)
+@@ -1425,6 +1682,7 @@
+   hwloc_debug_1arg_cpuset("found %d cpu topologies, cpuset %s\n",
+ 	     hwloc_cpuset_weight(cpuset), cpuset);
+ 
++  unsigned caches_added = 0;
+   hwloc_cpuset_foreach_begin(i, cpuset)
+     {
+       struct hwloc_obj *socket, *core, *thread;
+@@ -1552,6 +1810,7 @@
+             hwloc_debug_1arg_cpuset("cache depth %d has cpuset %s\n",
+                        depth, cacheset);
+             hwloc_insert_object_by_cpuset(topology, cache);
++            ++caches_added;
+           } else
+             hwloc_cpuset_free(cacheset);
+         }
+@@ -1559,6 +1818,9 @@
+     }
+   hwloc_cpuset_foreach_end();
+ 
++  if (0 == caches_added)
++    look_powerpc_device_tree(topology);
++
+   hwloc_cpuset_free(cpuset);
+ }
+ 
+@@ -1567,7 +1829,6 @@
+ #      define PROCESSOR	"processor"
+ #      define PHYSID "physical id"
+ #      define COREID "core id"
+-#define HWLOC_NBMAXCPUS 1024 /* FIXME: drop */
+ static int
+ look_cpuinfo(struct hwloc_topology *topology, const char *path,
+ 	     hwloc_cpuset_t online_cpuset)
+Index: src/topology.c
+===================================================================
+--- src/topology.c	(revision 2427)
++++ src/topology.c	(working copy)
+@@ -291,7 +291,8 @@
+ hwloc_setup_misc_level_from_distances(struct hwloc_topology *topology,
+ 				     unsigned nbobjs,
+ 				     struct hwloc_obj **objs,
+-				     unsigned *_distances)
++				     unsigned *_distances,
++				     unsigned *distance_indexes)
+ {
+   unsigned (*distances)[nbobjs][nbobjs] = (unsigned (*)[nbobjs][nbobjs])_distances;
+   unsigned i,j;
+@@ -303,11 +304,11 @@
+   hwloc_debug("%s", "node distance matrix:\n");
+   hwloc_debug("%s", "   ");
+   for(j=0; j<nbobjs; j++)
+-    hwloc_debug(" %3u", j);
++    hwloc_debug(" %3u", distance_indexes[j]);
+   hwloc_debug("%s", "\n");
+ 
+   for(i=0; i<nbobjs; i++) {
+-    hwloc_debug("%3u", i);
++    hwloc_debug("%3u", distance_indexes[i]);
+     for(j=0; j<nbobjs; j++)
+       hwloc_debug(" %3u", (*distances)[i][j]);
+     hwloc_debug("%s", "\n");
+

@@ -1,0 +1,213 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Right, by default all connections will be handled on the fly.&nbsp; So as an
+MPI_Send is executed to a process that there is not a connection to
+then a dance happens between the sender and the receiver.&nbsp; So why this
+happens with np &gt; 60 may have to do with how many connections are
+happening at the same time or if the destination of one connection
+request is not in the MPI library.<br>
+<br>
+It would be interesting to figure out when in the timeline of the job
+that such requests are are being delayed.&nbsp; You can get such a timeline
+by using a tool like Solaris Studio collector/analyzer (which actually
+has a Linux version).<br>
+<br>
+--td<br>
+<br>
+Steve Wise wrote:
+<blockquote cite="mid:4C938C3F.4040909@opengridcomputing.com"
+ type="cite">
+  <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="Content-Type">
+Yes it does.&nbsp; With mpi_preconnect_mpi to 1, NP64 doesn't stall.&nbsp; So its
+not the algorithm in and of itself, but rather some interplay between
+the algorithm and connection setup I guess.&nbsp; <br>
+  <br>
+  <br>
+On 9/17/2010 5:24 AM, Terry Dontje wrote:
+  <blockquote cite="mid:4C9341ED.2080009@oracle.com" type="cite">
+    <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="Content-Type">
+Does setting mca parameter mpi_preconnect_mpi to 1 help at all.&nbsp; This
+might be able to help determine if it is the actually connection set up
+between processes that are out of sync as oppose to something in the
+actual gather algorithm.<br>
+    <br>
+--td<br>
+    <br>
+Steve Wise wrote:
+    <blockquote cite="mid:4C92868C.50007@opengridcomputing.com"
+ type="cite">
+      <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="Content-Type">
+Here's a clue:&nbsp; ompi_coll_tuned_gather_intra_dec_fixed() changes its
+algorithm for job sizes &gt; 60 to some binomial method.&nbsp; I changed the
+threshold to 100 and my NP64 jobs run fine.&nbsp; Now to try and understand
+what about ompi_coll_tuned_gather_intra_binomial() is causing these
+connect delays...<br>
+      <br>
+      <br>
+On 9/16/2010 1:01 PM, Steve Wise wrote:
+      <blockquote cite="mid:4C925B5F.8080109@opengridcomputing.com"
+ type="cite">
+        <meta content="text/html; charset=ISO-8859-1"
+ http-equiv="Content-Type">
+Oops.&nbsp; One key typo here:&nbsp; This is the IMB-MPI1 gather test, not
+barrier. :(<br>
+        <br>
+        <br>
+On 9/16/2010 12:05 PM, Steve Wise wrote:
+        <blockquote cite="mid:4C924E5D.1050507@opengridcomputing.com"
+ type="cite">&nbsp;Hi, <br>
+          <br>
+I'm debugging a performance problem with running IMB-MP1/barrier in an
+NP64 cluster (8 nodes, 8 cores each).&nbsp; I'm using openmpi-1.4.1 from the
+OFED-1.5.1 distribution.&nbsp; The BTL is openib/iWARP via Chelsio's T3
+RNIC.&nbsp; In short, a NP60 and smaller run completes in a timely manner as
+expected,&nbsp; but NP61 and larger runs come to a crawl at the 8KB IO size
+and take ~5-10min to complete.&nbsp; It does complete though.&nbsp; It behaves
+this way even if I run on &gt; 8 nodes so there are available cores.&nbsp;
+IE a NP64 on a 16 node cluster still behaves the same way even though
+there are only 4 ranks on each node.&nbsp; So its apparently not a thread
+starvation issue due to lack of cores.&nbsp; When in the stalled state, I
+see on the order of 100 or so established iwarp connections on each
+node.&nbsp; And the connection count increases VERY slowly and sporadically
+(at its peak there are around 800 connections for a NP64 gather
+operation).&nbsp; In comparison, when I run the &lt;= NP60 runs, the
+connections quickly ramp up to the expected amount.&nbsp; I added hooks in
+the openib BTL to track the time it takes to setup each connection.&nbsp; In
+all runs, both &lt;= NP60 and &gt; NP60, the average connection setup
+time is around 200ms.&nbsp; And the max setup time seen is never much above
+this value.&nbsp; That tells me that its not individual connection setup
+that is the issue.&nbsp;&nbsp; I then added printfs/fflushes in librdmacm to
+visually see when a connection is attempted and when it is accepted.&nbsp;
+When I run with these printfs, I see the connections get setup quickly
+and evently in the &lt;= NP60 case.&nbsp; Initially when the job is started,
+I see a small flurry of connections getting setup, then the run begins
+and at around 1KB IO size I see a 2nd large flurry of connection
+setups.&nbsp; Then the test continues and completes.&nbsp; With the &gt;NP60
+case, this second round of connection setups is very sporadic and
+slow.&nbsp; Very slow!&nbsp; I'll see little bursts of ~10-20 connections setup,
+then long random pauses.&nbsp; The net is that full connection setup for the
+job takes 5-10min.&nbsp; During this time the ranks are basically spinning
+idle awaiting the connections to get setup.&nbsp; So I'm concluding that
+something above the BTL layer isn't issuing the endpoint connect
+requests in a timely manner. <br>
+          <br>
+Attached are 3 padb dumps during the stall.&nbsp; Anybody see anything
+interesting in these? <br>
+          <br>
+Any ideas how I can further debug this?&nbsp; Once I get above the openib&nbsp;
+BTL layer my eyes glaze over and I get lost quickly. :)&nbsp; I would
+greatly appreciate any ideas from the OpenMPI experts! <br>
+          <br>
+          <br>
+Thanks in advance, <br>
+          <br>
+Steve. <br>
+          <br>
+          <pre wrap=""><fieldset class="mimeAttachmentHeader"></fieldset>
+_______________________________________________
+devel mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated"
+ href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a moz-do-not-send="true" class="moz-txt-link-freetext"
+ href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></pre>
+        </blockquote>
+        <br>
+        <pre wrap=""><fieldset class="mimeAttachmentHeader"></fieldset>
+_______________________________________________
+devel mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated"
+ href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a moz-do-not-send="true" class="moz-txt-link-freetext"
+ href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></pre>
+      </blockquote>
+      <br>
+      <pre wrap=""><hr size="4" width="90%">
+_______________________________________________
+devel mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated"
+ href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a moz-do-not-send="true" class="moz-txt-link-freetext"
+ href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></pre>
+    </blockquote>
+    <br>
+    <br>
+    <div class="moz-signature">-- <br>
+    <meta http-equiv="content-type"
+ content="text/html;
+          charset=ISO-8859-1">
+    <title></title>
+    <img moz-do-not-send="false"
+ src="cid:part1.01050308.01050200@oracle.com" alt="Oracle"><br>
+    <div class="moz-signature">
+    <div class="moz-signature">
+    <div class="moz-signature">
+    <div class="moz-signature">Terry D. Dontje | Principal Software
+Engineer<br>
+    <div class="moz-signature"><font color="#666666" face="Verdana"
+ size="2">Developer Tools Engineering | +1.781.442.2631<br>
+    </font> <font color="#ff0000" face="Verdana" size="2">Oracle </font><font
+ color="#666666" face="Verdana" size="2"><b> - Performance Technologies</b></font><br>
+    <font color="#666666" face="Verdana" size="2"> 95 Network Drive,
+Burlington, MA 01803<br>
+Email <a moz-do-not-send="true" href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+    </font><br>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
+    <pre wrap=""><fieldset class="mimeAttachmentHeader"></fieldset>
+_______________________________________________
+devel mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated"
+ href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a moz-do-not-send="true" class="moz-txt-link-freetext"
+ href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></pre>
+  </blockquote>
+  <br>
+  <pre wrap="">
+<hr size="4" width="90%">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></pre>
+</blockquote>
+<br>
+<br>
+<div class="moz-signature">-- <br>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<title></title>
+<img moz-do-not-send="false"
+ src="cid:part2.00030101.09010406@oracle.com" alt="Oracle"><br>
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">Terry D. Dontje | Principal Software Engineer<br>
+<div class="moz-signature"><font color="#666666" face="Verdana" size="2">Developer
+Tools
+Engineering | +1.781.442.2631<br>
+</font>
+<font color="#ff0000" face="Verdana" size="2">Oracle
+</font><font color="#666666" face="Verdana" size="2"><b> - Performance
+Technologies</b></font><br>
+<font color="#666666" face="Verdana" size="2">
+95 Network Drive, Burlington, MA 01803<br>
+Email <a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+</font><br>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
+

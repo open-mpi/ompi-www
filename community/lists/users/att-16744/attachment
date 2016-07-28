@@ -1,0 +1,127 @@
+<HTML>
+<BODY>
+I'm having some issues with MPI_File_seek_shared. Consider the following small test C++  program<br>
+
+<br>
+
+<br>
+
+#include &lt;iostream&gt;<br>
+
+#include &lt;mpi.h&gt;<br>
+
+<br>
+
+<br>
+
+#define PATH "simdata.bin"<br>
+
+<br>
+
+using namespace std;<br>
+
+<br>
+
+int ThisTask;<br>
+
+<br>
+
+int main(int argc, char *argv[])<br>
+
+{<br>
+
+	MPI_Init(&argc,&argv); /* Initialize MPI */<br>
+
+	MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);<br>
+
+<br>
+
+	MPI_File fh;<br>
+
+	int success;<br>
+
+	MPI_File_open(MPI_COMM_WORLD,(char *) PATH,MPI_MODE_RDONLY,MPI_INFO_NULL,&fh);<br>
+
+<br>
+
+	if(success != MPI_SUCCESS){ //Successfull open?<br>
+
+		char err[256];<br>
+
+		int err_length, err_class;<br>
+
+<br>
+
+		MPI_Error_class(success,&err_class);<br>
+
+		MPI_Error_string(err_class,err,&err_length);<br>
+
+		cout &lt;&lt; "Task " &lt;&lt; ThisTask &lt;&lt; ": " &lt;&lt; err &lt;&lt; endl;<br>
+
+		MPI_Error_string(success,err,&err_length);<br>
+
+		cout &lt;&lt; "Task " &lt;&lt; ThisTask &lt;&lt; ": " &lt;&lt; err &lt;&lt; endl;<br>
+
+<br>
+
+		MPI_Abort(MPI_COMM_WORLD,success);<br>
+
+	}<br>
+
+<br>
+
+<br>
+
+	/* START SEEK TEST */<br>
+
+	MPI_Offset cur_filepos, eof_filepos;<br>
+
+	<br>
+
+	MPI_File_get_position_shared(fh,&cur_filepos);<br>
+
+<br>
+
+	//MPI_Barrier(MPI_COMM_WORLD);<br>
+
+	MPI_File_seek_shared(fh,0,MPI_SEEK_END); /* Seek is collective */<br>
+
+<br>
+
+	MPI_File_get_position_shared(fh,&eof_filepos);<br>
+
+	<br>
+
+        //MPI_Barrier(MPI_COMM_WORLD);<br>
+
+	MPI_File_seek_shared(fh,0,MPI_SEEK_SET);<br>
+
+<br>
+
+	cout &lt;&lt; "Task " &lt;&lt; ThisTask &lt;&lt; " reports a filesize of " &lt;&lt; eof_filepos &lt;&lt; "-" &lt;&lt; cur_filepos &lt;&lt; "=" &lt;&lt; eof_filepos-cur_filepos &lt;&lt; endl;<br>
+
+	/* END SEEK TEST */<br>
+
+	<br>
+
+	/* Finalizing */	<br>
+
+	MPI_File_close(&fh);<br>
+
+	MPI_Finalize();<br>
+
+	return 0;<br>
+
+}<br>
+
+<br>
+
+Note the comments before each MPI_Barrier. When the program is run by mpirun -np N (N strictly greater than 1), task 0 reports the correct filesize, while every other process reports either 0, minus the filesize or the correct filesize. Uncommenting the MPI_Barrier makes each process report the correct filesize. Is this working as intended? Since MPI_File_seek_shared is a collective, blocking function each process have to synchronise at the return point of the function, but not when the function is called. It seems that the use of  MPI_File_seek_shared without an MPI_Barrier call first is very dangerous, or am I missing something?
+</BODY></HTML>
+
+
+<P><p><font face="Arial, Helvetica, sans-serif" size="2" style="font-size:13.5px">_______________________________________________________________<BR>Care2 makes it easy for everyone to live a healthy, green lifestyle
+and impact the causes you care about most. Over 12 Million members!
+http://www.care2.com
+
+Feed a child by searching the web! Learn how http://www.care2.com/toolbar</font>

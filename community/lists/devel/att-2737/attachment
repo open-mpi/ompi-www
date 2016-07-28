@@ -1,0 +1,194 @@
+<HTML>
+<HEAD>
+<TITLE>Re: [OMPI devel] IB pow wow notes</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>One question &#8211; there is a mention a new pml that is essentially CM+matching.<BR>
+Why is this no just another instance of CM ?<BR>
+<BR>
+Rich<BR>
+<BR>
+<BR>
+On 11/26/07 7:54 PM, &quot;Jeff Squyres&quot; &lt;jsquyres@cisco.com&gt; wrote:<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>OMPI OF Pow Wow Notes<BR>
+26 Nov 2007<BR>
+<BR>
+---------------------------------------------------------------------------<BR>
+<BR>
+Discussion of current / upcoming work:<BR>
+<BR>
+OCG (Chelsio):<BR>
+- Did a bunch of udapl work, but abandoned it. &nbsp;Will commit it to a<BR>
+&nbsp;&nbsp;&nbsp;tmp branch if anyone cares (likely not).<BR>
+- They have been directed to move to the verbs API; will be starting<BR>
+&nbsp;&nbsp;&nbsp;on that next week.<BR>
+<BR>
+Cisco:<BR>
+- likely to get more involved in PML/BTL issues since Galen + Brian<BR>
+&nbsp;&nbsp;&nbsp;now transferring out of these areas.<BR>
+- race between Chelsio / Cisco as to who implements RDMA CM connect PC<BR>
+&nbsp;&nbsp;&nbsp;first (more on this below). &nbsp;May involve some changes to the connect<BR>
+&nbsp;&nbsp;&nbsp;PC interface.<BR>
+- Re-working libevent and progress engine stuff with George<BR>
+<BR>
+LLNL:<BR>
+- Andrew Friedley leaving LLNL in 3 weeks<BR>
+- UD code more of less functional, but working on reliability stuff<BR>
+&nbsp;&nbsp;&nbsp;down in the BTL. &nbsp;That part is not quite working yet.<BR>
+- When he leaves LLNL, UD BTL may become unmaintained.<BR>
+<BR>
+IBM:<BR>
+- Has an interest in NUNAs<BR>
+- May be interested in maintaining the UD BTL; worried about scale.<BR>
+<BR>
+Mellanox:<BR>
+- Just finished first implementation of XRC<BR>
+- Now working on QA issues with XRC: testing with multiple subnets,<BR>
+&nbsp;&nbsp;&nbsp;different numbers of HCAs/ports on different hosts, etc.<BR>
+<BR>
+Sun:<BR>
+- Currently working full steam ahead on UDAPL.<BR>
+- Will likely join in openib BTL/etc. when Sun's verbs stack is ready.<BR>
+- Will *hopefully* get early access to Sun's verbs stack for testing /<BR>
+&nbsp;&nbsp;&nbsp;compatibility issues before the stack becomes final.<BR>
+<BR>
+ORNL:<BR>
+- Mostly working on non-PML/BTL issues these days.<BR>
+- Galen's advice: get progress thread working for best IB overlap and<BR>
+&nbsp;&nbsp;&nbsp;real application performance.<BR>
+<BR>
+Voltaire:<BR>
+- Working on XRC improvements<BR>
+- Working on message coalescing. &nbsp;Only sees benefit if you drastically<BR>
+&nbsp;&nbsp;&nbsp;reduce the number of available buffers and credits -- i.e., be much<BR>
+&nbsp;&nbsp;&nbsp;more like openib BTL before BSRQ (2 buffer sizes: large and small,<BR>
+&nbsp;&nbsp;&nbsp;and have very few small buffer credits).<BR>
+&nbsp;&nbsp;&nbsp;&lt;lots of discussion about message coalescing; this will be worth at<BR>
+&nbsp;&nbsp;&nbsp;least an FAQ item to explain all the trade-offs. &nbsp;There could be<BR>
+&nbsp;&nbsp;&nbsp;non-artificial benefits for coalescing at scale because of limiting<BR>
+&nbsp;&nbsp;&nbsp;the number of credits&gt;<BR>
+- Moving HCA initializing stuff to a common area to share it with<BR>
+&nbsp;&nbsp;&nbsp;collective components.<BR>
+<BR>
+---------------------------------------------------------------------------<BR>
+<BR>
+Discussion of various &quot;moving forward&quot; proposals:<BR>
+<BR>
+- ORNL, Cisco, Mellanox discussing how to reduce cost of memory<BR>
+&nbsp;&nbsp;&nbsp;registration. &nbsp;Currently running some benchmarks to figure out where<BR>
+&nbsp;&nbsp;&nbsp;the bottlenecks are. &nbsp;Cheap registration would *help* (but not<BR>
+&nbsp;&nbsp;&nbsp;completely solve) overlap issues by reducing the number of sync<BR>
+&nbsp;&nbsp;&nbsp;points -- e.g., always just do one big RDMA operation (vs. the<BR>
+&nbsp;&nbsp;&nbsp;pipeline protocol).<BR>
+<BR>
+- Some discussion of a UD-based connect PC. &nbsp;Gleb mentions that what<BR>
+&nbsp;&nbsp;&nbsp;was proposed is effectively the same as the IBTA CM (i.e., ibcm).<BR>
+&nbsp;&nbsp;&nbsp;Jeff will go investigate.<BR>
+<BR>
+- Gleb also mentions that the connect PC needs to be based on the<BR>
+&nbsp;&nbsp;&nbsp;endpoint, not the entire module (for non-uniform hardware<BR>
+&nbsp;&nbsp;&nbsp;networks). &nbsp;Jeff took a to-do item to fix. &nbsp;Probably needs to be<BR>
+&nbsp;&nbsp;&nbsp;done for v1.3.<BR>
+<BR>
+- To UD or not to UD? &nbsp;Lots of discussion on this.<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- Some data has been presented by OSU showing that UD drops don't<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;happen often. &nbsp;Their tests were run in a large non-blocking<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;network. &nbsp;Some in the group feel that in a busy blocking network,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;UD drops will be [much] more common (there is at least some<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;evidence that in a busy non-blocking network, drops *are* rare).<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;This issue affects how we design the recovery of UD drops: if<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;drops are rare, recovery can be arbitrarily expensive. &nbsp;If drops<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;are not rare, recovery needs to be at least somewhat efficient.<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If drops are frequent, recovery needs to be cheap/fast/easy.<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- Mellanox is investigating why ibv_rc_pingpong gives better<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bandwidth than ibv_ud_pingpong (i.e., UD bandwidth is poor).<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- Discuss the possibility of doing connection caching: only allow so<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;many RC connections at a time. &nbsp;Maintain an LRU of RC connections.<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;When you need to close one, also recycle (or free) all of its<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;posted buffers.<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- Discussion of MVAPICH technique for large UD messages: &quot;[receiver]<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;zero copy UD&quot;. &nbsp;Send a match header; receiver picks a UD QP from a<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ready pool and sends it back to the sender. &nbsp;Fragments from the<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user's buffer are posted to that QP on the receiver, so the sender<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sends straight into the receiver's target buffer. &nbsp;This scheme<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;assumes no drops. &nbsp;For OMPI, this scheme also requires more<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;complexity from our current multi-device striping method: we'd<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;want to stripe across large contiguous portions of the message<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(vs. round robining small fragments from the message).<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- One point specifically discussed: long message alltoall at scale<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(i.e., large numbers of MPI processes). &nbsp;Andrew Friedley is going<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to ask around LLNL if anyone does this, but our guess is no<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;because each host would need a *ton* of RAM to do this:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(num_procs_per_node * num_procs_total * length_of_buffer). &nbsp;Our<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;suspicion is that alltoall for short messages is much more common<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(and still, by far, not the most common MPI collective).<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- One proposal:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Use UD for short messages (except for peers that switch to eager<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RDMA)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Always use RC for long messages, potentially with connection<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;caching+fast IB connect (ibcm?)<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- Another proposal: let OSU keep forging ahead with UD and see what<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;they come up with. &nbsp;I.e., let them figure out if UD is worth it or<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;not.<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- End result: it's not 100% clear that UD is a &quot;win&quot; yet -- there<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;are many unanswered questions.<BR>
+<BR>
+- Make new PML that is essentially &quot;CM+matching&quot;, send entire messages<BR>
+&nbsp;&nbsp;&nbsp;down to lower layer instead of having the PML do the fragmenting:<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- Rationale:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- pretty simple PML<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- allow lower layer to do more optimizations based on full<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;knowledge of the specific network being used<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- networks get CM-like benefits without having to &quot;natively&quot;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;support shmem (because matching will still be done in the PML<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and there will be a lower layer/component for shmem)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- [possibly] remove some stuff from current code in ob1 that is<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;not necessary in IB/OF (Gleb didn't think that this would be<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;useful; most of OB1 is there to support IB/OF)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- not force other networks to same model as IB/OF (i.e., when we <BR>
+want<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;new things in IB/OF, we have to go change all the other BTLs)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&gt; ^^ I forgot to mention this point on the call today<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- if we go towards a combined RC+UD OF protocol, the current OB1<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;is not good at this because the BTL flags will have to &quot;lie&quot;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;about whether a given endpoint is capable of RDMA or not.<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--&gt; Gleb mentioned that it doesn't matter what the PML thinks;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;even if the PML tells the BTL to RDMA PUT/GET, the BTL can<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;emulate it if it isn't supported (e.g., if an endpoint<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;switches between RD and UD)<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- Jeff sees this as a code re-org, not so much as a re-write.<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;- Gleb is skeptical on the value of this; it may be more valuable if<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;we go towards a blended UD+RC protocol, though.<BR>
+<BR>
+The phone bridge started kicking people off at this point (after we<BR>
+went 30+ minutes beyond the scheduled end time). &nbsp;So no conclusions<BR>
+were reached. &nbsp;This discussion probably needs to continue in e-mail,<BR>
+etc.<BR>
+<BR>
+--<BR>
+Jeff Squyres<BR>
+Cisco Systems<BR>
+<BR>
+_______________________________________________<BR>
+devel mailing list<BR>
+devel@open-mpi.org<BR>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+<BR>
+</SPAN></FONT></BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+

@@ -1,0 +1,19 @@
+#include "hwloc.h"
+
+void GetProcInfo()
+{
+    hwloc_topology_t topology;
+
+    hwloc_topology_init(&topology);
+}
+
+
+
+int main(int argc, char *argv[])
+{
+    GetProcInfo();
+    return 0;
+}
+
+
+

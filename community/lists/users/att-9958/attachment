@@ -1,0 +1,42 @@
+I think its a real good way to use MPI_Irecv/MPI_Test on the receiver side to avoid any blocks which sender might run in to. But I&#39;m a bit curious on the fact, Can&#39;t we use a special message beforehand between the sender/receivers to let the receivers know how many messages to expect ? This way the sender and the receiver can safely loop through without blocking I believe. Also even with the MPI_Irecv/MPI_Test it will serve as an extra proof for the receivers to proceed. Any ideas on that ?<br>
+<br><div class="gmail_quote">On Wed, Jul 15, 2009 at 2:15 AM, Eugene Loh <span dir="ltr">&lt;<a href="mailto:Eugene.Loh@sun.com">Eugene.Loh@sun.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<div class="im">Shaun Jackman wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+For my MPI application, each process reads a file and for each line sends a message (MPI_Send) to one of the other processes determined by the contents of that line. Each process posts a single MPI_Irecv and uses MPI_Request_get_status to test for a received message. If a message has been received, it processes the message and posts a new MPI_Irecv. I believe this situation is not safe and prone to deadlock since MPI_Send may block. The receiver would need to post as many MPI_Irecv as messages it expects to receive, but it does not know in advance how many messages to expect from the other processes. How is this situation usually handled in an MPI appliation where the number of messages to receive is unknown?<br>
+
+<br>
+In a non-MPI network program I would create one thread for receiving and processing, and one thread for transmitting. Is threading a good solution? Is there a simpler solution?<br>
+<br>
+Under what conditions will MPI_Send block and under what conditions will it definitely not block?<br>
+</blockquote>
+<br></div>
+I haven&#39;t seen any other responses, so I&#39;ll try.<br>
+<br>
+The conditions under which MPI_Send will block are implementation dependent.  Even for a particular implementation, the conditions may be tricky to describe -- e.g., what interconnect is being used to reach the peer, is there any congestion, etc.  I guess you could use buffered sends... or maybe you can&#39;t if you really don&#39;t know how many messages will be sent.<br>
+
+<br>
+Let&#39;s just assume they&#39;ll block.<br>
+<br>
+I&#39;m unsure what overall design you&#39;re suggesting, so I&#39;ll suggest something.<br>
+<br>
+Each process posts an MPI_Irecv to listen for in-coming messages.<br>
+<br>
+Each process enters a loop in which it reads its file and sends out messages.  Within this loop, you also loop on MPI_Test to see if any message has arrived.  If so, process it, post another MPI_Irecv(), and keep polling.  (I&#39;d use MPI_Test rather than MPI_Request_get_status since you&#39;ll have to call something like MPI_Test anyhow to complete the receive.)<br>
+
+<br>
+Once you&#39;ve posted all your sends, send out a special message to indicate you&#39;re finished.  I&#39;m thinking of some sort of tree fan-in/fan-out barrier so that everyone will know when everyone is finished.<br>
+<br>
+Keep polling on MPI_Test, processing further receives or advancing your fan-in/fan-out barrier.<br>
+<br>
+So, the key ingredients are:<br>
+<br>
+*) keep polling on MPI_Test and reposting MPI_Irecv calls to drain in-coming messages while you&#39;re still in your &quot;send&quot; phase<br>
+*) have another mechanism for processes to notify one another when they&#39;ve finished their send phases<div><div></div><div class="h5"><br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br><br clear="all"><br>-- <br><a href="http://www.codeproject.com/script/Articles/MemberArticles.aspx?amid=3489381">http://www.codeproject.com/script/Articles/MemberArticles.aspx?amid=3489381</a><br>
+
+

@@ -1,0 +1,174 @@
+Index: orte/mca/grpcomm/brks/grpcomm_brks.c
+===================================================================
+--- orte/mca/grpcomm/brks/grpcomm_brks.c	(revision 32688)
++++ orte/mca/grpcomm/brks/grpcomm_brks.c	(working copy)
+@@ -6,6 +6,8 @@
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC. All
+  *                         rights reserved.
+  * Copyright (c) 2014      Intel, Inc.  All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -111,6 +113,7 @@
+ static int brks_allgather_send_dist(orte_grpcomm_coll_t *coll, orte_vpid_t distance) {
+     orte_process_name_t peer_send, peer_recv;
+     opal_buffer_t *send_buf;
++    orte_rml_tag_t tag;
+     int rc;
+ 
+     peer_send.jobid = ORTE_PROC_MY_NAME->jobid;
+@@ -174,8 +177,14 @@
+                              ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+                              ORTE_NAME_PRINT(&peer_send)));
+ 
++    if (1 != coll->sig->sz || ORTE_VPID_WILDCARD != coll->sig->signature[0].vpid) {
++        tag = ORTE_RML_TAG_ALLGATHER;
++    } else {
++        tag = ORTE_RML_TAG_JOB_ALLGATHER + ORTE_LOCAL_JOBID(coll->sig->signature[0].jobid) % (ORTE_RML_TAG_MAX-ORTE_RML_TAG_JOB_ALLGATHER);
++    }
++
+     if (0 > (rc = orte_rml.send_buffer_nb(&peer_send, send_buf,
+-                                          -ORTE_RML_TAG_ALLGATHER,
++                                          -tag,
+                                           orte_rml_send_callback, NULL))) {
+         ORTE_ERROR_LOG(rc);
+         OBJ_RELEASE(send_buf);
+@@ -189,7 +198,7 @@
+ 
+     /* setup recv for distance data */
+     orte_rml.recv_buffer_nb(&peer_recv,
+-                            -ORTE_RML_TAG_ALLGATHER,
++                            -tag,
+                             ORTE_RML_NON_PERSISTENT,
+                             brks_allgather_recv_dist, NULL);
+ 
+Index: orte/mca/grpcomm/rcd/grpcomm_rcd.c
+===================================================================
+--- orte/mca/grpcomm/rcd/grpcomm_rcd.c	(revision 32688)
++++ orte/mca/grpcomm/rcd/grpcomm_rcd.c	(working copy)
+@@ -6,6 +6,8 @@
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC. All
+  *                         rights reserved.
+  * Copyright (c) 2014      Intel, Inc.  All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -105,6 +107,7 @@
+ static int rcd_allgather_send_dist(orte_grpcomm_coll_t *coll, orte_vpid_t distance) {
+     orte_process_name_t peer;
+     opal_buffer_t *send_buf;
++    orte_rml_tag_t tag;
+     int rc;
+ 
+     peer.jobid = ORTE_PROC_MY_NAME->jobid;
+@@ -163,8 +166,14 @@
+                          ORTE_NAME_PRINT(&peer)));
+ 
+ 
++    if (1 != coll->sig->sz || ORTE_VPID_WILDCARD != coll->sig->signature[0].vpid) {
++        tag = ORTE_RML_TAG_ALLGATHER;
++    } else {
++        tag = ORTE_RML_TAG_JOB_ALLGATHER + ORTE_LOCAL_JOBID(coll->sig->signature[0].jobid) % (ORTE_RML_TAG_MAX-ORTE_RML_TAG_JOB_ALLGATHER);
++    }
++
+     if (0 > (rc = orte_rml.send_buffer_nb(&peer, send_buf,
+-                                          -ORTE_RML_TAG_ALLGATHER,
++                                          -tag,
+                                           orte_rml_send_callback, NULL))) {
+         ORTE_ERROR_LOG(rc);
+         OBJ_RELEASE(send_buf);
+@@ -178,7 +187,7 @@
+ 
+     /* setup recv for distance data */
+     orte_rml.recv_buffer_nb(&peer,
+-                            -ORTE_RML_TAG_ALLGATHER,
++                            -tag,
+                             ORTE_RML_NON_PERSISTENT,
+                             rcd_allgather_recv_dist, NULL);
+ 
+Index: orte/mca/grpcomm/direct/grpcomm_direct.c
+===================================================================
+--- orte/mca/grpcomm/direct/grpcomm_direct.c	(revision 32688)
++++ orte/mca/grpcomm/direct/grpcomm_direct.c	(working copy)
+@@ -6,6 +6,8 @@
+  * Copyright (c) 2011-2013 Los Alamos National Security, LLC. All
+  *                         rights reserved.
+  * Copyright (c) 2014      Intel, Inc.  All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -70,6 +72,7 @@
+  */
+ static int init(void)
+ {
++    orte_rml_tag_t tag;
+     OBJ_CONSTRUCT(&tracker, opal_list_t);
+ 
+     /* post the receives */
+@@ -81,6 +84,12 @@
+                             ORTE_RML_TAG_ALLGATHER,
+                             ORTE_RML_PERSISTENT,
+                             allgather_recv, NULL);
++    for (tag=ORTE_RML_TAG_JOB_ALLGATHER; tag<ORTE_RML_TAG_MAX; tag++) {
++        orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,
++                                tag,
++                                ORTE_RML_PERSISTENT,
++                                allgather_recv, NULL);
++    }
+     /* setup recv for barrier release */
+     orte_rml.recv_buffer_nb(ORTE_NAME_WILDCARD,
+                             ORTE_RML_TAG_COLL_RELEASE,
+@@ -125,6 +134,7 @@
+     int rc, ret;
+     opal_buffer_t *relay;
+     orte_job_t *jdata;
++    orte_rml_tag_t tag;
+     uint64_t nprocs;
+ 
+     OPAL_OUTPUT_VERBOSE((1, orte_grpcomm_base_framework.framework_output,
+@@ -189,8 +199,15 @@
+                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
+ 
+     /* send the info to the HNP for tracking */
++
++    if (1 != coll->sig->sz || ORTE_VPID_WILDCARD != coll->sig->signature[0].vpid) {
++        tag = ORTE_RML_TAG_ALLGATHER;
++    } else {
++        tag = ORTE_RML_TAG_JOB_ALLGATHER + ORTE_LOCAL_JOBID(coll->sig->signature[0].jobid) % (ORTE_RML_TAG_MAX-ORTE_RML_TAG_JOB_ALLGATHER);
++    }
++
+     rc = orte_rml.send_buffer_nb(ORTE_PROC_MY_HNP, relay,
+-                                 ORTE_RML_TAG_ALLGATHER,
++                                 tag,
+                                  orte_rml_send_callback, NULL);
+     return rc;
+ }
+Index: orte/mca/rml/rml_types.h
+===================================================================
+--- orte/mca/rml/rml_types.h	(revision 32688)
++++ orte/mca/rml/rml_types.h	(working copy)
+@@ -12,6 +12,8 @@
+  * Copyright (c) 2007-2012 Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
+  * Copyright (c) 2009-2011 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -152,6 +154,8 @@
+ /* global collective ID request */
+ #define ORTE_RML_TAG_FULL_COLL_ID           51
+ 
++#define ORTE_RML_TAG_JOB_ALLGATHER          52
++
+ #define ORTE_RML_TAG_MAX                   100
+ 
+ 
+

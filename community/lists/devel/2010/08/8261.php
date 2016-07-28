@@ -1,0 +1,396 @@
+<?
+$subject_val = "Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Thu Aug 12 07:21:29 2010" -->
+<!-- isoreceived="20100812112129" -->
+<!-- sent="Thu, 12 Aug 2010 07:21:23 -0400" -->
+<!-- isosent="20100812112123" -->
+<!-- name="Terry Dontje" -->
+<!-- email="terry.dontje_at_[hidden]" -->
+<!-- subject="Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component" -->
+<!-- id="4C63D933.5090908_at_oracle.com" -->
+<!-- charset="ISO-8859-1" -->
+<!-- inreplyto="4CBF14B5-4C56-4140-A06F-BCA81073A56F_at_lanl.gov" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component<br>
+<strong>From:</strong> Terry Dontje (<em>terry.dontje_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2010-08-12 07:21:23
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="8262.php">Terry Dontje: "Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component"</a>
+<li><strong>Previous message:</strong> <a href="8260.php">Lisandro Dalcin: "Re: [OMPI devel] VampirTrace and MPI_Init_thread()"</a>
+<li><strong>In reply to:</strong> <a href="8258.php">Samuel K. Gutierrez: "Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="8265.php">Jeff Squyres: "Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component"</a>
+<li><strong>Reply:</strong> <a href="8265.php">Jeff Squyres: "Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Samuel K. Gutierrez wrote:
+<br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; If I'm not mistaken, the warning is only issued if the backing files 
+</span><br>
+<span class="quotelev1">&gt; is stored on the following file systems: Lustre, NFS, Panasas, and 
+</span><br>
+<span class="quotelev1">&gt; GPFS  (see: opal_path_nfs in opal/util/path.c).  Based on the 
+</span><br>
+<span class="quotelev1">&gt; performance numbers that Sylvain provided on June 9th of this year 
+</span><br>
+<span class="quotelev1">&gt; (see attached),  there was a performance difference between mmap on 
+</span><br>
+<span class="quotelev1">&gt; /tmp and mmap on a tmpfs-like file system (/dev/shm in that particular 
+</span><br>
+<span class="quotelev1">&gt; case).  Using the new POSIX component provides us with a portable way 
+</span><br>
+<span class="quotelev1">&gt; to provide similar shared memory performance gains without having to 
+</span><br>
+<span class="quotelev1">&gt; worry about where the OMPI session directory is rooted.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+Is there not a way to determine whether the fs is tmpfs or not?  It 
+<br>
+seems fixing that is a lot  less changes then adapting to Posix shared 
+<br>
+memory.  My main concern is we have had quite a long runtime with the 
+<br>
+mmap implementation and know it works for us.  We haven't had nearly as 
+<br>
+much runtime with this Posix implementation and so who knows what issues 
+<br>
+we might run into.  Note, I am not saying Posix is broken I am just 
+<br>
+saying we have not used it within our btl as much and who knows what we 
+<br>
+might run into (or not).
+<br>
+<p>To me the fs homing issue seems like a weak case.  I understand it is an 
+<br>
+out of the box feature and nicety but I just wonder if that weakness is 
+<br>
+better solved without replacing the shared memory calls we use.  Note, I 
+<br>
+am on the fence to some extent on this.  I understand that we could give 
+<br>
+this feature a lot of soak time and probably come to a reasonable belief 
+<br>
+we haven't gone backwards somehow but it just seems like there is very 
+<br>
+little gain in this IMO.
+<br>
+<p>Am I in the minority on the above belief?
+<br>
+<p>--td
+<br>
+<p><span class="quotelev1">&gt; --
+</span><br>
+<span class="quotelev1">&gt; Samuel K. Gutierrez
+</span><br>
+<span class="quotelev1">&gt; Los Alamos National Laboratory 
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; I still working on testing the code on Solaris but I don't imagine I 
+</span><br>
+<span class="quotelev2">&gt;&gt; will see anything that will change my mind.
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; --td
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; Samuel K. Gutierrez wrote:
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; Hi Rich,
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt;
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; It's a modification to the existing common sm component.  The 
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; modifications do include the addition of a new POSIX shared memory 
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; facility, however.
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt;
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; Sam
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt;
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; On Aug 11, 2010, at 10:05 AM, Graham, Richard L. wrote:
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Is this a modification of the existing component, or a new component ?
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Rich
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; On 8/10/10 10:52 AM, &quot;Samuel K. Gutierrez&quot; &lt;samuel_at_[hidden]&gt; wrote:
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Hi,
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; I wanted to give everyone a heads-up about a new POSIX shared memory
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; component
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; that has been in the works for a while now and is ready to be pushed
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; into the
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; trunk.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; <a href="http://bitbucket.org/samuelkgutierrez/ompi_posix_sm_new">http://bitbucket.org/samuelkgutierrez/ompi_posix_sm_new</a>
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Some highlights:
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; o New posix component now the new default.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;        o May address some of the shared memory performance issues 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; users
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; encounter
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;           when OMPI's session directories are inadvertently placed 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; on a non-
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; local
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;           filesystem.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; o Silent component failover.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;        o In the default case, if the posix component fails 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; initialization,
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;           mmap will be selected.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; o The sysv component will only be queried for selection if it is
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; placed before
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;    the mmap component (for example, -mca mpi_common_sm
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; sysv,posix,mmap).  In the
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;    default case, sysv will never be queried/selected.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; o Per some on-list discussion, now unlinking mmaped file in both mmap
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; and posix
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;    components (see: &quot;System V Shared Memory for Open MPI: Request for
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Community
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;    Input and Testing&quot; thread).
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; o  Assuming local process homogeneity with respect to all utilized
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; shared
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;     memory facilities. That is, if one local process deems a
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; particular shared
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;     memory facility acceptable, then ALL local processes should be
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; able to
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;     utilize that facility. As it stands, this is an important point
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; because one
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;     process dictates to all other local processes which common sm
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; component will
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;     be selected based on its own, local run-time test.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; o Addressed some of George's code reuse concerns.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; If there are no major objections by August 17th, I'll commit the code
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; after the
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Tuesday morning conference call.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Thanks!
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; -- 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Samuel K. Gutierrez
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Los Alamos National Laboratory
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; _______________________________________________
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; devel mailing list
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; devel_at_[hidden]
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt;
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; _______________________________________________
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; devel mailing list
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; devel_at_[hidden]
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt;
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; _______________________________________________
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; devel mailing list
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; devel_at_[hidden]
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; -- 
+</span><br>
+<span class="quotelev2">&gt;&gt; &lt;mime-attachment.gif&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; Terry D. Dontje | Principal Software Engineer
+</span><br>
+<span class="quotelev2">&gt;&gt; Developer Tools Engineering | +1.650.633.7054
+</span><br>
+<span class="quotelev2">&gt;&gt; Oracle * - Performance Technologies*
+</span><br>
+<span class="quotelev2">&gt;&gt; 95 Network Drive, Burlington, MA 01803
+</span><br>
+<span class="quotelev2">&gt;&gt; Email terry.dontje_at_[hidden] &lt;mailto:terry.dontje_at_[hidden]&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; _______________________________________________
+</span><br>
+<span class="quotelev2">&gt;&gt; devel mailing list
+</span><br>
+<span class="quotelev2">&gt;&gt; devel_at_[hidden] &lt;mailto:devel_at_[hidden]&gt;
+</span><br>
+<span class="quotelev2">&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; ------------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; devel mailing list
+</span><br>
+<span class="quotelev1">&gt; devel_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</span><br>
+<p><p><pre>
+-- 
+Oracle
+Terry D. Dontje | Principal Software Engineer
+Developer Tools Engineering | +1.650.633.7054
+Oracle * - Performance Technologies*
+95 Network Drive, Burlington, MA 01803
+Email terry.dontje_at_[hidden] &lt;mailto:terry.dontje_at_[hidden]&gt;
+</pre>
+<p>
+<p><hr>
+<ul>
+<li>text/html attachment: <a href="http://www.open-mpi.org/community/lists/devel/att-8261/attachment">attachment</a>
+</ul>
+<!-- attachment="attachment" -->
+<hr>
+<img src="http://www.open-mpi.org/community/lists/devel/att-8261/02-part" alt="picture">
+<!-- attachment="02-part" -->
+<hr>
+<img src="http://www.open-mpi.org/community/lists/devel/att-8261/03-part" alt="picture">
+<!-- attachment="03-part" -->
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="8262.php">Terry Dontje: "Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component"</a>
+<li><strong>Previous message:</strong> <a href="8260.php">Lisandro Dalcin: "Re: [OMPI devel] VampirTrace and MPI_Init_thread()"</a>
+<li><strong>In reply to:</strong> <a href="8258.php">Samuel K. Gutierrez: "Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="8265.php">Jeff Squyres: "Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component"</a>
+<li><strong>Reply:</strong> <a href="8265.php">Jeff Squyres: "Re: [OMPI devel] Trunk Commit Heads-up: New Common Shared Memory Component"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

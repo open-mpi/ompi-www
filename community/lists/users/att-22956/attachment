@@ -1,0 +1,295 @@
+<div dir="ltr"><div>After appending an additional NULL the code works now. I admit such use of argv/argc could be confusing... thanks for pointing that out. And thank you all for figuring out my problem!<br><br></div>Best,<br>
+
+Yu-Hang<br></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Nov 12, 2013 at 12:18 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Kernighan and Richie&#39;s C programming language manual - it goes all the way back to the original C definition.<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On Nov 12, 2013, at 9:15 AM, Alex A. Granovsky &lt;<a href="mailto:gran@classic.chem.msu.su">gran@classic.chem.msu.su</a>&gt; wrote:<br>
+<br>
+&gt; Hello,<br>
+&gt;<br>
+&gt;&gt; It seems that argv[argc] should always be NULL according to the<br>
+&gt;&gt; standard. So OMPI failure is not actually a bug!<br>
+&gt;<br>
+&gt; could you please point to the exact document where this is explicitly stated?<br>
+&gt; Otherwise, I&#39;d assume this is a bug.<br>
+&gt;<br>
+&gt; Kind regards,<br>
+&gt; Alex Granovsky<br>
+&gt;<br>
+&gt;<br>
+&gt; -----Original Message----- From: Matthieu Brucher<br>
+&gt; Sent: Tuesday, November 12, 2013 8:56 PM<br>
+&gt; To: Open MPI Users<br>
+&gt; Subject: Re: [OMPI users] Segmentation fault in MPI_Init when passing pointers allocated in main()<br>
+&gt;<br>
+&gt; It seems that argv[argc] should always be NULL according to the<br>
+&gt; standard. So OMPI failure is not actually a bug!<br>
+&gt;<br>
+&gt; Cheers,<br>
+&gt;<br>
+&gt; 2013/11/12 Matthieu Brucher &lt;<a href="mailto:matthieu.brucher@gmail.com">matthieu.brucher@gmail.com</a>&gt;:<br>
+&gt;&gt; Interestingly enough, in ompi_mpi_init, opal_argv_join is called<br>
+&gt;&gt; without then array length, so I suppose that in the usual argc/argv<br>
+&gt;&gt; couple, you have an additional value to argv which may be NULL. So try<br>
+&gt;&gt; allocating 3 additional values, the last being NULL, and it may work.<br>
+&gt;&gt;<br>
+&gt;&gt; Cheers,<br>
+&gt;&gt;<br>
+&gt;&gt; Matthieu<br>
+&gt;&gt;<br>
+&gt;&gt; 2013/11/12 Tang, Yu-Hang &lt;<a href="mailto:yuhang_tang@brown.edu">yuhang_tang@brown.edu</a>&gt;:<br>
+&gt;&gt;&gt; I tried the following code without CUDA, the error is still there:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; #include &quot;mpi.h&quot;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; #include &lt;cstdlib&gt;<br>
+&gt;&gt;&gt; #include &lt;cstring&gt;<br>
+&gt;&gt;&gt; #include &lt;cmath&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; int main(int argc, char **argv)<br>
+&gt;&gt;&gt; {<br>
+&gt;&gt;&gt;    // override command line arguments to make sure cudaengine get the<br>
+&gt;&gt;&gt; correct one<br>
+&gt;&gt;&gt;    char **argv_new = new char*[ argc + 2 ];<br>
+&gt;&gt;&gt;    for( int i = 0 ; i &lt; argc ; i++ )<br>
+&gt;&gt;&gt;    {<br>
+&gt;&gt;&gt;        argv_new[i] = new char[ strlen( argv[i] ) + 1 ];<br>
+&gt;&gt;&gt;        strcpy( argv_new[i], argv[i] );<br>
+&gt;&gt;&gt;    }<br>
+&gt;&gt;&gt;    argv_new[ argc   ] = new char[ 32 ];<br>
+&gt;&gt;&gt;    argv_new[ argc+1 ] = new char[ 32 ];<br>
+&gt;&gt;&gt;    strcpy( argv_new[argc],   &quot;-device&quot; );<br>
+&gt;&gt;&gt;    sprintf( argv_new[argc+1], &quot;%d&quot;, 0 );<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;    argc += 2;<br>
+&gt;&gt;&gt;    argv = argv_new;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;    MPI_Init(&amp;argc,&amp;argv);<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;    // do something...<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;    MPI_Finalize();<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;    for( int i = 0 ; i &lt; argc ; i++ ) delete [] argv[i];<br>
+&gt;&gt;&gt;    delete [] argv;<br>
+&gt;&gt;&gt; }<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; At the end of the program the pointer stored in argv is exactly that of<br>
+&gt;&gt;&gt; argv_new so this should not be a problem. Manually inserting printf tells me<br>
+&gt;&gt;&gt; that the fault occured at MPI_Init. The code works fine if I use<br>
+&gt;&gt;&gt; MPI_Init(NULL,NULL) instead. The same code also compiles and runs without a<br>
+&gt;&gt;&gt; problem on my laptop with mpich2-1.4.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Best,<br>
+&gt;&gt;&gt; Yu-Hang<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; On Tue, Nov 12, 2013 at 11:18 AM, Matthieu Brucher<br>
+&gt;&gt;&gt; &lt;<a href="mailto:matthieu.brucher@gmail.com">matthieu.brucher@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Hi,<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Are you sure this is the correct code? This seems strange and not a good<br>
+&gt;&gt;&gt;&gt; idea:<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;   MPI_Init(&amp;argc,&amp;argv);<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;    // do something...<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;    for( int i = 0 ; i &lt; argc ; i++ ) delete [] argv[i];<br>
+&gt;&gt;&gt;&gt;    delete [] argv;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Did you mean argc_new and argv_new instead?<br>
+&gt;&gt;&gt;&gt; Do you have the same error without CUDA?<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Matthieu<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; 2013/11/12 Tang, Yu-Hang &lt;<a href="mailto:yuhang_tang@brown.edu">yuhang_tang@brown.edu</a>&gt;:<br>
+&gt;&gt;&gt;&gt; &gt; Hi,<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt; I tried to augment the command line argument list by allocating my own<br>
+&gt;&gt;&gt;&gt; &gt; list<br>
+&gt;&gt;&gt;&gt; &gt; of strings and passing them to MPI_Init, yet I got a segmentation &gt; fault<br>
+&gt;&gt;&gt;&gt; &gt; for<br>
+&gt;&gt;&gt;&gt; &gt; both OpenMPI 1.6.3 and 1.7.2, while the code works fine with MPICH2. &gt; The<br>
+&gt;&gt;&gt;&gt; &gt; code is:<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt; #include &quot;mpi.h&quot;<br>
+&gt;&gt;&gt;&gt; &gt; #include &quot;cuda_runtime.h&quot;<br>
+&gt;&gt;&gt;&gt; &gt; #include &lt;cstdlib&gt;<br>
+&gt;&gt;&gt;&gt; &gt; #include &lt;cstring&gt;<br>
+&gt;&gt;&gt;&gt; &gt; #include &lt;cmath&gt;<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt; int main(int argc, char **argv)<br>
+&gt;&gt;&gt;&gt; &gt; {<br>
+&gt;&gt;&gt;&gt; &gt;     int device = 0;<br>
+&gt;&gt;&gt;&gt; &gt;     int skip = 0;<br>
+&gt;&gt;&gt;&gt; &gt;     bool skipmode = false;<br>
+&gt;&gt;&gt;&gt; &gt;     bool specified = false;<br>
+&gt;&gt;&gt;&gt; &gt;     for( int i = 0 ; i &lt; argc ; i++ )<br>
+&gt;&gt;&gt;&gt; &gt;     {<br>
+&gt;&gt;&gt;&gt; &gt;         if ( strcmp( argv[i], &quot;-device&quot; ) == 0 )<br>
+&gt;&gt;&gt;&gt; &gt;         {<br>
+&gt;&gt;&gt;&gt; &gt;             i++;<br>
+&gt;&gt;&gt;&gt; &gt;             if ( argv[i][0] == &#39;-&#39; )<br>
+&gt;&gt;&gt;&gt; &gt;             {<br>
+&gt;&gt;&gt;&gt; &gt;                 skipmode = true;<br>
+&gt;&gt;&gt;&gt; &gt;                 skip = fabs( atoi( argv[i] ) );<br>
+&gt;&gt;&gt;&gt; &gt;             }<br>
+&gt;&gt;&gt;&gt; &gt;             else<br>
+&gt;&gt;&gt;&gt; &gt;             {<br>
+&gt;&gt;&gt;&gt; &gt;                 skipmode = false;<br>
+&gt;&gt;&gt;&gt; &gt;                 device = atoi( argv[i] );<br>
+&gt;&gt;&gt;&gt; &gt;             }<br>
+&gt;&gt;&gt;&gt; &gt;             specified = true;<br>
+&gt;&gt;&gt;&gt; &gt;         }<br>
+&gt;&gt;&gt;&gt; &gt;     }<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt;     if ( !specified || skipmode )<br>
+&gt;&gt;&gt;&gt; &gt;     {<br>
+&gt;&gt;&gt;&gt; &gt;         char* var;<br>
+&gt;&gt;&gt;&gt; &gt;         int dev_count, local_rank = 0;<br>
+&gt;&gt;&gt;&gt; &gt;         if ( (var = getenv(&quot;SLURM_LOCALID&quot;)) != NULL) local_rank =<br>
+&gt;&gt;&gt;&gt; &gt; atoi(var);<br>
+&gt;&gt;&gt;&gt; &gt;         else if( (var = getenv(&quot;MV2_COMM_WORLD_LOCAL_RANK&quot;))  != NULL)<br>
+&gt;&gt;&gt;&gt; &gt; local_rank = atoi(var);<br>
+&gt;&gt;&gt;&gt; &gt;         else if( (var = getenv(&quot;OMPI_COMM_WORLD_LOCAL_RANK&quot;)) != NULL)<br>
+&gt;&gt;&gt;&gt; &gt; local_rank = atoi(var);<br>
+&gt;&gt;&gt;&gt; &gt;         cudaGetDeviceCount( &amp;dev_count );<br>
+&gt;&gt;&gt;&gt; &gt;         if ( skipmode )<br>
+&gt;&gt;&gt;&gt; &gt;         {<br>
+&gt;&gt;&gt;&gt; &gt;             device = 0;<br>
+&gt;&gt;&gt;&gt; &gt;             if ( device == skip ) local_rank++;<br>
+&gt;&gt;&gt;&gt; &gt;             while( local_rank-- &gt; 0 )<br>
+&gt;&gt;&gt;&gt; &gt;             {<br>
+&gt;&gt;&gt;&gt; &gt;                 device = (++device) % dev_count;<br>
+&gt;&gt;&gt;&gt; &gt;                 if ( device == skip ) local_rank++;<br>
+&gt;&gt;&gt;&gt; &gt;             }<br>
+&gt;&gt;&gt;&gt; &gt;         }<br>
+&gt;&gt;&gt;&gt; &gt;         else device = local_rank % dev_count;<br>
+&gt;&gt;&gt;&gt; &gt;     }<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt;     // override command line arguments to make sure cudaengine get the<br>
+&gt;&gt;&gt;&gt; &gt; correct one<br>
+&gt;&gt;&gt;&gt; &gt;     char **argv_new = new char*[ argc + 2 ];<br>
+&gt;&gt;&gt;&gt; &gt;     for( int i = 0 ; i &lt; argc ; i++ )<br>
+&gt;&gt;&gt;&gt; &gt;     {<br>
+&gt;&gt;&gt;&gt; &gt;         argv_new[i] = new char[ strlen( argv[i] ) + 1 ];<br>
+&gt;&gt;&gt;&gt; &gt;         strcpy( argv_new[i], argv[i] );<br>
+&gt;&gt;&gt;&gt; &gt;     }<br>
+&gt;&gt;&gt;&gt; &gt;     argv_new[ argc   ] = new char[ 32 ];<br>
+&gt;&gt;&gt;&gt; &gt;     argv_new[ argc+1 ] = new char[ 32 ];<br>
+&gt;&gt;&gt;&gt; &gt;     strcpy( argv_new[argc],   &quot;-device&quot; );<br>
+&gt;&gt;&gt;&gt; &gt;     sprintf( argv_new[argc+1], &quot;%d&quot;, device );<br>
+&gt;&gt;&gt;&gt; &gt;     argc += 2;<br>
+&gt;&gt;&gt;&gt; &gt;     argv = argv_new;<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt;     cudaSetDevice( device );<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt;     MPI_Init(&amp;argc,&amp;argv);<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt;     // do something...<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt;     MPI_Finalize();<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt;     cudaDeviceReset();<br>
+&gt;&gt;&gt;&gt; &gt;     for( int i = 0 ; i &lt; argc ; i++ ) delete [] argv[i];<br>
+&gt;&gt;&gt;&gt; &gt;     delete [] argv;<br>
+&gt;&gt;&gt;&gt; &gt; }<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt; When compiled using nvcc -ccbin mpic++, The error I got was:<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] *** Process received signal ***<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] Signal: Segmentation fault (11)<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] Signal code: Address not mapped (1)<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] Failing at address: 0x21<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] [ 0] /usr/lib64/libpthread.so.0() [0x39e5e0f000]<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] [ 1] /usr/lib64/libc.so.6() [0x39e5760551]<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] [ 2]<br>
+&gt;&gt;&gt;&gt; &gt; /opt/openmpi/1.7.2/lib/libopen-pal.so.5(opal_argv_join+0x39)<br>
+&gt;&gt;&gt;&gt; &gt; [0x7f460b993079]<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] [ 3]<br>
+&gt;&gt;&gt;&gt; &gt; /opt/openmpi/1.7.2/lib/libmpi.so.1(ompi_mpi_init+0x347)<br>
+&gt;&gt;&gt;&gt; &gt; [0x7f460c106a57]<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] [ 4] &gt; /opt/openmpi/1.7.2/lib/libmpi.so.1(MPI_Init+0x16b)<br>
+&gt;&gt;&gt;&gt; &gt; [0x7f460c12523b]<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] [ 5] ./lmp_jueying() [0x40c035]<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] [ 6] /usr/lib64/libc.so.6(__libc_start_main+0xf5)<br>
+&gt;&gt;&gt;&gt; &gt; [0x39e5621a05]<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] [ 7] ./lmp_jueying() [0x40dd21]<br>
+&gt;&gt;&gt;&gt; &gt; [jueying:16317] *** End of error message ***<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt; Thanks for the help.<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt; Best regards,<br>
+&gt;&gt;&gt;&gt; &gt; Yu-Hang Tang<br>
+&gt;&gt;&gt;&gt; &gt;<br>
+&gt;&gt;&gt;&gt; &gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt; &gt; users mailing list<br>
+&gt;&gt;&gt;&gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; --<br>
+&gt;&gt;&gt;&gt; Information System Engineer, Ph.D.<br>
+&gt;&gt;&gt;&gt; Blog: <a href="http://matt.eifelle.com" target="_blank">http://matt.eifelle.com</a><br>
+&gt;&gt;&gt;&gt; LinkedIn: <a href="http://www.linkedin.com/in/matthieubrucher" target="_blank">http://www.linkedin.com/in/matthieubrucher</a><br>
+&gt;&gt;&gt;&gt; Music band: <a href="http://liliejay.com/" target="_blank">http://liliejay.com/</a><br>
+&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; --<br>
+&gt;&gt;&gt; Yu-Hang Tang<br>
+&gt;&gt;&gt; Room 105, 37 Manning St<br>
+&gt;&gt;&gt; Division of Applied Mathematics, Brown University<br>
+&gt;&gt;&gt; Providence, RI 02912<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; --<br>
+&gt;&gt; Information System Engineer, Ph.D.<br>
+&gt;&gt; Blog: <a href="http://matt.eifelle.com" target="_blank">http://matt.eifelle.com</a><br>
+&gt;&gt; LinkedIn: <a href="http://www.linkedin.com/in/matthieubrucher" target="_blank">http://www.linkedin.com/in/matthieubrucher</a><br>
+&gt;&gt; Music band: <a href="http://liliejay.com/" target="_blank">http://liliejay.com/</a><br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Information System Engineer, Ph.D.<br>
+&gt; Blog: <a href="http://matt.eifelle.com" target="_blank">http://matt.eifelle.com</a><br>
+&gt; LinkedIn: <a href="http://www.linkedin.com/in/matthieubrucher" target="_blank">http://www.linkedin.com/in/matthieubrucher</a><br>
+&gt; Music band: <a href="http://liliejay.com/" target="_blank">http://liliejay.com/</a><br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br><br clear="all"><br>-- <br><div dir="ltr">Yu-Hang Tang<br>Room 105, 37 Manning St<br>Division of Applied Mathematics, Brown University<br>Providence, RI 02912<br></div>
+</div>
+

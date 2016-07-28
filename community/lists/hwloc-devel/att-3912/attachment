@@ -1,0 +1,104 @@
+<div dir="ltr">Jeff,<div><br></div><div>I am watching with intense interest, as GASNet will be moving to git on Nov 1.</div><div>Could you give me a pointer to where I can get copies all the scripts that you guys use for nightly tarballs, commit emails and such?</div>
+
+<div>I&#39;ll want to have look after you have all the wrinkles ironed out to your satisfaction.</div><div><br></div><div>FWIW: a viewpoint from somebody who has yet to actually try to implement his ideas:</div><div><br>
+</div>
+<div>We have PLANNED to script our nightlies to be named with a date stamp and 6 or 8 chars of the SHA1.</div><div>The format would be something like PROJECT-BRANCH-20130928-12abcdef.tar.gz</div><div>Where BRANCH=v&lt;major&gt;.&lt;minor&gt; for the UPCOMING release in most scenarios (but could be a named feature branch like &quot;oshmem&quot;)</div>
+
+<div>That way directory listings would sort by branch and date (simple for mere humans) while the SHA1 would allow fetching the corresponding version from git.  The full SHA1 would, of course, also be in a file in the tarball (actual filename TBD).</div>
+
+<div><br></div><div>I don&#39;t think we consider &quot;git describe&quot; to be a useful naming mechanism for nightlies, though for other snapshots it might be useful.</div><div>For RCs, we pan to tag something like &quot;1.7.3RC&quot; at the start of the RC cycle to get &quot;git describe&quot; to give names containing &quot;1.7.3RC-&lt;N&gt;-&lt;hash&gt;&quot; which make some sense at a glance, even though N is incremented with every commit and may grow much higher than a contentional RC number would.  Again, &quot;1.7.3&quot; in this example is the UPCOMING release rather than the previous one.</div>
+<div><br></div><div>For a developer&#39;s &quot;make dist&quot; from a developer&#39;s clone, however, I think we agree &quot;git describe&quot; is as good as anything else readily available.</div>
+<div><br></div><div>So, in short: I think our plan aligns with yours on scenarios #1 (&quot;make dist&quot; by Jane Developer) and #3 (official releases), but we wanted something more people-friendly for #2 (nightly tarballs).</div>
+
+<div><br></div><div>-Paul</div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Sat, Sep 28, 2013 at 4:30 AM, Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">On Sep 28, 2013, at 4:41 AM, Brice Goglin &lt;<a href="mailto:Brice.Goglin@inria.fr">Brice.Goglin@inria.fr</a>&gt; wrote:<br>
+
+<br>
+&gt; I am having lots of problems when switching the regression testing stuff<br>
+&gt; (jenkins) to git, mostly because of make dist. Actually it worked 2 days<br>
+&gt; ago, no it breaks because hwloc-unknown.tar.* remain after make distcheck.<br>
+<br>
+This means the versions junk still isn&#39;t right yet.  :-\<br>
+<br>
+&gt; 1) There&#39;s something I don&#39;t understand in the dist scripts.<br>
+&gt; config/distscript.csh is only called the top-level Makefile.am, with 4th<br>
+&gt; argument = HWLOC_SVN_R, which is never set. So we always fallback to<br>
+&gt; git-describe. When building from a tarball, you get &quot;unknown&quot;. That<br>
+&gt; seems to break make distcheck. We need to pass something in that<br>
+&gt; argument, but I don&#39;t see what.<br>
+<br>
+Good catch; sorry about that.  HWLOC_SVN_R no longer exists (as you noted).  I just removed that 4th argument to distscript.csh.  Now, distscript (on master and v1.7) only edits VERSION if snapshot=1 and snapshot_version is empty (i.e., if you do &quot;make dist&quot; in a git clone instead of running contrib/nightly/make_nightly_snapshot, which will edit VERSION before running &quot;make distcheck&quot;).<br>
+
+<br>
+&gt; 2) VPATH dist support is more fragile than before (I always build under<br>
+&gt; $srcdir/build). In the past, we could do a VPATH make dist by just<br>
+&gt; symlinking srcdir/doc/doxygen-doc to builddir/doc/doxygen-doc. This now<br>
+&gt; generates &quot;unknown&quot; tarballs because we check for .git existence<br>
+&gt; explicitly. I fixed my own case by checking for ../.git as well but<br>
+&gt; that&#39;s not satisfying.<br>
+<br>
+Mmm.  I preserved your ../.git check in <a href="https://github.com/open-mpi/hwloc/commit/c2b7f3d3c713feadb1d2c5a7ccd747cb6673d249" target="_blank">https://github.com/open-mpi/hwloc/commit/c2b7f3d3c713feadb1d2c5a7ccd747cb6673d249</a>.<br>
+
+<br>
+I don&#39;t think I knew/realized you were doign VPATH dist builds by doing the sym link.<br>
+<br>
+&gt; It looks like we can fix this by checking for $srcdir/.git instead. If<br>
+&gt; we want VPATH support where $builddir isn&#39;t a child of $srcdir, we&#39;ll<br>
+&gt; have to set GIT_DIR=$srcdir/.git before calling git-describe too.<br>
+&gt;<br>
+&gt; I think this is becoming way too complicated. Nobody won&#39;t be able to<br>
+&gt; maintain that code in a couple years. Worse, what if you leave Cisco and<br>
+&gt; stop working on hwloc one day? In my other projects, I would just<br>
+&gt; override the VERSION makefile variable on the make command-line to<br>
+&gt; change the tarball name (you won&#39;t get that VERSION in lstopo --version,<br>
+&gt; but you would still see 1.8a1 from configure). We should rethink what we<br>
+&gt; actually need here.<br>
+<br>
+Yes, these are good points.  I agree: the system is too complicated right now.  :-\<br>
+<br>
+Let&#39;s go through the use cases of what we want:<br>
+<br>
+1. &quot;make dist&quot; in a developer&#39;s git clone.  This should make a &quot;hwloc-&lt;git describe&gt;.tar.*.<br>
+<br>
+2. make a nightly snapshot tarball.  The more I think about this, the more I think it&#39;s the same as #1, right?<br>
+<br>
+3. make a release tarball, &quot;hwloc-major.minor.releasegreek.tar.*&quot;.<br>
+<br>
+Are these the three (or two, if #2 is the same as #1) use cases we want?  If so, I can see about making the code simpler -- e.g., I didn&#39;t know about overriding the VERSION Makefile macro trick...<br>
+<br>
+&gt; For instance if we can simpify things by not<br>
+&gt; building 1.8-final when we build 1.8-rcX, that&#39;d be fine with me.<br>
+<br>
+I think that part is actually fairly simple; it just runs &quot;make dist&quot;, strips out the greek value from VERSION, and runs &quot;make dist&quot; again.<br>
+<br>
+&gt; Random other questions:<br>
+&gt; * where do you configure commit emails? can we drop/change the<br>
+&gt; open-mpi/hwloc subject prefix? I removed the hwloc-svn prefix from<br>
+&gt; mailman to avoid double-prefixing for now<br>
+&gt; * can we get commit diffs in email, with some truncation limit to 50kB<br>
+&gt; or so?<br>
+<br>
+Yeah, I&#39;m a bit disappointed by the github email service hook (the config is here: <a href="https://github.com/open-mpi/hwloc/settings/hooks" target="_blank">https://github.com/open-mpi/hwloc/settings/hooks</a>; scroll down to &quot;Email&quot;).  There&#39;s *very* little configuration available:<br>
+
+<br>
+- the address to send to<br>
+- an email address secret<br>
+- what address to send from<br>
+<br>
+There&#39;s no option for diffs (!), and no option to customize the mail/subject.  :-\<br>
+<br>
+Do you have a favorite git commit emailing script?  We can probably use the generic github &quot;WebHook URLs&quot; hook (at the top of the list) and host the diff-emailing script at IU (or anywhere, actually).<br>
+<span class="HOEnZb"><font color="#888888"><br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+_______________________________________________<br>
+hwloc-devel mailing list<br>
+<a href="mailto:hwloc-devel@open-mpi.org">hwloc-devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-devel</a><br>
+</font></span></blockquote></div><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font>
+</div>
+

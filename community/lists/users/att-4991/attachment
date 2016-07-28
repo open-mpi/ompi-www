@@ -1,0 +1,56 @@
+<html><body>
+<p>Ron's comments are probably dead on for an application like bug3. <br>
+<br>
+If bug3 is long running and libmpi is doing eager protocol buffer management as I contend the standard requires then the producers will not get far ahead of the consumer before they are forced to synchronous send under the covers anyway.  From then on, producers will run no faster than their output can be absorbed.  They will spent the nonproductive parts of their time blocked on either MPI_Send or MPI_Ssend.  The job will not finish until the consumer finishes because the consumer is a constant bottleneck anyway.  The slow consumer is the major drag on scalability. As long as the producers can be expected to outrun the consumer for the life of the job you will probably find it hard to measure a difference between synchronous send and flow controlled standard send.<br>
+<br>
+Eager protocol gets more interesting when the pace of the consumer and of the producers is variable.  If the consumer can absorb a message per millisecond and the production rate is close to one message per millisecond but fluctuates a bit then eager protocol may speed the whole job significantly. The producers can never get ahead with synchronous send even in a phase when they might be able to create a message every 1/2 millisecond. The producers spend half this easy phase blocked in MPI_Ssend.  If producers now enter a compute intensive phase where messages can only be generated once every 2 milliseconds the consumer spends time idle.  If the consumer had been able to accumulate queued messages with eager protocol when the producers were able to run faster it could now make itself useful catching up.  <br>
+<br>
+Both producers and consumer would come closer to 100% productive work and the job would finish sooner..<br>
+<br>
+           Dick <br>
+<br>
+<br>
+Dick Treumann  -  MPI Team/TCEM            <br>
+IBM Systems &amp; Technology Group<br>
+Dept 0lva / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 02/05/2008 01:26:24 PM:<br>
+<br>
+&gt; &gt; Re: MPI_Ssend(). This indeed fixes bug3, the process at rank 0 has<br>
+&gt; &gt; reasonable memory usage and the execution proceeds normally.<br>
+&gt; &gt; <br>
+&gt; &gt; Re scalable: One second. I know well bug3 is not scalable, and when to<br>
+&gt; &gt; use MPI_Isend. The point is programmers want to count on the MPI spec as<br>
+&gt; &gt; written, as Richard pointed out. We want to send small messages quickly<br>
+&gt; &gt; and efficiently, without the danger of overloading the receiver's<br>
+&gt; &gt; resources. We can use MPI_Ssend() but it is slow compared MPI_Send().<br>
+&gt; <br>
+&gt; Your last statement is not necessarily true. &nbsp;By synchronizing processes<br>
+&gt; using MPI_Ssend(), you can potentially avoid large numbers of unexpected<br>
+&gt; messages that need to be buffered and copied, and that also need to be<br>
+&gt; searched every time a receive is posted. &nbsp;There is no guarantee that the<br>
+&gt; protocol overhead on each message incurred with MPI_Ssend() slows down an<br>
+&gt; application more than the buffering, copying, and searching overhead of a<br>
+&gt; large number of unexpected messages.<br>
+&gt; <br>
+&gt; It is true that MPI_Ssend() is slower than MPI_Send() for ping-pong<br>
+&gt; micro-benchmarks, but the length of the unexpected message queue doesn't<br>
+&gt; have to get very long before they are about the same.<br>
+&gt; <br>
+&gt; &gt; <br>
+&gt; &gt; Since identifying this behavior we have implemented the desired flow<br>
+&gt; &gt; control in our application.<br>
+&gt; <br>
+&gt; It would be interesting to see performance results comparing doing flow<br>
+&gt; control in the application versus having MPI do it for you....<br>
+&gt; <br>
+&gt; -Ron<br>
+&gt; <br>
+&gt; <br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; </tt><tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt><tt><br>
+</tt></body></html>

@@ -1,0 +1,148 @@
+
+<br><font size=2 face="sans-serif">Hi Ashley</font>
+<br>
+<br><font size=2 face="sans-serif">I understand the problem with descriptor
+flooding can be serious in an application with unidirectional data dependancy.
+Perhaps we have a different perception of how common that is.</font>
+<br>
+<br><font size=2 face="sans-serif">It seems to me that such programs would
+be very rare but if they are more common than I imagine, then discussion
+of how to modulate them is worthwhile. &nbsp;In many cases, I think that
+adding some flow control to the application is a better solution than semantically
+redundant barrier. (A barrier that is there only to affect performance,
+not correctness, is what I mean by semantically redundant)</font>
+<br>
+<br><font size=2 face="sans-serif">For example, a Master/Worker application
+could have each worker break after every 4th send to the master and post
+an MPI_Recv for an OK_to_continue token. &nbsp;If the token had been sent,
+this would delay the worker a few microseconds. If it had not been sent,
+the worker would be kept waiting.</font>
+<br>
+<br><font size=2 face="sans-serif">The Master would keep track of how many
+messages from each worker it had absorbed and on message 3 from a particular
+worker, send an OK_to_continue token to that worker. &nbsp;The master would
+keep sending OK_to_continue tokens every 4th recv from then on (7, 11,
+15 ...) &nbsp;The descriptor queues would all remain short and only a worker
+that the master could not keep up with would ever lose a chance to keep
+working. &nbsp;By sending the OK_to_continue token a bit early, the application
+would ensure that when there was no backlog, every worker would find a
+token when it looked for it and there would be no significant loss of compute
+time.</font>
+<br>
+<br><font size=2 face="sans-serif">Even with non-blocking barrier and a
+10 step lag between Ibarrier and Wait, , if some worker is slow for 12
+steps, the fast workers end up being kept in a non-productive MPI_Wait.</font>
+<br>
+<br><font size=2 face="sans-serif">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; &nbsp; &nbsp; Dick </font>
+<br>
+<br>
+<br><font size=2 face="sans-serif">Dick Treumann &nbsp;- &nbsp;MPI Team
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846 &nbsp; &nbsp; &nbsp; &nbsp; Fax (845) 433-8363<br>
+</font>
+<br>
+<br><tt><font size=2>users-bounces@open-mpi.org wrote on 09/09/2010 05:34:15
+PM:<br>
+<br>
+&gt; [image removed] </font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; Re: [OMPI users] MPI_Reduce performance</font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; Ashley Pittman </font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; to:</font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; Open MPI Users</font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; 09/09/2010 05:37 PM</font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; Sent by:</font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; users-bounces@open-mpi.org</font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; Please respond to Open MPI Users</font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; <br>
+&gt; On 9 Sep 2010, at 21:40, Richard Treumann wrote:<br>
+&gt; <br>
+&gt; &gt; <br>
+&gt; &gt; Ashley <br>
+&gt; &gt; <br>
+&gt; &gt; Can you provide an example of a situation in which these <br>
+&gt; semantically redundant barriers help? <br>
+&gt; <br>
+&gt; I'm not making the case for semantically redundant barriers, I'm <br>
+&gt; making a case for implicit synchronisation in every iteration of a
+<br>
+&gt; application. &nbsp;Many applications have this already by nature of
+the <br>
+&gt; data-flow required, anything that calls mpi_allgather or <br>
+&gt; mpi_allreduce are the easiest to verify but there are many other <br>
+&gt; ways of achieving the same thing. &nbsp;My point is about the subset
+of <br>
+&gt; programs which don't have this attribute and are therefore <br>
+&gt; susceptible to synchronisation problems. &nbsp;It's my experience
+that <br>
+&gt; for low iteration counts these codes can run fine but once they hit
+<br>
+&gt; a problem they go over a cliff edge performance wise and there is
+no<br>
+&gt; way back from there until the end of the job. &nbsp;The email from
+<br>
+&gt; Gabriele would appear to be a case that demonstrates this problem
+<br>
+&gt; but I've seen it many times before.<br>
+&gt; <br>
+&gt; Using your previous email as an example I would describe adding <br>
+&gt; barriers to a problem as a way artificially reducing the <br>
+&gt; &quot;elasticity&quot; of the program to ensure balanced use of resources.<br>
+&gt; <br>
+&gt; &gt; I may be missing something but my statement for the text book
+would be <br>
+&gt; &gt; <br>
+&gt; &gt; &quot;If adding a barrier to your MPI program makes it run faster,
+<br>
+&gt; there is almost certainly a flaw in it that is better solved another
+way.&quot; <br>
+&gt; &gt; <br>
+&gt; &gt; The only exception I can think of is some sort of one direction
+<br>
+&gt; data dependancy with messages small enough to go eagerly. &nbsp;A
+program<br>
+&gt; that calls MPI_Reduce with a small message and the same root every
+<br>
+&gt; iteration and &nbsp;calls no other collective would be an example.
+<br>
+&gt; &gt; <br>
+&gt; &gt; In that case, fast tasks at leaf positions would run free and
+a <br>
+&gt; slow task near the root could pile up early arrivals and end up with<br>
+&gt; some additional slowing. Unless it was driven into paging I cannot
+<br>
+&gt; imagine the slowdown would be significant though. <br>
+&gt; <br>
+&gt; I've diagnosed problems where the cause was a receive queue of tens
+<br>
+&gt; of thousands of messages, in this case each and every receive <br>
+&gt; performs slowly unless the descriptor is near the front of the queue<br>
+&gt; so the concern is not purely about memory usage at individual <br>
+&gt; processes although that can also be a factor.<br>
+&gt; <br>
+&gt; Ashley,<br>
+&gt; <br>
+&gt; -- <br>
+&gt; <br>
+&gt; Ashley Pittman, Bath, UK.<br>
+&gt; <br>
+&gt; Padb - A parallel job inspection tool for cluster computing<br>
+&gt; </font></tt><a href=http://padb.pittman.org.uk/><tt><font size=2>http://padb.pittman.org.uk</font></tt></a><tt><font size=2><br>
+&gt; <br>
+&gt; <br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; </font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users"><tt><font size=2>http://www.open-mpi.org/mailman/listinfo.cgi/users</font></tt></a><tt><font size=2><br>
+</font></tt>

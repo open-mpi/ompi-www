@@ -1,0 +1,281 @@
+<div dir="ltr">On a related topic:<div><br></div><div>I configured with an explicit --enable-mpi-fortran=usempif08.<br></div><div>Then configure found PROCEDURE was missing/broken.</div><div>The result is that the build continued, but without the requested f08 support.</div>
+<div><br></div><div>If the user has explicitly enabled a given level of Fortran support, but it cannot be provided, shouldn&#39;t this be a configure-time error? </div><div><br></div><div>-Paul</div></div><div class="gmail_extra">
+<br><br><div class="gmail_quote">On Tue, Jul 29, 2014 at 9:41 PM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div text="#000000" bgcolor="#FFFFFF">
+    <div>Paul,<br>
+      <br>
+      i am sorry i missed that.<br>
+      <br>
+      and you are right, 1.8.1 and 1.8 from svn differs :<br>
+      <br>
+      from svn (config/ompi_setup_mpi_fortran.m4)<br>
+          # Per <a href="https://svn.open-mpi.org/trac/ompi/ticket/4590" target="_blank">https://svn.open-mpi.org/trac/ompi/ticket/4590</a>, if the<br>
+          # Fortran compiler doesn&#39;t support PROCEDURE in the way we<br>
+          # want/need, disable the mpi_f08 module.<br>
+          OMPI_FORTRAN_HAVE_PROCEDURE=0<br>
+          AS_IF([test $OMPI_WANT_FORTRAN_USEMPIF08_BINDINGS -eq 1 -a \<br>
+                 $OMPI_BUILD_FORTRAN_USEMPIF08_BINDINGS -eq 1],<br>
+                [ # Does the compiler support &quot;procedure&quot;<br>
+                 OMPI_FORTRAN_CHECK_PROCEDURE(<br>
+                     [OMPI_FORTRAN_HAVE_PROCEDURE=1],<br>
+                     [OMPI_FORTRAN_HAVE_PROCEDURE=0<br>
+                      OMPI_BUILD_FORTRAN_USEMPIF08_BINDINGS=0])])<br>
+      <br>
+      1.8.1 does not disqualify f08 bindings if PROCEDURE is not
+      supported.<br>
+      /* for the sake of completion, in some cases, 1.8.1 *might*
+      disqualify f08 bindings if PROCEDURE *is* supported :<br>
+          # Per <a href="https://svn.open-mpi.org/trac/ompi/ticket/4157" target="_blank">https://svn.open-mpi.org/trac/ompi/ticket/4157</a>,
+      temporarily<br>
+          # disqualify the fortran compiler if it exhibits the behavior<br>
+          # described in that ticket.  Short version: OMPI does
+      something<br>
+          # non-Fortran that we don&#39;t have time to fix 1.7.4.  So we
+      just<br>
+          # disqualify Fortran compilers who actually enforce this
+      issue,<br>
+          # and we&#39;ll fix OMPI to be Fortran-compliant after 1.7.4<br>
+          AS_IF([test $OMPI_WANT_FORTRAN_USEMPIF08_BINDINGS -eq 1
+      &amp;&amp; \<br>
+                 test $OMPI_BUILD_FORTRAN_USEMPIF08_BINDINGS -eq 1
+      &amp;&amp; \<br>
+                 test $OMPI_FORTRAN_HAVE_PROCEDURE -eq 1 &amp;&amp; \<br>
+                 test $OMPI_FORTRAN_HAVE_ABSTRACT -eq 1],<br>
+                [ # Check for ticket 4157<br>
+                 OMPI_FORTRAN_CHECK_TICKET_4157(<br>
+                     [],<br>
+                     [ # If we don&#39;t have this, don&#39;t build the mpi_f08
+      module<br>
+                      OMPI_BUILD_FORTRAN_USEMPIF08_BINDINGS=0])])<br>
+      <br>
+      <br>
+      from the sources and #4590, f08 binding is intentionally disabled
+      since PGI compilers does not support PROCEDURE.<br>
+      i agree this is really bad for PGI users :-(<br>
+      <br>
+      Jeff, can you comment on that ?<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/07/30 13:25, Paul Hargrove wrote:<br>
+    </div>
+    <blockquote type="cite">
+      <pre>Giles,
+
+If you look more carefully at the output I provided you will see that 1.8.1
+*does* test for PROCEDURE support and finds it lacking.  BOTH outputs
+include:
+ checking if Fortran compiler supports PROCEDURE... no
+
+However in the 1.8.1 case that is apparently not sufficient to disqualify
+building the f08 module.
+
+The test does fail in both 1.8.1 and 1.8.2rc2.
+Here is the related portion of config.log from one of them:
+
+configure:57708: checking if Fortran compiler supports PROCEDURE
+configure:57735: pgf90 -c -g conftest.f90 &gt;&amp;5 PGF90-S-0155-Illegal
+procedure interface - mpi_user_function (conftest.f90: 12)
+PGF90-S-0155-Illegal procedure interface - mpi_user_function (conftest.f90:
+12) 0 inform, 0 warnings, 2 severes, 0 fatal for test_proc configure:57735:
+$? = 2 configure: failed program was: | MODULE proc_mod | INTERFACE |
+SUBROUTINE MPI_User_function | END SUBROUTINE | END INTERFACE | END MODULE
+proc_mod | | PROGRAM test_proc | INTERFACE | SUBROUTINE binky(user_fn) |
+USE proc_mod | PROCEDURE(MPI_User_function) :: user_fn | END SUBROUTINE |
+END INTERFACE | END PROGRAM configure:57751: result: no
+
+Other than the line numbers the 1.8.1 and 1.8.2rc2 output are identical in
+this respect.
+
+The test also fails run manually:
+
+{hargrove@hopper04 OMPI}$ pgf90 -c -g conftest.f90 PGF90-S-0155-Illegal
+procedure interface - mpi_user_function (conftest.f90: 12)
+PGF90-S-0155-Illegal procedure interface - mpi_user_function (conftest.f90:
+12) 0 inform, 0 warnings, 2 severes, 0 fatal for test_proc
+{hargrove@hopper04 OMPI}$ pgf90 -V pgf90 13.10-0 64-bit target on x86-64
+Linux -tp shanghai The Portland Group - PGI Compilers and Tools Copyright
+(c) 2013, NVIDIA CORPORATION. All rights reserved.
+
+-Paul
+
+On Tue, Jul 29, 2014 at 9:09 PM, Gilles Gouaillardet &lt;
+<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>&gt; wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre> Paul,
+
+from the logs, the only difference i see is about Fortran PROCEDURE.
+
+openpmi 1.8 (svn checkout) does not build the usempif08 bindings if
+PROCEDURE is not supported.
+
+from the logs, openmpi 1.8.1 does not check whether PROCEDURE is supported
+or not
+
+here is the sample program to check PROCEDURE (from
+config/ompi_fortran_check_procedure.m4)
+
+MODULE proc_mod
+INTERFACE
+SUBROUTINE MPI_User_function
+END SUBROUTINE
+END INTERFACE
+END MODULE proc_mod
+
+PROGRAM test_proc
+INTERFACE
+SUBROUTINE binky(user_fn)
+  USE proc_mod
+  PROCEDURE(MPI_User_function) :: user_fn
+END SUBROUTINE
+END INTERFACE
+END PROGRAM
+
+i do not have a PGI license, could you please confirm the PGI compiler
+fails compiling the test above ?
+
+Cheers,
+
+Gilles
+
+On 2014/07/30 12:54, Paul Hargrove wrote:
+
+On Tue, Jul 29, 2014 at 6:38 PM, Paul Hargrove <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+
+
+ On Tue, Jul 29, 2014 at 6:33 PM, Paul Hargrove <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+
+
+ I am trying again with an explicit --enable-mpi-fortran=usempi at
+configure time to see what happens.
+
+
+ Of course that should have said --enable-mpi-fortran=usempif08
+
+
+ I&#39;ve switched to using PG13.6 for my testing.
+I find that even when I pass that flag I see that use_mpi_f08 is NOT
+enabled:
+
+checking Fortran compiler ignore TKR syntax... not cached; checking variants
+checking for Fortran compiler support of TYPE(*), DIMENSION(*)... no
+checking for Fortran compiler support of !DEC$ ATTRIBUTES NO_ARG_CHECK... no
+checking for Fortran compiler support of !$PRAGMA IGNORE_TKR... no
+checking for Fortran compiler support of !DIR$ IGNORE_TKR... yes
+checking Fortran compiler ignore TKR syntax... 1:real, dimension(*):!DIR$
+IGNORE_TKR
+checking if Fortran compiler supports ISO_C_BINDING... yes
+checking if building Fortran &#39;use mpi&#39; bindings... yes
+checking if Fortran compiler supports SUBROUTINE BIND(C)... yes
+checking if Fortran compiler supports TYPE, BIND(C)... yes
+checking if Fortran compiler supports TYPE(type), BIND(C, NAME=&quot;name&quot;)...
+yes
+checking if Fortran compiler supports PROCEDURE... no
+*checking if building Fortran &#39;use mpi_f08&#39; bindings... no*
+
+Contrast that to openmpi-1.8.1 and the same compiler:
+
+checking Fortran compiler ignore TKR syntax... not cached; checking variants
+checking for Fortran compiler support of TYPE(*), DIMENSION(*)... no
+checking for Fortran compiler support of !DEC$ ATTRIBUTES NO_ARG_CHECK... no
+checking for Fortran compiler support of !$PRAGMA IGNORE_TKR... no
+checking for Fortran compiler support of !DIR$ IGNORE_TKR... yes
+checking Fortran compiler ignore TKR syntax... 1:real, dimension(*):!DIR$
+IGNORE_TKR
+checking if building Fortran &#39;use mpi&#39; bindings... yes
+checking if Fortran compiler supports ISO_C_BINDING... yes
+checking if Fortran compiler supports SUBROUTINE BIND(C)... yes
+checking if Fortran compiler supports TYPE, BIND(C)... yes
+checking if Fortran compiler supports TYPE(type), BIND(C, NAME=&quot;name&quot;)...
+yes
+checking if Fortran compiler supports optional arguments... yes
+checking if Fortran compiler supports PRIVATE... yes
+checking if Fortran compiler supports PROTECTED... yes
+checking if Fortran compiler supports ABSTRACT... yes
+checking if Fortran compiler supports ASYNCHRONOUS... yes
+checking if Fortran compiler supports PROCEDURE... no
+checking size of Fortran type(test_mpi_handle)... 4
+checking Fortran compiler F08 assumed rank syntax... not cached; checking
+checking for Fortran compiler support of TYPE(*), DIMENSION(..)... no
+checking Fortran compiler F08 assumed rank syntax... no
+checking which mpi_f08 implementation to build... &quot;good&quot; compiler, no array
+subsections
+*checking if building Fortran &#39;use mpi_f08&#39; bindings... yes*
+
+So, somewhere between 1.8.1 and 1.8.2rc2 something has happened in the
+configure logic to disqualify the pgf90 compiler.
+
+I also surprised to see 1.8.2rc2 performing *fewer* tests of FC then 1.8.1
+did (unless they moved elsewhere?).
+
+In the end I cannot reproduce the originally reported problem for the
+simple reason that I instead see:
+
+{hargrove@hopper04 openmpi-1.8.2rc2-linux-x86_64-pgi-14.4}$
+./INST/bin/mpif90 ../test.f
+PGF90-F-0004-Unable to open MODULE file mpi_f08.mod (../test.f: 2)
+PGF90/x86-64 Linux 14.4-0: compilation aborted
+
+
+Tetsuya Mishima,
+
+Is it possible that your installation of 1.8.2rc2 was to the same prefix as
+an older build?
+It that is the case, you may have the mpi_f08.mod from the older build even
+though no f08 support is in the new build.
+
+
+-Paul
+
+
+
+
+
+_______________________________________________
+devel mailing <a href="mailto:listdevel@open-mpi.org" target="_blank">listdevel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15342.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15342.php</a>
+
+
+
+_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a href="http://www.open-mpi.org/community/lists/devel/2014/07/15343.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15343.php</a>
+
+</pre>
+      </blockquote>
+      <pre>
+
+</pre>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      <pre>_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15344.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15344.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15346.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15346.php</a><br></blockquote></div><br><br clear="all"><div>
+<br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>
+Computer and Data Sciences Department     Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font>
+</div>
+

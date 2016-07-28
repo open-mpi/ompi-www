@@ -1,0 +1,63 @@
+npersocket should not be recomputed in odls_default_fork_local_procs: segfault might occur in some particular cases
+
+diff -r ce3749a94a9e orte/mca/odls/base/odls_base_default_fns.c
+--- a/orte/mca/odls/base/odls_base_default_fns.c	Fri Nov 04 13:31:18 2011 +0100
++++ b/orte/mca/odls/base/odls_base_default_fns.c	Fri Nov 04 13:55:00 2011 +0100
+@@ -352,6 +352,12 @@ int orte_odls_base_default_get_add_procs
+         return rc;
+     }
+     
++    /* pack the npersocket for this job */
++    if (ORTE_SUCCESS != (rc = opal_dss.pack(data, &map->npersocket, 1, OPAL_INT32))) {
++        ORTE_ERROR_LOG(rc);
++        return rc;
++    }
++
+     /* pack the cpus_per_rank for this job */
+     if (ORTE_SUCCESS != (rc = opal_dss.pack(data, &map->cpus_per_rank, 1, OPAL_INT16))) {
+         ORTE_ERROR_LOG(rc);
+@@ -809,6 +815,12 @@ int orte_odls_base_default_construct_chi
+         ORTE_ERROR_LOG(rc);
+         goto REPORT_ERROR;
+     }
++    /* unpack the npersocket for the job */
++    cnt=1;
++    if (ORTE_SUCCESS != (rc = opal_dss.unpack(data, &jobdat->npersocket, &cnt, OPAL_INT32))) {
++        ORTE_ERROR_LOG(rc);
++        goto REPORT_ERROR;
++    }
+     /* unpack the cpus/rank for the job */
+     cnt=1;
+     if (ORTE_SUCCESS != (rc = opal_dss.unpack(data, &jobdat->cpus_per_rank, &cnt, OPAL_INT16))) {
+diff -r ce3749a94a9e orte/mca/odls/default/odls_default_module.c
+--- a/orte/mca/odls/default/odls_default_module.c	Fri Nov 04 13:31:18 2011 +0100
++++ b/orte/mca/odls/default/odls_default_module.c	Fri Nov 04 13:55:00 2011 +0100
+@@ -383,7 +383,7 @@ static int odls_default_fork_local_proc(
+                 OPAL_PAFFINITY_CPU_ZERO(mask);
+                 if (ORTE_MAPPING_NPERXXX & jobdat->policy) {
+                     /* we need to balance the children from this job across the available sockets */
+-                    npersocket = jobdat->num_local_procs / orte_odls_globals.num_sockets;
++                    npersocket = jobdat->npersocket;
+                     /* determine the socket to use based on those available */
+                     if (npersocket < 2) {
+                         /* if we only have 1/sock, or we have less procs than sockets,
+@@ -578,7 +578,7 @@ static int odls_default_fork_local_proc(
+                 }
+                 if (ORTE_MAPPING_NPERXXX & jobdat->policy) {
+                     /* we need to balance the children from this job across the available sockets */
+-                    npersocket = jobdat->num_local_procs / orte_odls_globals.num_sockets;
++                    npersocket = jobdat->npersocket;
+                     /* determine the socket to use based on those available */
+                     if (npersocket < 2) {
+                         /* if we only have 1/sock, or we have less procs than sockets,
+diff -r ce3749a94a9e orte/mca/odls/odls_types.h
+--- a/orte/mca/odls/odls_types.h	Fri Nov 04 13:31:18 2011 +0100
++++ b/orte/mca/odls/odls_types.h	Fri Nov 04 13:55:00 2011 +0100
+@@ -116,6 +116,7 @@ typedef struct orte_odls_job_t {
+     orte_app_context_t      **apps;                 /* app_contexts for this job */
+     int32_t                 num_apps;               /* number of app_contexts */
+     orte_mapping_policy_t   policy;                 /* mapping policy */
++    int32_t                 npersocket;             /* number of ranks/socket */
+     int16_t                 cpus_per_rank;          /* number of cpus/rank */
+     int16_t                 stride;                 /* step size between cores of multi-core/rank procs */
+     orte_job_controls_t     controls;               /* control flags for job */

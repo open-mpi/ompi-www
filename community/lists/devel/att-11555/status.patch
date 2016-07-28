@@ -1,0 +1,418 @@
+Index: ompi/request/request.c
+===================================================================
+--- ompi/request/request.c	(revision 27388)
++++ ompi/request/request.c	(working copy)
+@@ -13,6 +13,7 @@
+  * Copyright (c) 2006-2012 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2009      Sun Microsystems, Inc.  All rights reserved.
+  * Copyright (c) 2012      Oak Ridge National Labs.  All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -111,7 +112,7 @@
+         return OMPI_ERROR;
+     }
+     ompi_request_null.request.req_type = OMPI_REQUEST_NULL;
+-    ompi_request_null.request.req_status.MPI_SOURCE = MPI_PROC_NULL;
++    ompi_request_null.request.req_status.MPI_SOURCE = MPI_ANY_SOURCE;
+     ompi_request_null.request.req_status.MPI_TAG = MPI_ANY_TAG;
+     ompi_request_null.request.req_status.MPI_ERROR = MPI_SUCCESS;
+     ompi_request_null.request.req_status._ucount = 0;
+Index: ompi/request/req_wait.c
+===================================================================
+--- ompi/request/req_wait.c	(revision 27388)
++++ ompi/request/req_wait.c	(working copy)
+@@ -12,6 +12,7 @@
+  * Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2010      Oracle and/or its affiliates.  All rights reserved.
+  * Copyright (c) 2012      Oak Ridge National Labs.  All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -46,7 +47,7 @@
+ #endif
+         
+     /* return status.  If it's a generalized request, we *have* to
+-       invoke the query_fn, even if the user procided STATUS_IGNORE.
++       invoke the query_fn, even if the user provided STATUS_IGNORE.
+        MPI-2:8.2. */
+     if (OMPI_REQUEST_GEN == req->req_type) {
+         ompi_grequest_invoke_query(req, &req->req_status);
+@@ -60,11 +61,15 @@
+         status->_cancelled = req->req_status._cancelled;
+     }
+     if( req->req_persistent ) {
++        int error = req->req_status.MPI_ERROR;
+         if( req->req_state == OMPI_REQUEST_INACTIVE ) {
+             return OMPI_SUCCESS;
+         }
+         req->req_state = OMPI_REQUEST_INACTIVE;
+-        return req->req_status.MPI_ERROR;
++        /* Next time MPI_Wait* or MPI_Test* is called, we must return
++           empty status. */
++        OMPI_STATUS_SET(&req->req_status, &ompi_status_empty);
++        return error;
+     }
+ 
+     /* If there was an error, don't free the request -- just return
+@@ -188,6 +193,9 @@
+         rc = request->req_status.MPI_ERROR;
+         if( request->req_persistent ) {
+             request->req_state = OMPI_REQUEST_INACTIVE;
++            /* Next time MPI_Wait* or MPI_Test* is called, we must return
++               empty status. */
++            OMPI_STATUS_SET(&request->req_status, &ompi_status_empty);
+         } else if (MPI_SUCCESS == rc) {
+             /* Only free the request if there is no error on it */
+             /* If there's an error while freeing the request,
+@@ -254,7 +262,7 @@
+         /*
+          * confirm the status of the pending requests. We have to do it before
+          * taking the condition or otherwise we can miss some requests completion (the
+-         * one that happpens between our initial test and the aquisition of the lock).
++         * one that happens between our initial test and the acquisition of the lock).
+          */
+         rptr = requests;
+         for( completed = i = 0; i < count; i++ ) {
+@@ -360,6 +368,9 @@
+ 
+             if( request->req_persistent ) {
+                 request->req_state = OMPI_REQUEST_INACTIVE;
++                /* Next time MPI_Wait* or MPI_Test* is called, we must return
++                   empty status. */
++                OMPI_STATUS_SET(&request->req_status, &ompi_status_empty);
+             } else {
+                 /* Only free the request if there is no error on it */
+                 if (MPI_SUCCESS == request->req_status.MPI_ERROR) {
+@@ -409,6 +420,9 @@
+             }
+             if( request->req_persistent ) {
+                 request->req_state = OMPI_REQUEST_INACTIVE;
++                /* Next time MPI_Wait* or MPI_Test* is called, we must return
++                   empty status. */
++                OMPI_STATUS_SET(&request->req_status, &ompi_status_empty);
+             } else if (MPI_SUCCESS == rc) {
+                 /* Only free the request if there is no error on it */
+                 int tmp = ompi_request_free(rptr);
+@@ -566,6 +580,9 @@
+ 
+             if( request->req_persistent ) {
+                 request->req_state = OMPI_REQUEST_INACTIVE;
++                /* Next time MPI_Wait* or MPI_Test* is called, we must return
++                   empty status. */
++                OMPI_STATUS_SET(&request->req_status, &ompi_status_empty);
+             } else {
+                 /* Only free the request if there was no error */
+                 if (MPI_SUCCESS == request->req_status.MPI_ERROR) {
+Index: ompi/request/req_test.c
+===================================================================
+--- ompi/request/req_test.c	(revision 27388)
++++ ompi/request/req_test.c	(working copy)
+@@ -12,6 +12,7 @@
+  * Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2010      Oracle and/or its affiliates.  All rights reserved.
+  * Copyright (c) 2012      Oak Ridge National Labs.  All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -68,8 +69,12 @@
+             status->MPI_ERROR = old_error;
+         }
+         if( request->req_persistent ) {
++            int error = request->req_status.MPI_ERROR;
+             request->req_state = OMPI_REQUEST_INACTIVE;
+-            return request->req_status.MPI_ERROR;
++            /* Next time MPI_Wait* or MPI_Test* is called, we must return
++               empty status. */
++            OMPI_STATUS_SET(&request->req_status, &ompi_status_empty);
++            return error;
+         }
+         /* If there was an error, don't free the request -- just
+            return the single error. */
+@@ -145,8 +150,12 @@
+             }
+ 
+             if( request->req_persistent ) {
++                int error = request->req_status.MPI_ERROR;
+                 request->req_state = OMPI_REQUEST_INACTIVE;
+-                return OMPI_SUCCESS;
++                /* Next time MPI_Wait* or MPI_Test* is called, we must return
++                   empty status. */
++                OMPI_STATUS_SET(&request->req_status, &ompi_status_empty);
++                return error;
+             }
+             /* If there is an error on the request, don't free it */
+             if (MPI_SUCCESS != request->req_status.MPI_ERROR) {
+@@ -231,6 +240,9 @@
+             OMPI_STATUS_SET(&statuses[i], &request->req_status);
+             if( request->req_persistent ) {
+                 request->req_state = OMPI_REQUEST_INACTIVE;
++                /* Next time MPI_Wait* or MPI_Test* is called, we must return
++                   empty status. */
++                OMPI_STATUS_SET(&request->req_status, &ompi_status_empty);
+                 continue;
+             }
+             /* MPI-2:4.5.1 says that we can return MPI_ERR_IN_STATUS
+@@ -260,6 +272,9 @@
+             }
+             if( request->req_persistent ) {
+                 request->req_state = OMPI_REQUEST_INACTIVE;
++                /* Next time MPI_Wait* or MPI_Test* is called, we must return
++                   empty status. */
++                OMPI_STATUS_SET(&request->req_status, &ompi_status_empty);
+                 continue;
+             }
+             /* Only free the request if there was no error */
+@@ -338,6 +353,9 @@
+ 
+         if( request->req_persistent ) {
+             request->req_state = OMPI_REQUEST_INACTIVE;
++            /* Next time MPI_Wait* or MPI_Test* is called, we must return
++               empty status. */
++            OMPI_STATUS_SET(&request->req_status, &ompi_status_empty);
+         } else {
+             /* Only free the request if there was no error */
+             if (MPI_SUCCESS == request->req_status.MPI_ERROR) {
+Index: ompi/mpi/c/wait.c
+===================================================================
+--- ompi/mpi/c/wait.c	(revision 27388)
++++ ompi/mpi/c/wait.c	(working copy)
+@@ -10,6 +10,7 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2006      Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -54,7 +55,7 @@
+ 
+     if (MPI_REQUEST_NULL == *request) {
+         if (MPI_STATUS_IGNORE != status) {
+-            *status = ompi_request_empty.req_status;
++            OMPI_STATUS_SET(status, &ompi_status_empty);
+             /*
+              * Per MPI-1, the MPI_ERROR field is not defined for single-completion calls
+              */
+Index: ompi/mpi/c/waitany.c
+===================================================================
+--- ompi/mpi/c/waitany.c	(revision 27388)
++++ ompi/mpi/c/waitany.c	(working copy)
+@@ -13,6 +13,7 @@
+  * Copyright (c) 2012      Oracle and/or its affiliates.  All rights reserved.
+  * Copyright (c) 2012      Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -71,7 +72,7 @@
+ 
+     if (OPAL_UNLIKELY(0 == count)) {
+         *indx = MPI_UNDEFINED;
+-        *status = ompi_status_empty;
++        OMPI_STATUS_SET(status, &ompi_status_empty);
+         return MPI_SUCCESS;
+     }
+ 
+Index: ompi/mpi/c/testany.c
+===================================================================
+--- ompi/mpi/c/testany.c	(revision 27388)
++++ ompi/mpi/c/testany.c	(working copy)
+@@ -13,6 +13,7 @@
+  * Copyright (c) 2012      Oracle and/or its affiliates.  All rights reserved.
+  * Copyright (c) 2012      Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -72,7 +73,7 @@
+     if (OPAL_UNLIKELY(0 == count)) {
+         *completed = true;
+         *indx = MPI_UNDEFINED;
+-        *status = ompi_status_empty;
++        OMPI_STATUS_SET(status, &ompi_status_empty);
+         return MPI_SUCCESS;
+     }
+ 
+Index: ompi/mpi/c/probe.c
+===================================================================
+--- ompi/mpi/c/probe.c	(revision 27388)
++++ ompi/mpi/c/probe.c	(working copy)
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -62,7 +63,7 @@
+ 
+     if (MPI_PROC_NULL == source) {
+         if (MPI_STATUS_IGNORE != status) {
+-            *status = ompi_request_empty.req_status;
++            OMPI_STATUS_SET(status, &ompi_request_empty.req_status);
+             /*
+              * Per MPI-1, the MPI_ERROR field is not defined for single-completion calls
+              */
+Index: ompi/mpi/c/iprobe.c
+===================================================================
+--- ompi/mpi/c/iprobe.c	(revision 27388)
++++ ompi/mpi/c/iprobe.c	(working copy)
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -62,7 +63,7 @@
+ 
+     if (MPI_PROC_NULL == source) {
+         if (MPI_STATUS_IGNORE != status) {
+-            *status = ompi_request_empty.req_status;
++            OMPI_STATUS_SET(status, &ompi_request_empty.req_status);
+             /*
+              * Per MPI-1, the MPI_ERROR field is not defined for single-completion calls
+              */
+Index: ompi/mpi/c/mprobe.c
+===================================================================
+--- ompi/mpi/c/mprobe.c	(revision 27388)
++++ ompi/mpi/c/mprobe.c	(working copy)
+@@ -2,6 +2,7 @@
+  * Copyright (c) 2011      Sandia National Laboratories. All rights reserved.
+  * Copyright (c) 2012 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2012      Oracle and/or its affiliates.  All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -57,7 +58,7 @@
+ 
+     if (MPI_PROC_NULL == source) {
+         if (MPI_STATUS_IGNORE != status) {
+-            *status = ompi_request_empty.req_status;
++            OMPI_STATUS_SET(status, &ompi_request_empty.req_status);
+             /* Per MPI-1, the MPI_ERROR field is not defined for
+                single-completion calls */
+             MEMCHECKER(
+Index: ompi/mpi/c/improbe.c
+===================================================================
+--- ompi/mpi/c/improbe.c	(revision 27388)
++++ ompi/mpi/c/improbe.c	(working copy)
+@@ -2,6 +2,7 @@
+  * Copyright (c) 2011      Sandia National Laboratories. All rights reserved.
+  * Copyright (c) 2012 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2012      Oracle and/or its affiliates.  All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -57,7 +58,7 @@
+ 
+     if (MPI_PROC_NULL == source) {
+         if (MPI_STATUS_IGNORE != status) {
+-            *status = ompi_request_empty.req_status;
++            OMPI_STATUS_SET(status, &ompi_request_empty.req_status);
+             /* Per MPI-1, the MPI_ERROR field is not defined for
+                single-completion calls */
+             MEMCHECKER(
+Index: ompi/mpi/c/request_get_status.c
+===================================================================
+--- ompi/mpi/c/request_get_status.c	(revision 27388)
++++ ompi/mpi/c/request_get_status.c	(working copy)
+@@ -10,6 +10,7 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2006-2010 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -71,7 +72,7 @@
+     if( (request == MPI_REQUEST_NULL) || (request->req_state == OMPI_REQUEST_INACTIVE) ) {
+         *flag = true;
+         if( MPI_STATUS_IGNORE != status ) {
+-            *status = ompi_status_empty;
++            OMPI_STATUS_SET(status, &ompi_status_empty);
+         }
+         return MPI_SUCCESS;
+     }
+@@ -84,7 +85,7 @@
+             ompi_grequest_invoke_query(request, &request->req_status);
+         }
+         if (MPI_STATUS_IGNORE != status) {
+-            *status = request->req_status;
++            OMPI_STATUS_SET(status, &request->req_status);
+         }
+         return MPI_SUCCESS;
+     }
+Index: ompi/mpi/c/recv.c
+===================================================================
+--- ompi/mpi/c/recv.c	(revision 27388)
++++ ompi/mpi/c/recv.c	(working copy)
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -68,7 +69,7 @@
+ 
+     if (MPI_PROC_NULL == source) {
+         if (MPI_STATUS_IGNORE != status) {
+-            *status = ompi_request_empty.req_status;
++            OMPI_STATUS_SET(status, &ompi_request_empty.req_status);
+         }
+         return MPI_SUCCESS;
+     }
+Index: ompi/mpi/c/mrecv.c
+===================================================================
+--- ompi/mpi/c/mrecv.c	(revision 27388)
++++ ompi/mpi/c/mrecv.c	(working copy)
+@@ -1,6 +1,7 @@
+ /*
+  * Copyright (c) 2011      Sandia National Laboratories. All rights reserved.
+  * Copyright (c) 2012 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -59,7 +60,7 @@
+     }
+ 
+     if (&ompi_message_no_proc.message == *message) {
+-        *status = ompi_request_empty.req_status;
++        OMPI_STATUS_SET(status, &ompi_request_empty.req_status);
+         *message = MPI_MESSAGE_NULL;
+         return MPI_SUCCESS;
+      }
+Index: ompi/mpi/c/sendrecv.c
+===================================================================
+--- ompi/mpi/c/sendrecv.c	(revision 27388)
++++ ompi/mpi/c/sendrecv.c	(working copy)
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -90,7 +91,7 @@
+         rc = ompi_request_wait(&req, status);
+     } else {
+         if (MPI_STATUS_IGNORE != status) {
+-            *status = ompi_request_empty.req_status;
++            OMPI_STATUS_SET(status, &ompi_request_empty.req_status);
+         }
+         rc = MPI_SUCCESS;
+     }

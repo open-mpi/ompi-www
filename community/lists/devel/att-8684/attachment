@@ -1,0 +1,218 @@
+<br><br><div class="gmail_quote">On Tue, Nov 16, 2010 at 1:23 AM, Sylvain Jeaugey <span dir="ltr">&lt;<a href="mailto:sylvain.jeaugey@bull.net">sylvain.jeaugey@bull.net</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div class="im">On Mon, 15 Nov 2010, Ralph Castain wrote:<br>
+<br>
+</div><div class="im"><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Guess I am a little confused. Every MPI process already has full knowledge<br>
+of what node all other processes are located on - this has been true for<br>
+quite a long time.<br>
+</blockquote></div>
+Ok, I didn&#39;t see that.</blockquote><div><br></div><div><br></div><div>It&#39;s in the ess. There are two relevant API&#39;s there:</div><div><br></div><div>1. proc_get_locality tells you the relative locality of the specified proc. It returns a bit mask that you can test with the defined values in opal/mca/paffinity/paffinity.h - e.g., OPAL_PROC_ON_SOCKET.</div>
+<div><br></div><div>2. proc_get_nodename returns the name of the node where that proc is located.</div><div><br></div><div>Both of these APIs are called by various parts of OMPI - e.g., to initialize the OMPI proc structs and setup shared memory.</div>
+<div><br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div class="im"><br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Once my work is complete, mpirun will have full knowledge of each node&#39;s<br>
+hardware resources. Terry will then use that in mpirun&#39;s mappers. The<br>
+resulting launch message will contain a full mapping of procs to cores -<br>
+i.e., every daemon will know the core placement of every process in the job.<br>
+That info will be passed down to each MPI proc. Thus, upon launch, every MPI<br>
+process will know not only the node for each process, but also the hardware<br>
+resources of that node, and the bindings of every process in the job to that<br>
+hardware.<br>
+</blockquote></div>
+Allright.<br>
+<br>
+Some things bug me however :<br>
+ 1. What if the placement has been done by a wrapper script or by the resource manager ? I.e. how do you know where MPI procs are located ? </blockquote><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+
+ 2. How scalable is it ? I would think there an allgather with 1 process per node ; am I right ?<br>
+ 3. How is that information represented ? As a graph ?</blockquote><div><br></div><div>There are two scenarios to consider. When we launch by daemons, each daemon already uses a collective operation to send back the local node topology info - all we are doing is adding some deeper levels to the existing operation as hwloc provides more info than our current sysinfo framework components. We are then changing the ordering of the operations during launch - in this mode (i.e., mapping based on topology), we launch daemons on all nodes in the allocation, and then do the mapping. So once the daemon collective returns the topology info, we map the procs, construct the launch msg, and then use the grpcomm collective operation to send that msg to all daemons. All we are doing is adding the topology and detailed mapping (bindings, in particular) to that launch msg.</div>
+<div><br></div><div>When we launch directly (e.g., launching the apps by srun instead of using mpirun), the apps use the hierarchical grpcomm during orte_init to perform their initial modex. This is a collective operation that uses the same basic algos currently included in the MPI collective layer (i.e., all local ranks &gt; 0 send to the local_rank=0 proc, that proc engages in a collective with all other local_rank=0 procs, and then distributes the results locally). As part of the exchanged info, we already includes the nodename. My intent was to (a) have the local_rank=0 procs do the local node topology discovery and include that info in the modex, and (b) have each proc include its affinity mask in the info. So at the end of modex, everyone has the full info.</div>
+<div><br></div><div>Bottom line here is that we are not adding any communications to the existing system. We are simply adding the topology info to the existing startup mechanisms. Thus, we can accomplish the exchange of topology info within the current communications.</div>
+<div><br></div><div>The data is currently represented in a simple array. You call the orte ess APIs to extract it, as per above. If it was helpful, we can always construct a graph or some other representation from the data.</div>
+<div><br></div><div><br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div class="im"><br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+So the only thing missing is the switch topology of the cluster (the<br>
+inter-node topology). We modified carto a while back to support input of<br>
+switch topology information, though I&#39;m not sure how many people ever used<br>
+that capability - not much value in it so far. We just set it up so that<br>
+people could describe the topology, and then let carto compute hop distance.<br>
+</blockquote></div>
+Ok. I didn&#39;t know we also had some work on switches in carto.<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+HTH<br>
+</blockquote>
+This helps !<br>
+<br>
+So, I&#39;m now wondering if both work, which would seem similar are really redundant. We though about this before starting hitopo, and since a graph didn&#39;t fit our needs, we started work towards computing an address. Perhaps hitopo addresses could be computed using hwloc&#39;s graph.<br>
+</blockquote><div><br></div><div><br></div><div>It would seem that hitopo duplicates some existing functionality that you may not have realized exists. Some of the new functionality appears redundant, but I personally would be concerned that hitopo introduces additional communications instead of piggybacking on the existing operations such as modex and the launch msg. Some of that may be caused by wanting to include interface info via tapping into the BTLs, which would require doing it from the MPI layer. However, that info could still be shared in the existing modex (thus avoiding additional comm), and may also be obtainable through a combination of hwloc and affinity knowledge.</div>
+<div><br></div><div><br></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<br>
+I understand that for sm optimization, hwloc is richer. The only thing that bugs me is how much time it takes to figure out what capability I have between process A and B. The great thing in hitopo is that a single comparison can give you a property of two processes (e.g. they are on the same socket).<br>
+</blockquote><div><br></div><div>No effort is required. You should be able to do this with a call to orte_ess.proc_get_locality to retrieve the data entry and then test against OPAL_PROC_ON_SOCKET. You can certainly get it right now at the node level, and we could add socket level with little effort (the daemon knows the socket and core info for its own local procs - we just don&#39;t pass it down as nobody cared).  Adding that knowledge for the global job only requires the exchange of locality info in the modex (for direct launch), or having it passed down by the daemon (who will soon know that info as well).</div>
+<div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<br>
+Anyway, I just wanted to present hitopo in case someone would need it. And I think hitopo&#39;s prefered domain remains collectives, where you do not really need distances, but groups which share a certain locality.<br><font color="#888888">
+<br>
+Sylvain</font><div><div></div><div class="h5"><br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+On Mon, Nov 15, 2010 at 9:00 AM, Sylvain Jeaugey<br>
+&lt;<a href="mailto:sylvain.jeaugey@bull.net" target="_blank">sylvain.jeaugey@bull.net</a>&gt;wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I already mentionned it answering Terry&#39;s e-mail, but to be sure I&#39;m clear<br>
+: don&#39;t confuse node full topology with MPI job topology. It _is_ different.<br>
+<br>
+And every process does not get the whole topology in hitopo, only its own,<br>
+which should not cause storms.<br>
+<br>
+<br>
+On Mon, 15 Nov 2010, Ralph Castain wrote:<br>
+<br>
+ I think the two efforts (the paffinity and this one) do overlap somewhat.<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I&#39;ve been writing the local topology discovery code for Jeff, Terry, and<br>
+Josh - uses hwloc (or any other method - it&#39;s a framework) to discover<br>
+what<br>
+hardware resources are available on each node in the job so that the info<br>
+can be used in mapping the procs.<br>
+<br>
+As part of that work, we are passing down to the mpi processes the local<br>
+hardware topology. This is done because of prior complaints when we had<br>
+each<br>
+mpi process discover that info for itself - it creates a bit of a &quot;storm&quot;<br>
+on<br>
+the node of large smp&#39;s.<br>
+<br>
+Note that what I&#39;ve written (still to be completed before coming over)<br>
+doesn&#39;t tell the proc what cores/HT&#39;s it is bound to - that&#39;s the part<br>
+Terry<br>
+et al are adding. Nor were we discovering the switch topology of the<br>
+cluster.<br>
+<br>
+So a little overlap that could be resolved. And a concern on my part: we<br>
+have previously introduced capabilities that had every mpi process read<br>
+local system files to get node topology, and gotten user complaints about<br>
+it. We probably shouldn&#39;t go back to that practice.<br>
+<br>
+Ralph<br>
+<br>
+<br>
+On Mon, Nov 15, 2010 at 8:15 AM, Terry Dontje &lt;<a href="mailto:terry.dontje@oracle.com" target="_blank">terry.dontje@oracle.com</a><br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+wrote:<br>
+</blockquote>
+<br>
+  A few comments:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+1.  Have you guys considered using hwloc for level 4-7 detection?<br>
+2.  Is L2 related to L2 cache?  If no then is there some other term you<br>
+could use?<br>
+3.  What do you see if the process is bound to multiple<br>
+cores/hyperthreads?<br>
+4.  What do you see if the process is not bound to any level 4-7 items?<br>
+5.  What about L1 and L2 cache locality as some levels? (hwloc exposes<br>
+these but these are also at different depths depending on the platform).<br>
+<br>
+Note I am working with Jeff Squyres and Josh Hursey on some new paffinity<br>
+code that uses hwloc.  Though the paffinity code may not have direct<br>
+relationship to hitopo the use of hwloc and standardization of what you<br>
+call<br>
+level 4-7 might help avoid some user confusions.<br>
+<br>
+--td<br>
+<br>
+<br>
+On 11/15/2010 06:56 AM, Sylvain Jeaugey wrote:<br>
+<br>
+As a followup of Stuttgart&#39;s developper&#39;s meeting, here is an RFC for our<br>
+topology detection framework.<br>
+<br>
+WHAT: Add a framework for hardware topology detection to be used by any<br>
+other part of Open MPI to help optimization.<br>
+<br>
+WHY: Collective operations or shared memory algorithms among others may<br>
+have optimizations depending on the hardware relationship between two MPI<br>
+processes. HiTopo is an attempt to provide it in a unified manner.<br>
+<br>
+WHERE: ompi/mca/hitopo/<br>
+<br>
+WHEN: When wanted.<br>
+<br>
+<br>
+==========================================================================<br>
+We developped the HiTopo framework for our collective operation<br>
+component,<br>
+but it may be useful for other parts of Open MPI, so we&#39;d like to<br>
+contribute<br>
+it.<br>
+<br>
+A wiki page has been setup :<br>
+<a href="https://svn.open-mpi.org/trac/ompi/wiki/HiTopo" target="_blank">https://svn.open-mpi.org/trac/ompi/wiki/HiTopo</a><br>
+<br>
+and a bitbucket repository :<br>
+<a href="http://bitbucket.org/jeaugeys/hitopo/" target="_blank">http://bitbucket.org/jeaugeys/hitopo/</a><br>
+<br>
+In a few words, we have 3 steps in HiTopo :<br>
+<br>
+ - Detection : each MPI process detects its topology at various levels :<br>
+   - core/socket : through the cpuid component<br>
+   - node : through gethostname<br>
+   - switch/island : through openib (mad) or slurm<br>
+     [ Other topology detection components may be added for other<br>
+       resource managers, specific hardware or whatever we want ...]<br>
+<br>
+ - Collection : an allgather is performed to have all other processes&#39;<br>
+addresses<br>
+<br>
+ - Renumbering : &quot;string&quot; addresses are converted to numbers starting at<br>
+0<br>
+(Example : nodenames &quot;foo&quot; and &quot;bar&quot; are renamed 0 and 1).<br>
+<br>
+Any comment welcome,<br>
+Sylvain<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+<br>
+--<br>
+[image: Oracle]<br>
+Terry D. Dontje | Principal Software Engineer<br>
+Developer Tools Engineering | +1.781.442.2631<br>
+ Oracle * - Performance Technologies*<br>
+ 95 Network Drive, Burlington, MA 01803<br>
+Email <a href="mailto:terry.dontje@oracle.com" target="_blank">terry.dontje@oracle.com</a><br>
+<br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+</blockquote>
+ _______________________________________________<br>
+</blockquote>
+<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+</blockquote>
+<br>
+</blockquote>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br>
+

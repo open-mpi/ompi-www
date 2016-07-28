@@ -1,0 +1,164 @@
+Thanks for the reply. <br><br>When I modify the code it still fails with segmentation error. <br><br>my latest code looks like <br><br>        <br>    #include &quot;mpi.h&quot;
+<br>    #include &lt;stdio.h&gt;<br>    #include &lt;stdlib.h&gt;<br>    #include &lt;string.h&gt;<br>    #include &lt;time.h&gt;<br>    #include &lt;sys/time.h&gt;<br>    #include &lt;sys/resource.h&gt;
+<br><br>    #define  MASTER        0<br>    #define ARRAYSIZE 40000000
+<br> <br>    <br><br>    int *masterarray,*onearray,*twoarray,*threearray,*fourarray,*fivearray,*sixarray,*sevenarray,*eightarray,*ninearray;      
+<br> <br> <br>   int main(int argc, char* argv[])<br>    {
+<br>      int   numtasks, taskid,chunksize, namelen; 
+<br>      int mysum,one,two,three,four,five,six,seven,eight,nine;
+<br><br>      char myname[MPI_MAX_PROCESSOR_NAME];
+<br>      MPI_Status status;<br>      int a,b,c,d,e,f,g,h,i,j;<br><br><br> <br>    /***** Initializations *****/
+<br>    MPI_Init(&amp;argc, &amp;argv);
+<br>    MPI_Comm_size(MPI_COMM_WORLD, &amp;numtasks);
+<br>    MPI_Comm_rank(MPI_COMM_WORLD,&amp;taskid); <br>    MPI_Get_processor_name(myname, &amp;namelen);
+<br>    printf (&quot;MPI task %d has started on host %s...\n&quot;, taskid, myname);
+<br>  <br><br><br>    masterarray= malloc(ARRAYSIZE * sizeof(int));<br>    onearray= malloc(ARRAYSIZE * sizeof(int));<br>    twoarray= malloc(ARRAYSIZE * sizeof(int));<br>    threearray= malloc(ARRAYSIZE * sizeof(int));<br>
+    fourarray= malloc(ARRAYSIZE * sizeof(int));<br>    fivearray= malloc(ARRAYSIZE * sizeof(int));<br>    sixarray= malloc(ARRAYSIZE * sizeof(int));<br>    sevenarray= malloc(ARRAYSIZE * sizeof(int));<br>    eightarray= malloc(ARRAYSIZE * sizeof(int));<br>
+    ninearray= malloc(ARRAYSIZE * sizeof(int));<br><br>    <br> <br>    /***** Master task only ******/
+<br>    if (taskid == MASTER){<br>           for(a=0; a &lt; ARRAYSIZE; a++){<br>                 masterarray[a] = 1;<br>              <br>            }<br>       mysum = run_kernel0(masterarray,ARRAYSIZE,taskid, myname);<br>
+ <br>     }  /* end of master section */
+<br> <br> <br>      if (taskid &gt; MASTER) {<br><br>        <br>             if(taskid == 1){<br>                for(b=0;b&lt;ARRAYSIZE;b++){<br>                onearray[b] = 1;<br>            }<br>                 one = run_kernel0(onearray,ARRAYSIZE,taskid, myname);<br>
+             }<br>             if(taskid == 2){<br>                for(c=0;c&lt;ARRAYSIZE;c++){<br>                 twoarray[c] = 1;<br>            }<br>                 two = run_kernel0(twoarray,ARRAYSIZE,taskid, myname);<br>
+             }<br>             if(taskid == 3){<br>                 for(d=0;d&lt;ARRAYSIZE;d++){<br>                 threearray[d] = 1;<br>                  }<br>                  three = run_kernel0(threearray,ARRAYSIZE,taskid, myname);<br>
+             }<br>         if(taskid == 4){<br>                   for(e=0;e &lt; ARRAYSIZE; e++){<br>                      fourarray[e] = 1;<br>                  }<br>                 four = run_kernel0(fourarray,ARRAYSIZE,taskid, myname);<br>
+             }<br>             if(taskid == 5){<br>                for(f=0;f&lt;ARRAYSIZE;f++){<br>                  fivearray[f] = 1;<br>                  }<br>                five = run_kernel0(fivearray,ARRAYSIZE,taskid, myname);<br>
+             }<br>             if(taskid == 6){<br>                  <br>                for(g=0;g&lt;ARRAYSIZE;g++){<br>                 sixarray[g] = 1;<br>                }<br>                 six = run_kernel0(sixarray,ARRAYSIZE,taskid, myname);<br>
+             }    <br>             if(taskid == 7){<br>                    for(h=0;h&lt;ARRAYSIZE;h++){<br>                    sevenarray[h] = 1;<br>                  }<br>                   seven = run_kernel0(sevenarray,ARRAYSIZE,taskid, myname);<br>
+             }    <br>             if(taskid == 8){<br><br>                  for(i=0;i&lt;ARRAYSIZE;i++){<br>                  eightarray[i] = 1;<br>                }<br>                   eight = run_kernel0(eightarray,ARRAYSIZE,taskid, myname);<br>
+             }    <br>             if(taskid == 9){<br><br>                   for(j=0;j&lt;ARRAYSIZE;j++){<br>                 ninearray[j] = 1;<br>                   }<br>                   nine = run_kernel0(ninearray,ARRAYSIZE,taskid, myname);<br>
+             }    <br>       }
+<br>     MPI_Finalize();
+<br> <br>    }   
+<br> <br>and my kernel code is <br><br>     #include &lt;stdio.h&gt;<br>    #include &lt;cutil_inline.h&gt;<br>    #include &lt;cutil.h&gt;
+<br> <br>    #include &lt;thrust/version.h&gt;
+<br>    #include &lt;thrust/generate.h&gt;
+<br>    #include &lt;thrust/host_vector.h&gt;
+<br>    #include &lt;thrust/device_vector.h&gt;
+<br>    #include &lt;thrust/functional.h&gt;
+<br>    #include &lt;thrust/transform_reduce.h&gt;<br>    #include &lt;time.h&gt;<br>    #include &lt;sys/time.h&gt;<br>    #include &lt;sys/resource.h&gt;<br>#define BLOCK_NUM    8
+<br>#define THREAD_NUM    256<br><br><br>__global__ static void sumOfSquares(int * num, int * result,int DATA_SIZE)
+<br>{
+<br>    extern __shared__ int shared[];
+<br>    const int tid = threadIdx.x;
+<br>    const int bid = blockIdx.x;<br> <br> <br>    shared[tid] = 0;
+<br>    for (int i = bid * THREAD_NUM + tid; i &lt; DATA_SIZE; i += BLOCK_NUM * THREAD_NUM) {
+<br>        shared[tid] += num[i];
+<br>    }
+<br> <br>    __syncthreads();
+<br>    int offset = THREAD_NUM / 2;
+<br>    while (offset &gt; 0) {
+<br>        if (tid &lt; offset) {
+<br>            shared[tid] += shared[tid + offset];
+<br>        }
+<br>        offset &gt;&gt;= 1;
+<br>        __syncthreads();
+<br>    }
+<br> <br>    if (tid == 0) {
+<br>       result[bid] = shared[0];
+<br>         <br>    }
+<br>}<br><br><br><br>    extern &quot;C&quot;<br>    int run_kernel0( int array[], int nelements, int taskid, char hostname[])<br>    {<br>        <br><br>      <br>      <br>     int * gpudata, i;<br>     int * result;
+<br>     clock_t * time;<br>     cudaEvent_t start, stop;<br>     cudaEventCreate(&amp;start);<br>     cudaEventCreate(&amp;stop);<br>     cudaEventRecord(start, 0);<br> <br>      cudaMalloc((void **) &amp;gpudata, sizeof(int) * nelements);
+<br>      cudaMalloc((void **) &amp;result, sizeof(int) * THREAD_NUM * BLOCK_NUM);
+   
+<br>      cudaMemcpy(gpudata, array, sizeof(int) * nelements, cudaMemcpyHostToDevice);<br>      printf(&quot;\n MPI Task %d is executing Kernel function........&quot;, taskid);
+<br>       int sum[BLOCK_NUM];<br>    
+<br>     sumOfSquares&lt;&lt;&lt;BLOCK_NUM, THREAD_NUM, THREAD_NUM * sizeof(int)&gt;&gt;&gt;(gpudata, result,nelements);<br>   
+<br>      cudaMemcpy(&amp;sum, result, sizeof(int) * BLOCK_NUM, cudaMemcpyDeviceToHost);
+<br>       //calculate sum of each block.
+<br>      int final_sum = 0;
+<br>    for (i = 0; i &lt; BLOCK_NUM; i++) {
+<br>        final_sum += sum[i];
+<br>      }<br><br>      cudaEventRecord(stop, 0);<br>      cudaEventSynchronize(stop);<br>      float elapsedTime;<br>      cudaEventElapsedTime(&amp;elapsedTime, start, stop);<br>      cudaEventDestroy(start);<br>      cudaEventDestroy(stop);
+<br>      cudaFree(gpudata);
+<br>      cudaFree(result);<br>      <br>          
+<br>   
+<br>     printf(&quot; Task %d has sum (on GPU): %ld Time for the kernel: %f ms \n&quot;, taskid, final_sum, elapsedTime);    <br>           return final_sum;<br>}<br><br>Error trace - <br><br>MPI task 0 has started on host <br>
+MPI task 1 has started on host<br>MPI task 2 has started on host <br>MPI task 3 has started on host <br>MPI task 4 has started on host <br>MPI task 6 has started on host <br>MPI task 7 has started on host <br>MPI task 8 has started on host <br>
+MPI task 9 has started on host <br>MPI task 5 has started on host <br><br> MPI Task 1 is executing Kernel function........ Task 1 has sum (on GPU): 40000000 Time for the kernel: 120.534050 ms <br><br> MPI Task 0 is executing Kernel function........ Task 0 has sum (on GPU): 40000000 Time for the kernel: 137.301315 ms <br>
+<br><br> MPI Task 4 is executing Kernel function........ Task 4 has sum (on GPU): 348456223 Time for the kernel: 0.000000 ms <br> MPI Task 7 is executing Kernel function........ Task 7 has sum (on GPU): 353682719 Time for the kernel: 0.000000 ms <br>
+<br> MPI Task 3 is executing Kernel function........ Task 3 has sum (on GPU): 40000000 Time for the kernel: 4172.341309 ms <br><br> MPI Task 2 is executing Kernel function........ Task 2 has sum (on GPU): 40000000 Time for the kernel: 4204.969727 ms <br>
+ *** Process received signal ***<br> Signal: Segmentation fault (11)<br>Signal code: Address not mapped (1)<br> Failing at address: (nil)<br>[ 0] [0xd1340c]<br> [ 1] /usr/lib/libcuda.so(+0x163e12) [0x1092e12]<br> [ 2] /usr/lib/libcuda.so(+0x115749) [0x1044749]<br>
+] [ 3] /usr/lib/libcuda.so(cuEventRecord+0x5c) [0x103578c]<br> [ 4] /usr/local/cuda/lib/libcudart.so.4(+0x2480f) [0x7fd80f]<br> [ 5] /usr/local/cuda/lib/libcudart.so.4(cudaEventRecord+0x22f) [0x838b8f]<br> [ 6] mpi_array_distributed(run_kernel0+0x32) [0x804a2b2]<br>
+ [ 7] mpi_array_distributed(main+0x3ee) [0x804a0a2]<br>[ 8] /lib/libc.so.6(__libc_start_main+0xe6) [0x2fece6]<br> [ 9] mpi_array_distributed() [0x8049c21]<br>*** End of error message ***<br>--------------------------------------------------------------------------<br>
+mpirun noticed that process rank 5 with PID 6559 on node  exited on signal 11 (Segmentation fault).<br><br> Not sure why it is failing. Each task initializes its own data and then calls the kernel. <br><br>Any help would be appreciated <br>
+<br>Thanks<br><br><br><div class="gmail_quote">On Wed, May 2, 2012 at 6:00 PM, Eduardo Morras <span dir="ltr">&lt;<a href="mailto:nec556@retena.com" target="_blank">nec556@retena.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+<div class="im">At 08:51 02/05/2012, you wrote:<br>
+<blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+Hi,<br>
+<br>
+I am trying to execute following code on cluster.<br>
+</blockquote>
+<br>
+<blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+run_kernel is a cuda call with signature int run_kernel(int array[],int nelements, int taskid, char hostname[]);<br>
+</blockquote>
+<br></div>
+... deleted code<div class="im"><br>
+<br>
+<blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+mysum = run_kernel(&amp;onearray[20000000]<u></u>, chunksize, taskid, myname);<br>
+</blockquote>
+<br></div>
+... more deleted code<div><div class="h5"><br>
+<br>
+<blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+I am simply trying to calculate sum of array elements using kernel function. Each task has its own data and it calculates its own sum.<br>
+<br>
+I am getting segmentation fault on master task but all other task calculate the sum successfully.<br>
+<br>
+Here is the output<br>
+<br>
+<br>
+MPI task 0 has started on host node4<br>
+MPI task 1 has started on host node4<br>
+MPI task 2 has started on host node5<br>
+MPI task 6 has started on host node6<br>
+MPI task 5 has started on node5<br>
+MPI task 9 has started on host node6<br>
+MPI task 8 has started on host node6<br>
+MPI task 3 has started on node5<br>
+MPI task 4 has started on hnode5<br>
+MPI task 7 has started on node6<br>
+[node4] *** Process received signal ***<br>
+[node4] Signal: Segmentation fault (11)<br>
+[node4] Signal code: Address not mapped (1)<br>
+[node4] Failing at address: 0xb7866000<br>
+[node4] [ 0] [0xbc040c]<br>
+[node4] [ 1] /usr/lib/libcuda.so(+0x13a0f6) [0x10640f6]<br>
+[node4] [ 2] /usr/lib/libcuda.so(+0x146912) [0x1070912]<br>
+[node4] [ 3] /usr/lib/libcuda.so(+0x147231) [0x1071231]<br>
+[node4] [ 4] /usr/lib/libcuda.so(+0x13cb64) [0x1066b64]<br>
+[node4] [ 5] /usr/lib/libcuda.so(+0x11863c) [0x104263c]<br>
+[node4] [ 6] /usr/lib/libcuda.so(+0x11d93b) [0x104793b]<br>
+[node4] [ 7] /usr/lib/libcuda.so(<u></u>cuMemcpyHtoD_v2+0x64) [0x1037264]<br>
+[node4] [ 8] /usr/local/cuda/lib/libcudart.<u></u>so.4(+0x20336) [0x224336]<br>
+[node4] [ 9] /usr/local/cuda/lib/libcudart.<u></u>so.4(cudaMemcpy+0x230) [0x257360]<br>
+[node4] [10] mpi_array_distributed(run_<u></u>kernel+0x9a) [0x804a482]<br>
+[node4] [11] mpi_array_distributed(main+<u></u>0x325) [0x804a139]<br>
+[node4] [12] /lib/libc.so.6(__libc_start_<u></u>main+0xe6) [0x4dece6]<br>
+[node4] [13] mpi_array_distributed() [0x8049d81]<br>
+[node4] *** End of error message ***<br>
+</blockquote>
+<br></div></div>
+It fails doing the cuMemcpyHtoD inside cuda code. Perhaps doing any of this changes can fix your problem:<br>
+<br>
+a) mysum = run_kernel(onearray, chunksize, taskid, myname);<br>
+<br>
+b) mysum = run_kernel(&amp;onearray[20000000-<u></u>1], chunksize, taskid, myname);<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+ ------------------------------<u></u>------------------------------<u></u>--------------<br>
+mpirun noticed that process rank 0 with PID 3054 on node &lt;<a href="http://ecm-c-l-207-004.uniwa.uwa.edu.au" target="_blank">http://ecm-c-l-207-004.uniwa.<u></u>uwa.edu.au</a>&gt;<a href="http://ecm-c-l-207-004.uniwa.uwa.edu.au" target="_blank">ecm-c-l-207-004.<u></u>uniwa.uwa.edu.au</a> exited on signal 11 (Segmentation fault).<div class="im">
+<br>
+------------------------------<u></u>------------------------------<u></u>--------------<br>
+<br>
+Sadly i cant install memory checker such as valgrind on my machine due to some restrictions. I could not spot any error by looking in code.<br>
+<br>
+Can anyone help me ?what is wrong in above code.<br>
+<br>
+Thanks<br>
+</div></blockquote>
+<br>
+<br>
+</blockquote></div><br><br clear="all"><br>-- <br><div><span style="font-size:13px;border-collapse:collapse"><font color="#000099" face="verdana, sans-serif"><br><font>Best Regards,</font></font></span></div><div><span style="font-size:13px;border-collapse:collapse"><font face="verdana, sans-serif"><font color="#000099"><br>
+ROHAN DESHPANDE</font><font>  </font></font></span></div><div><span style="font-size:13px"><br><font color="#666666" face="georgia, serif"><br></font></span></div><br>
+

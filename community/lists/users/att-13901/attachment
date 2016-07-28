@@ -1,0 +1,194 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=UTF-8" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Sorry, I didn't see your prior question glad you found the
+btl_openib_receive_queues parameter.  There is not a faq entry for this
+but I found the following in the openib btl help file that spells out
+the parameters when using Per-peer receive queue (ie receive queue
+setting with "P" as the first argument).<br>
+<br>
+Per-peer receive queues require between 2 and 5 parameters:<br>
+<br>
+ 1. Buffer size in bytes (mandatory)<br>
+ 2. Number of buffers (mandatory)<br>
+ 3. Low buffer count watermark (optional; defaults to (num_buffers / 2))<br>
+ 4. Credit window size (optional; defaults to (low_watermark / 2))<br>
+ 5. Number of buffers reserved for credit messages (optional;<br>
+     defaults to (num_buffers*2-1)/credit_window)<br>
+<br>
+ Example: P,128,256,128,16<br>
+  - 128 byte buffers<br>
+  - 256 buffers to receive incoming MPI messages<br>
+  - When the number of available buffers reaches 128, re-post 128 more<br>
+    buffers to reach a total of 256<br>
+  - If the number of available credits reaches 16, send an explicit<br>
+    credit message to the sender<br>
+  - Defaulting to ((256 * 2) - 1) / 16 = 31; this many buffers are<br>
+    reserved for explicit credit messages<br>
+<br>
+--td<br>
+Allen Barnett wrote:
+<blockquote cite="mid:1280844118.2108.671.camel@localhost.localdomain"
+ type="cite">
+  <pre wrap="">Hi: In response to my own question, by studying the file
+mca-btl-openib-device-params.ini, I discovered that this option in
+OMPI-1.4.2:
+
+-mca btl_openib_receive_queues P,65536,256,192,128
+
+was sufficient to prevent OMPI from trying to create shared receive
+queues and allowed my application to run to completion using the IB
+hardware.
+
+I guess my question now is: What do these numbers mean? Presumably the
+size (or counts?) of buffers to allocate? Are there limits or a way to
+tune these values?
+
+Thanks,
+Allen
+
+On Mon, 2010-08-02 at 12:49 -0400, Allen Barnett wrote:
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">Hi Terry:
+It is indeed the case that the openib BTL has not been initialized. I
+ran with your tcp-disabled MCA option and it aborted in MPI_Init.
+
+The OFED stack is what's included in RHEL4. It appears to be made up of
+the RPMs:
+openib-1.4-1.el4
+opensm-3.2.5-1.el4
+libibverbs-1.1.2-1.el4
+
+How can I determine if srq is supported? Is there an MCA option to
+defeat it? (Our in-house cluster has more recent Mellanox IB hardware
+and is running this same IB stack and ompi 1.4.2 works OK, so I suspect
+srq is supported by the OpenFabrics stack. Perhaps.)
+
+Thanks,
+Allen
+
+On Mon, 2010-08-02 at 06:47 -0400, Terry Dontje wrote:
+    </pre>
+    <blockquote type="cite">
+      <pre wrap="">My guess is from the message below saying "(openib) BTL failed to
+initialize"  that the code is probably running over tcp.  To
+absolutely prove this you can specify to only use the openib, sm and
+self btls to eliminate the tcp btl.  To do that you add the following
+to the mpirun line "-mca btl openib,sm,self".  I believe with that
+specification the code will abort and not run to completion.  
+
+What version of the OFED stack are you using?  I wonder if srq is
+supported on your system or not?
+
+--td
+
+Allen Barnett wrote: 
+      </pre>
+      <blockquote type="cite">
+        <pre wrap="">Hi: A customer is attempting to run our OpenMPI 1.4.2-based application
+on a cluster of machines running RHEL4 with the standard OFED stack. The
+HCAs are identified as:
+
+03:01.0 PCI bridge: Mellanox Technologies MT23108 PCI Bridge (rev a1)
+04:00.0 InfiniBand: Mellanox Technologies MT23108 InfiniHost (rev a1)
+
+ibv_devinfo says that one port on the HCAs is active but the other is
+down:
+
+hca_id:	mthca0
+	fw_ver:				3.0.2
+	node_guid:			0006:6a00:9800:4c78
+	sys_image_guid:			0006:6a00:9800:4c78
+	vendor_id:			0x066a
+	vendor_part_id:			23108
+	hw_ver:				0xA1
+	phys_port_cnt:			2
+		port:	1
+			state:			active (4)
+			max_mtu:		2048 (4)
+			active_mtu:		2048 (4)
+			sm_lid:			1
+			port_lid:		26
+			port_lmc:		0x00
+
+		port:	2
+			state:			down (1)
+			max_mtu:		2048 (4)
+			active_mtu:		512 (2)
+			sm_lid:			0
+			port_lid:		0
+			port_lmc:		0x00
+
+
+ When the OMPI application is run, it prints the error message:
+
+--------------------------------------------------------------------
+The OpenFabrics (openib) BTL failed to initialize while trying to
+create an internal queue.  This typically indicates a failed
+OpenFabrics installation, faulty hardware, or that Open MPI is
+attempting to use a feature that is not supported on your hardware
+(i.e., is a shared receive queue specified in the
+btl_openib_receive_queues MCA parameter with a device that does not
+support it?).  The failure occured here:
+
+  Local host:  machine001.lan
+  OMPI
+source: /software/openmpi-1.4.2/ompi/mca/btl/openib/btl_openib.c:250
+  Function:    ibv_create_srq()
+  Error:       Invalid argument (errno=22)
+  Device:      mthca0
+
+You may need to consult with your system administrator to get this
+problem fixed.
+--------------------------------------------------------------------
+
+The full log of a run with "btl_openib_verbose 1" is attached. My
+application appears to run to completion, but I can't tell if it's just
+running on TCP and not using the IB hardware.
+
+I would appreciate any suggestions on how to proceed to fix this error.
+
+Thanks,
+Allen
+        </pre>
+      </blockquote>
+    </blockquote>
+  </blockquote>
+  <pre wrap=""><!---->
+  </pre>
+</blockquote>
+<br>
+<br>
+<div class="moz-signature">-- <br>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<title></title>
+<img moz-do-not-send="false"
+ src="cid:part1.04020909.01000101@oracle.com" alt="Oracle"><br>
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">Terry D. Dontje | Principal Software Engineer<br>
+<div class="moz-signature"><font color="#666666" face="Verdana" size="2">Developer
+Tools
+Engineering | +1.650.633.7054<br>
+</font>
+<font color="#ff0000" face="Verdana" size="2">Oracle
+</font><font color="#666666" face="Verdana" size="2"><b> - Performance
+Technologies</b></font><br>
+<font color="#666666" face="Verdana" size="2">
+95 Network Drive, Burlington, MA 01803<br>
+Email <a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+</font><br>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
+

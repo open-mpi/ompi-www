@@ -1,0 +1,319 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    Hello Alina,<br>
+    <br>
+    Thank you for the information about how the pml components work. I
+    knew that the other components were being opened and ultimately
+    closed in favor of yalla, but I didn't realize that initial open
+    would cause a persistent change in the ompi runtime.<br>
+    <br>
+    Here's the information you requested about the ib network:<br>
+    <br>
+    - MOFED version:<br>
+    We are using the Open Fabrics Software as bundled by RedHat, and my
+    ib network folks say we're running something close to v1.5.4<br>
+    - ibv_devinfo:<br>
+    [dshrader@mu0001 examples]$ ibv_devinfo <br>
+    hca_id: mlx4_0<br>
+            transport:                      InfiniBand (0)<br>
+            fw_ver:                         2.9.1000<br>
+            node_guid:                      0025:90ff:ff16:78d8<br>
+            sys_image_guid:                 0025:90ff:ff16:78db<br>
+            vendor_id:                      0x02c9<br>
+            vendor_part_id:                 26428<br>
+            hw_ver:                         0xB0<br>
+            board_id:                       SM_2121000001000<br>
+            phys_port_cnt:                  1<br>
+                    port:   1<br>
+                            state:                  PORT_ACTIVE (4)<br>
+                            max_mtu:                4096 (5)<br>
+                            active_mtu:             4096 (5)<br>
+                            sm_lid:                 250<br>
+                            port_lid:               366<br>
+                            port_lmc:               0x00<br>
+                            link_layer:             InfiniBand<br>
+    <br>
+    <br>
+    I still get the seg fault when specifying the hca:<br>
+    <br>
+    $&gt; mpirun -n 1 -mca btl_openib_receive_queues
+    X,4096,1024:X,12288,512:X,65536,512 -mca btl_openib_if_include
+    mlx4_0 ./hello_c.x<br>
+    Hello, world, I am 0 of 1, (Open MPI v1.10.2, package: Open MPI
+    <a class="moz-txt-link-abbreviated" href="mailto:dshrader@mu-fey.lanl.gov">dshrader@mu-fey.lanl.gov</a> Distribution, ident: 1.10.2, repo rev:
+    v1.10.1-145-g799148f, Jan 21, 2016, 135)<br>
+--------------------------------------------------------------------------<br>
+    mpirun noticed that process rank 0 with PID 10045 on node mu0001
+    exited on signal 11 (Segmentation fault).<br>
+--------------------------------------------------------------------------<br>
+    <br>
+    I don't know if this helps, but the first time I tried the command I
+    mistyped the hca name. This got me a warning, but no seg fault:<br>
+    <br>
+    $&gt; mpirun -n 1 -mca btl_openib_receive_queues
+    X,4096,1024:X,12288,512:X,65536,512 -mca btl_openib_if_include ml4_0
+    ./hello_c.x<br>
+--------------------------------------------------------------------------<br>
+    WARNING: One or more nonexistent OpenFabrics devices/ports were<br>
+    specified:<br>
+    <br>
+      Host:                 mu0001<br>
+      MCA parameter:        mca_btl_if_include<br>
+      Nonexistent entities: ml4_0<br>
+    <br>
+    These entities will be ignored.  You can disable this warning by<br>
+    setting the btl_openib_warn_nonexistent_if MCA parameter to 0.<br>
+--------------------------------------------------------------------------<br>
+    Hello, world, I am 0 of 1, (Open MPI v1.10.2, package: Open MPI
+    <a class="moz-txt-link-abbreviated" href="mailto:dshrader@mu-fey.lanl.gov">dshrader@mu-fey.lanl.gov</a> Distribution, ident: 1.10.2, repo rev:
+    v1.10.1-145-g799148f, Jan 21, 2016, 135)<br>
+    <br>
+    So, telling the openib btl to use the actual hca didn't get the seg
+    fault to go away, but giving it a dummy value did.<br>
+    <br>
+    Thanks,<br>
+    David<br>
+    <br>
+    <div class="moz-cite-prefix">On 04/20/2016 08:13 AM, Alina
+      Sklarevich wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CADGp0BS_n4TyYoKCq_P+u7ABg=Bvi2t0QVVvw7=RtYHYxFVEzg@mail.gmail.com"
+      type="cite">
+      <meta http-equiv="Content-Type" content="text/html;
+        charset=windows-1252">
+      <div dir="ltr">Hi David,
+        <div><br>
+        </div>
+        <div>I was able to reproduce the issue you reported. </div>
+        <div><br>
+        </div>
+        <div>When the command line doesn't specify the components to
+          use, ompi will try to load/open all the ones available (and
+          close them in the end) and then choose the components
+          according to their priority and whether or not they were
+          opened successfully.</div>
+        <div>This means that even if pml yalla was the one running,
+          other components were opened and closed as well.</div>
+        <div><br>
+        </div>
+        <div>The parameter you are using - <span
+            style="font-size:12.8px">btl_openib_receive_queues, doesn't
+            have an effect on pml yalla. It only affects the openib btl
+            which is used by pml ob1.</span></div>
+        <div><span style="font-size:12.8px"><br>
+          </span></div>
+        <div><span style="font-size:12.8px">Using the verbosity of
+            btl_base_verbose I see that when the s</span><span
+            style="font-size:12.8px">egmentation fault happens, the code
+            doesn't reach the phase of unloading the openib btl so
+            perhaps the problem originates there (since pml yalla was
+            already unloaded).</span></div>
+        <div><span style="font-size:12.8px"><br>
+          </span></div>
+        <div><span style="font-size:12.8px">Can you please try adding
+            this mca parameter to your command line to specify the HCA
+            you are using?</span></div>
+        <div>-mca btl_openib_if_include &lt;hca&gt;</div>
+        <div>It made the segv go away for me.</div>
+        <div><br>
+        </div>
+        <div>Can you please attach the output of ibv_devinfo and write
+          the MOFED version you are using?</div>
+        <div><br>
+        </div>
+        <div>Thank you,</div>
+        <div>Alina.</div>
+      </div>
+      <div class="gmail_extra"><br>
+        <div class="gmail_quote">On Wed, Apr 20, 2016 at 2:53 PM, Joshua
+          Ladd <span dir="ltr">&lt;<a moz-do-not-send="true"
+              href="mailto:jladd.mlnx@gmail.com" target="_blank">jladd.mlnx@gmail.com</a>&gt;</span>
+          wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0
+            .8ex;border-left:1px #ccc solid;padding-left:1ex">
+            <div dir="ltr">
+              <div>
+                <div>
+                  <div>Hi, David<br>
+                    <br>
+                  </div>
+                  We are looking into your report. <br>
+                  <br>
+                </div>
+                Best,<br>
+                <br>
+              </div>
+              Josh<br>
+            </div>
+            <div class="gmail_extra"><br>
+              <div class="gmail_quote">
+                <div>
+                  <div class="h5">On Tue, Apr 19, 2016 at 4:41 PM, David
+                    Shrader <span dir="ltr">&lt;<a
+                        moz-do-not-send="true"
+                        href="mailto:dshrader@lanl.gov" target="_blank"><a class="moz-txt-link-abbreviated" href="mailto:dshrader@lanl.gov">dshrader@lanl.gov</a></a>&gt;</span>
+                    wrote:<br>
+                  </div>
+                </div>
+                <blockquote class="gmail_quote" style="margin:0 0 0
+                  .8ex;border-left:1px #ccc solid;padding-left:1ex">
+                  <div>
+                    <div class="h5">Hello,<br>
+                      <br>
+                      I have been investigating using XRC on a cluster
+                      with a mellanox interconnect. I have found that in
+                      a certain situation I get a seg fault. I am using
+                      1.10.2 compiled with gcc 5.3.0, and the simplest
+                      configure line that I have found that still
+                      results in the seg fault is as follows:<br>
+                      <br>
+                      $&gt; ./configure --with-hcoll --with-mxm
+                      --prefix=...<br>
+                      <br>
+                      I do have mxm 3.4.3065 and hcoll 3.3.768 installed
+                      in to system space (/usr/lib64). If I use
+                      '--without-hcoll --without-mxm,' the seg fault
+                      does not happen.<br>
+                      <br>
+                      The seg fault happens even when using
+                      examples/hello_c.c, so here is an example of the
+                      seg fault using it:<br>
+                      <br>
+                      $&gt; mpicc hello_c.c -o hello_c.x<br>
+                      $&gt; mpirun -n 1 ./hello_c.x<br>
+                      Hello, world, I am 0 of 1, (Open MPI v1.10.2,
+                      package: Open MPI <a moz-do-not-send="true"
+                        href="mailto:dshrader@mu-fey.lanl.gov"
+                        target="_blank">dshrader@mu-fey.lanl.gov</a>
+                      Distribution, ident: 1.10.2, repo rev:
+                      v1.10.1-145-g799148f, Jan 21, 2016, 135)<br>
+                      $&gt; mpirun -n 1 -mca btl_openib_receive_queues
+                      X,4096,1024:X,12288,512:X,65536,512<br>
+                      Hello, world, I am 0 of 1, (Open MPI v1.10.2,
+                      package: Open MPI <a moz-do-not-send="true"
+                        href="mailto:dshrader@mu-fey.lanl.gov"
+                        target="_blank">dshrader@mu-fey.lanl.gov</a>
+                      Distribution, ident: 1.10.2, repo rev:
+                      v1.10.1-145-g799148f, Jan 21, 2016, 135)<br>
+--------------------------------------------------------------------------<br>
+                      mpirun noticed that process rank 0 with PID 22819
+                      on node mu0001 exited on signal 11 (Segmentation
+                      fault).<br>
+--------------------------------------------------------------------------<br>
+                      <br>
+                      The seg fault happens no matter the number of
+                      ranks. I have tried the above command with '-mca
+                      pml_base_verbose,' and it shows that I am using
+                      the yalla pml:<br>
+                      <br>
+                      $&gt; mpirun -n 1 -mca btl_openib_receive_queues
+                      X,4096,1024:X,12288,512:X,65536,512 -mca
+                      pml_base_verbose 100 ./hello_c.x<br>
+                      ...output snipped...<br>
+                      [mu0001.localdomain:22825] select: component cm
+                      not selected / finalized<br>
+                      [mu0001.localdomain:22825] select: component ob1
+                      not selected / finalized<br>
+                      [mu0001.localdomain:22825] select: component yalla
+                      selected<br>
+                      ...output snipped...<br>
+--------------------------------------------------------------------------<br>
+                      mpirun noticed that process rank 0 with PID 22825
+                      on node mu0001 exited on signal 11 (Segmentation
+                      fault).<br>
+--------------------------------------------------------------------------<br>
+                      <br>
+                      Interestingly enough, if I tell mpirun what pml to
+                      use, the seg fault goes away. The following
+                      command does not get the seg fault:<br>
+                      <br>
+                      $&gt; mpirun -n 1 -mca btl_openib_receive_queues
+                      X,4096,1024:X,12288,512:X,65536,512 -mca pml yalla
+                      ./hello_c.x<br>
+                      <br>
+                      Passing either ob1 or cm to '-mca pml' also works.
+                      So it seems that the seg fault comes about when
+                      the yalla pml is chosen by default, when mxm/hcoll
+                      is involved, and using XRC. I'm not sure if mxm is
+                      to blame, however, as using '-mca pml cm -mca mtl
+                      mxm' with the XRC parameters doesn't throw the seg
+                      fault.<br>
+                      <br>
+                      Other information...<br>
+                      OS: RHEL 6.7-based (TOSS)<br>
+                      OpenFabrics: RedHat provided<br>
+                      Kernel: 2.6.32-573.8.1.2chaos.ch5.4.x86_64<br>
+                      Config.log and 'ompi_info --all' are in the
+                      tarball ompi.tar.bz2 which is attached.<br>
+                      <br>
+                      Is there something else I should be doing with the
+                      yalla pml when using XRC? Regardless, I hope
+                      reporting the seg fault is useful.<br>
+                      <br>
+                      Thanks,<br>
+                      David<span><font color="#888888"><br>
+                          <br>
+                          -- <br>
+                          David Shrader<br>
+                          HPC-ENV High Performance Computer Systems<br>
+                          Los Alamos National Lab<br>
+                          Email: dshrader &lt;at&gt; <a
+                            moz-do-not-send="true"
+                            href="http://lanl.gov" rel="noreferrer"
+                            target="_blank">lanl.gov</a><br>
+                          <br>
+                        </font></span><br>
+                    </div>
+                  </div>
+                  <span class="">_______________________________________________<br>
+                    devel mailing list<br>
+                    <a moz-do-not-send="true"
+                      href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+                    Subscription: <a moz-do-not-send="true"
+                      href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"
+                      rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+                    Link to this post: <a moz-do-not-send="true"
+                      href="http://www.open-mpi.org/community/lists/devel/2016/04/18786.php"
+                      rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18786.php</a><br>
+                  </span></blockquote>
+              </div>
+              <br>
+            </div>
+            <br>
+            _______________________________________________<br>
+            devel mailing list<br>
+            <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+            Subscription: <a moz-do-not-send="true"
+              href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"
+              rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+            Link to this post: <a moz-do-not-send="true"
+              href="http://www.open-mpi.org/community/lists/devel/2016/04/18788.php"
+              rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18788.php</a><br>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2016/04/18789.php">http://www.open-mpi.org/community/lists/devel/2016/04/18789.php</a></pre>
+    </blockquote>
+    <br>
+    <pre class="moz-signature" cols="72">-- 
+David Shrader
+HPC-ENV High Performance Computer Systems
+Los Alamos National Lab
+Email: dshrader &lt;at&gt; lanl.gov
+</pre>
+  </body>
+</html>
+

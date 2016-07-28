@@ -1,0 +1,270 @@
+<div dir="ltr">just an idea, maybe it is worse to provide brand new cmd line option to mpirun. This option will  accept filename and support combined syntax for machinefile/hostfile (to define allocations) and rankfile (to define placement).<br>
+<br>YAML syntax can be used in order to describe file primitives (<a href="http://www.yaml.org/start.html">http://www.yaml.org/start.html</a>) <br><br>for example:<br><br><br>$ mpirun -clusterfile /path/to/clusterfile<br>
+$ cat clusterfile<br>hostX:<br>       slots       : int<br>       maxslots : int<br>       ranks      : rankid[@socket:core]<br><br><br>example of clusterfile<br>===============<br><br>hostX:<br>
+       slots       : 4<br>
+       maxslots : 4<br>
+       ranks      : 1,16,22<br><br>hostY:<br>      slots       : 8<br>      maxslots : 8<br>      ranks      : 1@0:*, 3@2-3,  4@0:1, 5<br><br>
+<br>By doing so, we keep backwards compatability.<br>after reading clusterfile, code should perform *hostfile* and *rankfile* parts as today.<br> <br>what do you think?<br>
+Mike<br><br><br><br><div class="gmail_quote">On Mon, Jun 22, 2009 at 1:30 PM, Terry Dontje <span dir="ltr">&lt;<a href="mailto:Terry.Dontje@sun.com">Terry.Dontje@sun.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Let us think about this some more.  We&#39;ll try and reply later today.<br>
+<br>
+--td<br>
+<br>
+Ralph Castain wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div class="im">
+Had a chance to think about how this might be done, and looked at it for awhile after getting home. I -think- I found a way to do it, but there are a couple of caveats:<br>
+<br>
+1. Len&#39;s point about oversubscribing without warning would definitely hold true - this would positively be a &quot;user beware&quot; option<br>
+<br>
+2. there could be no RM-provided allocation, hostfile, or -host options specified. Basically, I would be adding the &quot;read rankfile&quot; option to the end of the current allocation determination procedure<br>
+<br>
+I would still allow more procs than shown in the rankfile (mapping the rest bynode on the nodes specified in the rankfile - can&#39;t do byslot because I don&#39;t know how many slots are on each node), which means the only change in behavior would be the forced bynode mapping of unspecified procs.<br>
+
+<br>
+So use of this option will entail some risks and a slight difference in behavior, but would relieve you from the burden of having to provide a hostfile. I&#39;m not personally convinced it is worth the risk and probable user complaints of &quot;it didn&#39;t work&quot;, but since we don&#39;t use this option, I don&#39;t have a strong opinion on the matter.<br>
+
+<br>
+Let&#39;s just avoid going back-and-forth over wanting it, or how it should be implemented - let&#39;s get it all ironed out, and then implement it once, like we finally did at the end with the whole hostfile thing.<br>
+<br>
+Let me know if you want me to do this - it obviously isn&#39;t at the top of my priority list, but still could be done in the next few weeks.<br>
+<br>
+Ralph<br>
+<br>
+<br>
+On Jun 21, 2009, at 9:00 AM, Lenny Verkhovsky wrote:<br>
+<br>
+</div><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div class="im">
+Sorry for the delay in response, I totally agree with Ralph that it&#39;s not as easy as it seems, 1. rankfile mapper uses already allocated machines ( by scheduler or hostfile ), by using rankfile as a hostfile we can run into problem where trying to use unallocated nodes, what can hang the run.<br>
+
+2. we can&#39;t define in rankfile number of slots on each machine, which means oversubscribing can take place without any warning.<br>
+3. I personally dont see any problem using hostfile, even if it has redundant info, hostfile and rankfile belong to different layers in the system and solve different problems. The original hostfile ( if I recall correctly ) could bind rank to the node, but the syntax wasn&#39;t very flexible and clear.<br>
+
+Lenny.<br>
+<br></div><div><div></div><div class="h5">
+On Sun, Jun 21, 2009 at 5:15 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a> &lt;mailto:<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;&gt; wrote:<br>
+
+<br>
+    Let me suggest a two-step process, then:<br>
+<br>
+    1. let&#39;s change the error message as this is easily done and thus<br>
+    can be done now<br>
+<br>
+    2. I can look at how to eat the rankfile as a hostfile. This may<br>
+    not even be possible - the problem is that the entire system is<br>
+    predicated on certain ordering due to our framework architecture.<br>
+    So we get an allocation, and then do a mapping against that<br>
+    allocation, filtering the allocation through hostfiles, -host,<br>
+    and other options.<br>
+<br>
+    By the time we reach the rankfile mapper, we have already<br>
+    determined that we don&#39;t have an allocation and have to abort. It<br>
+    is the rankfile mapper itself that looks for the -rankfile<br>
+    option, so the system can have no knowledge that someone has<br>
+    specified that option before that point - and thus, even if I<br>
+    could parse the rankfile, I don&#39;t know it was given!<br>
+<br>
+    What will take time is to figure out a way to either:<br>
+<br>
+    (a) allow us to run the mapper even though we don&#39;t have any<br>
+    nodes we know about, and allow the mapper to insert the nodes<br>
+    itself - without causing non-rankfile uses to break (which could<br>
+    be a major feat); or<br>
+<br>
+    (b) have the overall system check for the rankfile option and<br>
+    pass it as a hostfile as well, assuming that a hostfile wasn&#39;t<br>
+    also given, no RM-based allocation exists, etc. - which breaks<br>
+    our abstraction rules and also opens a possible can of worms.<br>
+<br>
+    Either way, I also then have to teach the hostfile parser how to<br>
+    realize it is a rankfile format and convert the info in it into<br>
+    what we expected to receive from a hostfile - another non-trivial<br>
+    problem.<br>
+<br>
+    I&#39;m willing to give it a try - just trying to make clear why my<br>
+    response was negative. It isn&#39;t as simple as it sounds...which is<br>
+    why Len and I didn&#39;t pursue it when this was originally developed.<br>
+<br>
+    Ralph<br>
+<br>
+<br>
+    On Sun, Jun 21, 2009 at 5:28 AM, Terry Dontje<br></div></div><div><div></div><div class="h5">
+    &lt;<a href="mailto:Terry.Dontje@sun.com" target="_blank">Terry.Dontje@sun.com</a> &lt;mailto:<a href="mailto:Terry.Dontje@sun.com" target="_blank">Terry.Dontje@sun.com</a>&gt;&gt; wrote:<br>
+<br>
+        Being a part of these discussions I can understand your<br>
+        reticence to reopen this discussion.  However, I think this<br>
+        is a major usability issue with this feature which actually<br>
+        is fairly important in order to get things to run performant.<br>
+        Which IMO is important.<br>
+<br>
+        That being said I think there are one of two things that<br>
+        could be done to mitigate the issue.<br>
+<br>
+        1.  To eliminate the element of surprise by changing mpirun<br>
+        to eat rankfile without the hostfile.<br>
+        2.  To change the error message to something understandable<br>
+        by the user such that they<br>
+        know they might be missing the hostfile option.<br>
+<br>
+        Again I understand this topic is frustrating and there are<br>
+        some boundaries with the design that make these two option<br>
+        orthogonal to each other but I really believe we need to make<br>
+        the rankfile option something that is easily usable by our users.<br>
+<br>
+<br>
+        --td<br>
+<br>
+        Ralph Castain wrote:<br>
+<br>
+            Having gone around in circles on hostfile-related issues<br>
+            for over five years now, I honestly have little<br>
+            motivation to re-open the entire discussion again. It<br>
+            doesn&#39;t seem to be that daunting a requirement for those<br>
+            who are using it, so I&#39;m inclined to just leave well<br>
+            enough alone.<br>
+<br>
+            :-)<br>
+<br>
+<br>
+            On Fri, Jun 19, 2009 at 2:21 PM, Eugene Loh<br>
+            &lt;<a href="mailto:Eugene.Loh@sun.com" target="_blank">Eugene.Loh@sun.com</a> &lt;mailto:<a href="mailto:Eugene.Loh@sun.com" target="_blank">Eugene.Loh@sun.com</a>&gt;<br></div></div>
+            &lt;mailto:<a href="mailto:Eugene.Loh@sun.com" target="_blank">Eugene.Loh@sun.com</a> &lt;mailto:<a href="mailto:Eugene.Loh@sun.com" target="_blank">Eugene.Loh@sun.com</a>&gt;&gt;&gt;<div><div></div><div class="h5">
+<br>
+            wrote:<br>
+<br>
+               Ralph Castain wrote:<br>
+<br>
+                   The two files have a slightly different format<br>
+<br>
+               Agreed.<br>
+<br>
+                   and completely different meaning.<br>
+<br>
+               Somewhat agreed.  They&#39;re both related to mapping<br>
+            processes onto a<br>
+               cluster.<br>
+<br>
+                   The hostfile specifies how many slots are on a<br>
+                node. The rankfile<br>
+                   specifies a rank and what node/slot it is to be<br>
+                mapped onto.<br>
+<br>
+               Agreed.<br>
+<br>
+                   Rankfiles can use relative node indexing and refer<br>
+                to nodes<br>
+                   received from a resource manager - i.e., without<br>
+                any hostfile.<br>
+<br>
+               This is the main part I&#39;m concerned about.  E.g.,<br>
+<br>
+               % cat rankfile<br>
+               rank 0=node0 slot=0<br>
+               rank 1=node1 slot=0<br>
+               % mpirun -np 2 -rf rankfile ./a.out<br>
+                          --------------------------------------------------------------------------<br>
+               Rankfile claimed host node1 that was not allocated or<br>
+               oversubscribed it&#39;s slots:<br>
+<br>
+                          --------------------------------------------------------------------------<br>
+               [node0:14611] [[61560,0],0] ORTE_ERROR_LOG: Bad<br>
+            parameter in file<br>
+               rmaps_rank_file.c at line 107<br>
+               [node0:14611] [[61560,0],0] ORTE_ERROR_LOG: Bad<br>
+            parameter in file<br>
+               base/rmaps_base_map_job.c at line 86<br>
+               [node0:14611] [[61560,0],0] ORTE_ERROR_LOG: Bad<br>
+            parameter in file<br>
+               base/plm_base_launch_support.c at line 86<br>
+               [node0:14611] [[61560,0],0] ORTE_ERROR_LOG: Bad<br>
+            parameter in file<br>
+               plm_rsh_module.c at line 1016<br>
+               % mpirun -np 2 -host node0,node1 -rf rankfile ./a.out<br>
+               0 on node0<br>
+               1 on node1<br>
+               done<br>
+<br>
+               It seems to me that the rankfile has sufficient<br>
+            information to<br>
+               express what I want it to do.  But mpirun won&#39;t accept<br>
+            this.  To<br>
+               fix this, I have to, e.g., supply/maintain/specify<br>
+            redundant<br>
+               information in a hostfile or host list.<br>
+<br>
+                   So the files are intentionally quite different.<br>
+                Trying to combine<br>
+                   them would be rather ugly.<br>
+<br>
+               Right.  And my issue is that I&#39;m forced to use both<br>
+            when I only<br>
+               want rankfile functionality.<br>
+<br>
+                   On Thu, Jun 18, 2009 at 1:52 PM, Eugene Loh<br>
+                &lt;<a href="mailto:Eugene.Loh@sun.com" target="_blank">Eugene.Loh@sun.com</a> &lt;mailto:<a href="mailto:Eugene.Loh@sun.com" target="_blank">Eugene.Loh@sun.com</a>&gt;<br>
+                   &lt;mailto:<a href="mailto:Eugene.Loh@sun.com" target="_blank">Eugene.Loh@sun.com</a><br></div></div><div class="im">
+                &lt;mailto:<a href="mailto:Eugene.Loh@sun.com" target="_blank">Eugene.Loh@sun.com</a>&gt;&gt;&gt; wrote:<br>
+<br>
+                       In order to use &quot;mpirun --rankfile&quot;, I also<br>
+                need to specify<br>
+                       hosts/hostlist.  But that information is<br>
+                redundant with what<br>
+                       I provide in the rankfile.  So, from a user&#39;s<br>
+                point of view,<br>
+                       this strikes me as broken.  Yes?  Should I<br>
+                file a ticket, or<br>
+                       am I missing something here about this<br>
+                functionality?<br>
+<br>
+<br>
+               _______________________________________________<br>
+               devel mailing list<br>
+               <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>&gt;<br></div>
+            &lt;mailto:<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>&gt;&gt;<div class="im"><br>
+<br>
+               <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+            ------------------------------------------------------------------------<br>
+<br>
+<br>
+<br>
+            _______________________________________________<br>
+            devel mailing list<br>
+            <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>&gt;<br>
+            <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+             <br>
+<br>
+        _______________________________________________<br>
+        devel mailing list<br>
+        <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>&gt;<br>
+        <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+<br>
+    _______________________________________________<br>
+    devel mailing list<br>
+    <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>&gt;<br>
+    <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>&gt;<br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></blockquote><div class="im">
+<br>
+------------------------------------------------------------------------<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+  <br>
+</div></blockquote><div><div></div><div class="h5">
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br></div>
+

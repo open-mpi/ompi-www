@@ -1,0 +1,72 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=iso-8859-1"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">I have the branch complete for executing this - please see<div><br></div><div><a href="https://bitbucket.org/rhc/ompi-scale">https://bitbucket.org/rhc/ompi-scale</a></div><div><br></div><div>Timeout set to Feb 4th after that week's telecon</div><div><br></div><div><br><div><div>On Jan 17, 2014, at 9:57 AM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><meta http-equiv="Content-Type" content="text/html charset=iso-8859-1"><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">After discussion on the telecon, we decided to:<div><br></div><div>1. let the modex be non-blocking so we can fall thru - only when the corresponding MCA param is set!</div><div><br></div><div>2. do not modify the modex_recv to add the callback as the MPI layer really doesn't know how to handle this in an async fashion. Modifying that behavior would be difficult and could wind up impacting the critical path - something we may decide to look into more at a later time</div><div><br></div><div>So we will block in a call to modex_recv until the info for that particular process can be obtained. I'll add a timeout feature (via yet another MCA param) so we can gracefully recover if the remote proc never answers for some reason.</div><div><br></div><div>Will provide an update when this is ready</div><div><br></div><div><br><div><div>On Jan 13, 2014, at 3:00 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div dir="ltr"><div><div>What I want to do is make the current "modex" become a no-op, which means we have a lazy modex. As I noted in my commit message, this scales horribly if we don't, hence the MCA param requirement so people don't do this unless their BTL/MTLs will support it.<br>
+<br>What I found when playing with that arrangement is that a BTL/MTL is going to need or want data at first message, but that data may not be available yet because that particular remote proc hasn't registered all of its modex data yet. A beautiful race condition. So I was forced to block everyone at "modex" just to ensure the remote data was available at time of request.<br>
+</div><br></div><div>If I remove the global "barrier" requirement, then I didn't want to "block" on modex_recv as this is done on a per-proc basis. Even though one proc isn't ready to return the data, another might be - and so I'd let you queue up as many modex_recv calls as you like, resolving each of them as data becomes available. This leaves the MPI layer free to send a message as soon as the target remote proc is ready, without waiting for some other proc to register its modex info.<br>
+<br></div><div>Make sense?<br><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Jan 13, 2014 at 12:05 PM, Barrett, Brian W <span dir="ltr">&lt;<a href="mailto:bwbarre@sandia.gov" target="_blank">bwbarre@sandia.gov</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Is there any place that this can actually be used? &nbsp;It's a fairly large<br>
+change to the RTE interface (which we should try to keep stable), and I<br>
+can't convince myself that it's useful; in general, if a BTL or MTL is<br>
+asking for a piece of data, the MPI library is stuck until that data's<br>
+available. &nbsp;I can see doing some lazy approach, but I can't see making the<br>
+modex_recv call non-blocking.<br>
+<br>
+Brian<br>
+<div><div class="h5"><br>
+On 1/11/14 9:28 PM, "Ralph Castain" &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+<br>
+&gt;NOTE: &nbsp;This will involve a change to the MPI-RTE interface<br>
+&gt;<br>
+&gt;WHAT: &nbsp;Modify modex_recv to add a callback function that will return the<br>
+&gt;requested data when it is available<br>
+&gt;<br>
+&gt;WHY: &nbsp; &nbsp;Enable faster startup on large scale systems by eliminating the<br>
+&gt;current mandatory modex barrier during MPI_Init<br>
+&gt;<br>
+&gt;HOW: &nbsp; &nbsp;The ompi_modex_recv functions will have callback function and<br>
+&gt;(void*)cbdata arguments added to them.<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;An ompi_modex_recv_t struct will be defined that includes a<br>
+&gt;pointer to the returned data plus a "bool active"<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;that can be used to detect when the data has been returned<br>
+&gt;if blocking is required.<br>
+&gt;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;When a modex_recv is issued, ORTE will check for the<br>
+&gt;presence of the requested data and immediately<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;issue a callback if the data is available. If the data is<br>
+&gt;not available, then ORTE will request the data from<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;the remote process, and execute the callback when the<br>
+&gt;remote process returns it.<br>
+&gt;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;The current behavior of a blocking modex barrier will<br>
+&gt;remain the default - the new behavior will only take affect<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if specifically requested by the user via MCA param. With<br>
+&gt;this new behavior, the current call to "modex" in<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MPI_Init will become a "no-op" when the processes are<br>
+&gt;launched via mpirun - this will be executed in ORTE<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; so that other RTEs that do not wish to support async modex<br>
+&gt;behavior are not impacted.<br>
+&gt;<br>
+&gt;WHEN: &nbsp; No hurry on this as it is intended for 1.9, so let's say mid Feb.<br>
+&gt;Info on a branch will be made available in<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; the near future.<br>
+&gt;<br>
+&gt;<br>
+</div></div>&gt;_______________________________________________<br>
+&gt;devel mailing list<br>
+&gt;<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+<br>
+<br>
+--<br>
+&nbsp; Brian W. Barrett<br>
+&nbsp; Scalable System Software Group<br>
+&nbsp; Sandia National Laboratories<br>
+<br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote></div><br></div>
+</blockquote></div><br></div></div></blockquote></div><br></div></body></html>

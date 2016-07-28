@@ -1,0 +1,50 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">&lt;laugh&gt; Thanks for pointing this out - it's an error in our man page. I've fixed it on our devel trunk and will get it push'd to the release.<div><br></div><div><br><div><div>On May 16, 2011, at 1:14 PM, Thatyene Louise Alves de Souza Ramos wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">Ralph, thank you the reply.<div><br></div><div>I just try what you said and it works! I didn't think to try the array of info arguments because in the spawn_multiple documentation I read the follow:</div><div><br></div>
+<div>"...&nbsp;<span class="Apple-style-span" style="font-family: verdana, arial, helvetica; font-size: 12px; "><i>array_of_info</i>, is an array of&nbsp;<i>info&nbsp;</i>arguments; however, <b>only the first argument in that array is used. Any subsequent arguments in the array are ignored</b> because an&nbsp;<i>info</i>&nbsp;argument applies to the entire job that is spawned, and cannot be different for each executable in the job. See the INFO ARGUMENTS section for more information."</span></div>
+<div><span class="Apple-style-span" style="font-family: verdana, arial, helvetica; font-size: 12px; "><br></span></div><div><span class="Apple-style-span" style="font-family: verdana, arial, helvetica; font-size: 12px; ">Anyway, I'm glad it works!</span></div>
+<div><span class="Apple-style-span" style="font-family: verdana, arial, helvetica; font-size: 12px; "><br></span></div><div><span class="Apple-style-span" style="font-family: verdana, arial, helvetica; font-size: 12px; ">Thank you very much!</span></div>
+<div><span class="Apple-style-span" style="font-family: verdana, arial, helvetica; font-size: 12px; "><br></span></div><div><span class="Apple-style-span" style="font-family: verdana, arial, helvetica; font-size: 12px; ">Regards.</span></div>
+<div><span class="Apple-style-span" style="font-family: verdana, arial, helvetica; font-size: 12px; "><br></span></div><div><span class="Apple-style-span" style="font-family: verdana, arial, helvetica; font-size: 12px; ">Thatyene Ramos</span></div>
+<meta http-equiv="content-type" content="text/html; charset=utf-8"><div><br><div class="gmail_quote">On Mon, May 16, 2011 at 3:47 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div style="word-wrap:break-word">You need to use MPI_Comm_spawn_multiple. Despite the name, it results in a single communicator being created by a single launch - it just allows you to specify multiple applications to run.<div>
+<br></div><div>In this case, we use the same app, but give each element a different "host" info key to get the behavior we want. Looks something like this:</div><div><br></div><div><div>&nbsp;&nbsp; &nbsp;MPI_Comm child;</div>
+</div><div><div>&nbsp;&nbsp; &nbsp;char *cmds[3] = {"myapp", "myapp", "myapp"};</div><div><div>&nbsp;&nbsp; &nbsp;MPI_Info info[3];</div></div><div><div>&nbsp;&nbsp; &nbsp;int maxprocs[] = { 1, 3, 1 };</div></div><div><br></div><div><div>
+&nbsp;&nbsp;MPI_Info_create(&amp;info[0]);</div></div><div>&nbsp;&nbsp;MPI_Info_set(info[0], "host", "m1");</div><div><br></div><div><div>&nbsp;&nbsp;MPI_Info_create(&amp;info[1]);</div></div><div>&nbsp;&nbsp;MPI_Info_set(info[1], "host", "m2");</div>
+<div><br></div><div><div>&nbsp;&nbsp;MPI_Info_create(&amp;info[2]);</div></div><div>&nbsp;&nbsp;MPI_Info_set(info[2], "host", "m1");</div><div>&nbsp;&nbsp;</div><div><div>&nbsp;&nbsp; &nbsp; &nbsp; &nbsp;MPI_Comm_spawn_multiple(3, cmds, NULL, maxprocs,&nbsp;</div>
+<div>&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;info, 0, MPI_COMM_WORLD,</div><div>&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&amp;child, MPI_ERRCODES_IGNORE);</div></div><div><br></div><div>I won't claim the above is correct - but it gives the gist of the idea.</div>
+<div><div></div><div class="h5"><div><br></div><div><br></div><div><div>On May 16, 2011, at 12:19 PM, Thatyene Louise Alves de Souza Ramos wrote:</div><br><blockquote type="cite">Ralph,<div><br></div><div>I have the same issue and I've been searching how to do this, but I couldn't find.&nbsp;</div>
+<div><br></div><div>What exactly must be the string in the host info key to do what Rodrigo described?</div>
+<div><br></div><div>&lt;&lt;&lt;&nbsp;<span style="font-family:arial, sans-serif;font-size:13px">Inside your master, you would create an MPI_Info key "host" that has a value&nbsp;</span></div>
+<span style="font-family:arial, sans-serif;font-size:13px">&lt;&lt;&lt; consisting of a string "host1,host2,host3" identifying the hosts you want&nbsp;<br>
+&lt;&lt;&lt; your slave to execute upon. Those hosts must have been included in&nbsp;<br>&lt;&lt;&lt; my_hostfile. Include that key in the MPI_Info array passed to your Spawn.</span><div><font face="arial, sans-serif"><br>
+</font></div><div><font face="arial, sans-serif">I tried to do what you said above but ompi ignores the repetition of hosts. Using Rodrigo's example I did:</font></div><div><font face="arial, sans-serif"><br>
+</font></div><div><font face="arial, sans-serif">host info key = "m1,m2,m2,m2,m3" and number of processes = 5 and the result was</font></div><div><font face="arial, sans-serif"><br>
+</font></div><div><font face="arial, sans-serif">m1 -&gt; 2</font></div><div><font face="arial, sans-serif">m2 -&gt; 2</font></div><div><font face="arial, sans-serif">m3 -&gt; 1</font></div>
+<div><font face="arial, sans-serif"><br></font></div><div><font face="arial, sans-serif">and not</font></div><div><font face="arial, sans-serif"><br>
+</font></div><div><font face="arial, sans-serif">m1 -&gt; 1</font></div><div><font face="arial, sans-serif">m2 -&gt; 3</font></div><div><font face="arial, sans-serif">m3 -&gt; 1</font></div>
+<div><font face="arial, sans-serif"><br></font></div><div><font face="arial, sans-serif">as I wanted.<br></font><div><br></div><div>Thanks in advance.</div><div><br></div>
+<div>Thatyene Ramos<br><br><div class="gmail_quote">On Fri, May 13, 2011 at 9:16 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+<div style="word-wrap:break-word">I believe I answered that question. You can use the hostfile info key, or you can use the host info key - either one will do what you require.<div><br><div><div><div></div><div>
+<div>On May 13, 2011, at 4:11 PM, Rodrigo Silva Oliveira wrote:</div><br></div></div><blockquote type="cite"><div><div></div><div>Hi,<div><br></div><div>I think I was not specific enough. I need to spawn the copies of a process in a unique mpi_spawn call. It is, I have to specify a list of machines and how many copies of the process will be spawned on each one. Is it possible?</div>
+
+
+<div><br></div><div>I would be&nbsp;something&nbsp;like that:</div><div><br></div><div>machines &nbsp; &nbsp; #copies</div><div>m1 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;1</div><div>m2 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;3</div><div>m3 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;1</div><div><br></div><div>After an unique call to spawn, I want the copies running in this fashion. I tried use a hostfile with the option slot, but I'm not sure if it is the best way.</div>
+
+
+<div><br></div><div>hostfile:</div><div><br></div><div>m1 slots=1</div><div>m2 slots=3</div><div>m3 slots=1</div><div><br></div><div>Thanks<br clear="all"><br>-- <br>Rodrigo Silva Oliveira<br>M.Sc. Student - Computer Science<br>
+
+
+Universidade Federal de Minas Gerais<br><a href="http://www.dcc.ufmg.br/%7Ersilva" target="_blank">www.dcc.ufmg.br/~rsilva</a><br>
+</div></div></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+
+</div><br></div></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br></div></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+</div><br></div></div></div></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/users</blockquote></div><br></div></body></html>

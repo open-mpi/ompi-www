@@ -1,0 +1,119 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+</head>
+<body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">
+I'm confused, then: why you wouldn't want to minimize the number of servers that a single job runs on?
+<div><br>
+</div>
+<div>I ask because it sounds to me like you're running 12 jobs, each with 1 process per server. &nbsp;And therefore all 12 jobs are running on each server, like this:</div>
+<div><br>
+</div>
+<div><img apple-inline="yes" id="06621144-D40A-4E73-A2A1-1169A890A863" height="540" width="720" apple-width="yes" apple-height="yes" src="cid:DE1F7C81-EFFB-45E3-8CDB-019B0AD7C85A@cisco.com"></div>
+<div>With this layout, you're thrashing the server networking resources -- you're forcing the maximum use of the network.</div>
+<div><br>
+</div>
+<div>Why don't you pack the jobs in to as few servers as possible, and therefore use shared memory as much as possible, and as little network as possible? &nbsp;This is the conventional wisdom. &nbsp;...perhaps I'm missing something in your setup?</div>
+<div><br>
+</div>
+<div><img apple-inline="yes" id="8B69DFDE-A756-4375-A382-9CA8CC49B2B3" height="540" width="720" apple-width="yes" apple-height="yes" src="cid:D8ADA451-798A-47CD-808D-3D4E29F13BAC@cisco.com"></div>
+<div><br>
+</div>
+<div><br>
+<div><br>
+On Sep 3, 2014, at 10:02 AM, McGrattan, Kevin B. Dr. &lt;<a href="mailto:kevin.mcgrattan@nist.gov">kevin.mcgrattan@nist.gov</a>&gt;&nbsp;wrote:<br>
+<br>
+<blockquote type="cite">No, there are 12 cores per node, and 12 MPI processes are assigned to each node. The&nbsp;total RAM usage is about 10% of available. We suspect that the problem might be the&nbsp;combination of MPI message passing and disk I/O to the master node,
+ both of which&nbsp;are handled by Infiniband. But I do not know how to monitor the traffic, and I do&nbsp;not know how much is too much. Ganglia reports Gigabit Ethernet usage, but we're&nbsp;primarily using IB.&nbsp;<br>
+<br>
+-----Original Message-----<br>
+From: users [<a href="mailto:users-bounces@open-mpi.org">mailto:users-bounces@open-mpi.org</a>] On Behalf Of Jeff Squyres (jsquyres)<br>
+Sent: Tuesday, September 02, 2014 5:41 PM<br>
+To: Open MPI User's List<br>
+Subject: Re: [OMPI users] How does binding option affect network traffic?<br>
+<br>
+Ah, ok -- I think I missed this part of the thread: each of your individual MPI&nbsp;processes suck up huge gobbs of memory.<br>
+<br>
+So just to be clear, in general: you don't intend to run more MPI processes than&nbsp;cores per server, *and* you intend to run fewer MPI processes per server than would&nbsp;consume the entire amount of RAM.<br>
+<br>
+Are both of those always correct (at the same time)?<br>
+<br>
+If so, it sounds like the first runs that you posted about were heavily overloading&nbsp;the servers in terms of RAM usage. &nbsp;Specifically: if you were running out of&nbsp;(registered) RAM, I can understand why Open MPI would hang. &nbsp;We have a few known&nbsp;issues that the
+ openib BTL will hang if it runs out of registered memory -- but this&nbsp;is such a small corner case (because no one runs that way) that we've honestly never&nbsp;bothered to fix the issue (it's actually a really complicated resource exhaustion&nbsp;issue -- it's kinda
+ hard to know what the Right Thing is to do when you've run out&nbsp;of memory...).<br>
+<br>
+<br>
+<br>
+On Sep 2, 2014, at 9:37 AM, McGrattan, Kevin B. Dr. &lt;<a href="mailto:kevin.mcgrattan@nist.gov">kevin.mcgrattan@nist.gov</a>&gt;&nbsp;wrote:<br>
+<br>
+<blockquote type="cite">Thanks for the advice. Our jobs vary in size, from just a few MPI processes to&nbsp;about 64. Jobs are submitted at random, which is why I want to map by socket. If&nbsp;the cluster is empty, and someone submits a job with 16 MPI processes, I
+ would&nbsp;think it would run most efficiently if it used 8 nodes, 2 processes per node. If we&nbsp;just fill up two nodes as you suggest, we overload the RAM on those two nodes.<br>
+<br>
+-----Original Message-----<br>
+From: users [<a href="mailto:users-bounces@open-mpi.org">mailto:users-bounces@open-mpi.org</a>] On Behalf Of&nbsp;<a href="mailto:tmishima@jcity.maeda.co.jp">tmishima@jcity.maeda.co.jp</a><br>
+Sent: Friday, August 29, 2014 5:24 PM<br>
+To: Open MPI Users<br>
+Subject: Re: [OMPI users] How does binding option affect network traffic?<br>
+<br>
+Hi,<br>
+<br>
+Your cluster is very similar to ours where Torque and OpenMPI is installed.<br>
+<br>
+I would use this cmd line:<br>
+<br>
+#PBS -l nodes=2:ppn=12<br>
+mpirun --report-bindings -np 16 &lt;executable file name&gt;<br>
+<br>
+Here --map-by socket:pe=1 and -bind-to core is assumed as default setting.<br>
+Then, you can run 10 jobs independently and simultaneously beacause you have 20&nbsp;nodes totally.<br>
+<br>
+While each node in your cluser has 12 cores, the nprocs per node running on a node&nbsp;is 8, which means 66.666 % use, not 100%.<br>
+I think this loss can not be avoided as long as you use 16*N MPI per job.<br>
+It's a kind of mismatch with your cluster which has 12 cores per node.<br>
+If you can use 12*N MPI per job, then it's most effective.<br>
+Is there any reason why you use 16*N MPI per job?<br>
+<br>
+Tetsuya<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+users@open-mpi.org<br>
+Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+Link to this post: http://www.open-mpi.org/community/lists/users/2014/08/25201.php<br>
+_______________________________________________<br>
+users mailing list<br>
+users@open-mpi.org<br>
+Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+Link to this post: http://www.open-mpi.org/community/lists/users/2014/09/25220.php<br>
+</blockquote>
+<br>
+<br>
+--&nbsp;<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to:&nbsp;http://www.cisco.com/web/about/doing_business/legal/cri/<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+users@open-mpi.org<br>
+Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+Link to this post: http://www.open-mpi.org/community/lists/users/2014/09/25233.php<br>
+_______________________________________________<br>
+users mailing list<br>
+users@open-mpi.org<br>
+Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+Link to this post: http://www.open-mpi.org/community/lists/users/2014/09/25249.php<br>
+</blockquote>
+<br>
+<div><br>
+--&nbsp;<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to:&nbsp;http://www.cisco.com/web/about/doing_business/legal/cri/<br>
+</div>
+<br>
+</div>
+</div>
+</body>
+</html>
+

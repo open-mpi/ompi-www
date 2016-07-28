@@ -1,0 +1,402 @@
+<div dir="ltr">Let&#39;s say that the downside is an unknown at this time. The only real impact of setting that param is that each daemon now reports its topology at startup. Without the param, only the daemon on the first node does so. The concern expressed when we first added that report was that the volume of data being sent on a very large system might impact launch time. However, the amount of data from each node isn&#39;t very much, so we don&#39;t know if there really would be a downside, or how significant it might be.<div>
+<br></div><div>Sadly, we haven&#39;t had access to machines of any real size to test this so we had real numbers for the decision. Absent that data, we took the conservative approach of setting the default so as to preserve the pre-existing behavior.</div>
+<div><br></div><div>So everyone out there: please consider this an appeal for data. If you are interested and willing, just send me (or the list - your option) any data you are willing to share regarding launch time with and without the --hetero-nodes option. A simple &quot;time mpirun --map-by ppr:1:node /bin/true&quot; (or equivalent) run at various numbers of nodes would suffice.</div>
+</div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Jun 23, 2014 at 3:17 PM, Maxime Boissonneault <span dir="ltr">&lt;<a href="mailto:maxime.boissonneault@calculquebec.ca" target="_blank">maxime.boissonneault@calculquebec.ca</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi,<br>
+I&#39;ve been following this thread because it may be relevant to our setup.<br>
+<br>
+Is there a drawback of having orte_hetero_nodes=1 as default MCA parameter ? Is there a reason why the most generic case is not assumed ?<br>
+<br>
+Maxime Boissonneault<br>
+<br>
+Le 2014-06-20 13:48, Ralph Castain a écrit :<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div class="h5">
+Put &quot;orte_hetero_nodes=1&quot; in your default MCA param file - uses can override by setting that param to 0<br>
+<br>
+<br>
+On Jun 20, 2014, at 10:30 AM, Brock Palen &lt;<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Perfection!  That appears to do it for our standard case.<br>
+<br>
+Now I know how to set MCA options by env var or config file.  How can I make this the default, that then a user can override?<br>
+<br>
+Brock Palen<br>
+<a href="http://www.umich.edu/~brockp" target="_blank">www.umich.edu/~brockp</a><br>
+CAEN Advanced Computing<br>
+XSEDE Campus Champion<br>
+<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a><br>
+<a href="tel:%28734%29936-1985" value="+17349361985" target="_blank">(734)936-1985</a><br>
+<br>
+<br>
+<br>
+On Jun 20, 2014, at 1:21 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I think I begin to grok at least part of the problem. If you are assigning different cpus on each node, then you&#39;ll need to tell us that by setting --hetero-nodes otherwise we won&#39;t have any way to report that back to mpirun for its binding calculation.<br>
+
+<br>
+Otherwise, we expect that the cpuset of the first node we launch a daemon onto (or where mpirun is executing, if we are only launching local to mpirun) accurately represents the cpuset on every node in the allocation.<br>
+
+<br>
+We still might well have a bug in our binding computation - but the above will definitely impact what you said the user did.<br>
+<br>
+On Jun 20, 2014, at 10:06 AM, Brock Palen &lt;<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Extra data point if I do:<br>
+<br>
+[brockp@nyx5508 34241]$ mpirun --report-bindings --bind-to core hostname<br>
+------------------------------<u></u>------------------------------<u></u>--------------<br>
+A request was made to bind to that would result in binding more<br>
+processes than cpus on a resource:<br>
+<br>
+  Bind to:         CORE<br>
+  Node:            nyx5513<br>
+  #processes:  2<br>
+  #cpus:          1<br>
+<br>
+You can override this protection by adding the &quot;overload-allowed&quot;<br>
+option to your binding directive.<br>
+------------------------------<u></u>------------------------------<u></u>--------------<br>
+<br>
+[brockp@nyx5508 34241]$ mpirun -H nyx5513 uptime<br>
+13:01:37 up 31 days, 23:06,  0 users,  load average: 10.13, 10.90, 12.38<br>
+13:01:37 up 31 days, 23:06,  0 users,  load average: 10.13, 10.90, 12.38<br>
+[brockp@nyx5508 34241]$ mpirun -H nyx5513 --bind-to core hwloc-bind --get<br>
+0x00000010<br>
+0x00001000<br>
+[brockp@nyx5508 34241]$ cat $PBS_NODEFILE | grep nyx5513<br>
+nyx5513<br>
+nyx5513<br>
+<br>
+Interesting, if I force bind to core, MPI barfs saying there is only 1 cpu available, PBS says it gave it two, and if I force (this is all inside an interactive job) just on that node hwloc-bind --get I get what I expect,<br>
+
+<br>
+Is there a way to get a map of what MPI thinks it has on each host?<br>
+<br>
+Brock Palen<br>
+<a href="http://www.umich.edu/~brockp" target="_blank">www.umich.edu/~brockp</a><br>
+CAEN Advanced Computing<br>
+XSEDE Campus Champion<br>
+<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a><br>
+<a href="tel:%28734%29936-1985" value="+17349361985" target="_blank">(734)936-1985</a><br>
+<br>
+<br>
+<br>
+On Jun 20, 2014, at 12:38 PM, Brock Palen &lt;<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I was able to produce it in my test.<br>
+<br>
+orted affinity set by cpuset:<br>
+[root@nyx5874 ~]# hwloc-bind --get --pid 103645<br>
+0x0000c002<br>
+<br>
+This mask (1, 14,15) which is across sockets, matches the cpu set setup by the batch system.<br>
+[root@nyx5874 ~]# cat /dev/cpuset/torque/<a href="http://12719806.nyx.engin.umich.edu/cpus" target="_blank">12719806.<u></u>nyx.engin.umich.edu/cpus</a><br>
+1,14-15<br>
+<br>
+The ranks though were then all set to the same core:<br>
+<br>
+[root@nyx5874 ~]# hwloc-bind --get --pid 103871<br>
+0x00008000<br>
+[root@nyx5874 ~]# hwloc-bind --get --pid 103872<br>
+0x00008000<br>
+[root@nyx5874 ~]# hwloc-bind --get --pid 103873<br>
+0x00008000<br>
+<br>
+Which is core 15:<br>
+<br>
+report-bindings gave me:<br>
+You can see how a few nodes were bound to all the same core, the last one in each case.  I only gave you the results for the hose nyx5874.<br>
+<br>
+[<a href="http://nyx5526.engin.umich.edu:23726" target="_blank">nyx5526.engin.umich.edu:23726</a><u></u>] MCW rank 0 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5878.engin.umich.edu:103925" target="_blank">nyx5878.engin.umich.edu:<u></u>103925</a>] MCW rank 8 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5533.engin.umich.edu:123988" target="_blank">nyx5533.engin.umich.edu:<u></u>123988</a>] MCW rank 1 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5879.engin.umich.edu:102808" target="_blank">nyx5879.engin.umich.edu:<u></u>102808</a>] MCW rank 9 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5874.engin.umich.edu:103645" target="_blank">nyx5874.engin.umich.edu:<u></u>103645</a>] MCW rank 41 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5874.engin.umich.edu:103645" target="_blank">nyx5874.engin.umich.edu:<u></u>103645</a>] MCW rank 42 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5874.engin.umich.edu:103645" target="_blank">nyx5874.engin.umich.edu:<u></u>103645</a>] MCW rank 43 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5888.engin.umich.edu:117400" target="_blank">nyx5888.engin.umich.edu:<u></u>117400</a>] MCW rank 11 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5786.engin.umich.edu:30004" target="_blank">nyx5786.engin.umich.edu:30004</a><u></u>] MCW rank 19 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5786.engin.umich.edu:30004" target="_blank">nyx5786.engin.umich.edu:30004</a><u></u>] MCW rank 18 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5594.engin.umich.edu:33884" target="_blank">nyx5594.engin.umich.edu:33884</a><u></u>] MCW rank 24 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5594.engin.umich.edu:33884" target="_blank">nyx5594.engin.umich.edu:33884</a><u></u>] MCW rank 25 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5594.engin.umich.edu:33884" target="_blank">nyx5594.engin.umich.edu:33884</a><u></u>] MCW rank 26 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5798.engin.umich.edu:53026" target="_blank">nyx5798.engin.umich.edu:53026</a><u></u>] MCW rank 59 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5798.engin.umich.edu:53026" target="_blank">nyx5798.engin.umich.edu:53026</a><u></u>] MCW rank 60 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5798.engin.umich.edu:53026" target="_blank">nyx5798.engin.umich.edu:53026</a><u></u>] MCW rank 56 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5798.engin.umich.edu:53026" target="_blank">nyx5798.engin.umich.edu:53026</a><u></u>] MCW rank 57 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5798.engin.umich.edu:53026" target="_blank">nyx5798.engin.umich.edu:53026</a><u></u>] MCW rank 58 bound to socket 1[core 15[hwt 0]]: [./././././././.][././././././<u></u>./B]<br>
+[<a href="http://nyx5545.engin.umich.edu:88170" target="_blank">nyx5545.engin.umich.edu:88170</a><u></u>] MCW rank 2 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5613.engin.umich.edu:25229" target="_blank">nyx5613.engin.umich.edu:25229</a><u></u>] MCW rank 31 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5880.engin.umich.edu:01406" target="_blank">nyx5880.engin.umich.edu:01406</a><u></u>] MCW rank 10 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5770.engin.umich.edu:86538" target="_blank">nyx5770.engin.umich.edu:86538</a><u></u>] MCW rank 6 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5613.engin.umich.edu:25228" target="_blank">nyx5613.engin.umich.edu:25228</a><u></u>] MCW rank 30 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5577.engin.umich.edu:65949" target="_blank">nyx5577.engin.umich.edu:65949</a><u></u>] MCW rank 4 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5607.engin.umich.edu:30379" target="_blank">nyx5607.engin.umich.edu:30379</a><u></u>] MCW rank 14 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5544.engin.umich.edu:72960" target="_blank">nyx5544.engin.umich.edu:72960</a><u></u>] MCW rank 47 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5544.engin.umich.edu:72959" target="_blank">nyx5544.engin.umich.edu:72959</a><u></u>] MCW rank 46 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5848.engin.umich.edu:04332" target="_blank">nyx5848.engin.umich.edu:04332</a><u></u>] MCW rank 33 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5848.engin.umich.edu:04333" target="_blank">nyx5848.engin.umich.edu:04333</a><u></u>] MCW rank 34 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5544.engin.umich.edu:72958" target="_blank">nyx5544.engin.umich.edu:72958</a><u></u>] MCW rank 45 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5858.engin.umich.edu:12165" target="_blank">nyx5858.engin.umich.edu:12165</a><u></u>] MCW rank 35 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5607.engin.umich.edu:30380" target="_blank">nyx5607.engin.umich.edu:30380</a><u></u>] MCW rank 15 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5544.engin.umich.edu:72957" target="_blank">nyx5544.engin.umich.edu:72957</a><u></u>] MCW rank 44 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5858.engin.umich.edu:12167" target="_blank">nyx5858.engin.umich.edu:12167</a><u></u>] MCW rank 37 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5870.engin.umich.edu:33811" target="_blank">nyx5870.engin.umich.edu:33811</a><u></u>] MCW rank 7 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5582.engin.umich.edu:81994" target="_blank">nyx5582.engin.umich.edu:81994</a><u></u>] MCW rank 5 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5848.engin.umich.edu:04331" target="_blank">nyx5848.engin.umich.edu:04331</a><u></u>] MCW rank 32 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5557.engin.umich.edu:46654" target="_blank">nyx5557.engin.umich.edu:46654</a><u></u>] MCW rank 50 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5858.engin.umich.edu:12166" target="_blank">nyx5858.engin.umich.edu:12166</a><u></u>] MCW rank 36 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5799.engin.umich.edu:67802" target="_blank">nyx5799.engin.umich.edu:67802</a><u></u>] MCW rank 22 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5799.engin.umich.edu:67803" target="_blank">nyx5799.engin.umich.edu:67803</a><u></u>] MCW rank 23 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5556.engin.umich.edu:50889" target="_blank">nyx5556.engin.umich.edu:50889</a><u></u>] MCW rank 3 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5625.engin.umich.edu:95931" target="_blank">nyx5625.engin.umich.edu:95931</a><u></u>] MCW rank 53 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5625.engin.umich.edu:95930" target="_blank">nyx5625.engin.umich.edu:95930</a><u></u>] MCW rank 52 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5557.engin.umich.edu:46655" target="_blank">nyx5557.engin.umich.edu:46655</a><u></u>] MCW rank 51 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5625.engin.umich.edu:95932" target="_blank">nyx5625.engin.umich.edu:95932</a><u></u>] MCW rank 54 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5625.engin.umich.edu:95933" target="_blank">nyx5625.engin.umich.edu:95933</a><u></u>] MCW rank 55 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5866.engin.umich.edu:16306" target="_blank">nyx5866.engin.umich.edu:16306</a><u></u>] MCW rank 40 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5861.engin.umich.edu:22761" target="_blank">nyx5861.engin.umich.edu:22761</a><u></u>] MCW rank 61 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5861.engin.umich.edu:22762" target="_blank">nyx5861.engin.umich.edu:22762</a><u></u>] MCW rank 62 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5861.engin.umich.edu:22763" target="_blank">nyx5861.engin.umich.edu:22763</a><u></u>] MCW rank 63 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5557.engin.umich.edu:46652" target="_blank">nyx5557.engin.umich.edu:46652</a><u></u>] MCW rank 48 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5557.engin.umich.edu:46653" target="_blank">nyx5557.engin.umich.edu:46653</a><u></u>] MCW rank 49 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5866.engin.umich.edu:16304" target="_blank">nyx5866.engin.umich.edu:16304</a><u></u>] MCW rank 38 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5788.engin.umich.edu:02465" target="_blank">nyx5788.engin.umich.edu:02465</a><u></u>] MCW rank 20 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5597.engin.umich.edu:68071" target="_blank">nyx5597.engin.umich.edu:68071</a><u></u>] MCW rank 27 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5775.engin.umich.edu:27952" target="_blank">nyx5775.engin.umich.edu:27952</a><u></u>] MCW rank 17 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5866.engin.umich.edu:16305" target="_blank">nyx5866.engin.umich.edu:16305</a><u></u>] MCW rank 39 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5788.engin.umich.edu:02466" target="_blank">nyx5788.engin.umich.edu:02466</a><u></u>] MCW rank 21 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5775.engin.umich.edu:27951" target="_blank">nyx5775.engin.umich.edu:27951</a><u></u>] MCW rank 16 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5597.engin.umich.edu:68073" target="_blank">nyx5597.engin.umich.edu:68073</a><u></u>] MCW rank 29 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5597.engin.umich.edu:68072" target="_blank">nyx5597.engin.umich.edu:68072</a><u></u>] MCW rank 28 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5552.engin.umich.edu:30481" target="_blank">nyx5552.engin.umich.edu:30481</a><u></u>] MCW rank 12 is not bound (or bound to all available processors)<br>
+[<a href="http://nyx5552.engin.umich.edu:30482" target="_blank">nyx5552.engin.umich.edu:30482</a><u></u>] MCW rank 13 is not bound (or bound to all available processors)<br>
+<br>
+<br>
+Brock Palen<br>
+<a href="http://www.umich.edu/~brockp" target="_blank">www.umich.edu/~brockp</a><br>
+CAEN Advanced Computing<br>
+XSEDE Campus Champion<br>
+<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a><br>
+<a href="tel:%28734%29936-1985" value="+17349361985" target="_blank">(734)936-1985</a><br>
+<br>
+<br>
+<br>
+On Jun 20, 2014, at 12:20 PM, Brock Palen &lt;<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Got it,<br>
+<br>
+I have the input from the user and am testing it out.<br>
+<br>
+It probably has less todo with torque and more cpuset&#39;s,<br>
+<br>
+I&#39;m working on producing it myself also.<br>
+<br>
+Brock Palen<br>
+<a href="http://www.umich.edu/~brockp" target="_blank">www.umich.edu/~brockp</a><br>
+CAEN Advanced Computing<br>
+XSEDE Campus Champion<br>
+<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a><br>
+<a href="tel:%28734%29936-1985" value="+17349361985" target="_blank">(734)936-1985</a><br>
+<br>
+<br>
+<br>
+On Jun 20, 2014, at 12:18 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Thanks - I&#39;m just trying to reproduce one problem case so I can look at it. Given that I don&#39;t have access to a Torque machine, I need to &quot;fake&quot; it.<br>
+<br>
+<br>
+On Jun 20, 2014, at 9:15 AM, Brock Palen &lt;<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+In this case they are a single socket, but as you can see they could be ether/or depending on the job.<br>
+<br>
+Brock Palen<br>
+<a href="http://www.umich.edu/~brockp" target="_blank">www.umich.edu/~brockp</a><br>
+CAEN Advanced Computing<br>
+XSEDE Campus Champion<br>
+<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a><br>
+<a href="tel:%28734%29936-1985" value="+17349361985" target="_blank">(734)936-1985</a><br>
+<br>
+<br>
+<br>
+On Jun 19, 2014, at 2:44 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Sorry, I should have been clearer - I was asking if cores 8-11 are all on one socket, or span multiple sockets<br>
+<br>
+<br>
+On Jun 19, 2014, at 11:36 AM, Brock Palen &lt;<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Ralph,<br>
+<br>
+It was a large job spread across.  Our system allows users to ask for &#39;procs&#39; which are laid out in any format.<br>
+<br>
+The list:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+[nyx5406:2][nyx5427:2][<u></u>nyx5506:2][nyx5311:3]<br>
+[nyx5329:4][nyx5398:4][<u></u>nyx5396:11][nyx5397:11]<br>
+[nyx5409:11][nyx5411:11][<u></u>nyx5412:3]<br>
+</blockquote>
+Shows that nyx5406 had 2 cores,  nyx5427 also 2,  nyx5411 had 11.<br>
+<br>
+They could be spread across any number of sockets configuration.  We start very lax &quot;user requests X procs&quot; and then the user can request more strict requirements from there.  We support mostly serial users, and users can colocate on nodes.<br>
+
+<br>
+That is good to know, I think we would want to turn our default to &#39;bind to core&#39; except for our few users who use hybrid mode.<br>
+<br>
+Our CPU set tells you what cores the job is assigned.  So in the problem case provided, the cpuset/cgroup shows only cores 8-11 are available to this job on this node.<br>
+<br>
+Brock Palen<br>
+<a href="http://www.umich.edu/~brockp" target="_blank">www.umich.edu/~brockp</a><br>
+CAEN Advanced Computing<br>
+XSEDE Campus Champion<br>
+<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a><br>
+<a href="tel:%28734%29936-1985" value="+17349361985" target="_blank">(734)936-1985</a><br>
+<br>
+<br>
+<br>
+On Jun 18, 2014, at 11:10 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+The default binding option depends on the number of procs - it is bind-to core for np=2, and bind-to socket for np &gt; 2. You never said, but should I assume you ran 4 ranks? If so, then we should be trying to bind-to socket.<br>
+
+<br>
+I&#39;m not sure what your cpuset is telling us - are you binding us to a socket? Are some cpus in one socket, and some in another?<br>
+<br>
+It could be that the cpuset + bind-to socket is resulting in some odd behavior, but I&#39;d need a little more info to narrow it down.<br>
+<br>
+<br>
+On Jun 18, 2014, at 7:48 PM, Brock Palen &lt;<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I have started using 1.8.1 for some codes (meep in this case) and it sometimes works fine, but in a few cases I am seeing ranks being given overlapping CPU assignments, not always though.<br>
+<br>
+Example job, default binding options (so by-core right?):<br>
+<br>
+Assigned nodes, the one in question is nyx5398, we use torque CPU sets, and use TM to spawn.<br>
+<br>
+[nyx5406:2][nyx5427:2][<u></u>nyx5506:2][nyx5311:3]<br>
+[nyx5329:4][nyx5398:4][<u></u>nyx5396:11][nyx5397:11]<br>
+[nyx5409:11][nyx5411:11][<u></u>nyx5412:3]<br>
+<br>
+[root@nyx5398 ~]# hwloc-bind --get --pid 16065<br>
+0x00000200<br>
+[root@nyx5398 ~]# hwloc-bind --get --pid 16066<br>
+0x00000800<br>
+[root@nyx5398 ~]# hwloc-bind --get --pid 16067<br>
+0x00000200<br>
+[root@nyx5398 ~]# hwloc-bind --get --pid 16068<br>
+0x00000800<br>
+<br>
+[root@nyx5398 ~]# cat /dev/cpuset/torque/<a href="http://12703230.nyx.engin.umich.edu/cpus" target="_blank">12703230.<u></u>nyx.engin.umich.edu/cpus</a><br>
+8-11<br>
+<br>
+So torque claims the CPU set setup for the job has 4 cores, but as you can see the ranks were giving identical binding.<br>
+<br>
+I checked the pids they were part of the correct CPU set, I also checked, orted:<br>
+<br>
+[root@nyx5398 ~]# hwloc-bind --get --pid 16064<br>
+0x00000f00<br>
+[root@nyx5398 ~]# hwloc-calc --intersect PU 16064<br>
+ignored unrecognized argument 16064<br>
+<br>
+[root@nyx5398 ~]# hwloc-calc --intersect PU 0x00000f00<br>
+8,9,10,11<br>
+<br>
+Which is exactly what I would expect.<br>
+<br>
+So ummm, i&#39;m lost why this might happen?  What else should I check?  Like I said not all jobs show this behavior.<br>
+<br>
+Brock Palen<br>
+<a href="http://www.umich.edu/~brockp" target="_blank">www.umich.edu/~brockp</a><br>
+CAEN Advanced Computing<br>
+XSEDE Campus Champion<br>
+<a href="mailto:brockp@umich.edu" target="_blank">brockp@umich.edu</a><br>
+<a href="tel:%28734%29936-1985" value="+17349361985" target="_blank">(734)936-1985</a><br>
+<br>
+<br>
+<br>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24672.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24672.php</a><br>
+</blockquote>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24673.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24673.php</a><br>
+</blockquote>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24675.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24675.php</a><br>
+</blockquote>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24676.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24676.php</a><br>
+</blockquote>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24677.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24677.php</a><br>
+</blockquote>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24678.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24678.php</a><br>
+</blockquote></blockquote></blockquote>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24681.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24681.php</a><br>
+</blockquote>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24682.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24682.php</a><br>
+</blockquote>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24683.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24683.php</a><br>
+</blockquote>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24684.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24684.php</a><br>
+</blockquote>
+<br>
+<br>
+-- <br>
+------------------------------<u></u>---<br>
+Maxime Boissonneault<br>
+Analyste de calcul - Calcul Québec, Université Laval<br>
+Ph. D. en physique<div class=""><br>
+<br>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/06/24691.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/06/<u></u>24691.php</a><br>
+</blockquote></div><br></div>
+

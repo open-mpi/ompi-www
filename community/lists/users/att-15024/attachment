@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+    I am not sure this has anything to do with your problem but if you
+    look at the stack entry for PMPI_Recv I noticed the buf has a value
+    of 0.&nbsp; Shouldn't that be an address?<br>
+    <br>
+    Does your code fail if the MPI library is built with -g?&nbsp; If it does
+    fail the same way, the next step I would do would be to walk up the
+    stack and try and figure out where the sendreq address is coming
+    from because supposedly it is that address that is not mapped
+    according to the original stack.<br>
+    <br>
+    --td<br>
+    <br>
+    On 12/07/2010 08:29 AM, Grzegorz Maj wrote:
+    <blockquote
+      cite="mid:AANLkTimZwnJNSJ62LSdOZjOgNYjB02eBgiG1S3jAYXOQ@mail.gmail.com"
+      type="cite">
+      <pre wrap="">Some update on this issue. I've attached gdb to the crashing
+application and I got:
+
+-----
+Program received signal SIGSEGV, Segmentation fault.
+mca_pml_ob1_send_request_put (sendreq=0x130c480, btl=0xc49850,
+hdr=0xd10e60) at pml_ob1_sendreq.c:1231
+1231	pml_ob1_sendreq.c: No such file or directory.
+	in pml_ob1_sendreq.c
+(gdb) bt
+#0  mca_pml_ob1_send_request_put (sendreq=0x130c480, btl=0xc49850,
+hdr=0xd10e60) at pml_ob1_sendreq.c:1231
+#1  0x00007fc55bf31693 in mca_btl_tcp_endpoint_recv_handler (sd=&lt;value
+optimized out&gt;, flags=&lt;value optimized out&gt;, user=&lt;value optimized
+out&gt;) at btl_tcp_endpoint.c:718
+#2  0x00007fc55fff7de4 in event_process_active (base=0xc1daf0,
+flags=2) at event.c:651
+#3  opal_event_base_loop (base=0xc1daf0, flags=2) at event.c:823
+#4  0x00007fc55ffe9ff1 in opal_progress () at runtime/opal_progress.c:189
+#5  0x00007fc55c9d7115 in opal_condition_wait (addr=&lt;value optimized
+out&gt;, count=&lt;value optimized out&gt;, datatype=&lt;value optimized out&gt;,
+src=&lt;value optimized out&gt;, tag=&lt;value optimized out&gt;,
+    comm=&lt;value optimized out&gt;, status=0xcc6100) at
+../../../../opal/threads/condition.h:99
+#6  ompi_request_wait_completion (addr=&lt;value optimized out&gt;,
+count=&lt;value optimized out&gt;, datatype=&lt;value optimized out&gt;,
+src=&lt;value optimized out&gt;, tag=&lt;value optimized out&gt;,
+    comm=&lt;value optimized out&gt;, status=0xcc6100) at
+../../../../ompi/request/request.h:375
+#7  mca_pml_ob1_recv (addr=&lt;value optimized out&gt;, count=&lt;value
+optimized out&gt;, datatype=&lt;value optimized out&gt;, src=&lt;value optimized
+out&gt;, tag=&lt;value optimized out&gt;, comm=&lt;value optimized out&gt;,
+    status=0xcc6100) at pml_ob1_irecv.c:104
+#8  0x00007fc560511260 in PMPI_Recv (buf=0x0, count=12884048,
+type=0xd10410, source=-1, tag=0, comm=0xd0daa0, status=0xcc6100) at
+precv.c:75
+#9  0x000000000049cc43 in BI_Srecv ()
+#10 0x000000000049c555 in BI_IdringBR ()
+#11 0x0000000000495ba1 in ilp64_Cdgebr2d ()
+#12 0x000000000047ffa0 in Cdgebr2d ()
+#13 0x00007fc5621da8e1 in PB_CInV2 () from
+/home/gmaj/lib/intel_mkl/current/lib/em64t/libmkl_scalapack_ilp64.so
+#14 0x00007fc56220289c in PB_CpgemmAB () from
+/home/gmaj/lib/intel_mkl/current/lib/em64t/libmkl_scalapack_ilp64.so
+#15 0x00007fc5622b28fd in pdgemm_ () from
+/home/gmaj/lib/intel_mkl/current/lib/em64t/libmkl_scalapack_ilp64.so
+-----
+
+So this looks like the line responsible for segmentation fault is:
+mca_bml_base_endpoint_t *bml_endpoint = sendreq-&gt;req_endpoint;
+
+I repeated it several times: always crashes in the same line.
+
+I have no idea what to do with this. Again, any help would be appreciated.
+
+Thanks,
+Grzegorz Maj
+
+
+
+2010/12/6 Grzegorz Maj <a class="moz-txt-link-rfc2396E" href="mailto:maju3@wp.pl">&lt;maju3@wp.pl&gt;</a>:
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Hi,
+I'm using mkl scalapack in my project. Recently, I was trying to run
+my application on new set of nodes. Unfortunately, when I try to
+execute more than about 20 processes, I get segmentation fault.
+
+[compn7:03552] *** Process received signal ***
+[compn7:03552] Signal: Segmentation fault (11)
+[compn7:03552] Signal code: Address not mapped (1)
+[compn7:03552] Failing at address: 0x20b2e68
+[compn7:03552] [ 0] /lib64/libpthread.so.0(+0xf3c0) [0x7f46e0fc33c0]
+[compn7:03552] [ 1]
+/home/gmaj/lib/openmpi/lib/openmpi/mca_pml_ob1.so(+0xd577)
+[0x7f46dd093577]
+[compn7:03552] [ 2]
+/home/gmaj/lib/openmpi/lib/openmpi/mca_btl_tcp.so(+0x5b4c)
+[0x7f46dc5edb4c]
+[compn7:03552] [ 3]
+/home/gmaj/lib/openmpi/lib/libopen-pal.so.0(+0x1dbe8) [0x7f46e0679be8]
+[compn7:03552] [ 4]
+(home/gmaj/lib/openmpi/lib/libopen-pal.so.0(opal_progress+0xa1)
+[0x7f46e066dbf1]
+[compn7:03552] [ 5]
+/home/gmaj/lib/openmpi/lib/openmpi/mca_pml_ob1.so(+0x5945)
+[0x7f46dd08b945]
+[compn7:03552] [ 6]
+/home/gmaj/lib/openmpi/lib/libmpi.so.0(MPI_Send+0x6a) [0x7f46e0b4f10a]
+[compn7:03552] [ 7] /home/gmaj/matrix/matrix(BI_Ssend+0x21) [0x49cc11]
+[compn7:03552] [ 8] /home/gmaj/matrix/matrix(BI_IdringBR+0x79) [0x49c579]
+[compn7:03552] [ 9] /home/gmaj/matrix/matrix(ilp64_Cdgebr2d+0x221) [0x495bb1]
+[compn7:03552] [10] /home/gmaj/matrix/matrix(Cdgebr2d+0xd0) [0x47ffb0]
+[compn7:03552] [11]
+/home/gmaj/lib/intel_mkl/current/lib/em64t/libmkl_scalapack_ilp64.so(PB_CInV2+0x1304)
+[0x7f46e27f5124]
+[compn7:03552] *** End of error message ***
+
+This error appears during some scalapack computation. My processes do
+some mpi communication before this error appears.
+
+I found out, that by modifying btl_tcp_eager_limit and
+btl_tcp_max_send_size parameters, I can run more processes - the
+smaller those values are, the more processes I can run. Unfortunately,
+by this method I've succeeded to run up to 30 processes, which is
+still far to small.
+
+Some clue may be what valgrind says:
+
+==3894== Syscall param writev(vector[...]) points to uninitialised byte(s)
+==3894== &nbsp; &nbsp;at 0x82D009B: writev (in /lib64/libc-2.12.90.so)
+==3894== &nbsp; &nbsp;by 0xBA2136D: mca_btl_tcp_frag_send (in
+/home/gmaj/lib/openmpi/lib/openmpi/mca_btl_tcp.so)
+==3894== &nbsp; &nbsp;by 0xBA203D0: mca_btl_tcp_endpoint_send (in
+/home/gmaj/lib/openmpi/lib/openmpi/mca_btl_tcp.so)
+==3894== &nbsp; &nbsp;by 0xB003583: mca_pml_ob1_send_request_start_rdma (in
+/home/gmaj/lib/openmpi/lib/openmpi/mca_pml_ob1.so)
+==3894== &nbsp; &nbsp;by 0xAFFA7C9: mca_pml_ob1_send (in
+/home/gmaj/lib/openmpi/lib/openmpi/mca_pml_ob1.so)
+==3894== &nbsp; &nbsp;by 0x6D4B109: PMPI_Send (in /home/gmaj/lib/openmpi/lib/libmpi.so.0)
+==3894== &nbsp; &nbsp;by 0x49CC10: BI_Ssend (in /home/gmaj/matrix/matrix)
+==3894== &nbsp; &nbsp;by 0x49C578: BI_IdringBR (in /home/gmaj/matrix/matrix)
+==3894== &nbsp; &nbsp;by 0x495BB0: ilp64_Cdgebr2d (in /home/gmaj/matrix/matrix)
+==3894== &nbsp; &nbsp;by 0x47FFAF: Cdgebr2d (in /home/gmaj/matrix/matrix)
+==3894== &nbsp; &nbsp;by 0x51B38E0: PB_CInV2 (in
+/home/gmaj/lib/intel_mkl/10.2.6/lib/em64t/libmkl_scalapack_ilp64.so)
+==3894== &nbsp; &nbsp;by 0x51DB89B: PB_CpgemmAB (in
+/home/gmaj/lib/intel_mkl/10.2.6/lib/em64t/libmkl_scalapack_ilp64.so)
+==3894== &nbsp;Address 0xadecdce is 461,886 bytes inside a block of size
+527,544 alloc'd
+==3894== &nbsp; &nbsp;at 0x4C2615D: malloc (vg_replace_malloc.c:195)
+==3894== &nbsp; &nbsp;by 0x6D0BBA3: ompi_free_list_grow (in
+/home/gmaj/lib/openmpi/lib/libmpi.so.0)
+==3894== &nbsp; &nbsp;by 0xBA1E1A4: mca_btl_tcp_component_init (in
+/home/gmaj/lib/openmpi/lib/openmpi/mca_btl_tcp.so)
+==3894== &nbsp; &nbsp;by 0x6D5C909: mca_btl_base_select (in
+/home/gmaj/lib/openmpi/lib/libmpi.so.0)
+==3894== &nbsp; &nbsp;by 0xB40E950: mca_bml_r2_component_init (in
+/home/gmaj/lib/openmpi/lib/openmpi/mca_bml_r2.so)
+==3894== &nbsp; &nbsp;by 0x6D5C07E: mca_bml_base_init (in
+/home/gmaj/lib/openmpi/lib/libmpi.so.0)
+==3894== &nbsp; &nbsp;by 0xAFF8A0E: mca_pml_ob1_component_init (in
+/home/gmaj/lib/openmpi/lib/openmpi/mca_pml_ob1.so)
+==3894== &nbsp; &nbsp;by 0x6D663B2: mca_pml_base_select (in
+/home/gmaj/lib/openmpi/lib/libmpi.so.0)
+==3894== &nbsp; &nbsp;by 0x6D25D20: ompi_mpi_init (in
+/home/gmaj/lib/openmpi/lib/libmpi.so.0)
+==3894== &nbsp; &nbsp;by 0x6D45987: PMPI_Init_thread (in
+/home/gmaj/lib/openmpi/lib/libmpi.so.0)
+==3894== &nbsp; &nbsp;by 0x42490A: MPI::Init_thread(int&amp;, char**&amp;, int)
+(functions_inln.h:150)
+==3894== &nbsp; &nbsp;by 0x41F483: main (matrix.cpp:83)
+
+I've tried to configure open-mpi with option --without-memory-manager,
+but it didn't help.
+
+I can successfully run exactly the same application on other machines,
+having the number of nodes even over 800.
+
+Does anyone have any idea how to further debug this issue? Any help
+would be appreciated.
+
+Thanks,
+Grzegorz Maj
+
+</pre>
+      </blockquote>
+      <pre wrap="">
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</pre>
+    </blockquote>
+    <br>
+    <br>
+    <div class="moz-signature">-- <br>
+      <meta http-equiv="content-type" content="text/html;
+        charset=ISO-8859-1">
+      <title></title>
+      <img src="cid:part1.05080900.06040206@oracle.com" alt="Oracle"><br>
+      Terry D. Dontje | Principal Software Engineer<br>
+      <font size="2" color="#666666" face="Verdana">Developer Tools
+        Engineering | +1.781.442.2631<br>
+      </font> <font size="2" color="#ff0000" face="Verdana">Oracle </font><font
+        size="2" color="#666666" face="Verdana"><b> - Performance
+          Technologies</b></font><br>
+      <font size="2" color="#666666" face="Verdana"> 95 Network Drive,
+        Burlington, MA 01803<br>
+        Email <a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+      </font>
+      <div class="moz-signature"><br>
+        <div class="moz-signature">
+          <div class="moz-signature">
+            <div class="moz-signature">
+              <div class="moz-signature">
+                <div class="moz-signature"> </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <br>
+        <br>
+      </div>
+    </div>
+  </body>
+</html>
+

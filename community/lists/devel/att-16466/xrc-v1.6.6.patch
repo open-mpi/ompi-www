@@ -1,0 +1,790 @@
+diff --git a/ompi/config/ompi_check_openib.m4 b/ompi/config/ompi_check_openib.m4
+index 187356f..97ee8fb 100644
+--- a/ompi/config/ompi_check_openib.m4
++++ b/ompi/config/ompi_check_openib.m4
+@@ -15,6 +15,7 @@
+ #                         reserved.
+ # Copyright (c) 2006-2009 Mellanox Technologies. All rights reserved.
+ # Copyright (c) 2010-2012 Oracle and/or its affiliates.  All rights reserved.
++# Copyright (c) 2014      Bull SAS.  All rights reserved.
+ # $COPYRIGHT$
+ # 
+ # Additional copyrights may follow
+@@ -175,6 +176,7 @@ AC_DEFUN([OMPI_CHECK_OPENIB],[
+     # (unconditionally)
+     $1_have_xrc=0
+     $1_have_rdmacm=0
++    $1_have_xrc_connectib=0
+     $1_have_opensm_devel=0
+ 
+     # If we have the openib stuff available, find out what we've got
+@@ -188,10 +190,15 @@ AC_DEFUN([OMPI_CHECK_OPENIB],[
+                             [#include <infiniband/verbs.h>])
+ 
+            # ibv_create_xrc_rcv_qp was added in OFED 1.3
++	   # ibv_open_xrcd was added in  OFED 3.12 (new API)
+            if test "$enable_connectx_xrc" = "yes"; then
+-               AC_CHECK_FUNCS([ibv_create_xrc_rcv_qp], [$1_have_xrc=1])
++               AC_CHECK_FUNCS([ibv_create_xrc_rcv_qp ibv_cmd_open_xrcd], [$1_have_xrc=1])
++           fi
++           if test "$enable_connectx_xrc" = "yes"; then
++               AC_CHECK_FUNCS([ibv_cmd_open_xrcd], [$1_have_xrc_connectib=1])
+            fi
+ 
++
+            if test "no" != "$enable_openib_dynamic_sl"; then
+                # We need ib_types.h file, which is installed with opensm-devel
+                # package. However, ib_types.h has a bad include directive,
+@@ -279,6 +286,15 @@ AC_DEFUN([OMPI_CHECK_OPENIB],[
+         AC_MSG_RESULT([no])
+     fi
+ 
++    AC_MSG_CHECKING([if ConnectIB XRC support is enabled])
++    AC_DEFINE_UNQUOTED([OMPI_HAVE_CONNECTIB_XRC], [$$1_have_xrc_connectib],
++        [Enable features required for ConnectIB XRC support])
++    if test "1" = "$$1_have_xrc_connectib"; then
++        AC_MSG_RESULT([yes])
++    else
++        AC_MSG_RESULT([no])
++    fi
++
+     AC_MSG_CHECKING([if dynamic SL is enabled])
+     AC_DEFINE_UNQUOTED([OMPI_ENABLE_DYNAMIC_SL], [$$1_have_opensm_devel],
+         [Enable features required for dynamic SL support])
+diff --git a/ompi/mca/btl/openib/btl_openib.c b/ompi/mca/btl/openib/btl_openib.c
+index 8a9d942..80f833b 100644
+--- a/ompi/mca/btl/openib/btl_openib.c
++++ b/ompi/mca/btl/openib/btl_openib.c
+@@ -17,6 +17,7 @@
+  * Copyright (c) 2006-2007 Voltaire All rights reserved.
+  * Copyright (c) 2008-2012 Oracle and/or its affiliates.  All rights reserved.
+  * Copyright (c) 2009      IBM Corporation.  All rights reserved.
++ * Copyright (c) 2014      Bull SAS.  All rights reserved
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -323,10 +324,26 @@ static int create_srq(mca_btl_openib_module_t *openib_btl)
+             openib_btl->qps[qp].u.srq_qp.rd_posted = 0;
+ #if HAVE_XRC
+             if(BTL_OPENIB_QP_TYPE_XRC(qp)) {
++#if OMPI_HAVE_CONNECTIB_XRC
++		struct ibv_srq_init_attr_ex attr_ex;
++		memset(&attr_ex, 0, sizeof(struct ibv_srq_init_attr_ex));
++		attr_ex.attr.max_wr = attr.attr.max_wr;
++		attr_ex.attr.max_sge = attr.attr.max_sge;
++		attr_ex.comp_mask = IBV_SRQ_INIT_ATTR_TYPE | IBV_SRQ_INIT_ATTR_XRCD |
++		    IBV_SRQ_INIT_ATTR_CQ | IBV_SRQ_INIT_ATTR_PD;
++		attr_ex.srq_type = IBV_SRQT_XRC;
++		attr_ex.xrcd = openib_btl->device->xrcd;
++		attr_ex.cq = openib_btl->device->ib_cq[qp_cq_prio(qp)];
++		attr_ex.pd = openib_btl->device->ib_pd;
++
++		openib_btl->qps[qp].u.srq_qp.srq =
++		    ibv_create_srq_ex(openib_btl->device->ib_dev_context, &attr_ex);
++#else
+                 openib_btl->qps[qp].u.srq_qp.srq =
+                     ibv_create_xrc_srq(openib_btl->device->ib_pd,
+                             openib_btl->device->xrc_domain,
+                             openib_btl->device->ib_cq[qp_cq_prio(qp)], &attr);
++#endif
+             } else
+ #endif
+             {
+@@ -1755,8 +1772,12 @@ int mca_btl_openib_put( mca_btl_base_module_t* btl,
+     to_com_frag(frag)->endpoint = ep;
+ #if HAVE_XRC
+     if (MCA_BTL_XRC_ENABLED && BTL_OPENIB_QP_TYPE_XRC(qp))
++#if OMPI_HAVE_CONNECTIB_XRC
++        frag->sr_desc.qp_type.xrc.remote_srqn=ep->rem_info.rem_srqs[qp].rem_srq_num;
++#else
+         frag->sr_desc.xrc_remote_srq_num=ep->rem_info.rem_srqs[qp].rem_srq_num;
+ #endif
++#endif
+ 
+     descriptor->order = qp;
+     /* Setting opcode on a frag constructor isn't enough since prepare_src
+@@ -1839,8 +1860,12 @@ int mca_btl_openib_get(mca_btl_base_module_t* btl,
+ 
+ #if HAVE_XRC
+     if (MCA_BTL_XRC_ENABLED && BTL_OPENIB_QP_TYPE_XRC(qp))
++#if OMPI_HAVE_CONNECTIB_XRC
++        frag->sr_desc.qp_type.xrc.remote_srqn=ep->rem_info.rem_srqs[qp].rem_srq_num;
++#else
+         frag->sr_desc.xrc_remote_srq_num=ep->rem_info.rem_srqs[qp].rem_srq_num;
+ #endif
++#endif
+     descriptor->order = qp;
+ 
+     qp_inflight_wqe_to_frag(ep, qp, to_com_frag(frag));
+diff --git a/ompi/mca/btl/openib/btl_openib.h b/ompi/mca/btl/openib/btl_openib.h
+index a685ef4..104b897 100644
+--- a/ompi/mca/btl/openib/btl_openib.h
++++ b/ompi/mca/btl/openib/btl_openib.h
+@@ -16,6 +16,7 @@
+  *                         reserved.
+  * Copyright (c) 2006-2007 Voltaire All rights reserved.
+  * Copyright (c) 2009-2010 Oracle and/or its affiliates.  All rights reserved.
++ * Copyright (c) 2014      Bull SAS.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -150,6 +151,12 @@ typedef struct mca_btl_openib_srq_manager_t {
+ } mca_btl_openib_srq_manager_t;
+ #endif
+ 
++typedef enum {
++	MCA_BTL_IB_XRC_API_NONE,
++	MCA_BTL_IB_XRC_API_BETA,
++	MCA_BTL_IB_XRC_API_OFED_3_12
++} mca_btl_openib_xrc_api_t;
++
+ struct mca_btl_openib_component_t {
+     mca_btl_base_component_2_0_0_t          super;  /**< base BTL component */
+ 
+@@ -297,6 +304,10 @@ struct mca_btl_openib_component_t {
+     char* default_recv_qps;
+     /** GID index to use */
+     int gid_index;
++    int xrc_enable_warning;
++#if HAVE_XRC
++    mca_btl_openib_xrc_api_t xrc_api_version;
++#endif
+     /** Whether we want a dynamically resizing srq, enabled by default */
+     bool enable_srq_resize;
+ #if BTL_OPENIB_FAILOVER_ENABLED
+@@ -383,7 +394,11 @@ typedef struct mca_btl_openib_device_t {
+     volatile bool got_port_event;
+ #endif
+ #if HAVE_XRC
++#if OMPI_HAVE_CONNECTIB_XRC
++    struct ibv_xrcd *xrcd;
++#else
+     struct ibv_xrc_domain *xrc_domain;
++#endif
+     int xrc_fd;
+ #endif
+     int32_t non_eager_rdma_endpoints;
+diff --git a/ompi/mca/btl/openib/btl_openib_async.c b/ompi/mca/btl/openib/btl_openib_async.c
+index 1cf9d5b..0763a8f 100644
+--- a/ompi/mca/btl/openib/btl_openib_async.c
++++ b/ompi/mca/btl/openib/btl_openib_async.c
+@@ -3,6 +3,7 @@
+  * Copyright (c) 2007-2009 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2006-2007 Voltaire All rights reserved.
+  * Copyright (c) 2010      Oracle and/or its affiliates.  All rights reserved
++ * Copyright (c) 2014      Bull SAS.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -115,7 +116,11 @@ static mca_btl_openib_endpoint_t * xrc_qp2endpoint(uint32_t qp_num, mca_btl_open
+     int  ep_i;
+     for(ep_i = 0; ep_i < opal_pointer_array_get_size(device->endpoints); ep_i++) {
+         ep = opal_pointer_array_get_item(device->endpoints, ep_i);
++#if OMPI_HAVE_CONNECTIB_XRC
++        if (qp_num == ep->xrc_recv_qp->qp_num)
++#else
+         if (qp_num == ep->xrc_recv_qp_num)
++#endif
+             return ep;
+     }
+     return NULL;
+@@ -316,12 +321,20 @@ static int btl_openib_async_deviceh(struct mca_btl_openib_async_poll *devices_po
+         event_type = event.event_type;
+ #if HAVE_XRC
+         /* is it XRC event ?*/
++#if OMPI_HAVE_CONNECTIB_XRC
++        if (event.element.qp &&
++            (IBV_QPT_XRC_RECV == event.element.qp->qp_type
++             || IBV_QPT_XRC_SEND == event.element.qp->qp_type)) {
++            xrc_event = true;
++        }
++#else
+         if (IBV_XRC_QP_EVENT_FLAG & event.event_type) {
+             xrc_event = true;
+             /* Clean the bitnd handel as usual */
+             event_type ^= IBV_XRC_QP_EVENT_FLAG;
+         }
+ #endif
++#endif
+         switch(event_type) {
+             case IBV_EVENT_PATH_MIG:
+                 BTL_ERROR(("Alternative path migration event reported"));
+@@ -331,10 +344,16 @@ static int btl_openib_async_deviceh(struct mca_btl_openib_async_poll *devices_po
+                         mca_btl_openib_load_apm(event.element.qp,
+                                 qp2endpoint(event.element.qp, device));
+ #if HAVE_XRC
++#if OMPI_HAVE_CONNECTIB_XRC
++                    else
++                        mca_btl_openib_load_apm(event.element.qp,
++                                xrc_qp2endpoint(event.element.qp->qp_num, device));
++#else
+                     else
+                         mca_btl_openib_load_apm_xrc_rcv(event.element.xrc_qp_num,
+                                 xrc_qp2endpoint(event.element.xrc_qp_num, device));
+ #endif
++#endif
+                 }
+                 break;
+             case IBV_EVENT_DEVICE_FATAL:
+@@ -584,7 +603,7 @@ void mca_btl_openib_load_apm(struct ibv_qp *qp, mca_btl_openib_endpoint_t *ep)
+                    qp->qp_num, strerror(errno), errno));
+ }
+ 
+-#if HAVE_XRC
++#if HAVE_XRC && ! OMPI_HAVE_CONNECTIB_XRC
+ void mca_btl_openib_load_apm_xrc_rcv(uint32_t qp_num, mca_btl_openib_endpoint_t *ep)
+ {
+     struct ibv_qp_init_attr qp_init_attr;
+@@ -614,6 +633,7 @@ void mca_btl_openib_load_apm_xrc_rcv(uint32_t qp_num, mca_btl_openib_endpoint_t
+     }
+ 
+     ibv_modify_xrc_rcv_qp(btl->device->xrc_domain, qp_num, &attr, mask);
++
+     /* Maybe the qp already was modified by other process - ignoring error */
+ }
+ #endif
+diff --git a/ompi/mca/btl/openib/btl_openib_async.h b/ompi/mca/btl/openib/btl_openib_async.h
+index f35694b..8eda380 100644
+--- a/ompi/mca/btl/openib/btl_openib_async.h
++++ b/ompi/mca/btl/openib/btl_openib_async.h
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (c) 2007-2008 Mellanox Technologies. All rights reserved.
++ * Copyright (c) 2014      Bull SAS.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -16,7 +17,7 @@
+ void*      btl_openib_async_thread(void *one_hca);
+ void       mca_btl_openib_load_apm(struct ibv_qp *qp, mca_btl_openib_endpoint_t *ep);
+ int        btl_openib_async_command_done(int exp);
+-#if HAVE_XRC
++#if HAVE_XRC && ! OMPI_HAVE_CONNECTIB_XRC
+ void       mca_btl_openib_load_apm_xrc_rcv(uint32_t qp_num, mca_btl_openib_endpoint_t *ep);
+ #endif
+ 
+diff --git a/ompi/mca/btl/openib/btl_openib_component.c b/ompi/mca/btl/openib/btl_openib_component.c
+index 6e61b44..e8f2361 100644
+--- a/ompi/mca/btl/openib/btl_openib_component.c
++++ b/ompi/mca/btl/openib/btl_openib_component.c
+@@ -16,6 +16,7 @@
+  *                         reserved.
+  * Copyright (c) 2006-2007 Voltaire All rights reserved.
+  * Copyright (c) 2009-2012 Oracle and/or its affiliates.  All rights reserved.
++ * Copyright (c) 2014      Bull SAS.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -1133,6 +1134,27 @@ static int prepare_device_for_use(mca_btl_openib_device_t *device)
+         return OMPI_ERROR;
+     }
+ 
++
++    mca_btl_openib_component.xrc_api_version = mca_btl_openib_xrc_api();
++    opal_output_verbose(5, mca_btl_base_output, "openib BTL detected XRC API: %s\n",
++                mca_btl_openib_xrc_api_str(mca_btl_openib_component.xrc_api_version));
++    if (MCA_BTL_XRC_ENABLED) {
++#if ! OMPI_HAVE_CONNECTIB_XRC
++        if (mca_btl_openib_component.xrc_api_version != MCA_BTL_IB_XRC_API_BETA) {
++            BTL_ERROR(("XRC error: bad XRC API (compiled with %s api).",
++                       mca_btl_openib_xrc_api_str(MCA_BTL_IB_XRC_API_OFED_3_12)));
++            return OMPI_ERROR;
++        }
++#else
++        if (mca_btl_openib_component.xrc_api_version != MCA_BTL_IB_XRC_API_OFED_3_12) {
++            BTL_ERROR(("XRC error: bad XRC API (compiled with %s api).",
++                       mca_btl_openib_xrc_api_str(MCA_BTL_IB_XRC_API_OFED_3_12)));
++            return OMPI_ERROR;
++        }
++#endif
++    }
++
++
+     if (MCA_BTL_XRC_ENABLED) {
+         if (OMPI_SUCCESS != mca_btl_openib_open_xrc_domain(device)) {
+             BTL_ERROR(("XRC Internal error. Failed to open xrc domain"));
+diff --git a/ompi/mca/btl/openib/btl_openib_endpoint.c b/ompi/mca/btl/openib/btl_openib_endpoint.c
+index d99b7b9..8f20e46 100644
+--- a/ompi/mca/btl/openib/btl_openib_endpoint.c
++++ b/ompi/mca/btl/openib/btl_openib_endpoint.c
+@@ -17,6 +17,7 @@
+  * Copyright (c) 2006-2009 Mellanox Technologies, Inc.  All rights reserved.
+  * Copyright (c) 2009      IBM Corporation.  All rights reserved.
+  * Copyright (c) 2010-2011 Oracle and/or its affiliates.  All rights reserved
++ * Copyright (c) 2014      Bull SAS.  All rights reserved.
+  *
+  * $COPYRIGHT$
+  *
+@@ -346,7 +347,11 @@ static void mca_btl_openib_endpoint_construct(mca_btl_base_endpoint_t* endpoint)
+     }
+ 
+     endpoint->ib_addr = NULL;
++#if OMPI_HAVE_CONNECTIB_XRC
++    endpoint->xrc_recv_qp = NULL;
++#else
+     endpoint->xrc_recv_qp_num = 0;
++#endif
+     endpoint->endpoint_btl = 0;
+     endpoint->endpoint_proc = 0;
+     endpoint->endpoint_local_cpc = NULL;
+@@ -457,12 +462,24 @@ static void mca_btl_openib_endpoint_destruct(mca_btl_base_endpoint_t* endpoint)
+ 
+     /* unregister xrc recv qp */
+ #if HAVE_XRC
++#if ! OMPI_HAVE_CONNECTIB_XRC
+     if (0 != endpoint->xrc_recv_qp_num) {
+         if(ibv_unreg_xrc_rcv_qp(endpoint->endpoint_btl->device->xrc_domain,
+                     endpoint->xrc_recv_qp_num)) {
+             BTL_ERROR(("Failed to unregister XRC recv QP:%d\n", endpoint->xrc_recv_qp_num));
+-        }
++        } else {
++	    BTL_VERBOSE(("Unregistered XRC Recv QP:%d\n", endpoint->xrc_recv_qp_num));
++	}
+     }
++#else
++    if (NULL != endpoint->xrc_recv_qp) {
++        if(ibv_destroy_qp(endpoint->xrc_recv_qp)) {
++            BTL_ERROR(("Failed to unregister XRC recv QP:%d\n", endpoint->xrc_recv_qp->qp_num));
++        } else {
++	    BTL_VERBOSE(("Unregistered XRC Recv QP:%d\n", endpoint->xrc_recv_qp->qp_num));
++	}
++    }
++#endif
+ #endif
+ 
+     OBJ_DESTRUCT(&endpoint->endpoint_lock);
+diff --git a/ompi/mca/btl/openib/btl_openib_endpoint.h b/ompi/mca/btl/openib/btl_openib_endpoint.h
+index 57f03f7..648ca1d 100644
+--- a/ompi/mca/btl/openib/btl_openib_endpoint.h
++++ b/ompi/mca/btl/openib/btl_openib_endpoint.h
+@@ -15,6 +15,7 @@
+  * Copyright (c) 2006-2007 Voltaire All rights reserved.
+  * Copyright (c) 2007-2009 Mellanox Technologies.  All rights reserved.
+  * Copyright (c) 2010-2012 Oracle and/or its affiliates.  All rights reserved.
++ * Copyright (c) 2014      Bull SAS.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -206,7 +207,11 @@ struct mca_btl_base_endpoint_t {
+     opal_list_t                 pending_lazy_frags;
+ 
+     mca_btl_openib_endpoint_qp_t *qps;
++#if OMPI_HAVE_CONNECTIB_XRC
++    struct ibv_qp *xrc_recv_qp;
++#else
+     uint32_t xrc_recv_qp_num; /* in xrc we will use it as recv qp */
++#endif
+     uint32_t xrc_recv_psn;
+ 
+     /** list of pending rget ops */
+@@ -590,9 +595,14 @@ static inline int post_send(mca_btl_openib_endpoint_t *ep,
+     }
+ 
+ #if HAVE_XRC
++#if OMPI_HAVE_CONNECTIB_XRC
++    if(BTL_OPENIB_QP_TYPE_XRC(qp))
++        sr_desc->qp_type.xrc.remote_srqn = ep->rem_info.rem_srqs[qp].rem_srq_num;
++#else
+     if(BTL_OPENIB_QP_TYPE_XRC(qp))
+         sr_desc->xrc_remote_srq_num = ep->rem_info.rem_srqs[qp].rem_srq_num;
+ #endif
++#endif
+     assert(sg->addr == (uint64_t)(uintptr_t)frag->hdr);
+ 
+     if (sr_desc->send_flags & IBV_SEND_SIGNALED) {
+diff --git a/ompi/mca/btl/openib/btl_openib_xrc.c b/ompi/mca/btl/openib/btl_openib_xrc.c
+index 8236199..f1f738c 100644
+--- a/ompi/mca/btl/openib/btl_openib_xrc.c
++++ b/ompi/mca/btl/openib/btl_openib_xrc.c
+@@ -1,6 +1,7 @@
+ /*
+  * Copyright (c) 2007-2008 Mellanox Technologies. All rights reserved.
+  * Copyright (c) 2009      Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2014      Bull SAS.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -16,6 +17,7 @@
+ #include <fcntl.h>
+ #include <errno.h>
+ #include <unistd.h>
++#include <dlfcn.h>
+ 
+ #include "ompi/mca/btl/base/base.h"
+ #include "btl_openib_xrc.h"
+@@ -32,12 +34,50 @@ OBJ_CLASS_INSTANCE(ib_address_t,
+                    ib_address_constructor,
+                    ib_address_destructor);
+ 
++/*
++ * Run-time check for which libibverbs XRC API we really have
++ * underneath.
++ *
++ * Note: I do not know any reliable way other than library symbols to
++ * distinguish between libibverbs having "beta" and official XRC API
++ * (no different versions or capabilities).
++ */
++mca_btl_openib_xrc_api_t mca_btl_openib_xrc_api()
++{
++	mca_btl_openib_xrc_api_t api = MCA_BTL_IB_XRC_API_NONE;
++	void *h_old, *h_new;
++	void *lib = dlopen(NULL, RTLD_NOW); /* current program */
++	if (!lib) return api;
++
++	h_old = dlsym(lib, "ibv_create_xrc_rcv_qp");
++	if (h_old) api = MCA_BTL_IB_XRC_API_BETA;
++
++	h_new = dlsym(lib, "ibv_cmd_open_xrcd");
++	if (h_new) api = MCA_BTL_IB_XRC_API_OFED_3_12;
++
++	dlclose(lib);
++	return api;
++
++}
++
++const char *mca_btl_openib_xrc_api_str(mca_btl_openib_xrc_api_t xrc_api)
++{
++        switch(xrc_api) {
++        case MCA_BTL_IB_XRC_API_BETA:      return "beta, ofed 1.3+";
++        case MCA_BTL_IB_XRC_API_OFED_3_12: return "ofed 3.12+";
++        default:                           return "none";
++	}
++}
++
+ /* This func. opens XRC domain */
+ int mca_btl_openib_open_xrc_domain(struct mca_btl_openib_device_t *device)
+ {
+     int len;
+     char *xrc_file_name;
+     const char *dev_name;
++#if OMPI_HAVE_CONNECTIB_XRC
++    struct ibv_xrcd_init_attr xrcd_attr;
++#endif
+ 
+     dev_name = ibv_get_device_name(device->ib_dev);
+     len = asprintf(&xrc_file_name,
+@@ -56,9 +96,17 @@ int mca_btl_openib_open_xrc_domain(struct mca_btl_openib_device_t *device)
+         free(xrc_file_name);
+         return OMPI_ERROR;
+     }
+-
++#if OMPI_HAVE_CONNECTIB_XRC
++    memset(&xrcd_attr, 0, sizeof xrcd_attr);
++    xrcd_attr.comp_mask = IBV_XRCD_INIT_ATTR_FD | IBV_XRCD_INIT_ATTR_OFLAGS;
++    xrcd_attr.fd = device->xrc_fd;
++    xrcd_attr.oflags = O_CREAT;
++    device->xrcd = ibv_open_xrcd(device->ib_dev_context, &xrcd_attr);
++    if (NULL == device->xrcd) {
++#else
+     device->xrc_domain = ibv_open_xrc_domain(device->ib_dev_context, device->xrc_fd, O_CREAT);
+     if (NULL == device->xrc_domain) {
++#endif
+         BTL_ERROR(("Failed to open XRC domain\n"));
+         close(device->xrc_fd);
+         free(xrc_file_name);
+@@ -71,11 +119,19 @@ int mca_btl_openib_open_xrc_domain(struct mca_btl_openib_device_t *device)
+ /* This func. closes XRC domain */
+ int mca_btl_openib_close_xrc_domain(struct mca_btl_openib_device_t *device)
+ {
++#if OMPI_HAVE_CONNECTIB_XRC
++    if (NULL == device->xrcd) {
++#else
+     if (NULL == device->xrc_domain) {
++#endif
+         /* No XRC domain, just exit */
+         return OMPI_SUCCESS;
+     }
++#if OMPI_HAVE_CONNECTIB_XRC
++    if (ibv_close_xrcd(device->xrcd)) {
++#else
+     if (ibv_close_xrc_domain(device->xrc_domain)) {
++#endif
+         BTL_ERROR(("Failed to close XRC domain, errno %d says %s\n",
+                     device->xrc_fd, strerror(errno)));
+         return OMPI_ERROR;
+diff --git a/ompi/mca/btl/openib/btl_openib_xrc.h b/ompi/mca/btl/openib/btl_openib_xrc.h
+index d8313f4..b62540f 100644
+--- a/ompi/mca/btl/openib/btl_openib_xrc.h
++++ b/ompi/mca/btl/openib/btl_openib_xrc.h
+@@ -1,5 +1,6 @@
+ /*
+  * Copyright (c) 2007-2008 Mellanox Technologies. All rights reserved.
++ * Copyright (c) 2014      Bull SAS.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -41,9 +42,13 @@ struct ib_address_t {
+ };
+ typedef struct ib_address_t ib_address_t;
+ 
++
+ int mca_btl_openib_open_xrc_domain(struct mca_btl_openib_device_t *device);
+ int mca_btl_openib_close_xrc_domain(struct mca_btl_openib_device_t *device);
+ int mca_btl_openib_ib_address_add_new (uint16_t lid, uint64_t s_id,
+         orte_jobid_t ep_jobid, mca_btl_openib_endpoint_t *ep);
+ 
++mca_btl_openib_xrc_api_t mca_btl_openib_xrc_api(void);
++const char *mca_btl_openib_xrc_api_str(mca_btl_openib_xrc_api_t xrc_api);
++
+ #endif
+diff --git a/ompi/mca/btl/openib/connect/btl_openib_connect_xoob.c b/ompi/mca/btl/openib/connect/btl_openib_connect_xoob.c
+index 50c1ef5..07cd404 100644
+--- a/ompi/mca/btl/openib/connect/btl_openib_connect_xoob.c
++++ b/ompi/mca/btl/openib/connect/btl_openib_connect_xoob.c
+@@ -2,6 +2,7 @@
+  * Copyright (c) 2007-2011 Mellanox Technologies.  All rights reserved.
+  * Copyright (c) 2009      Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2009      IBM Corporation.  All rights reserved.
++ * Copyright (c) 2014      Bull SAS.  All rights reserved.
+  *
+  * $COPYRIGHT$
+  *
+@@ -265,7 +266,11 @@ static int xoob_send_connect_data(mca_btl_base_endpoint_t* endpoint,
+             qp_num = endpoint->qps[0].qp->lcl_qp->qp_num;
+             psn = endpoint->qps[0].qp->lcl_psn;
+         } else {
++#if OMPI_HAVE_CONNECTIB_XRC
++            qp_num = endpoint->xrc_recv_qp->qp_num;
++#else
+             qp_num = endpoint->xrc_recv_qp_num;
++#endif
+             psn = endpoint->xrc_recv_psn;
+         }
+         /* stuff all the QP info into the buffer */
+@@ -341,10 +346,21 @@ static int xoob_send_connect_data(mca_btl_base_endpoint_t* endpoint,
+         }
+         /* on response we add all SRQ numbers */
+         for (srq = 0; srq < mca_btl_openib_component.num_xrc_qps; srq++) {
++#if OMPI_HAVE_CONNECTIB_XRC
++            uint32_t srq_num;
++	    if (ibv_get_srq_num(endpoint->endpoint_btl->qps[srq].u.srq_qp.srq, &srq_num)) {
++		    BTL_ERROR(("BTL openib XOOB internal error: can't get srq num"));
++	    }
++            BTL_VERBOSE(("Send pack srq[%d] num  = %d", srq, srq_num));
++            BTL_VERBOSE(("packing %d of %d\n", 1, OPAL_UINT32));
++            rc = opal_dss.pack(buffer, &srq_num,
++                    1, OPAL_UINT32);
++#else
+             BTL_VERBOSE(("Send pack srq[%d] num  = %d", srq, endpoint->endpoint_btl->qps[srq].u.srq_qp.srq->xrc_srq_num));
+             BTL_VERBOSE(("packing %d of %d\n", 1, OPAL_UINT32));
+             rc = opal_dss.pack(buffer, &endpoint->endpoint_btl->qps[srq].u.srq_qp.srq->xrc_srq_num,
+                     1, OPAL_UINT32);
++#endif
+             if (ORTE_SUCCESS != rc) {
+                 ORTE_ERROR_LOG(rc);
+                 return rc;
+@@ -376,7 +392,11 @@ static int xoob_send_qp_create (mca_btl_base_endpoint_t* endpoint)
+     uint32_t send_wr;
+     struct ibv_qp **qp;
+     uint32_t *psn;
++#if OMPI_HAVE_CONNECTIB_XRC
++    struct ibv_qp_init_attr_ex qp_init_attr;
++#else
+     struct ibv_qp_init_attr qp_init_attr;
++#endif
+     struct ibv_qp_attr attr;
+     int ret;
+     size_t req_inline;
+@@ -392,7 +412,11 @@ static int xoob_send_qp_create (mca_btl_base_endpoint_t* endpoint)
+     send_wr = endpoint->ib_addr->qp->sd_wqe +
+         (mca_btl_openib_component.use_eager_rdma ?
+          mca_btl_openib_component.max_eager_rdma : 0);
++#if OMPI_HAVE_CONNECTIB_XRC
++    memset(&qp_init_attr, 0, sizeof(struct ibv_qp_init_attr_ex));
++#else
+     memset(&qp_init_attr, 0, sizeof(struct ibv_qp_init_attr));
++#endif
+     memset(&attr, 0, sizeof(struct ibv_qp_attr));
+ 
+     qp_init_attr.send_cq = qp_init_attr.recv_cq = openib_btl->device->ib_cq[prio];
+@@ -405,9 +429,16 @@ static int xoob_send_qp_create (mca_btl_base_endpoint_t* endpoint)
+     qp_init_attr.cap.max_send_sge = 1;
+     /* this one is ignored by driver */
+     qp_init_attr.cap.max_recv_sge = 1; /* we do not use SG list */
++#if OMPI_HAVE_CONNECTIB_XRC
++    qp_init_attr.qp_type = IBV_QPT_XRC_SEND;
++    qp_init_attr.comp_mask = IBV_QP_INIT_ATTR_PD;
++    qp_init_attr.pd = openib_btl->device->ib_pd;
++    *qp = ibv_create_qp_ex(openib_btl->device->ib_dev_context, &qp_init_attr);
++#else
+     qp_init_attr.qp_type = IBV_QPT_XRC;
+     qp_init_attr.xrc_domain = openib_btl->device->xrc_domain;
+     *qp = ibv_create_qp(openib_btl->device->ib_pd, &qp_init_attr);
++#endif
+     if (NULL == *qp) {
+ 	orte_show_help("help-mpi-btl-openib-cpc-base.txt",
+ 		       "ibv_create_qp failed", true,
+@@ -544,7 +575,11 @@ static int xoob_send_qp_connect(mca_btl_openib_endpoint_t *endpoint, mca_btl_ope
+ /* Recv qp create */
+ static int xoob_recv_qp_create(mca_btl_openib_endpoint_t *endpoint, mca_btl_openib_rem_info_t *rem_info)
+ {
++#if OMPI_HAVE_CONNECTIB_XRC
++    struct ibv_qp_init_attr_ex qp_init_attr;
++#else
+     struct ibv_qp_init_attr qp_init_attr;
++#endif
+     struct ibv_qp_attr attr;
+     int ret;
+ 
+@@ -553,6 +588,19 @@ static int xoob_recv_qp_create(mca_btl_openib_endpoint_t *endpoint, mca_btl_open
+ 
+     BTL_VERBOSE(("Connecting Recv QP\n"));
+ 
++#if OMPI_HAVE_CONNECTIB_XRC
++    memset(&qp_init_attr, 0, sizeof(struct ibv_qp_init_attr_ex));
++    qp_init_attr.qp_type = IBV_QPT_XRC_RECV;
++    qp_init_attr.comp_mask = IBV_QP_INIT_ATTR_XRCD;
++    qp_init_attr.xrcd = openib_btl->device->xrcd;
++    endpoint->xrc_recv_qp = ibv_create_qp_ex(openib_btl->device->ib_dev_context,
++					     &qp_init_attr);
++    if (NULL == endpoint->xrc_recv_qp) {
++        BTL_ERROR(("Error creating XRC recv QP, errno says: %s [%d]",
++                    strerror(errno), errno));
++        return OMPI_ERROR;
++    }
++#else
+     memset(&qp_init_attr, 0, sizeof(struct ibv_qp_init_attr));
+     /* Only xrc_domain is required, all other are ignored */
+     qp_init_attr.xrc_domain = openib_btl->device->xrc_domain;
+@@ -562,12 +610,26 @@ static int xoob_recv_qp_create(mca_btl_openib_endpoint_t *endpoint, mca_btl_open
+                     endpoint->xrc_recv_qp_num, strerror(ret), ret));
+         return OMPI_ERROR;
+     }
++#endif
+ 
+     memset(&attr, 0, sizeof(struct ibv_qp_attr));
+     attr.qp_state = IBV_QPS_INIT;
+     attr.pkey_index = openib_btl->pkey_index;
+     attr.port_num = openib_btl->port_num;
+     attr.qp_access_flags = IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ;
++#if OMPI_HAVE_CONNECTIB_XRC
++    ret = ibv_modify_qp(endpoint->xrc_recv_qp,
++            &attr,
++            IBV_QP_STATE|
++            IBV_QP_PKEY_INDEX|
++            IBV_QP_PORT|
++            IBV_QP_ACCESS_FLAGS);
++    if (ret) {
++        BTL_ERROR(("Error modifying XRC recv QP to IBV_QPS_INIT, errno says: %s [%d]",
++                    strerror(ret), ret));
++        return OMPI_ERROR;
++    }
++#else
+     ret = ibv_modify_xrc_rcv_qp(openib_btl->device->xrc_domain,
+             endpoint->xrc_recv_qp_num,
+             &attr,
+@@ -578,9 +640,10 @@ static int xoob_recv_qp_create(mca_btl_openib_endpoint_t *endpoint, mca_btl_open
+     if (ret) {
+         BTL_ERROR(("Error modifying XRC recv QP[%x] to IBV_QPS_INIT, errno says: %s [%d]",
+                      endpoint->xrc_recv_qp_num, strerror(ret), ret));
+-        while(1);
+         return OMPI_ERROR;
+     }
++#endif
++
+ 
+     memset(&attr, 0, sizeof(struct ibv_qp_attr));
+     attr.qp_state           = IBV_QPS_RTR;
+@@ -612,6 +675,7 @@ static int xoob_recv_qp_create(mca_btl_openib_endpoint_t *endpoint, mca_btl_open
+     }
+ #endif
+ 
++#if ! OMPI_HAVE_CONNECTIB_XRC
+     ret = ibv_modify_xrc_rcv_qp(openib_btl->device->xrc_domain,
+             endpoint->xrc_recv_qp_num,
+             &attr,
+@@ -627,12 +691,37 @@ static int xoob_recv_qp_create(mca_btl_openib_endpoint_t *endpoint, mca_btl_open
+                     endpoint->xrc_recv_qp_num, strerror(ret), ret));
+         return OMPI_ERROR;
+     }
++#else
++    ret = ibv_modify_qp(endpoint->xrc_recv_qp,
++            &attr,
++            IBV_QP_STATE|
++            IBV_QP_AV|
++            IBV_QP_PATH_MTU|
++            IBV_QP_DEST_QPN|
++            IBV_QP_RQ_PSN|
++            IBV_QP_MAX_DEST_RD_ATOMIC|
++            IBV_QP_MIN_RNR_TIMER);
++    if (ret) {
++        BTL_ERROR(("Error modifying XRC recv QP to IBV_QPS_RTR, errno says: %s [%d]",
++                    strerror(ret), ret));
++        return OMPI_ERROR;
++    }
++#endif
++
+ #if OPAL_HAVE_THREADS
+     if (APM_ENABLED) {
++#if ! OMPI_HAVE_CONNECTIB_XRC
+         mca_btl_openib_load_apm_xrc_rcv(endpoint->xrc_recv_qp_num, endpoint);
++#else
++        mca_btl_openib_load_apm(endpoint->xrc_recv_qp, endpoint);
++#endif
+     }
+ #endif
+-
++#if ! OMPI_HAVE_CONNECTIB_XRC
++    BTL_VERBOSE(("XRC Recv QP[%d] is in state RTR\n", endpoint->xrc_recv_qp_num));
++#else
++    BTL_VERBOSE(("XRC Recv QP[%d] is in state RTR\n", endpoint->xrc_recv_qp->qp_num));
++#endif
+     return OMPI_SUCCESS;
+ }
+ 
+@@ -643,7 +732,7 @@ static int xoob_recv_qp_connect(mca_btl_openib_endpoint_t *endpoint, mca_btl_ope
+ 
+     mca_btl_openib_module_t* openib_btl =
+         (mca_btl_openib_module_t*)endpoint->endpoint_btl;
+-
++#if ! OMPI_HAVE_CONNECTIB_XRC
+     BTL_VERBOSE(("Connecting Recv QP\n"));
+     ret = ibv_reg_xrc_rcv_qp(openib_btl->device->xrc_domain, rem_info->rem_qps->rem_qp_num);
+     if (ret) { /* failed to regester the qp, so it is already die and we should create new one */
+@@ -656,6 +745,25 @@ static int xoob_recv_qp_connect(mca_btl_openib_endpoint_t *endpoint, mca_btl_ope
+         endpoint->xrc_recv_qp_num = rem_info->rem_qps->rem_qp_num;
+         return OMPI_SUCCESS;
+     }
++#else
++    struct ibv_qp_open_attr attr;
++    memset(&attr, 0, sizeof(struct ibv_qp_open_attr));
++    attr.comp_mask = IBV_QP_OPEN_ATTR_NUM | IBV_QP_OPEN_ATTR_XRCD | IBV_QP_OPEN_ATTR_TYPE;
++    attr.qp_num = rem_info->rem_qps->rem_qp_num;
++    attr.qp_type = IBV_QPT_XRC_RECV;
++    attr.xrcd = openib_btl->device->xrcd;
++    BTL_VERBOSE(("Connecting Recv QP\n"));
++    endpoint->xrc_recv_qp = ibv_open_qp(openib_btl->device->ib_dev_context, &attr);
++    if (NULL == endpoint->xrc_recv_qp) { /* failed to regester the qp, so it is already die and we should create new one */
++       /* Return NOT READY !!!*/
++        BTL_ERROR(("Failed to register qp_num: %d , get error: %s (%d)\n. Replying with RNR",
++                    rem_info->rem_qps->rem_qp_num, strerror(errno), errno));
++        return OMPI_ERROR;
++    } else {
++	    BTL_VERBOSE(("Connected to XRC Recv qp [%d]", rem_info->rem_qps->rem_qp_num));
++	    return OMPI_SUCCESS;
++    }
++#endif
+ }
+ 
+ /*
+diff --git a/ompi/mca/btl/openib/mca-btl-openib-device-params.ini b/ompi/mca/btl/openib/mca-btl-openib-device-params.ini
+index 5c9e339..0577b0d 100644
+--- a/ompi/mca/btl/openib/mca-btl-openib-device-params.ini
++++ b/ompi/mca/btl/openib/mca-btl-openib-device-params.ini
+@@ -1,6 +1,7 @@
+ #
+ # Copyright (c) 2006-2013 Cisco Systems, Inc.  All rights reserved.
+ # Copyright (c) 2006-2011 Mellanox Technologies. All rights reserved.
++# Copyright (c) 2014      Bull SAS.  All rights reserved.
+ # $COPYRIGHT$
+ # 
+ # Additional copyrights may follow
+@@ -165,7 +166,7 @@ max_inline_data = 128
+ 
+ [Mellanox ConnectIB]
+ vendor_id = 0x2c9,0x5ad,0x66a,0x8f1,0x1708,0x03ba,0x15b3,0x119f
+-vendor_part_id = 4113
++vendor_part_id = 4113,7059,7060
+ use_eager_rdma = 1
+ mtu = 4096
+ max_inline_data = 256

@@ -1,0 +1,25 @@
+Note also that coding the mpi_allreduce as:<div><br></div><div>   call mpi_allreduce(MPI_IN_PLACE,phim(0,1,1,1,grp),phim_size*im*jm*kmloc(coords(2)+1),mpi_real,mpi_sum,ang_com,ierr)</div><div><br></div><div>results in the same freezing behavior in the 60th iteration.  (I don&#39;t recall why the arrays were being passed, possibly just a mistake.)</div>
+<div><br></div><div><br><div class="gmail_quote">On Thu, Sep 8, 2011 at 4:17 PM, Greg Fischer <span dir="ltr">&lt;<a href="mailto:greg.a.fischer@gmail.com">greg.a.fischer@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div>I am seeing mpi_allreduce operations freeze execution of my code on some moderately-sized problems.  The freeze does not manifest itself in every problem.  In addition, it is in a portion of the code that is repeated many times.  In the problem discussed below, the problem appears in the 60th iteration.</div>
+
+<div><br></div><div>The current test case that I&#39;m looking at is a 64-processor job.  This particular mpi_allreduce call applies to all 64 processors, with each communicator in the call containing a total of 4 processors.  When I add print statements before and after the offending line, I see that all 64 processors successfully make it to the mpi_allreduce call, but only 32 successfully exit.  Stack traces on the other 32 yield something along the lines of the trace listed at the bottom of this message.  The call, itself, looks like:</div>
+
+<div><br></div><div> call mpi_allreduce(MPI_IN_PLACE, phim(0:(phim_size-1),1:im,1:jm,1:kmloc(coords(2)+1),grp), &amp;</div><div>                    phim_size*im*jm*kmloc(coords(2)+1),mpi_real,mpi_sum,ang_com,ierr)</div><div>
+
+<br></div><div>These messages are sized to remain under the 32-bit integer size limitation for the &quot;count&quot; parameter.  The intent is to perform the allreduce operation on a contiguous block of the array.  Previously, I had been passing an assumed-shape array (i.e. phim(:,:,:,:,grp), but found some documentation indicating that was potentially dangerous.  Making the change from assumed- to explicit-shaped arrays doesn&#39;t solve the problem.   However, if I declare an additional array and use separate send and receive buffers:</div>
+
+<div><br></div><div> call mpi_allreduce(phim_local,phim_global,phim_size*im*jm*kmloc(coords(2)+1),mpi_real,mpi_sum,ang_com,ierr)</div><div> phim(:,:,:,:,grp) = phim_global</div><div><br></div><div>Then the problem goes away, and every thing works normally.  Does anyone have any insight as to what may be happening here?  I&#39;m using &quot;include &#39;mpif.h&#39;&quot; rather than the f90 module, does that potentially explain this?</div>
+
+<div><br></div><div>Thanks,</div><div>Greg</div><div><br></div><div><div>Stack trace(s) for thread: 1</div><div>-----------------</div><div>[0] (1 processes)</div><div>-----------------</div><div>main() at ?:?</div><div>
+  solver() at solver.f90:31</div>
+<div>    solver_q_down() at solver_q_down.f90:52</div><div>      iter() at iter.f90:56</div><div>        mcalc() at mcalc.f90:38</div><div>          pmpi_allreduce__() at ?:?</div><div>            PMPI_Allreduce() at ?:?</div>
+
+<div>              ompi_coll_tuned_allreduce_intra_dec_fixed() at ?:?</div><div>                ompi_coll_tuned_allreduce_intra_ring_segmented() at ?:?</div><div>                  ompi_coll_tuned_sendrecv_actual() at ?:?</div>
+
+<div>                    ompi_request_default_wait_all() at ?:?</div><div>                      opal_progress() at ?:?</div><div>Stack trace(s) for thread: 2</div><div>-----------------</div><div>[0] (1 processes)</div><div>
+
+-----------------</div><div>start_thread() at ?:?</div><div>  btl_openib_async_thread() at ?:?</div><div>    poll() at ?:?</div><div>Stack trace(s) for thread: 3</div><div>-----------------</div><div>[0] (1 processes)</div>
+
+<div>-----------------</div><div>start_thread() at ?:?</div><div>  service_thread_start() at ?:?</div><div>    select() at ?:?</div></div>
+</blockquote></div><br></div>
+

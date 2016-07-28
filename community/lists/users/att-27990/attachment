@@ -1,0 +1,63 @@
+<div dir="ltr">A reproducer without the receiver part limited usability. <div><br></div><div>1) Have you checked that your code doesn&#39;t suffer from the eager problem? It might happen that if your message size is under the eager limit, your perception is that the code works when in fact your message is just on the unexpected queue on the receiver, and will potentially never be matched. On the opposite, when the length of the message is larger than the eager size (which is network dependent), the code will stall obviously in MPI_Wait as the send is never matched. The latter is the expected and defined behavior based on the MPI standard.<div><br></div><div>2) In order to rule this out add a lock around your sends to make sure that 1) a sequential version of the code is valid; and 2) that we are not facing some consistent thread interleaving issues. If this step successfully complete, then we can start looking deeper in the OMPI internals for a bug.<br><div><br></div><div>  George.</div><div><br></div></div></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Wed, Nov 4, 2015 at 12:34 AM, ABE Hiroshi <span dir="ltr">&lt;<a href="mailto:habe36@gmail.com" target="_blank">habe36@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Dear All,<br>
+<br>
+Installed openmpi 1.10.0 and gcc-5.2 using Fink (<a href="http://www.finkproject.org" rel="noreferrer" target="_blank">http://www.finkproject.org</a>) but nothing is changed with my code.<br>
+<br>
+Regarding the MPI_Finalize error in my previous mail, it should be my fault. I had removed all mpi stuff in /usr/local/ manually and the openmpi-1.10.0 had been installed then the error message didn’t appear now. Maybe some old version of openmpi stuff still remained there.<br>
+<br>
+Anyway, I found the reason of my problem. The code is :<br>
+<br>
+void<br>
+Block::MPISendEqualInterChangeData( DIRECTION dir, int rank, int id ) {<br>
+<br>
+    GetEqualInterChangeData( dir, cf[0] );<br>
+<br>
+    int N = GetNumGrid();<br>
+    int nb = 6*N*N*1;<br>
+    nb = 1010;<br>
+//    float *buf = new float[ nb ];<br>
+    float *buf = (float *)malloc( sizeof(float)*nb);<br>
+    for( int i = 0; i &lt; nb; i++ ) buf[i] = 0.0;<br>
+<br>
+    MPI_Request req;<br>
+    MPI_Status  status;<br>
+<br>
+    int tag = 100 * id + (int)dir;<br>
+<br>
+    MPI_Isend( buf, nb, MPI_REAL4, rank, tag, MPI_COMM_WORLD, &amp;req );<br>
+    MPI_Wait( &amp;req, &amp;status );<br>
+<br>
+//    delete [] buf;<br>
+    free( buf );<br>
+}<br>
+<br>
+This works. If the “nb” value changes to more than “1010”, MPI_Wait will stall.<br>
+This means the upper limit of MPI_Isend would be 4 x 1010 = 4040 bytes.<br>
+<br>
+If this is true, is there any way to increase this?. I guess this should be wrong and there should be something wrong with my system.<br>
+<br>
+Any idea and suggestions are really appreciated.<br>
+<br>
+Thank you.<br>
+<br>
+2015/11/03 8:05、Jeff Squyres (jsquyres) &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; のメール：<br>
+<span class=""><br>
+&gt; On Oct 29, 2015, at 10:24 PM, ABE Hiroshi &lt;<a href="mailto:habe36@gmail.com">habe36@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; Regarding my code I mentioned in my original mail, the behaviour is very weird. MPI_Isend is called from the different named function, it works.<br>
+&gt;&gt; And I wrote a sample program to try to reproduce my problem but it works fine,  except the problem of MPI_Finalize.<br>
+&gt;&gt;<br>
+&gt;&gt; So I decided to make gcc-5.2 and make openmpi on it, which seems to be a recommendation of the FINK project.<br>
+&gt;<br>
+&gt; Ok.  Per the prior mail, if you can make a small reproducer, that would be most helpful in tracking down the issue.<br>
+&gt;<br>
+&gt; Thanks!<br>
+<br>
+</span><span class="">ABE Hiroshi<br>
+ from Tokorozawa, JAPAN<br>
+<br>
+</span><span class="">_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</span>Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/11/27985.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/11/27985.php</a></blockquote></div><br></div>
+

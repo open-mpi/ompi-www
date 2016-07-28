@@ -1,0 +1,484 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Feb 19, 2015, at 18:41 , Dave Turner &lt;<a href="mailto:drdaveturner@gmail.com" class="">drdaveturner@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class=""><br class=""><div class="">&nbsp; &nbsp; &nbsp;I've downloaded the OpenMPI master as suggested and rerun all my aggregate tests</div><div class="">across my system with QDR IB and 10 Gbps RoCE. &nbsp;</div><div class=""><br class=""></div><div class="">&nbsp; &nbsp; &nbsp;The attached unidirectional.pdf graph is the ping-pong performance for 1 core</div><div class="">on 1 machine to 1 core on the 2nd.&nbsp; The red curve for OpenMPI 1.8.3 shows lower</div><div class="">performance for small and also medium message sizes for the base test without</div><div class="">using any tuning parameters.&nbsp; The green line from the OpenMPI master shows lower&nbsp;</div><div class="">performance only for small messages, but great for medium size.&nbsp; Turning off the</div><div class="">10 Gbps card entirely produces great performance for all message sizes.&nbsp; So the</div><div class="">fixes in the master at least help, but it still seems to be choosing to use RoCE for</div><div class="">small messages rather than QDR IB.&nbsp; They both use the openib btl so I assume it</div><div class="">just chooses one at random so this is probably not that surprising.&nbsp; Since there are</div><div class="">no tunable parameters for multiple openib btl’s, this cannot be manually tuned.</div></div></div></blockquote><div><br class=""></div><div>If I assume you are using the PML ob1, this behavior is totally unsettling. In the file ompi/mca/bml/r2/bml_r2.c starting from line 398 we are creating the list of BTLs to be used for anything smaller than the eager size. The selection logic ensures that only the smallest latency BTL (or BTLs if they report the same latency) get selected. I checked and the array built here is later used for the selection of the network moving the small messages around.</div><div><br class=""></div><div>What are the bandwidth and latencies reported on your system?</div><br class=""><blockquote type="cite" class=""><div class=""><div dir="ltr" class=""><div class="">&nbsp; &nbsp; &nbsp;The bi-directional ping-pong tests show basically the same thing with lower</div><div class="">performance for small message sizes for 1.8.3 and the master.&nbsp; However, I'm&nbsp;</div><div class="">also seeing the max bandwidth being limited to 44 Gbps instead of 60 Gbps</div><div class="">for the master for some reason.</div></div></div></blockquote><div><br class=""></div><div>I tried to replicate your environment. The closest I got is a dual link eth and ib. It seems that our TCP performance got a big beat lately (6 micros extra latency and a lost of about 30% in bandwidth), and that the multi-rail support is barely the shadow of what it once was.</div><div><br class=""></div><blockquote type="cite" class=""><div class=""><div dir="ltr" class=""><div class="">&nbsp; &nbsp; &nbsp;The aggregate tests in the 3rd graph are for 20 cores on one machine</div><div class="">yelling at 20 cores on the 2nd machine (bi-directional too).&nbsp; They likewise show</div><div class="">the lower 10 Gbps RoCE performance for small messages, and also show&nbsp;</div><div class="">the max bandwidth being limited to 45 Gbps for the master.</div><div class=""><br class=""></div><div class="">&nbsp; &nbsp; &nbsp;Our solution for now is to simply exclude mlx4_1 which is the 10 Gbps card</div><div class="">which will give us QDR performance but not allow us to use the extra 10 Gbps</div><div class="">to channel bond for large messages.&nbsp; It is more worrisome that max bandwidth</div><div class="">on the bi-directional and aggregate tests using the master are slower than they</div><div class="">should be.</div></div></div></blockquote><div><br class=""></div>For the time being the approach mentioned above seems to be the right way to go. Thanks for all your efforts to help us understand what the problem is, and sorry for the apparent lack of performance in the current code.</div><div><br class=""></div><div>&nbsp; George.</div><div><br class=""><blockquote type="cite" class=""><div class=""><div dir="ltr" class=""><div class=""><br class=""></div><div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Dave</div></div><div class="gmail_extra"><br class=""><div class="gmail_quote">On Wed, Feb 11, 2015 at 11:00 AM,  <span dir="ltr" class="">&lt;<a href="mailto:devel-request@open-mpi.org" target="_blank" class="">devel-request@open-mpi.org</a>&gt;</span> wrote:<br class=""><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Send devel mailing list submissions to<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; <a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+<br class="">
+To subscribe or unsubscribe via the World Wide Web, visit<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+or, via email, send a message with subject or body 'help' to<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; <a href="mailto:devel-request@open-mpi.org" class="">devel-request@open-mpi.org</a><br class="">
+<br class="">
+You can reach the person managing the list at<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; <a href="mailto:devel-owner@open-mpi.org" class="">devel-owner@open-mpi.org</a><br class="">
+<br class="">
+When replying, please edit your Subject line so it is more specific<br class="">
+than "Re: Contents of devel digest..."<br class="">
+<br class="">
+<br class="">
+Today's Topics:<br class="">
+<br class="">
+&nbsp; &nbsp;1. Re: OMPI devel] RoCE plus QDR IB tunable parameters<br class="">
+&nbsp; &nbsp; &nbsp; (George Bosilca)<br class="">
+&nbsp; &nbsp;2. Re: OMPI devel] RoCE plus QDR IB tunable parameters<br class="">
+&nbsp; &nbsp; &nbsp; (Howard Pritchard)<br class="">
+<br class="">
+<br class="">
+----------------------------------------------------------------------<br class="">
+<br class="">
+Message: 1<br class="">
+Date: Tue, 10 Feb 2015 20:41:30 -0500<br class="">
+From: George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu" class="">bosilca@icl.utk.edu</a>&gt;<br class="">
+To: <a href="mailto:DrDaveTurner@gmail.com" class="">DrDaveTurner@gmail.com</a>, Open MPI Developers &lt;<a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a>&gt;<br class="">
+Subject: Re: [OMPI devel] OMPI devel] RoCE plus QDR IB tunable<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; parameters<br class="">
+Message-ID:<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; &lt;<a href="mailto:CAMJJpkXC6e_y34fU5VeJ0uHrrJ2z4CA89mN7WfWa5dSfx52s7A@mail.gmail.com" class="">CAMJJpkXC6e_y34fU5VeJ0uHrrJ2z4CA89mN7WfWa5dSfx52s7A@mail.gmail.com</a>&gt;<br class="">
+Content-Type: text/plain; charset="utf-8"<br class="">
+<br class="">
+Somehow one of the most basic information about the capabilities of the<br class="">
+BTLs (bandwidth) disappeared from the MCA parameters and the one left<br class="">
+(latency) was mislabeled. This mishap not only prevented the communication<br class="">
+engine from correctly ordering the BTL for small messages (the latency<br class="">
+bound part), but also introduced undesirable bias on the load-balance<br class="">
+between multiple devices logic (the bandwidth part).<br class="">
+<br class="">
+I just pushed a fix&nbsp; in master<br class="">
+<a href="https://github.com/open-mpi/ompi/commit/e173f9b0c0c63c3ea24b8d8bc0ebafe1f1736acb" target="_blank" class="">https://github.com/open-mpi/ompi/commit/e173f9b0c0c63c3ea24b8d8bc0ebafe1f1736acb</a>.<br class="">
+Once validated this should be moved over the 1.8 branch.<br class="">
+<br class="">
+Dave do you think it is possible to renew your experiment with the current<br class="">
+master ?<br class="">
+<br class="">
+&nbsp; Thanks,<br class="">
+&nbsp; &nbsp; George.<br class="">
+<br class="">
+<br class="">
+<br class="">
+On Mon, Feb 9, 2015 at 2:57 PM, Dave Turner &lt;<a href="mailto:drdaveturner@gmail.com" class="">drdaveturner@gmail.com</a>&gt; wrote:<br class="">
+<br class="">
+&gt; Gilles,<br class="">
+&gt;<br class="">
+&gt;&nbsp; &nbsp; &nbsp; I tried running with btl_openib_cpc_include rdmacm and saw no change.<br class="">
+&gt;<br class="">
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;Let's simplify the problem by forgetting about the channel bonding.<br class="">
+&gt; If I just do an aggregate test of 16 cores on one machine talking to 16 on<br class="">
+&gt; a second machine without any settings changed from the default install<br class="">
+&gt; of OpenMPI, I see that RoCE over the 10 Gbps link is used for small<br class="">
+&gt; messages<br class="">
+&gt; then it switches over to QDR IB for large messages.&nbsp; I don't see channel<br class="">
+&gt; bonding<br class="">
+&gt; for large messages, but can turn this on with the btl_tcp_exclusivity<br class="">
+&gt; parameter.<br class="">
+&gt;<br class="">
+&gt;&nbsp; &nbsp; &nbsp; I think there are 2 problems here, both related to the fact that QDR<br class="">
+&gt; IB link and RoCE<br class="">
+&gt; both use the same openib btl.&nbsp; The first problem is that the slower RoCE<br class="">
+&gt; link is being chosen<br class="">
+&gt; for small messages, which does lower performance significantly.&nbsp; The<br class="">
+&gt; second problem<br class="">
+&gt; is that I don't think there are parameters to allow for tuning of multiple<br class="">
+&gt; openib btl's<br class="">
+&gt; to manually select one over the other.<br class="">
+&gt;<br class="">
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Dave<br class="">
+&gt;<br class="">
+&gt; On Fri, Feb 6, 2015 at 8:24 PM, Gilles Gouaillardet &lt;<br class="">
+&gt; <a href="mailto:gilles.gouaillardet@gmail.com" class="">gilles.gouaillardet@gmail.com</a>&gt; wrote:<br class="">
+&gt;<br class="">
+&gt;&gt; Dave,<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; These settings tell ompi to use native infiniband on the ib qdr port and<br class="">
+&gt;&gt; tcpo/ip on the other port.<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; From the faq, roce is implemented in the openib btl<br class="">
+&gt;&gt; <a href="http://www.open-mpi.org/faq/?category=openfabrics#ompi-over-roce" target="_blank" class="">http://www.open-mpi.org/faq/?category=openfabrics#ompi-over-roce</a><br class="">
+&gt;&gt;<br class="">
+&gt;&gt; Did you use<br class="">
+&gt;&gt; --mca btl_openib_cpc_include rdmacm<br class="">
+&gt;&gt; in your first tests ?<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; I had some second thougths about the bandwidth values, and imho they<br class="">
+&gt;&gt; should be 327680 and 81920 because of the 8/10 encoding<br class="">
+&gt;&gt; (And that being said, that should not change the measured performance)<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; Also, could you try again by forcing the same btl_tcp_latency and<br class="">
+&gt;&gt; btl_openib_latency ?<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; Cheers,<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; Gilles<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; Dave Turner &lt;<a href="mailto:drdaveturner@gmail.com" class="">drdaveturner@gmail.com</a>&gt; wrote:<br class="">
+&gt;&gt; George,<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; I can check with my guys on Monday but I think the bandwidth<br class="">
+&gt;&gt; parameters<br class="">
+&gt;&gt; are the defaults.&nbsp; I did alter these to 40960 and 10240 as someone else<br class="">
+&gt;&gt; suggested to me.&nbsp; The attached graph shows the base red line, along with<br class="">
+&gt;&gt; the manual balanced blue line and auto balanced green line (0's for both).<br class="">
+&gt;&gt; This shift lower suggests to me that the higher TCP latency is being<br class="">
+&gt;&gt; pulled in.<br class="">
+&gt;&gt; I'm not sure why the curves are shifted right.<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Dave<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; On Fri, Feb 6, 2015 at 5:32 PM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu" class="">bosilca@icl.utk.edu</a>&gt;<br class="">
+&gt;&gt; wrote:<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;&gt; Dave,<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; Based on your ompi_info.all the following bandwidth are reported on your<br class="">
+&gt;&gt;&gt; system:<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA btl: parameter "btl_openib_bandwidth" (current<br class="">
+&gt;&gt;&gt; value: "4", data source: default, level: 5 tuner/detail, type: unsigned)<br class="">
+&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Approximate maximum bandwidth of interconnect<br class="">
+&gt;&gt;&gt; (0 = auto-detect value at run-time [not supported in all BTL modules], &gt;= 1<br class="">
+&gt;&gt;&gt; = bandwidth in Mbps)<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA btl: parameter "btl_tcp_bandwidth" (current value:<br class="">
+&gt;&gt;&gt; "100", data source: default, level: 5 tuner/detail, type: unsigned)<br class="">
+&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Approximate maximum bandwidth of interconnect<br class="">
+&gt;&gt;&gt; (0 = auto-detect value at run-time [not supported in all BTL modules], &gt;= 1<br class="">
+&gt;&gt;&gt; = bandwidth in Mbps)<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; This basically states that on your system the default values for these<br class="">
+&gt;&gt;&gt; parameters are wrong, your TCP network being much faster than the IB. This<br class="">
+&gt;&gt;&gt; explains the somewhat unexpected decision of OMPI.<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; As a possible solution I suggest you set these bandwidth values to<br class="">
+&gt;&gt;&gt; something more meaningful (directly in your configuration file). As an<br class="">
+&gt;&gt;&gt; example,<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; btl_openib_bandwidth = 40000<br class="">
+&gt;&gt;&gt; btl_tcp_bandwidth = 10000<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; make more sense based on your HPC system description.<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&nbsp; &nbsp;George.<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; On Fri, Feb 6, 2015 at 5:37 PM, Dave Turner &lt;<a href="mailto:drdaveturner@gmail.com" class="">drdaveturner@gmail.com</a>&gt;<br class="">
+&gt;&gt;&gt; wrote:<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; We have nodes in our HPC system that have 2 NIC's,<br class="">
+&gt;&gt;&gt;&gt; one being QDR IB and the second being a slower 10 Gbps card<br class="">
+&gt;&gt;&gt;&gt; configured for both RoCE and TCP.&nbsp; Aggregate bandwidth<br class="">
+&gt;&gt;&gt;&gt; tests with 20 cores on one node yelling at 20 cores on a second<br class="">
+&gt;&gt;&gt;&gt; node (attached roce.ib.aggregate.pdf) show that without tuning<br class="">
+&gt;&gt;&gt;&gt; the slower RoCE interface is being used for small messages<br class="">
+&gt;&gt;&gt;&gt; then QDR IB is used for larger messages (red line).&nbsp; Tuning<br class="">
+&gt;&gt;&gt;&gt; the tcp_exclusivity to 1024 to match the openib_exclusivity<br class="">
+&gt;&gt;&gt;&gt; adds another 20 Gbps of bidirectional bandwidth to the high end (green<br class="">
+&gt;&gt;&gt;&gt; line),<br class="">
+&gt;&gt;&gt;&gt; and I'm guessing this is TCP traffic and not RoCE.<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; So by default the slower interface is being chosen on the low end,<br class="">
+&gt;&gt;&gt;&gt; and<br class="">
+&gt;&gt;&gt;&gt; I don't think there are tunable parameters to allow me to choose the<br class="">
+&gt;&gt;&gt;&gt; QDR interface as the default.&nbsp; Going forward we'll probably just<br class="">
+&gt;&gt;&gt;&gt; disable<br class="">
+&gt;&gt;&gt;&gt; RoCE on these nodes and go with QDR IB plus 10 Gbps TCP for large<br class="">
+&gt;&gt;&gt;&gt; messages.<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp;However, I do think these issues will come up more in the future.<br class="">
+&gt;&gt;&gt;&gt; With the low latency of RoCE matching IB, there are more opportunities<br class="">
+&gt;&gt;&gt;&gt; to do channel bonding or allowing multiple interfaces for aggregate<br class="">
+&gt;&gt;&gt;&gt; traffic<br class="">
+&gt;&gt;&gt;&gt; for even smaller message sizes.<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Dave Turner<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt; --<br class="">
+&gt;&gt;&gt;&gt; Work:&nbsp; &nbsp; &nbsp;<a href="mailto:DaveTurner@ksu.edu" class="">DaveTurner@ksu.edu</a>&nbsp; &nbsp; &nbsp;<a href="tel:%28785%29%20532-7791" value="+17855327791" class="">(785) 532-7791</a><br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 118 Nichols Hall, Manhattan KS&nbsp; 66502<br class="">
+&gt;&gt;&gt;&gt; Home:&nbsp; &nbsp; <a href="mailto:DrDaveTurner@gmail.com" class="">DrDaveTurner@gmail.com</a><br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cell: <a href="tel:%28785%29%20770-5929" value="+17857705929" class="">(785) 770-5929</a><br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt; _______________________________________________<br class="">
+&gt;&gt;&gt;&gt; devel mailing list<br class="">
+&gt;&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+&gt;&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+&gt;&gt;&gt;&gt; Link to this post:<br class="">
+&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/devel/2015/02/16951.php" target="_blank" class="">http://www.open-mpi.org/community/lists/devel/2015/02/16951.php</a><br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; --<br class="">
+&gt;&gt; Work:&nbsp; &nbsp; &nbsp;<a href="mailto:DaveTurner@ksu.edu" class="">DaveTurner@ksu.edu</a>&nbsp; &nbsp; &nbsp;<a href="tel:%28785%29%20532-7791" value="+17855327791" class="">(785) 532-7791</a><br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 118 Nichols Hall, Manhattan KS&nbsp; 66502<br class="">
+&gt;&gt; Home:&nbsp; &nbsp; <a href="mailto:DrDaveTurner@gmail.com" class="">DrDaveTurner@gmail.com</a><br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cell: <a href="tel:%28785%29%20770-5929" value="+17857705929" class="">(785) 770-5929</a><br class="">
+&gt;&gt;<br class="">
+&gt;<br class="">
+&gt;<br class="">
+&gt;<br class="">
+&gt; --<br class="">
+&gt; Work:&nbsp; &nbsp; &nbsp;<a href="mailto:DaveTurner@ksu.edu" class="">DaveTurner@ksu.edu</a>&nbsp; &nbsp; &nbsp;<a href="tel:%28785%29%20532-7791" value="+17855327791" class="">(785) 532-7791</a><br class="">
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 118 Nichols Hall, Manhattan KS&nbsp; 66502<br class="">
+&gt; Home:&nbsp; &nbsp; <a href="mailto:DrDaveTurner@gmail.com" class="">DrDaveTurner@gmail.com</a><br class="">
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cell: <a href="tel:%28785%29%20770-5929" value="+17857705929" class="">(785) 770-5929</a><br class="">
+&gt;<br class="">
+&gt; _______________________________________________<br class="">
+&gt; devel mailing list<br class="">
+&gt; <a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+&gt; Link to this post:<br class="">
+&gt; <a href="http://www.open-mpi.org/community/lists/devel/2015/02/16963.php" target="_blank" class="">http://www.open-mpi.org/community/lists/devel/2015/02/16963.php</a><br class="">
+&gt;<br class="">
+-------------- next part --------------<br class="">
+HTML attachment scrubbed and removed<br class="">
+<br class="">
+------------------------------<br class="">
+<br class="">
+Message: 2<br class="">
+Date: Tue, 10 Feb 2015 20:34:59 -0700<br class="">
+From: Howard Pritchard &lt;<a href="mailto:hppritcha@gmail.com" class="">hppritcha@gmail.com</a>&gt;<br class="">
+To: Open MPI Developers &lt;<a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a>&gt;<br class="">
+Subject: Re: [OMPI devel] OMPI devel] RoCE plus QDR IB tunable<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; parameters<br class="">
+Message-ID:<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; &lt;CAF1Cqj5=GPfi=t8Jw6SSUBKjqut0ChgntTyXfU0diM=<a href="mailto:MXs%2B9Yw@mail.gmail.com" class="">MXs+9Yw@mail.gmail.com</a>&gt;<br class="">
+Content-Type: text/plain; charset="utf-8"<br class="">
+<br class="">
+HI George,<br class="">
+<br class="">
+I'd say commit cf377db82 explains the vanishing of the bandwidth metric as<br class="">
+well as the mis-labeling of the latency metric.<br class="">
+<br class="">
+Howard<br class="">
+<br class="">
+<br class="">
+2015-02-10 18:41 GMT-07:00 George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu" class="">bosilca@icl.utk.edu</a>&gt;:<br class="">
+<br class="">
+&gt; Somehow one of the most basic information about the capabilities of the<br class="">
+&gt; BTLs (bandwidth) disappeared from the MCA parameters and the one left<br class="">
+&gt; (latency) was mislabeled. This mishap not only prevented the communication<br class="">
+&gt; engine from correctly ordering the BTL for small messages (the latency<br class="">
+&gt; bound part), but also introduced undesirable bias on the load-balance<br class="">
+&gt; between multiple devices logic (the bandwidth part).<br class="">
+&gt;<br class="">
+&gt; I just pushed a fix&nbsp; in master<br class="">
+&gt; <a href="https://github.com/open-mpi/ompi/commit/e173f9b0c0c63c3ea24b8d8bc0ebafe1f1736acb" target="_blank" class="">https://github.com/open-mpi/ompi/commit/e173f9b0c0c63c3ea24b8d8bc0ebafe1f1736acb</a>.<br class="">
+&gt; Once validated this should be moved over the 1.8 branch.<br class="">
+&gt;<br class="">
+&gt; Dave do you think it is possible to renew your experiment with the current<br class="">
+&gt; master ?<br class="">
+&gt;<br class="">
+&gt;&nbsp; &nbsp;Thanks,<br class="">
+&gt;&nbsp; &nbsp; &nbsp;George.<br class="">
+&gt;<br class="">
+&gt;<br class="">
+&gt;<br class="">
+&gt; On Mon, Feb 9, 2015 at 2:57 PM, Dave Turner &lt;<a href="mailto:drdaveturner@gmail.com" class="">drdaveturner@gmail.com</a>&gt;<br class="">
+&gt; wrote:<br class="">
+&gt;<br class="">
+&gt;&gt; Gilles,<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; I tried running with btl_openib_cpc_include rdmacm and saw no<br class="">
+&gt;&gt; change.<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp;Let's simplify the problem by forgetting about the channel bonding.<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; If I just do an aggregate test of 16 cores on one machine talking to 16 on<br class="">
+&gt;&gt; a second machine without any settings changed from the default install<br class="">
+&gt;&gt; of OpenMPI, I see that RoCE over the 10 Gbps link is used for small<br class="">
+&gt;&gt; messages<br class="">
+&gt;&gt; then it switches over to QDR IB for large messages.&nbsp; I don't see channel<br class="">
+&gt;&gt; bonding<br class="">
+&gt;&gt; for large messages, but can turn this on with the btl_tcp_exclusivity<br class="">
+&gt;&gt; parameter.<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; I think there are 2 problems here, both related to the fact that QDR<br class="">
+&gt;&gt; IB link and RoCE<br class="">
+&gt;&gt; both use the same openib btl.&nbsp; The first problem is that the slower RoCE<br class="">
+&gt;&gt; link is being chosen<br class="">
+&gt;&gt; for small messages, which does lower performance significantly.&nbsp; The<br class="">
+&gt;&gt; second problem<br class="">
+&gt;&gt; is that I don't think there are parameters to allow for tuning of<br class="">
+&gt;&gt; multiple openib btl's<br class="">
+&gt;&gt; to manually select one over the other.<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Dave<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; On Fri, Feb 6, 2015 at 8:24 PM, Gilles Gouaillardet &lt;<br class="">
+&gt;&gt; <a href="mailto:gilles.gouaillardet@gmail.com" class="">gilles.gouaillardet@gmail.com</a>&gt; wrote:<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;&gt; Dave,<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; These settings tell ompi to use native infiniband on the ib qdr port and<br class="">
+&gt;&gt;&gt; tcpo/ip on the other port.<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; From the faq, roce is implemented in the openib btl<br class="">
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/faq/?category=openfabrics#ompi-over-roce" target="_blank" class="">http://www.open-mpi.org/faq/?category=openfabrics#ompi-over-roce</a><br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; Did you use<br class="">
+&gt;&gt;&gt; --mca btl_openib_cpc_include rdmacm<br class="">
+&gt;&gt;&gt; in your first tests ?<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; I had some second thougths about the bandwidth values, and imho they<br class="">
+&gt;&gt;&gt; should be 327680 and 81920 because of the 8/10 encoding<br class="">
+&gt;&gt;&gt; (And that being said, that should not change the measured performance)<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; Also, could you try again by forcing the same btl_tcp_latency and<br class="">
+&gt;&gt;&gt; btl_openib_latency ?<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; Cheers,<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; Gilles<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; Dave Turner &lt;<a href="mailto:drdaveturner@gmail.com" class="">drdaveturner@gmail.com</a>&gt; wrote:<br class="">
+&gt;&gt;&gt; George,<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; I can check with my guys on Monday but I think the bandwidth<br class="">
+&gt;&gt;&gt; parameters<br class="">
+&gt;&gt;&gt; are the defaults.&nbsp; I did alter these to 40960 and 10240 as someone else<br class="">
+&gt;&gt;&gt; suggested to me.&nbsp; The attached graph shows the base red line, along with<br class="">
+&gt;&gt;&gt; the manual balanced blue line and auto balanced green line (0's for<br class="">
+&gt;&gt;&gt; both).<br class="">
+&gt;&gt;&gt; This shift lower suggests to me that the higher TCP latency is being<br class="">
+&gt;&gt;&gt; pulled in.<br class="">
+&gt;&gt;&gt; I'm not sure why the curves are shifted right.<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Dave<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; On Fri, Feb 6, 2015 at 5:32 PM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu" class="">bosilca@icl.utk.edu</a>&gt;<br class="">
+&gt;&gt;&gt; wrote:<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt; Dave,<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt; Based on your ompi_info.all the following bandwidth are reported on<br class="">
+&gt;&gt;&gt;&gt; your system:<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA btl: parameter "btl_openib_bandwidth" (current<br class="">
+&gt;&gt;&gt;&gt; value: "4", data source: default, level: 5 tuner/detail, type: unsigned)<br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Approximate maximum bandwidth of interconnect<br class="">
+&gt;&gt;&gt;&gt; (0 = auto-detect value at run-time [not supported in all BTL modules], &gt;= 1<br class="">
+&gt;&gt;&gt;&gt; = bandwidth in Mbps)<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA btl: parameter "btl_tcp_bandwidth" (current value:<br class="">
+&gt;&gt;&gt;&gt; "100", data source: default, level: 5 tuner/detail, type: unsigned)<br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Approximate maximum bandwidth of interconnect<br class="">
+&gt;&gt;&gt;&gt; (0 = auto-detect value at run-time [not supported in all BTL modules], &gt;= 1<br class="">
+&gt;&gt;&gt;&gt; = bandwidth in Mbps)<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt; This basically states that on your system the default values for these<br class="">
+&gt;&gt;&gt;&gt; parameters are wrong, your TCP network being much faster than the IB. This<br class="">
+&gt;&gt;&gt;&gt; explains the somewhat unexpected decision of OMPI.<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt; As a possible solution I suggest you set these bandwidth values to<br class="">
+&gt;&gt;&gt;&gt; something more meaningful (directly in your configuration file). As an<br class="">
+&gt;&gt;&gt;&gt; example,<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt; btl_openib_bandwidth = 40000<br class="">
+&gt;&gt;&gt;&gt; btl_tcp_bandwidth = 10000<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt; make more sense based on your HPC system description.<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&nbsp; &nbsp;George.<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt; On Fri, Feb 6, 2015 at 5:37 PM, Dave Turner &lt;<a href="mailto:drdaveturner@gmail.com" class="">drdaveturner@gmail.com</a>&gt;<br class="">
+&gt;&gt;&gt;&gt; wrote:<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; We have nodes in our HPC system that have 2 NIC's,<br class="">
+&gt;&gt;&gt;&gt;&gt; one being QDR IB and the second being a slower 10 Gbps card<br class="">
+&gt;&gt;&gt;&gt;&gt; configured for both RoCE and TCP.&nbsp; Aggregate bandwidth<br class="">
+&gt;&gt;&gt;&gt;&gt; tests with 20 cores on one node yelling at 20 cores on a second<br class="">
+&gt;&gt;&gt;&gt;&gt; node (attached roce.ib.aggregate.pdf) show that without tuning<br class="">
+&gt;&gt;&gt;&gt;&gt; the slower RoCE interface is being used for small messages<br class="">
+&gt;&gt;&gt;&gt;&gt; then QDR IB is used for larger messages (red line).&nbsp; Tuning<br class="">
+&gt;&gt;&gt;&gt;&gt; the tcp_exclusivity to 1024 to match the openib_exclusivity<br class="">
+&gt;&gt;&gt;&gt;&gt; adds another 20 Gbps of bidirectional bandwidth to the high end (green<br class="">
+&gt;&gt;&gt;&gt;&gt; line),<br class="">
+&gt;&gt;&gt;&gt;&gt; and I'm guessing this is TCP traffic and not RoCE.<br class="">
+&gt;&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; So by default the slower interface is being chosen on the low<br class="">
+&gt;&gt;&gt;&gt;&gt; end, and<br class="">
+&gt;&gt;&gt;&gt;&gt; I don't think there are tunable parameters to allow me to choose the<br class="">
+&gt;&gt;&gt;&gt;&gt; QDR interface as the default.&nbsp; Going forward we'll probably just<br class="">
+&gt;&gt;&gt;&gt;&gt; disable<br class="">
+&gt;&gt;&gt;&gt;&gt; RoCE on these nodes and go with QDR IB plus 10 Gbps TCP for large<br class="">
+&gt;&gt;&gt;&gt;&gt; messages.<br class="">
+&gt;&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp;However, I do think these issues will come up more in the future.<br class="">
+&gt;&gt;&gt;&gt;&gt; With the low latency of RoCE matching IB, there are more opportunities<br class="">
+&gt;&gt;&gt;&gt;&gt; to do channel bonding or allowing multiple interfaces for aggregate<br class="">
+&gt;&gt;&gt;&gt;&gt; traffic<br class="">
+&gt;&gt;&gt;&gt;&gt; for even smaller message sizes.<br class="">
+&gt;&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Dave Turner<br class="">
+&gt;&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&gt; --<br class="">
+&gt;&gt;&gt;&gt;&gt; Work:&nbsp; &nbsp; &nbsp;<a href="mailto:DaveTurner@ksu.edu" class="">DaveTurner@ksu.edu</a>&nbsp; &nbsp; &nbsp;<a href="tel:%28785%29%20532-7791" value="+17855327791" class="">(785) 532-7791</a><br class="">
+&gt;&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 118 Nichols Hall, Manhattan KS&nbsp; 66502<br class="">
+&gt;&gt;&gt;&gt;&gt; Home:&nbsp; &nbsp; <a href="mailto:DrDaveTurner@gmail.com" class="">DrDaveTurner@gmail.com</a><br class="">
+&gt;&gt;&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cell: <a href="tel:%28785%29%20770-5929" value="+17857705929" class="">(785) 770-5929</a><br class="">
+&gt;&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;&gt; _______________________________________________<br class="">
+&gt;&gt;&gt;&gt;&gt; devel mailing list<br class="">
+&gt;&gt;&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+&gt;&gt;&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+&gt;&gt;&gt;&gt;&gt; Link to this post:<br class="">
+&gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/devel/2015/02/16951.php" target="_blank" class="">http://www.open-mpi.org/community/lists/devel/2015/02/16951.php</a><br class="">
+&gt;&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;&gt; --<br class="">
+&gt;&gt;&gt; Work:&nbsp; &nbsp; &nbsp;<a href="mailto:DaveTurner@ksu.edu" class="">DaveTurner@ksu.edu</a>&nbsp; &nbsp; &nbsp;<a href="tel:%28785%29%20532-7791" value="+17855327791" class="">(785) 532-7791</a><br class="">
+&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 118 Nichols Hall, Manhattan KS&nbsp; 66502<br class="">
+&gt;&gt;&gt; Home:&nbsp; &nbsp; <a href="mailto:DrDaveTurner@gmail.com" class="">DrDaveTurner@gmail.com</a><br class="">
+&gt;&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cell: <a href="tel:%28785%29%20770-5929" value="+17857705929" class="">(785) 770-5929</a><br class="">
+&gt;&gt;&gt;<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;<br class="">
+&gt;&gt;<br class="">
+&gt;&gt; --<br class="">
+&gt;&gt; Work:&nbsp; &nbsp; &nbsp;<a href="mailto:DaveTurner@ksu.edu" class="">DaveTurner@ksu.edu</a>&nbsp; &nbsp; &nbsp;<a href="tel:%28785%29%20532-7791" value="+17855327791" class="">(785) 532-7791</a><br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 118 Nichols Hall, Manhattan KS&nbsp; 66502<br class="">
+&gt;&gt; Home:&nbsp; &nbsp; <a href="mailto:DrDaveTurner@gmail.com" class="">DrDaveTurner@gmail.com</a><br class="">
+&gt;&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cell: <a href="tel:%28785%29%20770-5929" value="+17857705929" class="">(785) 770-5929</a><br class="">
+&gt;&gt;<br class="">
+&gt;&gt; _______________________________________________<br class="">
+&gt;&gt; devel mailing list<br class="">
+&gt;&gt; <a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+&gt;&gt; Link to this post:<br class="">
+&gt;&gt; <a href="http://www.open-mpi.org/community/lists/devel/2015/02/16963.php" target="_blank" class="">http://www.open-mpi.org/community/lists/devel/2015/02/16963.php</a><br class="">
+&gt;&gt;<br class="">
+&gt;<br class="">
+&gt;<br class="">
+&gt; _______________________________________________<br class="">
+&gt; devel mailing list<br class="">
+&gt; <a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+&gt; Link to this post:<br class="">
+&gt; <a href="http://www.open-mpi.org/community/lists/devel/2015/02/16965.php" target="_blank" class="">http://www.open-mpi.org/community/lists/devel/2015/02/16965.php</a><br class="">
+&gt;<br class="">
+-------------- next part --------------<br class="">
+HTML attachment scrubbed and removed<br class="">
+<br class="">
+------------------------------<br class="">
+<br class="">
+Subject: Digest Footer<br class="">
+<br class="">
+_______________________________________________<br class="">
+devel mailing list<br class="">
+<a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+<br class="">
+------------------------------<br class="">
+<br class="">
+End of devel Digest, Vol 2917, Issue 1<br class="">
+**************************************<br class="">
+</blockquote></div><br class=""><br clear="all" class=""><div class=""><br class=""></div>-- <br class=""><div class="gmail_signature"><div dir="ltr" class="">Work: &nbsp; &nbsp; <a href="mailto:DaveTurner@ksu.edu" target="_blank" class="">DaveTurner@ksu.edu</a> &nbsp; &nbsp; (785) 532-7791<div class="">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; 118 Nichols Hall, Manhattan KS &nbsp;66502<br class="">Home: &nbsp;&nbsp; <a href="mailto:DrDaveTurner@gmail.com" target="_blank" class="">DrDaveTurner@gmail.com</a><br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; cell: (785) 770-5929<br class=""></div></div></div>
+</div>
+<span id="cid:6D7CAA13-6D2A-40F2-9F28-4B209081F684">&lt;unidirectional.pdf&gt;</span><span id="cid:994B395A-E720-4C22-9208-722A8829D584">&lt;bidirectional.pdf&gt;</span><span id="cid:8D98F5D6-526B-48DF-8F5F-19E25B2C319C">&lt;aggregate.pdf&gt;</span>_______________________________________________<br class="">devel mailing list<br class=""><a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/devel<br class="">Link to this post: http://www.open-mpi.org/community/lists/devel/2015/02/17004.php</div></blockquote></div><br class=""></body></html>

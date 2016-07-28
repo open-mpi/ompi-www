@@ -1,0 +1,54 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+<meta name="Generator" content="Microsoft Exchange Server">
+<!-- converted from rtf -->
+<style><!-- .EmailQuote { margin-left: 1pt; padding-left: 4pt; border-left: #800000 2px solid; } --></style>
+</head>
+<body>
+<font face="Calibri, sans-serif" size="2">
+<div>Hi OMPI_Users and OMPI_Developers,</div>
+<div>&nbsp;</div>
+<div>I would like someone to verify if my understanding is correct concerning Open MPI ability to overlap communication and computations on Infiniband when using non-blocking MPI_Isend() and MPI_Irecv() functions (i.e. the computation is done between the non-blocking
+MPI_Isend() on the sender or MPI_Irecv() on the receiver and the corresponding MPI_Wait()).</div>
+<div>&nbsp;</div>
+<div>After reading the following FAQ entries:</div>
+<div>&nbsp;</div>
+<div>&nbsp;&nbsp; <a href="https://www.open-mpi.org/faq/?category=openfabrics#large-message-tuning-1.2"><font color="#0000FF"><u>https://www.open-mpi.org/faq/?category=openfabrics#large-message-tuning-1.2</u></font></a></div>
+<div>&nbsp;&nbsp; <a href="https://www.open-mpi.org/faq/?category=openfabrics#large-message-tuning-1.3"><font color="#0000FF"><u>https://www.open-mpi.org/faq/?category=openfabrics#large-message-tuning-1.3</u></font></a></div>
+<div>&nbsp;</div>
+<div>and the paper:</div>
+<div>&nbsp;</div>
+<div>&nbsp;&nbsp; <a href="https://www.open-mpi.org/papers/euro-pvmmpi-2006-hpc-protocols/"><font color="#0000FF"><u>https://www.open-mpi.org/papers/euro-pvmmpi-2006-hpc-protocols/</u></font></a></div>
+<div>&nbsp;</div>
+<div>about the algorithm used on OpenFabric to send large messages my understanding is that:</div>
+<div>&nbsp;</div>
+<ol style="margin-top: 0pt; margin-bottom: 0pt; margin-left: 20pt; ">
+<li>When the &#8220;RDMA Direct&#8221; message protocol is used, the communication is done by an RDMA read on the receiver side so if the receiver calls MPI_Irecv() after it received a matching message envelope (tag, communicator) from the sender, then the receiver can
+start the RDMA read and let the Infiniband HCA operate and return from the MPI_Irecv() to let the receiving process compute. Then the next time the MPI library is called on the receiver side (or maybe in the corresponding MPI_Wait() call), the receiver sends
+a short ACK message to the sender to tell the sender the that the receive is completed and it is now free to do whatever it wants with the send buffer. When things happens this way (e.g. sender envelope received before MPI_Irecv() is called on the receiver
+side), it offers a great overlap potential on both receiver and sender side (because for the sender MPI_Isend() only have to send the envelope eagerly and its MPI_Wait() wait for the ACK).<br>
+
+<br>
+
+However when the receiver call MPI_Irecv() before the sender envelope is received, the RDMA read transfer cannot start before the envelope is received and the MPI library realize it can start the RDMA read. If the receiver only realize this in the corresponding
+MPI_Wait(), there will be no overlap on the receiver side. The overlap potential is still good on the sender side for the same reason as the previous case.<br>
+
+</li><li>When the &#8220;RDMA Pipeline&#8221; protocol is used both sender and receiver side have to actively cooperate to transfer data using multiple Infiniband send/receive and RDMA writes. On the receiver side as the article says: &#8220;protocol effectively overlaps the cost
+of registration/deregistration with RDMA writes&#8221;. This allows to overlap communication with registration overhead on the receiver side but not with computations. On the sender side I don&#8217;t see how overlap with computation could be possible either. In practice
+when using this protocol is used between a pair of MPI_Isend() and MPI_Irecv() I fear that all the communication will happen when the sender and receiver reach their corresponding MPI_Wait() calls (which means no overlap).</li></ol>
+<div>&nbsp;</div>
+<div>So if someone could tell me if this is correct or not I would appreciate greatly.</div>
+<div>&nbsp;</div>
+<div>I guess that the two above protocols correspond to the basic BTL/openib framework/component.</div>
+<div>&nbsp;</div>
+<div>When a more modern MTL/mxm or PML/yall framework/component is used, I hope things are different and result in more communication/computation overlap potential.</div>
+<div>&nbsp;</div>
+<div>Thanks in advance,</div>
+<div>&nbsp;</div>
+<div>Martin Audet</div>
+<div>&nbsp;</div>
+</font>
+</body>
+</html>
+

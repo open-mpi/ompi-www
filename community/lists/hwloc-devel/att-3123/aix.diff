@@ -1,0 +1,197 @@
+--- old/src/topology-aix.c	2012-05-29 16:57:29.793897076 +0200
++++ new/src/topology-aix.c	2012-06-15 10:29:08.000000000 +0200
+@@ -21,8 +21,11 @@
+ 
+ #include <hwloc.h>
+ #include <private/private.h>
++#include <private/misc.h>
+ #include <private/debug.h>
+ 
++#include <procinfo.h>
++#include <sys/types.h>
+ #include <sys/rset.h>
+ #include <sys/processor.h>
+ #include <sys/thread.h>
+@@ -55,17 +58,20 @@
+   hwloc_bitmap_foreach_end();
+ 
+   res = ra_attachrset(what, who, rad, 0);
++  /* if we get EPERM, try bindprocess(PROCESSOR_CLASS_ANY) on the process (not possible on threads)
++   * and try again */
+ 
+   rs_free(rad);
+   return res;
+ }
+ 
+ static int
+-hwloc_aix_get_sth_cpubind(hwloc_topology_t topology, rstype_t what, rsid_t who, hwloc_bitmap_t hwloc_set, int flags __hwloc_attribute_unused)
++hwloc_aix_get_sth_rset_cpubind(hwloc_topology_t topology, rstype_t what, rsid_t who, hwloc_bitmap_t hwloc_set, int flags __hwloc_attribute_unused, int *boundp)
+ {
+   rsethandle_t rset;
+   unsigned cpu, maxcpus;
+   int res = -1;
++  int bound = 0;
+ 
+   rset = rs_alloc(RS_EMPTY);
+ 
+@@ -77,8 +83,11 @@
+   for (cpu = 0; cpu < maxcpus; cpu++)
+     if (rs_op(RS_TESTRESOURCE, rset, NULL, R_PROCS, cpu) == 1)
+       hwloc_bitmap_set(hwloc_set, cpu);
++    else
++      bound = 1;
+   hwloc_bitmap_and(hwloc_set, hwloc_set, hwloc_topology_get_complete_cpuset(topology));
+   res = 0;
++  *boundp = bound;
+ 
+ out:
+   rs_free(rset);
+@@ -86,6 +95,70 @@
+ }
+ 
+ static int
++hwloc_aix_get_pid_getthrds_cpubind(hwloc_topology_t topology, pid_t pid, hwloc_bitmap_t hwloc_set, int flags __hwloc_attribute_unused)
++{
++#if HWLOC_BITS_PER_LONG == 64
++  struct thrdentry64 thread_info;
++  tid64_t next_thread;
++#else
++  struct thrdsinfo thread_info;
++  tid_t next_thread;
++#endif
++
++  next_thread = 0;
++  /* FIXME: get multiple at once */
++#if HWLOC_BITS_PER_LONG == 64
++  while (getthrds64 (pid, &thread_info, sizeof (thread_info),
++                     &next_thread, 1) == 1) {
++#else
++  while (getthrds   (pid, &thread_info, sizeof (thread_info),
++                     &next_thread, 1) == 1) {
++#endif
++    if (PROCESSOR_CLASS_ANY != thread_info.ti_cpuid)
++      hwloc_bitmap_set(hwloc_set, thread_info.ti_cpuid);
++    else
++      hwloc_bitmap_fill(hwloc_set);
++  }
++  /* FIXME: what if the thread list changes and we get nothing? */
++
++  return 0;
++}
++
++static int
++hwloc_aix_get_tid_getthrds_cpubind(hwloc_topology_t topology, tid_t tid, hwloc_bitmap_t hwloc_set, int flags __hwloc_attribute_unused)
++{
++#if HWLOC_BITS_PER_LONG == 64
++  struct thrdentry64 thread_info;
++  tid64_t next_thread;
++#else
++  struct thrdsinfo thread_info;
++  tid_t next_thread;
++#endif
++  pid_t pid = getpid();
++
++  next_thread = 0;
++  /* FIXME: get multiple at once */
++#if HWLOC_BITS_PER_LONG == 64
++  while (getthrds64 (pid, &thread_info, sizeof (thread_info),
++                     &next_thread, 1) == 1) {
++#else
++  while (getthrds   (pid, &thread_info, sizeof (thread_info),
++                     &next_thread, 1) == 1) {
++#endif
++    if (thread_info.ti_tid == tid) {
++      if (PROCESSOR_CLASS_ANY != thread_info.ti_cpuid)
++	hwloc_bitmap_set(hwloc_set, thread_info.ti_cpuid);
++      else
++	hwloc_bitmap_fill(hwloc_set);
++      break;
++    }
++  }
++  /* FIXME: what if the thread goes away in the meantime? */
++
++  return 0;
++}
++
++static int
+ hwloc_aix_set_thisproc_cpubind(hwloc_topology_t topology, hwloc_const_bitmap_t hwloc_set, int flags)
+ {
+   rsid_t who;
+@@ -96,9 +169,15 @@
+ static int
+ hwloc_aix_get_thisproc_cpubind(hwloc_topology_t topology, hwloc_bitmap_t hwloc_set, int flags)
+ {
++  int ret, bound;
+   rsid_t who;
+   who.at_pid = getpid();
+-  return hwloc_aix_get_sth_cpubind(topology, R_PROCESS, who, hwloc_set, flags);
++  ret = hwloc_aix_get_sth_rset_cpubind(topology, R_PROCESS, who, hwloc_set, flags, &bound);
++  if (!ret && !bound) {
++    hwloc_bitmap_zero(hwloc_set);
++    ret = hwloc_aix_get_pid_getthrds_cpubind(topology, who.at_pid, hwloc_set, flags);
++  }
++  return ret;
+ }
+ 
+ #ifdef R_THREAD
+@@ -113,9 +192,15 @@
+ static int
+ hwloc_aix_get_thisthread_cpubind(hwloc_topology_t topology, hwloc_bitmap_t hwloc_set, int flags)
+ {
++  int ret, bound;
+   rsid_t who;
+   who.at_tid = thread_self();
+-  return hwloc_aix_get_sth_cpubind(topology, R_THREAD, who, hwloc_set, flags);
++  ret = hwloc_aix_get_sth_rset_cpubind(topology, R_THREAD, who, hwloc_set, flags, &bound);
++  if (!ret && !bound) {
++    hwloc_bitmap_zero(hwloc_set);
++    ret = hwloc_aix_get_tid_getthrds_cpubind(topology, who.at_tid, hwloc_set, flags);
++  }
++  return ret;
+ }
+ #endif /* R_THREAD */
+ 
+@@ -130,9 +215,15 @@
+ static int
+ hwloc_aix_get_proc_cpubind(hwloc_topology_t topology, hwloc_pid_t pid, hwloc_bitmap_t hwloc_set, int flags)
+ {
++  int ret, bound;
+   rsid_t who;
+   who.at_pid = pid;
+-  return hwloc_aix_get_sth_cpubind(topology, R_PROCESS, who, hwloc_set, flags);
++  ret = hwloc_aix_get_sth_rset_cpubind(topology, R_PROCESS, who, hwloc_set, flags, &bound);
++  if (!ret && !bound) {
++    hwloc_bitmap_zero(hwloc_set);
++    ret = hwloc_aix_get_pid_getthrds_cpubind(topology, who.at_pid, hwloc_set, flags);
++  }
++  return ret;
+ }
+ 
+ #ifdef R_THREAD
+@@ -158,9 +249,15 @@
+   if (pthread_getthrds_np(&pthread, PTHRDSINFO_QUERY_TID, &info, sizeof(info), NULL, &size))
+     return -1;
+   {
++    int ret, bound;
+     rsid_t who;
+     who.at_tid = info.__pi_tid;
+-    return hwloc_aix_get_sth_cpubind(topology, R_THREAD, who, hwloc_set, flags);
++    ret = hwloc_aix_get_sth_rset_cpubind(topology, R_THREAD, who, hwloc_set, flags, &bound);
++    if (!ret && !bound) {
++      hwloc_bitmap_zero(hwloc_set);
++      ret = hwloc_aix_get_tid_getthrds_cpubind(topology, who.at_tid, hwloc_set, flags);
++    }
++    return ret;
+   }
+ }
+ #endif /* HWLOC_HAVE_PTHREAD_GETTHRDS_NP */
+@@ -634,7 +731,7 @@
+   topology->get_thisthread_cpubind = hwloc_aix_get_thisthread_cpubind;
+ #endif /* R_THREAD */
+   topology->get_thisthread_last_cpu_location = hwloc_aix_get_thisthread_last_cpu_location;
+-  /* TODO: get_thisproc_last_cpu_location on top of thisthread? */
++  /* TODO: get_last_cpu_location: mycpu() only works for the current thread? */
+ #ifdef P_DEFAULT
+   topology->set_proc_membind = hwloc_aix_set_proc_membind;
+   topology->get_proc_membind = hwloc_aix_get_proc_membind;
+

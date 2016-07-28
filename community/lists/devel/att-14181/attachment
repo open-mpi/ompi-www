@@ -1,0 +1,121 @@
+<div dir="ltr">Yep. For the checkpoint/continue that patch looks good.</div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Feb 18, 2014 at 11:30 AM, Adrian Reber <span dir="ltr">&lt;<a href="mailto:adrian@lisas.de" target="_blank">adrian@lisas.de</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="">On Tue, Feb 18, 2014 at 10:21:23AM -0600, Josh Hursey wrote:<br>
+&gt; So when a process is restarted with CRIU, does it resume execution after<br>
+&gt; the criu_dump() or somewhere else?<br>
+<br>
+</div>The process is resumed at the same point it was checkpointed with<br>
+criu_dump().<br>
+<div class=""><br>
+&gt; In a continue/leave-running mode after checkpoint the MPI library does not<br>
+&gt; need to do quite a much work since we can depend on some things not<br>
+&gt; changing (such as the machine name, orted pid, ...).<br>
+<br>
+</div>During criu_dump() nothing changes.<br>
+<div class=""><br>
+&gt; In a restart mode then the entire library has to be updated - much more<br>
+&gt; expensive than the continue mode.<br>
+<br>
+</div>Ah. If I understand you correctly there are C/R methods which require<br>
+that the checkpointed process is terminated and needs to be restarted to<br>
+continue running. CRIU is completely transparent for the process. It<br>
+needs no special environment (LD_PRELOAD) nor any special handling.<br>
+criu_dump() pauses the process, checkpoints it and (if desired) lets it<br>
+continue in the same state it was before.<br>
+<div class=""><br>
+&gt; The CRS components that we have supported emerge from their checkpointing<br>
+&gt; function (criu_dump in your case) knowing if they are in the continue or<br>
+&gt; restart mode. So that CRS function sets the flag according so the rest of<br>
+&gt; the library can do the right thing afterwards.<br>
+<br>
+</div>So, I would say CRIU CRS is in continue mode after criu_dump().<br>
+<div class=""><br>
+&gt; The restart function is called by the opal_restart tool to restart the<br>
+&gt; process from an image. Some checkpointers have a library call to restart a<br>
+&gt; process others used external tools to do so. So that interface just let&#39;s<br>
+&gt; the checkpointer decide, given a snapshot image, how it should restart that<br>
+&gt; process. The restarted process is assumed to wake up in the<br>
+&gt; opal_crs_*_checkpoint function, not opal_crs_*_restart. So the restart<br>
+&gt; function name can be a bit misleading.<br>
+&gt;<br>
+&gt; Does that help?<br>
+<br>
+</div>That helps a lot. Thanks. I am not 100% sure I understand the restart<br>
+case, but I will try to implement it and probably then I will understand<br>
+how it works.<br>
+<br>
+Would you say, that for the checkpoint only functionality in continue<br>
+mode the patch can be checked in?<br>
+<span class="HOEnZb"><font color="#888888"><br>
+                Adrian<br>
+</font></span><div class="HOEnZb"><div class="h5"><br>
+&gt; On Tue, Feb 18, 2014 at 4:08 AM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+&gt;<br>
+&gt; &gt; I think I do not understand your question. So far I have only implemented<br>
+&gt; &gt; the<br>
+&gt; &gt; checkpoint part and not the restart part.<br>
+&gt; &gt;<br>
+&gt; &gt; Using criu_dump() the process can  be left in three different<br>
+&gt; &gt; states. Without any special handling the process is dumped and then<br>
+&gt; &gt; killed. I can also tell criu to leave the process stopped (--leave-stopped)<br>
+&gt; &gt; or running (--leave-running). I decided to default to --leave-running so<br>
+&gt; &gt; that after the checkpoint has been performed the process continues<br>
+&gt; &gt; running where it stopped.<br>
+&gt; &gt;<br>
+&gt; &gt; What would be the difference between &#39;being restarted versus continuing<br>
+&gt; &gt; after checkpointing&#39;? Right now only &#39;continuing after checkpoint&#39; is<br>
+&gt; &gt; implemented. I do not understand how process &#39;is being restarted&#39; fits<br>
+&gt; &gt; in the checkpoint function.<br>
+&gt; &gt;<br>
+&gt; &gt; In opal_crs_criu_checkpoint() I am using criu_dump() to<br>
+&gt; &gt; checkpoint the process and the plan is to use criu_restore() in<br>
+&gt; &gt; opal_crs_criu_restart() (which I have not yet implemented).<br>
+&gt; &gt;<br>
+&gt; &gt; On Mon, Feb 17, 2014 at 03:45:49PM -0600, Josh Hursey wrote:<br>
+&gt; &gt; &gt; It look fine except that the restart state is not flagged. When a process<br>
+&gt; &gt; &gt; is restarted does it resume execution inside the criu_dump() function? If<br>
+&gt; &gt; &gt; so, is there a way to tell from its return code (or some other mechanism)<br>
+&gt; &gt; &gt; that it is being restarted versus continuing after checkpointing?<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; On Mon, Feb 17, 2014 at 2:00 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; Great - looks fine to me!!<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; On Feb 17, 2014, at 11:39 AM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; &gt; I have prepared a patch I would like to commit which adds to code to<br>
+&gt; &gt; &gt; &gt; &gt; actually checkpoint a process. Thanks for the pointers about the<br>
+&gt; &gt; string<br>
+&gt; &gt; &gt; &gt; &gt; variables I tried to do implement it correctly.<br>
+&gt; &gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; &gt; CRIU currently has problems with the new OOB usock but I will contact<br>
+&gt; &gt; &gt; &gt; &gt; the CRIU developers about this error. Using tcp, checkpointing works.<br>
+&gt; &gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; &gt; CRIU also has problems with --np &gt; 1, but I am sure this can also be<br>
+&gt; &gt; &gt; &gt; &gt; resolved.<br>
+&gt; &gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; &gt; The patch is at:<br>
+&gt; &gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; <a href="https://lisas.de/git/?p=open-mpi.git;a=commitdiff;h=89c9c27c87598706e8f798f84fe9520ee5884492" target="_blank">https://lisas.de/git/?p=open-mpi.git;a=commitdiff;h=89c9c27c87598706e8f798f84fe9520ee5884492</a><br>
+
+&gt; &gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; &gt;               Adrian<br>
+&gt; &gt; &gt; &gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; &gt; &gt; devel mailing list<br>
+&gt; &gt; &gt; &gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; &gt; &gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; &gt; devel mailing list<br>
+&gt; &gt; &gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; &gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Joshua Hursey<br>Assistant Professor of Computer Science<br>University of Wisconsin-La Crosse<br><a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a>
+</div>
+

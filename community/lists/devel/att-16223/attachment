@@ -1,0 +1,136 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Elena,<br>
+      <br>
+      the first case (-mca btl tcp,self) crashing is a bug and i will
+      have a look at it.<br>
+      <br>
+      the second case (-mca sm,self) is a feature : the sm btl cannot be
+      used with tasks<br>
+      having different jobids (this is the case after a spawn), and
+      obviously, self cannot be used also,<br>
+      so the behaviour and error message is correct.<br>
+      /* i am not aware of any plans to make the sm btl work with tasks
+      from different jobids */<br>
+      <br>
+      the third case (-mca openib,self) is more controversial ...<br>
+      i previously posted
+      <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/10/16136.php">http://www.open-mpi.org/community/lists/devel/2014/10/16136.php</a><br>
+      what happens in your case (simple_spawn) is the openib modex is
+      sent with PMIX_REMOTE,<br>
+      that means openib btl cannot be used between tasks on the same
+      node.<br>
+      i am still waiting for some feedback since i cannot figure out
+      whether this is a feature or an<br>
+      undesired side effect / bug<br>
+      <br>
+      the last cast (-mca ^sm,openib) does make sense to me :<br>
+      the tcp and self btls are used and they work just like they
+      should.<br>
+      <br>
+      bottom line, i will investigate the first crash, wait for feedback
+      about the openib btl.<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/11/06 1:08, Elena Elkina wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CANhOtjb_Ht=w=96dJLxf8YLSsBCT-jqrczRteZTJ3sGe4=EzMw@mail.gmail.com"
+      type="cite">
+      <pre wrap="">Hi,
+
+It looks like there is a problem in trunk which reproduces with
+simple_spawn test (orte/test/mpi/simple_spawn.c). It seems to be a n issue
+with pmix. It doesn't reproduce with default set of btls. But it reproduces
+with several btls specified. For example,
+
+salloc -N5 $OMPI_HOME/install/bin/mpirun -np 33 --map-by node -mca coll ^ml
+-display-map -mca orte_debug_daemons true --leave-session-attached
+--debug-daemons -mca pml ob1 -mca btl *tcp,self*
+./orte/test/mpi/simple_spawn
+
+gets
+
+simple_spawn: ../../ompi/group/group_init.c:215:
+ompi_group_increment_proc_count: Assertion `((0xdeafbeedULL &lt;&lt; 32) +
+0xdeafbeedULL) == ((opal_object_t *) (proc_pointer))-&gt;obj_magic_id' failed.
+[sputnik3.vbench.com:28888] [[41877,0],3] orted_cmd: exit cmd, but proc
+[[41877,1],2] is alive
+[sputnik5][[41877,1],29][../../../../../opal/mca/btl/tcp/btl_tcp_endpoint.c:675:mca_btl_tcp_endpoint_complete_connect]
+connect() to 192.168.1.42 failed: Connection refused (111)
+
+salloc -N1 $OMPI_HOME/install/bin/mpirun -np 3 --map-by node -mca coll ^ml
+-display-map -mca orte_debug_daemons true --leave-session-attached
+--debug-daemons -mca pml ob1 -mca btl *sm,self* ./orte/test/mpi/simple_spawn
+
+fails with
+
+At least one pair of MPI processes are unable to reach each other for
+MPI communications.  This means that no Open MPI device has indicated
+that it can be used to communicate between these processes.  This is
+an error; Open MPI requires that all MPI processes be able to reach
+each other.  This error can sometimes be the result of forgetting to
+specify the "self" BTL.
+
+  Process 1 ([[59481,2],0]) is on host: sputnik1
+  Process 2 ([[59481,1],0]) is on host: sputnik1
+  BTLs attempted: self sm
+
+Your MPI job is now going to abort; sorry.
+--------------------------------------------------------------------------
+[sputnik1.vbench.com:22156] [[59481,1],2] ORTE_ERROR_LOG: Unreachable in
+file ../../../../../ompi/mca/dpm/orte/dpm_orte.c at line 485
+
+
+salloc -N1 $OMPI_HOME/install/bin/mpirun -np 3 --map-by node -mca coll ^ml
+-display-map -mca orte_debug_daemons true --leave-session-attached
+--debug-daemons -mca pml ob1 -mca btl *openib,self*
+ ./orte/test/mpi/simple_spawn
+
+also doesn't work:
+At least one pair of MPI processes are unable to reach each other for
+MPI communications.  This means that no Open MPI device has indicated
+that it can be used to communicate between these processes.  This is
+an error; Open MPI requires that all MPI processes be able to reach
+each other.  This error can sometimes be the result of forgetting to
+specify the "self" BTL.
+
+  Process 1 ([[60046,1],13]) is on host: sputnik4
+  Process 2 ([[60046,2],1]) is on host: sputnik4
+  BTLs attempted: openib self
+
+Your MPI job is now going to abort; sorry.
+--------------------------------------------------------------------------
+[sputnik4.vbench.com:25476] [[60046,1],3] ORTE_ERROR_LOG: Unreachable in
+file ../../../../../ompi/mca/dpm/orte/dpm_orte.c at line 485
+
+
+*But* combination ^sm,openib seems to work.
+
+I tried different revisions from the beginning of October. It reproduces on
+them.
+
+Best regards,
+Elena
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/11/16202.php">http://www.open-mpi.org/community/lists/devel/2014/11/16202.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

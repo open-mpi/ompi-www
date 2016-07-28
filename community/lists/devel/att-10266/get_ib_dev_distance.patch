@@ -1,0 +1,31 @@
+fix get_ib_dev_distance: it doesn't see processes as bound if the job has been launched by srun
+
+diff -r 162c1c0c050a ompi/mca/btl/openib/btl_openib_component.c
+--- a/ompi/mca/btl/openib/btl_openib_component.c        Thu Jan 26 21:42:13 2012 +0000
++++ b/ompi/mca/btl/openib/btl_openib_component.c        Fri Jan 27 16:36:29 2012 +0100
+@@ -2332,11 +2332,20 @@ static int get_ib_dev_distance(struct ib
+ {
+     opal_paffinity_base_cpu_set_t cpus;
+     opal_carto_base_node_t *device_node;
+-    int min_distance = -1, i, num_processors;
++    int min_distance = -1, i;
++    int num_processors = OPAL_PAFFINITY_BITMASK_CPU_MAX;
+     const char *device = ibv_get_device_name(dev);
+ 
+-    if(opal_paffinity_base_get_processor_info(&num_processors) != OMPI_SUCCESS) {
+-        num_processors = 100; /* Choose something big enough */
++    if (opal_paffinity_base_get_processor_info(&num_processors) != OMPI_SUCCESS
++            || 1 == num_processors) {
++        /*
++         * We get num_processors=1 if we were launched using srun + binding:
++         * in that case we are placed in a cpuset that contains a single cpu
++         * (the one we were bound to)
++         *     ==> the loop after won't be correctly executed
++         */
++        /* Choose something big enough */
++        num_processors = OPAL_PAFFINITY_BITMASK_CPU_MAX;
+     }
+ 
+     device_node = opal_carto_base_find_node(host_topo, device);
+
+

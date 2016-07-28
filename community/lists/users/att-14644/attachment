@@ -1,0 +1,169 @@
+    Hello,<br><div class="gmail_quote"><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><br>i am still trying to understand the parallelized version of the heat equation 2D solving that we saw at school. In order to explain my problem, i need to list the main code :<br>
+
+<br>  9       program heat<br>
+ 10 !**************************************************************************<br> 11 !<br> 12 !   This program solves the heat equation on the unit square [0,1]x[0,1]<br> 13 !        | du/dt - Delta(u) = 0<br> 14 !        |  u/gamma = cste<br>
+
+
+ 15 !   by implementing a explicit scheme.<br> 16 !   The discretization is done using a 5 point finite difference scheme<br> 17 !   and the domain is decomposed into sub-domains.<br> 18 !   The PDE is discretized using a 5 point finite difference scheme<br>
+
+
+ 19 !   over a (x_dim+2)*(x_dim+2) grid including the end points<br> 20 !   correspond to the boundary points that are stored.<br> 21 !<br> 22 !   The data on the whole domain are stored in<br> 23 !   the following way :<br>
+
+
+ 24 !<br> 25 !    y<br> 26 !           ------------------------------------<br> 27 !    d      |                                  |<br> 28 !    i      |                                  |<br> 29 !    r      |                                  |<br>
+
+
+ 30 !    e      |                                  |<br> 31 !    c      |                                  |<br> 32 !    t      |                                  |<br> 33 !    i      | x20                              |<br>
+
+
+ 34 !    o /\   |                                  |<br> 35 !    n  |   | x10                              |<br> 36 !       |   |                                  |<br> 37 !       |   | x00  x01 x02 ...                 |<br>
+
+
+ 38 !       |   ------------------------------------<br> 39 !        -------&gt; x direction  x(*,j)<br> 40 !<br> 41 !   The boundary conditions are stored in the following submatrices<br> 42 !<br> 43 !<br> 44 !        x(1:x_dim, 0)          ---&gt; left   temperature<br>
+
+
+ 45 !        x(1:x_dim, x_dim+1)    ---&gt; right  temperature<br> 46 !        x(0, 1:x_dim)          ---&gt; top    temperature<br> 47 !        x(x_dim+1, 1:x_dim)    ---&gt; bottom temperature<br> 48 !<br> 49 !**************************************************************************<br>
+
+
+ 50       implicit none<br> 51       include &#39;mpif.h&#39;<br> 52 ! size of the discretization<br> 53       integer :: x_dim, nb_iter<br> 54       double precision, allocatable :: x(:,:),b(:,:),x0(:,:)<br> 55       double precision  :: dt, h, epsilon<br>
+
+
+ 56       double precision  :: resLoc, result, t, tstart, tend<br> 57 !<br> 58       integer :: i,j<br> 59       integer :: step, maxStep<br> 60       integer :: size_x, size_y, me, x_domains,y_domains<br> 61       integer :: iconf(5), size_x_glo<br>
+
+
+ 62       double precision conf(2)<br> 63 !<br> 64 ! MPI variables<br> 65       integer :: nproc, infompi, comm, comm2d, lda, ndims<br> 66       INTEGER, DIMENSION(2)  :: dims<br> 67       LOGICAL, DIMENSION(2)  :: periods<br>
+
+
+ 68       LOGICAL, PARAMETER     :: reorganisation = .false.<br> 69       integer :: row_type<br> 70       integer, parameter :: nbvi=4<br> 71       integer, parameter :: S=1, E=2, N=3, W=4<br> 72       integer, dimension(4) :: neighBor<br>
+
+
+ 73 <br> 74 !<br> 75       intrinsic abs<br> 76 !<br> 77 !<br> 78       call MPI_INIT(infompi)<br> 79       comm = MPI_COMM_WORLD<br> 80       call MPI_COMM_SIZE(comm,nproc,infompi)<br> 81       call MPI_COMM_RANK(comm,me,infompi)<br>
+
+
+ 82 !<br> 83 !<br> 84       if (me.eq.0) then<br> 85           call readparam(iconf, conf)<br> 86       endif<br> 87       call MPI_BCAST(iconf,5,MPI_INTEGER,0,comm,infompi)<br> 88       call MPI_BCAST(conf,2,MPI_DOUBLE_PRECISION,0,comm,infompi)<br>
+
+
+ 89 !<br> 90       size_x    = iconf(1)<br> 91       size_y    = iconf(1)<br> 92       x_domains = iconf(3)<br> 93       y_domains = iconf(4)<br> 94       maxStep   = iconf(5)<br> 95       dt        = conf(1)<br> 96       epsilon   = conf(2)<br>
+
+
+ 97 !<br> 98       size_x_glo = x_domains*size_x+2<br> 99       h      = 1.0d0/dble(size_x_glo)<br>100       dt     = 0.25*h*h<br>101 !<br>102 !<br>103       lda = size_y+2<br>104       allocate(x(0:size_y+1,0:size_x+1))<br>
+
+
+105       allocate(x0(0:size_y+1,0:size_x+1))<br>106       allocate(b(0:size_y+1,0:size_x+1))<br>107 !<br>108 ! Create 2D cartesian grid<br>109       periods(:) = .false.<br>110 <br>111       ndims = 2<br>112       dims(1)=x_domains<br>
+
+
+113       dims(2)=y_domains<br>114       CALL MPI_CART_CREATE(MPI_COMM_WORLD, ndims, dims, periods, &amp;<br>115         reorganisation,comm2d,infompi)<br>116 !<br>117 ! Identify neighbors<br>118 !<br>119       NeighBor(:) = MPI_PROC_NULL<br>
+
+
+120 ! Left/West and right/Est neigbors<br>121       CALL MPI_CART_SHIFT(comm2d,0,1,NeighBor(W),NeighBor(E),infompi)<br>122 <br>123       print *,&#39;mpi_proc_null=&#39;, MPI_PROC_NULL<br>124       print *,&#39;rang=&#39;, me<br>
+
+
+125       print *, &#39;ici premier mpi_cart_shift : neighbor(w)=&#39;,NeighBor(W)<br>126       print *, &#39;ici premier mpi_cart_shift : neighbor(e)=&#39;,NeighBor(E)<br>127 <br>128 ! Bottom/South and Upper/North neigbors<br>
+
+
+129       CALL MPI_CART_SHIFT(comm2d,1,1,NeighBor(S),NeighBor(N),infompi)<br>130 <br>131 <br>132       print *, &#39;ici deuxieme mpi_cart_shift : neighbor(s)=&#39;,NeighBor(S)<br>133       print *, &#39;ici deuxieme mpi_cart_shift : neighbor(n)=&#39;,NeighBor(N)<br>
+
+
+134 <br>135 <br>136 <br>137 !<br>138 ! Create row data type to coimmunicate with South and North neighbors<br>139 !<br>140       CALL MPI_TYPE_VECTOR(size_x, 1, size_y+2, MPI_DOUBLE_PRECISION, row_type,infompi)<br>141       CALL MPI_TYPE_COMMIT(row_type, infompi)<br>
+
+
+142 !<br>143 ! initialization<br>144 !<br>145       call initvalues(x0, b, size_x+1, size_x )<br>146 !<br>147 ! Update the boundaries<br>148 !<br>149       call updateBound(x0,size_x,size_x, NeighBor, comm2d, row_type)<br>
+
+
+150 <br>151       step = 0<br>152       t    = 0.0<br>153 !<br>154       tstart = MPI_Wtime()<br>155 ! REPEAT<br>156  10   continue<br>157 !<br>158          step = step + 1<br>159          t    = t + dt<br>160 ! perform one step of the explicit scheme<br>
+
+
+161          call Explicit(x0,x,b, size_x+1, size_x, size_x, dt, h, resLoc)<br>162 ! update the partial solution along the interface<br>163          call updateBound(x0,size_x,size_x, NeighBor, comm2d, row_type)<br>164 ! Check the distance between two iterates<br>
+
+
+165          call MPI_ALLREDUCE(resLoc,result,1, MPI_DOUBLE_PRECISION, MPI_SUM,comm,infompi)<br>166          result= sqrt(result)<br>167 !<br>168          if (me.eq.0) write(*,1002) t,result<br>169 !<br>170        if ((result.gt.epsilon).and.(step.lt.maxStep)) goto 10<br>
+
+
+171 !<br>172 ! UNTIL &quot;Convergence&quot;<br>173 !<br>174        tend = MPI_Wtime()<br>175        if (me.eq.0) then<br>176          write(*,*)<br>177          write(*,*) &#39; Convergence after &#39;, step,&#39; steps &#39;<br>
+
+
+178          write(*,*) &#39;      Problem size              &#39;, size_x*x_domains*size_y*y_domains<br>179          write(*,*) &#39; Wall Clock                     &#39;, tend-tstart<br>180 <br>181 !<br>182 ! Print the solution at each point of the grid<br>
+
+
+183 !<br>184          write(*,*)<br>185          write(*,*) &#39; Computed solution &#39;<br>186          write(*,*)<br>187          do 30, j=size_x+1,0,-1<br>188             write(*,1000)(x0(j,i),i=0,size_x+1)<br>189  30      continue<br>
+
+
+190        endif<br>191 !<br>192       call MPI_FINALIZE(infompi)<br>193 !<br>194       deallocate(x)<br>195       deallocate(x0)<br>196       deallocate(b)<br>197 !<br>198 ! Formats available to display the computed values on the grid<br>
+
+
+199 !<br>200 1000  format(100(1x, f7.3))<br>201 1001  format(100(1x, e7.3))<br>202 1002   format(&#39; At time &#39;,E8.2,&#39; Norm &#39;, E8.2)<br>203 <br>204 !<br>205       stop<br>206       end<br>207 !<br>---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------<br>
+
+
+<br>The routine &quot;Explicit&quot; at line 161 allows to compute  the domain 2D ( the values of Temperature are stocked in vector &quot;x&quot; : x(1:size_x,1:size_y)) with the following scheme :<br><br>! The stencil of the explicit operator for the heat equation<br>
+
+
+! on a regular rectangular grid using a five point finite difference<br>! scheme in space is<br>!<br>!                     |                + 1                                    |<br>!                     |                                                          |<br>
+
+
+!dt/(h*h) *      | +1      -4 + h*h/dt                   + 1    |<br>!                     |                                                          |<br>!                     |               + 1                                     |<br>
+
+
+!<br>      diag = - 4.0 + h*h/dt<br>      weight =  dt/(h*h)<br>! <br>! perform an explicit update on the points within the domain<br>        do 20, j=1,size_x<br>          do 30, i=1,size_y<br>             x(i,j) = weight *( x0(i-1,j) + x0(i+1,j)  &amp;<br>
+
+
+                        + x0(i,j-1) + x0(i,j+1) +x0(i,j)*diag)<br> 30       continue<br> 20     continue<br><br>------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------<br>
+
+
+<br>The routine &quot;updateBound&quot; updates the bound values like this : <br><br>  1 !*******************************************************************<br>  2 SUBROUTINE updateBound(x, size_x, size_y, NeighBor, comm2d, row_type)<br>
+
+
+  3 <br>  4 !*****************************************************************<br>  5    include &#39;mpif.h&#39;<br>  6 !<br>  7   INTEGER size_x, size_y<br>  8 !Iterate<br>  9   double precision,  dimension(0:size_y+1,0:size_x+1) :: x<br>
+
+
+ 10 !Type row_type<br> 11   INTEGER :: row_type<br> 12   integer, parameter :: nbvi=4<br> 13   integer, parameter :: S=1, E=2, N=3, W=4<br> 14   integer, dimension(4) :: neighBor<br> 15 !<br> 16   INTEGER  :: infompi, comm2d<br>
+
+
+ 17   INTEGER :: flag<br> 18   INTEGER, DIMENSION(MPI_STATUS_SIZE)    :: status<br> 19 <br> 20 !********* North/South communication ************************************<br> 21   flag = 1<br> 22   !Send my boundary to North and receive from South<br>
+
+
+ 23   CALL MPI_SENDRECV(x(size_y, 1), 1, row_type ,neighBor(N),flag, &amp;<br> 24                      x(0,1), 1, row_type,neighbor(S),flag, &amp;<br> 25                      comm2d, status, infompi)<br> 26 <br> 27   !Send my boundary to South and receive from North<br>
+
+
+ 28   CALL MPI_SENDRECV(x(1,1), 1, row_type ,neighbor(S),flag, &amp;<br> 29                      x(size_y+1,1), 1, row_type ,neighbor(N),flag, &amp;<br> 30                      comm2d, status, infompi)<br> 31 <br> 32 !********* Est/West communication ************************************<br>
+
+
+ 33   flag = 2<br> 34   !Send my boundary to West and receive from Est<br> 35   CALL MPI_SENDRECV(x(1,1),  size_y, MPI_DOUBLE_PRECISION, neighbor(W), flag, &amp;<br> 36                      x(1, size_x+1),  size_y, MPI_DOUBLE_PRECISION,neighbor(E), flag, &amp;<br>
+
+
+ 37                      comm2d, status, infompi)<br> 38 <br> 39   !Send my boundary to Est and receive from West<br> 40   CALL MPI_SENDRECV( x(1,size_x), size_y, MPI_DOUBLE_PRECISION, neighbor(E), flag, &amp;<br> 41                      x(1,0),size_y, MPI_DOUBLE_PRECISION, neighbor(W), flag, &amp;<br>
+
+
+ 42                      comm2d, status, infompi)<br> 43 <br> 44 END SUBROUTINE updateBound<br>                                                  <br>--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------<br>
+
+
+<br>I am confused between the shift of the values near to the bounds done by the &quot;updateBound&quot; routine  and the main loop (at line 161 in main code)  which calls the routine &quot;Explicit&quot;.<br>For a given process (say number 1) ( i use 4 here for execution), i send to the east process (3) the <span lang="en"><span title="">penultimate column left column, to the north process (0) the </span></span><span lang="en"><span title="">penultimate row top ,and to the others (mpi_proc_null=-2) <br>
+
+
+</span></span><span lang="en"><span title="">the penultimate right column and the </span></span>bottom row. But how the 4  processes are synchronous ? I don&#39;t understand too why <span lang="en"><span title="">all the processes go through the solving piece of code</span></span> calling the &quot;Explicit&quot; routine.<br>
+
+
+<br>Here&#39;i the sequential version of this simulation :<br><br> 49       program heat<br> 50       implicit none<br> 51 ! size of the discretization<br> 52       integer size_x, maxStep<br> 53       integer lda<br> 54       double precision, allocatable:: x(:,:),b(:,:), x0(:,:)<br>
+
+
+ 55       double precision dt, h, result, epsilon<br> 56 <br> 57 ! index loop<br> 58       integer i,j, step<br> 59       double precision t<br> 60 !<br> 61       intrinsic abs<br> 62 !<br> 63 !<br> 64       print *,&#39; Size of the square &#39;<br>
+
+
+ 65       read(*,*) size_x<br> 66       h       = 1.0/(size_x+1)<br> 67       dt      = 0.25*h*h<br> 68       maxStep = 100<br> 69       print *, &#39;Max. number of steps &#39;<br> 70       read(*,*) maxStep<br> 71       epsilon = 1.d-8<br>
+
+
+ 72 !<br> 73       allocate(x(0:size_x+1,0:size_x+1))<br> 74       allocate(x0(0:size_x+1,0:size_x+1))<br> 75       allocate(b(0:size_x+1,0:size_x+1))<br> 76 !<br> 77 !<br> 78 ! initialization<br> 79 !<br> 80       call initvalues(x0, b, size_x+1, size_x )<br>
+
+
+ 81 !<br> 82       step = 0<br> 83       t    = 0.0<br> 84 ! REPEAT<br> 85  10   continue<br> 86 !<br> 87          step = step + 1<br> 88          t    = t + dt<br> 89 !<br> 90          call Explicit(x0, x, b, size_x+1, size_x, size_x, dt, &amp;<br>
+
+
+ 91             h, result)<br> 92          result = sqrt(result)<br> 93        if ((result.gt.epsilon).and.(step.lt.maxStep)) goto 10<br> 94 !<br> 95         write(*,*)<br> 96         write(*,*) &#39; Convergence after &#39;, step,&#39; steps &#39;<br>
+
+
+ 97         write(*,*) &#39;      Problem size              &#39;,  size_x*size_x<br> 98 !<br><br>------------------------------------------------------------------------------------------------------------------------------------------------------------------------<br>
+
+
+<br>Sorry for this long post but i would like to clarify my problem as much as it was possible.<br><br>Any <span lang="en"><span title="">explanation would help me.<br>
+<br>Thanks in advance<br></span></span><br>
+</blockquote></div><br>
+

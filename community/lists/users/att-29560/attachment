@@ -1,0 +1,134 @@
+<div dir="ltr">The <span style="font-size:12.8px">OMP_PROC_BIND=CLOSE approach works, except it will bind threads to 1 hardware thread only (when HT is present). For example, doing the following to run 2 procs per node each with 4 threads, the thread affinity info (queried through sched_getaffinity()) comes out as below.</span><div><br></div><div>mpirun -np 2 --map-by ppr:2:node:PE=4 ./a.out<br></div><div><br></div><div>Rank 0 Thread 0, tid 12173, affinity 0<br></div><div><div>Rank 0 Thread 1, tid 12184, affinity 1 </div><div>Rank 0 Thread 2, tid 12185, affinity 2<br></div><div>Rank 0 Thread 3, tid 12186, affinity 3 </div><div> </div><div>Rank 1 Thread 0, tid 12174, affinity 4 <br></div><div>Rank 1 Thread 1, tid 12181, affinity 5 <br></div><div>Rank 1 Thread 2, tid 12182, affinity 6 </div><div>Rank 1 Thread 3, tid 12183, affinity 7 <br></div><div><br></div><div>If threads got bound to the full core these should have looked like &quot;Rank 0 Thread 0, tid 12173, affinity <b>0,24</b>&quot; </div><div><br></div><div>Reading through OpenMP, it seems there&#39;s no way to bind 1 thread to multiple places using the environment setting provided. Intel&#39;s version seem to support that, though.</div><div><br></div><div><br></div></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Wed, Jun 29, 2016 at 1:20 AM, Saliya Ekanayake <span dir="ltr">&lt;<a href="mailto:esaliya@gmail.com" target="_blank">esaliya@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">Thank you, Ralph and Gilles.<div><br></div><div>I didn&#39;t know about the <span style="font-size:12.8px">OMPI_COMM_WORLD_LOCAL_RANK variable. Essentially, this means I should be able to wrap my application call in a shell script and have mpirun invoke that. Then within the script I can query this variable and set correct OMP env variable, correct?</span></div><div><span style="font-size:12.8px"><br></span></div><div><span style="font-size:12.8px">Gilles, yes, the MPI command correctly bind processes to x number of cores. I think it should be OMP_PROC_BIND=CLOSE according to <a href="https://gcc.gnu.org/onlinedocs/libgomp/OMP_005fPROC_005fBIND.html" target="_blank">https://gcc.gnu.org/onlinedocs/libgomp/OMP_005fPROC_005fBIND.html</a>. </span></div><div><span style="font-size:12.8px"><br></span></div><div><span style="font-size:12.8px">I&#39;ll check these two options.</span></div><div><span style="font-size:12.8px"><br></span></div><div><span style="font-size:12.8px">Thanks,<br>Saliya</span></div></div><div class="gmail_extra"><br><div class="gmail_quote"><div><div class="h5">On Tue, Jun 28, 2016 at 11:59 PM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span> wrote:<br></div></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div class="h5">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    <p>Can&#39;t you simply</p>
+    <p>export OMP_PROC_BIND=1</p>
+    <p><br>
+    </p>
+    <p>assuming mpirun has the correct command line (e.g. correctly bind
+      tasks on x cores so the x OpenMP threads will be individually
+      bound to each core), each is bound to disjoint cpusets, so i guess
+      GOMP will bind OpenMP threads within the given cpuset.</p>
+    <p>/* at least this is what the Intel runtime is doing */</p>
+    <p><br>
+    </p>
+    <p>Cheers,</p>
+    <p><br>
+    </p>
+    <p>Gilles<br>
+    </p><div><div>
+    <br>
+    <div>On 6/29/2016 12:47 PM, Ralph Castain
+      wrote:<br>
+    </div>
+    </div></div><blockquote type="cite"><div><div>
+      
+      Why don’t you have your application look at
+      the OMPI_COMM_WORLD_LOCAL_RANK envar, and then use that to
+      calculate the offset location for your threads (i.e., local rank 0
+      is on socket 0, local rank 1 is on socket 1, etc.). You can then
+      putenv the correct value of the GOMP envar
+      <div><br>
+        <div><br>
+          <div>
+            <blockquote type="cite">
+              <div>On Jun 28, 2016, at 8:40 PM, Saliya
+                Ekanayake &lt;<a href="mailto:esaliya@gmail.com" target="_blank">esaliya@gmail.com</a>&gt;
+                wrote:</div>
+              <br>
+              <div>
+                <div dir="ltr">Hi,
+                  <div><br>
+                  </div>
+                  <div>I am trying to do something like below
+                    with OpenMPI and OpenMP (threads).</div>
+                  <div><br>
+                  </div>
+                  <div><span>&lt;image.png&gt;</span><br>
+                  </div>
+                  <div><br>
+                  </div>
+                  <div>I was trying to use the explicit thread
+                    affinity with GOMP_CPU_AFFINITY environment variable
+                    as described here (<a href="https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fCPU_005fAFFINITY.html" target="_blank">https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fCPU_005fAFFINITY.html</a>). </div>
+                  <div><br>
+                  </div>
+                  <div>However, both P0 and P1 processes will
+                    read the same GOMP_CPU_AFFINITY and will place
+                    threads on the same set of cores.</div>
+                  <div><br>
+                  </div>
+                  <div>Is there a way to overcome this and pass
+                    process specific affinity scheme to OpenMP when
+                    running with OpenMPI? For example, can I say T0 of
+                    P0 should be in Core 0, but T0 of P1 should be Core
+                    4?</div>
+                  <div><br>
+                  </div>
+                  <div>P.S. I can manually achieve this within
+                    the program using <b>sched_setaffinity()</b>,
+                    but that&#39;s not portable.</div>
+                  <div><br>
+                  </div>
+                  <div>Thank you,</div>
+                  <div>Saliya<br clear="all">
+                    <div><br>
+                    </div>
+                    -- <br>
+                    <div data-smartmail="gmail_signature">
+                      <div dir="ltr">
+                        <div>
+                          <div dir="ltr">
+                            <div dir="ltr">
+                              <div dir="ltr"><span style="color:rgb(136,136,136)">Saliya Ekanayake</span></div>
+                              <div dir="ltr">Ph.D. Candidate |
+                                Research Assistant</div>
+                              <div dir="ltr">School of
+                                Informatics and Computing | Digital
+                                Science Center</div>
+                              <div dir="ltr">Indiana
+                                University, Bloomington<br>
+                                <br>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                _______________________________________________<br>
+                users mailing list<br>
+                <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+                Subscription:
+                <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                Link to this post:
+                <a href="http://www.open-mpi.org/community/lists/users/2016/06/29556.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/06/29556.php</a></div>
+            </blockquote>
+          </div>
+          <br>
+        </div>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      </div></div><pre><div><div>_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/06/29557.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/06/29557.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/06/29558.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/06/29558.php</a><br></blockquote></div><span class=""><br><br clear="all"><div><br></div>-- <br><div data-smartmail="gmail_signature"><div dir="ltr"><div><div dir="ltr"><div dir="ltr"><div dir="ltr"><span style="color:rgb(136,136,136)">Saliya Ekanayake</span></div><div dir="ltr">Ph.D. Candidate | Research Assistant</div><div dir="ltr">School of Informatics and Computing | Digital Science Center</div><div dir="ltr">Indiana University, Bloomington<br><br><font color="#888888"></font></div></div></div></div></div></div>
+</span></div>
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature" data-smartmail="gmail_signature"><div dir="ltr"><div><div dir="ltr"><div dir="ltr"><div dir="ltr"><span style="color:rgb(136,136,136)">Saliya Ekanayake</span></div><div dir="ltr">Ph.D. Candidate | Research Assistant</div><div dir="ltr">School of Informatics and Computing | Digital Science Center</div><div dir="ltr">Indiana University, Bloomington<br><br><font color="#888888"></font></div></div></div></div></div></div>
+</div>
+

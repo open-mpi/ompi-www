@@ -1,0 +1,495 @@
+Index: ompi/errhandler/errhandler.c
+===================================================================
+--- ompi/errhandler/errhandler.c	(revision 28710)
++++ ompi/errhandler/errhandler.c	(working copy)
+@@ -214,10 +214,11 @@
+ }
+ 
+ /**
+- * Runtime errhandler callback
++ * Default runtime errhandler callback
+  */
+-void ompi_errhandler_runtime_callback(opal_pointer_array_t *procs) {
+-    ompi_mpi_abort(MPI_COMM_WORLD, 1, false);
++int ompi_errhandler_runtime_callback(ompi_process_name_t *proc, int errcode) {
++    ompi_mpi_abort(MPI_COMM_WORLD, errcode, false);
++    return OMPI_SUCCESS;
+ }
+ 
+ /**************************************************************************
+Index: ompi/errhandler/errhandler.h
+===================================================================
+--- ompi/errhandler/errhandler.h	(revision 28710)
++++ ompi/errhandler/errhandler.h	(working copy)
+@@ -31,6 +31,7 @@
+ #include "opal/class/opal_object.h"
+ #include "opal/class/opal_pointer_array.h"
+ 
++#include "ompi/mca/rte/rte.h"
+ #include "ompi/runtime/mpiruntime.h"
+ #include "ompi/errhandler/errhandler_predefined.h"
+ #include "ompi/errhandler/errcode-internal.h"
+@@ -366,14 +367,19 @@
+  * Callback function from runtime layer to alert the MPI layer of an error at
+  * the runtime layer.
+  *
+- * @param procs The names of the processes that have failed.
++ * @param proc The name of the process that had an error.
++ * @param status The error code
+  *
+- * This function is used to alert the MPI layer to a specific fault at the
+- * runtime layer. Currently, the only faults reported using this method are
+- * process failures. The MPI layer has the option to perform whatever actions it
+- * needs to stabalize itself and continue running, abort, etc.
++ * This function is used to alert the MPI layer to a specific fault detected by the
++ * runtime layer. This could be a process failure, a lost connection, or the inability
++ * to send an OOB message. The MPI layer has the option to perform whatever actions it
++ * needs to stabilize itself and continue running, abort, etc.
++ *
++ * Upon completion, the error handler should return OMPI_SUCCESS if the error has
++ * been resolved and no further callbacks are to be executed. Return of any other
++ * value will cause the RTE to continue executing error callbacks.
+  */
+-OMPI_DECLSPEC void ompi_errhandler_runtime_callback(opal_pointer_array_t *procs);
++OMPI_DECLSPEC int ompi_errhandler_runtime_callback(ompi_process_name_t *proc, int errcode);
+ 
+ /**
+  * Check to see if an errhandler is intrinsic.
+Index: ompi/mca/rte/orte/rte_orte.h
+===================================================================
+--- ompi/mca/rte/orte/rte_orte.h	(revision 28710)
++++ ompi/mca/rte/orte/rte_orte.h	(working copy)
+@@ -69,7 +69,11 @@
+ /* Error handling objects and operations */
+ OMPI_DECLSPEC void ompi_rte_abort(int error_code, char *fmt, ...);
+ #define ompi_rte_abort_peers(a, b) orte_errmgr.abort_peers(a, b)
+-#define ompi_rte_set_fault_callback(a)
++#define OMPI_RTE_ERRHANDLER_FIRST ORTE_ERRMGR_CALLBACK_FIRST
++#define OMPI_RTE_ERRHANDLER_LAST ORTE_ERRMGR_CALLBACK_LAST
++#define OMPI_RTE_ERRHANDLER_PREPEND ORTE_ERRMGR_CALLBACK_PREPEND
++#define OMPI_RTE_ERRHANDLER_APPEND ORTE_ERRMGR_CALLBACK_APPEND
++#define ompi_rte_register_errhandler(a, b) orte_errmgr.register_error_callback(a, b)
+ #define OMPI_ERROR_LOG ORTE_ERROR_LOG
+ 
+ /* Init and finalize objects and operations */
+Index: ompi/runtime/ompi_mpi_init.c
+===================================================================
+--- ompi/runtime/ompi_mpi_init.c	(revision 28710)
++++ ompi/runtime/ompi_mpi_init.c	(working copy)
+@@ -482,10 +482,11 @@
+     }
+ #endif
+ 
+-    /* Register errhandler callback - RTE will ignore if it
++    /* Register the default errhandler callback - RTE will ignore if it
+      * doesn't support this capability
+      */
+-    ompi_rte_set_fault_callback(ompi_errhandler_runtime_callback);
++    ompi_rte_register_errhandler(ompi_errhandler_runtime_callback,
++                                 OMPI_RTE_ERRHANDLER_LAST);
+ 
+     /* Figure out the final MPI thread levels.  If we were not
+        compiled for support for MPI threads, then don't allow
+Index: orte/mca/errmgr/base/base.h
+===================================================================
+--- orte/mca/errmgr/base/base.h	(revision 28710)
++++ orte/mca/errmgr/base/base.h	(working copy)
+@@ -89,15 +89,10 @@
+ ORTE_DECLSPEC int orte_errmgr_base_migrate_job(orte_jobid_t jobid, orte_snapc_base_request_op_t *datum);
+ 
+ /* Interface to report process state to the notifier */
+-ORTE_DECLSPEC void orte_errmgr_base_proc_state_notify(orte_proc_state_t state, orte_process_name_t *proc);
++ORTE_DECLSPEC int orte_errmgr_base_proc_state_notify(orte_proc_state_t state, orte_process_name_t *proc);
+ 
+ #endif /* OPAL_ENABLE_FT_CR */
+ 
+-/*
+- * Additional External API function declared in errmgr.h
+- */
+-ORTE_DECLSPEC orte_errmgr_fault_callback_t *orte_errmgr_base_set_fault_callback(orte_errmgr_fault_callback_t *cbfunc);
+-
+ END_C_DECLS
+ 
+ #endif
+Index: orte/mca/errmgr/base/errmgr_base_fns.c
+===================================================================
+--- orte/mca/errmgr/base/errmgr_base_fns.c	(revision 28710)
++++ orte/mca/errmgr/base/errmgr_base_fns.c	(working copy)
+@@ -247,7 +247,90 @@
+     return ORTE_ERR_NOT_IMPLEMENTED;
+ }
+ 
++int orte_errmgr_base_register_error_callback(orte_errmgr_error_callback_fn_t *cbfunc,
++                                             orte_errmgr_error_order_t order)
++{
++    orte_errmgr_cback_t *cb, *cbcur;
+ 
++    /* check the order to see what to do */
++    switch(order) {
++    case ORTE_ERRMGR_CALLBACK_FIRST:
++        /* only one can be so designated */
++        if (NULL != (cb = (orte_errmgr_cback_t*)opal_list_get_first(&orte_errmgr_base.error_cbacks))) {
++            if (ORTE_ERRMGR_CALLBACK_FIRST == cb->order) {
++                return ORTE_ERR_NOT_SUPPORTED;
++            }
++        }
++        cb = OBJ_NEW(orte_errmgr_cback_t);
++        cb->order = order;
++        cb->callback =cbfunc;
++        opal_list_prepend(&orte_errmgr_base.error_cbacks, &cb->super);
++        break;
++    case ORTE_ERRMGR_CALLBACK_LAST:
++        /* only one can be so designated */
++        if (NULL != (cb = (orte_errmgr_cback_t*)opal_list_get_last(&orte_errmgr_base.error_cbacks))) {
++            if (ORTE_ERRMGR_CALLBACK_LAST == cb->order) {
++                return ORTE_ERR_NOT_SUPPORTED;
++            }
++        }
++        cb = OBJ_NEW(orte_errmgr_cback_t);
++        cb->order = order;
++        cb->callback = cbfunc;
++        opal_list_append(&orte_errmgr_base.error_cbacks, &cb->super);
++        break;
++    case ORTE_ERRMGR_CALLBACK_PREPEND:
++        cb = OBJ_NEW(orte_errmgr_cback_t);
++        cb->order = order;
++        cb->callback =cbfunc;
++        if (NULL != (cbcur = (orte_errmgr_cback_t*)opal_list_get_first(&orte_errmgr_base.error_cbacks)) &&
++            ORTE_ERRMGR_CALLBACK_FIRST == cbcur->order) {
++            opal_list_insert(&orte_errmgr_base.error_cbacks, &cb->super, 1);
++        } else {
++            opal_list_prepend(&orte_errmgr_base.error_cbacks, &cb->super);
++        }
++        break;
++    case ORTE_ERRMGR_CALLBACK_APPEND:
++        cb = OBJ_NEW(orte_errmgr_cback_t);
++        cb->order = order;
++        cb->callback =cbfunc;
++        if (NULL != (cbcur = (orte_errmgr_cback_t*)opal_list_get_last(&orte_errmgr_base.error_cbacks)) &&
++            ORTE_ERRMGR_CALLBACK_LAST == cbcur->order) {
++            opal_list_insert_pos(&orte_errmgr_base.error_cbacks, &cbcur->super, &cb->super);
++        } else {
++            opal_list_append(&orte_errmgr_base.error_cbacks, &cb->super);
++        }
++        opal_list_append(&orte_errmgr_base.error_cbacks, &cb->super);
++        break;
++    }
++    return ORTE_SUCCESS;
++}
++
++void orte_errmgr_base_execute_error_callbacks(orte_process_name_t *proc,
++                                              int errcode)
++{
++    orte_errmgr_cback_t *cb;
++    char *errstring;
++
++    /* if no callbacks have been provided, then we abort */
++    if (0 == opal_list_get_size(&orte_errmgr_base.error_cbacks)) {
++        errstring = (char*)ORTE_ERROR_NAME(errcode);
++        if (NULL == errstring) {
++            /* if the error is silent, say nothing */
++            orte_errmgr.abort(errcode, NULL);
++        }
++        orte_errmgr.abort(errcode, "Executing default error callback: %s", errstring);
++    }
++
++    /* cycle across the provided callbacks until we complete the list
++     * or one reports that no further action is required
++     */
++    OPAL_LIST_FOREACH(cb, &orte_errmgr_base.error_cbacks, orte_errmgr_cback_t) {
++        if (ORTE_SUCCESS == cb->callback(proc, errcode)) {
++            break;
++        }
++    }
++}
++
+ /********************
+  * Utility functions
+  ********************/
+@@ -653,18 +736,6 @@
+ 
+ #endif
+ 
+-orte_errmgr_fault_callback_t *orte_errmgr_base_set_fault_callback(orte_errmgr_fault_callback_t *cbfunc) {
+-    orte_errmgr_fault_callback_t *temp_cbfunc = fault_cbfunc;
+-
+-    OPAL_OUTPUT_VERBOSE((10, orte_errmgr_base_framework.framework_output, 
+-                "%s errmgr:base Called set_fault_callback", 
+-                ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
+-
+-    fault_cbfunc = cbfunc;
+-
+-    return temp_cbfunc;
+-}
+-
+ /********************
+  * Local Functions
+  ********************/
+Index: orte/mca/errmgr/base/errmgr_base_frame.c
+===================================================================
+--- orte/mca/errmgr/base/errmgr_base_frame.c	(revision 28710)
++++ orte/mca/errmgr/base/errmgr_base_frame.c	(working copy)
+@@ -50,7 +50,7 @@
+ /*
+  * Globals
+  */
+-orte_errmgr_fault_callback_t *fault_cbfunc;
++orte_errmgr_base_t orte_errmgr_base;
+ 
+ /* Public module provides a wrapper around previous functions */
+ orte_errmgr_base_module_t orte_errmgr_default_fns = {
+@@ -62,7 +62,9 @@
+     NULL, /* predicted_fault     */
+     NULL, /* suggest_map_targets */
+     NULL, /* ft_event            */
+-    orte_errmgr_base_register_migration_warning
++    orte_errmgr_base_register_migration_warning,
++    orte_errmgr_base_register_error_callback,
++    orte_errmgr_base_execute_error_callbacks
+ };
+ /* NOTE: ABSOLUTELY MUST initialize this
+  * struct to include the log function as it
+@@ -77,6 +79,8 @@
+     NULL,
+     NULL,
+     NULL,
++    NULL,
++    NULL,
+     NULL
+ };
+ 
+@@ -90,6 +94,9 @@
+     /* always leave a default set of fn pointers */
+     orte_errmgr = orte_errmgr_default_fns;
+ 
++    /* destruct the callback list */
++    OPAL_LIST_DESTRUCT(&orte_errmgr_base.error_cbacks);
++
+     return mca_base_framework_components_close(&orte_errmgr_base_framework, NULL);
+ }
+ 
+@@ -102,6 +109,9 @@
+     /* load the default fns */
+     orte_errmgr = orte_errmgr_default_fns;
+ 
++    /* initialize the error callback list */
++    OBJ_CONSTRUCT(&orte_errmgr_base.error_cbacks, opal_list_t);
++
+     /* Open up all available components */
+     return mca_base_framework_components_open(&orte_errmgr_base_framework, flags);
+ }
+@@ -110,3 +120,6 @@
+                            orte_errmgr_base_open, orte_errmgr_base_close,
+                            mca_errmgr_base_static_components, 0);
+ 
++OBJ_CLASS_INSTANCE(orte_errmgr_cback_t,
++                   opal_list_item_t,
++                   NULL, NULL);
+Index: orte/mca/errmgr/base/errmgr_private.h
+===================================================================
+--- orte/mca/errmgr/base/errmgr_private.h	(revision 28710)
++++ orte/mca/errmgr/base/errmgr_private.h	(working copy)
+@@ -48,20 +48,19 @@
+ 
+ /* define a struct to hold framework-global values */
+ typedef struct {
+-    int output;
+-    bool initialized;
++    opal_list_t error_cbacks;
+ } orte_errmgr_base_t;
+ 
+ ORTE_DECLSPEC extern orte_errmgr_base_t orte_errmgr_base;
+ 
+-/* Define the ERRMGR command flag */
+-typedef uint8_t orte_errmgr_cmd_flag_t;
+-#define ORTE_ERRMGR_CMD	OPAL_UINT8
++/* define a struct to hold registered error callbacks */
++typedef struct {
++    opal_list_item_t super;
++    orte_errmgr_error_order_t order;
++    orte_errmgr_error_callback_fn_t *callback;
++} orte_errmgr_cback_t;
++OBJ_CLASS_DECLARATION(orte_errmgr_cback_t);
+ 
+-/* define some commands */
+-#define ORTE_ERRMGR_ABORT_PROCS_REQUEST_CMD     0x01
+-#define ORTE_ERRMGR_REGISTER_CALLBACK_CMD       0x02
+-
+ /* declare the base default module */
+ ORTE_DECLSPEC extern orte_errmgr_base_module_t orte_errmgr_default_fns;
+ 
+@@ -77,5 +76,11 @@
+ 
+ ORTE_DECLSPEC void orte_errmgr_base_register_migration_warning(struct timeval *tv);
+ 
++ORTE_DECLSPEC int orte_errmgr_base_register_error_callback(orte_errmgr_error_callback_fn_t *cbfunc,
++                                                           orte_errmgr_error_order_t order);
++
++ORTE_DECLSPEC void orte_errmgr_base_execute_error_callbacks(orte_process_name_t *proc,
++                                                            int errcode);
++
+ END_C_DECLS
+ #endif
+Index: orte/mca/errmgr/default_app/errmgr_default_app.c
+===================================================================
+--- orte/mca/errmgr/default_app/errmgr_default_app.c	(revision 28710)
++++ orte/mca/errmgr/default_app/errmgr_default_app.c	(working copy)
+@@ -49,7 +49,6 @@
+ 
+ static int abort_peers(orte_process_name_t *procs,
+                        orte_std_cntr_t num_procs);
+-static orte_errmgr_fault_callback_t* set_fault_callback(orte_errmgr_fault_callback_t *cbfunc);
+ 
+ /******************
+  * HNP module
+@@ -64,7 +63,8 @@
+     NULL,
+     NULL,
+     orte_errmgr_base_register_migration_warning,
+-    set_fault_callback
++    orte_errmgr_base_register_error_callback,
++    orte_errmgr_base_execute_error_callbacks
+ };
+ 
+ static void proc_errors(int fd, short args, void *cbdata);
+@@ -135,8 +135,3 @@
+     }
+     return ORTE_SUCCESS;
+ }
+-
+-static orte_errmgr_fault_callback_t* set_fault_callback(orte_errmgr_fault_callback_t *cbfunc)
+-{
+-    return NULL;
+-}
+Index: orte/mca/errmgr/default_hnp/errmgr_default_hnp.c
+===================================================================
+--- orte/mca/errmgr/default_hnp/errmgr_default_hnp.c	(revision 28710)
++++ orte/mca/errmgr/default_hnp/errmgr_default_hnp.c	(working copy)
+@@ -89,7 +89,8 @@
+     suggest_map_targets,
+     ft_event,
+     orte_errmgr_base_register_migration_warning,
+-    NULL
++    NULL,
++    orte_errmgr_base_execute_error_callbacks
+ };
+ 
+ 
+Index: orte/mca/errmgr/default_orted/errmgr_default_orted.c
+===================================================================
+--- orte/mca/errmgr/default_orted/errmgr_default_orted.c	(revision 28710)
++++ orte/mca/errmgr/default_orted/errmgr_default_orted.c	(working copy)
+@@ -85,7 +85,8 @@
+     suggest_map_targets,
+     ft_event,
+     orte_errmgr_base_register_migration_warning,
+-    NULL
++    NULL,
++    orte_errmgr_base_execute_error_callbacks
+ };
+ 
+ /* Local functions */
+Index: orte/mca/errmgr/errmgr.h
+===================================================================
+--- orte/mca/errmgr/errmgr.h	(revision 28710)
++++ orte/mca/errmgr/errmgr.h	(working copy)
+@@ -93,22 +93,6 @@
+ OBJ_CLASS_DECLARATION(orte_errmgr_predicted_node_t);
+ 
+ /*
+- * Callback function that should be called when there is a fault.
+- *
+- * This callback function will be used anytime (other than during finalize) the
+- * runtime detects and handles a process failure. The runtime will complete all
+- * its stabilization before alerting the callback function. The parameter to the
+- * callback function will be the orte_process_name_t of the process that failed.
+- * It will not alert the application to failures that are not in the same job as
+- * the alerted process, only failures within the same jobid.
+- *
+- * @param[in] proc The names of the process that failed
+- */
+-typedef void (orte_errmgr_fault_callback_t)(opal_pointer_array_t *procs);
+-
+-ORTE_DECLSPEC extern orte_errmgr_fault_callback_t *fault_cbfunc;
+-
+-/*
+  * Structure to describe a suggested remapping element for a predicted fault.
+  *
+  * This can be expanded in the future to support weights , and
+@@ -242,41 +226,60 @@
+  */
+ typedef void (*orte_errmgr_base_module_register_migration_warning_fn_t)(struct timeval *tv);
+ 
++typedef enum {
++    ORTE_ERRMGR_CALLBACK_FIRST,
++    ORTE_ERRMGR_CALLBACK_LAST,
++    ORTE_ERRMGR_CALLBACK_PREPEND,
++    ORTE_ERRMGR_CALLBACK_APPEND
++} orte_errmgr_error_order_t;
++
+ /** 
+- * Set the callback function for faults.
+- * 
++ * Register a callback function for faults.
++ *
++ * This callback function will be used anytime (other than during finalize) the
++ * runtime detects and handles a critical failure. The runtime will complete all
++ * its stabilization before cycling thru all registered callbacks. The order of
++ * the callbacks will proceed in the indicated order with which they were registered.
++ *
++ * The parameter to the callback function will be the orte_process_name_t
++ * of the process involved in the error.
++ *
+  * @param[in] cbfunc The callback function.
+  *
+- * @retval The previous fault callback function.
+  */
+-typedef orte_errmgr_fault_callback_t *(*orte_errmgr_base_module_set_fault_callback_t)(orte_errmgr_fault_callback_t *cbfunc);
++typedef int (orte_errmgr_error_callback_fn_t)(orte_process_name_t *proc, int errcode);
++typedef int (*orte_errmgr_base_module_register_error_callback_fn_t)(orte_errmgr_error_callback_fn_t *cbfunc,
++                                                                    orte_errmgr_error_order_t order);
++typedef void (*orte_errmgr_base_module_execute_error_callbacks_fn_t)(orte_process_name_t *proc,
++                                                                     int errcode);
+ 
+ /*
+  * Module Structure
+  */
+ struct orte_errmgr_base_module_2_3_0_t {
+     /** Initialization Function */
+-    orte_errmgr_base_module_init_fn_t                   init;
++    orte_errmgr_base_module_init_fn_t                       init;
+     /** Finalization Function */
+-    orte_errmgr_base_module_finalize_fn_t               finalize;
++    orte_errmgr_base_module_finalize_fn_t                   finalize;
+ 
+-    orte_errmgr_base_module_log_fn_t                    log;
+-    orte_errmgr_base_module_abort_fn_t                  abort;
+-    orte_errmgr_base_module_abort_peers_fn_t            abort_peers;
++    orte_errmgr_base_module_log_fn_t                        log;
++    orte_errmgr_base_module_abort_fn_t                      abort;
++    orte_errmgr_base_module_abort_peers_fn_t                abort_peers;
+ 
+     /** Predicted process/node failure notification */
+-    orte_errmgr_base_module_predicted_fault_fn_t        predicted_fault;
++    orte_errmgr_base_module_predicted_fault_fn_t             predicted_fault;
+     /** Suggest a node to map a restarting process onto */
+-    orte_errmgr_base_module_suggest_map_targets_fn_t    suggest_map_targets;
++    orte_errmgr_base_module_suggest_map_targets_fn_t         suggest_map_targets;
+ 
+     /** Handle any FT Notifications */
+-    orte_errmgr_base_module_ft_event_fn_t               ft_event;
++    orte_errmgr_base_module_ft_event_fn_t                    ft_event;
+ 
+-	/* Register to be warned of impending migration */
++    /* Register to be warned of impending migration */
+     orte_errmgr_base_module_register_migration_warning_fn_t  register_migration_warning;
+ 
+-    /* Set the callback function */
+-    orte_errmgr_base_module_set_fault_callback_t        set_fault_callback;
++    /* Register a callback function */
++    orte_errmgr_base_module_register_error_callback_fn_t     register_error_callback;
++    orte_errmgr_base_module_execute_error_callbacks_fn_t     execute_error_callbacks;
+ };
+ typedef struct orte_errmgr_base_module_2_3_0_t orte_errmgr_base_module_2_3_0_t;
+ typedef orte_errmgr_base_module_2_3_0_t orte_errmgr_base_module_t;
+

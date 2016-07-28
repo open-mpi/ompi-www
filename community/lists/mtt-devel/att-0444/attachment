@@ -1,0 +1,31 @@
+<div dir="ltr"><div>it seems it can be retired. executable() covers more cases.</div>
+<div>shell() can be the alias of executable() for backwards compatibility.</div>
+<div> </div>
+<div>Also, DoCommand::CmdScript should be changed to DoCommand::Cmd inside executable() to really cover more cases.</div>
+<div>regards</div>
+<div> </div>
+<div>Mike<br><br></div>
+<div class="gmail_quote">On Tue, Sep 29, 2009 at 8:35 PM, Ethan Mallove <span dir="ltr">&lt;<a href="mailto:ethan.mallove@sun.com">ethan.mallove@sun.com</a>&gt;</span> wrote:<br>
+<blockquote style="BORDER-LEFT: #ccc 1px solid; MARGIN: 0px 0px 0px 0.8ex; PADDING-LEFT: 1ex" class="gmail_quote">Should &amp;shell() be deprecated? It looks awfully similar to<br>&amp;executable().<br><br>-Ethan<br>
+<div>
+<div></div>
+<div class="h5"><br>On Tue, Sep/29/2009 08:34:44AM, <a href="mailto:miked@osl.iu.edu">miked@osl.iu.edu</a> wrote:<br>&gt; Author: miked<br>&gt; Date: 2009-09-29 08:34:44 EDT (Tue, 29 Sep 2009)<br>&gt; New Revision: 1320<br>
+&gt; URL: <a href="https://svn.open-mpi.org/trac/mtt/changeset/1320" target="_blank">https://svn.open-mpi.org/trac/mtt/changeset/1320</a><br>&gt;<br>&gt; Log:<br>&gt; applied Jeff,Ethan comments:<br>&gt; 1. rename on_stop,on_start to after_mtt_start_exec, before_mtt_start_exec<br>
+&gt; 2. treat *_mtt_start_exec params in the same way like others before/after_* params<br>&gt; 3. rename shell_script to executable<br>&gt; 4. fix DoCommand:CmdScript() to recognize shebang chars and do not add &quot;:\n&quot; if #!.... is present<br>
+&gt;<br>&gt;<br>&gt; Text files modified:<br>&gt;    trunk/client/mtt                  |    15 +++++++++++++--<br>&gt;    trunk/lib/MTT/DoCommand.pm        |     5 +++--<br>&gt;    trunk/lib/MTT/Values/Functions.pm |     2 +-<br>
+&gt;    3 files changed, 17 insertions(+), 5 deletions(-)<br>&gt;<br>&gt; Modified: trunk/client/mtt<br>&gt; ==============================================================================<br>&gt; --- trunk/client/mtt  (original)<br>
+&gt; +++ trunk/client/mtt  2009-09-29 08:34:44 EDT (Tue, 29 Sep 2009)<br>&gt; @@ -496,7 +496,8 @@<br>&gt;      MTT::Lock::Init($ini);<br>&gt;<br>&gt;      # execute on_start callback if exists<br>&gt; -    _process_get_value_option(&quot;mtt,on_start&quot;, $ini);<br>
+&gt; +     _do_step($ini, &quot;mtt&quot;, &quot;before_mtt_start_exec&quot;);<br>&gt; +<br>&gt;<br>&gt;      # Set the logfile, if specified<br>&gt;<br>&gt; @@ -565,7 +566,7 @@<br>&gt;      }<br>&gt;<br>&gt;      # execute on_stop callback if exists<br>
+&gt; -    _process_get_value_option(&quot;mtt,on_stop&quot;, $ini);<br>&gt; +     _do_step($ini, &quot;mtt&quot;, &quot;after_mtt_start_exec&quot;);<br>&gt;<br>&gt;      # Shut down locks<br>&gt;<br>&gt; @@ -737,3 +738,13 @@<br>
+&gt;          print &quot;$value\n&quot;;<br>&gt;      }<br>&gt;  }<br>&gt; +<br>&gt; +# Run cmd, specified in the non Test* sections<br>&gt; +sub _do_step {<br>&gt; +     my ($ini, $section,$param) = @_;<br>&gt; +     my $cmd = $ini-&gt;val($section, $param);<br>
+&gt; +     if ( defined $cmd ) {<br>&gt; +             my $x = MTT::DoCommand::RunStep(1, $cmd, -1, $ini, $section, $param);<br>&gt; +             Verbose(&quot;  Output: $x-&gt;{result_stdout}\n&quot;)<br>&gt; +     }<br>
+&gt; +}<br>&gt;<br>&gt; Modified: trunk/lib/MTT/DoCommand.pm<br>&gt; ==============================================================================<br>&gt; --- trunk/lib/MTT/DoCommand.pm        (original)<br>&gt; +++ trunk/lib/MTT/DoCommand.pm        2009-09-29 08:34:44 EDT (Tue, 29 Sep 2009)<br>
+&gt; @@ -794,9 +794,10 @@<br>&gt;      # protects against a common funclet syntax error.<br>&gt;      # We can safely do this since &quot;foo&quot; (literally, with<br>&gt;      # quotes included) would never be a valid shell command.<br>
+&gt; -    $cmds =~ s/\&quot;$//<br>&gt; -        if ($cmds =~ s/^\&quot;//);<br>&gt; +    $cmds =~ s/\&quot;$// if ($cmds =~ s/^\&quot;//);<br>&gt;<br>&gt; +<br>&gt; +     print $fh &quot;:\n&quot; if ($cmds !~ /^\s*\#\!/); # no shell specified - use default<br>
+&gt;      print $fh &quot;$cmds\n&quot;;<br>&gt;      close($fh);<br>&gt;      chmod(0700, $filename);<br>&gt;<br>&gt; Modified: trunk/lib/MTT/Values/Functions.pm<br>&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Values/Functions.pm (original)<br>&gt; +++ trunk/lib/MTT/Values/Functions.pm 2009-09-29 08:34:44 EDT (Tue, 29 Sep 2009)<br>&gt; @@ -3038,7 +3038,7 @@<br>&gt;  #<br>&gt;  #<br>&gt;<br>&gt; -sub shell_script {<br>
+&gt; +sub executable {<br>&gt;       my ($cmd_section, $cmd_param) = @_;<br>&gt;       my $cmd = &amp;get_ini_val($cmd_section, $cmd_param);<br>&gt;       my $x = MTT::DoCommand::CmdScript(1, $cmd);<br>&gt; _______________________________________________<br>
+&gt; mtt-svn mailing list<br>&gt; <a href="mailto:mtt-svn@open-mpi.org">mtt-svn@open-mpi.org</a><br>&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/mtt-svn" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/mtt-svn</a><br>
+</div></div>_______________________________________________<br>mtt-devel mailing list<br><a href="mailto:mtt-devel@open-mpi.org">mtt-devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/mtt-devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/mtt-devel</a><br>
+</blockquote></div><br></div>
+

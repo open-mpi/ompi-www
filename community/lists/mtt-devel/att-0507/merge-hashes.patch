@@ -1,0 +1,120 @@
+Index: lib/MTT/Messages.pm
+===================================================================
+--- lib/MTT/Messages.pm	(revision 1360)
++++ lib/MTT/Messages.pm	(working copy)
+@@ -18,7 +18,7 @@
+ use Text::Wrap;
+ use vars qw(@EXPORT);
+ use base qw(Exporter);
+-@EXPORT = qw(Messages Error Warning BigWarning Abort Debug Verbose Trace DebugDump FuncName ModuleName);
++@EXPORT = qw(Messages Error Warning BigWarning Abort Debug Verbose Trace DebugDump FuncName ModuleName DebugDumpHead);
+ 
+ # Is debugging enabled?
+ my $_debug;
+@@ -152,6 +152,26 @@
+         if (defined($LOGFILE));
+ }
+ 
++sub DebugDumpHead {
++    my $lines = shift;
++    my $d = new Data::Dumper([@_]);
++    $d->Purity(1)->Indent(1);
++    my $s = $d->Dump;
++
++    my @lines = split(/\n/, $s);
++    $s = undef;
++    while ($lines > 0 && $#lines >= 0) {
++        $s .= $lines[0] . "\n";
++        shift @lines;
++        --$lines;
++    }
++    $s .= "[...remaining $#lines snipped...]\n"
++        if ($#lines >= 0);
++    print $s;
++    print $LOGFILE $s
++        if (defined($LOGFILE));
++}
++
+ sub Verbose {
+     if ($_verbose) {
+         my $str = "@_";
+Index: lib/MTT/Util.pm
+===================================================================
+--- lib/MTT/Util.pm	(revision 1360)
++++ lib/MTT/Util.pm	(working copy)
+@@ -393,12 +393,12 @@
+ sub merge_hashes {
+     my ($x, $y) = @_;
+ 
+-    no strict;
+     foreach my $k (keys %$y) {
+ 
+-        # Abort and notify the user if they attempt to have two MTT clients run 
+-        # the same INI section out of the same scratch directory (since doing so
+-        # would entail overwriting the .dump file of one of the MTT clients)
++        # Abort and notify the user if they attempt to have two MTT
++        # clients run the same INI section out of the same scratch
++        # directory (since doing so would entail overwriting the .dump
++        # file of one of the MTT clients)
+         if (($k eq "full_section_name") and 
+             ($x->{$k} eq $y->{$k}) and 
+             ($x->{"start_timestamp"} ne $y->{"start_timestamp"})) {
+@@ -412,10 +412,21 @@
+         if (!defined($x->{$k})) {
+             $x->{$k} = $y->{$k};
+         } else {
+-            $x->{$k} = merge_hashes($x->{$k}, $y->{$k});
++            # If they're not the same type, just let $x win
++            if (ref($x->{$k}) ne ref($y->{$k})) {
++                Debug("REFS ARE DIFFERENT TYPES: " . ref($x->{$k}) . 
++                      " / " . ref($y->{$k}) . "\n");
++                next;
++            }
++            # If they're hashes, recurse down to compare individual keys
++            elsif (ref($x->{$k}) =~ /hash/i) {
++                Debug("RECURSING INTO MERGE HASHES... " . ref($y->{$k}) . "\n");
++                $x->{$k} = merge_hashes($x->{$k}, $y->{$k});
++            }
++            # All other types -- scalars, arrays, hashes, etc. -- just
++            # let $x win.
+         }
+     }
+-    use strict;
+     return $x;
+ }
+ 
+Index: lib/MTT/Test.pm
+===================================================================
+--- lib/MTT/Test.pm	(revision 1360)
++++ lib/MTT/Test.pm	(working copy)
+@@ -61,13 +61,19 @@
+     $MTT::Test::sources = undef;
+ 
+     my @dumpfiles = glob("$dir/$sources_data_filename-*.$data_filename_extension");
++    my $i = 1;
+     foreach my $dumpfile (@dumpfiles) {
+ 
+         # If the file exists, read it in
+-        my $data;
++        my $data = undef;
++        Verbose("=================================================================\n");
++        Verbose("Loading file $i: $dumpfile\n");
++        ++$i;
+         MTT::Files::load_dumpfile($dumpfile, \$data);
++        Verbose("=================================================================\n");
+         $MTT::Test::sources = MTT::Util::merge_hashes($MTT::Test::sources, $data->{VAR1});
+     }
++    Verbose("**** DONE WITH LOAD SOURCES\n");
+ 
+     # Rebuild the refcounts
+     foreach my $test_key (keys(%{$MTT::Test::sources})) {
+@@ -104,7 +110,7 @@
+     foreach my $dumpfile (@dumpfiles) {
+ 
+         # If the file exists, read it in
+-        my $data;
++        my $data = undef;
+         MTT::Files::load_dumpfile($dumpfile, \$data);
+         $MTT::Test::builds = MTT::Util::merge_hashes($MTT::Test::builds, $data->{VAR1});
+     }
+

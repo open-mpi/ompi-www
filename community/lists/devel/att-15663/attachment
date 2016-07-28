@@ -1,0 +1,82 @@
+<div dir="ltr">Nathan,<div><br></div><div>Indeed the original design allowed for multiple usages of the same descriptor, not concurrent as the text in the btl.h indicates but consecutive. The MCA_BTL_FLAGS_RDMA_MATCHED flag is a weirdness needed for Portal, and I am not use it is currently in use anywhere in the code base.</div>
+
+
+
+
+
+
+
+
+
+
+<div><br></div><div>My problem with the depicted approach is that now we have two critical sections in the fast path: one to allocate/reserve the descriptor (this is at the BTL level on a call from the PML), and then another one to allocate whatever structure the BTL needs to store the callback informations (again on a call from the PML to the BTL).  In the previous design, we carefully analyzed all communications path and tried to minimize the number of back-and-forth between the PML and BTL layer in order to preserve the performance.</div>
+<div><br></div><div> George.</div><div><br><div>
+
+<br></div></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Thu, Jul 10, 2014 at 2:57 PM, Nathan Hjelm <span dir="ltr">&lt;<a href="mailto:hjelmn@lanl.gov" target="_blank">hjelmn@lanl.gov</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+What: Change the descriptor completion callback function to include<br>
+cbdata and context pointers.<br>
+<br>
+Old callback:<br>
+<br>
+typedef void (*mca_btl_base_completion_fn_t)(<br>
+    struct mca_btl_base_module_t* module,<br>
+    struct mca_btl_base_endpoint_t* endpoint,<br>
+    struct mca_btl_base_descriptor_t* descriptor,<br>
+    int status);<br>
+<br>
+<br>
+New callback:<br>
+<br>
+typedef void (*mca_btl_base_completion_fn_t)(<br>
+    struct mca_btl_base_module_t* module,<br>
+    struct mca_btl_base_endpoint_t* endpoint,<br>
+    struct mca_btl_base_descriptor_t* descriptor,<br>
+    void *cbdata, void *context, int status);<br>
+<br>
+<br>
+Why: The BTL interface provides support for using a single descriptor<br>
+with multiple concurrent RDMA operations. BTLs support this feature if<br>
+the following flag is not set:<br>
+<br>
+/** RDMA put/get calls must have a matching prepare_{src,dst} call<br>
+    on the target with the same base (and possibly bound). */<br>
+#define MCA_BTL_FLAGS_RDMA_MATCHED    0x0040<br>
+<br>
+<br>
+The problem is that in order to pass back the correct callback data and<br>
+context to the completion function BTLs need to modify the<br>
+descriptor. This could be a disaster in a multi-threaded application if<br>
+one thread is calling the completion callback while another thread is<br>
+preparing to start a put/get operation. To avoid issues it is better to<br>
+provide the callback data as seperate arguments.<br>
+<br>
+The change is straightforward and the commit will update all BTLs and<br>
+BTL users to use the new completion callback signature.<br>
+<br>
+<br>
+When: As this was discussed at the developer&#39;s meeting last month I am<br>
+setting a short timeout for this RFC. This times out next Wed (July<br>
+16).<br>
+<br>
+<br>
+I would really like feedback on this change. Can it be improved? Should<br>
+the segment data be passed back to the function (not something I need<br>
+for RMA but might be useful elsewhere)? Would it be better to remove the<br>
+simultaneous RDMA feature in favor of a lightweight descriptor clone (I<br>
+have this implemented as well and I have no problem with providing<br>
+both features)?<br>
+<br>
+<br>
+This is another is a series of RFCs to improve (I hope) the BTL<br>
+interface for one-sided operations. The next RFC will be on the<br>
+one-sided BTL interface.<br>
+<span class="HOEnZb"><font color="#888888"><br>
+-Nathan Hjelm<br>
+HPC-5, LANL<br>
+</font></span><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15101.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15101.php</a><br></blockquote></div><br></div>
+

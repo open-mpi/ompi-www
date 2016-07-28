@@ -1,0 +1,1295 @@
+Index: include/hwloc.h
+===================================================================
+--- include/hwloc.h	(revision 3180)
++++ include/hwloc.h	(working copy)
+@@ -181,10 +181,11 @@
+ 			  * any structure.
+ 			  */
+ 
+-  HWLOC_OBJ_MISC 	/**< \brief Miscellaneous objects.
++  HWLOC_OBJ_MISC,	/**< \brief Miscellaneous objects.
+ 			  * Objects without particular meaning, that can e.g. be
+ 			  * added by the application for its own use.
+ 			  */
++  HWLOC_OBJ_MAX         /**< \private Sentinel value */
+ } hwloc_obj_type_t;
+ 
+ /** \brief Compare the depth of two object types
+Index: include/private/debug.h
+===================================================================
+--- include/private/debug.h	(revision 3180)
++++ include/private/debug.h	(working copy)
+@@ -14,7 +14,22 @@
+ #include <private/autogen/config.h>
+ 
+ #ifdef HWLOC_DEBUG
+-#define hwloc_debug(s, ...) fprintf(stderr, s, ##__VA_ARGS__)
++#include <stdarg.h>
++#include <stdio.h>
++#endif
++
++static inline void hwloc_debug(const char *s __hwloc_attribute_unused, ...)
++{
++#ifdef HWLOC_DEBUG
++    va_list ap;
++
++    va_start(s, ap);
++    vfprintf(stderr, s, ap);
++    va_end(ap);
++#endif
++}
++
++#ifdef HWLOC_DEBUG
+ #define hwloc_debug_bitmap(fmt, bitmap) do { \
+   char *s= hwloc_bitmap_printf_value(bitmap); \
+   fprintf(stderr, fmt, s); \
+@@ -31,7 +46,6 @@
+   free(s); \
+ } while (0)
+ #else
+-#define hwloc_debug(s, ...) do { } while(0)
+ #define hwloc_debug_bitmap(s, bitmap) do { } while(0)
+ #define hwloc_debug_1arg_bitmap(s, arg1, bitmap) do { } while(0)
+ #define hwloc_debug_2args_bitmap(s, arg1, arg2, bitmap) do { } while(0)
+Index: include/hwloc/glibc-sched.h
+===================================================================
+--- include/hwloc/glibc-sched.h	(revision 3180)
++++ include/hwloc/glibc-sched.h	(working copy)
+@@ -77,9 +77,11 @@
+ hwloc_cpuset_from_glibc_sched_affinity(hwloc_topology_t topology __hwloc_attribute_unused, hwloc_cpuset_t hwlocset,
+                                        const cpu_set_t *schedset, size_t schedsetsize)
+ {
++#ifdef CPU_ZERO_S
++  int cpu, count;
++#endif
+   hwloc_bitmap_zero(hwlocset);
+ #ifdef CPU_ZERO_S
+-  int cpu, count;
+   count = CPU_COUNT_S(schedsetsize, schedset);
+   cpu = 0;
+   while (count) {
+Index: src/topology-darwin.c
+===================================================================
+--- src/topology-darwin.c	(revision 3180)
++++ src/topology-darwin.c	(working copy)
+@@ -106,10 +106,20 @@
+ 
+   if (!sysctlbyname("hw.cacheconfig", NULL, &size, NULL, 0)) {
+     unsigned n = size / sizeof(uint32_t);
+-    uint64_t cacheconfig[n];
+-    uint32_t cacheconfig32[n];
+-    uint64_t cachesize[n];
++    uint64_t *cacheconfig = NULL;
++    uint64_t *cachesize = NULL;
++    uint32_t *cacheconfig32 = NULL;
+ 
++    cacheconfig = malloc(sizeof(uint64_t) * n * 2);
++    if (NULL == cacheconfig) {
++        goto out;
++    }
++    cachesize = cacheconfig + n;
++    cacheconfig32 = malloc(sizeof(uint32_t) * n);
++    if (NULL == cacheconfig32) {
++        goto out;
++    }
++
+     if ((!sysctlbyname("hw.cacheconfig", cacheconfig, &size, NULL, 0))) {
+       /* Yeech. Darwin seemingly has changed from 32bit to 64bit integers for
+        * cacheconfig, with apparently no way for detection. Assume the machine
+@@ -178,8 +188,16 @@
+         }
+       }
+     }
++  out:
++    if (NULL != cacheconfig) {
++        free(cacheconfig);
++    }
++    if (NULL != cacheconfig32) {
++        free(cacheconfig32);
++    }
+   }
+ 
++
+   /* add PU objects */
+   hwloc_setup_pu_level(topology, nprocs);
+ 
+Index: src/topology-x86.c
+===================================================================
+--- src/topology-x86.c	(revision 3180)
++++ src/topology-x86.c	(working copy)
+@@ -270,7 +270,7 @@
+ static void summarize(hwloc_topology_t topology, struct procinfo *infos, unsigned nbprocs)
+ {
+   hwloc_bitmap_t complete_cpuset = hwloc_bitmap_alloc();
+-  unsigned i, j, one, level;
++  unsigned i, j, l, one, level;
+ 
+   for (i = 0; i < nbprocs; i++)
+     if (infos[i].present) {
+@@ -375,7 +375,6 @@
+   /* Look for caches */
+   /* First find max level */
+   level = 0;
+-  unsigned l;
+   for (i = 0; i < nbprocs; i++)
+     for (j = 0; j < infos[i].numcaches; j++)
+       if (infos[i].cache[j].level > level)
+@@ -461,12 +460,17 @@
+   unsigned i;
+   unsigned highest_cpuid;
+   unsigned highest_ext_cpuid;
+-  struct procinfo infos[nbprocs];
++  struct procinfo *infos = NULL;
+   enum cpuid_type cpuid_type = unknown;
+ 
+   if (!hwloc_have_cpuid())
+     return;
+ 
++  infos = malloc(sizeof(struct procinfo) * nbprocs);
++  if (NULL == infos) {
++      return;
++  }
++
+   eax = 0x00;
+   hwloc_cpuid(&eax, &ebx, &ecx, &edx);
+   highest_cpuid = eax;
+@@ -476,8 +480,9 @@
+     cpuid_type = amd;
+ 
+   hwloc_debug("highest cpuid %x, cpuid type %u\n", highest_cpuid, cpuid_type);
+-  if (highest_cpuid < 0x01)
+-    return;
++  if (highest_cpuid < 0x01) {
++      goto free;
++  }
+ 
+   eax = 0x80000000;
+   hwloc_cpuid(&eax, &ebx, &ecx, &edx);
+@@ -500,7 +505,7 @@
+       topology->set_thisthread_cpubind(topology, orig_cpuset, 0);
+       hwloc_bitmap_free(orig_cpuset);
+       summarize(topology, infos, nbprocs);
+-      return;
++      goto free;
+     }
+   }
+   if (topology->get_thisproc_cpubind && topology->set_thisproc_cpubind) {
+@@ -516,10 +521,15 @@
+       topology->set_thisproc_cpubind(topology, orig_cpuset, 0);
+       hwloc_bitmap_free(orig_cpuset);
+       summarize(topology, infos, nbprocs);
+-      return;
++      goto free;
+     }
+   }
+ #endif
+ 
+   hwloc_add_object_info(topology->levels[0][0], "Backend", "x86");
++
++ free:
++  if (NULL != infos) {
++      free(infos);
++  }
+ }
+Index: src/topology-linux.c
+===================================================================
+--- src/topology-linux.c	(revision 3180)
++++ src/topology-linux.c	(working copy)
+@@ -573,8 +573,11 @@
+ hwloc_linux_get_pid_cpubind(hwloc_topology_t topology, pid_t pid, hwloc_bitmap_t hwloc_set, int flags)
+ {
+   hwloc_bitmap_t tidset = hwloc_bitmap_alloc();
+-  hwloc_bitmap_t cpusets[2] = { hwloc_set, tidset };
++  hwloc_bitmap_t cpusets[2];
+   int ret;
++
++  cpusets[0] = hwloc_set;
++  cpusets[1] = tidset;
+   ret = hwloc_linux_foreach_proc_tid(topology, pid,
+ 					 hwloc_linux_foreach_proc_tid_get_cpubind_cb,
+ 					 (void*) cpusets, flags);
+@@ -902,8 +905,11 @@
+ hwloc_linux_get_pid_lastcpuexec(hwloc_topology_t topology, pid_t pid, hwloc_bitmap_t hwloc_set, int flags)
+ {
+   hwloc_bitmap_t tidset = hwloc_bitmap_alloc();
+-  hwloc_bitmap_t cpusets[2] = { hwloc_set, tidset };
++  hwloc_bitmap_t cpusets[2];
+   int ret;
++
++  cpusets[0] = hwloc_set;
++  cpusets[1] = tidset;
+   ret = hwloc_linux_foreach_proc_tid(topology, pid,
+ 				     hwloc_linux_foreach_proc_tid_get_lastcpuexec_cb,
+ 				     (void*) cpusets, flags);
+@@ -1926,15 +1932,20 @@
+       return;
+     }
+ 
+-  /* For convenience, put these declarations inside a block.  Saves us
+-     from a bunch of mallocs, particularly with the 2D array. */
++  /* For convenience, put these declarations inside a block. */
+ 
+   {
+       hwloc_obj_t * nodes = calloc(nbnodes, sizeof(hwloc_obj_t));
+       float * distances = calloc(nbnodes*nbnodes, sizeof(float));
+-      unsigned nonsparse_physical_indexes[nbnodes];
++      unsigned *nonsparse_physical_indexes = 
++          calloc(nbnodes, sizeof(unsigned));
+       unsigned index_;
+ 
++      if (NULL == nonsparse_physical_indexes ||
++          NULL == distances || NULL == nodes) {
++          goto out;
++      }
++
+       /* Get node indexes now. We need them in order since Linux groups
+        * sparse distances but keep them in order in the sysfs distance files.
+        */
+@@ -1985,6 +1996,11 @@
+       topology->os_distances[HWLOC_OBJ_NODE].nbobjs = nbnodes;
+       topology->os_distances[HWLOC_OBJ_NODE].objs = nodes;
+       topology->os_distances[HWLOC_OBJ_NODE].distances = distances;
++
++out:
++      if (NULL != nonsparse_physical_indexes) {
++          free(nonsparse_physical_indexes);
++      }
+   }
+ 
+   *found = nbnodes;
+@@ -1995,18 +2011,25 @@
+ static void * 
+ hwloc_read_raw(const char *p, const char *p1, size_t *bytes_read, int root_fd)
+ {
+-  char fname[strlen(p) + 1 + strlen(p1) + 1];
++  char *fname = NULL;
+   char *ret = NULL;
+   struct stat fs;
++  int file = -1;
++  unsigned len;
+ 
+-  snprintf(fname, sizeof(fname), "%s/%s", p, p1);
++  len = strlen(p) + 1 + strlen(p1) + 1;
++  fname = malloc(len);
++  if (NULL == fname) {
++      return NULL;
++  }
++  snprintf(fname, len, "%s/%s", p, p1);
+ 
+-  int file = hwloc_open(fname, root_fd);
+-  if (-1 == file)
+-    return NULL;
++  file = hwloc_open(fname, root_fd);
++  if (-1 == file) {
++      goto out;
++  }
+   if (fstat(file, &fs)) {
+-    close(file);
+-    return NULL;
++    goto out;
+   }
+ 
+   ret = (char *) malloc(fs.st_size);
+@@ -2020,7 +2043,12 @@
+         *bytes_read = cb;
+     }
+   }
++
++ out:
+   close(file);
++  if (NULL != fname) {
++      free(fname);
++  }
+   return ret;
+ }
+ 
+@@ -2119,6 +2147,7 @@
+   /* d-tlb-size - ignore, always 0 on power6 */
+   /* i-cache-* and i-tlb-* represent instruction cache, ignore */
+   uint32_t d_cache_line_size = 0, d_cache_size = 0;
++  struct hwloc_obj *c = NULL;
+ 
+   hwloc_read_unit32be(cpu, "d-cache-line-size", &d_cache_line_size,
+       topology->backend_params.sysfs.root_fd);
+@@ -2128,7 +2157,7 @@
+   if ( (0 == d_cache_line_size) && (0 == d_cache_size) )
+     return;
+ 
+-  struct hwloc_obj *c = hwloc_alloc_setup_object(HWLOC_OBJ_CACHE, -1);
++  c = hwloc_alloc_setup_object(HWLOC_OBJ_CACHE, -1);
+   c->attr->cache.depth = level;
+   c->attr->cache.linesize = d_cache_line_size;
+   c->attr->cache.size = d_cache_size;
+@@ -2144,35 +2173,46 @@
+ static void
+ look_powerpc_device_tree(struct hwloc_topology *topology)
+ {
+-  device_tree_cpus_t cpus = { .n = 0, .p = NULL, .allocated = 0 };
++  device_tree_cpus_t cpus;
+   const char ofroot[] = "/proc/device-tree/cpus";
+   unsigned int i;
+-
+   int root_fd = topology->backend_params.sysfs.root_fd;
+   DIR *dt = hwloc_opendir(ofroot, root_fd);
++  struct dirent *dirent;
++
++  cpus.n = 0;
++  cpus.p = NULL;
++  cpus.allocated = 0;
++
+   if (NULL == dt)
+     return;
+ 
+-  struct dirent *dirent;
+   while (NULL != (dirent = readdir(dt))) {
++    struct stat statbuf;
++    int err;
++    char *cpu;
++    char *device_type;
++    uint32_t reg = -1, l2_cache = -1, phandle = -1;
++    unsigned len;
+ 
+     if ('.' == dirent->d_name[0])
+       continue;
+ 
+-    char cpu[sizeof(ofroot) + 1 + strlen(dirent->d_name) + 1];
+-    snprintf(cpu, sizeof(cpu), "%s/%s", ofroot, dirent->d_name);
+-    struct stat statbuf;
+-    int err;
++    len = sizeof(ofroot) + 1 + strlen(dirent->d_name) + 1;
++    cpu = malloc(len);
++    if (NULL == cpu) {
++        return;
++    }
++    snprintf(cpu, len, "%s/%s", ofroot, dirent->d_name);
+ 
+     err = hwloc_stat(cpu, &statbuf, root_fd);
+     if (err < 0 || !S_ISDIR(statbuf.st_mode))
+       continue;
+ 
+-    char *device_type = hwloc_read_str(cpu, "device_type", root_fd);
++    device_type = hwloc_read_str(cpu, "device_type", root_fd);
+     if (NULL == device_type)
+       continue;
+ 
+-    uint32_t reg = -1, l2_cache = -1, phandle = -1;
+     hwloc_read_unit32be(cpu, "reg", &reg, root_fd);
+     if (hwloc_read_unit32be(cpu, "next-level-cache", &l2_cache, root_fd) == -1)
+       hwloc_read_unit32be(cpu, "l2-cache", &l2_cache, root_fd);
+@@ -2205,10 +2245,11 @@
+       if (NULL == cpuset) {
+         hwloc_debug("%s has no \"reg\" property, skipping\n", cpu);
+       } else {
++        struct hwloc_obj *core = NULL;
+         add_device_tree_cpus_node(&cpus, cpuset, l2_cache, phandle, dirent->d_name); 
+ 
+         /* Add core */
+-        struct hwloc_obj *core = hwloc_alloc_setup_object(HWLOC_OBJ_CORE, reg);
++        core = hwloc_alloc_setup_object(HWLOC_OBJ_CORE, reg);
+         core->cpuset = hwloc_bitmap_dup(cpuset);
+         hwloc_insert_object_by_cpuset(topology, core);
+ 
+@@ -2219,6 +2260,7 @@
+       }
+       free(device_type);
+     }
++    free(cpu);
+   }
+   closedir(dt);
+ 
+@@ -2242,20 +2284,28 @@
+ 
+   /* Scan L2/L3/... caches */
+   for (i = 0; i < cpus.n; ++i) {
++    unsigned int level = 2;
++    hwloc_bitmap_t cpuset;
+     /* Skip real CPUs */
+     if (NULL != cpus.p[i].cpuset)
+       continue;
+ 
+     /* Calculate cache level and CPU mask */
+-    unsigned int level = 2;
+-    hwloc_bitmap_t cpuset = hwloc_bitmap_alloc();
++    cpuset = hwloc_bitmap_alloc();
+     if (0 == look_powerpc_device_tree_discover_cache(&cpus,
+           cpus.p[i].phandle, &level, cpuset)) {
++      char *cpu;
++      unsigned len;
+ 
+-      char cpu[sizeof(ofroot) + 1 + strlen(cpus.p[i].name) + 1];
+-      snprintf(cpu, sizeof(cpu), "%s/%s", ofroot, cpus.p[i].name);
++      len = sizeof(ofroot) + 1 + strlen(cpus.p[i].name) + 1;
++      cpu = malloc(len);
++      if (NULL == cpu) {
++          return;
++      }
++      snprintf(cpu, len, "%s/%s", ofroot, cpus.p[i].name);
+ 
+       try_add_cache_from_device_tree_cpu(topology, cpu, level, cpuset);
++      free(cpu);
+     }
+     hwloc_bitmap_free(cpuset);
+   }
+@@ -2278,6 +2328,7 @@
+   DIR *dir;
+   int i,j;
+   FILE *fd;
++  unsigned caches_added;
+ 
+   cpuset = hwloc_bitmap_alloc();
+ 
+@@ -2330,7 +2381,7 @@
+   hwloc_debug_1arg_bitmap("found %d cpu topologies, cpuset %s\n",
+ 	     hwloc_bitmap_weight(cpuset), cpuset);
+ 
+-  unsigned caches_added = 0;
++  caches_added = 0;
+   hwloc_bitmap_foreach_begin(i, cpuset)
+     {
+       struct hwloc_obj *sock, *core, *thread;
+@@ -2489,8 +2540,9 @@
+ 	     hwloc_bitmap_t online_cpuset)
+ {
+   FILE *fd;
+-  char str[strlen(PHYSID)+1+9+1+1];
++  char *str = NULL;
+   char *endptr;
++  unsigned len;
+   unsigned proc_physids[HWLOC_NBMAXCPUS];
+   unsigned osphysids[HWLOC_NBMAXCPUS];
+   unsigned proc_coreids[HWLOC_NBMAXCPUS];
+@@ -2528,8 +2580,10 @@
+   cpuset = hwloc_bitmap_alloc();
+   /* Just record information and count number of sockets and cores */
+ 
++  len = strlen(PHYSID) + 1 + 9 + 1 + 1;
++  str = malloc(len);
+   hwloc_debug("%s", "\n\n * Topology extraction from /proc/cpuinfo *\n\n");
+-  while (fgets(str,sizeof(str),fd)!=NULL)
++  while (fgets(str,len,fd)!=NULL)
+     {
+ #      define getprocnb_begin(field, var)		     \
+       if ( !strncmp(field,str,strlen(field)))	     \
+@@ -2595,6 +2649,7 @@
+ 	  }
+     }
+   fclose(fd);
++  free(str);
+ 
+   if (processor == (unsigned long) -1) {
+     hwloc_bitmap_free(cpuset);
+Index: src/bind.c
+===================================================================
+--- src/bind.c	(revision 3180)
++++ src/bind.c	(working copy)
+@@ -491,8 +491,8 @@
+ void *
+ hwloc_alloc_membind_nodeset(hwloc_topology_t topology, size_t len, hwloc_const_nodeset_t nodeset, hwloc_membind_policy_t policy, int flags)
+ {
++  void *p;
+   nodeset = hwloc_fix_membind(topology, nodeset);
+-  void *p;
+   if (!nodeset)
+     goto fallback;
+   if (flags & HWLOC_MEMBIND_MIGRATE) {
+Index: src/topology.c
+===================================================================
+--- src/topology.c	(revision 3180)
++++ src/topology.c	(working copy)
+@@ -279,28 +279,23 @@
+   HWLOC_TYPE_EQUAL
+ };
+ 
+-static const unsigned obj_type_order[] = {
+-  [HWLOC_OBJ_SYSTEM] = 0,
+-  [HWLOC_OBJ_MACHINE] = 1,
+-  [HWLOC_OBJ_GROUP] = 2,
+-  [HWLOC_OBJ_NODE] = 3,
+-  [HWLOC_OBJ_SOCKET] = 4,
+-  [HWLOC_OBJ_CACHE] = 5,
+-  [HWLOC_OBJ_CORE] = 6,
+-  [HWLOC_OBJ_PU] = 7,
+-  [HWLOC_OBJ_MISC] = 8,
+-};
++/* Can't (safely) initialize this array statically without C99 syntax
++   (since it relies on ordering by enum names, not necessarily 0 .. N
++   ordering).  It is therefore initialized down in
++   hwloc_topology_init(). */
++static int orders_initialized = 0;
++static unsigned obj_type_order[HWLOC_OBJ_MAX];
+ 
+ static const hwloc_obj_type_t obj_order_type[] = {
+-  [0] = HWLOC_OBJ_SYSTEM,
+-  [1] = HWLOC_OBJ_MACHINE,
+-  [2] = HWLOC_OBJ_GROUP,
+-  [3] = HWLOC_OBJ_NODE,
+-  [4] = HWLOC_OBJ_SOCKET,
+-  [5] = HWLOC_OBJ_CACHE,
+-  [6] = HWLOC_OBJ_CORE,
+-  [7] = HWLOC_OBJ_PU,
+-  [8] = HWLOC_OBJ_MISC
++  HWLOC_OBJ_SYSTEM,
++  HWLOC_OBJ_MACHINE,
++  HWLOC_OBJ_GROUP,
++  HWLOC_OBJ_NODE,
++  HWLOC_OBJ_SOCKET,
++  HWLOC_OBJ_CACHE,
++  HWLOC_OBJ_CORE,
++  HWLOC_OBJ_PU,
++  HWLOC_OBJ_MISC,
+ };
+ 
+ static unsigned __hwloc_attribute_const
+@@ -1723,6 +1718,21 @@
+   struct hwloc_topology *topology;
+   int i;
+ 
++  /* Setup ordering arrays */
++  if (!orders_initialized) {
++      obj_type_order[HWLOC_OBJ_SYSTEM] = 0;
++      obj_type_order[HWLOC_OBJ_MACHINE] = 1;
++      obj_type_order[HWLOC_OBJ_GROUP] = 2;
++      obj_type_order[HWLOC_OBJ_NODE] = 3;
++      obj_type_order[HWLOC_OBJ_SOCKET] = 4;
++      obj_type_order[HWLOC_OBJ_CACHE] = 5;
++      obj_type_order[HWLOC_OBJ_CORE] = 6;
++      obj_type_order[HWLOC_OBJ_PU] = 7;
++      obj_type_order[HWLOC_OBJ_MISC] = 8;
++
++      orders_initialized = 1;
++  }
++
+   topology = malloc (sizeof (struct hwloc_topology));
+   if(!topology)
+     return -1;
+Index: src/distances.c
+===================================================================
+--- src/distances.c	(revision 3180)
++++ src/distances.c	(working copy)
+@@ -183,9 +183,9 @@
+ {
+   hwloc_obj_type_t type;
+   for(type = HWLOC_OBJ_SYSTEM; type < HWLOC_OBJ_TYPE_MAX; type++) {
+-    char envname[64];
++    char *env, envname[64];
+     snprintf(envname, sizeof(envname), "HWLOC_%s_DISTANCES", hwloc_obj_type_string(type));
+-    char *env = getenv(envname);
++    env = getenv(envname);
+     if (env)
+       hwloc_get_type_distances_from_string(topology, type, env);
+   }
+@@ -360,19 +360,20 @@
+ 				    float *_distances,
+ 				    unsigned *groupids)
+ {
+-  float (*distances)[nbobjs][nbobjs] = (float (*)[nbobjs][nbobjs])_distances;
+   float min_distance = FLT_MAX;
+   unsigned groupid = 1;
+   unsigned i,j,k;
+   unsigned skipped = 0;
+ 
++#define DISTANCE(i, j) _distances[i * nbobjs + j]
++
+   memset(groupids, 0, nbobjs*sizeof(*groupids));
+ 
+   /* find the minimal distance */
+   for(i=0; i<nbobjs; i++)
+     for(j=i+1; j<nbobjs; j++)
+-      if ((*distances)[i][j] < min_distance)
+-	min_distance = (*distances)[i][j];
++      if (DISTANCE(i, j) < min_distance)
++        min_distance = DISTANCE(i, j);
+   hwloc_debug("found minimal distance %f between objects\n", min_distance);
+ 
+   if (min_distance == FLT_MAX)
+@@ -401,7 +402,7 @@
+       for(j=firstfound; j<nbobjs; j++)
+ 	if (groupids[j] == groupid)
+ 	  for(k=0; k<nbobjs; k++)
+-	    if (!groupids[k] && (*distances)[j][k] == min_distance) {
++              if (!groupids[k] && DISTANCE(j, k) == min_distance) {
+ 	      groupids[k] = groupid;
+ 	      size++;
+ 	      if (newfirstfound == -1)
+@@ -446,29 +447,43 @@
+ 				   float *_distances,
+ 				   int depth)
+ {
+-  float (*distances)[nbobjs][nbobjs] = (float (*)[nbobjs][nbobjs])_distances;
+-  unsigned groupids[nbobjs];
++  unsigned *groupids = NULL;
+   unsigned nbgroups;
+   unsigned i,j;
+ 
+   hwloc_debug("trying to group %s objects into Group objects according to physical distances\n",
+ 	     hwloc_obj_type_string(objs[0]->type));
+ 
+-  if (nbobjs <= 2)
+-    return;
++  if (nbobjs <= 2) {
++      return;
++  }
+ 
++  groupids = malloc(sizeof(unsigned) * nbobjs);
++  if (NULL == groupids) {
++      return;
++  }
++
+   nbgroups = hwloc_setup_group_from_min_distance(nbobjs, _distances, groupids);
+-  if (!nbgroups)
+-    return;
++  if (!nbgroups) {
++      goto outter_free;
++  }
+ 
+-  /* For convenience, put these declarations inside a block.  Saves us
+-     from a bunch of mallocs, particularly with the 2D array. */
++  /* For convenience, put these declarations inside a block.  It's a
++     crying shame we can't use C99 syntax here, and have to do a bunch
++     of mallocs. :-( */
+   {
+-      hwloc_obj_t groupobjs[nbgroups];
+-      unsigned groupsizes[nbgroups];
+-      float groupdistances[nbgroups][nbgroups];
++      hwloc_obj_t *groupobjs = NULL;
++      unsigned *groupsizes = NULL;
++      float *groupdistances = NULL;
++
++      groupobjs = malloc(sizeof(hwloc_obj_t) * nbgroups);
++      groupsizes = malloc(sizeof(unsigned) * nbgroups);
++      groupdistances = malloc(sizeof(float) * nbgroups * nbgroups);
++      if (NULL == groupobjs || NULL == groupsizes || NULL == groupdistances) {
++          goto inner_free;
++      }
+       /* create new Group objects and record their size */
+-      memset(groupsizes, 0, sizeof(groupsizes));
++      memset(&(groupsizes[0]), 0, sizeof(groupsizes[0]) * nbgroups);
+       for(i=0; i<nbgroups; i++) {
+           /* create the Group object */
+           hwloc_obj_t group_obj;
+@@ -488,15 +503,18 @@
+       }
+ 
+       /* factorize distances */
+-      memset(groupdistances, 0, sizeof(groupdistances));
++      memset(&(groupdistances[0]), 0, sizeof(groupdistances[0]) * nbgroups * nbgroups);
++#undef DISTANCE
++#define DISTANCE(i, j) _distances[(i) * nbobjs + (j)]
++#define GROUP_DISTANCE(i, j) groupdistances[(i) * nbgroups + (j)]
+       for(i=0; i<nbobjs; i++)
+ 	if (groupids[i])
+ 	  for(j=0; j<nbobjs; j++)
+ 	    if (groupids[j])
+-	      groupdistances[groupids[i]-1][groupids[j]-1] += (*distances)[i][j];
++                GROUP_DISTANCE(groupids[i]-1, groupids[j]-1) += DISTANCE(i, j);
+       for(i=0; i<nbgroups; i++)
+           for(j=0; j<nbgroups; j++)
+-              groupdistances[i][j] /= groupsizes[i]*groupsizes[j];
++              GROUP_DISTANCE(i, j) /= groupsizes[i]*groupsizes[j];
+ #ifdef HWLOC_DEBUG
+       hwloc_debug("%s", "generated new distance matrix between groups:\n");
+       hwloc_debug("%s", "  index");
+@@ -506,13 +524,30 @@
+       for(i=0; i<nbgroups; i++) {
+ 	hwloc_debug("  % 5d", (int) i);
+ 	for(j=0; j<nbgroups; j++)
+-	  hwloc_debug(" %2.3f", groupdistances[i][j]);
++          hwloc_debug(" %2.3f", GROUP_DISTANCE(i, j));
+ 	hwloc_debug("%s", "\n");
+       }
+ #endif
+ 
+       hwloc__setup_groups_from_distances(topology, nbgroups, groupobjs, (float*) groupdistances, depth + 1);
++
++  inner_free:
++      /* Safely free everything */
++      if (NULL != groupobjs) {
++          free(groupobjs);
++      }
++      if (NULL != groupsizes) {
++          free(groupsizes);
++      }
++      if (NULL != groupdistances) {
++          free(groupdistances);
++      }
+   }
++
++ outter_free:
++  if (NULL != groupids) {
++      free(groupids);
++  }
+ }
+ 
+ /*
+@@ -524,7 +559,6 @@
+ 				  struct hwloc_obj **objs,
+ 				  float *_distances)
+ {
+-  float (*distances)[nbobjs][nbobjs] = (float (*)[nbobjs][nbobjs])_distances;
+   unsigned i,j;
+ 
+   if (getenv("HWLOC_IGNORE_DISTANCES"))
+@@ -539,7 +573,7 @@
+   for(i=0; i<nbobjs; i++) {
+     hwloc_debug("  % 5d", (int) objs[i]->os_index);
+     for(j=0; j<nbobjs; j++)
+-      hwloc_debug(" %2.3f", (*distances)[i][j]);
++      hwloc_debug(" %2.3f", DISTANCE(i, j));
+     hwloc_debug("%s", "\n");
+   }
+ #endif
+@@ -548,15 +582,15 @@
+   for(i=0; i<nbobjs; i++) {
+     for(j=i+1; j<nbobjs; j++) {
+       /* should be symmetric */
+-      if ((*distances)[i][j] != (*distances)[j][i]) {
++      if (DISTANCE(i, j) != DISTANCE(j, i)) {
+ 	hwloc_debug("distance matrix asymmetric ([%u,%u]=%f != [%u,%u]=%f), aborting\n",
+-		   i, j, (*distances)[i][j], j, i, (*distances)[j][i]);
++                    i, j, DISTANCE(i, j), j, i, DISTANCE(j, i));
+ 	return;
+       }
+       /* diagonal is smaller than everything else */
+-      if ((*distances)[i][j] <= (*distances)[i][i]) {
++      if (DISTANCE(i, j) <= DISTANCE(i, i)) {
+ 	hwloc_debug("distance to self not strictly minimal ([%u,%u]=%f <= [%u,%u]=%f), aborting\n",
+-		   i, j, (*distances)[i][j], i, i, (*distances)[i][i]);
++                    i, j, DISTANCE(i, j), i, i, DISTANCE(i, i));
+ 	return;
+       }
+     }
+Index: src/topology-synthetic.c
+===================================================================
+--- src/topology-synthetic.c	(revision 3180)
++++ src/topology-synthetic.c	(working copy)
+@@ -228,6 +228,10 @@
+       break;
+     case HWLOC_OBJ_PU:
+       break;
++    case HWLOC_OBJ_MAX:
++      /* Should never happen */
++      assert(0);
++      break;
+   }
+ 
+   obj = hwloc_alloc_setup_object(type, topology->backend_params.synthetic.id[level]++);
+@@ -286,6 +290,10 @@
+       break;
+     case HWLOC_OBJ_PU:
+       break;
++    case HWLOC_OBJ_MAX:
++      /* Should never happen */
++      assert(0);
++      break;
+   }
+ 
+   return first_cpu;
+Index: utils/lstopo-text.c
+===================================================================
+--- utils/lstopo-text.c	(revision 3180)
++++ utils/lstopo-text.c	(working copy)
+@@ -472,47 +472,45 @@
+ {
+ #ifdef HAVE_PUTWC
+   if (disp->utf8) {
+-    static const wchar_t chars[] = {
+-      [down|right]	= L'\x250c',
+-      [down|left]	= L'\x2510',
+-      [up|right]	= L'\x2514',
+-      [up|left]		= L'\x2518',
+-      [left|right]	= L'\x2500',
+-      [down|up]		= L'\x2502',
+-      [down]		= L'\x2577',
+-      [up]		= L'\x2575',
+-      [right]		= L'\x2576',
+-      [left]		= L'\x2574',
+-      [down|up|right]	= L'\x251c',
+-      [down|up|left]	= L'\x2524',
+-      [down|left|right]	= L'\x252c',
+-      [up|left|right]	= L'\x2534',
+-      [down|up|left|right]	= L'\x253c',
+-      [0]		= L' ',
++    switch (direction) {
++    case down|right:		return L'\x250c';
++    case down|left:		return L'\x2510';
++    case up|right:		return L'\x2514';
++    case up|left:		return L'\x2518';
++    case left|right:		return L'\x2500';
++    case down|up:		return L'\x2502';
++    case down:			return L'\x2577';
++    case up:			return L'\x2575';
++    case right:			return L'\x2576';
++    case left:			return L'\x2574';
++    case down|up|right:		return L'\x251c';
++    case down|up|left:		return L'\x2524';
++    case down|left|right:	return L'\x252c';
++    case up|left|right:		return L'\x2534';
++    case down|up|left|right:	return L'\x253c';
++    default:			return L' ';
+     };
+-    return chars[direction];
+   } else
+ #endif /* HAVE_PUTWC */
+   {
+-    static const char chars[] = {
+-      [down|right]	= '/',
+-      [down|left]	= '\\',
+-      [up|right]	= '\\',
+-      [up|left]		= '/',
+-      [left|right]	= '-',
+-      [down|up]		= '|',
+-      [down]		= '|',
+-      [up]		= '|',
+-      [right]		= '-',
+-      [left]		= '-',
+-      [down|up|right]	= '+',
+-      [down|up|left]	= '+',
+-      [down|left|right]	= '+',
+-      [up|left|right]	= '+',
+-      [down|up|left|right]	= '+',
+-      [0]		= ' ',
++    switch (direction) {
++    case down|right:		return '/';
++    case down|left:		return '\\';
++    case up|right:		return '\\';
++    case up|left:		return '/';
++    case left|right:		return '-';
++    case down|up:		return '|';
++    case down:			return '|';
++    case up:			return '|';
++    case right:			return '-';
++    case left:			return '-';
++    case down|up|right:		return '+';
++    case down|up|left:		return '+';
++    case down|left|right:	return '+';
++    case up|left|right:		return '+';
++    case down|up|left|right:	return '+';
++    default:			return ' ';
+     };
+-    return chars[direction];
+   }
+ }
+ 
+@@ -521,12 +519,13 @@
+ merge(struct display *disp, int x, int y, int or, int andnot, int r, int g, int b)
+ {
+   character current;
++  int directions;
+   if (x >= disp->width || y >= disp->height) {
+     /* fprintf(stderr, "|%x &~%x overflowed to (%d,%d)\n", or, andnot, x, y); */
+     return;
+   }
+   current = disp->cells[y][x].c;
+-  int directions = (to_directions(disp, current) & ~andnot) | or;
++  directions = (to_directions(disp, current) & ~andnot) | or;
+   put(disp, x, y, from_directions(disp, directions), -1, -1, -1, r, g, b);
+ }
+ 
+@@ -630,11 +629,11 @@
+ }
+ 
+ static struct draw_methods text_draw_methods = {
+-  .start = text_start,
+-  .declare_color = text_declare_color,
+-  .box = text_box,
+-  .line = text_line,
+-  .text = text_text,
++  text_start,
++  text_declare_color,
++  text_box,
++  text_line,
++  text_text,
+ };
+ 
+ void output_text(hwloc_topology_t topology, const char *filename, int logical, int legend, int verbose_mode __hwloc_attribute_unused)
+Index: utils/lstopo-windows.c
+===================================================================
+--- utils/lstopo-windows.c	(revision 3180)
++++ utils/lstopo-windows.c	(working copy)
+@@ -279,11 +279,11 @@
+ }
+ 
+ struct draw_methods windows_draw_methods = {
+-  .start = windows_start,
+-  .declare_color = windows_declare_color,
+-  .box = windows_box,
+-  .line = windows_line,
+-  .text = windows_text,
++  windows_start,
++  windows_declare_color,
++  windows_box,
++  windows_line,
++  windows_text,
+ };
+ 
+ void
+Index: utils/hwloc-distrib.c
+===================================================================
+--- utils/hwloc-distrib.c	(revision 3180)
++++ utils/hwloc-distrib.c	(working copy)
+@@ -155,8 +155,10 @@
+     unsigned i;
+     int from_depth, to_depth;
+     unsigned chunks;
+-    hwloc_bitmap_t cpuset[n];
++    hwloc_bitmap_t *cpuset;
+ 
++    cpuset = malloc(n * sizeof(hwloc_bitmap_t));
++
+     if (input)
+       hwloc_utils_enable_input_format(topology, input, input_format, verbose, callname);
+     hwloc_topology_load(topology);
+@@ -189,8 +191,10 @@
+ 
+     chunks =  hwloc_get_nbobjs_by_depth(topology, from_depth);
+     {
+-      hwloc_obj_t roots[chunks];
++      hwloc_obj_t *roots;
+ 
++      roots = malloc(chunks * sizeof(hwloc_obj_t));
++
+       for (i = 0; i < chunks; i++)
+         roots[i] = hwloc_get_obj_by_depth(topology, from_depth, i);
+ 
+@@ -208,7 +212,11 @@
+ 	free(str);
+ 	hwloc_bitmap_free(cpuset[i]);
+       }
++
++      free(roots);
+     }
++
++   free(cpuset);
+   }
+ 
+   hwloc_topology_destroy(topology);
+Index: utils/lstopo-draw.c
+===================================================================
+--- utils/lstopo-draw.c	(revision 3180)
++++ utils/lstopo-draw.c	(working copy)
+@@ -91,11 +91,11 @@
+ static void null_text(void *output __hwloc_attribute_unused, int r __hwloc_attribute_unused, int g __hwloc_attribute_unused, int b __hwloc_attribute_unused, int size __hwloc_attribute_unused, unsigned depth __hwloc_attribute_unused, unsigned x __hwloc_attribute_unused, unsigned y __hwloc_attribute_unused, const char *text __hwloc_attribute_unused) { }
+ 
+ static struct draw_methods null_draw_methods = {
+-  .start = null_start,
+-  .declare_color = null_declare_color,
+-  .box = null_box,
+-  .line = null_line,
+-  .text = null_text,
++  null_start,
++  null_declare_color,
++  null_box,
++  null_line,
++  null_text,
+ };
+ 
+ /*
+@@ -742,6 +742,7 @@
+     case HWLOC_OBJ_PU: return pu_draw;
+     case HWLOC_OBJ_GROUP: return group_draw;
+     case HWLOC_OBJ_MISC: return misc_draw;
++    case HWLOC_OBJ_MAX: assert(0);
+   }
+   return NULL;
+ }
+@@ -786,17 +787,17 @@
+ }
+ 
+ static struct draw_methods getmax_draw_methods = {
+-  .start = null_start,
+-  .declare_color = null_declare_color,
+-  .box = getmax_box,
+-  .line = getmax_line,
+-  .text = null_text,
++  null_start,
++  null_declare_color,
++  getmax_box,
++  getmax_line,
++  null_text,
+ };
+ 
+ void *
+ output_draw_start(struct draw_methods *methods, int logical, int legend, hwloc_topology_t topology, void *output)
+ {
+-  struct coords coords = { .x = 0, .y = 0};
++  struct coords coords = { 0, 0 };
+   fig(topology, &getmax_draw_methods, logical, legend, hwloc_get_root_obj(topology), &coords, 100, 0, 0);
+   output = methods->start(output, coords.x, coords.y);
+   methods->declare_color(output, 0, 0, 0);
+Index: utils/lstopo-cairo.c
+===================================================================
+--- utils/lstopo-cairo.c	(revision 3180)
++++ utils/lstopo-cairo.c	(working copy)
+@@ -191,11 +191,11 @@
+ }
+ 
+ static struct draw_methods x11_draw_methods = {
+-  .start = x11_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  x11_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ /** Clip coordinates of the visible part. */
+@@ -379,11 +379,11 @@
+ }
+ 
+ static struct draw_methods png_draw_methods = {
+-  .start = png_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  png_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ void
+@@ -416,11 +416,11 @@
+ }
+ 
+ static struct draw_methods pdf_draw_methods = {
+-  .start = pdf_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  pdf_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ void
+@@ -453,11 +453,11 @@
+ }
+ 
+ static struct draw_methods ps_draw_methods = {
+-  .start = ps_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  ps_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ void
+@@ -490,11 +490,11 @@
+ }
+ 
+ static struct draw_methods svg_draw_methods = {
+-  .start = svg_start,
+-  .declare_color = null_declare_color,
+-  .box = topo_cairo_box,
+-  .line = topo_cairo_line,
+-  .text = topo_cairo_text,
++  svg_start,
++  null_declare_color,
++  topo_cairo_box,
++  topo_cairo_line,
++  topo_cairo_text,
+ };
+ 
+ void
+Index: utils/lstopo.c
+===================================================================
+--- utils/lstopo.c	(revision 3180)
++++ utils/lstopo.c	(working copy)
+@@ -100,14 +100,17 @@
+ #ifdef HWLOC_LINUX_SYS
+     {
+       /* Get the process name */
+-      char path[6 + strlen(dirent->d_name) + 1 + 7 + 1];
++      char *path;
+       char cmd[64], *c;
+       int file;
+       ssize_t n;
+ 
++      path = malloc(6 + strlen(dirent->d_name) + 1 + 7 + 1);
+       snprintf(path, sizeof(path), "/proc/%s/cmdline", dirent->d_name);
++      file = open(path, O_RDONLY);
++      free(path);
+ 
+-      if ((file = open(path, O_RDONLY)) >= 0) {
++      if (file >= 0) {
+         n = read(file, cmd, sizeof(cmd) - 1);
+         close(file);
+ 
+@@ -124,13 +127,16 @@
+ 
+     {
+       /* Get threads */
+-      char path[6+strlen(dirent->d_name) + 1 + 4 + 1];
++      char *path;
+       DIR *task_dir;
+       struct dirent *task_dirent;
+ 
++      path = malloc(6+strlen(dirent->d_name) + 1 + 4 + 1);
+       snprintf(path, sizeof(path), "/proc/%s/task", dirent->d_name);
++      task_dir = opendir(path);
++      free(path);
+ 
+-      if ((task_dir = opendir(path))) {
++      if (task_dir) {
+         while ((task_dirent = readdir(task_dir))) {
+           long local_tid;
+           char *task_end;
+Index: utils/hwloc-calc.h
+===================================================================
+--- utils/hwloc-calc.h	(revision 3180)
++++ utils/hwloc-calc.h	(working copy)
+@@ -24,7 +24,7 @@
+   HWLOC_MASK_APPEND_ADD,
+   HWLOC_MASK_APPEND_CLR,
+   HWLOC_MASK_APPEND_AND,
+-  HWLOC_MASK_APPEND_XOR,
++  HWLOC_MASK_APPEND_XOR
+ } hwloc_mask_append_mode_t;
+ 
+ static inline int
+Index: utils/lstopo-fig.c
+===================================================================
+--- utils/lstopo-fig.c	(revision 3180)
++++ utils/lstopo-fig.c	(working copy)
+@@ -108,11 +108,11 @@
+ }
+ 
+ static struct draw_methods fig_draw_methods = {
+-  .start = fig_start,
+-  .declare_color = fig_declare_color,
+-  .box = fig_box,
+-  .line = fig_line,
+-  .text = fig_text,
++  fig_start,
++  fig_declare_color,
++  fig_box,
++  fig_line,
++  fig_text,
+ };
+ 
+ void
+Index: utils/Makefile.am
+===================================================================
+--- utils/Makefile.am	(revision 3180)
++++ utils/Makefile.am	(working copy)
+@@ -1,6 +1,8 @@
+ # Copyright © 2009-2010 INRIA
+ # Copyright © 2009-2010 Université Bordeaux 1
+-# Copyright © 2009-2010 Cisco Systems, Inc.  All rights reserved.
++# Copyright © 2009-2011 Cisco Systems, Inc.  All rights reserved.
++#
++# See COPYING in top-level directory.
+ 
+ AM_CFLAGS = $(HWLOC_CFLAGS)
+ AM_CPPFLAGS = $(HWLOC_CPPFLAGS)
+Index: utils/hwloc-ps.c
+===================================================================
+--- utils/hwloc-ps.c	(revision 3180)
++++ utils/hwloc-ps.c	(working copy)
+@@ -100,13 +100,16 @@
+ 
+ #ifdef HWLOC_LINUX_SYS
+     {
+-      char path[6 + strlen(dirent->d_name) + 1 + 7 + 1];
++      char *path;
+       int file;
+       ssize_t n;
+ 
++      path = malloc(6 + strlen(dirent->d_name) + 1 + 7 + 1);
+       snprintf(path, sizeof(path), "/proc/%s/cmdline", dirent->d_name);
++      file = open(path, O_RDONLY);
++      free(path);
+ 
+-      if ((file = open(path, O_RDONLY)) >= 0) {
++      if (file >= 0) {
+         n = read(file, name, sizeof(name) - 1);
+         close(file);
+ 
+Index: tests/hwloc_bitmap_string.c
+===================================================================
+--- tests/hwloc_bitmap_string.c	(revision 3180)
++++ tests/hwloc_bitmap_string.c	(working copy)
+@@ -162,13 +162,6 @@
+   check_cpuset(obj->cpuset, NULL);
+   printf("last cpu cpuset converted back and forth, ok\n");
+ 
+-//  hwloc_bitmap_sscanf(set, "1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,2,4,8,10,20\n");
+-//  char *s;
+-//  hwloc_bitmap_asprintf(&s, &set);
+-//  printf("%s\n", s);
+-//  free(s);
+-//  will be truncated after ",4," since it's too large
+-
+   free(string);
+ 
+   hwloc_topology_destroy(topology);
+Index: config/hwloc_internal.m4
+===================================================================
+--- config/hwloc_internal.m4	(revision 3180)
++++ config/hwloc_internal.m4	(working copy)
+@@ -10,7 +10,9 @@
+ dnl Copyright (c) 2004-2008 High Performance Computing Center Stuttgart, 
+ dnl                         University of Stuttgart.  All rights reserved.
+ dnl Copyright ©  2010 INRIA
+-dnl Copyright ©  2006-2010 Cisco Systems, Inc.  All rights reserved.
++dnl Copyright © 2006-2011 Cisco Systems, Inc.  All rights reserved.
++dnl
++dnl See COPYING in top-level directory.
+ 
+ #-----------------------------------------------------------------------
+ 
+Index: config/hwloc.m4
+===================================================================
+--- config/hwloc.m4	(revision 3180)
++++ config/hwloc.m4	(working copy)
+@@ -134,27 +134,6 @@
+           [AC_DEFINE([HWLOC_SYM_TRANSFORM], [0])],
+           [AC_DEFINE([HWLOC_SYM_TRANSFORM], [1])])
+ 
+-    #
+-    # Define C flags
+-    #
+-
+-    # hwloc uses C99 style, so ensure that we can figure out which
+-    # compiler flags will drive this.
+-    hwloc_CC_save=$CC
+-    hwloc_CFLAGS_save=$CFLAGS
+-    AC_PROG_CC_C99
+-    AS_IF([test x"$ac_cv_prog_cc_c99" = xno],
+-          [AC_WARN([C99 support is required by hwloc])
+-           $3],
+-          [HWLOC_SETUP_CORE_AFTER_C99($1, $2, $3, $4)])
+-])
+-
+-dnl Same order of parameters form HWLOC-SETUP-CORE
+-AC_DEFUN([HWLOC_SETUP_CORE_AFTER_C99],[
+-    hwloc_CC_c99_flags=`echo $CC | sed -e "s;^$hwloc_CC_save;;"`
+-    CC=$hwloc_CC_save
+-    CFLAGS=$hwloc_CFLAGS_save
+-
+     # GCC specifics.
+     if test "x$GCC" = "xyes"; then
+         HWLOC_GCC_CFLAGS="-Wall -Wmissing-prototypes -Wundef"
+@@ -559,7 +538,6 @@
+ 
+     # Setup HWLOC's C, CPP, and LD flags, and LIBS
+     AC_SUBST(HWLOC_REQUIRES)
+-    HWLOC_CFLAGS="$hwloc_CC_c99_flags $HWLOC_CFLAGS"
+     AC_SUBST(HWLOC_CFLAGS)
+     HWLOC_CPPFLAGS='-I$(HWLOC_top_srcdir)/include -I$(HWLOC_top_builddir)/include'
+     AC_SUBST(HWLOC_CPPFLAGS)
+

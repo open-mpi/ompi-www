@@ -1,0 +1,121 @@
+Index: configure.ac
+===================================================================
+--- configure.ac	(revision 19845)
++++ configure.ac	(working copy)
+@@ -1356,3 +1361,11 @@
+     test/datatype/Makefile
+ ])
+ AC_OUTPUT
++
++# When building with Sun Studio, we need to tweak the libtool script to:
++#   1. Set wl variable so the linker flags work correctly (on Linux)
++#   2. Set postdeps variable to avoid linking libCstd/libCrun C++ libraries
++ompi_patch_libtool_for_sun_studio="config/patch-libtool-for-sun-studio.pl"
++if test "x$ompi_cv_c_compiler_vendor" = "xsun" -a -x "$ompi_patch_libtool_for_sun_studio"; then
++    $ompi_patch_libtool_for_sun_studio
++fi
+Index: config/patch-libtool-for-sun-studio.pl
+===================================================================
+--- config/patch-libtool-for-sun-studio.pl	(revision 0)
++++ config/patch-libtool-for-sun-studio.pl	(revision 0)
+@@ -0,0 +1,93 @@
++#!/usr/bin/env perl
++
++use strict;
++use File::Basename;
++use Data::Dumper;
++
++# Grab the name of this script
++my $program = basename($0);
++
++# Call the main subroutine and exit
++&update_libtool_script;
++exit;
++
++sub update_libtool_script {
++    my ($file) = @_;
++    print("update_libtool_script: got @_\n");
++
++    # By default, patch the libtool script in the cwd
++    $file = "./libtool" if (! -e $file);
++
++    # Keep a backup copy of the file lying around for debugging
++    # purposes
++    my $cmd = "cp $file $file.orig\n";
++    print($cmd);
++    system($cmd);
++
++    # Read in the libtool script file
++    my $contents = Read($file);
++    die("Couldn't Read $file!\n") if (!$contents);
++
++    my $bad_pattern1 ='(\n# ### BEGIN LIBTOOL TAG CONFIG: FC.*)\n(wl="-Wl,")';
++    my $good_pattern1 = "
++# $program has reassigned wl to \"\" because Sun Studio
++# f90 (for Linux) does not pass -Wl values to the GNU linker (/usr/bin/ld)
++wl=\"\"";
++
++    my $bad_pattern2 ='(\n# ### BEGIN LIBTOOL TAG CONFIG: CXX.*)\n(postdeps="(?:-library=Cstd)\s*(?:-library=Crun)?")';
++    my $good_pattern2 = "
++# $program has commented out postdeps so that libCstd.so
++# and libCrun.so are not linked in to libmpi_cxx.so. The autogen.sh patch for
++# this same issue was supposed to take care of this, but apparently
++# Autosomething-or-other has usurped that patch and thrown in the bad -library
++# flags.
++postdeps=\"\"
++";
++
++    # From perldoc perlre, the "s" modifier in s///s:
++    #   Treat string as single line. That is, change "." to match any character
++    #   whatsoever, even a newline, which normally it would not match. Used
++    #   together, as /ms, they let the "." match any character whatsoever,
++    #   while still allowing "^" and "$" to match, respectively, just after and
++    #   just before newlines within the string.
++
++    # Grab uname OS string
++    my $os = `uname -s`;
++    chomp $os;
++    if ($os =~ /Linux/i) {
++        print("We need to patch $file for libmpi_f90.\n");
++
++        # Set wl to "" for f90
++        $contents =~ s/$bad_pattern1/$1\n# $2\n$good_pattern1/s;
++    }
++
++    # Comment this postdeps var out of CXX section
++    # postdeps="-library=Cstd -library=Crun"
++    print("Patching $file to avoid linking with libCstd and libCrun.\n");
++    $contents =~ s/$bad_pattern2/$1\n# $2\n$good_pattern2/s;
++    
++    # Write changed file out
++    Write($file, $contents);
++}
++
++sub Read {
++    my ($file) = @_;
++
++    my $contents;
++    open (INPUT, $file) or warn "Can't open $file: $!";
++    while (<INPUT>) {
++        $contents .= $_;
++    }
++    close(INPUT) or warn "Can't close $file: $!";
++    return $contents;
++}
++
++sub Write {
++    my ($filename, $body) = @_;
++
++    # Write out the file
++    die("Failed to write to file: $!") if (! open(FILE, "> $filename"));
++
++    print FILE $body;
++    close FILE;
++}
+
+Property changes on: config/patch-libtool-for-sun-studio.pl
+___________________________________________________________________
+Added: svn:executable
+   + *
+
+

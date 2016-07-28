@@ -1,0 +1,88 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="MS Exchange Server version 6.5.7651.59">
+<TITLE>Insufficient lockable memory leads to osu_bibw hang using OpenIB BTL</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/plain format -->
+
+<P><FONT SIZE=2>The osu_bibw micro-benchmark from Ohio State's OMB 3.1 suite hangs when<BR>
+run over OpenMPI 1.2.5 from OFED 1.3 using the OpenIB BTL if there is<BR>
+insufficient lockable memory. 128MB of lockable memory gives a hang<BR>
+when the test gets to 4MB messages, while 512MB is sufficient for it<BR>
+to pass. I observed this with InfiniPath and Mellanox adapter cards,<BR>
+and see the same behavior with 1.2.6 too. I know the general advice<BR>
+is to use an unlimited or very large setting (per the FAQ), but there<BR>
+are reasons for clusters to set finite user limits.<BR>
+<BR>
+For each message size in the loop, osu_bibw posts 64 non-blocking<BR>
+sends followed by 64 non-blocking receives on both ranks followed<BR>
+by a wait for them all to complete. 64 is the default value for<BR>
+the window size (number of concurrent messages). For 4MB messages<BR>
+this is 256MB of memory to be sent which is more than exhausting<BR>
+the 128MB of lockable memory on these systems. The OpenIB BTL<BR>
+does ib_reg_mr for as many of the sends as it can and the rest<BR>
+wait on a pending list. Then the ib_reg_mr for all the<BR>
+posted receives all fail as well due to the ulimit check,<BR>
+and all of them have to wait on a pending list too. This means<BR>
+that neither rank actually gets to do an ib_post_recv, neither<BR>
+side can make progress and the benchmark hangs without completing<BR>
+a single 4MB message! This contrasts with the uni-directional<BR>
+osu_bw where one side does sends and the other does receives<BR>
+and progress can be made.<BR>
+<BR>
+This is admittedly a hard problem to solve in the general case.<BR>
+It is unfortunate that this leads to a hang, rather than a<BR>
+message advising the user to check ulimits. Maybe there should<BR>
+be a warning the first time that the ulimit is exceeded to<BR>
+alert the user to the problem. One solution would be to divide<BR>
+the ulimit up into separate limits for sending and receiving,<BR>
+so that excessive sending does not block all receiving. This<BR>
+would require OpenMPI to keep track of the ulimit usage<BR>
+separately for send and receive.<BR>
+<BR>
+In this particular synthetic benchmark there turns out to be<BR>
+a straightforward workaround. The benchmark actually sends<BR>
+from the same buffer 64 times over, and receives into another<BR>
+buffer 64 times over (all posted concurrently). Thus there are<BR>
+really only two 4MB buffers at play here, though the kernel IB<BR>
+code charges the user separately for all 64 registrations of<BR>
+each even though the user already has those pages locked. In fact,<BR>
+the linux implementation of mlock (over)charges in the same way<BR>
+so I guess that choice is intentional and that the additional<BR>
+complexity in spotting the duplicated locked pages wasn't<BR>
+worthwhile.<BR>
+<BR>
+This leads to the workaround of using --mca mpi_leave_pinned 1.<BR>
+This turns on the code in the OpenIB BTL that caches the descriptors<BR>
+so that there is only 1 ib_reg_mr for the send buffer and 1 ib_reg_mr<BR>
+for the receive buffer, and all the others hit the descriptor<BR>
+cache. This saves the day and the benchmark runs without problem.<BR>
+<BR>
+If this was the default option then this might save much consternation<BR>
+for the user. For this workaround, note that there isn't any need<BR>
+for the descriptors to be left pinned after the send/recv complete,<BR>
+all that is needed is the caching while they are posted. So one could<BR>
+default to having the descriptor caching mechanism enabled even when<BR>
+mpi_leave_pinned is off. Also note that this is still a workaround<BR>
+that happens to be sufficient for the osu_bibw case but isn't a<BR>
+general panacea. osu_bibw and osu_bw are &quot;broken&quot; anyway in that<BR>
+it is illegal to post multiple concurrent receives in the same<BR>
+receive buffer. I believe this is done to minimize CPU cache<BR>
+effects and maximize measured bandwidth. Anyway, having multiple<BR>
+posted sends from the same send buffer is reasonable (eg. a broadcast)<BR>
+so caching those descriptors and reducing lockable memory usage<BR>
+seems like a good idea to me. Although osu_bibw is very synthetic<BR>
+it is conceivable that other real codes with large messages could<BR>
+see the hangs (eg. just MPI_Sendrecv a message larger than ulimit -l?).<BR>
+<BR>
+Cheers,<BR>
+<BR>
+Mark.<BR>
+</FONT>
+</P>
+
+</BODY>
+</HTML>

@@ -1,0 +1,31 @@
+<html>
+<head>
+<style>
+.hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Verdana
+}
+</style>
+</head>
+<body class='hmmessage'>
+I am new to open MPI<BR>
+I have a simple program below:<BR>
+#include &lt;iostream&gt;<BR>#include &lt;pthread.h&gt;<BR>#include "mpi.h"<BR>using namespace std;<BR>
+&nbsp;<BR>
+void* backID(void* arg)<BR>{<BR>&nbsp;int myid;<BR>&nbsp;MPI_Comm_rank(MPI_COMM_WORLD, &amp;myid);<BR>&nbsp;cout &lt;&lt; myid &lt;&lt; " create background ID" &lt;&lt; endl;<BR>&nbsp;int v;<BR>&nbsp;MPI_Status status;<BR>&nbsp;int m;<BR>&nbsp;int x, y;<BR>&nbsp;int count = 0;<BR><BR>&nbsp;while(true)<BR>&nbsp;{<BR>&nbsp;&nbsp;MPI_Recv(&amp;m, 1, MPI_INT, MPI_ANY_SOURCE, 222, MPI_COMM_WORLD, &amp;status);<BR>&nbsp;&nbsp;cout &lt;&lt; myid &lt;&lt; " recv from " &lt;&lt; status.MPI_SOURCE &lt;&lt; " m = " &lt;&lt; m &lt;&lt; " with tag 222" &lt;&lt; endl;<BR>&nbsp;&nbsp;MPI_Send(&amp;m, 1, MPI_INT, status.MPI_SOURCE, 333, MPI_COMM_WORLD);<BR>&nbsp;&nbsp;cout &lt;&lt; myid &lt;&lt; " replies " &lt;&lt; status.MPI_SOURCE &lt;&lt; " m = " &lt;&lt; m &lt;&lt; endl;<BR>&nbsp;&nbsp;count++;<BR>&nbsp;&nbsp;if(count == 50)<BR>&nbsp;&nbsp;{<BR>&nbsp;&nbsp;&nbsp;pthread_exit(NULL);<BR>&nbsp;&nbsp;}<BR>&nbsp;};<BR>}<BR>
+<BR>void* backRecv(void* arg)<BR>{<BR>&nbsp;int myid;<BR>&nbsp;MPI_Comm_rank(MPI_COMM_WORLD, &amp;myid);<BR>&nbsp;cout &lt;&lt; myid &lt;&lt; " create background message recv" &lt;&lt; endl;<BR>&nbsp;int x, y;<BR>&nbsp;MPI_Status status;<BR>&nbsp;int m;<BR>&nbsp;int count = 0;<BR><BR>
+&nbsp;while(true)<BR>&nbsp;{<BR>&nbsp;&nbsp;MPI_Recv(&amp;m, 1, MPI_INT, MPI_ANY_SOURCE, 333, MPI_COMM_WORLD, &amp;status);<BR>&nbsp;&nbsp;cout &lt;&lt; myid &lt;&lt; " recv from " &lt;&lt; status.MPI_SOURCE &lt;&lt; " m = " &lt;&lt; m &lt;&lt; " with tag 333" &lt;&lt; endl;<BR>&nbsp;&nbsp;count++;<BR>&nbsp;&nbsp;if(count == 50)<BR>&nbsp;&nbsp;{<BR>&nbsp;&nbsp;&nbsp;pthread_exit(NULL);<BR>&nbsp;&nbsp;}&nbsp;<BR>&nbsp;};<BR>}<BR>
+int main(int argc, char **argv) <BR>{<BR>&nbsp;int myid = 0;<BR>&nbsp;int nprocs = 0;<BR>&nbsp;pthread_t pt1 = 0;<BR>&nbsp;&nbsp;&nbsp; pthread_t pt2 = 0;;<BR>&nbsp;int pret1 = 0;<BR>&nbsp;int pret2 = 0;<BR>&nbsp;int i = 0, j = 0, t = 0;<BR>&nbsp;MPI_Status status;<BR>&nbsp;MPI_Init(&amp;argc,&amp;argv);<BR>&nbsp; &nbsp;MPI_Comm_size(MPI_COMM_WORLD,&amp;nprocs);<BR>&nbsp; &nbsp;MPI_Comm_rank(MPI_COMM_WORLD,&amp;myid);&nbsp;<BR>&nbsp;&nbsp;pret1 = pthread_create(&amp;pt1, NULL, backRecv, NULL);<BR>&nbsp;&nbsp;&nbsp; if(pret1 != 0)<BR>&nbsp;&nbsp;&nbsp; {<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cout &lt;&lt; myid &lt;&lt; "backRecv Thread Create Failed." &lt;&lt; endl;<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; exit(1);<BR>&nbsp;&nbsp;&nbsp; }<BR>&nbsp;pret2 = pthread_create(&amp;pt2, NULL, backID, NULL);<BR>&nbsp;if(pret2 != 0)<BR>&nbsp;{<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; cout &lt;&lt; myid &lt;&lt; "backID Thread Create Failed." &lt;&lt; endl;<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; exit(1);<BR>&nbsp;}<BR>&nbsp;sleep(5);<BR>&nbsp;for(i=0; i&lt;50; ++i)<BR>&nbsp;{<BR>&nbsp;&nbsp;t = (myid + 1) * i;<BR>&nbsp;&nbsp;MPI_Send(&amp;myid, 1, MPI_INT, (myid+1)%nprocs, 222, MPI_COMM_WORLD);<BR>&nbsp;&nbsp;&nbsp;cout &lt;&lt; myid &lt;&lt; " sends to "&lt;&lt; (myid+1)%nprocs &lt;&lt; " " &lt;&lt; myid &lt;&lt; endl;<BR>&nbsp;}<BR><BR>&nbsp;pthread_join(pt1, NULL);<BR>&nbsp;pthread_join(pt2, NULL);<BR>&nbsp;MPI_Finalize();<BR>}<BR>
+&nbsp;<BR>
+I create two sub-threads in each main thread and want to see if they can work as a background receiver. But when I run it I got segmentation fault. I do not know why. If I only create one thread, it works fine. The error message I got is:<BR>
+#0&nbsp; 0x00002b5d3c80a940 in mca_btl_sm_alloc () from /act/openmpi/gnu/lib/openmpi/mca_btl_sm.so<BR>(gdb) bt<BR>#0&nbsp; 0x00002b5d3c80a940 in mca_btl_sm_alloc () from /act/openmpi/gnu/lib/openmpi/mca_btl_sm.so<BR>#1&nbsp; 0x00002b5d3bbb91ca in mca_pml_ob1_send_request_start_copy () from /act/openmpi/gnu/lib/openmpi/mca_pml_ob1.so<BR>#2&nbsp; 0x00002b5d3bbadc86 in mca_pml_ob1_send () from /act/openmpi/gnu/lib/openmpi/mca_pml_ob1.so<BR>#3&nbsp; 0x00002b5d3945571d in PMPI_Send () from /act/openmpi/gnu/lib/libmpi.so.0<BR>#4&nbsp; 0x0000000000409139 in main (argc=1, argv=0x7fff718e4db8) at ptest.cpp:125<BR>This message is from gdb. <BR>
+Any help will be appreciated. <BR>
+Thanks in advance.<BR>
+vincent<BR><br /><hr />与任何您希望的人分享您的回忆。 <a href='http://www.microsoft.com/china/windows/windowslive/products/photos-share.aspx?tab=1' target='_new'>任何您希望的人。</a></body>
+</html>

@@ -1,0 +1,118 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">&lt;laugh&gt; I never argue the standard with George, so I'll take his word for it.<div><br></div><div>I tried your program and it worked just fine for me without the sleep. However, I still think there is something wrong in it. I tried adjusting the number of processes and that caused it to hang, for one. Afraid I don't have time to debug it further, but can only suggest you take the code I sent you as a working example to use in your debugging.</div><div><br></div><div><br><div><div>On Aug 31, 2014, at 11:02 PM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu">bosilca@icl.utk.edu</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div dir="ltr">Based on the MPI standard (MPI 3.0 section 10.5.4 page 399)&nbsp;there is no need to disconnect the child processes from the parent in order to cleanly finalize. From this perspective, the original example is correct, but sub-optimal as the parent processes calling MPI_Finalize might block until all connected processes (in this case all the children processes) will call MPI_Finalize. To be more precise, the disconnect has a single role to redivide the application in separated groups of connected processes in order to prevent error propagation (such as MPI_Abort).<div>
+<div><br></div><div>&nbsp; George.</div><div><br></div></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Sep 1, 2014 at 12:58 AM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">You need to disconnect the parent/child from each other prior to finalizing - see the attached example<br>
+<br>
+<br><br>
+<br>
+On Aug 31, 2014, at 9:44 PM, Roy &lt;<a href="mailto:openmpi@jsp.selfip.org">openmpi@jsp.selfip.org</a>&gt; wrote:<br>
+<br>
+&gt; Hi all,<br>
+&gt;<br>
+&gt; I'm using MPI_Comm_spawn to start new child process.<br>
+&gt; I found that if the parent process execute MPI_Finalize before the child<br>
+&gt; process, the child process core dump on MPI_Finalize.<br>
+&gt;<br>
+&gt; I couldn't find the correct way to have a clean shutdown of all processes<br>
+&gt; ( parent and child ).<br>
+&gt; What that I found is that sleep(2) in the parent process just before<br>
+&gt; calling MPI_Finalize, gives the CPU cycle for the child process to finish<br>
+&gt; its own MPI_Finalize, and only then there is no core dump.<br>
+&gt;<br>
+&gt; Although this resolve the issue, I can't accept this as acceptable solution.<br>
+&gt;<br>
+&gt; I guess I'm doing something wrong ( implementation or design ), so this is<br>
+&gt; why I'm sending this email to the group ( and yes, I did check the FAQ,<br>
+&gt; and done some search on the distribution list archive ).<br>
+&gt;<br>
+&gt; Here is the entire code to reproduce the issue :<br>
+&gt; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<br>
+&gt; #include &lt;stdio.h&gt;<br>
+&gt; #include &lt;string.h&gt;<br>
+&gt; #include &lt;unistd.h&gt;<br>
+&gt; #include &lt;mpi.h&gt;<br>
+&gt; #include &lt;stdlib.h&gt;<br>
+&gt;<br>
+&gt; int main(int argc, char* argv[]){<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;int&nbsp; my_rank; /* rank of process */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;int&nbsp; p;&nbsp; &nbsp; &nbsp; &nbsp;/* number of processes */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;int source;&nbsp; &nbsp;/* rank of sender */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;int dest;&nbsp; &nbsp; &nbsp;/* rank of receiver */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;int tag=0;&nbsp; &nbsp; /* tag for messages */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;char message[100];&nbsp; &nbsp; &nbsp; &nbsp; /* storage for message */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;MPI_Status status ;&nbsp; &nbsp;/* return status for receive */<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;/* start up MPI */<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;MPI_Init(&amp;argc, &amp;argv);<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;/* find out process rank */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;MPI_Comm_rank(MPI_COMM_WORLD, &amp;my_rank);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;fprintf(stderr,"My rank is : %d\n",my_rank);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;/* find out number of processes */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;MPI_Comm_size(MPI_COMM_WORLD, &amp;p);<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;MPI_Comm parent;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;MPI_Comm_get_parent(&amp;parent);<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;if ( parent != MPI_COMM_NULL){<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;/* create message */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;dest = 0;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;/* use strlen+1 so that '\0' get transmitted */<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Recv(message, 100, MPI_CHAR, 0, tag,parent, &amp;status);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;fprintf(stderr,"Got [%s] from root\n",message);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;/* shut down MPI */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Finalize();<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;}<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;else{<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;printf("Hello MPI World From process 0: Num processes: %d\n",p);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Comm everyone;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Comm_spawn("mpitest",MPI_ARGV_NULL,1,MPI_INFO_NULL,0,&nbsp; &nbsp; &nbsp; &nbsp;MPI_COMM_SELF,&amp;everyone,<br>
+&gt; MPI_ERRCODES_IGNORE);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;/* find out number of processes */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Comm_size(everyone, &amp;p);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;fprintf(stderr,"New world size:%d\n",p);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;for (source = 0; source &lt; p; source++) {<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;sprintf(message, "Hello MPI World from root to process %d!", source);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Send(message, strlen(message)+1, MPI_CHAR,source, tag, everyone);<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;}<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;/**<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; * Why this sleep resolve my core dump issues ?<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; * Any timing between the parent to child process ?<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; * Based on the document, and FAQ, I couldn't not find an answer for<br>
+&gt; this issue.<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; *<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; * If you comment out the sleep(2), the child process will crash on the<br>
+&gt; MPI_Finalize with<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; * singal 11, Segmentation fault.<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;//sleep(2); //un-comment this line to have the sleep, and avoid the core<br>
+&gt; dumps.<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;/* shut down MPI */<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Finalize();<br>
+&gt;<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;}<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp;return 0;<br>
+&gt; }<br>
+&gt; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~<br>
+&gt;<br>
+&gt; Anyone for the rescue ?<br>
+&gt;<br>
+&gt;<br>
+&gt; Thank you,<br>
+&gt; Roy Avidor<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; Searchable archives: <a href="http://www.open-mpi.org/community/lists/users/2014/09/index.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/09/index.php</a><br>
+<br>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/09/25207.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/09/25207.php</a><br></blockquote></div><br></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br>Link to this post: http://www.open-mpi.org/community/lists/users/2014/09/25208.php</blockquote></div><br></div></body></html>

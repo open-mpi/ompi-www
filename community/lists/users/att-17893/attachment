@@ -1,0 +1,52 @@
+Hello,
+<div><div><br></div><div>The problem that I have been having is running my application across multiple nodes. Here are the details of what I have debugged thus far.</div></div><div><br></div><div>I am going to follow the numbered list from the getting help page: (<a href="http://www.open-mpi.org/community/help/">http://www.open-mpi.org/community/help/</a>)</div>
+
+<div>1 ) I checked for a solution to this problem throughout the FAQ as well as the mailing list, but was unsuccessful in resolving the issue.</div><div>2) Version of openmpi: openmpi v1.4.4</div><div>3) I found the config.log, but it is very large, so I was unable to attach it.  If you would like me to I can upload it and provide a link.</div>
+
+<div>4) ompi_info --all output: see attached file &#39;ompi_info_all.txt&#39;</div><div>5)&#39;ompi_info -v ompi full --parsable&#39; (ran using: &#39;<span class="Apple-style-span" style="font-family: monospace; font-size: 12px; white-space: pre; background-color: rgb(224, 224, 224); ">mpirun --bynode </span><strong style="font-family: monospace; font-size: 12px; white-space: pre; background-color: rgb(224, 224, 224); ">--hostfile my_hostfile</strong><span class="Apple-style-span" style="font-family: monospace; font-size: 12px; white-space: pre; background-color: rgb(224, 224, 224); "> --tag-output ompi_info -v ompi full --parsable&#39;</span></div>
+<div><span class="Apple-style-span" style="background-color: rgb(224, 224, 224); font-size: 12px; white-space: pre;"><font class="Apple-style-span" face="monospace">[1,0]&lt;stdout&gt;:package:Open MPI root@intel16 Distribution
+[1,0]&lt;stdout&gt;:ompi:version:full:1.4.4
+[1,0]&lt;stdout&gt;:ompi:version:svn:r25188
+[1,0]&lt;stdout&gt;:ompi:version:release_date:Sep 27, 2011
+[1,0]&lt;stdout&gt;:orte:version:full:1.4.4
+[1,0]&lt;stdout&gt;:orte:version:svn:r25188
+[1,0]&lt;stdout&gt;:orte:version:release_date:Sep 27, 2011
+[1,0]&lt;stdout&gt;:opal:version:full:1.4.4
+[1,0]&lt;stdout&gt;:opal:version:svn:r25188
+[1,0]&lt;stdout&gt;:opal:version:release_date:Sep 27, 2011
+[1,0]&lt;stdout&gt;:ident:1.4.4
+[1,1]&lt;stdout&gt;:package:Open MPI root@intel16 Distribution
+[1,1]&lt;stdout&gt;:ompi:version:full:1.4.4
+[1,1]&lt;stdout&gt;:ompi:version:svn:r25188
+[1,1]&lt;stdout&gt;:ompi:version:release_date:Sep 27, 2011
+[1,1]&lt;stdout&gt;:orte:version:full:1.4.4
+[1,1]&lt;stdout&gt;:orte:version:svn:r25188
+[1,1]&lt;stdout&gt;:orte:version:release_date:Sep 27, 2011
+[1,1]&lt;stdout&gt;:opal:version:full:1.4.4
+[1,1]&lt;stdout&gt;:opal:version:svn:r25188
+[1,1]&lt;stdout&gt;:opal:version:release_date:Sep 27, 2011
+[1,1]&lt;stdout&gt;:ident:1.4.4</font></span><span class="Apple-style-span" style="font-family: monospace; font-size: 12px; white-space: pre; background-color: rgb(224, 224, 224); ">
+</span></div><div><span class="Apple-style-span" style="font-family: monospace; font-size: 12px; white-space: pre; background-color: rgb(224, 224, 224); "><br></span></div><div><br></div><div>6) Detailed description:</div>
+<div>I have a fortran90 application that solves a system of linear equations using LU Decomposition. The application has three components. matrix_fill , matrix_decomp, and matrix_solve.  The application has a make option for compiling the application using MPI.</div>
+
+
+<div><br></div><div>I have successfully compiled the application using openmpi v1.4.4, and can run the application.  </div><div>I utilize the &#39;--hostfile&#39; parameter when executing mpirun. For testing purposes I modified this file to see if I could narrow down the problem.</div>
+
+
+<div><br></div><div>I am able to run the program locally (on the same node that mpirun is being executed on) when utilizing 1 or greater than 1 slots (i was able to run with 12 slots on a single node). I am also able to mpirun on 1 or 2 slots on a single remote node as well. </div>
+
+<div><br></div><div>The problem occurs when I try to have two nodes work together, such that I specify two separate nodes in the hostfile and use -np 2 when executing mpirun).</div><div><br></div><div>Here is an example of the my_hostfile (when the problem occurs)</div>
+
+<div>intel15</div><div>intel16</div><div><br></div><div>and this is an example of the command used:</div><div>[intel15] &gt; mpirun --hostfile my_hostfile -np 2 matrix_fill</div><div><br></div><div><br></div><div>The problem occurs at a second call to MPI_BARRIER. The first MPI_BARRIER call is successful, but on the second one it hangs.</div>
+
+<div>Here is a basic outline of the code for up to the point of where the program hangs:</div><div>[code]</div><div><div>      CALL MPI_INIT(ierr)</div><div>      CALL MPI_COMM_RANK(MPI_COMM_WORLD, my_rank, ierr)</div><div>
+      CALL MPI_COMM_SIZE(MPI_COMM_WORLD, group_size, ierr)</div>
+</div><div><br></div><div>      ! creates buffers for each image</div><div>      !synchronize buffers</div><div>      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)</div><div><br></div><div><div>      WRITE(6, *) &#39;Initializing I/O for image #&#39;, my_image</div>
+
+<div>      CALL flushio</div><div><br></div><div>      ! At this barrier the program hangs and must be killed using CTRL+C</div><div>      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)</div></div><div>[/code]</div><div><br></div>
+
+<div><br></div><div>The hang only occurs when trying to use -np 2 (or larger) and on multiple nodes that are networked together. At first I thought it was a firewall issue, so i ran &#39;service iptables stop&#39; as root, but sadly this did not fix the problem. I am able to ssh between these nodes without a password, and the nodes are apart of a cluster of approximately 20 nodes at University of Maryland <b>B</b>altimore County.</div>
+<div><br></div><div>7) Network info: see attached network_info.txt file:</div>
+<div><br></div><div><br></div><div><br></div><div>I have been trying to determine the root of this error for the past week, but with no success. </div><div><br></div><div>Any help would be greatly appreciated.  </div><div>
+<br></div><div>Thank you,</div><div>Tim</div><div><br></div>
+

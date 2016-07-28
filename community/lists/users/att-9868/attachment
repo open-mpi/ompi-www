@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="MS Exchange Server version 6.5.7654.12">
+<TITLE> OpenMPI+SGE tight integration works on E6600 core duo systems but not on Q9550 quads</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/plain format -->
+
+<P><FONT SIZE=2>Hi,<BR>
+I may have overlooked something in the archives (not to mention Googling)--if so I apologize, however<BR>
+I have been unable to find info on this particular problem.<BR>
+<BR>
+OpenMPI+SGE tight integration works on E6600 core duo systems but not on Q9550 quads.<BR>
+Could use some troubleshooting assistance. Thanks.<BR>
+<BR>
+I'm running SGE 6.0u10 on a linux cluster running OpenSuse 11.<BR>
+<BR>
+OpenMPI was compiled with SGE, and the required components are present:<BR>
+<BR>
+[flengyel@nept OPENMPI]$ ompi_info | grep gridengine<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA ras: gridengine (MCA v1.0, API v1.3, Component v1.2.7)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA pls: gridengine (MCA v1.0, API v1.3, Component v1.2.7)<BR>
+<BR>
+<BR>
+The parallel execution environment for OpenMPI is as follows:<BR>
+<BR>
+[flengyel@nept OPENMPI]$ qconf -sp ompi<BR>
+pe_name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ompi<BR>
+slots&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 999<BR>
+user_lists&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Research<BR>
+xuser_lists&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NONE<BR>
+start_proc_args&nbsp;&nbsp; /bin/true<BR>
+stop_proc_args&nbsp;&nbsp;&nbsp; /bin/true<BR>
+allocation_rule&nbsp;&nbsp; $fill_up<BR>
+control_slaves&nbsp;&nbsp;&nbsp; TRUE<BR>
+job_is_first_task FALSE<BR>
+urgency_slots&nbsp;&nbsp;&nbsp;&nbsp; min<BR>
+<BR>
+A trivial OpenMPI job using this pe will run on a queue for Intel E6600 core duo machines:<BR>
+<BR>
+[flengyel@nept OPENMPI]$ cat sum2.sh<BR>
+<BR>
+#!/bin/bash<BR>
+#$ -S /bin/bash<BR>
+#$ -q x86_64.q<BR>
+#$ -N sum<BR>
+#$ -pe ompi 4<BR>
+<BR>
+#$ -cwd<BR>
+<BR>
+export PATH=/home/nept/apps64/openmpi/bin:$PATH<BR>
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/nept/apps64/openmpi/lib<BR>
+. /usr/local/sge/default/common/settings.sh<BR>
+mpirun --mca pls_gridengine_verbose 2&nbsp; --prefix /home/nept/apps64/openmpi -v&nbsp; ./sum<BR>
+<BR>
+Here are the results:<BR>
+<BR>
+[flengyel@nept OPENMPI]$ qsub sum2.sh<BR>
+Your job 23194 (&quot;sum&quot;) has been submitted<BR>
+<BR>
+[flengyel@nept OPENMPI]$ qstat -r -u flengyel<BR>
+<BR>
+job-ID&nbsp; prior&nbsp;&nbsp; name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; user&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; state submit/start at&nbsp;&nbsp;&nbsp;&nbsp; queue&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; slots ja-task-ID<BR>
+-----------------------------------------------------------------------------------------------------------------<BR>
+&nbsp; 23194 0.25007 sum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; flengyel&nbsp;&nbsp;&nbsp;&nbsp; r&nbsp;&nbsp;&nbsp;&nbsp; 07/07/2009 14:14:40 x86_64.q@m49.gc.cuny.edu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Full jobname:&nbsp;&nbsp;&nbsp;&nbsp; sum<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Master queue:&nbsp;&nbsp;&nbsp;&nbsp; x86_64.q@m49.gc.cuny.edu<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Requested PE:&nbsp;&nbsp;&nbsp;&nbsp; ompi 4<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Granted PE:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ompi 4<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Hard Resources:&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Soft Resources:&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Hard requested queues: x86_64.q<BR>
+<BR>
+<BR>
+[flengyel@nept OPENMPI]$ more sum.o23194<BR>
+<BR>
+The sum from 1 to 1000 is: 500500<BR>
+[flengyel@nept OPENMPI]$ more sum.e23194<BR>
+Starting server daemon at host &quot;m49.gc.cuny.edu&quot;<BR>
+Starting server daemon at host &quot;m33.gc.cuny.edu&quot;<BR>
+Server daemon successfully started with task id &quot;1.m49&quot;<BR>
+Establishing /usr/local/sge/utilbin/lx24-amd64/rsh session to host m49.gc.cuny.edu ...<BR>
+Server daemon successfully started with task id &quot;1.m33&quot;<BR>
+Establishing /usr/local/sge/utilbin/lx24-amd64/rsh session to host m33.gc.cuny.edu ...<BR>
+/usr/local/sge/utilbin/lx24-amd64/rsh exited with exit code 0<BR>
+reading exit code from shepherd ...<BR>
+<BR>
+But the same job with the queue set to quad.q for the Q9550 quad core machines<BR>
+has daemon trouble:<BR>
+<BR>
+<BR>
+[flengyel@nept OPENMPI]$ !qstat<BR>
+qstat -r -u flengyel<BR>
+job-ID&nbsp; prior&nbsp;&nbsp; name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; user&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; state submit/start at&nbsp;&nbsp;&nbsp;&nbsp; queue&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; slots ja-task-ID<BR>
+-----------------------------------------------------------------------------------------------------------------<BR>
+&nbsp; 23196 0.25000 sum&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; flengyel&nbsp;&nbsp;&nbsp;&nbsp; r&nbsp;&nbsp;&nbsp;&nbsp; 07/07/2009 14:26:21 quad.q@m09.gc.cuny.edu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Full jobname:&nbsp;&nbsp;&nbsp;&nbsp; sum<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Master queue:&nbsp;&nbsp;&nbsp;&nbsp; quad.q@m09.gc.cuny.edu<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Requested PE:&nbsp;&nbsp;&nbsp;&nbsp; ompi 2<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Granted PE:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ompi 2<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Hard Resources:&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Soft Resources:&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Hard requested queues: quad.q<BR>
+[flengyel@nept OPENMPI]$ more sum.e23196<BR>
+Starting server daemon at host &quot;m15.gc.cuny.edu&quot;<BR>
+Starting server daemon at host &quot;m09.gc.cuny.edu&quot;<BR>
+Server daemon successfully started with task id &quot;1.m15&quot;<BR>
+Server daemon successfully started with task id &quot;1.m09&quot;<BR>
+Establishing /usr/local/sge/utilbin/lx24-amd64/rsh session to host m15.gc.cuny.e<BR>
+du ...<BR>
+/usr/local/sge/utilbin/lx24-amd64/rsh exited on signal 13 (PIPE)<BR>
+reading exit code from shepherd ... Establishing /usr/local/sge/utilbin/lx24-amd<BR>
+64/rsh session to host m09.gc.cuny.edu ...<BR>
+/usr/local/sge/utilbin/lx24-amd64/rsh exited on signal 13 (PIPE)<BR>
+reading exit code from shepherd ... 129<BR>
+[m09.gc.cuny.edu:11413] ERROR: A daemon on node m15.gc.cuny.edu failed to start<BR>
+as expected.<BR>
+[m09.gc.cuny.edu:11413] ERROR: There may be more information available from<BR>
+[m09.gc.cuny.edu:11413] ERROR: the 'qstat -t' command on the Grid Engine tasks.<BR>
+[m09.gc.cuny.edu:11413] ERROR: If the problem persists, please restart the<BR>
+[m09.gc.cuny.edu:11413] ERROR: Grid Engine PE job<BR>
+[m09.gc.cuny.edu:11413] ERROR: The daemon exited unexpectedly with status 129.<BR>
+129<BR>
+[m09.gc.cuny.edu:11413] ERROR: A daemon on node m09.gc.cuny.edu failed to start<BR>
+as expected.<BR>
+[m09.gc.cuny.edu:11413] ERROR: There may be more information available from<BR>
+[m09.gc.cuny.edu:11413] ERROR: the 'qstat -t' command on the Grid Engine tasks.<BR>
+[m09.gc.cuny.edu:11413] ERROR: If the problem persists, please restart the<BR>
+[m09.gc.cuny.edu:11413] ERROR: Grid Engine PE job<BR>
+[m09.gc.cuny.edu:11413] ERROR: The daemon exited unexpectedly with status 129.<BR>
+[flengyel@nept OPENMPI]$<BR>
+<BR>
+<BR>
+-FL<BR>
+<BR>
+------------------------------------------------------<BR>
+<A HREF="http://gridengine.sunsource.net/ds/viewMessage.do?dsForumId=38&dsMessageId=206057">http://gridengine.sunsource.net/ds/viewMessage.do?dsForumId=38&dsMessageId=206057</A><BR>
+<BR>
+To unsubscribe from this discussion, e-mail: [users-unsubscribe@gridengine.sunsource.net].<BR>
+<BR>
+</FONT>
+</P>
+
+</BODY>
+</HTML>

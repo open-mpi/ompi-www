@@ -1,0 +1,86 @@
+<html><body>
+<p>Tee Wen Kai -<br>
+<br>
+You asked &quot;<font size="4">Just to find out more about the consequences for exiting MPI processes without calling MPI_Finalize, will it cause memory leak or other fatal problem?</font>&quot;<br>
+<br>
+Be aware that Jeff has offered you an OpenMPI implementation oriented answer rather than an MPI standard oriented answer.  <br>
+<br>
+When there is a communicator involving 2 or more tasks and any task involved in that communicator goes down, all other tasks that are members of that communicator enter a state the MPI standard says cannot be trusted.  It is legitimate for the process that manages an MPI job as a single entity to recognize that the loss of a member task has made the state of all connected tasks untrustworthy and bring down all previously connected tasks too.<br>
+<br>
+When you use MPI_Comm_spawn, one result is an intercommunicator connecting the task that did the spawn to the task(s) that were spawned so the two sides are &quot;connected&quot;.  If you intend to use MPI to communicate between the spawn caller and the spawned tasks they must remain connected. You can explicitly disconnect them and then a failure of the spawned task is harmless to the task that spawned it but doing the disconnect costs you the communication path.<br>
+<br>
+The MPI standard does not require that connected tasks be brought down but it is a valid MPI implementation behavior. This makes some sense when you consider the fact that there is no MPI mechanism by which the other tasks can see that the communicator involving the lost task is now broken and there is no way a collective communication can work &quot;correctly&quot; on a communicator that has lost a member task. <br>
+<br>
+For example, what would it mean to call MPI_Reduce on MPI_COMM_WORLD when a member of MPI_COMM_WORLD has been lost (especially if it is the root that was lost)? If you had an MPI application that  computed for hours between the loss of one task and the next collective call on MPI_ COMM_WORLD, would you prefer to pay for hours of computation and then deadlock at the collective call or just abort ASAP after the job is recognizably broken.<br>
+<br>
+There is a fault tolerance working group trying to define something for MPI 3.0 but at this stage they are still trying to work out a proposal to bring before the MPI Forum.  You might be interested in getting involved in that effort.  They try to address question like:<br>
+- how would a task know it should not make collective  calls on the broken communicator?<br>
+- should the communicator still support point to point communications with remaining tasks?<br>
+- If a task has posted a receive and the expected sender is then lost, how should the posted receive act?<br>
+- is there a clean way to &quot;repair&quot;  the broken communicator by spawning a replacement task?<br>
+- is there a clean way to  &quot;shrink&quot; the broken communicator <br>
+<br>
+The Fault Tolerance Working Group has taken on a very tough problem.  The list above is just a tiny sample of the challenges in making MPI fault tolerant.<br>
+<br>
+             Dick <br>
+<br>
+<br>
+Dick Treumann  -  MPI Team           <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<img width="16" height="16" src="cid:1__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt="Inactive hide details for Jeff Squyres ---06/04/2009 07:32:25 AM---On Jun 4, 2009, at 2:16 AM, Tee Wen Kai wrote: &gt; Just to fin"><font color="#424282">Jeff Squyres ---06/04/2009 07:32:25 AM---On Jun 4, 2009, at 2:16 AM, Tee Wen Kai wrote: &gt; Just to find out more about the consequences for ex</font><br>
+<br>
+
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr valign="top"><td width="1%"><img width="96" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2" color="#5F5F5F">From:</font></td><td width="100%"><img width="1" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2">Jeff Squyres &lt;jsquyres@cisco.com&gt;</font></td></tr>
+
+<tr valign="top"><td width="1%"><img width="96" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2" color="#5F5F5F">To:</font></td><td width="100%"><img width="1" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2">&quot;Open MPI Users&quot; &lt;users@open-mpi.org&gt;</font></td></tr>
+
+<tr valign="top"><td width="1%"><img width="96" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2" color="#5F5F5F">Date:</font></td><td width="100%"><img width="1" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2">06/04/2009 07:32 AM</font></td></tr>
+
+<tr valign="top"><td width="1%"><img width="96" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2" color="#5F5F5F">Subject:</font></td><td width="100%"><img width="1" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2">Re: [OMPI users] Exit Program Without Calling MPI_Finalize	ForSpecial Case</font></td></tr>
+
+<tr valign="top"><td width="1%"><img width="96" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2" color="#5F5F5F">Sent by:</font></td><td width="100%"><img width="1" height="1" src="cid:2__=0ABBFF58DFD68AA48f9e8a93df938@us.ibm.com" border="0" alt=""><br>
+<font size="2">users-bounces@open-mpi.org</font></td></tr>
+</table>
+<hr width="100%" size="2" align="left" noshade style="color:#8091A5; "><br>
+<br>
+<br>
+<tt>On Jun 4, 2009, at 2:16 AM, Tee Wen Kai wrote:<br>
+<br>
+&gt; Just to find out more about the consequences for exiting MPI &nbsp;<br>
+&gt; processes without calling MPI_Finalize, will it cause memory leak or &nbsp;<br>
+&gt; other fatal problem?<br>
+<br>
+If you're exiting the process, you won't cause any kind of problems -- &nbsp;<br>
+the OS will clean up everything.<br>
+<br>
+However, we might also have the orted clean up some things when MPI &nbsp;<br>
+processes unexpectedly die (e.g., filesystem temporary files in / <br>
+tmp). &nbsp;So you might want to leave those around to clean themselves up &nbsp;<br>
+and die naturally.<br>
+<br>
+-- <br>
+Jeff Squyres<br>
+Cisco Systems<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+users@open-mpi.org<br>
+</tt><tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt><tt><br>
+</tt><br>
+<br>
+</body></html>
+

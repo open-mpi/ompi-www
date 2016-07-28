@@ -1,0 +1,244 @@
+<?
+$subject_val = "Re: [OMPI devel] lamtest fail to make for undefined reference";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Sat Oct 18 07:17:40 2008" -->
+<!-- isoreceived="20081018111740" -->
+<!-- sent="Sat, 18 Oct 2008 07:17:34 -0400" -->
+<!-- isosent="20081018111734" -->
+<!-- name="Jeff Squyres" -->
+<!-- email="jsquyres_at_[hidden]" -->
+<!-- subject="Re: [OMPI devel] lamtest fail to make for undefined reference" -->
+<!-- id="A67A87FB-4E03-49DD-A31E-995DE16564F9_at_cisco.com" -->
+<!-- charset="GB2312" -->
+<!-- inreplyto="11290342.812341224305218174.JavaMail.coremail_at_bj163app114.163.com" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI devel] lamtest fail to make for undefined reference<br>
+<strong>From:</strong> Jeff Squyres (<em>jsquyres_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2008-10-18 07:17:34
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="4776.php">Stephan Kramer: "Re: [OMPI devel] Possible buffer overrun bug in opal_free_list_grow, called by MPI::Init"</a>
+<li><strong>Previous message:</strong> <a href="4774.php">Leonardo Fialho: "[OMPI devel] OOB-TCP Retries"</a>
+<!-- nextthread="start" -->
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+(moving this thread from the LAM/MPI mailing list to the OMPI devel  
+<br>
+list because it's really about Open MPI, not LAM/MPI)
+<br>
+<p>On Oct 18, 2008, at 12:46 AM, Steven wrote:
+<br>
+<p><span class="quotelev1">&gt; Thanks for your answer. My server has openmpi installed. I also know  
+</span><br>
+<span class="quotelev1">&gt; MTT for testing openmpi. But my cluster has no access to internet.  
+</span><br>
+<span class="quotelev1">&gt; So I have to use lamtest.
+</span><br>
+<p>I'm not sure what you mean by that; MTT does not require network  
+<br>
+access.  MTT can be best when used this way (e.g., for Open MPI  
+<br>
+nightly regression testing), but you can certainly setup MTT to run  
+<br>
+100% internally.  I know that both Myricom and Mellanox use MTT  
+<br>
+internally for their own private MPI testing, for example.
+<br>
+<p>Regardless, are you able to run simple Open MPI applications at all?   
+<br>
+Can you compile and run MPI &quot;hello world&quot;?  Tests like that are a  
+<br>
+better place diagnose problems than trying to run an entire test suite.
+<br>
+<p>Did you specifically enable udapl support?  If so, you probably  
+<br>
+shouldn't -- if you're using an OpenFabrics Linux stack, OMPI prefers  
+<br>
+the use of the verbs stack directly, not udapl.  Trying to use both  
+<br>
+udapl and verbs would result in... well, weirdness.  :-)  So you might  
+<br>
+want to disable OMPI's use of udapl.
+<br>
+<p>Please see <a href="http://www.open-mpi.org/community/help/">http://www.open-mpi.org/community/help/</a> for a list of  
+<br>
+information that we ask for when there's a run-time problem with Open  
+<br>
+MPI.
+<br>
+<p><span class="quotelev1">&gt; If you have any advice, that would be greatly appreciated.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; Thanks again.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; Steven Wang
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; &#212;&#218;2008-10-17&#163;&#172;&quot;Jeff Squyres&quot; &lt;jsquyres_at_[hidden]&gt; &#208;&#180;&#181;&#192;&#163;&#186;
+</span><br>
+<span class="quotelev2">&gt; &gt;LAM does not know anything about udapl, so I'm not sure how you could
+</span><br>
+<span class="quotelev2">&gt; &gt;be generating these messages unless you are somehow mixing MPI
+</span><br>
+<span class="quotelev2">&gt; &gt;implementations (perhaps mixing Open MPI and LAM/MPI somehow?  Even
+</span><br>
+<span class="quotelev2">&gt; &gt;so; Open MPI doesn't build udapl by default on Linux because it
+</span><br>
+<span class="quotelev2">&gt; &gt;prefers native verbs support).
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;Note that the &quot;make check&quot; mechanism in the Open MPI SVN version of
+</span><br>
+<span class="quotelev2">&gt; &gt;the ibm test suite is not used much; it may or may not be 100%
+</span><br>
+<span class="quotelev2">&gt; &gt;functional (i.e., it may have bit rotted over time).  I typically use
+</span><br>
+<span class="quotelev2">&gt; &gt;the MPI Testing Tool (MTT) to run all the IBM tests; MTT is much more
+</span><br>
+<span class="quotelev2">&gt; &gt;reliable and flexible.  MTT finds all the executables that were
+</span><br>
+<span class="quotelev2">&gt; &gt;generated by &quot;make&quot; and runs them by itself, not via &quot;make check&quot;.
+</span><br>
+<span class="quotelev2">&gt; &gt;For example, here's Cisco's Open MPI testing results from the IBM  
+</span><br>
+<span class="quotelev1">&gt; test
+</span><br>
+<span class="quotelev2">&gt; &gt;suite from yesterday:
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;     <a href="http://www.open-mpi.org/mtt/index.php?do_redir=868">http://www.open-mpi.org/mtt/index.php?do_redir=868</a>
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;On Oct 17, 2008, at 3:55 AM, Steven wrote:
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; Hi Tim and Jeff:
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt;
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; You are right that I combined some *.o files into my compiling
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; server. These objective files were compiled on differnt enviroment,
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; which resulted in the issue. I removed them and rerun make. This
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; time make or make -k is clear. When I run &quot;make -k check&quot;, the
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; output has continous warning such as
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt;
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; WARNING: Failed to open
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; &quot;ib0&quot; [DAT_PROVIDER_NOT_FOUND:DAT_NAME_NOT_REGISTERED].
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; This may be a real error or it may be an invalid entry in the uDAPL
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; Registry which is contained in the dat.conf file. Contact your  
+</span><br>
+<span class="quotelev1">&gt; local
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; System Administrator to confirm the availability of the  
+</span><br>
+<span class="quotelev1">&gt; interfaces in
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; the dat.conf file.
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt;
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; My servers have one Infiniband ConnectX adapter connected. It looks
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; that lamtest will detect the IB network. At the output end of  
+</span><br>
+<span class="quotelev1">&gt; &quot;make -
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; k check&quot;, it wrote
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt;
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; PASS: sub
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; ==================
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; All 4 tests passed
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt;
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; I am not sure how many test cases have been executed (only four
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; cases?). And whether 100% of them has succeeded or not.
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt;
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; Thanks a lot for your attetion!
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt;
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; Steven Wang
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; &#212;&#218;2008-10-16&#163;&#172;&quot;Tim Prince&quot;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; [&#185;&#227;&#184;&#230;] &#189;&#240;&#199;&#239;&#215;&#238;&#185;&#216;&#215;&#162;&#194;&#165;&#197;&#204;-&#183;&#191;&#178;&#187;&#202;&#164;&#183;&#191; 
+</span><br>
+<span class="quotelev1">&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; This list is archived at <a href="http://www.lam-mpi.org/MailArchives/lam/">http://www.lam-mpi.org/MailArchives/lam/</a>
+</span><br>
+<p><p><pre>
+-- 
+Jeff Squyres
+Cisco Systems
+</pre>
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="4776.php">Stephan Kramer: "Re: [OMPI devel] Possible buffer overrun bug in opal_free_list_grow, called by MPI::Init"</a>
+<li><strong>Previous message:</strong> <a href="4774.php">Leonardo Fialho: "[OMPI devel] OOB-TCP Retries"</a>
+<!-- nextthread="start" -->
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

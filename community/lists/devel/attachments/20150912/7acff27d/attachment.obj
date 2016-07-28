@@ -1,0 +1,456 @@
+#
+# Copyright (c) 2007 Sun Microystems, Inc.  All rights reserved.
+#
+
+# Template MTT configuration file for Open MPI developers.  The intent
+# for this template file is to establish at least some loose
+# guidelines for what Open MPI core developers should be running
+# before committing changes to the OMPI repository. This file is not
+# intended to be an exhaustive sample of all possible fields and
+# values that MTT offers. Each developer will undoubtedly have to
+# edit this template for their own needs (e.g., pick compilers to use,
+# etc.), but this file provides a baseline set of configurations that
+# we intend for you to run.
+#
+# Sample usage:
+#   cat developer.ini intel.ini   | client/mtt - alreadyinstalled_dir=/your/install
+#   cat developer.ini trivial.ini | client/mtt - alreadyinstalled_dir=/your/install
+#
+
+[MTT]
+# No overrides to defaults
+
+# Fill this field in
+hostfile = /home/common/hosts
+force = 1
+trial = 0
+scratch = /home/common/mttscratch-rsh
+submit_group_results = 1
+logfile = /home/common/mtt-logfile-rsh.txt
+description = Intel Bend development cluster
+
+#======================================================================
+# MPI get phase
+#======================================================================
+
+#----------------------------------------------------------------------
+
+[MPI get: My Installation]
+mpi_details = Open MPI
+# Leave this parameter blank to
+# have MTT search your path for an MPI
+# alreadyinstalled_dir = /your/installation
+module = AlreadyInstalled
+
+
+#----------------------------------------------------------------------
+
+[MPI install: My Installation]
+mpi_get = My Installation
+module = Analyze::OMPI
+
+#======================================================================
+# MPI run details
+#======================================================================
+
+[MPI Details: Open MPI]
+
+exec = mpirun @hosts@ -np &test_np() --prefix &test_prefix() &test_executable() &test_argv()
+
+hosts = <<EOT
+    &if(
+        &have_hostfile(),
+        &stringify("--hostfile ", &hostfile()),
+        &if(
+            &have_hostlist(),
+            &stringify("--host ", &hostlist()),
+            ""
+        )
+    )
+EOT
+
+#options = &enumerate( \
+#	  "", \
+#	  "--novm")
+
+#======================================================================
+# Test get phase
+#======================================================================
+
+[Test get: trivial]
+module = Trivial
+
+#----------------------------------------------------------------------
+
+[Test get: ibm]
+module = SCM
+scm_module = Git
+scm_url =  /home/common/ompi-tests
+scm_subdir = ibm
+
+
+#----------------------------------------------------------------------
+
+[Test get: intel]
+module = SCM
+scm_module = Git
+scm_url =  /home/common/ompi-tests
+scm_subdir = intel_tests
+
+
+#----------------------------------------------------------------------
+
+[Test get: onesided]
+module = SCM
+scm_module = Git
+scm_url =  /home/common/ompi-tests
+scm_subdir = onesided
+scm_post_copy = <<EOT
+./autogen.sh
+EOT
+
+#----------------------------------------------------------------------
+
+[Test get: java]
+module = SCM
+scm_module = Git
+scm_url =  /home/common/ompi-tests
+scm_subdir = ompi-java-tests
+scm_post_copy = <<EOT
+./autogen.sh
+EOT
+
+#----------------------------------------------------------------------
+
+[Test get: orte]
+module = SCM
+scm_module = Git
+scm_url =  /home/common/ompi-tests
+scm_subdir = orte
+
+#
+#======================================================================
+# Test build phase
+#======================================================================
+
+[Test build: trivial]
+test_get = trivial
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+
+mpi_install = My Installation
+
+module = Trivial
+
+#----------------------------------------------------------------------
+
+[Test build: ibm]
+test_get = ibm
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+
+mpi_install = My Installation
+
+module = Shell
+shell_build_command = <<EOT
+which libtool
+./autogen.sh
+./configure CC=mpicc CXX=mpic++ F77=mpif77
+make -j 10
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: intel]
+test_get = intel
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+
+mpi_install = My Installation
+
+module = Intel_OMPI_Tests
+intel_ompi_tests_buildfile = all_tests_no_perf
+#----------------------------------------------------------------------
+
+[Test build: onesided]
+test_get = onesided
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+
+mpi_install = My Installation
+
+module = Shell
+shell_build_command = <<EOT
+./configure
+make -j 10
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: java]
+test_get = java
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+
+mpi_install = My Installation
+
+module = Shell
+shell_build_command = <<EOT
+./configure
+make -j 10
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: orte]
+test_get = orte
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+
+module = Shell
+shell_build_command = <<EOT
+make
+EOT
+
+#----------------------------------------------------------------------
+#======================================================================
+# Test Run phase
+#======================================================================
+
+# Some default Test run parameters to include in (most) Test run sections
+[Test run]
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+skipped = &and(&test_wifexited(), &eq(&test_wexitstatus(), 77))
+
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+stdout_save_lines = 100
+stderr_save_lines = 100
+report_after_n_results = 100
+np = 16
+
+#----------------------------------------------------------------------
+
+[Test run: trivial]
+include_section = Test run
+
+test_build = trivial
+timeout = &max(10, &test_np())
+skipped = 0
+
+specify_module = Simple
+simple_first:tests = &find_executables(".")
+
+#----------------------------------------------------------------------
+
+[Test run: ibm]
+include_section = Test run
+
+test_build = ibm
+timeout = 600
+
+specify_module = Simple
+simple_first:tests = &find_executables("collective", "communicator", \
+                                       "datatype",  "environment", \
+                                       "group", "info", "io", "onesided", \
+                                       "pt2pt", "random", "topology")
+
+# Tests that are supposed to fail
+simple_fail:tests = environment/abort environment/final
+simple_fail:pass = &and(&test_wifexited(), &ne(&test_wexitstatus(), 0))
+simple_fail:exclusive = 1
+simple_fail:timeout = &env_max_procs()
+
+#
+# THREAD_MULTIPLE test will fail with the openib btl because it
+# deactivates itself in the presence of THREAD_MULTIPLE.  So just skip
+# it.  loop_child is the target for loop_spawn, so we don't need to
+# run it (although it'll safely pass if you run it by itself).
+simple_skip:tests = environment/init_thread_multiple communicator/comm_split_f
+simple_skip:exclusive = 1
+simple_skip:do_not_run = 1
+
+#----------------------------------------------------------------------
+[Test run: spawn]
+include_section = Test run
+
+test_build = ibm
+timeout = 600
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+np = 3
+
+specify_module = Simple
+
+simple_first:tests = &find_executables("dynamic")
+simple_skip:tests = dynamic/loop_child dynamic/loop_spawn
+simple_skip:exclusive = 1
+simple_skip:do_not_run = 1
+
+#----------------------------------------------------------------------
+[Test run: loopspawn]
+include_section = Test run
+
+test_build = ibm
+timeout = 1200
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+np = 1
+
+specify_module = Simple
+
+simple_first:tests = dynamic/loop_spawn
+
+#------------------------------------------------------------------------
+
+[Test run: intel]
+include_section = Test run
+
+test_build = intel
+timeout = 600
+np = 16
+
+specify_module = Simple
+simple_successful:tests = &find_executables("src")
+
+simple_failures:tests = &find_executables(&prepend("src/", &cat("supposed_to_fail")))
+simple_failures:pass = &and(&test_wifexited(), &ne(&test_wexitstatus(), 0))
+simple_failures:exclusive = 1
+simple_failures:timeout = &env_max_procs()
+
+# These tests sleep for 90 seconds (!) before attempting to process
+# any messages
+simple_really_slow:tests = src/MPI_Isend_flood_c src/MPI_Send_flood_c
+simple_really_slow:pass = &and(&test_wifexited(), &eq(&test_wexitstatus(), 0))
+simple_really_slow:exclusive = 1
+simple_really_slow:timeout = &sum(180, &multiply(5, &test_np()))
+
+# This test collectively sleeps for 26 seconds *per MCW rank*
+simple_coll_slow:tests = src/MPI_collective_overlap_c
+simple_coll_slow:pass = &and(&test_wifexited(), &eq(&test_wexitstatus(), 0))
+simple_coll_slow:exclusive = 1
+simple_coll_slow:timeout = &multiply(35, &test_np()))
+
+#------------------------------------------------------------------------
+
+[Test run: intel_skip]
+include_section = Test run
+
+test_build = intel
+timeout = 300
+np = 4
+
+specify_module = Simple
+simple_successful:tests = &find_executables("src")
+
+simple_failures:tests = &find_executables(&prepend("src/", &cat("supposed_to_fail")))
+simple_failures:pass = &and(&test_wifexited(), &ne(&test_wexitstatus(), 0))
+simple_failures:exclusive = 1
+simple_failures:timeout = &env_max_procs()
+
+# These tests sleep for 90 seconds (!) before attempting to process
+# any messages
+simple_really_slow:tests = src/MPI_Isend_flood_c src/MPI_Send_flood_c
+simple_really_slow:pass = &and(&test_wifexited(), &eq(&test_wexitstatus(), 0))
+simple_really_slow:exclusive = 1
+simple_really_slow:timeout = &sum(180, &multiply(5, &test_np()))
+
+# This test collectively sleeps for 26 seconds *per MCW rank*
+simple_coll_slow:tests = src/MPI_collective_overlap_c
+simple_coll_slow:pass = &and(&test_wifexited(), &eq(&test_wexitstatus(), 0))
+simple_coll_slow:exclusive = 1
+simple_coll_slow:timeout = &multiply(35, &test_np()))
+
+#----------------------------------------------------------------------
+
+[Test run: onesided]
+include_section = Test run
+test_build = onesided
+
+specify_module = Simple
+np = &if(&gt(&env_max_procs(), 0), &step(2, &max(2, &env_max_procs()), 2), 2)
+
+simple_pass:tests = &cat("run_list")
+
+#------------------------------------------------------------------------
+
+# Java test suite
+
+[Test run: java]
+test_build = java
+pass = &and(&test_wifexited(), &eq(&test_wexitstatus(), 0))
+skipped = 0
+timeout = 15
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+
+specify_module = Simple
+simple_first:tests = java
+simple_first:argv = &find_java_executables("basic", "ccl_ObjSer", \
+                                "collectives", "comm", \
+                                "datatype", "dtyp_ObjSer", \
+                                "group", "pt2pt", \
+                                "pt2pt_ObjSer", "topo")
+
+# Tests that are supposed to fail
+simple_fail:tests = java
+simple_fail:argv = &java_executable("basic/Abort")
+simple_fail:pass = &and(&test_wifexited(), &ne(&test_wexitstatus(), 0))
+simple_fail:exclusive = 1
+simple_fail:timeout = &env_max_procs()
+
+#------------------------------------------------------------------------
+
+[Test run: orte]
+include_section = Test run
+
+test_build = orte
+skipped = 0
+timeout = 60
+
+specify_module = Simple
+
+# Tests that are supposed to pass
+simple_pass:tests = &find_executables("pass")
+
+# Tests that are supposed to fail
+simple_fail:tests = &find_executables("fail")
+simple_fail:pass = &and(&test_wifexited(), &ne(&test_wexitstatus(), 0))
+
+#======================================================================
+# Reporter phase
+#======================================================================
+
+[Reporter: IU database]
+module = MTTDatabase
+
+mttdatabase_realm = OMPI
+mttdatabase_username = intel
+mttdatabase_password = &stringify(&cat("/home/common/mttpwd.txt"))
+mttdatabase_platform = bend-rsh
+mttdatabase_hostname = &env_hosts()
+mttdatabase_url = https://mtt.open-mpi.org/submit/
+mttdatabase_debug_filename = mttdb_debug_file
+mttdatabase_keep_debug_files = 1
+mttdatabase_debug_server = 1
+
+#----------------------------------------------------------------------
+
+[Reporter: text file backup]
+module = TextFile
+
+textfile_filename = $phase-$section-$mpi_name-$mpi_version.txt
+
+# User-defined report headers/footers
+textfile_summary_header = <<EOT
+hostname: &shell("hostname")
+uname: &shell("uname -a")
+who am i: &shell("who am i")
+EOT
+
+textfile_summary_footer =
+textfile_detail_header  =
+textfile_detail_footer  =
+
+textfile_textwrap = 78

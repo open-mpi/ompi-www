@@ -1,0 +1,55 @@
+Yes, your output is what I was expecting. Actually, your output is what I get if I compile the code I attached in my first email. However, our application is actually doing some &#39;smart&#39; stuff when you dynamically allocate memory by putting headers around the memory block -- I am guessing that this can interfere with MPI_Allgather(). What is strange is that this problem doesn&#39;t surface on the other machine that we are working with (OpenSUSE) nor does it appear if we run it with valgrind. This is probably a dumb question, but if you were to see this problem, where is the first place your gut would tell you to look?<div>
+Thanks,</div><div>Brett.<br><br><div class="gmail_quote">On Fri, Dec 9, 2011 at 6:43 PM, teng ma <span dir="ltr">&lt;<a href="mailto:tma@eecs.utk.edu">tma@eecs.utk.edu</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I guess your output is from different ranks.   YOu can add rank infor inside print to tell like follows:<br><br>(void) printf(&quot;rank %d: gathered[%d].node = %d\n&quot;, rank, i, gathered[i].node);<br><br>From my side, I did not see anything wrong from your code in Open MPI 1.4.3. after I add rank, the output is<br>
+
+rank 5: gathered[0].node = 0<br>rank 5: gathered[1].node = 1<br>rank 5: gathered[2].node = 2<br>rank 5: gathered[3].node = 3<br>rank 5: gathered[4].node = 4<br>rank 5: gathered[5].node = 5<br>rank 3: gathered[0].node = 0<br>
+
+rank 3: gathered[1].node = 1<br>rank 3: gathered[2].node = 2<br>rank 3: gathered[3].node = 3<br>rank 3: gathered[4].node = 4<br>rank 3: gathered[5].node = 5<br>rank 1: gathered[0].node = 0<br>rank 1: gathered[1].node = 1<br>
+
+rank 1: gathered[2].node = 2<br>rank 1: gathered[3].node = 3<br>rank 1: gathered[4].node = 4<br>rank 1: gathered[5].node = 5<br>rank 0: gathered[0].node = 0<br>rank 0: gathered[1].node = 1<br>rank 0: gathered[2].node = 2<br>
+
+rank 0: gathered[3].node = 3<br>rank 0: gathered[4].node = 4<br>rank 0: gathered[5].node = 5<br>rank 4: gathered[0].node = 0<br>rank 4: gathered[1].node = 1<br>rank 4: gathered[2].node = 2<br>rank 4: gathered[3].node = 3<br>
+
+rank 4: gathered[4].node = 4<br>rank 4: gathered[5].node = 5<br>rank 2: gathered[0].node = 0<br>rank 2: gathered[1].node = 1<br>rank 2: gathered[2].node = 2<br>rank 2: gathered[3].node = 3<br>rank 2: gathered[4].node = 4<br>
+
+rank 2: gathered[5].node = 5<br><br>Is that what you expected? <br><br><div class="gmail_quote"><div><div class="h5">On Fri, Dec 9, 2011 at 12:03 PM, Brett Tully <span dir="ltr">&lt;<a href="mailto:brett.tully@oxyntix.com" target="_blank">brett.tully@oxyntix.com</a>&gt;</span> wrote:<br>
+
+</div></div><blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><div><div class="h5">Dear all,<div><br></div><div>I have not used OpenMPI much before, but am maintaining a large legacy application. We noticed a bug to do with a call to MPI_Allgather as summarised in this post to Stackoverflow: <a href="http://stackoverflow.com/questions/8445398/mpi-allgather-produces-inconsistent-results" target="_blank">http://stackoverflow.com/questions/8445398/mpi-allgather-produces-inconsistent-results</a></div>
+
+
+<div><br></div><div>In the process of looking further into the problem, I noticed that the following function results in strange behaviour.</div><div><br></div>void test_all_gather() {<br><br>    struct _TEST_ALL_GATHER {<br>
+
+
+        int node;<br>    };<br><br>    int ierr, size, rank;<br>    ierr = MPI_Comm_size(MPI_COMM_WORLD, &amp;size);<br>    ierr = MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br><br>    struct _TEST_ALL_GATHER local;<br>    struct _TEST_ALL_GATHER *gathered;<br>
+
+
+<br>    gathered = (struct _TEST_ALL_GATHER*) malloc(size * sizeof(*gathered));<br><br>    local.node = rank;<br><div><br>    MPI_Allgather(&amp;local, sizeof(struct _TEST_ALL_GATHER), MPI_BYTE, </div><div>        gathered, sizeof(struct _TEST_ALL_GATHER), MPI_BYTE, MPI_COMM_WORLD);<br>
+
+
+<br>    int i;<br>    for (i = 0; i &lt; numnodes; ++i) {<br>        (void) printf(&quot;gathered[%d].node = %d\n&quot;, i, gathered[i].node);<br>    }<br><br>    FREE(gathered);<br>}</div><div><br></div><div>At one point, this function printed the following:</div>
+
+
+<div>gathered[0].node = 2</div><div>gathered[1].node = 3</div><div>gathered[2].node = 2</div><div>gathered[3].node = 3</div><div>gathered[4].node = 4</div><div>gathered[5].node = 5</div><div><br></div><div>Can anyone suggest a place to start looking into why this might be happening? There is a section of the code that calls MPI_Comm_split, but I am not sure if that is related...</div>
+
+
+<div><br></div><div>Running on Ubuntu 11.10 and a summary of ompi_info:</div><div><div>Package: Open MPI buildd@allspice Distribution</div><div>Open MPI: 1.4.3</div><div>Open MPI SVN revision: r23834</div><div>Open MPI release date: Oct 05, 2010</div>
+
+
+<div>Open RTE: 1.4.3</div><div>Open RTE SVN revision: r23834</div><div>Open RTE release date: Oct 05, 2010</div><div>OPAL: 1.4.3</div><div>OPAL SVN revision: r23834</div><div>OPAL release date: Oct 05, 2010</div><div>Ident string: 1.4.3</div>
+
+
+<div>Prefix: /usr</div><div>Configured architecture: x86_64-pc-linux-gnu</div><div>Configure host: allspice</div><div>Configured by: buildd</div></div><div><br></div><div>Thanks!</div><span><font color="#888888"><div>
+Brett</div>
+</font></span><br></div></div>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><span class="HOEnZb"><font color="#888888"><br></font></span></blockquote></div><span class="HOEnZb"><font color="#888888"><br>
+<br clear="all"><br>-- <br><font color="#888888">| Teng Ma          Univ. of Tennessee |<br>
+
+| <a href="mailto:tma@cs.utk.edu" target="_blank">tma@cs.utk.edu</a>        Knoxville, TN |<br>
+| <a href="http://web.eecs.utk.edu/%7Etma/" target="_blank">http://web.eecs.utk.edu/~tma/</a>       |</font><br>
+</font></span><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br></div>
+

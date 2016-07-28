@@ -1,0 +1,745 @@
+<div dir="ltr"><div><div><div><div><div><div>Sorry for belabouring on this, but this (hopefully final!) piece of information might be of interest to the developers:<br><br></div>There must be a reason why PSM is installing its signal handlers; often this is done to modify the permission of a page in response to a SEGV and attempt access again. By disabling the handlers, I am preventing the library from doing that, and here is what it tells me:<br><br><span style="font-family:monospace,monospace">[durga@smallMPI ~]$ mpirun -np 2  ./mpitest<br>[smallMPI:20496] *** Process received signal ***<br>[smallMPI:20496] Signal: Segmentation fault (11)<br>[smallMPI:20496] Signal code: Invalid permissions (2)<br>[smallMPI:20496] Failing at address: 0x7f0b2fdb57d8<br>[smallMPI:20496] [ 0] /lib64/libpthread.so.0(+0xf100)[0x7f0b2fdcb100]<br>[smallMPI:20496] [ 1] /lib64/libc.so.6(+0x3ba7d8)[0x7f0b2fdb57d8]<br>[smallMPI:20496] *** End of error message ***<br>[smallMPI:20497] *** Process received signal ***<br>[smallMPI:20497] Signal: Segmentation fault (11)<br>[smallMPI:20497] Signal code: Invalid permissions (2)<br>[smallMPI:20497] Failing at address: 0x7fbfe2b387d8<br>[smallMPI:20497] [ 0] /lib64/libpthread.so.0(+0xf100)[0x7fbfe2b4e100]<br>[smallMPI:20497] [ 1] /lib64/libc.so.6(+0x3ba7d8)[0x7fbfe2b387d8]<br>[smallMPI:20497] *** End of error message ***<br>-------------------------------------------------------<br>Primary job  terminated normally, but 1 process returned<br>a non-zero exit code. Per user-direction, the job has been aborted.<br>-------------------------------------------------------</span><br><br></div>However, even without disabling it, it crashes anyway, as follows:<br><br><span style="font-family:monospace,monospace">unset IPATH_NO_BACKTRACE<br><br>[durga@smallMPI ~]$ mpirun -np 2  ./mpitest<br><br>mpitest:22009 terminated with signal 11 at PC=7f908bb2a7d8 SP=7ffebb4ee5b8.  Backtrace:<br>/lib64/libc.so.6(+0x3ba7d8)[0x7f908bb2a7d8]<br><br>mpitest:22010 terminated with signal 11 at PC=7f7a2caa67d8 SP=7ffd73dec3e8.  Backtrace:<br>/lib64/libc.so.6(+0x3ba7d8)[0x7f7a2caa67d8]</span><br><br></div>The PC is at a different location but I do not have any more information without a core file.<br><br></div>It seems like some interaction between OMPI and PSM library is incorrect. I&#39;ll let the developers figure it out :-)<br><br><br></div>Thanks<br></div>Durga<br><div><div><br><div><div><br><br></div></div></div></div></div><div class="gmail_extra"><br clear="all"><div><div class="gmail_signature"><div dir="ltr"><div><div dir="ltr">The surgeon general advises you to eat right, exercise regularly and quit ageing.</div></div></div></div></div>
+<br><div class="gmail_quote">On Wed, May 11, 2016 at 11:23 PM, dpchoudh . <span dir="ltr">&lt;<a href="mailto:dpchoudh@gmail.com" target="_blank">dpchoudh@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div><div><div><div><div><div><div><div>Hello <span name="Gilles Gouaillardet">Gilles<br><br></span></div><span name="Gilles Gouaillardet">Mystery solved! In fact, this one line is exactly what was needed!! It turns out the OMPI signal handlers are irrelevant. (i.e. don&#39;t make any difference when this env variable is set)<br><br></span></div><span name="Gilles Gouaillardet">This explains:<br><br></span></div><span name="Gilles Gouaillardet">1. The difference in the behaviour in the two clusters (one has PSM, the other does not)<br></span></div><span name="Gilles Gouaillardet">2. Why you couldn&#39;t find where in OMPI code the .btr files are being generated (looks like they are being generated in PSM library)<br><br></span></div><span name="Gilles Gouaillardet">And, now that I can get a core file (finally!), I can present the back trace where the crash in MPI_Init() is happening. It is as follows:<br><br><span style="font-family:monospace,monospace">#0  0x00007f1c114977d8 in main_arena () from /lib64/libc.so.6<br>#1  0x00007f1c106719ac in device_destruct (device=0x1c85b70) at btl_openib_component.c:985<br>#2  0x00007f1c1066d0ae in opal_obj_run_destructors (object=0x1c85b70) at ../../../../opal/class/opal_object.h:460<br>#3  0x00007f1c10674d3c in init_one_device (btl_list=0x7ffd00dada50, ib_dev=0x1c85430) at btl_openib_component.c:2255<br>#4  0x00007f1c10676800 in btl_openib_component_init (num_btl_modules=0x7ffd00dadb80, enable_progress_threads=true, enable_mpi_threads=false)<br>    at btl_openib_component.c:2752<br>#5  0x00007f1c10633971 in mca_btl_base_select (enable_progress_threads=true, enable_mpi_threads=false) at base/btl_base_select.c:110<br>#6  0x00007f1c117fb0a0 in mca_bml_r2_component_init (priority=0x7ffd00dadc4c, enable_progress_threads=true, enable_mpi_threads=false)<br>    at bml_r2_component.c:86<br>#7  0x00007f1c117f8033 in mca_bml_base_init (enable_progress_threads=true, enable_mpi_threads=false) at base/bml_base_init.c:74<br>#8  0x00007f1c1173f675 in ompi_mpi_init (argc=1, argv=0x7ffd00dae008, requested=0, provided=0x7ffd00daddbc) at runtime/ompi_mpi_init.c:590<br>#9  0x00007f1c1177c8b7 in PMPI_Init (argc=0x7ffd00daddfc, argv=0x7ffd00daddf0) at pinit.c:66<br>#10 0x0000000000400aa0 in main (argc=1, argv=0x7ffd00dae008) at mpitest.c:17</span><br><br></span></div><span name="Gilles Gouaillardet">This is with the absolute latest code from master.<br><br></span></div><span name="Gilles Gouaillardet">Thanks everyone for their help.<br><br></span></div><span name="Gilles Gouaillardet">Durga<br></span></div><div class="gmail_extra"><span class=""><br clear="all"><div><div><div dir="ltr"><div><div dir="ltr">The surgeon general advises you to eat right, exercise regularly and quit ageing.</div></div></div></div></div>
+<br></span><div class="gmail_quote"><div><div class="h5">On Wed, May 11, 2016 at 10:55 PM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span> wrote:<br></div></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div class="h5">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    <p>Note the psm library sets its own signal handler, possibly after
+      the OpenMPI one.</p>
+    <p>that can be disabled by</p>
+    <pre><code>export IPATH_NO_BACKTRACE=1
+
+Cheers,
+
+Gilles
+</code></pre><div><div>
+    <br>
+    <div>On 5/12/2016 11:34 AM, dpchoudh .
+      wrote:<br>
+    </div>
+    </div></div><blockquote type="cite"><div><div>
+      <div dir="ltr">
+        <div>
+          <div>
+            <div>
+              <div>
+                <div>
+                  <div>
+                    <div>
+                      <div>
+                        <div>
+                          <div>
+                            <div>
+                              <div>
+                                <div>
+                                  <div>
+                                    <div>
+                                      <div>
+                                        <div>
+                                          <div>
+                                            <div>Hello <span name="Gilles
+                                                Gouaillardet">Gilles<br>
+                                                <br>
+                                              </span></div>
+                                            <span name="Gilles
+                                              Gouaillardet">Thank
+                                              you for your continued
+                                              support. With your help, I
+                                              have a better
+                                              understanding of what is
+                                              happening. Here are the
+                                              details.<br>
+                                              <br>
+                                            </span></div>
+                                          <span name="Gilles
+                                            Gouaillardet">1.
+                                            Yes, I am sure that ulimit
+                                            -c is &#39;unlimited&#39; (and for
+                                            the test in question, I am
+                                            running it on a single node,
+                                            so there are no other nodes)<br>
+                                            <br>
+                                          </span></div>
+                                        <span name="Gilles Gouaillardet">2. The command I am
+                                          running is possibly the
+                                          simplest MPI command:<br>
+                                        </span></div>
+                                      <span name="Gilles Gouaillardet">mpirun -np 2
+                                        &lt;program&gt;<br>
+                                        <br>
+                                      </span></div>
+                                    <span name="Gilles Gouaillardet">It looks to me, after
+                                      running your test code, that what
+                                      is crashing is MPI_Init() itself.
+                                      The output from your code (I
+                                      called it &#39;btrtest&#39;) is as
+                                      follows:<br>
+                                      <br>
+                                      <span style="font-family:monospace,monospace">[durga@smallMPI
+                                        ~]$ mpirun -np 2 ./btrtest<br>
+                                        before MPI_Init : -1 -1<br>
+                                        before MPI_Init : -1 -1<br>
+                                        <br>
+                                        btrtest:7275 terminated with
+                                        signal 11 at PC=7f401f49e7d8
+                                        SP=7ffec47e7578.  Backtrace:<br>
+/lib64/libc.so.6(+0x3ba7d8)[0x7f401f49e7d8]<br>
+                                        <br>
+                                        btrtest:7274 terminated with
+                                        signal 11 at PC=7f1ba21897d8
+                                        SP=7ffc516ac8d8.  Backtrace:<br>
+/lib64/libc.so.6(+0x3ba7d8)[0x7f1ba21897d8]<br>
+-------------------------------------------------------<br>
+                                        Primary job  terminated
+                                        normally, but 1 process returned<br>
+                                        a non-zero exit code. Per
+                                        user-direction, the job has been
+                                        aborted.<br>
+-------------------------------------------------------<br>
+--------------------------------------------------------------------------<br>
+                                        mpirun detected that one or more
+                                        processes exited with non-zero
+                                        status, thus causing<br>
+                                        the job to be terminated. The
+                                        first process to do so was:<br>
+                                        <br>
+                                          Process name: [[7936,1],1]<br>
+                                          Exit code:    1<br>
+--------------------------------------------------------------------------<br>
+                                      </span><br>
+                                    </span></div>
+                                  <span name="Gilles Gouaillardet">So obviously the code does
+                                    not make it past MPI_Init()<br>
+                                    <br>
+                                  </span></div>
+                                <span name="Gilles Gouaillardet">This is an issue that I have
+                                  been observing for quite a while in
+                                  different forms and have reported on
+                                  the forum a few times also. Let me
+                                  elaborate:<br>
+                                  <br>
+                                </span></div>
+                              <span name="Gilles Gouaillardet">Both
+                                my &#39;well-behaving&#39; and crashing clusters
+                                run CentOS 7 (the crashing one has the
+                                latest updates, the well-behaving one
+                                does not as I am not allowed to apply
+                                updates on that). They both have OMPI,
+                                from the master branch, compiled from
+                                the source. Both consist of 64 bit Dell
+                                servers, although not identical models
+                                (I doubt if that matters)<br>
+                                <br>
+                              </span></div>
+                            <span name="Gilles Gouaillardet">The
+                              only significant difference between the
+                              two is this:<br>
+                              <br>
+                            </span></div>
+                          <span name="Gilles Gouaillardet">The
+                            well behaved one (if it does core dump, that
+                            is because there is a bug in the MPI app)
+                            has very simple network hardware: two
+                            different NICs (one Broadcom GbE, one
+                            proprietary NIC that is currently being
+                            exposed as an IP interface). There is no
+                            RDMA capability there at all.<br>
+                            <br>
+                          </span></div>
+                        <span name="Gilles Gouaillardet">The
+                          crashing one have 4 different NICs:<br>
+                        </span></div>
+                      <span name="Gilles Gouaillardet">1.
+                        Broadcom GbE<br>
+                      </span></div>
+                    <span name="Gilles Gouaillardet">2. Chelsio
+                      T3 based 10Gb iWARP NIC<br>
+                      3. QLogic 20Gb Infiniband (PSM capable)<br>
+                    </span></div>
+                  <span name="Gilles Gouaillardet">4. LSI logic
+                    Fibre channel<br>
+                    <br>
+                  </span></div>
+                <span name="Gilles Gouaillardet">In this
+                  situation, WITH ALL BUT THE GbE LINK DOWN (the GbE
+                  connects the machine to the WAN link), it seems just
+                  the presence of these NICs matter.<br>
+                  <br>
+                </span></div>
+              <span name="Gilles Gouaillardet">Here are the
+                various commands and outputs:<br>
+                <br>
+                <span style="font-family:monospace,monospace">[durga@smallMPI
+                  ~]$ mpirun -np 2 ./btrtest<br>
+                  before MPI_Init : -1 -1<br>
+                  before MPI_Init : -1 -1<br>
+                  <br>
+                  btrtest:10032 terminated with signal 11 at
+                  PC=7f6897c197d8 SP=7ffcae2b2ef8.  Backtrace:<br>
+                  /lib64/libc.so.6(+0x3ba7d8)[0x7f6897c197d8]<br>
+                  <br>
+                  btrtest:10033 terminated with signal 11 at
+                  PC=7fb035c3e7d8 SP=7ffe61a92088.  Backtrace:<br>
+                  /lib64/libc.so.6(+0x3ba7d8)[0x7fb035c3e7d8]<br>
+-------------------------------------------------------<br>
+                  Primary job  terminated normally, but 1 process
+                  returned<br>
+                  a non-zero exit code. Per user-direction, the job has
+                  been aborted.<br>
+-------------------------------------------------------<br>
+--------------------------------------------------------------------------<br>
+                  mpirun detected that one or more processes exited with
+                  non-zero status, thus causing<br>
+                  the job to be terminated. The first process to do so
+                  was:<br>
+                  <br>
+                    Process name: [[9294,1],0]<br>
+                    Exit code:    1<br>
+--------------------------------------------------------------------------</span><br>
+                <br>
+                <span style="font-family:monospace,monospace">[durga@smallMPI
+                  ~]$ mpirun -np 2 -mca pml ob1 ./btrtest<br>
+                  before MPI_Init : -1 -1<br>
+                  before MPI_Init : -1 -1<br>
+                  <br>
+                  btrtest:10076 terminated with signal 11 at
+                  PC=7fa92d20b7d8 SP=7ffebb106028.  Backtrace:<br>
+                  /lib64/libc.so.6(+0x3ba7d8)[0x7fa92d20b7d8]<br>
+                  <br>
+                  btrtest:10077 terminated with signal 11 at
+                  PC=7f5012fa57d8 SP=7ffea4f4fdf8.  Backtrace:<br>
+                  /lib64/libc.so.6(+0x3ba7d8)[0x7f5012fa57d8]<br>
+-------------------------------------------------------<br>
+                  Primary job  terminated normally, but 1 process
+                  returned<br>
+                  a non-zero exit code. Per user-direction, the job has
+                  been aborted.<br>
+-------------------------------------------------------<br>
+--------------------------------------------------------------------------<br>
+                  mpirun detected that one or more processes exited with
+                  non-zero status, thus causing<br>
+                  the job to be terminated. The first process to do so
+                  was:<br>
+                  <br>
+                    Process name: [[9266,1],0]<br>
+                    Exit code:    1<br>
+--------------------------------------------------------------------------</span><br>
+                <br>
+                <span style="font-family:monospace,monospace">[durga@smallMPI
+                  ~]$ mpirun -np 2 -mca pml ob1 -mca btl self,sm
+                  ./btrtest<br>
+                  before MPI_Init : -1 -1<br>
+                  before MPI_Init : -1 -1<br>
+                  <br>
+                  btrtest:10198 terminated with signal 11 at PC=400829
+                  SP=7ffe6e148870.  Backtrace:<br>
+                  <br>
+                  btrtest:10197 terminated with signal 11 at PC=400829
+                  SP=7ffe87be6cd0.  Backtrace:<br>
+                  ./btrtest[0x400829]<br>
+/lib64/libc.so.6(__libc_start_main+0xf5)[0x7f9473bbeb15]<br>
+                  ./btrtest[0x4006d9]<br>
+                  ./btrtest[0x400829]<br>
+/lib64/libc.so.6(__libc_start_main+0xf5)[0x7fdfe2d8eb15]<br>
+                  ./btrtest[0x4006d9]<br>
+                  after MPI_Init : -1 -1<br>
+                  after MPI_Init : -1 -1<br>
+-------------------------------------------------------<br>
+                  Primary job  terminated normally, but 1 process
+                  returned<br>
+                  a non-zero exit code. Per user-direction, the job has
+                  been aborted.<br>
+-------------------------------------------------------<br>
+--------------------------------------------------------------------------<br>
+                  mpirun detected that one or more processes exited with
+                  non-zero status, thus causing<br>
+                  the job to be terminated. The first process to do so
+                  was:<br>
+                  <br>
+                    Process name: [[9384,1],1]<br>
+                    Exit code:    1<br>
+--------------------------------------------------------------------------<br>
+                </span><br>
+                <br>
+                <span style="font-family:monospace,monospace">[durga@smallMPI
+                  ~]$ ulimit -a<br>
+                  core file size          (blocks, -c) unlimited<br>
+                  data seg size           (kbytes, -d) unlimited<br>
+                  scheduling priority             (-e) 0<br>
+                  file size               (blocks, -f) unlimited<br>
+                  pending signals                 (-i) 216524<br>
+                  max locked memory       (kbytes, -l) unlimited<br>
+                  max memory size         (kbytes, -m) unlimited<br>
+                  open files                      (-n) 1024<br>
+                  pipe size            (512 bytes, -p) 8<br>
+                  POSIX message queues     (bytes, -q) 819200<br>
+                  real-time priority              (-r) 0<br>
+                  stack size              (kbytes, -s) 8192<br>
+                  cpu time               (seconds, -t) unlimited<br>
+                  max user processes              (-u) 4096<br>
+                  virtual memory          (kbytes, -v) unlimited<br>
+                  file locks                      (-x) unlimited<br>
+                  [durga@smallMPI ~]$ </span><br>
+                <br>
+                <br>
+              </span></div>
+            <span name="Gilles Gouaillardet">I do realize that
+              my setup is very unusual (I am a quasi-developer of MPI
+              whereas most other folks in this list are likely
+              end-users), but somehow just disabling this &#39;execinfo&#39; MCA
+              would allow me to make progress (and also find out
+              why/where MPI_Init() is crashing!). Is there any way I can
+              do that?<br>
+              <br>
+            </span></div>
+          <span name="Gilles Gouaillardet">Thank you<br>
+          </span></div>
+        <span name="Gilles Gouaillardet">Durga<br>
+        </span></div>
+      <div class="gmail_extra"><br clear="all">
+        <div>
+          <div>
+            <div dir="ltr">
+              <div>
+                <div dir="ltr">The surgeon general advises you to eat
+                  right, exercise regularly and quit ageing.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <br>
+        <div class="gmail_quote">On Wed, May 11, 2016 at 8:58 PM, Gilles
+          Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span>
+          wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+            <div bgcolor="#FFFFFF" text="#000000">
+              <p>Are you sure ulimit -c unlimited is *really* applied on
+                all hosts</p>
+              <p><br>
+              </p>
+              <p>can you please run the simple program below and confirm
+                that ?</p>
+              <p><br>
+              </p>
+              <p>Cheers,</p>
+              <p><br>
+              </p>
+              <p>Gilles</p>
+              <p><br>
+              </p>
+              <p>#include &lt;sys/time.h&gt;<br>
+                #include &lt;sys/resource.h&gt;<br>
+                #include &lt;poll.h&gt;<br>
+                #include &lt;stdio.h&gt;<br>
+                <br>
+                int main(int argc, char *argv[]) {<br>
+                    struct rlimit rlim;<br>
+                    char * c = (char *)0;<br>
+                    getrlimit(RLIMIT_CORE, &amp;rlim);<br>
+                    printf (&quot;before MPI_Init : %d %d\n&quot;, rlim.rlim_cur,
+                rlim.rlim_max);<br>
+                    MPI_Init(&amp;argc, &amp;argv);<br>
+                    getrlimit(RLIMIT_CORE, &amp;rlim);<br>
+                    printf (&quot;after MPI_Init : %d %d\n&quot;, rlim.rlim_cur,
+                rlim.rlim_max);<br>
+                    *c = 0;<br>
+                    MPI_Finalize();<br>
+                    return 0;<br>
+                }<br>
+                <br>
+              </p>
+              <br>
+              <div>On 5/12/2016 4:22 AM, dpchoudh . wrote:<br>
+              </div>
+              <blockquote type="cite">
+                <div dir="ltr">
+                  <div>
+                    <div>Hello <span name="Gilles Gouaillardet">Gilles<br>
+                        <br>
+                      </span></div>
+                    <span name="Gilles Gouaillardet">Thank you for the
+                      advice. However, that did not seem to make any
+                      difference. Here is what I did (on the cluster
+                      that generates .btr files for core dumps):<br>
+                      <br>
+                      <span style="font-family:monospace,monospace">[durga@smallMPI
+                        git]$ ompi_info --all | grep opal_signal<br>
+                                   MCA opal base: parameter
+                        &quot;opal_signal&quot; (current value: &quot;6,7,8,11&quot;, data
+                        source: default, level: 3 user/all, type:
+                        string)<br>
+                        [durga@smallMPI git]$ </span><br>
+                      <br>
+                      <br>
+                    </span></div>
+                  <span name="Gilles Gouaillardet">According to
+                    &lt;bits/signum.h&gt;, signals 6.7,8,11 are this:<br>
+                    <br>
+                    <span style="font-family:monospace,monospace">#define   
+                      SIGABRT        6    /* Abort (ANSI).  */<br>
+                      #define    SIGBUS        7    /* BUS error (4.2
+                      BSD).  */<br>
+                      #define    SIGFPE        8    /* Floating-point
+                      exception (ANSI).  */<br>
+                      #define    SIGSEGV        11    /* Segmentation
+                      violation (ANSI).  */</span><br>
+                  </span>
+                  <div><span name="Gilles Gouaillardet"><br>
+                    </span>
+                    <div>
+                      <div class="gmail_extra">And thus I added the
+                        following just after MPI_Init()<br>
+                        <br>
+                            <span style="font-family:monospace,monospace">MPI_Init(&amp;argc,
+                          &amp;argv);<br>
+                              signal(SIGABRT, SIG_DFL);<br>
+                              signal(SIGBUS, SIG_DFL);<br>
+                              signal(SIGFPE, SIG_DFL);<br>
+                              signal(SIGSEGV, SIG_DFL);<br>
+                              signal(SIGTERM, SIG_DFL);</span><br>
+                        <br>
+                      </div>
+                      <div class="gmail_extra">(I added the &#39;SIGTERM&#39;
+                        part later, just in case it would make a
+                        difference; i didn&#39;t)<br>
+                        <br>
+                      </div>
+                      <div class="gmail_extra">The resulting code still
+                        generates .btr files instead of core files.<br>
+                        <br>
+                      </div>
+                      <div class="gmail_extra">It looks like the
+                        &#39;execinfo&#39; MCA component is being used as the
+                        backtrace mechanism:<br>
+                        <br>
+                        <span style="font-family:monospace,monospace">[durga@smallMPI
+                          git]$ ompi_info | grep backtrace<br>
+                                     MCA backtrace: execinfo (MCA
+                          v2.1.0, API v2.0.0, Component v3.0.0)</span><br>
+                        <br>
+                      </div>
+                      <div class="gmail_extra">However, I could not find
+                        any way to choose &#39;none&#39; instead of &#39;execinfo&#39;<br>
+                      </div>
+                      <div class="gmail_extra"><br>
+                      </div>
+                      <div class="gmail_extra">And the strange thing is,
+                        on the cluster where regular core dump is
+                        happening, the output of <br>
+                        <span style="font-family:monospace,monospace">$
+                          ompi_info | grep backtrace</span><br>
+                      </div>
+                      <div class="gmail_extra">is identical to the
+                        above. (Which kind of makes sense because they
+                        were created from the same source with the same
+                        configure options.)<br>
+                      </div>
+                      <div class="gmail_extra"><br>
+                      </div>
+                      <div class="gmail_extra">Sorry to harp on this,
+                        but without a core file it is hard to debug the
+                        application (e.g. examine stack variables).<br>
+                        <br>
+                      </div>
+                      <div class="gmail_extra">Thank you<br>
+                      </div>
+                      <div class="gmail_extra">Durga<br>
+                        <br>
+                      </div>
+                      <div class="gmail_extra"><br clear="all">
+                      </div>
+                      <div class="gmail_extra">
+                        <div>
+                          <div>
+                            <div dir="ltr">
+                              <div>
+                                <div dir="ltr">The surgeon general
+                                  advises you to eat right, exercise
+                                  regularly and quit ageing.</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <br>
+                        <div class="gmail_quote">On Wed, May 11, 2016 at
+                          3:37 AM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@gmail.com" target="_blank"></a><a href="mailto:gilles.gouaillardet@gmail.com" target="_blank">gilles.gouaillardet@gmail.com</a>&gt;</span>
+                          wrote:<br>
+                          <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">Durga,<br>
+                            <br>
+                            you might wanna try to restore the signal
+                            handler for other signals as well<br>
+                            (SIGSEGV, SIGBUS, ...)<br>
+                            ompi_info --all | grep opal_signal<br>
+                            does list the signal you should restore the
+                            handler<br>
+                            <br>
+                            <br>
+                            only one backtrace component is built (out
+                            of several candidates :<br>
+                            execinfo, none, printstack)<br>
+                            nm -l libopen-pal.so | grep backtrace<br>
+                            will hint you which component was built<br>
+                            <br>
+                            your two similar distros might have
+                            different backtrace component<br>
+                            <br>
+                            <br>
+                            <br>
+                            Gus,<br>
+                            <br>
+                            btr is a plain text file with a back trace
+                            &quot;ala&quot; gdb<br>
+                            <br>
+                            <br>
+                            <br>
+                            Nathan,<br>
+                            <br>
+                            i did a &#39;grep btr&#39; and could not find
+                            anything :-(<br>
+                            opal_backtrace_buffer and
+                            opal_backtrace_print are only used with
+                            stderr.<br>
+                            so i am puzzled who creates the tracefile
+                            name and where ...<br>
+                            also, no stack is printed by default unless
+                            opal_abort_print_stack is true<br>
+                            <br>
+                            Cheers,<br>
+                            <br>
+                            Gilles<br>
+                            <br>
+                            <br>
+                            On Wed, May 11, 2016 at 3:43 PM, dpchoudh .
+                            &lt;<a href="mailto:dpchoudh@gmail.com" target="_blank">dpchoudh@gmail.com</a>&gt;
+                            wrote:<br>
+                            &gt; Hello Nathan<br>
+                            &gt;<br>
+                            &gt; Thank you for your response. Could you
+                            please be more specific? Adding the<br>
+                            &gt; following after MPI_Init() does not
+                            seem to make a difference.<br>
+                            &gt;<br>
+                            &gt;     MPI_Init(&amp;argc, &amp;argv);<br>
+                            &gt;   signal(SIGABRT, SIG_DFL);<br>
+                            &gt;   signal(SIGTERM, SIG_DFL);<br>
+                            &gt;<br>
+                            &gt; I also find it puzzling that nearly
+                            identical OMPI distro running on a<br>
+                            &gt; different machine shows different
+                            behaviour.<br>
+                            &gt;<br>
+                            &gt; Best regards<br>
+                            &gt; Durga<br>
+                            &gt;<br>
+                            &gt; The surgeon general advises you to eat
+                            right, exercise regularly and quit<br>
+                            &gt; ageing.<br>
+                            &gt;<br>
+                            &gt; On Tue, May 10, 2016 at 10:02 AM,
+                            Hjelm, Nathan Thomas &lt;<a href="mailto:hjelmn@lanl.gov" target="_blank"></a><a href="mailto:hjelmn@lanl.gov" target="_blank">hjelmn@lanl.gov</a>&gt;<br>
+                            &gt; wrote:<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; btr files are indeed created by
+                            open mpi&#39;s backtrace mechanism. I think we<br>
+                            &gt;&gt; should revisit it at some point but
+                            for now the only effective way i have<br>
+                            &gt;&gt; found to prevent it is to restore
+                            the default signal handlers after<br>
+                            &gt;&gt; MPI_Init.<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; Excuse the quoting style. Good
+                            sucks.<br>
+                            &gt;&gt;<br>
+                            &gt;&gt;<br>
+                            &gt;&gt;
+                            ________________________________________<br>
+                            &gt;&gt; From: users on behalf of dpchoudh .<br>
+                            &gt;&gt; Sent: Monday, May 09, 2016 2:59:37
+                            PM<br>
+                            &gt;&gt; To: Open MPI Users<br>
+                            &gt;&gt; Subject: Re: [OMPI users] No core
+                            dump in some cases<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; Hi Gus<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; Thanks for your suggestion. But I
+                            am not using any resource manager (i.e.<br>
+                            &gt;&gt; I am launching mpirun from the bash
+                            shell.). In fact, both of the two<br>
+                            &gt;&gt; clusters I talked about run CentOS
+                            7 and I launch the job the same way on<br>
+                            &gt;&gt; both of these, yet one of them
+                            creates standard core files and the other<br>
+                            &gt;&gt; creates the &#39;btr; files. Strange
+                            thing is, I could not find anything on the<br>
+                            &gt;&gt; .btr (= Backtrace?) files on
+                            Google, which is any I asked on this forum.<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; Best regards<br>
+                            &gt;&gt; Durga<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; The surgeon general advises you to
+                            eat right, exercise regularly and quit<br>
+                            &gt;&gt; ageing.<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; On Mon, May 9, 2016 at 12:04 PM,
+                            Gus Correa<br>
+                            &gt;&gt; &lt;<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&lt;mailto:<a href="mailto:gus@ldeo.columbia.edu" target="_blank"></a><a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt;&gt;
+                            wrote:<br>
+                            &gt;&gt; Hi Durga<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; Just in case ...<br>
+                            &gt;&gt; If you&#39;re using a resource manager
+                            to start the jobs (Torque, etc),<br>
+                            &gt;&gt; you need to have them set the
+                            limits (for coredump size, stacksize, locked<br>
+                            &gt;&gt; memory size, etc).<br>
+                            &gt;&gt; This way the jobs will inherit the
+                            limits from the<br>
+                            &gt;&gt; resource manager daemon.<br>
+                            &gt;&gt; On Torque (which I use) I do this
+                            on the pbs_mom daemon<br>
+                            &gt;&gt; init script (I am still before the
+                            systemd era, that lovely POS).<br>
+                            &gt;&gt; And set the hard/soft limits on
+                            /etc/security/limits.conf as well.<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; I hope this helps,<br>
+                            &gt;&gt; Gus Correa<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; On 05/07/2016 12:27 PM, Jeff
+                            Squyres (jsquyres) wrote:<br>
+                            &gt;&gt; I&#39;m afraid I don&#39;t know what a .btr
+                            file is -- that is not something that<br>
+                            &gt;&gt; is controlled by Open MPI.<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; You might want to look into your OS
+                            settings to see if it has some kind of<br>
+                            &gt;&gt; alternate corefile mechanism...?<br>
+                            &gt;&gt;<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; On May 6, 2016, at 8:58 PM,
+                            dpchoudh .<br>
+                            &gt;&gt; &lt;<a href="mailto:dpchoudh@gmail.com" target="_blank">dpchoudh@gmail.com</a>&lt;mailto:<a href="mailto:dpchoudh@gmail.com" target="_blank"></a><a href="mailto:dpchoudh@gmail.com" target="_blank">dpchoudh@gmail.com</a>&gt;&gt;
+                            wrote:<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; Hello all<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; I run MPI jobs (for test purpose
+                            only) on two different &#39;clusters&#39;. Both<br>
+                            &gt;&gt; &#39;clusters&#39; have two nodes only,
+                            connected back-to-back. The two are very<br>
+                            &gt;&gt; similar, but not identical, both
+                            software and hardware wise.<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; Both have ulimit -c set to
+                            unlimited. However, only one of the two
+                            creates<br>
+                            &gt;&gt; core files when an MPI job crashes.
+                            The other creates a text file named<br>
+                            &gt;&gt; something like<br>
+                            &gt;&gt;<br>
+                            &gt;&gt;
+&lt;program_name_that_crashed&gt;.80s-&lt;a-number-that-looks-like-a-PID&gt;,&lt;hostname-where-the-crash-happened&gt;.btr<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; I&#39;d much prefer a core file because
+                            that allows me to debug with a lot<br>
+                            &gt;&gt; more options than a static text
+                            file with addresses. How do I get a core<br>
+                            &gt;&gt; file in all situations? I am using
+                            MPI source from the master branch.<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; Thanks in advance<br>
+                            &gt;&gt; Durga<br>
+                            &gt;&gt;<br>
+                            &gt;&gt; The surgeon general advises you to
+                            eat right, exercise regularly and quit<br>
+                            &gt;&gt; ageing.<br>
+                            &gt;&gt;
+                            _______________________________________________<br>
+                            &gt;&gt; users mailing list<br>
+                            &gt;&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&lt;mailto:<a href="mailto:users@open-mpi.org" target="_blank"></a><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&gt;<br>
+                            &gt;&gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank"></a><a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                            &gt;&gt; Link to this post:<br>
+                            &gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2016/05/29124.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29124.php</a><br>
+                            &gt;&gt;<br>
+                            &gt;&gt;<br>
+                            &gt;&gt;<br>
+                            &gt;&gt;
+                            _______________________________________________<br>
+                            &gt;&gt; users mailing list<br>
+                            &gt;&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&lt;mailto:<a href="mailto:users@open-mpi.org" target="_blank"></a><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&gt;<br>
+                            &gt;&gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank"></a><a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                            &gt;&gt; Link to this post:<br>
+                            &gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2016/05/29141.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29141.php</a><br>
+                            &gt;&gt;<br>
+                            &gt;&gt;
+                            _______________________________________________<br>
+                            &gt;&gt; users mailing list<br>
+                            &gt;&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+                            &gt;&gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank"></a><a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                            &gt;&gt; Link to this post:<br>
+                            &gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2016/05/29154.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29154.php</a><br>
+                            &gt;<br>
+                            &gt;<br>
+                            &gt;<br>
+                            &gt;
+                            _______________________________________________<br>
+                            &gt; users mailing list<br>
+                            &gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+                            &gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank"></a><a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                            &gt; Link to this post:<br>
+                            &gt; <a href="http://www.open-mpi.org/community/lists/users/2016/05/29169.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29169.php</a><br>
+_______________________________________________<br>
+                            users mailing list<br>
+                            <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+                            Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                            Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29170.php" rel="noreferrer" target="_blank"></a><a href="http://www.open-mpi.org/community/lists/users/2016/05/29170.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29170.php</a><br>
+                          </blockquote>
+                        </div>
+                        <br>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <br>
+                <fieldset></fieldset>
+                <br>
+                <pre>_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29176.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29176.php</a></pre>
+              </blockquote>
+              <br>
+            </div>
+            <br>
+            _______________________________________________<br>
+            users mailing list<br>
+            <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+            Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+            Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29177.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29177.php</a><br>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      </div></div><pre><div><div>_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29178.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29178.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29181.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29181.php</a><br></blockquote></div><br></div>
+</blockquote></div><br></div>
+

@@ -1,0 +1,346 @@
+<div dir="ltr"><div>already there! </div><div>:)<br><br></div><div class="gmail_quote">On Fri, Mar 2, 2012 at 6:36 PM, Jeffrey Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+
+<blockquote style="margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-color:rgb(204,204,204);border-left-width:1px;border-left-style:solid" class="gmail_quote">Sweet!<br>
+<br>
+Can you document this on the wiki in the listing of all the INI fields?<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On Mar 2, 2012, at 10:27 AM, <a href="mailto:miked@osl.iu.edu">miked@osl.iu.edu</a> wrote:<br>
+<br>
+&gt; Author: miked<br>
+&gt; Date: 2012-03-02 10:27:34 EST (Fri, 02 Mar 2012)<br>
+&gt; New Revision: 1440<br>
+&gt; URL: <a href="https://svn.open-mpi.org/trac/mtt/changeset/1440" target="_blank">https://svn.open-mpi.org/trac/mtt/changeset/1440</a><br>
+&gt;<br>
+&gt; Log:<br>
+&gt; Now it is possible to shuffle tests in mtt. The parameter that enables this feature is:<br>
+&gt; shuffle_tests=<br>
+&gt; it can be assigned a comma separated list of allowed values: sections, tests, execs, nps, args, all.<br>
+&gt;<br>
+&gt; Notations:<br>
+&gt;       sections - shuffle test_run sections found in mtt<br>
+&gt;       tests - shuffle test executables if any (we have single executable per test_run)<br>
+&gt;       execs - shuffle exec command line present in main [MTT] section<br>
+&gt;       nps - shuffle runs with different nps<br>
+&gt;       args - shuffle executable arguments<br>
+&gt;       all - enable all the above.<br>
+&gt;<br>
+&gt;<br>
+&gt; Text files modified:<br>
+&gt;   trunk/lib/MTT/Globals.pm           |    65 +++++++++++----------------------------<br>
+&gt;   trunk/lib/MTT/Reporter/Email.pm    |     6 ++-<br>
+&gt;   trunk/lib/MTT/Reporter/TextFile.pm |     2<br>
+&gt;   trunk/lib/MTT/Test/Run.pm          |     7 +++<br>
+&gt;   trunk/lib/MTT/Test/RunEngine.pm    |    61 +++++++++++++++++++++++++++++--------<br>
+&gt;   trunk/lib/MTT/Util.pm              |    14 ++++++-<br>
+&gt;   6 files changed, 89 insertions(+), 66 deletions(-)<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Globals.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Globals.pm  (original)<br>
+&gt; +++ trunk/lib/MTT/Globals.pm  2012-03-02 10:27:34 EST (Fri, 02 Mar 2012)<br>
+&gt; @@ -80,8 +80,7 @@<br>
+&gt;<br>
+&gt;     save_intermediate_report =&gt; undef,<br>
+&gt;     save_intermediate_report_enable =&gt; undef,<br>
+&gt; -    ini_value_run_for =&gt; undef,<br>
+&gt; -    start_time =&gt; localtime,<br>
+&gt; +     shuffle_tests =&gt; undef,<br>
+&gt;     description =&gt; undef,<br>
+&gt; };<br>
+&gt;<br>
+&gt; @@ -181,50 +180,24 @@<br>
+&gt;         $Values-&gt;{save_intermediate_report_enable} = $val;<br>
+&gt;     }<br>
+&gt;<br>
+&gt; -#    $val = MTT::Values::Value($ini, &quot;MTT&quot;, &quot;finish_at&quot;);<br>
+&gt; -#    if (defined($val)) {<br>
+&gt; -#            #finish_at format: hh:mm[dd/MM]<br>
+&gt; -#            $val =~ m/(\d\d:\d\d)(\[(\d\d)\/(\d\d)\])*/;<br>
+&gt; -#            my $stop_time = $1.&quot;:00&quot;;<br>
+&gt; -#            my $stop_day = $3;<br>
+&gt; -#            my $stop_month =$4;<br>
+&gt; -#            my @timeData = localtime(time);<br>
+&gt; -#            #@timedata : [0]secs [1]minutes [2]hours [3]days [4]month-1<br>
+&gt; -#            my $finish_time = MTT::Util::parse_time_to_seconds($stop_time);<br>
+&gt; -#<br>
+&gt; -#<br>
+&gt; -#            my $local_time=$timeData[2].&quot;:&quot;.$timeData[1].&quot;:&quot;.$timeData[0];<br>
+&gt; -#            my $current_time = MTT::Util::parse_time_to_seconds($local_time);<br>
+&gt; -#<br>
+&gt; -#<br>
+&gt; -#<br>
+&gt; -#            my $secs_left;<br>
+&gt; -#            if ($current_time &lt; $finish_time){<br>
+&gt; -#                    $secs_left = $finish_time-$current_time;<br>
+&gt; -#            } else {<br>
+&gt; -#                    $secs_left = $finish_time+24*3600-$current_time;<br>
+&gt; -#            }<br>
+&gt; -#            $Values-&gt;{ini_value_run_for} = $secs_left;<br>
+&gt; -#<br>
+&gt; -#            if (!$stop_month){<br>
+&gt; -#            if ($stop_day){<br>
+&gt; -#                    if ($stop_day &lt; $timeData[3]){<br>
+&gt; -#                            MTT::Messages::Warning(&quot;Stop date is less than start date: disabling stop_at feature&quot;);<br>
+&gt; -#                            $Values-&gt;{ini_value_run_for} = undef;<br>
+&gt; -#                    }else if ($stop_day == $timeData[3]){<br>
+&gt; -#                            if ($finish_time &lt; $current_time){<br>
+&gt; -#                                    MTT::Messages::Warning(&quot;The stop is less than start time: disabling stop_at feature&quot;);<br>
+&gt; -#                            }<br>
+&gt; -#                    }else{<br>
+&gt; -#                            if ($finish_time &gt; $current_time){<br>
+&gt; -#                                    $secs_left += 24*3600;<br>
+&gt; -#                            }<br>
+&gt; -#                    }<br>
+&gt; -#            }<br>
+&gt; -#            }<br>
+&gt; -#            printf &quot;secs_left = &quot;,$secs_left, &quot;hours_left = &quot;,$secs_left/3600,&quot;\n&quot;;<br>
+&gt; -#<br>
+&gt; -#    }<br>
+&gt; +<br>
+&gt; +    $val = MTT::Values::Value($ini, &quot;MTT&quot;, &quot;shuffle_tests&quot;);<br>
+&gt; +    if (defined($val)) {<br>
+&gt; +         my @shuffles = grep length, split(/\s*,\s*/,$val);<br>
+&gt; +         my @allowed_shuffles = (&#39;sections&#39;, &#39;tests&#39;, &#39;execs&#39;, &#39;nps&#39;, &#39;args&#39;, &#39;all&#39;);<br>
+&gt; +         my %allowed_map = map { $_ =&gt; 1} @allowed_shuffles;<br>
+&gt; +         foreach my $sh (@shuffles){<br>
+&gt; +             if (!exists($allowed_map{$sh})){<br>
+&gt; +                     MTT::Messages::Error(&quot;&lt;$sh&gt; is not allowed shuffle_tests value. Allowed are:&quot;, join(&#39;,&#39;,@allowed_shuffles),&quot;.&quot;);<br>
+&gt; +             }<br>
+&gt; +             $Values-&gt;{shuffle_tests}-&gt;{$sh} = 1;<br>
+&gt; +         }<br>
+&gt; +         if ($Values-&gt;{shuffle_tests}-&gt;{all}){<br>
+&gt; +             foreach my $allow (@allowed_shuffles){<br>
+&gt; +                     $Values-&gt;{shuffle_tests}-&gt;{$allow} = 1;<br>
+&gt; +             }<br>
+&gt; +         }<br>
+&gt; +    }<br>
+&gt; }<br>
+&gt;<br>
+&gt; #--------------------------------------------------------------------------<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Reporter/Email.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Reporter/Email.pm   (original)<br>
+&gt; +++ trunk/lib/MTT/Reporter/Email.pm   2012-03-02 10:27:34 EST (Fri, 02 Mar 2012)<br>
+&gt; @@ -148,8 +148,10 @@<br>
+&gt;                       $to = Value( $Ini, $Section, &quot;email_to&quot; );<br>
+&gt;               }<br>
+&gt;       }<br>
+&gt; -     my $body = $subject.&quot;\n&quot;.$footer.&quot;\n&quot;;<br>
+&gt; -     MTT::Mail::Send($subject, $to, $from, $body );<br>
+&gt; +     my $body = $footer.&quot;\n&quot;;<br>
+&gt; +     if ($to){<br>
+&gt; +             MTT::Mail::Send($subject, $to, $from, $body );<br>
+&gt; +     }<br>
+&gt; }<br>
+&gt;<br>
+&gt; 1;<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Reporter/TextFile.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Reporter/TextFile.pm        (original)<br>
+&gt; +++ trunk/lib/MTT/Reporter/TextFile.pm        2012-03-02 10:27:34 EST (Fri, 02 Mar 2012)<br>
+&gt; @@ -142,7 +142,7 @@<br>
+&gt; sub Flush{<br>
+&gt;       my ($info, $entries) = @_;<br>
+&gt;       my @results_to_flush = @results;<br>
+&gt; -     push(@results_to_flush, $entries);<br>
+&gt; +     push(@results_to_flush, $entries) if $entries;<br>
+&gt;       _summary_report(\@results_to_flush, &quot;yes&quot;)<br>
+&gt;         if (@results_to_flush);<br>
+&gt;<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Test/Run.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Test/Run.pm (original)<br>
+&gt; +++ trunk/lib/MTT/Test/Run.pm 2012-03-02 10:27:34 EST (Fri, 02 Mar 2012)<br>
+&gt; @@ -77,7 +77,12 @@<br>
+&gt;<br>
+&gt;     # Go through all the sections in the ini file looking for section<br>
+&gt;     # names that begin with &quot;Test run:&quot;<br>
+&gt; -    foreach my $section ($ini-&gt;Sections()) {<br>
+&gt; +    my @sects = $ini-&gt;Sections();<br>
+&gt; +    if ($MTT::Globals::Values-&gt;{shuffle_tests}-&gt;{sections}){<br>
+&gt; +     MTT::Util::shuffle(\@sects);<br>
+&gt; +    }<br>
+&gt; +<br>
+&gt; +    foreach my $section (@sects) {<br>
+&gt;         # See if we&#39;re supposed to terminate.  Only check in the<br>
+&gt;         # outtermost and innermost loops (even though we *could* check<br>
+&gt;         # at every loop level); that&#39;s good enough.<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Test/RunEngine.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Test/RunEngine.pm   (original)<br>
+&gt; +++ trunk/lib/MTT/Test/RunEngine.pm   2012-03-02 10:27:34 EST (Fri, 02 Mar 2012)<br>
+&gt; @@ -39,7 +39,7 @@<br>
+&gt; my $mpi_details_name;<br>
+&gt; my $test_run_full_name;<br>
+&gt; my $break_threshold;<br>
+&gt; -<br>
+&gt; +my $shuffle;<br>
+&gt; # Keep track of how many tests have passed, failed, skipped, and timed out<br>
+&gt; my $test_results_count;<br>
+&gt;<br>
+&gt; @@ -52,7 +52,6 @@<br>
+&gt; my $report_after_n_results;<br>
+&gt; my $prev_section_name = undef;<br>
+&gt; my $group_reports = 0;<br>
+&gt; -my $tests_performed = 0;<br>
+&gt;<br>
+&gt; #--------------------------------------------------------------------------<br>
+&gt;<br>
+&gt; @@ -96,6 +95,10 @@<br>
+&gt;     $break_threshold-&gt;{MTT::Values::TIMED_OUT} = Value($ini, $section, &quot;break_threshold_timeout&quot;);<br>
+&gt;     $break_threshold-&gt;{MTT::Values::SKIPPED}   = Value($ini, $section, &quot;break_threshold_skipped&quot;);<br>
+&gt;     $break_threshold-&gt;{MTT::Values::TIMED_OUT_OR_FAIL} = Value($ini, &quot;mtt&quot;, &quot;break_threshold_timeout_and_fail&quot;);<br>
+&gt; +<br>
+&gt; +     $shuffle = undef;<br>
+&gt; +    _register_shuffles($ini,$section);<br>
+&gt; +<br>
+&gt;       my $reports_per_job = Value($ini, &quot;mtt&quot;, &quot;reports_per_job&quot;);<br>
+&gt;     # This boolean value defaults to 0, and allows the user to submit results<br>
+&gt;     # after each test to ensure at least *some* results are submitted (in case<br>
+&gt; @@ -167,6 +170,10 @@<br>
+&gt;     $verbose_out = 0;<br>
+&gt;     my $test_count = 0;<br>
+&gt;     my $printed = 0;<br>
+&gt; +    if ($shuffle-&gt;{tests}){<br>
+&gt; +     MTT::Util::shuffle(\@{$ret-&gt;{tests}});<br>
+&gt; +    }<br>
+&gt; +<br>
+&gt;     foreach my $run (@{$ret-&gt;{tests}}) {<br>
+&gt;<br>
+&gt;         # See if we&#39;re supposed to terminate.<br>
+&gt; @@ -221,6 +228,9 @@<br>
+&gt;         if (ref($all_np) eq &quot;&quot;) {<br>
+&gt;             $test_results-&gt;{$all_np} = _run_one_np($install_dir, $run, $mpi_details, $all_np, $force);<br>
+&gt;         } else {<br>
+&gt; +             if ($shuffle-&gt;{nps}){<br>
+&gt; +                     MTT::Util::shuffle($all_np);<br>
+&gt; +             }<br>
+&gt;             foreach my $this_np (@$all_np) {<br>
+&gt;                 # See if we&#39;re supposed to terminate.<br>
+&gt;                 last<br>
+&gt; @@ -288,13 +298,19 @@<br>
+&gt;         if (ref($all_argv) eq &quot;&quot;) {<br>
+&gt;             $all_argv = [$all_argv];<br>
+&gt;         }<br>
+&gt; -<br>
+&gt; +             if ($shuffle-&gt;{args}){<br>
+&gt; +                     MTT::Util::shuffle($all_argv);<br>
+&gt; +             }<br>
+&gt;         foreach my $this_argv (@$all_argv) {<br>
+&gt;             $MTT::Test::Run::test_argv = $this_argv;<br>
+&gt;<br>
+&gt;             # Get all the exec&#39;s for this one np<br>
+&gt;             my $execs = MTT::Values::EvaluateString($mpi_details-&gt;{exec}, $ini, $mpi_details_name);<br>
+&gt; -<br>
+&gt; +            if (ref($execs) ne &quot;&quot; &amp;&amp; $shuffle-&gt;{execs}){<br>
+&gt; +             MTT::Util::shuffle($execs);<br>
+&gt; +            }<br>
+&gt; +<br>
+&gt; +<br>
+&gt;             # If we just got one, run it.  Otherwise, loop over running them.<br>
+&gt;             if (ref($execs) eq &quot;&quot;) {<br>
+&gt;                 _run_one_test($install_dir, $run, $mpi_details, $execs, $name, 1,<br>
+&gt; @@ -497,14 +513,7 @@<br>
+&gt;                 if (exists($report-&gt;{test_result}) &amp;&amp;<br>
+&gt;                     (MTT::Values::FAIL == $report-&gt;{test_result} || MTT::Values::TIMED_OUT == $report-&gt;{test_result}));<br>
+&gt;<br>
+&gt; -    $tests_performed++;<br>
+&gt;<br>
+&gt; -     #print &quot;\t\t--&gt; Test #&quot;,$tests_performed,&quot; done\n&quot;;<br>
+&gt; -<br>
+&gt; -<br>
+&gt; -     #MTT::Reporter::Flush();<br>
+&gt; -     #MTT::Reporter::TextFile::deSubmit();<br>
+&gt; -<br>
+&gt;     # If there is an after_each step, run it<br>
+&gt;     $ENV{MTT_TEST_RUN_RESULT_MESSAGE} =<br>
+&gt;         (MTT::Values::PASS == $report-&gt;{test_result} ? &quot;passed&quot; :<br>
+&gt; @@ -558,6 +567,32 @@<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt; }<br>
+&gt; -<br>
+&gt; -<br>
+&gt; +sub _register_shuffles{<br>
+&gt; +     my ($ini,$section) = @_;<br>
+&gt; +<br>
+&gt; +     my $val = MTT::Values::Value($ini, $section, &quot;shuffle_tests&quot;);<br>
+&gt; +     if (defined($val)) {<br>
+&gt; +         my @shuffles = grep length, split(/\s*,\s*/,$val);<br>
+&gt; +         my @allowed_shuffles = (&#39;tests&#39;, &#39;execs&#39;, &#39;nps&#39;, &#39;args&#39;, &#39;all&#39;, &#39;none&#39;);<br>
+&gt; +         my %allowed_map = map { $_ =&gt; 1} @allowed_shuffles;<br>
+&gt; +         foreach my $sh (@shuffles){<br>
+&gt; +             if (!exists($allowed_map{$sh})){<br>
+&gt; +                     MTT::Messages::Error(&quot;&lt;$sh&gt; is not allowed section specific shuffle_tests value. Allowed are:&quot;, join(&#39;,&#39;,@allowed_shuffles),&quot;.&quot;);<br>
+&gt; +             }<br>
+&gt; +             $shuffle-&gt;{$sh} = 1;<br>
+&gt; +         }<br>
+&gt; +         if ($shuffle-&gt;{none}){<br>
+&gt; +             $shuffle = undef;<br>
+&gt; +         }<br>
+&gt; +         if ($shuffle-&gt;{all}){<br>
+&gt; +             foreach my $allow (@allowed_shuffles){<br>
+&gt; +                     $shuffle-&gt;{$allow} = 1;<br>
+&gt; +             }<br>
+&gt; +         }<br>
+&gt; +<br>
+&gt; +     }<br>
+&gt; +    else{<br>
+&gt; +     $shuffle = $MTT::Globals::Values-&gt;{shuffle_tests};<br>
+&gt; +    }<br>
+&gt; +}<br>
+&gt; 1;<br>
+&gt;<br>
+&gt; Modified: trunk/lib/MTT/Util.pm<br>
+&gt; ==============================================================================<br>
+&gt; --- trunk/lib/MTT/Util.pm     (original)<br>
+&gt; +++ trunk/lib/MTT/Util.pm     2012-03-02 10:27:34 EST (Fri, 02 Mar 2012)<br>
+&gt; @@ -208,9 +208,6 @@<br>
+&gt;             $MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold} = &quot;true&quot;;<br>
+&gt;             $MTT::Globals::Internals-&gt;{stopped_on_break_threshold_message} = &quot;--&gt; Threshold ($per) exceeded for \&quot;$result_label\&quot;: $count-&gt;{$result} out of $total.\n&quot;;<br>
+&gt;             print STDOUT &quot;--&gt; Threshold ($per) exceeded for \&quot;$result_label\&quot;: $count-&gt;{$result} out of $total.\n&quot;;<br>
+&gt; -            if ($MTT::Globals::Internals-&gt;{is_stopped_on_break_threshold}){<br>
+&gt; -                print STDOUT &quot;0xdeadbeef: it works&quot;;<br>
+&gt; -            }<br>
+&gt;             return 1;<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt; @@ -395,4 +392,15 @@<br>
+&gt;     }<br>
+&gt; }<br>
+&gt;<br>
+&gt; +#--------------------------------------------------------------------------<br>
+&gt; +sub shuffle{<br>
+&gt; +     # Shuffle an array given via reference randomly<br>
+&gt; +     my $array = shift;<br>
+&gt; +    my $i;<br>
+&gt; +    for ($i = @$array; --$i; ) {<br>
+&gt; +        my $j = int rand ($i+1);<br>
+&gt; +        next if $i == $j;<br>
+&gt; +        @$array[$i,$j] = @$array[$j,$i];<br>
+&gt; +    }<br>
+&gt; +}<br>
+&gt; 1;<br>
+&gt; _______________________________________________<br>
+&gt; mtt-svn mailing list<br>
+&gt; <a href="mailto:mtt-svn@open-mpi.org">mtt-svn@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/mtt-svn" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/mtt-svn</a><br>
+<br>
+<br>
+</div></div><span class="HOEnZb"><font color="#888888">--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+<br>
+_______________________________________________<br>
+mtt-devel mailing list<br>
+<a href="mailto:mtt-devel@open-mpi.org">mtt-devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/mtt-devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/mtt-devel</a><br>
+</font></span></blockquote></div><br></div>
+

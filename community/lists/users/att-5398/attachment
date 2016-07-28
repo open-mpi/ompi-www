@@ -1,0 +1,104 @@
+<html><body>
+<p>Hi slimtimmy<br>
+<br>
+I have been involved in several of the MPI Forum's discussions of how MPI_Cancel should work and I agree with your interpretation of the standard. By my reading of the standard, the MPI_Wait must not hang and the cancel must succeed.<br>
+<br>
+Making an MPI implementation work exactly as the standard describes may have performance implications and MPI_Cancel is rarely used so as a practical matter an MPI implementation may chose to fudge the letter of the law for better performance. <br>
+<br>
+There also may be people who would argue you and I have misread the standard and I am happy to follow up (off line if they wish) with anyone who interprets the standard differently. The MPI Forum is working on MPI 2.2 right now and if there is something that needs fixing in the MPI standard, now is the time to get a resolution. <br>
+<br>
+                Regards - Dick<br>
+<br>
+Dick Treumann  -  MPI Team/TCEM            <br>
+IBM Systems &amp; Technology Group<br>
+Dept 0lva / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 04/15/2008 03:14:39 PM:<br>
+<br>
+&gt; I encountered some problems when using MPI_CANCEL. I call<br>
+&gt; Request::Cancel followed by Request::Wait to ensure that the request has<br>
+&gt; been cancelled. However Request::Wait does not return when I send bigger<br>
+&gt; messages. The following code should reproduce this behaviour:<br>
+&gt; <br>
+&gt; #include &quot;mpi.h&quot;<br>
+&gt; #include &lt;iostream&gt;<br>
+&gt; <br>
+&gt; using namespace std;<br>
+&gt; <br>
+&gt; enum Tags<br>
+&gt; {<br>
+&gt; &nbsp; &nbsp; &nbsp;TAG_UNMATCHED1,<br>
+&gt; &nbsp; &nbsp; &nbsp;TAG_UNMATCHED2<br>
+&gt; };<br>
+&gt; <br>
+&gt; int main()<br>
+&gt; {<br>
+&gt; &nbsp; &nbsp; &nbsp;MPI::Init();<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp;const int rank = MPI::COMM_WORLD.Get_rank();<br>
+&gt; &nbsp; &nbsp; &nbsp;const int numProcesses = MPI::COMM_WORLD.Get_size();<br>
+&gt; &nbsp; &nbsp; &nbsp;const int masterRank = 0;<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp;if (rank == masterRank)<br>
+&gt; &nbsp; &nbsp; &nbsp;{<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cout &lt;&lt; &quot;master&quot; &lt;&lt; endl;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;const int numSlaves = numProcesses - 1;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;for(int i = 0; i &lt; numSlaves; ++i)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;{<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;const int slaveRank = i + 1;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;int buffer;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI::COMM_WORLD.Recv(&amp;buffer, 1, MPI::INT, slaveRank,<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;TAG_UNMATCHED1);<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;}<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp;}<br>
+&gt; &nbsp; &nbsp; &nbsp;else<br>
+&gt; &nbsp; &nbsp; &nbsp;{<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cout &lt;&lt; &quot;slave &quot; &lt;&lt; rank &lt;&lt; endl;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;//const int size = 1;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;const int size = 10000;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;int buffer[size];<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI::Request request = MPI::COMM_WORLD.Isend(buffer, size, <br>
+&gt; MPI::INT,<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;masterRank, TAG_UNMATCHED2);<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cout &lt;&lt; &quot;slave (&quot;&lt;&lt; rank&lt;&lt;&quot;): sent data&quot; &lt;&lt; endl;<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;request.Cancel();<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cout &lt;&lt; &quot;slave (&quot;&lt;&lt; rank&lt;&lt;&quot;): cancel issued&quot; &lt;&lt; endl;<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;request.Wait();<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;cout &lt;&lt; &quot;slave (&quot;&lt;&lt; rank&lt;&lt;&quot;): finished&quot; &lt;&lt; endl;<br>
+&gt; &nbsp; &nbsp; &nbsp;}<br>
+&gt; <br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp;MPI::Finalize();<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp;return 0;<br>
+&gt; }<br>
+&gt; <br>
+&gt; <br>
+&gt; If I set size to 1, everything works as expected, the slave process<br>
+&gt; finishes execution. However if I use a bigger buffer (in this case<br>
+&gt; 10000) the wait blocks forever. That's the output of the program when<br>
+&gt; run with two processes:<br>
+&gt; <br>
+&gt; master<br>
+&gt; slave 1<br>
+&gt; slave (1): sent data<br>
+&gt; slave (1): cancel issued<br>
+&gt; <br>
+&gt; <br>
+&gt; Have I misinterpreted the standard? Or does Request::Wait block until<br>
+&gt; the message is delievered?<br>
+&gt; <br>
+&gt; <br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; </tt><tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt><tt><br>
+</tt></body></html>

@@ -1,0 +1,148 @@
+diff --git a/opal/mca/btl/openib/connect/btl_openib_connect_udcm.c b/opal/mca/btl/openib/connect/btl_openib_connect_udcm.c
+index e0b8e80..eb4785a 100644
+--- a/opal/mca/btl/openib/connect/btl_openib_connect_udcm.c
++++ b/opal/mca/btl/openib/connect/btl_openib_connect_udcm.c
+@@ -8,7 +8,7 @@
+  * Copyright (c) 2014-2015 Research Organization for Information Science
+  *                         and Technology (RIST). All rights reserved.
+  * Copyright (c) 2014      Intel, Inc. All rights reserved.
+- * Copyright (c) 2014      Bull SAS.  All rights reserved.
++ * Copyright (c) 2014-2015 Bull SAS.  All rights reserved.
+  *
+  * $COPYRIGHT$
+  * 
+@@ -470,6 +470,8 @@ static int udcm_component_query(mca_btl_openib_module_t *btl,
+ 
+         rc = udcm_module_init (m, btl);
+         if (OPAL_SUCCESS != rc) {
++            free(m);
++            m = NULL;
+             break;
+         }
+ 
+@@ -646,9 +648,19 @@ static int udcm_endpoint_finalize(struct mca_btl_base_endpoint_t *lcl_ep)
+     return OPAL_SUCCESS;
+ }
+ 
++static void *udcm_unmonitor(int fd, int flags, void *context)
++{
++    volatile int *barrier = (volatile int *)context;
++
++    *barrier = 1;
++
++    return NULL;
++}
++
+ static int udcm_module_init (udcm_module_t *m, mca_btl_openib_module_t *btl)
+ {
+     int rc = OPAL_ERR_NOT_SUPPORTED;
++    volatile int barrier = 0;
+ 
+     BTL_VERBOSE(("created cpc module %p for btl %p",
+                  (void*)m, (void*)btl));
+@@ -659,7 +671,7 @@ static int udcm_module_init (udcm_module_t *m, mca_btl_openib_module_t *btl)
+     m->cm_channel = ibv_create_comp_channel (btl->device->ib_dev_context);
+     if (NULL == m->cm_channel) {
+         BTL_VERBOSE(("error creating ud completion channel"));
+-        return OPAL_ERR_NOT_SUPPORTED;
++        goto out;
+     }
+ 
+     /* Create completion queues */
+@@ -668,29 +680,33 @@ static int udcm_module_init (udcm_module_t *m, mca_btl_openib_module_t *btl)
+                                    m->cm_channel, 0);
+     if (NULL == m->cm_recv_cq) {
+         BTL_VERBOSE(("error creating ud recv completion queue"));
+-        return OPAL_ERR_NOT_SUPPORTED;
++        mca_btl_openib_show_init_error(__FILE__, __LINE__, "ibv_create_cq",
++                                       ibv_get_device_name(btl->device->ib_dev));
++        goto out1;
+     }
+ 
+     m->cm_send_cq = ibv_create_cq (btl->device->ib_dev_context,
+                                    UDCM_SEND_CQ_SIZE, NULL, NULL, 0);
+     if (NULL == m->cm_send_cq) {
+         BTL_VERBOSE(("error creating ud send completion queue"));
+-        return OPAL_ERR_NOT_SUPPORTED;
++        mca_btl_openib_show_init_error(__FILE__, __LINE__, "ibv_create_cq",
++                                       ibv_get_device_name(btl->device->ib_dev));
++        goto out2;
+     }
+ 
+     if (0 != (rc = udcm_module_allocate_buffers (m))) {
+         BTL_VERBOSE(("error allocating cm buffers"));
+-        return rc;
++        goto out3;
+     }
+ 
+     if (0 != (rc = udcm_module_create_listen_qp (m))) {
+         BTL_VERBOSE(("error creating UD QP"));
+-        return rc;
++        goto out4;
+     }
+ 
+     if (0 != (rc = udcm_module_post_all_recvs (m))) {
+         BTL_VERBOSE(("error posting receives"));
+-        return rc;
++        goto out5;
+     }
+ 
+     /* UD CM initialized properly.  So fill in the rest of the CPC
+@@ -743,12 +759,40 @@ static int udcm_module_init (udcm_module_t *m, mca_btl_openib_module_t *btl)
+     /* Finally, request CQ notification */
+     if (0 != ibv_req_notify_cq (m->cm_recv_cq, 0)) {
+         BTL_VERBOSE(("error requesting recv completions"));
+-        return OPAL_ERROR;
++        rc = OPAL_ERROR;
++        goto out6;
+     }
+ 
+     /* Ready to use */
+ 
+     return OPAL_SUCCESS;
++
++    out6:
++        OBJ_DESTRUCT(&m->cm_timeout_lock);
++        OBJ_DESTRUCT(&m->flying_messages);
++        OBJ_DESTRUCT(&m->cm_recv_msg_queue_lock);
++        OBJ_DESTRUCT(&m->cm_recv_msg_queue);
++        OBJ_DESTRUCT(&m->cm_send_lock);
++        OBJ_DESTRUCT(&m->cm_lock);
++
++        m->channel_monitored = false;
++
++        opal_btl_openib_fd_unmonitor(m->cm_channel->fd, udcm_unmonitor, (void *)&barrier);
++        while (0 == barrier) {
++            sched_yield();
++        }
++    out5:
++        udcm_module_destroy_listen_qp (m);
++    out4:
++        udcm_module_destroy_buffers (m);
++    out3:
++        ibv_destroy_cq (m->cm_send_cq);
++    out2:
++        ibv_destroy_cq (m->cm_recv_cq);
++    out1:
++        ibv_destroy_comp_channel (m->cm_channel);
++    out:
++        return rc;
+ }
+ 
+ static int
+@@ -801,15 +845,6 @@ udcm_module_start_connect(opal_btl_openib_connect_base_module_t *cpc,
+     return rc;
+ }
+ 
+-static void *udcm_unmonitor(int fd, int flags, void *context)
+-{
+-    volatile int *barrier = (volatile int *)context;
+-
+-    *barrier = 1;
+-
+-    return NULL;
+-}
+-
+ static int udcm_module_finalize(mca_btl_openib_module_t *btl,
+                                 opal_btl_openib_connect_base_module_t *cpc)
+ {
