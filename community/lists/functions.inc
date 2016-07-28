@@ -23,7 +23,7 @@ function print_list($name) {
     printf("<P><CENTER>\n");
     red("YOU MUST BE SUBSCRIBED IN ORDER TO POST TO THE LIST"); 
     printf("<br /\n>");
-    print_mailto("open-mpi.org", $name, "$name at open dash mpi dot org");
+    print_mailto("open-mpi.org", $name, "$name at lists dash open dash mpi dot org");
     printf("<br /\n>");
     red("YOU MUST BE SUBSCRIBED IN ORDER TO POST TO THE LIST"); 
     printf("</center></p>\n\n");
