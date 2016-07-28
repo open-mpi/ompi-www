@@ -1,0 +1,332 @@
+#======================================================================
+# Overall configuration
+#======================================================================
+
+[MTT]
+hostfile =
+hostlist = witch1:4 witch2:4 witch3:4 witch4:4 witch5:4 witch6:4 witch7:4 witch8:4 witch9:4 witch10:4 witch11:4 witch12:4 witch13:4 witch14:4 witch15:4 witch16:4 witch17:4 witch18:4
+max_np = 
+textwrap = 76
+drain_timeout = 5
+trial = 0
+force = 1
+
+#======================================================================
+# MPI get phase
+#======================================================================
+
+[MPI get: ompi-nightly-trunk]
+mpi_details = Open MPI
+
+module = OMPI_Snapshot
+ompi_snapshot_url = http://www.open-mpi.org/nightly/trunk
+
+[MPI get: ompi-nightly-v1.2]
+mpi_details = Open MPI
+
+module = OMPI_Snapshot
+ompi_snapshot_url = http://www.open-mpi.org/nightly/v1.2
+
+#======================================================================
+# Install MPI phase
+#======================================================================
+[MPI install: gcc warnings]
+mpi_get = ompi-nightly-trunk,ompi-nightly-v1.2
+save_stdout_on_success = 1
+merge_stdout_stderr = 0
+bitness = 64
+
+module = OMPI
+ompi_vpath_mode = none
+
+ompi_make_all_arguments = -j 4
+ompi_make_check = 1
+ompi_compiler_name = gnu
+ompi_compiler_version = &get_gcc_version()
+ompi_configure_arguments = CFLAGS=-pipe --with-openib=/usr/local/ofed --enable-picky --with-memory-manager=ptmalloc2
+
+#======================================================================
+# MPI run details
+#======================================================================
+
+[MPI Details: Open MPI]
+exec = mpirun @hosts@ -np &test_np() @mca@ --prefix &test_prefix() &test_executable() &test_argv()
+
+hosts = &if(&have_hostfile(), "&join("--hostfile ", "&hostfile()")", \
+            "&if(&have_hostlist(), "&join("--host ", "&hostlist()")", "")")
+
+mca = &enumerate("-mca mpi_leave_pinned 1",\
+"-mca mpi_leave_pinned_pipeline 1",\
+"-mca btl_openib_use_eager_rdma 0",\
+"-mca btl_openib_rd_num 128 -mca btl_openib_rd_low 75 -mca btl_openib_rd_win 10",\
+"-mca btl_openib_min_rdma_size 12216",\
+"-mca btl_openib_use_srq 1")
+
+
+after_each_exec = <<EOT
+if test "$MTT_TEST_RUN_RESULT" = "passed" -o "$MTT_TEST_RUN_RESULT" = "skipped"; then
+    exit 0
+fi
+
+if test "$MTT_TEST_HOSTFILE" != ""; then
+    args="--hostfile $MTT_TEST_HOSTFILE"
+elif test "$MTT_TEST_HOSTLIST" != ""; then
+    args="--host $MTT_TEST_HOSTLIST"
+fi
+orterun $args -np $MTT_TEST_NP --prefix $MTT_TEST_PREFIX mtt_ompi_cleanup.pl
+EOT
+
+#======================================================================
+# Test get phase
+#======================================================================
+
+[Test get: ibm]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/ibm
+svn_post_export = <<EOT
+./autogen.sh
+EOT
+
+#----------------------------------------------------------------------
+
+[Test get: onesided]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/onesided
+svn_post_export = <<EOT
+./autogen.sh
+EOT
+
+#----------------------------------------------------------------------
+
+[Test get: mpicxx]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/cxx-test-suite
+svn_post_export = <<EOT
+./autogen.sh
+EOT
+
+#----------------------------------------------------------------------
+
+[Test get: imb]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/IMB_2.3
+
+#----------------------------------------------------------------------
+
+[Test get: netpipe]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/NetPIPE_3.6.2
+
+#======================================================================
+# Test build phase
+#======================================================================
+
+[Test build: ibm]
+test_get = ibm
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+
+module = Shell
+shell_build_command = <<EOT
+./configure CC=mpicc CXX=mpic++ F77=mpif77
+make
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: onesided]
+test_get = onesided
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+# Have the onesided tests skip the OMPI 1.1 testing; MPI-2 one-sided
+# just plain doesn't work there and won't be fixed.
+skip_mpi_get = ompi-nightly-v1.1
+# Can also have a skip_mpi_install for the same purpose (skip specific
+# installs)
+
+module = Shell
+shell_build_command = <<EOT
+./configure
+make
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: mpicxx]
+test_get = mpicxx
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+
+module = Shell
+shell_build_command = <<EOT
+./configure CC=mpicc CXX=mpic++
+make
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: imb]
+test_get = imb
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+
+module = Shell
+shell_build_command = <<EOT
+cd src
+make clean IMB-MPI1
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: netpipe]
+test_get = netpipe
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+
+module = Shell
+shell_build_command = <<EOT
+make mpi
+EOT
+
+#======================================================================
+# Test Run phase
+#======================================================================
+
+[Test run: ibm]
+test_build = ibm
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+skipped = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 77))
+timeout = &max(30, &multiply(10, &test_np()))
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+stdout_save_lines = 100
+np = &env_max_procs()
+
+specify_module = Simple
+# Similar rationale to the intel test run section
+simple_first:tests = &find_executables("collective", "communicator", \
+                                       "datatype", "dynamic", "environment", \
+                                       "group", "info", "io", "onesided", \
+                                       "pt2pt", "topology")
+
+# Similar rationale to the intel test run section
+simple_fail:tests = environment/abort environment/final
+simple_fail:pass = &and(&cmd_wifexited(), &ne(&cmd_wexitstatus(), 0))
+simple_fail:exclusive = 1
+simple_fail:np = &env_max_procs()
+
+#----------------------------------------------------------------------
+
+[Test run: onesided]
+test_build = onesided
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+timeout = &max(30, &multiply(10, &test_np()))
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+stdout_save_lines = 100
+np = &if(&gt(&env_max_procs(), 0), &step(2, &max(2, &env_max_procs()), 2), 2)
+
+specify_module = Simple
+simple_pass:tests = &cat("run_list")
+specify_module = Simple
+
+#----------------------------------------------------------------------
+
+[Test run: mpicxx]
+test_build = mpicxx
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+timeout = &max(30, &multiply(10, &test_np()))
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+argv = &if(&eq("&mpi_get_name()", "ompi-nightly-v1.1"), "-nothrow", "")
+np = &env_max_procs()
+
+specify_module = Simple
+simple_pass:tests = src/mpi2c++_test
+
+#----------------------------------------------------------------------
+     
+[Test run: imb correctness]
+test_build = imb
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+timeout = &max(1800, &multiply(50, &test_np()))
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+stdout_save_lines = 100
+np = &env_max_procs()
+
+specify_module = Simple
+simple_only:tests = src/IMB-MPI1
+
+#----------------------------------------------------------------------
+
+[Test run: imb performance]
+test_build = imb
+pass = &eq(&cmd_wexitstatus(), 0)
+timeout = -1
+save_stdout_on_pass = 1
+# Ensure to leave this value as "-1", or performance results could be lost!
+stdout_save_lines = -1
+merge_stdout_stderr = 1
+
+argv = -npmin &test_np() &enumerate("PingPong", "PingPing", "Sendrecv", "Exchange", "Allreduce", "Reduce", "Reduce_scatter", "Allgather", "Allgatherv", "Alltoall", "Bcast", "Barrier") 
+
+specify_module = Simple
+analyze_module = IMB
+simple_pass:tests = src/IMB-MPI1
+
+#----------------------------------------------------------------------
+
+[Test run: netpipe]
+test_build = netpipe
+pass = &eq(&cmd_wexitstatus(), 0)
+timeout = -1
+save_stdout_on_pass = 1
+# Ensure to leave this value as "-1", or performance results could be lost!
+stdout_save_lines = -1
+merge_stdout_stderr = 1
+# NetPIPE is ping-pong only, so we only need 2 procs
+np = 2
+
+specify_module = Simple
+analyze_module = NetPipe
+simple_pass:tests = NPmpi
+#======================================================================
+# Reporter phase
+#======================================================================
+
+[Reporter: IU database]
+module = MTTDatabase
+
+mttdatabase_realm = OMPI
+mttdatabase_url = https://www.open-mpi.org/mtt/submit/
+mttdatabase_username = voltaire
+mttdatabase_password = eriatlov
+mttdatabase_platform = witch1-20
+
+#----------------------------------------------------------------------
+
+[Reporter: text file backup]
+module = TextFile
+
+textfile_filename = $phase-$section-$mpi_name-$mpi_version.txt
+
+textfile_summary_header = <<EOT
+hostname: &shell("hostname")
+uname: &shell("uname -a")
+who am i: &shell("who am i")
+EOT
+
+textfile_summary_footer =
+textfile_detail_header =
+textfile_detail_footer =
+
+textfile_textwrap = 78
+
+
+
+
