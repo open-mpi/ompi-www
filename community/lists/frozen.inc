@@ -8,10 +8,7 @@ have been added to it since July of 2016.</p>
 
 <?php
 if ($this_list != "") {
-    print("<p><a href=\"https://mail-archive.com/$this_list@lists.open-mpi.org/\">Click here to be taken to the new web archives of this list</a>;\n");
+    print("<p><a href=\"https://mail-archive.com/$this_list@lists.open-mpi.org/\">Click here to be taken to the new web archives of this list</a>; it includes all the mails that are in this frozen archive plus all new mails that have been sent to the list since it was migrated to the new archives.</p>\n");
 }
 ?>
-it includes all the mails that are in this frozen archive plus all new
-mails that have been sent to the list since it was migrated to the new
-archives.</p>
 </div>
