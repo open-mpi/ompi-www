@@ -14,7 +14,6 @@ include_once("$topdir/community/lists/nav.inc");
 include_once("$topdir/includes/header.inc");
 
 $directory = "announce";
-include("search.inc");
 
 $this_list = "announce";
 include_once("$topdir/community/lists/frozen.inc");
