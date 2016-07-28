@@ -107,7 +107,7 @@ function print_location($location, $tagline) {
             <?php print_mirror();?>
           </TD>
           <TD class="footer" ALIGN="CENTER" height="36">
-            <?php print_mailto("open-mpi.org", "www", "Contact webmaster"); ?>
+            <?php print_mailto("open-mpi.org", "the-web-maintainer", "Contact webmaster"); ?>
           </TD>
           <TD class="footer" ALIGN="RIGHT" height="36">
 <?php 
