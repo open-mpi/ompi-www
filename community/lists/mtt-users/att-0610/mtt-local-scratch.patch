@@ -1,0 +1,424 @@
+Index: lib/MTT/MPI/Install.pm
+===================================================================
+--- lib/MTT/MPI/Install.pm	(revision 1223)
++++ lib/MTT/MPI/Install.pm	(working copy)
+@@ -109,6 +109,9 @@
+ # Where the top-level installation tree is
+ my $install_base;
+ 
++# Where the top-level build tree is, may or may not be same as $install_base
++my $build_base;
++
+ # Where the MPI library is
+ our $install_dir;
+ 
+@@ -134,7 +137,7 @@
+ #--------------------------------------------------------------------------
+ 
+ sub Install {
+-    my ($ini, $ini_full, $install_dir, $force) = @_;
++    my ($ini, $ini_full, $build_dir, $install_dir, $force) = @_;
+ 
+     $MTT::Globals::Values->{active_phase} = $phase_name;
+     Verbose("*** $phase_name phase starting\n");
+@@ -145,12 +148,13 @@
+     # Go through all the sections in the ini file looking for section
+     # names that begin with "MPI Install:"
+     $install_base = $install_dir;
+-    MTT::DoCommand::Chdir($install_base);
++    $build_base = $build_dir;
+     foreach my $section ($ini->Sections()) {
+ 
+         # See if we're supposed to terminate.  Only check in the
+         # outtermost and innermost loops (even though we *could* check
+         # at every loop level); that's good enough.
++        MTT::DoCommand::Chdir($install_base);
+         last
+             if (MTT::Util::time_to_terminate());
+ 
+@@ -223,6 +227,7 @@
+                             # innermost loops (even though we *could*
+                             # check at every loop level); that's good
+                             # enough.
++                            MTT::DoCommand::Chdir($install_base);
+                             last
+                                 if (MTT::Util::time_to_terminate());
+ 
+@@ -243,16 +248,31 @@
+                                 $MTT::Globals::Internals->{mpi_get_name} =
+                                     $mpi_get_key;
+                                 $MTT::Globals::Internals->{mpi_install_name} = $simple_section;
++
++                                # Make a directory just for this section.
++                                # It's gotta be darn short because some
++                                # compilers will run out of room and complain
++                                # about filenames that are too long (doh!).
+                                 MTT::DoCommand::Chdir($install_base);
+                                 my $mpi_dir = _make_random_dir(4);
+-                                MTT::DoCommand::Chdir($mpi_dir);
+                             
++                                # If we are building in a different place,
++                                # make another short uniq directory name.
++                                my $local_mpi_dir;
++                                if ($install_base ne $build_base) {
++                                    MTT::DoCommand::Chdir($build_base);
++                                    $local_mpi_dir = _make_random_dir(4);
++                                } else {
++                                    $local_mpi_dir = $mpi_dir;
++                                }
++                                MTT::DoCommand::Chdir($local_mpi_dir);
++                            
+                                 # Perform specified steps before the Install
+                                 _run_step($step_params, "before", $ini, $section);
+ 
+                                 # Install and restore the environment
+                                 _do_install($section, $ini,
+-                                            $mpi_version, $mpi_dir, $force);
++                                            $mpi_version, $local_mpi_dir, $mpi_dir, $force);
+                                 delete $MTT::Globals::Internals->{mpi_get_name};
+                                 delete $MTT::Globals::Internals->{mpi_install_name};
+ 
+@@ -287,9 +307,42 @@
+ 
+ #--------------------------------------------------------------------------
+ 
++# If the sym link already exists, whack the old directory that it
++# points to (and the sym link).
++sub _make_fresh_symlink {
++    my ($target_dir, $sym_link_name) = @_;
++    my $save_dir = cwd();
++
++    MTT::DoCommand::Chdir($target_dir);
++    MTT::DoCommand::Chdir("..");
++    if (-l $sym_link_name) {
++        my $start = cwd();
++        MTT::DoCommand::Chdir($sym_link_name);
++        my $dir_to_die = cwd();
++        MTT::DoCommand::Chdir($start);
++        # If the link was pointing somewhere valid, whack the previous
++        # directory
++        if ($dir_to_die ne $start) {
++            my $x = MTT::DoCommand::Cmd(1, "rm -rf $dir_to_die");
++        }
++        unlink($sym_link_name);
++    } elsif (-d $sym_link_name) {
++        # Can't think of why this would happen, but let's cover the bases.
++        MTT::DoCommand::Cmd(1, "rm -rf $sym_link_name");
++    }
++
++    # Make the sym link
++    symlink(basename($target_dir), $sym_link_name);
++    Debug("Sym linked: " . basename($target_dir) . " to $sym_link_name\n");
++    MTT::DoCommand::Chdir($save_dir); # restore the cwd to reduce side effects
++}
++    
++
++#--------------------------------------------------------------------------
++
+ # Install an MPI from sources
+ sub _do_install {
+-    my ($section, $ini, $mpi_get, $this_install_base, $force) = @_;
++    my ($section, $ini, $mpi_get, $this_build_base, $this_install_base, $force) = @_;
+ 
+     # Simple section name
+     my $simple_section = GetSimpleSection($section);
+@@ -345,11 +398,10 @@
+     $config->{description} = Value($ini, "MTT", "description")
+         if (!$config->{description});
+ 
+-    # Make a directory just for this section.  It's gotta be darn
+-    # short because some compilers will run out of room and complain
+-    # about filenames that are too long (doh!).
+-    MTT::DoCommand::Chdir($this_install_base);
+     $config->{version_dir} = $this_install_base;
++    $config->{build_version_dir} = $this_build_base;
++
++    # Make a human-readable sym link to the directory just for this section.
+     my $sym_link_name = 
+       MTT::Files::make_safe_filename($mpi_get->{simple_section_name}) .
+       "--" . MTT::Files::make_safe_filename($simple_section) . "--" .
+@@ -358,27 +410,11 @@
+ 
+     # If the sym link already exists, whack the old directory that it
+     # points to (and the sym link)
+-    MTT::DoCommand::Chdir("..");
+-    if (-l $sym_link_name) {
+-        my $start = cwd();
+-        MTT::DoCommand::Chdir($sym_link_name);
+-        my $dir_to_die = cwd();
+-        MTT::DoCommand::Chdir($start);
+-        # If the link was pointing somewhere valid, whack the previous
+-        # directory
+-        if ($dir_to_die ne $start) {
+-            my $x = MTT::DoCommand::Cmd(1, "rm -rf $dir_to_die");
+-        }
+-        unlink($sym_link_name);
+-    } elsif (-d $sym_link_name) {
+-        # Can't think of why this would happen, but let's cover the bases.
+-        MTT::DoCommand::Cmd(1, "rm -rf $sym_link_name");
++    _make_fresh_symlink($config->{version_dir}, $sym_link_name);
++    # If the build is in a different place, make a sym link for it too.
++    if ($config->{version_dir} ne $config->{build_version_dir}) {
++      _make_fresh_symlink($config->{build_version_dir}, $sym_link_name);
+     }
+-
+-    # Make the sym link
+-    symlink(basename($this_install_base), $sym_link_name);
+-    MTT::DoCommand::Chdir($this_install_base);
+-    Debug("Sym linked: " . basename($this_install_base) . " to $sym_link_name\n");
+     
+     # Load any environment modules?
+     my @env_modules;
+@@ -474,8 +510,9 @@
+     $config->{restart_on_pattern} = $tmp
+         if (defined($tmp));
+ 
+-    # We're in the section directory.  Make a subdir for the source
+-    # and build.
++    # Make sure we're in the build section directory.
++    # Make a subdir for the source and build.
++    MTT::DoCommand::Chdir($config->{build_version_dir});
+     MTT::DoCommand::Cmd(1, "rm -rf src");
+     my $source_dir = MTT::Files::mkdir("src");
+     MTT::DoCommand::Chdir($source_dir);
+@@ -495,11 +532,11 @@
+         if ($config->{vpath_mode} eq "absolute") {
+             $config->{vpath_mode} = 2;
+             $config->{configdir} = $config->{abs_srcdir};
+-            $config->{builddir} = "$config->{version_dir}/build_vpath_absolute";
++            $config->{builddir} = "$config->{build_version_dir}/build_vpath_absolute";
+         } else {
+             $config->{vpath_mode} = 1;
+             $config->{configdir} = "../$config->{srcdir}";
+-            $config->{builddir} = "$config->{version_dir}/build_vpath_relative";
++            $config->{builddir} = "$config->{build_version_dir}/build_vpath_relative";
+         }
+ 
+         MTT::Files::mkdir($config->{builddir});
+@@ -674,6 +711,7 @@
+         $ret->{start_timestamp} = timegm(gmtime());
+         $ret->{sym_link_name} = $config->{sym_link_name};
+         $ret->{version_dir} = $config->{version_dir};
++        $ret->{build_version_dir} = $config->{build_version_dir};
+         $ret->{source_dir} = $config->{srcdir};
+         $ret->{build_dir} = $config->{builddir};
+         $ret->{refcount} = 0;
+Index: lib/MTT/Util.pm
+===================================================================
+--- lib/MTT/Util.pm	(revision 1223)
++++ lib/MTT/Util.pm	(working copy)
+@@ -94,16 +94,7 @@
+             }
+         }
+ 
+-        # Setup min_disk_free to be a number of bytes
+         $df_handle = new Filesys::DiskFree;
+-        if ($MTT::Globals::Values->{min_disk_free} =~ m/([0-9]{1,2})\%/) {
+-            $df_handle->df();
+-            my $val = $1;
+-            $val /= 100.0;
+-            $val *= $df_handle->total(cwd());
+-            $val = int($val);
+-            $MTT::Globals::Values->{min_disk_free} = $val;
+-        }
+     }
+ 
+     # Check to see if any of the files exist
+@@ -139,14 +130,26 @@
+     } while ($found == 1);
+ 
+     # Check the disk space remaining
+-    if ($MTT::Globals::Values->{min_disk_free} > 0) {
++    if (defined($MTT::Globals::Values->{min_disk_free}) &&
++        ($MTT::Globals::Values->{min_disk_free} ne "0")) {
+         my $c = getcwd();
++        my $min_disk_free;
+         $df_handle->df();
+-        if ($df_handle->avail($c) < 
+-            $MTT::Globals::Values->{min_disk_free}) {
++
++        # compute min_disk_free in bytes if it was a percentage
++        if ($MTT::Globals::Values->{min_disk_free} =~ m/([0-9]{1,2})\%/) {
++            my $val = $1;
++            $val /= 100.0;
++            $val *= $df_handle->total(cwd());
++            $val = int($val);
++            $min_disk_free = $val;
++        } else {
++            $min_disk_free = $MTT::Globals::Values->{min_disk_free};
++        }
++        if ($df_handle->avail($c) < $min_disk_free) {
+             Warning("Disk free is less than minimum (" . 
+                     $df_handle->avail($c) .
+-                    " bytes < $MTT::Globals::Values->{min_disk_free} bytes)\n");
++                    " bytes < $min_disk_free bytes)\n");
+             Warning("Waiting for up to $MTT::Globals::Values->{min_disk_free_wait} minutes to see if the situation resolves itself\n")
+                 if ($MTT::Globals::Values->{min_disk_free_wait} > 0);
+ 
+@@ -154,8 +157,7 @@
+             while ($i < 2 * $MTT::Globals::Values->{min_disk_free_wait}) {
+                 sleep(30);
+                 $df_handle->df();
+-                if ($df_handle->avail($c) >
+-                    $MTT::Globals::Values->{min_disk_free}) {
++                if ($df_handle->avail($c) > $min_disk_free) {
+                     last;
+                 }
+                 ++$i;
+Index: lib/MTT/Globals.pm
+===================================================================
+--- lib/MTT/Globals.pm	(revision 1223)
++++ lib/MTT/Globals.pm	(working copy)
+@@ -74,10 +74,11 @@
+ # Reset $Globals per a specific ini file
+ 
+ sub load {
+-    my ($scratch_root, $ini) = @_;
++    my ($scratch_root, $local_scratch_root, $ini) = @_;
+ 
+     %$Values = %$_defaults;
+     $Values->{scratch_root} = $scratch_root;
++    $Values->{local_scratch_root} = $local_scratch_root;
+ 
+     # Are there funclet .pm files to load?  If so, do these first so
+     # that the funclets can be used by the rest of the fields.
+Index: lib/MTT/Values/Functions.pm
+===================================================================
+--- lib/MTT/Values/Functions.pm	(revision 1223)
++++ lib/MTT/Values/Functions.pm	(working copy)
+@@ -2433,6 +2433,13 @@
+ 
+ #--------------------------------------------------------------------------
+ 
++sub local_scratch_root {
++    Debug("&local_scratch_root() returning: $MTT::Globals::Values->{local_scratch_root}\n");
++    return $MTT::Globals::Values->{local_scratch_root};
++}
++
++#--------------------------------------------------------------------------
++
+ # Return something that will be snipped out of the final evaluation
+ sub null {
+     Debug("&null returning: undef\n");
+Index: client/mtt
+===================================================================
+--- client/mtt	(revision 1223)
++++ client/mtt	(working copy)
+@@ -148,6 +148,7 @@
+ my $ok = Getopt::Long::GetOptions("file|f=s" => \@file_arg,
+                                   "" => \$stdin_arg,
+                                   "scratch|s=s" => \$scratch_arg,
++                                  "local-scratch=s" => \$local_scratch_arg,
+                                   "help|h" => \$help_arg,
+                                   "debug|d" => \$debug_arg,
+                                   "verbose|v" => \$verbose_arg,
+@@ -222,7 +223,9 @@
+         if (!$ok);
+     print "Options:
+ --file|-f <config_file>         Specify the configuration file
+---scratch|-s <dir_name>         Scratch directory (where all work is done)
++--scratch|-s <dir_name>         Scratch directory (where most work is done)
++--local-scratch <dir_name>      Local Scratch dir (where MPI builds are done)
++                                This should be on a fast local filesystem.
+ --help|-h                       This message
+ --debug|-d                      Output lots of debug messages
+ --verbose|-v                    Output some status / verbose messages
+@@ -338,9 +341,13 @@
+ my @ini_list = _process_ini_param(\@file_arg, $stdin_arg, \@section_arg, \@no_section_arg);
+ 
+ # Determine scratch from command-line or INI param
+-my $scratch_arg = _process_scratch_param($scratch_arg, $ini_list[0]->{unfiltered});
++my $scratch_arg = _process_scratch_param("scratch", $scratch_arg, $ini_list[0]->{unfiltered}, ".");
+ $MTT::Globals::Values->{scratch_root} = $scratch_arg;
++MTT::DoCommand::Chdir($scratch_arg);
+ 
++my $local_scratch_arg = _process_scratch_param("local_scratch", $local_scratch_arg, $ini_list[0]->{unfiltered}, $scratch_arg);
++$MTT::Globals::Values->{local_scratch_root} = $local_scratch_arg;
++
+ # Determine --force from command-line or INI param
+ my $force_arg = _process_force_param($force_arg, $ini_list[0]->{unfiltered});
+ 
+@@ -404,18 +411,23 @@
+ ########################################################################
+ 
+ my $source_dir = "$scratch_arg/$MTT::Defaults::System_config->{source_subdir}";
++# NOTE: $local_build_dir and $install_dir may be the same!
++#  They will be the same if --local-scratch is left blank
++my $local_build_dir = "$local_scratch_arg/$MTT::Defaults::System_config->{install_subdir}";
+ my $install_dir = "$scratch_arg/$MTT::Defaults::System_config->{install_subdir}";
+ my $runs_data_dir = "$scratch_arg/$MTT::Defaults::System_config->{runs_data_subdir}";
+ 
+ # If requested, do a clean start
+ if ($clean_start_arg) {
+     MTT::DoCommand::Cmd(1, "rm -rf $source_dir");
++    MTT::DoCommand::Cmd(1, "rm -rf $local_build_dir");
+     MTT::DoCommand::Cmd(1, "rm -rf $install_dir");
+     MTT::DoCommand::Cmd(1, "rm -rf $runs_data_dir");
+ }
+ 
+ # Make directories
+ MTT::Files::mkdir($source_dir);
++MTT::Files::mkdir($local_build_dir);
+ MTT::Files::mkdir($install_dir);
+ MTT::Files::mkdir($runs_data_dir);
+ 
+@@ -458,7 +470,7 @@
+     # determined the scratch_root, so pass it in so that it gets set
+     # in the Globals hash.
+ 
+-    MTT::Globals::load($scratch_arg, $ini_full);
++    MTT::Globals::load($scratch_arg, $local_scratch_arg, $ini_full);
+     MTT::Messages::Messages($debug, $verbose, cwd());
+ 
+     # Make the INI file globally accessible
+@@ -501,7 +513,7 @@
+     }
+     if ($mpi_install && !MTT::Util::time_to_terminate()) {
+         &MTT::Timer::start($time_phases);
+-        MTT::MPI::Install::Install($ini, $ini_full, $install_dir, $force_arg);
++        MTT::MPI::Install::Install($ini, $ini_full, $local_build_dir, $install_dir, $force_arg);
+         &MTT::Timer::stop();
+         &MTT::Timer::print("Phase: MPI Install", $time_phases, 1);
+     }
+@@ -638,31 +650,34 @@
+ # Determine scratch directory
+ sub _process_scratch_param {
+ 
+-    my ($scratch_option, $ini) = @_;
++    my ($name, $scratch_option, $ini, $def_dir) = @_;
+     my $scratch_arg;
++    my $save_dir;
+ 
+     # The --scratch option overrides the INI scratch param
+     if ($scratch_option) {
+         $scratch_arg = $scratch_option;
+     } else {
+-        $scratch_arg = Value($ini, "MTT", "scratch");
++        $scratch_arg = Value($ini, "MTT", $name);
+     }
+ 
+     # See if we got a scratch root
+     if (! $scratch_arg) {
+-        $scratch_arg = ".";
++        $scratch_arg = $def_dir;
+     }
+-    MTT::Messages::Debug("Scratch: $scratch_arg\n");
++    MTT::Messages::Debug("$name: $scratch_arg\n");
+     if (! -d $scratch_arg) {
+         MTT::Files::mkdir($scratch_arg, 0777);
+     }
+     if (! -d $scratch_arg) {
+-        MTT::Messages::Abort("Could not make scratch dir: $scratch_arg\n");
++        MTT::Messages::Abort("Could not make $name dir: $scratch_arg\n");
+     }
+ 
+-    chdir($scratch_arg);
++    $save_dir = cwd();
++    MTT::DoCommand::Chdir($scratch_arg);
+     $scratch_arg = cwd();
+-    MTT::Messages::Debug("Scratch resolved: $scratch_arg\n");
++    MTT::Messages::Debug("$name resolved: $scratch_arg\n");
++    MTT::DoCommand::Chdir($save_dir); # restore the cwd to reduce side effects
+ 
+     # Convert relative path to absolute path and expand "~"
+     $scratch_arg = File::Spec->rel2abs(glob $scratch_arg);

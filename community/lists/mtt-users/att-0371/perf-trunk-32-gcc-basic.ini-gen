@@ -1,0 +1,301 @@
+#======================================================================
+# Overall configuration
+#======================================================================
+
+[MTT]
+
+#identifier to say this is part of the collective performance 
+#measurements
+description = [2007 collective performance bakeoff]
+
+hostfile =
+hostlist =
+max_np = 
+textwrap = 76
+drain_timeout = 5
+trial = 1
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# MPI get phase
+#======================================================================
+
+[MPI get: ompi-nightly-trunk]
+mpi_details = Open MPI
+
+module = OMPI_Snapshot
+ompi_snapshot_url = http://www.open-mpi.org/nightly/trunk
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Install MPI phase
+#======================================================================
+
+[MPI install: odin 32 bit gcc]
+mpi_get = ompi-nightly-trunk
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+ompi_vpath_mode = none
+
+ompi_make_all_arguments = -j 8
+ompi_make_check = 1
+
+ompi_compiler_name = gnu
+ompi_compiler_version = &shell("gcc --version | head -n 1 | awk '{ print \$3 }'")
+ompi_configure_arguments = <<EOT
+FCFLAGS="-m32 -pipe" FFLAGS="-m32 -pipe"
+CFLAGS="-m32 -pipe" CXXFLAGS="-m32 -pipe"
+--with-wrapper-cflags=-m32 --with-wrapper-cxxflags=-m32
+--with-wrapper-fflags=-m32 --with-wrapper-fcflags=-m32
+--disable-io-romio
+EOT
+#--with-openib=/usr/local/ofed --with-openib-libdir=/usr/local/ofed/lib
+
+bitness = 32
+
+module = OMPI
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# MPI run details
+#======================================================================
+
+[MPI Details: Open MPI]
+#exec = mpirun @hosts@ &enumerate("-mca btl tcp,sm,self", "") -mca osc pt2pt -np &test_np() --prefix &test_prefix() &test_executable() &test_argv()
+exec = mpirun @hosts@ -np &test_np() --prefix &test_prefix() &test_executable() &test_argv()
+
+# Yes, all these quotes are necessary.  Don't mess with them!
+hosts = &if(&have_hostfile(), "--hostfile " . &hostfile(), \
+            &if(&have_hostlist(), "--host " . &hostlist(), ""))
+
+#after_each_exec = <<EOT
+#srun -N $SLURM_NNODES killall -9 mpirun orted &test_executable()
+#EOT
+
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Test get phase
+#======================================================================
+
+[Test get: trivial]
+module = Trivial
+
+#----------------------------------------------------------------------
+
+[Test get: imb]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/IMB_2.3
+
+#----------------------------------------------------------------------
+
+[Test get: netpipe]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/NetPIPE_3.6.2
+
+#----------------------------------------------------------------------
+
+[Test get: osu]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/osu
+
+#----------------------------------------------------------------------
+
+[Test get: skampi]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/skampi-5.0.1
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Test build phase
+#======================================================================
+
+[Test build: trivial]
+test_get = trivial
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = -1
+
+module = Trivial
+
+#----------------------------------------------------------------------
+
+[Test build: imb]
+test_get = imb
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = -1
+
+module = Shell
+shell_build_command = <<EOT
+cd src
+make clean IMB-MPI1
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: netpipe]
+test_get = netpipe
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+
+module = Shell
+shell_build_command = <<EOT
+make mpi
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: osu]
+test_get = osu
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+
+module = Shell
+shell_build_command = <<EOT
+make osu_latency osu_bw osu_bibw
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: skampi]
+test_get = skampi
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = 100
+
+module = Shell
+shell_build_command = <<EOT
+make CFLAGS="-O2 -DPRODUCE_SPARSE_OUTPUT"
+EOT
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Test Run phase
+#======================================================================
+
+[Test run: trivial]
+test_build = trivial
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+timeout = &multiply(2, &test_np())
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+stdout_save_lines = 100
+np = &env_max_procs()
+
+module = Simple
+simple_only:tests = &find_executables(".")
+
+#----------------------------------------------------------------------
+
+[Test run: imb performance]
+test_build = imb
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+timeout = -1
+save_stdout_on_pass = 1
+# Ensure to leave this value as "-1", or performance results could be lost!
+stdout_save_lines = -1
+merge_stdout_stderr = 1
+
+argv = -npmin &test_np() &enumerate("PingPong", "PingPing", "Sendrecv", "Exchange", "Allreduce", "Reduce", "Reduce_scatter", "Allgather", "Allgatherv", "Alltoall", "Bcast", "Barrier")
+
+specify_module = Simple
+analyze_module = IMB
+simple_pass:tests = src/IMB-MPI1
+
+#----------------------------------------------------------------------
+
+[Test run: netpipe]
+test_build = netpipe
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+timeout = -1
+save_stdout_on_pass = 1
+# Ensure to leave this value as "-1", or performance results could be lost!
+stdout_save_lines = -1
+merge_stdout_stderr = 1
+# NetPIPE is ping-pong only, so we only need 2 procs
+np = 2
+
+specify_module = Simple
+analyze_module = NetPipe
+simple_pass:tests = NPmpi
+
+#----------------------------------------------------------------------
+
+[Test run: osu]
+test_build = osu
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+# JMS Need a hueristic for the timeout
+timeout = -1
+save_stdout_on_pass = 1
+# Ensure to leave this value as "-1", or performance results could be lost!
+stdout_save_lines = -1
+merge_stdout_stderr = 1
+np = &env_max_procs()
+
+specify_module = Simple
+analyze_module = OSU
+
+simple_pass:tests = osu_bw osu_latency osu_bibw
+
+#----------------------------------------------------------------------
+
+[Test run: skampi]
+test_build = skampi
+pass = &and(&cmd_wifexited(), &eq(&cmd_wexitstatus(), 0))
+# JMS Need a hueristic for the timeout
+timeout = -1
+save_stdout_on_pass = 1
+# Ensure to leave this value as "-1", or performance results could be lost!
+stdout_save_lines = -1
+merge_stdout_stderr = 1
+np = &env_max_procs()
+
+argv = -i &find("coll_.+.ski", "input_files")
+
+specify_module = Simple
+analyze_module = SKaMPI
+
+simple_pass:tests = skampi
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Reporter phase
+#======================================================================
+
+[Reporter: IU database]
+module = MTTDatabase
+
+mttdatabase_realm = OMPI
+mttdatabase_url = https://www.open-mpi.org/mtt/submit/
+# OMPI Core: Change this to be the username and password for your
+# submit user.  Get this from the OMPI MTT administrator.
+mttdatabase_username = iu 
+mttdatabase_password = <deleted>
+# OMPI Core: Change this to be some short string identifying your
+# cluster.
+mttdatabase_platform = IU_Odin
+
+#----------------------------------------------------------------------
+
+# This is a backup for while debugging MTT; it also writes results to
+# a local text file
+[Reporter: text file backup]
+module = ParsableTextfile
+
+parsabletextfile_filename = mtt-debug-report-1-$phase-$section-$mpi_name-$mpi_version.txt
+parsabletextfile_separator = >>>>----------------------------------------------------------<<<<
+
+
+#----------------------------------------------------------------------
+
+
