@@ -1,0 +1,328 @@
+<?
+$subject_val = "Re: [OMPI users] Problems using Open MPI 1.8.4 OSHMEM on Intel Xeon Phi/MIC";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Fri Apr 10 18:37:37 2015" -->
+<!-- isoreceived="20150410223737" -->
+<!-- sent="Fri, 10 Apr 2015 15:37:33 -0700" -->
+<!-- isosent="20150410223733" -->
+<!-- name="Ralph Castain" -->
+<!-- email="rhc_at_[hidden]" -->
+<!-- subject="Re: [OMPI users] Problems using Open MPI 1.8.4 OSHMEM on Intel Xeon Phi/MIC" -->
+<!-- id="2E13CA6E-9B06-472F-A315-827348668ECF_at_open-mpi.org" -->
+<!-- charset="windows-1252" -->
+<!-- inreplyto="55281CB6.4030004_at_hp.com" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI users] Problems using Open MPI 1.8.4 OSHMEM on Intel Xeon Phi/MIC<br>
+<strong>From:</strong> Ralph Castain (<em>rhc_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2015-04-10 18:37:33
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="26677.php">Ralph Castain: "Re: [OMPI users] OpenMPI 1.8.2 problems on CentOS 6.3"</a>
+<li><strong>Previous message:</strong> <a href="26675.php">Ralph Castain: "Re: [OMPI users] OpenMPI 1.8.2 problems on CentOS 6.3"</a>
+<li><strong>In reply to:</strong> <a href="26670.php">Andy Riebs: "[OMPI users] Problems using Open MPI 1.8.4 OSHMEM on Intel Xeon Phi/MIC"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="26678.php">Andy Riebs: "Re: [OMPI users] Problems using Open MPI 1.8.4 OSHMEM on Intel Xeon Phi/MIC"</a>
+<li><strong>Reply:</strong> <a href="26678.php">Andy Riebs: "Re: [OMPI users] Problems using Open MPI 1.8.4 OSHMEM on Intel Xeon Phi/MIC"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Andy - could you please try the current 1.8.5 nightly tarball and see if it helps? The error log indicates that it is failing to get the topology from some daemon, I&#146;m assuming the one on the Phi?
+<br>
+<p>You might also add &#151;enable-debug to that configure line and then put -mca plm_base_verbose on the shmemrun cmd to get more help
+<br>
+<p><p><span class="quotelev1">&gt; On Apr 10, 2015, at 11:55 AM, Andy Riebs &lt;andy.riebs_at_[hidden]&gt; wrote:
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Summary: MPI jobs work fine, SHMEM jobs work just often enough to be tantalizing, on an Intel Xeon Phi/MIC system.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Longer version
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Thanks to the excellent write-up last June (&lt;<a href="https://www.open-mpi.org/community/lists/users/2014/06/24711.php">https://www.open-mpi.org/community/lists/users/2014/06/24711.php</a>&gt; &lt;<a href="https://www.open-mpi.org/community/lists/users/2014/06/24711.php">https://www.open-mpi.org/community/lists/users/2014/06/24711.php</a>&gt;), I have been able to build a version of Open MPI for the Xeon Phi coprocessor that runs MPI jobs on the Phi coprocessor with no problem, but not SHMEM jobs.  Just at the point where I was about to document the problems I was having with SHMEM, my trivial SHMEM job worked. And then failed when I tried to run it again, immediately     afterwards. I have a feeling I may be in uncharted  territory here.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Environment
+</span><br>
+<span class="quotelev1">&gt; RHEL 6.5
+</span><br>
+<span class="quotelev1">&gt; Intel Composer XE 2015
+</span><br>
+<span class="quotelev1">&gt; Xeon Phi/MIC
+</span><br>
+<span class="quotelev1">&gt; ----------------
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Configuration
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; $ export PATH=/usr/linux-k1om-4.7/bin/:$PATH
+</span><br>
+<span class="quotelev1">&gt; $ source /opt/intel/15.0/composer_xe_2015/bin/compilervars.sh intel64
+</span><br>
+<span class="quotelev1">&gt; $ ./configure --prefix=/home/ariebs/mic/mpi \
+</span><br>
+<span class="quotelev1">&gt;    CC=&quot;icc -mmic&quot; CXX=&quot;icpc -mmic&quot; \
+</span><br>
+<span class="quotelev1">&gt;    --build=x86_64-unknown-linux-gnu --host=x86_64-k1om-linux \
+</span><br>
+<span class="quotelev1">&gt;     AR=x86_64-k1om-linux-ar RANLIB=x86_64-k1om-linux-ranlib \
+</span><br>
+<span class="quotelev1">&gt;     LD=x86_64-k1om-linux-ld \
+</span><br>
+<span class="quotelev1">&gt;     --enable-mpirun-prefix-by-default --disable-io-romio \
+</span><br>
+<span class="quotelev1">&gt;     --disable-vt --disable-mpi-fortran \
+</span><br>
+<span class="quotelev1">&gt;     --enable-mca-no-build=btl-usnic,btl-openib,common-verbs
+</span><br>
+<span class="quotelev1">&gt; $ make
+</span><br>
+<span class="quotelev1">&gt; $ make install
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; ----------------
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Test program
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; #include &lt;stdio.h&gt;
+</span><br>
+<span class="quotelev1">&gt; #include &lt;stdlib.h&gt;
+</span><br>
+<span class="quotelev1">&gt; #include &lt;shmem.h&gt;
+</span><br>
+<span class="quotelev1">&gt; int main(int argc, char **argv)
+</span><br>
+<span class="quotelev1">&gt; {
+</span><br>
+<span class="quotelev1">&gt;         int me, num_pe;
+</span><br>
+<span class="quotelev1">&gt;         shmem_init();
+</span><br>
+<span class="quotelev1">&gt;         num_pe = num_pes();
+</span><br>
+<span class="quotelev1">&gt;         me = my_pe();
+</span><br>
+<span class="quotelev1">&gt;         printf(&quot;Hello World from process %ld of %ld\n&quot;, me, num_pe);
+</span><br>
+<span class="quotelev1">&gt;         exit(0);
+</span><br>
+<span class="quotelev1">&gt; }
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; ----------------
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Building the program
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; export PATH=/home/ariebs/mic/mpi/bin:$PATH
+</span><br>
+<span class="quotelev1">&gt; export PATH=/usr/linux-k1om-4.7/bin/:$PATH
+</span><br>
+<span class="quotelev1">&gt; source /opt/intel/15.0/composer_xe_2015/bin/compilervars.sh intel64
+</span><br>
+<span class="quotelev1">&gt; export LD_LIBRARY_PATH=/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic:$LD_LIBRARY_PATH
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; icc -mmic -std=gnu99 -I/home/ariebs/mic/mpi/include -pthread \
+</span><br>
+<span class="quotelev1">&gt;         -Wl,-rpath -Wl,/home/ariebs/mic/mpi/lib -Wl,--enable-new-dtags \
+</span><br>
+<span class="quotelev1">&gt;         -L/home/ariebs/mic/mpi/lib -loshmem -lmpi -lopen-rte -lopen-pal \
+</span><br>
+<span class="quotelev1">&gt;         -lm -ldl -lutil \
+</span><br>
+<span class="quotelev1">&gt;         -Wl,-rpath -Wl,/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic \
+</span><br>
+<span class="quotelev1">&gt;         -L/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic \
+</span><br>
+<span class="quotelev1">&gt;         -o mic.out  shmem_hello.c
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; ----------------
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Running the program
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; (Note that the program had been consistently failing. Then, when I logged back into the system to capture the results, it worked once,  and then immediately failed when I tried again, as shown below. Logging in and out isn't sufficient to correct the problem. Overall, I think I had 3 successful runs in 30-40 attempts.)
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; $ shmemrun -H localhost -N 2 --mca sshmem mmap ./mic.out
+</span><br>
+<span class="quotelev1">&gt; [atl1-01-mic0:189372] [[30936,0],0] ORTE_ERROR_LOG: Not found in file base/plm_base_launch_support.c at line 426
+</span><br>
+<span class="quotelev1">&gt; Hello World from process 0 of 2
+</span><br>
+<span class="quotelev1">&gt; Hello World from process 1 of 2
+</span><br>
+<span class="quotelev1">&gt; $ shmemrun -H localhost -N 2 --mca sshmem mmap ./mic.out
+</span><br>
+<span class="quotelev1">&gt; [atl1-01-mic0:189381] [[30881,0],0] ORTE_ERROR_LOG: Not found in file base/plm_base_launch_support.c at line 426
+</span><br>
+<span class="quotelev1">&gt; [atl1-01-mic0:189383] Error: pshmem_init.c:61 - shmem_init() SHMEM failed to initialize - aborting
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; It looks like SHMEM_INIT failed for some reason; your parallel process is
+</span><br>
+<span class="quotelev1">&gt; likely to abort.  There are many reasons that a parallel process can
+</span><br>
+<span class="quotelev1">&gt; fail during SHMEM_INIT; some of which are due to configuration or environment
+</span><br>
+<span class="quotelev1">&gt; problems.  This failure appears to be an internal failure; here's some
+</span><br>
+<span class="quotelev1">&gt; additional information (which may only be relevant to an Open SHMEM
+</span><br>
+<span class="quotelev1">&gt; developer):
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt;   mca_memheap_base_select() failed
+</span><br>
+<span class="quotelev1">&gt;   --&gt; Returned &quot;Error&quot; (-1) instead of &quot;Success&quot; (0)
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; SHMEM_ABORT was invoked on rank 0 (pid 189383, host=atl1-01-mic0) with errorcode -1.
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; A SHMEM process is aborting at a time when it cannot guarantee that all
+</span><br>
+<span class="quotelev1">&gt; of its peer processes in the job will be killed properly.  You should
+</span><br>
+<span class="quotelev1">&gt; double check that everything has shut down cleanly.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Local host: atl1-01-mic0
+</span><br>
+<span class="quotelev1">&gt; PID:        189383
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; -------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; Primary job  terminated normally, but 1 process returned
+</span><br>
+<span class="quotelev1">&gt; a non-zero exit code.. Per user-direction, the job has been aborted.
+</span><br>
+<span class="quotelev1">&gt; -------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; shmemrun detected that one or more processes exited with non-zero status, thus causing
+</span><br>
+<span class="quotelev1">&gt; the job to be terminated. The first process to do so was:
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt;   Process name: [[30881,1],0]
+</span><br>
+<span class="quotelev1">&gt;   Exit code:    255
+</span><br>
+<span class="quotelev1">&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Any thoughts about where to go from here?
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Andy
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; -- 
+</span><br>
+<span class="quotelev1">&gt; Andy Riebs
+</span><br>
+<span class="quotelev1">&gt; Hewlett-Packard Company
+</span><br>
+<span class="quotelev1">&gt; High Performance Computing
+</span><br>
+<span class="quotelev1">&gt; +1 404 648 9024
+</span><br>
+<span class="quotelev1">&gt; My opinions are not necessarily those of HP
+</span><br>
+<span class="quotelev1">&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; users mailing list
+</span><br>
+<span class="quotelev1">&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev1">&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/04/26670.php">http://www.open-mpi.org/community/lists/users/2015/04/26670.php</a>
+</span><br>
+<p><p><hr>
+<ul>
+<li>text/html attachment: <a href="http://www.open-mpi.org/community/lists/users/att-26676/attachment">attachment</a>
+</ul>
+<!-- attachment="attachment" -->
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="26677.php">Ralph Castain: "Re: [OMPI users] OpenMPI 1.8.2 problems on CentOS 6.3"</a>
+<li><strong>Previous message:</strong> <a href="26675.php">Ralph Castain: "Re: [OMPI users] OpenMPI 1.8.2 problems on CentOS 6.3"</a>
+<li><strong>In reply to:</strong> <a href="26670.php">Andy Riebs: "[OMPI users] Problems using Open MPI 1.8.4 OSHMEM on Intel Xeon Phi/MIC"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="26678.php">Andy Riebs: "Re: [OMPI users] Problems using Open MPI 1.8.4 OSHMEM on Intel Xeon Phi/MIC"</a>
+<li><strong>Reply:</strong> <a href="26678.php">Andy Riebs: "Re: [OMPI users] Problems using Open MPI 1.8.4 OSHMEM on Intel Xeon Phi/MIC"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

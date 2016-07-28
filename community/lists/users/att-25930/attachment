@@ -1,0 +1,276 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Folks,<br>
+      <br>
+      FWIW, i observe a similar behaviour on my system.<br>
+      <br>
+      imho, the root cause is OFED has been upgraded from a (quite)
+      older version to latest 3.12 version<br>
+      <br>
+      here is the relevant part of code (btl_openib.c from the master) :<br>
+      <br>
+      <br>
+      static uint64_t calculate_max_reg (void)<br>
+      {<br>
+      &nbsp;&nbsp;&nbsp; if (0 == stat("/sys/module/mlx4_core/parameters/log_num_mtt",
+      &amp;statinfo)) {<br>
+      &nbsp;&nbsp;&nbsp; } else if (0 ==
+      stat("/sys/module/ib_mthca/parameters/num_mtt", &amp;statinfo)) {<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mtts_per_seg = 1 &lt;&lt;
+      read_module_param("/sys/module/ib_mthca/parameters/log_mtts_per_seg",
+      1);<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; num_mtt =
+      read_module_param("/sys/module/ib_mthca/parameters/num_mtt", 1
+      &lt;&lt; 20);<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; reserved_mtt =
+      read_module_param("/sys/module/ib_mthca/parameters/fmr_reserved_mtts",
+      0);<br>
+      <br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; max_reg = (num_mtt - reserved_mtt) * opal_getpagesize () *
+      mtts_per_seg;<br>
+      &nbsp;&nbsp;&nbsp; } else if (<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (0 == stat("/sys/module/mlx5_core", &amp;statinfo)) ||<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (0 == stat("/sys/module/mlx4_core/parameters",
+      &amp;statinfo)) ||<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (0 == stat("/sys/module/ib_mthca/parameters",
+      &amp;statinfo))<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ) {<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* mlx5 means that we have ofed 2.0 and it can always
+      register 2xmem_total for any mlx hca */<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; max_reg = 2 * mem_total;<br>
+      &nbsp;&nbsp;&nbsp; } else {<br>
+      &nbsp;&nbsp;&nbsp; }<br>
+      <br>
+      &nbsp;&nbsp;&nbsp; /* Print a warning if we can't register more than 75% of
+      physical<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; memory.&nbsp; Abort if the abort_not_enough_reg_mem MCA param
+      was<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; set. */<br>
+      &nbsp;&nbsp;&nbsp; if (max_reg &lt; mem_total * 3 / 4) {<br>
+      &nbsp;&nbsp;&nbsp; }<br>
+      &nbsp;&nbsp;&nbsp; return (max_reg * 7) &gt;&gt; 3;<br>
+      }<br>
+      <br>
+      with OFED 3.12, the /sys/module/mlx4_core/parameters/log_num_mtt
+      pseudo file does *not* exist any more<br>
+      /sys/module/ib_mthca/parameters/num_mtt exists so the second path
+      is taken<br>
+      and mtts_per_seg is read from
+      /sys/module/ib_mthca/parameters/log_mtts_per_seg<br>
+      <br>
+      i noted that log_mtts_per_seg is also a parameter of mlx4_core :
+      /sys/module/mlx4_core/parameters/log_mtts_per_seg<br>
+      <br>
+      the value is 3 in ib_mthca (and leads to a warning) but 5 in
+      mlx4_core (big enough, and does not lead to a warning if this
+      value is read)<br>
+      <br>
+      <br>
+      i had no time to read the latest ofed doc, so i cannot answer :<br>
+      - should log_mtts_per_seg be read from mlx4_core instead ?<br>
+      - is the warning a false positive ?<br>
+      <br>
+      <br>
+      my only point is this warning *might* be a false positive and the
+      root cause *might* be calculate_max_reg logic<br>
+      *could* be wrong with the latest OFED stack.<br>
+      <br>
+      Could the Mellanox folks comment on this ?<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      &nbsp;<br>
+      <br>
+      <br>
+      On 2014/12/09 3:18, G&ouml;tz Waschk wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CACd6u-oJcv++20XZjd3TP5Lo_TRtn8J5NzPYS1C=s2nLSmLAHg@mail.gmail.com"
+      type="cite">
+      <pre wrap="">Hi,
+
+here's another test with openmpi 1.8.3. With 1.8.1, 32GB was detected, now
+it is just 16:
+% mpirun -np 2 /usr/lib64/openmpi-intel/bin/mpitests-osu_get_bw
+--------------------------------------------------------------------------
+WARNING: It appears that your OpenFabrics subsystem is configured to only
+allow registering part of your physical memory.  This can cause MPI jobs to
+run with erratic performance, hang, and/or crash.
+
+This may be caused by your OpenFabrics vendor limiting the amount of
+physical memory that can be registered.  You should investigate the
+relevant Linux kernel module parameters that control how much physical
+memory can be registered, and increase them to allow registering all
+physical memory on your machine.
+
+See this Open MPI FAQ item for more information on these Linux kernel module
+parameters:
+
+    <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages">http://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages</a>
+
+  Local host:              pax95
+  Registerable memory:     16384 MiB
+  Total memory:            49106 MiB
+
+Your MPI job will continue, but may be behave poorly and/or hang.
+--------------------------------------------------------------------------
+# OSU MPI_Get Bandwidth Test v4.3
+# Window creation: MPI_Win_allocate
+# Synchronization: MPI_Win_flush
+# Size      Bandwidth (MB/s)
+1                      28.56
+2                      58.74
+
+
+So it wasn't fixed for RHEL 6.6.
+
+Regards, G&ouml;tz
+
+On Mon, Dec 8, 2014 at 4:00 PM, G&ouml;tz Waschk <a class="moz-txt-link-rfc2396E" href="mailto:goetz.waschk@gmail.com">&lt;goetz.waschk@gmail.com&gt;</a> wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Hi,
+
+I had tested 1.8.4rc1 and it wasn't fixed. I can try again though,
+maybe I had made an error.
+
+Regards, G&ouml;tz Waschk
+
+On Mon, Dec 8, 2014 at 3:17 PM, Joshua Ladd <a class="moz-txt-link-rfc2396E" href="mailto:jladd.mlnx@gmail.com">&lt;jladd.mlnx@gmail.com&gt;</a> wrote:
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Hi,
+
+This should be fixed in OMPI 1.8.3. Is it possible for you to give 1.8.3
+</pre>
+        </blockquote>
+        <pre wrap="">a
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">shot?
+
+Best,
+
+Josh
+
+On Mon, Dec 8, 2014 at 8:43 AM, G&ouml;tz Waschk <a class="moz-txt-link-rfc2396E" href="mailto:goetz.waschk@gmail.com">&lt;goetz.waschk@gmail.com&gt;</a>
+</pre>
+        </blockquote>
+        <pre wrap="">wrote:
+</pre>
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <pre wrap="">
+Dear Open-MPI experts,
+
+I have updated my little cluster from Scientific Linux 6.5 to 6.6,
+this included extensive changes in the Infiniband drivers and a newer
+openmpi version (1.8.1). Now I'm getting this message on all nodes
+with more than 32 GB of RAM:
+
+
+WARNING: It appears that your OpenFabrics subsystem is configured to
+</pre>
+          </blockquote>
+        </blockquote>
+        <pre wrap="">only
+</pre>
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <pre wrap="">allow registering part of your physical memory.  This can cause MPI jobs
+to
+run with erratic performance, hang, and/or crash.
+
+This may be caused by your OpenFabrics vendor limiting the amount of
+physical memory that can be registered.  You should investigate the
+relevant Linux kernel module parameters that control how much physical
+memory can be registered, and increase them to allow registering all
+physical memory on your machine.
+
+See this Open MPI FAQ item for more information on these Linux kernel
+module
+parameters:
+
+    <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages">http://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages</a>
+
+  Local host:              pax98
+  Registerable memory:     32768 MiB
+  Total memory:            49106 MiB
+
+Your MPI job will continue, but may be behave poorly and/or hang.
+
+
+The issue is similar to the one described in a previous thread about
+Ubuntu nodes:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2014/08/25090.php">http://www.open-mpi.org/community/lists/users/2014/08/25090.php</a>
+But the Infiniband driver is different, the values log_num_mtt and
+log_mtts_per_seg both still exist, but they cannot be changed and have
+on all configurations the same values:
+[pax52] /root # cat /sys/module/mlx4_core/parameters/log_num_mtt
+0
+[pax52] /root # cat /sys/module/mlx4_core/parameters/log_mtts_per_seg
+3
+
+The kernel changelog says that Red Hat has included this commit:
+mlx4: Scale size of MTT table with system RAM (Doug Ledford)
+so it should be all fine, the buffers scale automatically, however, as
+far as I can see, the wrong value calculated by calculate_max_reg() is
+used in the code, so I think I cannot simply ignore the warning. Also,
+a user has reported a problem with a job, I cannot confirm that this
+is the cause.
+
+My workaround was to simply load the mlx5_core kernel module, as this
+is used by calculate_max_reg() to detect OFED 2.0.
+
+Regards, G&ouml;tz Waschk
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2014/12/25923.php">http://www.open-mpi.org/community/lists/users/2014/12/25923.php</a>
+</pre>
+          </blockquote>
+          <pre wrap="">
+
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2014/12/25924.php">http://www.open-mpi.org/community/lists/users/2014/12/25924.php</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+
+
+--
+AL I:40: Do what thou wilt shall be the whole of the Law.
+
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2014/12/25929.php">http://www.open-mpi.org/community/lists/users/2014/12/25929.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

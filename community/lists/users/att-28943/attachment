@@ -1,0 +1,276 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Try adding -mca oob_tcp_if_include eno1 to your cmd line and see if that makes a difference<div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Apr 17, 2016, at 8:43 PM, dpchoudh . &lt;<a href="mailto:dpchoudh@gmail.com" class="">dpchoudh@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class=""><div class=""><div class=""><div class=""><div class=""><div class=""><div class=""><div class=""><div class=""><div class=""><div class=""><div class=""><div class="">Hello Gilles and all<br class=""><br class=""></div>I am sorry to be bugging the developers, but this issue seems to be nagging me, and I am surprised it does not seem to affect anybody else. But then again, I am using the master branch, and most users are probably using a released version.<br class=""><br class=""></div>This time I am using a totally different cluster. This has NO verbs capable interface; just 2 Ethernet (1 of which has no IP address and hence is unusable) plus 1 proprietary interface that currently supports only IP traffic. The two IP interfaces (Ethernet and proprietary) are on different IP subnets.<br class=""><br class=""></div>My test program is as follows:<br class=""><br class=""><span style="font-family:monospace,monospace" class="">#include &lt;stdio.h&gt;<br class="">#include &lt;string.h&gt;<br class="">#include "mpi.h"<br class="">int main(int argc, char *argv[])<br class="">{<br class="">char host[128];<br class="">int n;<br class="">MPI_Init(&amp;argc, &amp;argv);<br class="">MPI_Get_processor_name(host, &amp;n);<br class="">printf("Hello from %s\n", host);<br class="">MPI_Comm_size(MPI_COMM_WORLD, &amp;n);<br class="">printf("The world has %d nodes\n", n);<br class="">MPI_Comm_rank(MPI_COMM_WORLD, &amp;n);<br class="">printf("My rank is %d\n",n);<br class="">//#if 0<br class="">if (n == 0)<br class="">{<br class="">strcpy(host, "ha!");<br class="">MPI_Send(host, strlen(host) + 1, MPI_CHAR, 1, 1, MPI_COMM_WORLD);<br class="">printf("sent %s\n", host);<br class="">}<br class="">else<br class="">{<br class="">//int len = strlen(host) + 1;<br class="">bzero(host, 128);<br class="">MPI_Recv(host,&nbsp; 4, MPI_CHAR, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);<br class="">printf("Received %s from rank 0\n", host);<br class="">}<br class="">//#endif<br class="">MPI_Finalize();<br class="">return 0;<br class="">}</span><br class=""><br class=""></div>This program, when run between two nodes, hangs. The command was:<br class=""><span style="font-family:monospace,monospace" class="">[durga@b-1 ~]$ mpirun -np 2 -hostfile ~/hostfile -mca btl self,tcp -mca pml ob1 -mca btl_tcp_if_include eno1 ./mpitest<br class=""></span><br class="">And the hang is with the following output: (eno1 is one of the gigEth interfaces, that takes OOB traffic as well)<br class=""><br class=""><span style="font-family:monospace,monospace" class="">Hello from b-1<br class="">The world has 2 nodes<br class="">My rank is 0<br class="">Hello from b-2<br class="">The world has 2 nodes<br class="">My rank is 1</span><br class=""><br class=""></div>Note that if I uncomment the #if 0 - #endif (i.e. comment out the MPI_Send()/MPI_Recv() part, the program runs to completion. Also note that the printfs following MPI_Send()/MPI_Recv() do not show up on console.<br class=""><br class=""></div>Upon attaching gdb, the stack trace from the master node is as follows:<br class=""><br class=""><span style="font-family:monospace,monospace" class="">Missing separate debuginfos, use: debuginfo-install glibc-2.17-78.el7.x86_64 libpciaccess-0.13.4-2.el7.x86_64<br class="">(gdb) bt<br class="">#0&nbsp; 0x00007f72a533eb7d in poll () from /lib64/libc.so.6<br class="">#1&nbsp; 0x00007f72a4cb7146 in poll_dispatch (base=0xee33d0, tv=0x7fff81057b70)<br class="">&nbsp;&nbsp;&nbsp; at poll.c:165<br class="">#2&nbsp; 0x00007f72a4caede0 in opal_libevent2022_event_base_loop (base=0xee33d0,<br class="">&nbsp;&nbsp;&nbsp; flags=2) at event.c:1630<br class="">#3&nbsp; 0x00007f72a4c4e692 in opal_progress () at runtime/opal_progress.c:171<br class="">#4&nbsp; 0x00007f72a0d07ac1 in opal_condition_wait (<br class="">&nbsp;&nbsp;&nbsp; c=0x7f72a5bb1e00 &lt;ompi_request_cond&gt;, m=0x7f72a5bb1d80 &lt;ompi_request_lock&gt;)<br class="">&nbsp;&nbsp;&nbsp; at ../../../../opal/threads/condition.h:76<br class="">#5&nbsp; 0x00007f72a0d07ca2 in ompi_request_wait_completion (req=0x113eb80)<br class="">&nbsp;&nbsp;&nbsp; at ../../../../ompi/request/request.h:383<br class="">#6&nbsp; 0x00007f72a0d09cd5 in mca_pml_ob1_send (buf=0x7fff81057db0, count=4,<br class="">&nbsp;&nbsp;&nbsp; datatype=0x601080 &lt;ompi_mpi_char&gt;, dst=1, tag=1,<br class="">&nbsp;&nbsp;&nbsp; sendmode=MCA_PML_BASE_SEND_STANDARD, comm=0x601280 &lt;ompi_mpi_comm_world&gt;)<br class="">&nbsp;&nbsp;&nbsp; at pml_ob1_isend.c:251<br class="">#7&nbsp; 0x00007f72a58d6be3 in PMPI_Send (buf=0x7fff81057db0, count=4,<br class="">&nbsp;&nbsp;&nbsp; type=0x601080 &lt;ompi_mpi_char&gt;, dest=1, tag=1,<br class="">&nbsp;&nbsp;&nbsp; comm=0x601280 &lt;ompi_mpi_comm_world&gt;) at psend.c:78<br class="">#8&nbsp; 0x0000000000400afa in main (argc=1, argv=0x7fff81057f18) at mpitest.c:19<br class="">(gdb)<br class=""></span><br class=""></div>And the backtrace on the non-master node is:<br class=""><br class=""><span style="font-family:monospace,monospace" class="">(gdb) bt<br class="">#0&nbsp; 0x00007ff3b377e48d in nanosleep () from /lib64/libc.so.6<br class="">#1&nbsp; 0x00007ff3b37af014 in usleep () from /lib64/libc.so.6<br class="">#2&nbsp; 0x00007ff3b0c922de in OPAL_PMIX_PMIX120_PMIx_Fence (procs=0x0, nprocs=0,<br class="">&nbsp;&nbsp;&nbsp; info=0x0, ninfo=0) at src/client/pmix_client_fence.c:100<br class="">#3&nbsp; 0x00007ff3b0c5f1a6 in pmix120_fence (procs=0x0, collect_data=0)<br class="">&nbsp;&nbsp;&nbsp; at pmix120_client.c:258<br class="">#4&nbsp; 0x00007ff3b3cf8f4b in ompi_mpi_finalize ()<br class="">&nbsp;&nbsp;&nbsp; at runtime/ompi_mpi_finalize.c:242<br class="">#5&nbsp; 0x00007ff3b3d23295 in PMPI_Finalize () at pfinalize.c:47<br class="">#6&nbsp; 0x0000000000400958 in main (argc=1, argv=0x7fff785e8788) at mpitest.c:30<br class="">(gdb)</span><br class=""><br class=""></div>The hostfile is as follows:<br class=""><br class=""><span style="font-family:monospace,monospace" class="">[durga@b-1 ~]$ cat hostfile<br class="">10.4.70.10 slots=1<br class="">10.4.70.11 slots=1<br class="">#10.4.70.12 slots=1</span><br class=""><br class=""></div>And the ifconfig output from the master node is as follows (the other node is similar; all the IP interfaces are in their respective subnets) :<br class=""><span style="font-family:monospace,monospace" class=""><br class="">[durga@b-1 ~]$ ifconfig<br class="">eno1: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;&nbsp; mtu 1500<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; inet 10.4.70.10&nbsp; netmask 255.255.255.0&nbsp; broadcast 10.4.70.255<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; inet6 fe80::21e:c9ff:fefe:13df&nbsp; prefixlen 64&nbsp; scopeid 0x20&lt;link&gt;<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ether 00:1e:c9:fe:13:df&nbsp; txqueuelen 1000&nbsp; (Ethernet)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RX packets 48215&nbsp; bytes 27842846 (26.5 MiB)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RX errors 0&nbsp; dropped 0&nbsp; overruns 0&nbsp; frame 0<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TX packets 52746&nbsp; bytes 7817568 (7.4 MiB)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TX errors 0&nbsp; dropped 0 overruns 0&nbsp; carrier 0&nbsp; collisions 0<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; device interrupt 16<br class=""><br class="">eno2: flags=4099&lt;UP,BROADCAST,MULTICAST&gt;&nbsp; mtu 1500<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ether 00:1e:c9:fe:13:e0&nbsp; txqueuelen 1000&nbsp; (Ethernet)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RX packets 0&nbsp; bytes 0 (0.0 B)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RX errors 0&nbsp; dropped 0&nbsp; overruns 0&nbsp; frame 0<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TX packets 0&nbsp; bytes 0 (0.0 B)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TX errors 0&nbsp; dropped 0 overruns 0&nbsp; carrier 0&nbsp; collisions 0<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; device interrupt 17<br class=""><br class="">lf0: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;&nbsp; mtu 2016<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; inet 192.168.1.2&nbsp; netmask 255.255.255.0&nbsp; broadcast 192.168.1.255<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; inet6 fe80::3002:ff:fe33:3333&nbsp; prefixlen 64&nbsp; scopeid 0x20&lt;link&gt;<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ether 32:02:00:33:33:33&nbsp; txqueuelen 1000&nbsp; (Ethernet)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RX packets 10&nbsp; bytes 512 (512.0 B)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RX errors 0&nbsp; dropped 0&nbsp; overruns 0&nbsp; frame 0<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TX packets 22&nbsp; bytes 1536 (1.5 KiB)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TX errors 0&nbsp; dropped 0 overruns 0&nbsp; carrier 0&nbsp; collisions 0<br class=""><br class="">lo: flags=73&lt;UP,LOOPBACK,RUNNING&gt;&nbsp; mtu 65536<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; inet 127.0.0.1&nbsp; netmask 255.0.0.0<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; inet6 ::1&nbsp; prefixlen 128&nbsp; scopeid 0x10&lt;host&gt;<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; loop&nbsp; txqueuelen 0&nbsp; (Local Loopback)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RX packets 26&nbsp; bytes 1378 (1.3 KiB)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RX errors 0&nbsp; dropped 0&nbsp; overruns 0&nbsp; frame 0<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TX packets 26&nbsp; bytes 1378 (1.3 KiB)<br class="">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; TX errors 0&nbsp; dropped 0 overruns 0&nbsp; carrier 0&nbsp; collisions 0<br class=""></span><br class=""></div>Please help me with this. I am stuck with the TCP transport, which is the most basic of all transports.<br class=""><br class=""></div>Thanks in advance<br class=""></div>Durga<br class=""><div class=""><div class=""><div class=""><br class=""></div></div></div></div><div class="gmail_extra"><br clear="all" class=""><div class=""><div class="gmail_signature"><div dir="ltr" class=""><div class="">1% of the executables have 99% of CPU privilege!<br class=""></div>Userspace code! Unite!! Occupy the kernel!!!<br class=""></div></div></div>
+<br class=""><div class="gmail_quote">On Tue, Apr 12, 2016 at 9:32 PM, Gilles Gouaillardet <span dir="ltr" class="">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank" class="">gilles@rist.or.jp</a>&gt;</span> wrote:<br class=""><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000" class="">
+    This is quite unlikely, and fwiw, your test program works for me.<br class="">
+    <br class="">
+    i suggest you check your 3 TCP networks are usable, for example<br class="">
+    <br class="">
+    $ mpirun -np 2 -hostfile ~/hostfile -mca btl self,tcp -mca pml ob1
+    --mca btl_tcp_if_include xxx ./mpitest<br class="">
+    <br class="">
+    in which xxx is a [list of] interface name :<br class="">
+    eth0<br class="">
+    eth1<br class="">
+    ib0<br class="">
+    eth0,eth1<br class="">
+    eth0,ib0<br class="">
+    ...<br class="">
+    eth0,eth1,ib0<br class="">
+    <br class="">
+    and see where problem start occuring.<br class="">
+    <br class="">
+    btw, are your 3 interfaces in 3 different subnet ? is routing
+    required between two interfaces of the same type ?<br class="">
+    <br class="">
+    Cheers,<br class="">
+    <br class="">
+    Gilles<div class=""><div class="h5"><br class="">
+    <div class="">On 4/13/2016 7:15 AM, dpchoudh . wrote:<br class="">
+    </div>
+    </div></div><blockquote type="cite" class=""><div class=""><div class="h5">
+      <div dir="ltr" class="">
+        <div class="">
+          <div class="">
+            <div class="">
+              <div class="">
+                <div class="">
+                  <div class="">
+                    <div class="">
+                      <div class="">
+                        <div class="">
+                          <div class="">
+                            <div class="">Hi all<br class="">
+                              <br class="">
+                            </div>
+                            I have reported this issue before, but then
+                            had brushed it off as something that was
+                            caused by my modifications to the source
+                            tree. It looks like that is not the case.<br class="">
+                            <br class="">
+                          </div>
+                          Just now, I did the following:<br class="">
+                          <br class="">
+                        </div>
+                        1. Cloned a fresh copy from master.<br class="">
+                      </div>
+                      2. Configured with the following flags, built and
+                      installed it in my two-node "cluster".<br class="">
+                    </div>
+                    --enable-debug --enable-debug-symbols
+                    --disable-dlopen<br class="">
+                  </div>
+                  3. Compiled the following program, mpitest.c with
+                  these flags: -g3 -Wall -Wextra<br class="">
+                </div>
+                4. Ran it like this:<br class="">
+                [durga@smallMPI ~]$ mpirun -np 2 -hostfile ~/hostfile
+                -mca btl self,tcp -mca pml ob1 ./mpitest<br class="">
+                <br class="">
+              </div>
+              With this, the code hangs at MPI_Barrier() on both nodes,
+              after generating the following output:<br class="">
+              <br class="">
+              Hello world from processor smallMPI, rank 0 out of 2
+              processors<br class="">
+              Hello world from processor bigMPI, rank 1 out of 2
+              processors<br class="">
+              smallMPI sent haha!<br class="">
+              bigMPI received haha!<br class="">
+            </div>
+            &lt;Hangs until killed by ^C&gt;<br class="">
+          </div>
+          Attaching to the hung process at one node gives the following
+          backtrace:<br class="">
+          <br class="">
+          (gdb) bt<br class="">
+          #0&nbsp; 0x00007f55b0f41c3d in poll () from /lib64/libc.so.6<br class="">
+          #1&nbsp; 0x00007f55b03ccde6 in poll_dispatch (base=0x70e7b0,
+          tv=0x7ffd1bb551c0) at poll.c:165<br class="">
+          #2&nbsp; 0x00007f55b03c4a90 in opal_libevent2022_event_base_loop
+          (base=0x70e7b0, flags=2) at event.c:1630<br class="">
+          #3&nbsp; 0x00007f55b02f0144 in opal_progress () at
+          runtime/opal_progress.c:171<br class="">
+          #4&nbsp; 0x00007f55b14b4d8b in opal_condition_wait
+          (c=0x7f55b19fec40 &lt;ompi_request_cond&gt;, m=0x7f55b19febc0
+          &lt;ompi_request_lock&gt;) at ../opal/threads/condition.h:76<br class="">
+          #5&nbsp; 0x00007f55b14b531b in ompi_request_default_wait_all
+          (count=2, requests=0x7ffd1bb55370, statuses=0x7ffd1bb55340) at
+          request/req_wait.c:287<br class="">
+          #6&nbsp; 0x00007f55b157a225 in ompi_coll_base_sendrecv_zero
+          (dest=1, stag=-16, source=1, rtag=-16, comm=0x601280
+          &lt;ompi_mpi_comm_world&gt;)<br class="">
+          &nbsp;&nbsp;&nbsp; at base/coll_base_barrier.c:63<br class="">
+          #7&nbsp; 0x00007f55b157a92a in
+          ompi_coll_base_barrier_intra_two_procs (comm=0x601280
+          &lt;ompi_mpi_comm_world&gt;, module=0x7c2630) at
+          base/coll_base_barrier.c:308<br class="">
+          #8&nbsp; 0x00007f55b15aafec in
+          ompi_coll_tuned_barrier_intra_dec_fixed (comm=0x601280
+          &lt;ompi_mpi_comm_world&gt;, module=0x7c2630) at
+          coll_tuned_decision_fixed.c:196<br class="">
+          #9&nbsp; 0x00007f55b14d36fd in PMPI_Barrier (comm=0x601280
+          &lt;ompi_mpi_comm_world&gt;) at pbarrier.c:63<br class="">
+          #10 0x0000000000400b0b in main (argc=1, argv=0x7ffd1bb55658)
+          at mpitest.c:26<br class="">
+          (gdb) <br class="">
+          <br class="">
+        </div>
+        Thinking that this might be a bug in tuned collectives, since
+        that is what the stack shows, I ran the program like this
+        (basically adding the ^tuned part)<br class="">
+        <br class="">
+        [durga@smallMPI ~]$ mpirun -np 2 -hostfile ~/hostfile -mca btl
+        self,tcp -mca pml ob1 -mca coll ^tuned ./mpitest<br class="">
+        <br class="">
+        <div class="">
+          <div class="">
+            <div class="">
+              <div class="">It still hangs, but now with a different stack trace:<br class="">
+                (gdb) bt<br class="">
+                #0&nbsp; 0x00007f910d38ac3d in poll () from /lib64/libc.so.6<br class="">
+                #1&nbsp; 0x00007f910c815de6 in poll_dispatch (base=0x1a317b0,
+                tv=0x7fff43ee3610) at poll.c:165<br class="">
+                #2&nbsp; 0x00007f910c80da90 in
+                opal_libevent2022_event_base_loop (base=0x1a317b0,
+                flags=2) at event.c:1630<br class="">
+                #3&nbsp; 0x00007f910c739144 in opal_progress () at
+                runtime/opal_progress.c:171<br class="">
+                #4&nbsp; 0x00007f910db130f7 in opal_condition_wait
+                (c=0x7f910de47c40 &lt;ompi_request_cond&gt;,
+                m=0x7f910de47bc0 &lt;ompi_request_lock&gt;)<br class="">
+                &nbsp;&nbsp;&nbsp; at ../../../../opal/threads/condition.h:76<br class="">
+                #5&nbsp; 0x00007f910db132d8 in ompi_request_wait_completion
+                (req=0x1b07680) at
+                ../../../../ompi/request/request.h:383<br class="">
+                #6&nbsp; 0x00007f910db1533b in mca_pml_ob1_send (buf=0x0,
+                count=0, datatype=0x7f910de1e340 &lt;ompi_mpi_byte&gt;,
+                dst=1, tag=-16, sendmode=MCA_PML_BASE_SEND_STANDARD, <br class="">
+                &nbsp;&nbsp;&nbsp; comm=0x601280 &lt;ompi_mpi_comm_world&gt;) at
+                pml_ob1_isend.c:259<br class="">
+                #7&nbsp; 0x00007f910d9c3b38 in
+                ompi_coll_base_barrier_intra_basic_linear (comm=0x601280
+                &lt;ompi_mpi_comm_world&gt;, module=0x1b092c0) at
+                base/coll_base_barrier.c:368<br class="">
+                #8&nbsp; 0x00007f910d91c6fd in PMPI_Barrier (comm=0x601280
+                &lt;ompi_mpi_comm_world&gt;) at pbarrier.c:63<br class="">
+                #9&nbsp; 0x0000000000400b0b in main (argc=1,
+                argv=0x7fff43ee3a58) at mpitest.c:26<br class="">
+                (gdb) <br class="">
+                <br class="">
+              </div>
+              <div class="">
+                <div class="">The mpitest.c program is as follows:<br class="">
+                  #include &lt;mpi.h&gt;<br class="">
+                  #include &lt;stdio.h&gt;<br class="">
+                  #include &lt;string.h&gt;<br class="">
+                  <br class="">
+                  int main(int argc, char** argv)<br class="">
+                  {<br class="">
+                  &nbsp;&nbsp;&nbsp; int world_size, world_rank, name_len;<br class="">
+                  &nbsp;&nbsp;&nbsp; char hostname[MPI_MAX_PROCESSOR_NAME], buf[8];<br class="">
+                  <br class="">
+                  &nbsp;&nbsp;&nbsp; MPI_Init(&amp;argc, &amp;argv);<br class="">
+                  &nbsp;&nbsp;&nbsp; MPI_Comm_size(MPI_COMM_WORLD, &amp;world_size);<br class="">
+                  &nbsp;&nbsp;&nbsp; MPI_Comm_rank(MPI_COMM_WORLD, &amp;world_rank);<br class="">
+                  &nbsp;&nbsp;&nbsp; MPI_Get_processor_name(hostname, &amp;name_len);<br class="">
+                  &nbsp;&nbsp;&nbsp; printf("Hello world from processor %s, rank %d out
+                  of %d processors\n", hostname, world_rank,
+                  world_size);<br class="">
+                  &nbsp;&nbsp;&nbsp; if (world_rank == 1)<br class="">
+                  &nbsp;&nbsp;&nbsp; {<br class="">
+                  &nbsp;&nbsp;&nbsp; MPI_Recv(buf, 6, MPI_CHAR, 0, 99, MPI_COMM_WORLD,
+                  MPI_STATUS_IGNORE);<br class="">
+                  &nbsp;&nbsp;&nbsp; printf("%s received %s\n", hostname, buf);<br class="">
+                  &nbsp;&nbsp;&nbsp; }<br class="">
+                  &nbsp;&nbsp;&nbsp; else<br class="">
+                  &nbsp;&nbsp;&nbsp; {<br class="">
+                  &nbsp;&nbsp;&nbsp; strcpy(buf, "haha!");<br class="">
+                  &nbsp;&nbsp;&nbsp; MPI_Send(buf, 6, MPI_CHAR, 1, 99, MPI_COMM_WORLD);<br class="">
+                  &nbsp;&nbsp;&nbsp; printf("%s sent %s\n", hostname, buf);<br class="">
+                  &nbsp;&nbsp;&nbsp; }<br class="">
+                  &nbsp;&nbsp;&nbsp; MPI_Barrier(MPI_COMM_WORLD);<br class="">
+                  &nbsp;&nbsp;&nbsp; MPI_Finalize();<br class="">
+                  &nbsp;&nbsp;&nbsp; return 0;<br class="">
+                  }<br class="">
+                  <br class="">
+                </div>
+                <div class="">The hostfile is as follows:<br class="">
+                  10.10.10.10 slots=1<br class="">
+                  10.10.10.11 slots=1<br class="">
+                  <br class="">
+                </div>
+                <div class="">The two nodes are connected by three physical and 3
+                  logical networks:<br class="">
+                </div>
+                <div class="">Physical: Gigabit Ethernet, 10G iWARP, 20G
+                  Infiniband<br class="">
+                </div>
+                <div class="">Logical: IP (all 3), PSM (Qlogic Infiniband), Verbs
+                  (iWARP and Infiniband)<br class="">
+                  <br class="">
+                </div>
+                <div class="">Please note again that this is a fresh, brand new
+                  clone.<br class="">
+                  <br class="">
+                </div>
+                <div class="">Is this a bug (perhaps a side effect of
+                  --disable-dlopen) or something I am doing wrong?<br class="">
+                  <br class="">
+                </div>
+                <div class="">Thanks<br class="">
+                </div>
+                <div class="">Durga<br class="">
+                </div>
+                <div class=""><br clear="all" class="">
+                  <div class="">
+                    <div class="">
+                      <div class="">
+                        <div class="">
+                          <div class="">
+                            <div class="">
+                              <div class="">
+                                <div class="">
+                                  <div class="">
+                                    <div class="">
+                                      <div dir="ltr" class="">
+                                        <div class="">We learn from history that
+                                          we never learn from history.<br class="">
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br class="">
+      <fieldset class=""></fieldset>
+      <br class="">
+      </div></div><pre class="">_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank" class="">users@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/04/28930.php" target="_blank" class="">http://www.open-mpi.org/community/lists/users/2016/04/28930.php</a></pre>
+    </blockquote>
+    <br class="">
+  </div>
+
+<br class="">_______________________________________________<br class="">
+users mailing list<br class="">
+<a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br class="">
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/04/28932.php" rel="noreferrer" target="_blank" class="">http://www.open-mpi.org/community/lists/users/2016/04/28932.php</a><br class=""></blockquote></div><br class=""></div>
+_______________________________________________<br class="">users mailing list<br class=""><a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br class="">Link to this post: http://www.open-mpi.org/community/lists/users/2016/04/28942.php</div></blockquote></div><br class=""></div></body></html>

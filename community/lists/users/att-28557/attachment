@@ -1,0 +1,114 @@
+Artur,<div><br></div><div>do you check all the error codes returned by MPI_Comm_spawn_multiple ?</div><div>(so you can confirm the requested number of tasks was spawned)</div><div><br></div><div>since the error occurs only on the first MPI_Send, you might want to retrieve rank and size and print them right before MPI_Send, just to make sure the communicator is valid</div><div>(e.g. no memory corruption occurred before)</div><div><br></div><div>out of curiosity, did you try your application with an other MPI library</div><div>(such as mpich or derivates)</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles</div><div><br>On Saturday, February 20, 2016, Artur Malinowski &lt;<a href="mailto:artur.malinowski@pg.gda.pl">artur.malinowski@pg.gda.pl</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi,<br>
+<br>
+I have a problem with my application that is based on dynamic process management. The scenario related to process creation is as follows:<br>
+  1. All processes call MPI_Comm_spawn_multiple to spawn additional single process per each node.<br>
+  2. Parent processes call MPI_Intercomm_merge.<br>
+  3. Child processes call MPI_Init_pmem, MPI_Comm_get_parent, MPI_Intercomm_merge.<br>
+  4. Some of parent processes fail at their first MPI_Send with SIGSEGV.<br>
+Before and after above steps, processes call plenty of other MPI routines (so it is hard to extract minimal example that suffer from the problem).<br>
+<br>
+Interesting observation: the MPI_Comm obtained with MPI_Intercomm_merge for parent processes that fail with SIGSEGV are slightly different. Depending on type used to print it (I&#39;m not sure about the type of MPI_Comm), they are either negative (if printed as int), or bigger than others (if printed as unsigned long long). For instance, with code:<br>
+  printf(&quot;%d %d %llu %\n&quot;, rank, intracomm, intracomm);<br>
+and output:<br>
+  4 -970650128 140564719013360<br>
+  8 14458544 14458544<br>
+  12 15121888 15121888<br>
+  9 38104000 38104000<br>
+  1 14921600 14921600<br>
+  11 31413968 31413968<br>
+  5 27737968 27737968<br>
+  7 -934013376 140023589770816<br>
+  13 24512096 24512096<br>
+  0 31348624 31348624<br>
+  3 -1091084352 139817274269632<br>
+  2 27982528 27982528<br>
+  10 8745056 8745056<br>
+  14 9449856 9449856<br>
+  6 10023360 10023360<br>
+processes: 4, 7 and 3 fail. There is no connection between failed processes and particular node, it usually affects about 20% of processes and occurs both for tcp and ib. Any idea how to find source of the problem? More info included at the bottom of this message.<br>
+<br>
+Thanks for your help.<br>
+<br>
+Regards,<br>
+Artur Malinowski<br>
+PhD student at Gdansk University of Technology<br>
+<br>
+----------------------------<br>
+<br>
+openmpi version:<br>
+<br>
+problem occurs both in 1.10.1 and 1.10.2, older untested<br>
+<br>
+----------------------------<br>
+<br>
+config.log<br>
+<br>
+included in config.log.tar.bz2 attachment<br>
+<br>
+----------------------------<br>
+<br>
+ompi_info<br>
+<br>
+included in ompi_info.tar.bz2 attachment<br>
+<br>
+----------------------------<br>
+<br>
+execution command<br>
+<br>
+/path/to/openmpi/bin/mpirun --map-by node --prefix /path/to/openmpi /path/to/app<br>
+<br>
+----------------------------<br>
+<br>
+system info<br>
+<br>
+- OpenFabrics: MLNX_OFED_LINUX-3.1-1.0.3-rhel6.5-x86_64 from mellanox official page<br>
+- Linux: CentOS release 6.5 (Final) under Rocks cluster<br>
+- kernel: build on my own, 3.18.0 with some patches<br>
+<br>
+----------------------------<br>
+<br>
+ibv_devinfo<br>
+<br>
+hca_id: mlx4_0<br>
+        transport:                      InfiniBand (0)<br>
+        fw_ver:                         2.35.5100<br>
+        node_guid:                      0002:c903:009f:5b00<br>
+        sys_image_guid:                 0002:c903:009f:5b03<br>
+        vendor_id:                      0x02c9<br>
+        vendor_part_id:                 4099<br>
+        hw_ver:                         0x1<br>
+        board_id:                       MT_1090110028<br>
+        phys_port_cnt:                  2<br>
+                port:   1<br>
+                        state:                  PORT_ACTIVE (4)<br>
+                        max_mtu:                4096 (5)<br>
+                        active_mtu:             4096 (5)<br>
+                        sm_lid:                 4<br>
+                        port_lid:               1<br>
+                        port_lmc:               0x00<br>
+                        link_layer:             InfiniBand<br>
+<br>
+                port:   2<br>
+                        state:                  PORT_DOWN (1)<br>
+                        max_mtu:                4096 (5)<br>
+                        active_mtu:             4096 (5)<br>
+                        sm_lid:                 0<br>
+                        port_lid:               0<br>
+                        port_lmc:               0x00<br>
+                        link_layer:             InfiniBand<br>
+<br>
+----------------------------<br>
+<br>
+ifconfig<br>
+<br>
+eth0      Link encap:Ethernet  HWaddr XXXXXXXXXX<br>
+          inet addr:10.1.255.248  Bcast:10.1.255.255  Mask:255.255.0.0<br>
+          inet6 addr: fe80::21e:67ff:feb9:5ca/64 Scope:Link<br>
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1<br>
+          RX packets:138132137 errors:0 dropped:0 overruns:0 frame:0<br>
+          TX packets:160269713 errors:0 dropped:0 overruns:0 carrier:0<br>
+          collisions:0 txqueuelen:1000<br>
+          RX bytes:63945289429 (59.5 GiB)  TX bytes:68561418011 (63.8 GiB)<br>
+          Memory:d0960000-d097ffff<br>
+</blockquote></div>
+

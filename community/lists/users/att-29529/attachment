@@ -1,0 +1,89 @@
+<div dir="ltr">Thank you, Gilles for the quick response. The code comes from a clustering application, bu let me try to explain simply what the pattern is. It&#39;s a bit long than I expected.<div><br></div><div><br><div><br></div><div>The program has the pattern BSP pattern with <i>compute()</i> followed by collective <i>allreduce()</i> And it does many iterations over these two.</div><div><br></div><div>Each process is a Java process with just the main thread. However in Java the process and main thread have their own PIDs and act as two LWPs in Linux. </div><div><br></div><div>Now, let&#39;s take two binding scenarios. For simplicity, I&#39;ll assume a node with 2 sockets each with 4-cores. The real one I ran has 2 sockets with 12 cores each.</div><div><br></div><div>1. <b>--map-by ppr:8:node:PE=1 --bind-to core</b> results in something like below.</div><div><br></div><div><img src="cid:ii_1557bb3728d05bf3" alt="Inline image 3" width="555" height="113"><br></div><div>where each process is bound to 1 core. The blue dots show the main thread in Java. It too is bound to the same core as its parent process by default.</div><div><br></div><div>2. <b>--map-by ppr:8:node  --bind-to none </b> This is similar to 1, but now processes are not bound (or bound to all cores). However, from the program, we <b>explicitly bind its main thread to 1 core</b>. It gives something like below.</div><div><br></div><div><img src="cid:ii_1557bb5c09e0b76b" alt="Inline image 4" width="557" height="119"><br></div><div>The results we got suggest approach 2 gives better communication performance than 1. The btl used is openib. Here&#39;s a graph showing the variation in timings. It shows for other cases that use more than 1 thread to do the computation as well. In all patterns communication is done through the main thread only.</div><div><br></div><div>What is peculiar is the two points within the dotted circle. Intuitively they should overlap as it only has the main thread in each Java process and that main is bound to 1 core. The difference is how the parent process is bound with MPI. The red line is for <b>Case 1</b> above and the blue is for <b>Case 2</b></div><div><b><br></b></div><div>The green line is when both parent process and threads are unbound.</div><div><br></div><div><br></div><div><div id="gmail_za5uqa6b5srt" style="display:inline-block"></div><img src="cid:ii_1557bc2d1924542d" alt="Inline image 6" width="562" height="536"><br></div><div><br></div><div><br></div><div><i><br></i></div><div><i><br></i></div><div><div><br></div><div><br></div></div></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Thu, Jun 23, 2016 at 12:36 AM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    <p>Can you please provide more details on your config, how test are
+      performed and the results ?</p>
+    <p><br>
+    </p>
+    <p>to be fair, you should only compare cases in which mpi tasks are
+      bound to the same sockets.</p>
+    <p>for example, if socket0 has core[0-7] and socket1 has core[8-15]</p>
+    <p>it is fair to compare {task0,task1} bound on</p>
+    <p>{0,8}, {[0-1],[8-9]}, {[0-7],[8-15]}</p>
+    <p>but it is unfair to compare</p>
+    <p>{0,1} and {0,8} or {[0-7],[8-15]}</p>
+    <p>since {0,1} does not involve traffic on the QPI, but {0,8} does.<br>
+    </p>
+    depending on the btl you are using, it might involve or not an other
+    &quot;helper&quot; thread.<br>
+    if your task is bound on one core, and assuming there is no SMT,
+    then the task and the helper do time sharing.<br>
+    but if the task is bound on more than one core, then the task and
+    the helper run in parallel.<br>
+    <br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<div><div class="h5"><br>
+    <div>On 6/23/2016 1:21 PM, Saliya Ekanayake
+      wrote:<br>
+    </div>
+    </div></div><blockquote type="cite"><div><div class="h5">
+      <div dir="ltr">Hi,
+        <div><br>
+        </div>
+        <div>I am trying to understand this peculiar behavior where the
+          communication time in OpenMPI changes depending on the number
+          of process elements (cores) the process is bound to. </div>
+        <div><br>
+        </div>
+        <div>Is this expected?</div>
+        <div><br>
+        </div>
+        <div>Thank you,<br>
+          saliya</div>
+        <div>
+          <div><br>
+          </div>
+          -- <br>
+          <div data-smartmail="gmail_signature">
+            <div dir="ltr">
+              <div>
+                <div dir="ltr">
+                  <div dir="ltr">
+                    <div dir="ltr"><span style="color:rgb(136,136,136)">Saliya
+                        Ekanayake</span></div>
+                    <div dir="ltr">Ph.D. Candidate | Research Assistant</div>
+                    <div dir="ltr">School of Informatics and Computing |
+                      Digital Science Center</div>
+                    <div dir="ltr">Indiana University, Bloomington<br>
+                      <br>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      </div></div><pre>_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/06/29523.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/06/29523.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/06/29524.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/06/29524.php</a><br></blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature" data-smartmail="gmail_signature"><div dir="ltr"><div><div dir="ltr"><div dir="ltr"><div dir="ltr"><span style="color:rgb(136,136,136)">Saliya Ekanayake</span></div><div dir="ltr">Ph.D. Candidate | Research Assistant</div><div dir="ltr">School of Informatics and Computing | Digital Science Center</div><div dir="ltr">Indiana University, Bloomington<br><br><font color="#888888"></font></div></div></div></div></div></div>
+</div>
+

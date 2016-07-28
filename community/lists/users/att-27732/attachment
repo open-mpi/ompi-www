@@ -1,0 +1,183 @@
+<div dir="ltr">Dear all,<div>thank for the explanation, but something is not clear to me.</div><div>I have 4 CPUs. I use only three of them to send, let say:</div><div>CPU 0 send to CPU 1</div><div>CPU 1 send to CPU 2<br></div><div>CPU 2 send to CPU 3<br></div><div><br></div><div>only three revive, let&#39;s say;</div><div><div>CPU 1 from CPU 0</div><div>CPU 2 from CPU 1<br></div><div>CPU 3 from CPU 2</div></div><div><br></div><div>so I use ALLOCATE(send_request(3))</div><div><br></div><div>this mean that in the call I have:</div><div>CALL MPI_ISEND(send_messageL, MsgLength, MPI_DOUBLE_COMPLEX, MPIdata%rank-1, MPIdata%rank, MPI_COMM_WORLD, <i>send_request(MPIdata%rank)</i>, MPIdata%iErr)<br></div><div><br></div><div>This is what my code does. Problably, the use of send_request(:) as a vectror and the use of WAITALL  is not correct, I am right?</div><div><br></div><div>what do you suggest?</div><div><br></div><div>Thanks a lot,</div><div>Diego</div><div><br></div></div><div class="gmail_extra"><br clear="all"><div><div class="gmail_signature">Diego<br><br></div></div>
+<br><div class="gmail_quote">On 30 September 2015 at 12:42, Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Put differently:<br>
+<br>
+- You have an array of N requests<br>
+- If you&#39;re only filling up M of them (where N&lt;M)<br>
+- And then you pass the whole array of size N to MPI<br>
+- Then N-M of them will have garbage values (unless you initialize them to MPI_REQUEST_NULL)<br>
+- And MPI&#39;s behavior with garbage values will be unpredictable / undefined<br>
+<br>
+You can either pass M (i.e., the number of requests that you have *actually* filled) to MPI, or you can ensure that the N-M unused requests in the array are filled with MPI_REQUEST_NULL (which MPI_WAITANY and friends will safely ignore).  One way of doing the latter is initializing the entire array with MPI_REQUEST_NULL and then only filling in the M entries with real requests.<br>
+<br>
+It seems much simpler / faster to just pass in M to MPI_WAITANY (any friends), not N.<br>
+<div><div class="h5"><br>
+<br>
+&gt; On Sep 30, 2015, at 3:43 AM, Diego Avesani &lt;<a href="mailto:diego.avesani@gmail.com">diego.avesani@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Dear Gilles, Dear All,<br>
+&gt;<br>
+&gt; What do you mean that the array of requests has to be initialize via MPI_Isend or MPI_Irecv?<br>
+&gt;<br>
+&gt; In my code I use three times MPI_Isend and MPI_Irecv so I have a send_request(3).  According to this, do I have to use MPI_REQUEST_NULL?<br>
+&gt;<br>
+&gt; In the meantime I check my code<br>
+&gt;<br>
+&gt; Thanks<br>
+&gt;<br>
+&gt; Diego<br>
+&gt;<br>
+&gt;<br>
+&gt; On 29 September 2015 at 16:33, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@gmail.com">gilles.gouaillardet@gmail.com</a>&gt; wrote:<br>
+&gt; Diego,<br>
+&gt;<br>
+&gt; if you invoke MPI_Waitall on three requests, and some of them have not been initialized<br>
+&gt; (manually, or via MPI_Isend or MPI_Irecv), then the behavior of your program is undetermined.<br>
+&gt;<br>
+&gt; if you want to use array of requests (because it make the program simple) but you know not all of them are actually used, then you have to initialize them with MPI_REQUEST_NULL<br>
+&gt; (it might be zero on ompi, but you cannot take this for granted)<br>
+&gt;<br>
+&gt; Cheers,<br>
+&gt;<br>
+&gt; Gilles<br>
+&gt;<br>
+&gt;<br>
+&gt; On Tuesday, September 29, 2015, Diego Avesani &lt;<a href="mailto:diego.avesani@gmail.com">diego.avesani@gmail.com</a>&gt; wrote:<br>
+&gt; dear Jeff, dear all,<br>
+&gt; I have notice that if I initialize the variables, I do not have the error anymore:<br>
+&gt; !<br>
+&gt;   ALLOCATE(SEND_REQUEST(nMsg),RECV_REQUEST(nMsg))<br>
+&gt;   SEND_REQUEST=0<br>
+&gt;   RECV_REQUEST=0<br>
+&gt; !<br>
+&gt;<br>
+&gt; Could you please explain me why?<br>
+&gt; Thanks<br>
+&gt;<br>
+&gt;<br>
+&gt; Diego<br>
+&gt;<br>
+&gt;<br>
+&gt; On 29 September 2015 at 16:08, Diego Avesani &lt;<a href="mailto:diego.avesani@gmail.com">diego.avesani@gmail.com</a>&gt; wrote:<br>
+&gt; Dear Jeff, Dear all,<br>
+&gt; the code is very long, here something. I hope that this could help.<br>
+&gt;<br>
+&gt; What do you think?<br>
+&gt;<br>
+&gt; SUBROUTINE MATOPQN<br>
+&gt; USE VARS_COMMON,ONLY:COMM_CART,send_messageR,recv_messageL,nMsg<br>
+&gt; USE MPI<br>
+&gt; INTEGER :: send_request(nMsg), recv_request(nMsg)<br>
+&gt; INTEGER :: send_status_list(MPI_STATUS_SIZE,nMsg),recv_status_list(MPI_STATUS_SIZE,nMsg)<br>
+&gt;<br>
+&gt;  !send message to right CPU<br>
+&gt;     IF(MPIdata%rank.NE.MPIdata%nCPU-1)THEN<br>
+&gt;         MsgLength = MPIdata%jmaxN<br>
+&gt;         DO icount=1,MPIdata%jmaxN<br>
+&gt;             iNode = MPIdata%nodeList2right(icount)<br>
+&gt;             send_messageR(icount) = RIS_2(iNode)<br>
+&gt;         ENDDO<br>
+&gt;<br>
+&gt;         CALL MPI_ISEND(send_messageR, MsgLength, MPI_DOUBLE_COMPLEX, MPIdata%rank+1, MPIdata%rank+1, MPI_COMM_WORLD, send_request(MPIdata%rank+1), MPIdata%iErr)<br>
+&gt;<br>
+&gt;     ENDIF<br>
+&gt;     !<br>
+&gt;<br>
+&gt;<br>
+&gt;     !recive message FROM left CPU<br>
+&gt;     IF(MPIdata%rank.NE.0)THEN<br>
+&gt;         MsgLength = MPIdata%jmaxN<br>
+&gt;<br>
+&gt;         CALL MPI_IRECV(recv_messageL, MsgLength, MPI_DOUBLE_COMPLEX, MPIdata%rank-1, MPIdata%rank, MPI_COMM_WORLD, recv_request(MPIdata%rank), MPIdata%iErr)<br>
+&gt;<br>
+&gt;         write(*,*) MPIdata%rank-1<br>
+&gt;     ENDIF<br>
+&gt;     !<br>
+&gt;     !<br>
+&gt;     CALL MPI_WAITALL(nMsg,send_request,send_status_list,MPIdata%iErr)<br>
+&gt;     CALL MPI_WAITALL(nMsg,recv_request,recv_status_list,MPIdata%iErr)<br>
+&gt;<br>
+&gt; Diego<br>
+&gt;<br>
+&gt;<br>
+&gt; On 29 September 2015 at 00:15, Jeff Squyres (jsquyres) &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+&gt; Can you send a small reproducer program?<br>
+&gt;<br>
+&gt; &gt; On Sep 28, 2015, at 4:45 PM, Diego Avesani &lt;<a href="mailto:diego.avesani@gmail.com">diego.avesani@gmail.com</a>&gt; wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; Dear all,<br>
+&gt; &gt;<br>
+&gt; &gt; I have to use a send_request in a MPI_WAITALL.<br>
+&gt; &gt; Here the strange things:<br>
+&gt; &gt;<br>
+&gt; &gt; If I use at the begging of the SUBROUTINE:<br>
+&gt; &gt;<br>
+&gt; &gt; INTEGER :: send_request(3), recv_request(3)<br>
+&gt; &gt;<br>
+&gt; &gt; I have no problem, but if I use<br>
+&gt; &gt;<br>
+&gt; &gt; USE COMONVARS,ONLY : nMsg<br>
+&gt; &gt; with nMsg=3<br>
+&gt; &gt;<br>
+&gt; &gt; and after that I declare<br>
+&gt; &gt;<br>
+&gt; &gt; INTEGER :: send_request(nMsg), recv_request(nMsg), I get the following error:<br>
+&gt; &gt;<br>
+&gt; &gt; [Lap] *** An error occurred in MPI_Waitall<br>
+&gt; &gt; [Lap] *** reported by process [139726485585921,0]<br>
+&gt; &gt; [Lap] *** on communicator MPI_COMM_WORLD<br>
+&gt; &gt; [Lap] *** MPI_ERR_REQUEST: invalid request<br>
+&gt; &gt; [Lap] *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,<br>
+&gt; &gt; [Lap] ***    and potentially your MPI job)<br>
+&gt; &gt; forrtl: error (78): process killed (SIGTERM)<br>
+&gt; &gt;<br>
+&gt; &gt; Someone could please explain to me where I am wrong?<br>
+&gt; &gt;<br>
+&gt; &gt; Thanks<br>
+&gt; &gt;<br>
+&gt; &gt; Diego<br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; users mailing list<br>
+&gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/09/27703.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/09/27703.php</a><br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Jeff Squyres<br>
+&gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" rel="noreferrer" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/09/27704.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/09/27704.php</a><br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/09/27710.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/09/27710.php</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div>&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/09/27721.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/09/27721.php</a><br>
+<span class=""><br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" rel="noreferrer" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</span>Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/09/27727.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/09/27727.php</a><br>
+</blockquote></div><br></div>
+

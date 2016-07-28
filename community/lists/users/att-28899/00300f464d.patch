@@ -1,0 +1,315 @@
+From fe43f11d10383e979727a7cce85bd5ded4b6a576 Mon Sep 17 00:00:00 2001
+From: George Bosilca <bosilca@icl.utk.edu>
+Date: Fri, 28 Nov 2014 14:39:48 -0500
+Subject: [PATCH] Add support for clock_gettime on Linux. Allow the user to
+ request a monotonic timer via MCA parameters.
+
+---
+ configure.ac                                   |  5 +-
+ opal/include/opal/sys/amd64/timer.h            |  3 +
+ opal/include/opal/sys/timer.h                  |  3 +
+ opal/mca/timer/base/base.h                     |  7 ++-
+ opal/mca/timer/base/timer_base_open.c          | 17 +++++-
+ opal/mca/timer/linux/Makefile.am               |  4 +-
+ opal/mca/timer/linux/help-opal-timer-linux.txt | 17 ++++++
+ opal/mca/timer/linux/timer_linux.h             | 31 +---------
+ opal/mca/timer/linux/timer_linux_component.c   | 84 +++++++++++++++++++++++++-
+ 9 files changed, 137 insertions(+), 34 deletions(-)
+ create mode 100644 opal/mca/timer/linux/help-opal-timer-linux.txt
+
+diff --git a/configure.ac b/configure.ac
+index f4bbf8c..68a8398 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -841,7 +841,10 @@ OPAL_SEARCH_LIBS_CORE([dirname], [gen])
+ # Darwin doesn't need -lm, as it's a symlink to libSystem.dylib
+ OPAL_SEARCH_LIBS_CORE([ceil], [m])
+ 
+-AC_CHECK_FUNCS([asprintf snprintf vasprintf vsnprintf openpty isatty getpwuid fork waitpid execve pipe ptsname setsid mmap tcgetpgrp posix_memalign strsignal sysconf syslog vsyslog regcmp regexec regfree _NSGetEnviron socketpair strncpy_s usleep mkfifo dbopen dbm_open statfs statvfs setpgid  setenv])
++# -lrt might be needed for clock_gettime
++OPAL_SEARCH_LIBS_CORE([clock_gettime], [rt])
++
++AC_CHECK_FUNCS([asprintf snprintf vasprintf vsnprintf openpty isatty getpwuid fork waitpid execve pipe ptsname setsid mmap tcgetpgrp posix_memalign strsignal sysconf syslog vsyslog regcmp regexec regfree _NSGetEnviron socketpair strncpy_s usleep mkfifo dbopen dbm_open statfs statvfs setpgid setenv])
+ 
+ # Sanity check: ensure that we got at least one of statfs or statvfs.
+ if test $ac_cv_func_statfs = no -a $ac_cv_func_statvfs = no; then
+diff --git a/opal/include/opal/sys/amd64/timer.h b/opal/include/opal/sys/amd64/timer.h
+index 64107ef..b382d3a 100644
+--- a/opal/include/opal/sys/amd64/timer.h
++++ b/opal/include/opal/sys/amd64/timer.h
+@@ -22,6 +22,9 @@
+ 
+ typedef uint64_t opal_timer_t;
+ 
++/* Using RDTSC(P) results in non-monotonic timers across cores */
++#undef OPAL_TIMER_MONOTONIC
++#define OPAL_TIMER_MONOTONIC 0
+ 
+ #if OMPI_GCC_INLINE_ASSEMBLY
+ 
+diff --git a/opal/include/opal/sys/timer.h b/opal/include/opal/sys/timer.h
+index cc8b922..217b3e0 100644
+--- a/opal/include/opal/sys/timer.h
++++ b/opal/include/opal/sys/timer.h
+@@ -70,6 +70,9 @@
+  *
+  *********************************************************************/
+ 
++/* By default we suppose all timers are monotonic per node. */
++#define OPAL_TIMER_MONOTONIC 1
++
+ BEGIN_C_DECLS
+ 
+ /* If you update this list, you probably also want to update
+diff --git a/opal/mca/timer/base/base.h b/opal/mca/timer/base/base.h
+index f058a45..b45bce0 100644
+--- a/opal/mca/timer/base/base.h
++++ b/opal/mca/timer/base/base.h
+@@ -35,7 +35,12 @@ BEGIN_C_DECLS
+  * Framework structure declaration
+  */
+ OPAL_DECLSPEC extern mca_base_framework_t opal_timer_base_framework;
+-   
++
++/**
++ * MCA param to force monotonic timers.
++ */
++OPAL_DECLSPEC extern int mca_timer_base_monotonic;
++
+ END_C_DECLS
+ 
+ /* include implementation to call */
+diff --git a/opal/mca/timer/base/timer_base_open.c b/opal/mca/timer/base/timer_base_open.c
+index 71c8b9d..ef1676a 100644
+--- a/opal/mca/timer/base/timer_base_open.c
++++ b/opal/mca/timer/base/timer_base_open.c
+@@ -22,6 +22,7 @@
+ #include "opal/constants.h"
+ #include "opal/mca/timer/base/base.h"
+ 
++int mca_timer_base_monotonic = 1;
+ 
+ /*
+  * The following file was created by configure.  It contains extern
+@@ -30,9 +31,23 @@
+  */
+ #include "opal/mca/timer/base/static-components.h"
+ 
++static int mca_timer_base_register(mca_base_register_flag_t flags)
++{
++    /* figure out which bcol and sbgp components will actually be used */
++    /* get list of sub-grouping functions to use */
++    (void) mca_base_var_register("opal", "timer", "require", "monotonic",
++                                 "Node-level monotonic timer required (default yes)",
++                                 MCA_BASE_VAR_TYPE_INT, NULL, 0, 0,
++                                 OPAL_INFO_LVL_9,
++                                 MCA_BASE_VAR_SCOPE_LOCAL,
++                                 &mca_timer_base_monotonic);
++
++    return OPAL_SUCCESS;
++}
++
+ /*
+  * Globals
+  */
+ /* Use default register/open/close functions */
+-MCA_BASE_FRAMEWORK_DECLARE(opal, timer, NULL, NULL, NULL, NULL,
++MCA_BASE_FRAMEWORK_DECLARE(opal, timer, "OPAL OS timer", mca_timer_base_register, NULL, NULL,
+                            mca_timer_base_static_components, 0);
+diff --git a/opal/mca/timer/linux/Makefile.am b/opal/mca/timer/linux/Makefile.am
+index 7568a98..8d48ee2 100644
+--- a/opal/mca/timer/linux/Makefile.am
++++ b/opal/mca/timer/linux/Makefile.am
+@@ -2,7 +2,7 @@
+ # Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+ #                         University Research and Technology
+ #                         Corporation.  All rights reserved.
+-# Copyright (c) 2004-2005 The University of Tennessee and The University
++# Copyright (c) 2004-2014 The University of Tennessee and The University
+ #                         of Tennessee Research Foundation.  All rights
+ #                         reserved.
+ # Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
+@@ -17,6 +17,8 @@
+ # $HEADER$
+ #
+ 
++dist_opaldata_DATA = help-opal-timer-linux.txt
++
+ noinst_LTLIBRARIES = libmca_timer_linux.la
+ 
+ libmca_timer_linux_la_SOURCES = \
+diff --git a/opal/mca/timer/linux/help-opal-timer-linux.txt b/opal/mca/timer/linux/help-opal-timer-linux.txt
+new file mode 100644
+index 0000000..c4cb122
+--- /dev/null
++++ b/opal/mca/timer/linux/help-opal-timer-linux.txt
+@@ -0,0 +1,17 @@
++# -*- text -*-
++#
++# Copyright (c) 2014      The University of Tennessee and The University
++#                         of Tennessee Research Foundation.  All rights
++#                         reserved.
++# $COPYRIGHT$
++# 
++# Additional copyrights may follow
++# 
++# $HEADER$
++#
++# This is the US/English help file for Open MPI's Linux timer support.
++#
++[monotonic not supported]
++A monotonic timer has been requested by the user, but could not be found on the
++system. Falling back to a non-monotonic timer (such as RDTSC).
++
+diff --git a/opal/mca/timer/linux/timer_linux.h b/opal/mca/timer/linux/timer_linux.h
+index 6bdffcb..430bed3 100644
+--- a/opal/mca/timer/linux/timer_linux.h
++++ b/opal/mca/timer/linux/timer_linux.h
+@@ -24,35 +24,10 @@
+ 
+ OPAL_DECLSPEC extern opal_timer_t opal_timer_linux_freq;
+ 
+-static inline opal_timer_t
+-opal_timer_base_get_cycles(void)
+-{
+-#if OPAL_HAVE_SYS_TIMER_GET_CYCLES
+-    return opal_sys_timer_get_cycles();
+-#else
+-    return 0;
+-#endif
+-}
+-
+-
+-static inline opal_timer_t
+-opal_timer_base_get_usec(void)
+-{
+-#if OPAL_HAVE_SYS_TIMER_GET_CYCLES
+-    /* freq is in Hz, so this gives usec */
+-    return opal_sys_timer_get_cycles() * 1000000  / opal_timer_linux_freq;
+-#else
+-    return 0;
+-#endif
+-}    
+-
+-
+-static inline opal_timer_t
+-opal_timer_base_get_freq(void)
+-{
+-    return opal_timer_linux_freq;
+-}
++OPAL_DECLSPEC extern opal_timer_t *opal_timer_base_get_cycles(void);
++OPAL_DECLSPEC extern opal_timer_t *opal_timer_base_get_usec(void);
+ 
++OPAL_DECLSPEC extern opal_timer_t opal_timer_base_get_freq(void);
+ 
+ #define OPAL_TIMER_CYCLE_NATIVE OPAL_HAVE_SYS_TIMER_GET_CYCLES
+ #define OPAL_TIMER_CYCLE_SUPPORTED OPAL_HAVE_SYS_TIMER_GET_CYCLES
+diff --git a/opal/mca/timer/linux/timer_linux_component.c b/opal/mca/timer/linux/timer_linux_component.c
+index a5ac4ff..663d412 100644
+--- a/opal/mca/timer/linux/timer_linux_component.c
++++ b/opal/mca/timer/linux/timer_linux_component.c
+@@ -31,6 +31,19 @@
+ #include "opal/mca/timer/linux/timer_linux.h"
+ #include "opal/constants.h"
+ 
++static opal_timer_t opal_timer_base_get_cycles_sys_timer(void);
++static opal_timer_t opal_timer_base_get_usec_sys_timer(void);
++
++#if OPAL_HAVE_CLOCK_GETTIME
++static opal_timer_t opal_timer_base_get_cycles_clock_gettime(void);
++static opal_timer_t opal_timer_base_get_usec_clock_gettime(void);
++opal_timer_t *opal_timer_base_get_cycles = opal_timer_base_get_cycles_clock_gettime;
++opal_timer_t *opal_timer_base_get_usec = opal_timer_base_get_usec_clock_gettime;
++#else
++opal_timer_t *opal_timer_base_get_cycles = opal_timer_base_get_cycles_sys_timer;
++opal_timer_t *opal_timer_base_get_usec = opal_timer_base_get_usec_sys_timer;
++#endif  /* OPAL_HAVE_CLOCK_GETTIME */
++
+ opal_timer_t opal_timer_linux_freq;
+ 
+ static int opal_timer_linux_open(void);
+@@ -78,8 +91,7 @@ find_info(FILE* fp, char *str, char *buf, size_t buflen)
+     return NULL;
+ }
+ 
+-int
+-opal_timer_linux_open(void)
++static int opal_timer_linux_find_freq(void)
+ {
+     FILE *fp;
+     char *loc;
+@@ -135,3 +147,71 @@ opal_timer_linux_open(void)
+ 
+     return OPAL_SUCCESS;
+ }
++
++int opal_timer_linux_open(void)
++{
++    int ret = OPAL_SUCCESS;
++#if !OPAL_HAVE_CLOCK_GETTIME
++    ret = opal_timer_linux_find_freq();
++#endif
++
++    if(mca_timer_base_monotonic) {
++#if OPAL_HAVE_CLOCK_GETTIME
++      struct timespec *res;
++      if( 0 == clock_getres(CLOCK_MONOTONIC, &res)) {
++          opal_timer_linux_freq = res.tv_nsec;
++          return ret;
++      }
++#else
++#if (0 == OPAL_TIMER_MONOTONIC)
++      /* Monotonic time requested but cannot be found. Complain! */
++      opal_show_help("help-opal-timer-linux.txt", "monotonic not supported", 1);
++#endif  /* (0 == OPAL_TIMER_MONOTONIC) */
++#endif
++    }
++    return ret;
++}
++
++#if OPAL_HAVE_CLOCK_GETTIME
++opal_timer_t opal_timer_base_get_usec_clock_gettime(void)
++{
++    struct timespec *tp;
++
++    if( 0 == clock_gettime(CLOCK_MONOTONIC, &tp) ) {
++        return (tp.tv_sec * 1e9 + tp.tv_nsec);
++    }
++    return 0;
++}
++
++opal_timer_t opal_timer_base_get_cycles_clock_gettime(void)
++{
++    return opal_timer_base_get_usec_clock_gettime() * opal_timer_linux_freq;
++}
++#endif  /* OPAL_HAVE_CLOCK_GETTIME */
++
++opal_timer_t opal_timer_base_get_cycles_sys_timer(void)
++{
++#if OPAL_HAVE_SYS_TIMER_GET_CYCLES
++    return opal_sys_timer_get_cycles();
++#else
++    return 0;
++#endif
++}
++
++
++opal_timer_t opal_timer_base_get_usec_sys_timer(void)
++{
++#if OPAL_HAVE_SYS_TIMER_GET_CYCLES
++    /* freq is in Hz, so this gives usec */
++    return opal_sys_timer_get_cycles() * 1000000  / opal_timer_linux_freq;
++#else
++    return 0;
++#endif
++}
++
++opal_timer_t opal_timer_base_get_freq(void)
++{
++    return opal_timer_linux_freq;
++}
++
++
+-- 
+2.8.0
+

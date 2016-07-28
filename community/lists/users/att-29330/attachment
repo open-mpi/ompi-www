@@ -1,0 +1,199 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <p><br>
+    </p>
+    <br>
+    <div class="moz-cite-prefix">On 5/30/2016 11:09 PM, Saliya Ekanayake
+      wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CA+ssbKVjYj40ujZJJQ00apZn2ZrEjzGHD6HZvptJgqgyP_-1ag@mail.gmail.com"
+      type="cite">
+      <div dir="ltr">So, you mean that it guarantees the value received
+        after the bcast call is consistent with value sent from root,
+        but it doesn't have to wait till all the ranks have received it?
+        <div><br>
+        </div>
+      </div>
+    </blockquote>
+    this is what i believe, double checking the standard might not hurt
+    though ...<br>
+    <br>
+    <blockquote
+cite="mid:CA+ssbKVjYj40ujZJJQ00apZn2ZrEjzGHD6HZvptJgqgyP_-1ag@mail.gmail.com"
+      type="cite">
+      <div dir="ltr">
+        <div>Still, in this benchmark shouldn't the max time for
+          bcast be equal to that of barrier? </div>
+      </div>
+      <div class="gmail_extra"><br>
+      </div>
+    </blockquote>
+    no.<br>
+    <br>
+    First, you should find which algo are used for MPI_Barrier() and
+    MPI_Bcast()<br>
+    <br>
+    this is based on communicator size and message length (for
+    MPI_Bcast())<br>
+    <br>
+    keep in mind the algo choice is likely not optimized for your
+    network, and is not topology aware<br>
+    (e.g. it is only based on communicator size, not on tasks per node,
+    and hence inter and intra node communications are considered equal).<br>
+    <br>
+    <br>
+    here is what osu_bcast is doing :<br>
+    <br>
+            timer=0.0;<br>
+            for(i=0; i &lt; options.iterations + options.skip ; i++) {<br>
+                t_start = MPI_Wtime();<br>
+                MPI_Bcast(buffer, size, MPI_CHAR, 0, MPI_COMM_WORLD);<br>
+                t_stop = MPI_Wtime();<br>
+    <br>
+                if(i&gt;=options.skip){<br>
+                    timer+=t_stop-t_start;<br>
+                }<br>
+                MPI_Barrier(MPI_COMM_WORLD);<br>
+    <br>
+            }<br>
+    <br>
+    <br>
+    MPI_Bcast for short message does not take long, and since all tasks
+    do not exit MPI_Barrier() at the same time, t_start is local, not
+    global (i mean t_stop-t_start is already an approximation ...)<br>
+    <br>
+    if MPI_Bcast() and MPI_Barrier() are implemented with a tree-based
+    algorithm, then MPI_Bcast() has to do down the tree, whereas
+    MPI_Barrier() has to go down and then all the way up.<br>
+    in this specific case, i would expect (once again, assuming all
+    processes update t_start at the same time, which is not true)
+    max(MPI_Barrier) ~= 2 * max(MPI_Bcast)<br>
+    <br>
+    i recommend you evaluate all algo for MPI_Bcast() and MPI_Barrier()
+    and compare only the best ones.<br>
+    <br>
+    keep in mind the result also depends on how tasks are mapped to
+    nodes<br>
+    (e.g. tasks [0-23] on node 0, vs tasks {0,24,48, ...} on node 0)<br>
+    and also how tasks are pinned within a node<br>
+    (e.g. tasks [0-11] on socket 0, vs tasks {0,2,4,...} on socket 0)<br>
+    also, if you are using a fat tree network, then result will also
+    depend on which nodes are used<br>
+    (because of the infiniband routing tables)<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles <br>
+    <blockquote
+cite="mid:CA+ssbKVjYj40ujZJJQ00apZn2ZrEjzGHD6HZvptJgqgyP_-1ag@mail.gmail.com"
+      type="cite">
+      <div class="gmail_extra">
+        <div class="gmail_quote">On Mon, May 30, 2016 at 9:33 AM, Gilles
+          Gouaillardet <span dir="ltr">&lt;<a moz-do-not-send="true"
+              href="mailto:gilles.gouaillardet@gmail.com"
+              target="_blank">gilles.gouaillardet@gmail.com</a>&gt;</span>
+          wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0
+            .8ex;border-left:1px #ccc solid;padding-left:1ex">These are
+            very different algorithms, so performance might differ
+            (greatly)
+            <div><br>
+            </div>
+            <div>for example, MPI_Bcast on root rank can MPI_Send() and
+              return, if the message is short, this is likely an eager
+              send which is very fast.</div>
+            <div>that means MPI_Bcast() returns before all ranks
+              received the data, or even entered MPI_Bcast.</div>
+            <div><br>
+            </div>
+            On the other hand, MPI_Barrier() cannot return before all
+            ranks entered the barrier.
+            <div><br>
+            </div>
+            <div>also, you might find <a moz-do-not-send="true"
+                href="https://github.com/open-mpi/ompi/issues/1713"
+                target="_blank">https://github.com/open-mpi/ompi/issues/1713</a>
+              useful.</div>
+            <div><br>
+            </div>
+            <div>Cheers,</div>
+            <div><br>
+            </div>
+            <div>Gilles
+              <div>
+                <div class="h5"><br>
+                  <div><br>
+                    On Monday, May 30, 2016, Saliya Ekanayake &lt;<a
+                      moz-do-not-send="true"
+                      href="mailto:esaliya@gmail.com" target="_blank"><a class="moz-txt-link-abbreviated" href="mailto:esaliya@gmail.com">esaliya@gmail.com</a></a>&gt;
+                    wrote:<br>
+                    <blockquote class="gmail_quote" style="margin:0 0 0
+                      .8ex;border-left:1px #ccc solid;padding-left:1ex">
+                      <p dir="ltr">Hi, </p>
+                      <p dir="ltr">I ran Ohio micro benchmarks for
+                        openmpi and noticed broadcast with smaller
+                        number of bytes is faster than a barrier - 2us
+                        vs 120us. </p>
+                      <p dir="ltr">I'm trying to understand how this
+                        could happen? </p>
+                      <p dir="ltr">Thank you <br>
+                        Saliya </p>
+                    </blockquote>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <br>
+            _______________________________________________<br>
+            users mailing list<br>
+            <a moz-do-not-send="true" href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+            Subscription: <a moz-do-not-send="true"
+              href="https://www.open-mpi.org/mailman/listinfo.cgi/users"
+              rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+            Link to this post: <a moz-do-not-send="true"
+              href="http://www.open-mpi.org/community/lists/users/2016/05/29326.php"
+              rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29326.php</a><br>
+          </blockquote>
+        </div>
+        <br>
+        <br clear="all">
+        <div><br>
+        </div>
+        -- <br>
+        <div class="gmail_signature">
+          <div dir="ltr">
+            <div>
+              <div dir="ltr">
+                <div dir="ltr">
+                  <div dir="ltr"><span style="color:rgb(136,136,136)">Saliya
+                      Ekanayake</span></div>
+                  <div dir="ltr">Ph.D. Candidate | Research Assistant</div>
+                  <div dir="ltr">School of Informatics and Computing |
+                    Digital Science Center</div>
+                  <div dir="ltr">Indiana University, Bloomington<br>
+                    <br>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="https://www.open-mpi.org/mailman/listinfo.cgi/users">https://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/05/29327.php">http://www.open-mpi.org/community/lists/users/2016/05/29327.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

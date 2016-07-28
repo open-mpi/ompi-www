@@ -1,0 +1,652 @@
+<br>Just a quick interjection, I also have a dual-quad Nehalem system, HT on, 24GB ram, hand compiled 1.3.4 with options: --enable-mpi-threads --enable-mpi-f77=no --with-openib=no<br><br>With v1.3.4 I see roughly the same behavior, hello, ring work, connectivity fails randomly with np &gt;= 8. Turning on -v increased the success, but still hangs. np = 16 fails more often, and the hang  is random in which pair of processes are communicating.<br>
+<br>However, it seems to be related to the shared memory layer problem. Running with -mca btl ^sm works consistently through np = 128.<br><br>Hope this helps.<br><br>Mark<br><br><div class="gmail_quote">On Wed, Dec 9, 2009 at 8:03 PM, Gus Correa <span dir="ltr">&lt;<a href="mailto:gus@ldeo.columbia.edu">gus@ldeo.columbia.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Hi Matthew<br>
+<br>
+Save any misinterpretation I may have made of the code:<br>
+<br>
+Hello_c has no real communication, except for a final Barrier<br>
+synchronization.<br>
+Each process prints &quot;hello world&quot; and that&#39;s it.<br>
+<br>
+Ring probes a little more, with processes Send(ing) and<br>
+Recv(cieving) messages.<br>
+Ring just passes a message sequentially along all process<br>
+ranks, then back to rank 0, and repeat the game 10 times.<br>
+Rank 0 is in charge of counting turns, decrementing the counter,<br>
+and printing that (nobody else prints).<br>
+With 4 processes:<br>
+0-&gt;1-&gt;2-&gt;3-&gt;0-&gt;1... 10 times<br>
+<br>
+In connectivity every pair of processes exchange a message.<br>
+Therefore it probes all pairwise connections.<br>
+In verbose mode you can see that.<br>
+<br>
+These programs shouldn&#39;t hang at all, if the system were sane.<br>
+Actually, they should even run with a significant level of<br>
+oversubscription, say,<br>
+-np 128  should work easily for all three programs on a powerful<br>
+machine like yours.<br>
+<br>
+<br>
+**<br>
+<br>
+Suggestions<br>
+<br>
+1) Stick to the OpenMPI you compiled.<br>
+<br>
+**<br>
+<br>
+2) You can run connectivity_c in verbose mode:<br>
+<br>
+home/macmanes/apps/openmpi1.4/bin/mpirun -np 8 connectivity_c -v<br>
+<br>
+(Note the trailing &quot;-v&quot;.)<br>
+<br>
+It should tell more about who&#39;s talking to who.<br>
+<br>
+**<br>
+<br>
+3) I wonder if there are any BIOS settings that may be required<br>
+(and perhaps not in place) to make the Nehalem hyperthreading to<br>
+work properly in your computer.<br>
+<br>
+You reach the BIOS settings by typing &lt;DEL&gt; or &lt;F2&gt;<br>
+when the computer boots up.<br>
+The key varies by<br>
+BIOS and computer vendor, but shows quickly on the bootup screen.<br>
+<br>
+You may ask the computer vendor about the recommended BIOS settings.<br>
+If you haven&#39;t done this before, be careful to change and save only<br>
+what really needs to change (if anything really needs to change),<br>
+or the result may be worse.<br>
+(Overclocking is for gamers, not for genome researchers ... :) )<br>
+<br>
+**<br>
+<br>
+4) What I read about Nehalem DDR3 memory is that it is optimal<br>
+on configurations that are multiples of 3GB per CPU.<br>
+Common configs. in dual CPU machines like yours are<br>
+6, 12, 24 and 48GB.<br>
+The sockets where you install the memory modules also matter.<br>
+<br>
+Your computer has 20GB.<br>
+Did you build the computer or upgrade the memory yourself?<br>
+Do you know how the memory is installed, in which memory sockets?<br>
+What does the vendor have to say about it?<br>
+<br>
+See this:<br>
+<a href="http://en.community.dell.com/blogs/dell_tech_center/archive/2009/04/08/nehalem-and-memory-configurations.aspx" target="_blank">http://en.community.dell.com/blogs/dell_tech_center/archive/2009/04/08/nehalem-and-memory-configurations.aspx</a><br>
+
+<br>
+**<br>
+<br>
+5) As I said before, typing &quot;f&quot; then &quot;j&quot; on &quot;top&quot; will add<br>
+a column (labeled &quot;P&quot;) that shows in which core each process is running.<br>
+This will let you observe how the Linux scheduler is distributing<br>
+the MPI load across the cores.<br>
+Hopefully it is load-balanced, and different processes go to different<br>
+cores.<br>
+<br>
+***<br>
+<br>
+It is very disconcerting when MPI processes hang.<br>
+You are not alone.<br>
+The reasons are not always obvious.<br>
+At least in your case there is no network involved or to troubleshoot.<br>
+<br>
+<br>
+**<br>
+<br>
+I hope it helps,<div class="im"><br>
+Gus Correa<br>
+---------------------------------------------------------------------<br>
+Gustavo Correa<br>
+Lamont-Doherty Earth Observatory - Columbia University<br>
+Palisades, NY, 10964-8000 - USA<br>
+---------------------------------------------------------------------<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+Matthew MacManes wrote:<br>
+</div><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div><div></div><div class="h5">
+Hi Gus and List,<br>
+<br>
+1st of all Gus, I want to say thanks.. you have been a huge help, and when I get this fixed, I owe you big time!<br>
+<br>
+However, the problems continue...<br>
+<br>
+I formatted the HD, reinstalled OS to make sure that I was working from scratch.  I did your step A, which seemed to go fine:<br>
+<br>
+macmanes@macmanes:~$ which mpicc<br>
+/home/macmanes/apps/openmpi1.4/bin/mpicc<br>
+macmanes@macmanes:~$ which mpirun<br>
+/home/macmanes/apps/openmpi1.4/bin/mpirun<br>
+<br>
+Good stuff there...<br>
+<br>
+I then compiled the example files:<br>
+<br>
+macmanes@macmanes:~/Downloads/openmpi-1.4/examples$ /home/macmanes/apps/openmpi1.4/bin/mpirun -np 8 ring_c<br>
+Process 0 sending 10 to 1, tag 201 (8 processes in ring)<br>
+Process 0 sent to 1<br>
+Process 0 decremented value: 9<br>
+Process 0 decremented value: 8<br>
+Process 0 decremented value: 7<br>
+Process 0 decremented value: 6<br>
+Process 0 decremented value: 5<br>
+Process 0 decremented value: 4<br>
+Process 0 decremented value: 3<br>
+Process 0 decremented value: 2<br>
+Process 0 decremented value: 1<br>
+Process 0 decremented value: 0<br>
+Process 0 exiting<br>
+Process 1 exiting<br>
+Process 2 exiting<br>
+Process 3 exiting<br>
+Process 4 exiting<br>
+Process 5 exiting<br>
+Process 6 exiting<br>
+Process 7 exiting<br>
+macmanes@macmanes:~/Downloads/openmpi-1.4/examples$ /home/macmanes/apps/openmpi1.4/bin/mpirun -np 8 connectivity_c<br>
+Connectivity test on 8 processes PASSED.<br>
+macmanes@macmanes:~/Downloads/openmpi-1.4/examples$ /home/macmanes/apps/openmpi1.4/bin/mpirun -np 8 connectivity_c<br>
+..HANGS..NO OUTPUT<br>
+<br>
+this is maddening because ring_c works.. and connectivity_c worked the 1st time, but not the second... I did it 10 times, and it worked twice.. here is the TOP screenshot:<br>
+<br>
+<a href="http://picasaweb.google.com/macmanes/DropBox?authkey=Gv1sRgCLKokNOVqo7BYw#5413382182027669394" target="_blank">http://picasaweb.google.com/macmanes/DropBox?authkey=Gv1sRgCLKokNOVqo7BYw#5413382182027669394</a><br>
+
+<br>
+What is the difference between connectivity_c and ring_c? Under what circumstances should one fail and not the other...<br>
+<br>
+I&#39;m off to the Linux forums to see about the Nehalem kernel issues..<br>
+<br>
+Matt<br>
+<br>
+<br>
+<br></div></div><div><div></div><div class="h5">
+On Wed, Dec 9, 2009 at 13:25, Gus Correa &lt;<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a> &lt;mailto:<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt;&gt; wrote:<br>
+
+<br>
+    Hi Matthew<br>
+<br>
+    There is no point in trying to troubleshoot MrBayes and ABySS<br>
+    if not even the OpenMPI test programs run properly.<br>
+    You must straighten them out first.<br>
+<br>
+    **<br>
+<br>
+    Suggestions:<br>
+<br>
+    **<br>
+<br>
+    A) While you are at OpenMPI, do yourself a favor,<br>
+    and install it from source on a separate directory.<br>
+    Who knows if the OpenMPI package distributed with Ubuntu<br>
+    works right on Nehalem?<br>
+    Better install OpenMPI yourself from source code.<br>
+    It is not a big deal, and may save you further trouble.<br>
+<br>
+    Recipe:<br>
+<br>
+    1) Install gfortran and g++ if you don&#39;t have them using apt-get.<br>
+    2) Put the OpenMPI tarball in, say /home/matt/downolads/openmpi<br>
+    3) Make another install directory *not in the system directory tree*.<br>
+    Something like &quot;mkdir /home/matt/apps/openmpi-X.Y.Z/&quot; (X.Y.Z=version)<br>
+    will work<br>
+    4) cd /home/matt/downolads/openmpi<br>
+    5) ./configure CC=gcc CXX=g++ F77=gfortran FC=gfortran  \<br>
+    --prefix=/home/matt/apps/openmpi-X.Y.Z<br>
+    (Use the prefix flag to install in the directory of item 3.)<br>
+    6) make<br>
+    7) make install<br>
+    8) At the bottom of your /home/matt/.bashrc or .profile file<br>
+    put these lines:<br>
+<br>
+    export PATH=/home/matt/apps/openmpi-X.Y.Z/bin:${PATH}<br>
+    export MANPATH=/home/matt/apps/openmpi-X.Y.Z/share/man:`man -w`<br>
+    export<br>
+    LD_LIBRARY_PATH=home/matt/apps/openmpi-X.Y.Z/lib:${LD_LIBRARY_PATH}<br>
+<br>
+    (If you use csh/tcsh use instead:<br>
+    setenv PATH /home/matt/apps/openmpi-X.Y.Z/bin:${PATH}<br>
+    etc)<br>
+<br>
+    9) Logout and login again to freshen um the environment variables.<br>
+    10) Do &quot;which mpicc&quot;  to check that it is pointing to your newly<br>
+    installed OpenMPI.<br>
+    11) Recompile and rerun the OpenMPI test programs<br>
+    with 2, 4, 8, 16, .... processors.<br>
+    Use full path names to mpicc and to mpirun,<br>
+    if the change of PATH above doesn&#39;t work right.<br>
+<br>
+    ********<br>
+<br>
+    B) Nehalem is quite new hardware.<br>
+    I don&#39;t know if the Ubuntu kernel 2.6.31-16 fully supports all<br>
+    of Nehalem features, particularly hyperthreading, and NUMA,<br>
+    which are used by MPI programs.<br>
+    I am not the right person to give you advice about this.<br>
+    I googled out but couldn&#39;t find a clear information about<br>
+    minimal kernel age/requirements to have Nehalem fully supported.<br>
+    Some Nehalem owner in the list could come forward and tell.<br>
+<br>
+    **<br>
+<br>
+    C) On the top screenshot you sent me, please try it again<br>
+    (after you do item A) but type &quot;f&quot; and &quot;j&quot; to show the processors<br>
+    that are running each process.<br>
+<br>
+    **<br>
+<br>
+    D) Also, the screeshot shows 20GB of memory.<br>
+    This sounds not as a optimal memory for Nehalem,<br>
+    which tend to be 6GB, 12GB, 24GB, 48GB.<br>
+    Did you put together the system, or upgraded the memory yourself,<br>
+    of did you buy the computer as is?<br>
+    However, this should not break MPI anyway.<br>
+<br>
+    **<br>
+<br>
+    E) Answering your question:<br>
+    It is true that different flavors of MPI<br>
+    used to compile (mpicc) and run (mpiexec) a program would probably<br>
+    break right away, regardless of the number of processes.<br>
+    However, when it comes to different versions of the<br>
+    same MPI flavor (say OpenMPI 1.3.4 and OpenMPI 1.3.3)<br>
+    I am not sure it will break.<br>
+    I would guess it may run but not in a reliable way.<br>
+    Problems may appear as you stress the system with more cores, etc.<br>
+    But this is just a guess.<br>
+<br>
+    **<br>
+<br>
+    I hope this helps,<br>
+<br>
+    Gus Correa<br>
+    ---------------------------------------------------------------------<br>
+    Gustavo Correa<br>
+    Lamont-Doherty Earth Observatory - Columbia University<br>
+    Palisades, NY, 10964-8000 - USA<br>
+    ---------------------------------------------------------------------<br>
+<br>
+<br>
+    Matthew MacManes wrote:<br>
+<br>
+        Hi Gus,<br>
+<br>
+        Interestingly the results for the connectivity_c test... works<br>
+        fine with -np &lt;8. For -np &gt;8 it works some of the time, other<br>
+        times it HANGS. I have got to believe that this is a big clue!!<br>
+        Also, when it hangs, sometimes I get the message &quot;mpirun was<br>
+        unable to cleanly terminate the daemons on the nodes shown<br>
+        below&quot; Note that NO nodes are shown below.   Once, I got -np 250<br>
+        to pass the connectivity test, but I was not able to replicate<br>
+        this reliable, so I&#39;m not sure if it was a fluke, or what.  Here<br>
+        is a like to a screenshop of TOP when connectivity_c is hung<br>
+        with -np 14.. I see that 2 processes are only at 50% CPU usage..<br>
+        Hmmmm          <a href="http://picasaweb.google.com/lh/photo/87zVEucBNFaQ0TieNVZtdw?authkey=Gv1sRgCLKokNOVqo7BYw&amp;feat=directlink" target="_blank">http://picasaweb.google.com/lh/photo/87zVEucBNFaQ0TieNVZtdw?authkey=Gv1sRgCLKokNOVqo7BYw&amp;feat=directlink</a><br>
+
+        &lt;<a href="http://picasaweb.google.com/lh/photo/87zVEucBNFaQ0TieNVZtdw?authkey=Gv1sRgCLKokNOVqo7BYw&amp;feat=directlink" target="_blank">http://picasaweb.google.com/lh/photo/87zVEucBNFaQ0TieNVZtdw?authkey=Gv1sRgCLKokNOVqo7BYw&amp;feat=directlink</a>&gt;<br>
+
+        &lt;<a href="http://picasaweb.google.com/lh/photo/87zVEucBNFaQ0TieNVZtdw?authkey=Gv1sRgCLKokNOVqo7BYw&amp;feat=directlink" target="_blank">http://picasaweb.google.com/lh/photo/87zVEucBNFaQ0TieNVZtdw?authkey=Gv1sRgCLKokNOVqo7BYw&amp;feat=directlink</a><br>
+
+        &lt;<a href="http://picasaweb.google.com/lh/photo/87zVEucBNFaQ0TieNVZtdw?authkey=Gv1sRgCLKokNOVqo7BYw&amp;feat=directlink" target="_blank">http://picasaweb.google.com/lh/photo/87zVEucBNFaQ0TieNVZtdw?authkey=Gv1sRgCLKokNOVqo7BYw&amp;feat=directlink</a>&gt;&gt;<br>
+
+<br>
+<br>
+        The other tests, ring_c, hello_c, as well as the cxx versions of<br>
+        these guys with with all values of -np.<br>
+<br>
+        Using -mca mpi-paffinity_alone 1 I get the same behavior.<br>
+        I agree that I am should worry about the mismatch between where<br>
+        the libraries are installed versus where I am telling my<br>
+        programs to look for them. Would this type of mismatch cause<br>
+        behavior like what I am seeing, i.e. working with  a small<br>
+        number of processors, but failing with larger?  It seems like a<br>
+        mismatch would have the same effect regardless of the number of<br>
+        processors used. Maybe I am mistaken. Anyway, to address this,<br>
+        which mpirun gives me /usr/local/bin/mpirun.. so to configure<br>
+        ./configure --with-mpi=/usr/local/bin/mpirun and to run<br>
+        /usr/local/bin/mpirun -np X ...  This should<br>
+        uname -a gives me: Linux macmanes 2.6.31-16-generic #52-Ubuntu<br>
+        SMP Thu Dec 3 22:07:16 UTC 2006 x86_64 GNU/Linux<br>
+<br>
+        Matt<br>
+<br>
+        On Dec 8, 2009, at 8:50 PM, Gus Correa wrote:<br>
+<br>
+            Hi Matthew<br>
+<br>
+            Please see comments/answers inline below.<br>
+<br>
+            Matthew MacManes wrote:<br>
+<br>
+                Hi Gus, Thanks for your ideas.. I have a few questions,<br>
+                and will try to answer yours in hopes of solving this!!<br>
+<br>
+<br>
+            A simple way to test OpenMPI on your system is to run the<br>
+            test programs that come with the OpenMPI source code,<br>
+            hello_c.c, connectivity_c.c, and ring_c.c:<br>
+            <a href="http://www.open-mpi.org/" target="_blank">http://www.open-mpi.org/</a><br>
+<br>
+            Get the tarball from the OpenMPI site, gzip and untar it,<br>
+            and look for it in the &quot;examples&quot; directory.<br>
+            Compile it with /your/path/to/openmpi/bin/mpicc hello_c.c<br>
+            Run it with /your/path/to/openmpi/bin/mpiexec -np X a.out<br>
+            using X = 2, 4, 8, 16, 32, 64, ...<br>
+<br>
+            This will tell if your OpenMPI is functional,<br>
+            and if you can run on many Nehalem cores,<br>
+            even with oversubscription perhaps.<br>
+            It will also set the stage for further investigation of your<br>
+            actual programs.<br>
+<br>
+<br>
+                Should I worry about setting things like --num-cores<br>
+                --bind-to-cores?  This, I think, gets at your questions<br>
+                about processor affinity.. Am I right? I could not<br>
+                exactly figure out the -mca mpi-paffinity_alone stuff...<br>
+<br>
+<br>
+            I use the simple minded -mca mpi-paffinity_alone 1.<br>
+            This is probably the easiest way to assign a process to a core.<br>
+            There more complex  ways in OpenMPI, but I haven&#39;t tried.<br>
+            Indeed, -mca mpi-paffinity_alone 1 does improve performance of<br>
+            our programs here.<br>
+            There is a chance that without it the 16 virtual cores of<br>
+            your Nehalem get confused with more than 3 processes<br>
+            (you reported that -np &gt; 3 breaks).<br>
+<br>
+            Did you try adding just -mca mpi-paffinity_alone 1  to<br>
+            your mpiexec command line?<br>
+<br>
+<br>
+                1. Additional load: nope. nothing else, most of the time<br>
+                not even firefox.<br>
+<br>
+<br>
+            Good.<br>
+            Turn off firefox, etc, to make it even better.<br>
+            Ideally, use runlevel 3, no X, like a computer cluster node,<br>
+            but this may not be required.<br>
+<br>
+                2. RAM: no problems apparent when monitoring through<br>
+                TOP. Interesting, I did wonder about oversubscription,<br>
+                so I tried the option --nooversubscription, but this<br>
+                gave me an error mssage.<br>
+<br>
+<br>
+            Oversubscription from your program would only happen if<br>
+            you asked for more processes than available cores, i.e.,<br>
+            -np &gt; 8 (or &quot;virtual&quot; cores, in case of Nehalem hyperthreading,<br>
+            -np &gt; 16).<br>
+            Since you have -np=4 there is no oversubscription,<br>
+            unless you have other external load (e.g. Matlab, etc),<br>
+            but you said you don&#39;t.<br>
+<br>
+            Yet another possibility would be if your program is threaded<br>
+            (e.g. using OpenMP along with MPI), but considering what you<br>
+            said about OpenMP I would guess the programs don&#39;t use it.<br>
+            For instance, you launch the program with 4 MPI processes,<br>
+            and each process decides to start, say, 8 OpenMP threads.<br>
+            You end up with 32 threads and 8 (real) cores (or 16<br>
+            hyperthreaded<br>
+            ones on Nehalem).<br>
+<br>
+<br>
+            What else does top say?<br>
+            Any hog processes (memory- or CPU-wise)<br>
+            besides your program processes?<br>
+<br>
+                3. I have not tried other MPI flavors.. Ive been<br>
+                speaking to the authors of the programs, and they are<br>
+                both using openMPI.  <br>
+<br>
+            I was not trying to convince you to use another MPI.<br>
+            I use MPICH2 also, but OpenMPI reigns here.<br>
+            The idea or trying it with MPICH2 was just to check whether<br>
+            OpenMPI<br>
+            is causing the problem, but I don&#39;t think it is.<br>
+<br>
+                4. I don&#39;t think that this is a problem, as I&#39;m<br>
+                specifying --with-mpi=/usr/bin/...  when I compile the<br>
+                programs. Is there any other way to be sure that this is<br>
+                not a problem?<br>
+<br>
+<br>
+            Hmmm ....<br>
+            I don&#39;t know about your Ubuntu (we have CentOS and Fedora on<br>
+            various<br>
+            machines).<br>
+            However, most Linux distributions come with their MPI flavors,<br>
+            and so do compilers, etc.<br>
+            Often times they install these goodies in unexpected places,<br>
+            and this has caused a lot of frustration.<br>
+            There are tons of postings on this list that eventually<br>
+            boiled down to mismatched versions of MPI in unexpected places.<br>
+<br>
+<br>
+            The easy way is to use full path names to compile and to run.<br>
+            Something like this:<br>
+            /my/openmpi/bin/mpicc on your program configuration script),<br>
+<br>
+            and something like this<br>
+            /my/openmpi/bin/mpiexec -np  ... bla, bla ...<br>
+            when you submit the job.<br>
+<br>
+            You can check your version with &quot;which mpicc&quot;, &quot;which mpiexec&quot;,<br>
+            and (perhaps using full path names) with<br>
+            &quot;ompi_info&quot;, &quot;mpicc --showme&quot;, &quot;mpiexec --help&quot;.<br>
+<br>
+<br>
+                5. I had not been, and you could see some shuffling when<br>
+                monitoring the load on specific processors. I have tried<br>
+                to use --bind-to-cores to deal with this. I don&#39;t<br>
+                understand how to use the -mca options you asked about.<br>
+                6. I am using Ubuntu 9.10. gcc 4.4.1 and g++  4.4.1<br>
+<br>
+<br>
+            I am afraid I won&#39;t be of help, because I don&#39;t have Nehalem.<br>
+            However, I read about Nehalem requiring quite recent kernels<br>
+            to get all of its features working right.<br>
+<br>
+            What is the output of &quot;uname -a&quot;?<br>
+            This will tell the kernel version, etc.<br>
+            Other list subscribers may give you a suggestion if you post the<br>
+            information.<br>
+<br>
+                MyBayes is a for bayesian phylogenetics:<br>
+                 <a href="http://mrbayes.csit.fsu.edu/wiki/index.php/Main_Page" target="_blank">http://mrbayes.csit.fsu.edu/wiki/index.php/Main_Page</a><br>
+                ABySS: is a program for assembly of DNA sequence data:<br>
+                <a href="http://www.bcgsc.ca/platform/bioinfo/software/abyss" target="_blank">http://www.bcgsc.ca/platform/bioinfo/software/abyss</a><br>
+<br>
+<br>
+            Thanks for the links!<br>
+            I had found the MrBayes link.<br>
+            I eventually found what your ABySS was about, but no links.<br>
+            Amazing that it is about DNA/gene sequencing.<br>
+            Our abyss here is the deep ocean ... :)<br>
+            Abysmal difference!<br>
+<br>
+                    Do the programs mix MPI (message passing) with<br>
+                    OpenMP (threads)?<br>
+<br>
+                Im honestly not sure what this means..<br>
+<br>
+<br>
+            Some programs mix the two.<br>
+            OpenMP only works in a shared memory environment (e.g. a single<br>
+            computer like yours), whereas MPI can use both shared memory<br>
+            and work across a network (e.g. in a cluster).<br>
+            There are other differences too.<br>
+<br>
+            Unlikely that you have this hybrid type of parallel program,<br>
+            otherwise there would be some reference to OpenMP<br>
+            on the very program configuration files, program<br>
+            documentation, etc.<br>
+            Also, in general the configuration scripts of these hybrid<br>
+            programs can turn on MPI only, or OpenMP only, or both,<br>
+            depending on how you configure.<br>
+<br>
+            Even to compile with OpenMP you would need a proper compiler<br>
+            flag, but that one might be hidden in a Makefile too, making<br>
+            a bit hard to find. &quot;grep -n mp Makefile&quot; may give a clue.<br>
+            Anything on the documentation that mentions threads or OpenMP?<br>
+<br>
+            FYI, here is OpenMP:<br>
+            <a href="http://openmp.org/wp/" target="_blank">http://openmp.org/wp/</a><br>
+<br>
+                Thanks for all your help!<br>
+<br>
+             &gt; Matt<br>
+<br>
+            Well, so far it didn&#39;t really help. :(<br>
+<br>
+            But let&#39;s hope to find a clue,<br>
+            maybe with a little help of<br>
+            our list subscriber friends.<br>
+<br>
+            Gus Correa<br>
+            ---------------------------------------------------------------------<br>
+            Gustavo Correa<br>
+            Lamont-Doherty Earth Observatory - Columbia University<br>
+            Palisades, NY, 10964-8000 - USA<br>
+            ---------------------------------------------------------------------<br>
+<br>
+                    Hi Matthew<br>
+<br>
+                    More guesses/questions than anything else:<br>
+<br>
+                    1) Is there any additional load on this machine?<br>
+                    We had problems like that (on different machines) when<br>
+                    users start listening to streaming video, doing<br>
+                    Matlab calculations,<br>
+                    etc, while the MPI programs are running.<br>
+                    This tends to oversubscribe the cores, and may lead<br>
+                    to crashes.<br>
+<br>
+                    2) RAM:<br>
+                    Can you monitor the RAM usage through &quot;top&quot;?<br>
+                    (I presume you are on Linux.)<br>
+                    It may show unexpected memory leaks, if they exist.<br>
+<br>
+                    On &quot;top&quot;, type &quot;1&quot; (one) see all cores, type &quot;f&quot;<br>
+                    then &quot;j&quot;<br>
+                    to see the core number associated to each process.<br>
+<br>
+                    3) Do the programs work right with other MPI flavors<br>
+                    (e.g. MPICH2)?<br>
+                    If not, then it is not OpenMPI&#39;s fault.<br>
+<br>
+                    4) Any possibility that the MPI versions/flavors of<br>
+                    mpicc and<br>
+                    mpirun that you are using to compile and launch the<br>
+                    program are not the<br>
+                    same?<br>
+<br>
+                    5) Are you setting processor affinity on mpiexec?<br>
+<br>
+                    mpiexec -mca mpi_paffinity_alone 1 -np ... bla, bla ...<br>
+<br>
+                    Context switching across the cores may also cause<br>
+                    trouble, I suppose.<br>
+<br>
+                    6) Which Linux are you using (uname -a)?<br>
+<br>
+                    On other mailing lists I read reports that only<br>
+                    quite recent kernels<br>
+                    support all the Intel Nehalem processor features well.<br>
+                    I don&#39;t have Nehalem, I can&#39;t help here,<br>
+                    but the information may be useful<br>
+                    for other list subscribers to help you.<br>
+<br>
+                    ***<br>
+<br>
+                    As for the programs, some programs require specific<br>
+                    setup,<br>
+                    (and even specific compilation) when the number of<br>
+                    MPI processes<br>
+                    vary.<br>
+                    It may help if you tell us a link to the program sites.<br>
+<br>
+                    Baysian statistics is not totally out of our business,<br>
+                    but phylogenetic genetic trees is not really my league,<br>
+                    hence forgive me any bad guesses, please,<br>
+                    but would it need specific compilation or a different<br>
+                    set of input parameters to run correctly on a different<br>
+                    number of processors?<br>
+                    Do the programs mix MPI (message passing) with<br>
+                    OpenMP (threads)?<br>
+<br>
+                    I found this MrBayes, which seems to do the above:<br>
+<br>
+                    <a href="http://mrbayes.csit.fsu.edu/" target="_blank">http://mrbayes.csit.fsu.edu/</a><br>
+                    <a href="http://mrbayes.csit.fsu.edu/wiki/index.php/Main_Page" target="_blank">http://mrbayes.csit.fsu.edu/wiki/index.php/Main_Page</a><br>
+<br>
+                    As for the ABySS, what is it, where can it be found?<br>
+                    Doesn&#39;t look like a deep ocean circulation model, as<br>
+                    the name suggest.<br>
+<br>
+                    My $0.02<br>
+                    Gus Correa<br>
+<br>
+                ------------------------------------------------------------------------<br>
+                _______________________________________________<br>
+                users mailing list<br></div></div>
+                <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a> &lt;mailto:<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&gt;<div class="im"><br>
+                <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+            _______________________________________________<br>
+            users mailing list<br></div>
+            <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a> &lt;mailto:<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&gt;<div class="im"><br>
+            <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+        _________________________________<br>
+        Matthew MacManes<br>
+        PhD Candidate<br>
+        University of California- Berkeley<br>
+        Museum of Vertebrate Zoology<br>
+        Phone: 510-495-5833<br>
+        Lab Website: <a href="http://ib.berkeley.edu/labs/lacey" target="_blank">http://ib.berkeley.edu/labs/lacey</a><br>
+        Personal Website: <a href="http://macmanes.com/" target="_blank">http://macmanes.com/</a><br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+        ------------------------------------------------------------------------<br>
+<br>
+        _______________________________________________<br>
+        users mailing list<br></div>
+        <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a> &lt;mailto:<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&gt;<div class="im"><br>
+        <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+    _______________________________________________<br>
+    users mailing list<br></div>
+    <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a> &lt;mailto:<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>&gt;<div class="im"><br>
+    <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+<br>
+------------------------------------------------------------------------<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></blockquote><div><div></div><div class="h5">
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br>
+

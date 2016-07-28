@@ -1,0 +1,8 @@
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG/MacGPG2 v2.0.12 (Darwin)
+
+iEYEARECAAYFAkpSq78ACgkQuCozVGT5OdFK1gCfZ2HHJYvFQWo0MLGLiJydPXos
+pgsAn1TrY/hm5r85vVHsSu0udxSLZ+Yq
+=zTlB
+-----END PGP SIGNATURE-----
+

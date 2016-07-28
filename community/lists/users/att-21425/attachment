@@ -1,0 +1,139 @@
+<div dir="ltr">That was careless of me. Thanks for pointing it out. Declaring &quot;status&quot;, &quot;ierr&quot; and putting &quot;implicit none&quot; solved the problem. <div><br></div><div style>Thanks again.</div></div>
+
+<div class="gmail_extra"><br><br><div class="gmail_quote">2013/2/19 Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
++1.  The problem is that you didn&#39;t declare status or ierr.  Since you didn&#39;t declare status, you&#39;re buffer overflowing, and random Bad Things happen from there.<br>
+<br>
+You should *always* &quot;implicit none&quot; to catch these kinds of errors.<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On Feb 18, 2013, at 2:02 PM, Gus Correa &lt;<a href="mailto:gus@ldeo.columbia.edu">gus@ldeo.columbia.edu</a>&gt; wrote:<br>
+<br>
+&gt; Hi Pradeep<br>
+&gt;<br>
+&gt; For what it is worth, in the MPI Fortran bindings/calls the<br>
+&gt; datatype to use is &quot;MPI_INTEGER&quot;, not &quot;mpi_int&quot; (which you used;<br>
+&gt; MPI_INT is in the MPI C bindings):<br>
+&gt;<br>
+&gt; <a href="http://linux.die.net/man/3/mpi_integer" target="_blank">http://linux.die.net/man/3/mpi_integer</a><br>
+&gt;<br>
+&gt; Also, just to prevent variables to inadvertently come with<br>
+&gt; the wrong type, you could add:<br>
+&gt;<br>
+&gt; implicit none<br>
+&gt;<br>
+&gt; to the top of your code.<br>
+&gt; You already have a non-declared &quot;ierr&quot; in &quot;call mpi_send&quot;.<br>
+&gt; (You declared &quot;ierror&quot; as an integer, but not &quot;ierr&quot;.)<br>
+&gt; Although this one may not cause any harm;<br>
+&gt; names starting with &quot;i&quot; are integers by default, in old Fortran.<br>
+&gt;<br>
+&gt; I hope this helps,<br>
+&gt; Gus Correa<br>
+&gt;<br>
+&gt;<br>
+&gt; On 02/18/2013 01:26 PM, jody wrote:<br>
+&gt;&gt; Hi Pradeep<br>
+&gt;&gt;<br>
+&gt;&gt; I am not sure if this is the reason, but usually it is a bad idea to<br>
+&gt;&gt; force an order of receives (such as you do in your receive loop -<br>
+&gt;&gt; first from sender 1 then from sender 2 then from sender 3)<br>
+&gt;&gt; Unless you implement it so, there is no guarantee the sends are<br>
+&gt;&gt; performed in this order. B<br>
+&gt;&gt;<br>
+&gt;&gt; It is better if you accept messages from all senders (MPI_ANY_SOURCE)<br>
+&gt;&gt; instead of particular ranks and then check where the<br>
+&gt;&gt; message came from by examining the status fields<br>
+&gt;&gt; (<a href="http://www.mpi-forum.org/docs/mpi22-report/node47.htm" target="_blank">http://www.mpi-forum.org/docs/mpi22-report/node47.htm</a>)<br>
+&gt;&gt;<br>
+&gt;&gt; Hope this helps<br>
+&gt;&gt;   Jody<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On Mon, Feb 18, 2013 at 5:06 PM, Pradeep Jha<br>
+&gt;&gt; &lt;<a href="mailto:pradeep@ccs.engg.nagoya-u.ac.jp">pradeep@ccs.engg.nagoya-u.ac.jp</a>&gt;  wrote:<br>
+&gt;&gt;&gt; I have attached a sample of the MPI program I am trying to write. When I run<br>
+&gt;&gt;&gt; this program using &quot;mpirun -np 4 a.out&quot;, my output is:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;  Sender:            1<br>
+&gt;&gt;&gt;  Data received from            1<br>
+&gt;&gt;&gt;  Sender:            2<br>
+&gt;&gt;&gt;  Data received from            1<br>
+&gt;&gt;&gt;  Sender:            2<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; And the run hangs there. I dont understand why does the &quot;sender&quot; variable<br>
+&gt;&gt;&gt; change its value after MPI_recv? Any ideas?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thank you,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Pradeep<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;  program mpi_test<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   include  &#39;mpif.h&#39;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; !----------------( Initialize variables )--------------------<br>
+&gt;&gt;&gt;   integer, dimension(3) :: recv, send<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   integer :: sender, np, rank, ierror<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   call  mpi_init( ierror )<br>
+&gt;&gt;&gt;   call  mpi_comm_rank( mpi_comm_world, rank, ierror )<br>
+&gt;&gt;&gt;   call  mpi_comm_size( mpi_comm_world, np, ierror )<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; !----------------( Main program )--------------------<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; !     receive the data from the other processors<br>
+&gt;&gt;&gt;   if (rank.eq.0) then<br>
+&gt;&gt;&gt;      do sender = 1, np-1<br>
+&gt;&gt;&gt;         print *, &quot;Sender: &quot;, sender<br>
+&gt;&gt;&gt;         call mpi_recv(recv, 3, mpi_int, sender, 1,<br>
+&gt;&gt;&gt;  &amp;        mpi_comm_world, status, ierror)<br>
+&gt;&gt;&gt;         print *, &quot;Data received from &quot;,sender<br>
+&gt;&gt;&gt;      end do<br>
+&gt;&gt;&gt;   end if<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; !   send the data to the main processor<br>
+&gt;&gt;&gt;   if (rank.ne.0) then<br>
+&gt;&gt;&gt;      send(1) = 3<br>
+&gt;&gt;&gt;      send(2) = 4<br>
+&gt;&gt;&gt;      send(3) = 4<br>
+&gt;&gt;&gt;      call mpi_send(send, 3, mpi_int, 0, 1, mpi_comm_world, ierr)<br>
+&gt;&gt;&gt;   end if<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; !----------------( clean up )--------------------<br>
+&gt;&gt;&gt;   call mpi_finalize(ierror)<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   return<br>
+&gt;&gt;&gt;   end program mpi_test`<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+</div></div><span class="HOEnZb"><font color="#888888">--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+</font></span><div class="HOEnZb"><div class="h5"><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br></div>
+

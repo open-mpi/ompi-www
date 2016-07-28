@@ -1,0 +1,164 @@
+<div dir="ltr">Thanks, it looks like I have to do the overlapping myself.</div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Apr 8, 2014 at 5:40 PM, Matthieu Brucher <span dir="ltr">&lt;<a href="mailto:matthieu.brucher@gmail.com" target="_blank">matthieu.brucher@gmail.com</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Yes, usually the MPI libraries don&#39;t allow that. You can launch<br>
+another thread for the computation, make calls to MPI_Test during that<br>
+time and join at the end.<br>
+<br>
+Cheers,<br>
+<br>
+2014-04-07 4:12 GMT+01:00 Zehan Cui &lt;<a href="mailto:zehan.cui@gmail.com">zehan.cui@gmail.com</a>&gt;:<br>
+<div class="HOEnZb"><div class="h5">&gt; Hi Matthieu,<br>
+&gt;<br>
+&gt; Thanks for your suggestion. I tried MPI_Waitall(), but the results are<br>
+&gt; the same. It seems the communication didn&#39;t overlap with computation.<br>
+&gt;<br>
+&gt; Regards,<br>
+&gt; Zehan<br>
+&gt;<br>
+&gt; On 4/5/14, Matthieu Brucher &lt;<a href="mailto:matthieu.brucher@gmail.com">matthieu.brucher@gmail.com</a>&gt; wrote:<br>
+&gt;&gt; Hi,<br>
+&gt;&gt;<br>
+&gt;&gt; Try waiting on all gathers at the same time, not one by one (this is<br>
+&gt;&gt; what non blocking collectives are made for!)<br>
+&gt;&gt;<br>
+&gt;&gt; Cheers,<br>
+&gt;&gt;<br>
+&gt;&gt; Matthieu<br>
+&gt;&gt;<br>
+&gt;&gt; 2014-04-05 10:35 GMT+01:00 Zehan Cui &lt;<a href="mailto:zehan.cui@gmail.com">zehan.cui@gmail.com</a>&gt;:<br>
+&gt;&gt;&gt; Hi,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I&#39;m testing the non-blocking collective of OpenMPI-1.8.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I have two nodes with Infiniband to perform allgather on totally 128MB<br>
+&gt;&gt;&gt; data.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I split the 128MB data into eight pieces, and perform computation and<br>
+&gt;&gt;&gt; MPI_Iallgatherv() on one piece of data each iteration, hoping that the<br>
+&gt;&gt;&gt; MPI_Iallgatherv() of last iteration can be overlapped with computation of<br>
+&gt;&gt;&gt; current iteration. A MPI_Wait() is called at the end of last iteration.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; However, the total communication time (including the final wait time) is<br>
+&gt;&gt;&gt; similar with that of the traditional blocking MPI_Allgatherv, even<br>
+&gt;&gt;&gt; slightly<br>
+&gt;&gt;&gt; higher.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Following is the test pseudo-code, the source code are attached.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; ===========================<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Using MPI_Allgatherv:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; for( i=0; i&lt;8; i++ )<br>
+&gt;&gt;&gt; {<br>
+&gt;&gt;&gt;   // computation<br>
+&gt;&gt;&gt;     mytime( t_begin );<br>
+&gt;&gt;&gt;     computation;<br>
+&gt;&gt;&gt;     mytime( t_end );<br>
+&gt;&gt;&gt;     comp_time += (t_end - t_begin);<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   // communication<br>
+&gt;&gt;&gt;     t_begin = t_end;<br>
+&gt;&gt;&gt;     MPI_Allgatherv();<br>
+&gt;&gt;&gt;     mytime( t_end );<br>
+&gt;&gt;&gt;     comm_time += (t_end - t_begin);<br>
+&gt;&gt;&gt; }<br>
+&gt;&gt;&gt; --------------------------------------------<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Using MPI_Iallgatherv:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; for( i=0; i&lt;8; i++ )<br>
+&gt;&gt;&gt; {<br>
+&gt;&gt;&gt;   // computation<br>
+&gt;&gt;&gt;     mytime( t_begin );<br>
+&gt;&gt;&gt;     computation;<br>
+&gt;&gt;&gt;     mytime( t_end );<br>
+&gt;&gt;&gt;     comp_time += (t_end - t_begin);<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   // communication<br>
+&gt;&gt;&gt;     t_begin = t_end;<br>
+&gt;&gt;&gt;     MPI_Iallgatherv();<br>
+&gt;&gt;&gt;     mytime( t_end );<br>
+&gt;&gt;&gt;     comm_time += (t_end - t_begin);<br>
+&gt;&gt;&gt; }<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; // wait for non-blocking allgather to complete<br>
+&gt;&gt;&gt; mytime( t_begin );<br>
+&gt;&gt;&gt; for( i=0; i&lt;8; i++ )<br>
+&gt;&gt;&gt;     MPI_Wait;<br>
+&gt;&gt;&gt; mytime( t_end );<br>
+&gt;&gt;&gt; wait_time = t_end - t_begin;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; ==============================<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; The results of Allgatherv is:<br>
+&gt;&gt;&gt; [cmy@gnode102 test_nbc]$ /home3/cmy/czh/opt/ompi-1.8/bin/mpirun -n 2<br>
+&gt;&gt;&gt; --host<br>
+&gt;&gt;&gt; gnode102,gnode103 ./Allgatherv 128 2 | grep time<br>
+&gt;&gt;&gt; Computation time  :     8481279 us<br>
+&gt;&gt;&gt; Communication time:     319803 us<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; The results of Iallgatherv is:<br>
+&gt;&gt;&gt; [cmy@gnode102 test_nbc]$ /home3/cmy/czh/opt/ompi-1.8/bin/mpirun -n 2<br>
+&gt;&gt;&gt; --host<br>
+&gt;&gt;&gt; gnode102,gnode103 ./Iallgatherv 128 2 | grep time<br>
+&gt;&gt;&gt; Computation time  :     8479177 us<br>
+&gt;&gt;&gt; Communication time:     199046 us<br>
+&gt;&gt;&gt; Wait time:              139841 us<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; So, does this mean that current OpenMPI implementation of MPI_Iallgatherv<br>
+&gt;&gt;&gt; doesn&#39;t support offloading of collective communication to dedicated cores<br>
+&gt;&gt;&gt; or<br>
+&gt;&gt;&gt; network interface?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Best regards,<br>
+&gt;&gt;&gt; Zehan<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; --<br>
+&gt;&gt; Information System Engineer, Ph.D.<br>
+&gt;&gt; Blog: <a href="http://matt.eifelle.com" target="_blank">http://matt.eifelle.com</a><br>
+&gt;&gt; LinkedIn: <a href="http://www.linkedin.com/in/matthieubrucher" target="_blank">http://www.linkedin.com/in/matthieubrucher</a><br>
+&gt;&gt; Music band: <a href="http://liliejay.com/" target="_blank">http://liliejay.com/</a><br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Best Regards<br>
+&gt; Zehan Cui(崔泽汉)<br>
+&gt; -----------------------------------------------------------<br>
+&gt; Institute of Computing Technology, Chinese Academy of Sciences.<br>
+&gt; No.6 Kexueyuan South Road Zhongguancun,Haidian District Beijing,China<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+<br>
+--<br>
+Information System Engineer, Ph.D.<br>
+Blog: <a href="http://matt.eifelle.com" target="_blank">http://matt.eifelle.com</a><br>
+LinkedIn: <a href="http://www.linkedin.com/in/matthieubrucher" target="_blank">http://www.linkedin.com/in/matthieubrucher</a><br>
+Music band: <a href="http://liliejay.com/" target="_blank">http://liliejay.com/</a><br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></div></blockquote></div><br></div>
+

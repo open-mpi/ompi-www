@@ -1,0 +1,33 @@
+<br>Not that long, 150 lines.<br><br>Here it is:<br><br>#include &lt;mpi.h&gt;<br>#include &lt;math.h&gt;<br>#include &lt;stdio.h&gt;<br>#include &lt;stdlib.h&gt;<br>#include &lt;string.h&gt;<br>#include &lt;unistd.h&gt;<br>
+<br>#define BUFLEN 25000<br>#define LOOPS 10<br>#define BUFFERS 4<br><br>#define GROUP_SIZE 4<br><br>int main(int argc, char *argv[])<br>{<br>   int myid, numprocs, next, namelen;<br>   int color, key, newid;<br>   char buffer[BUFLEN], processor_name[MPI_MAX_PROCESSOR_NAME];<br>
+   MPI_Comm world_comm, comp_comm, server_comm;<br><br>   MPI_Init(&amp;argc,&amp;argv);<br>   MPI_Comm_size(MPI_COMM_WORLD,&amp;numprocs);<br>   MPI_Comm_rank(MPI_COMM_WORLD,&amp;myid);<br>   MPI_Get_processor_name(processor_name,&amp;namelen);<br>
+<br>   MPI_Comm_dup( MPI_COMM_WORLD, &amp;world_comm );<br>    <br>   if ( myid == 0 )<br>      color = MPI_UNDEFINED;<br>   else<br>   {<br>      color = (myid - 1) / GROUP_SIZE;<br>      key = (myid - 1) % GROUP_SIZE;<br>
+   }<br><br>   MPI_Comm_split( MPI_COMM_WORLD, color, key, &amp;comp_comm );<br><br>   if ( myid == 0 || (myid - 1) % GROUP_SIZE == 0 )<br>      color = MPI_UNDEFINED;<br>   else<br>   {<br>      int r = myid - 2;<br>       <br>
+      color = 1;<br>      key = r - r / GROUP_SIZE;<br>   }<br><br>   MPI_Comm_split( MPI_COMM_WORLD, color, key, &amp;server_comm );<br>   if ( myid == 0 )<br>   {<br>      fprintf(stderr,&quot;Master [id = %d of %d] is running on %s\n&quot;, myid, numprocs, processor_name);<br>
+   }<br>   else<br>   {<br>      int s_id;<br>      <br>      MPI_Comm_rank( comp_comm, &amp;newid );<br>      if ( (myid - 1) % GROUP_SIZE == 0 )<br>     fprintf(stderr,&quot;Compositor [id = %d, %d of %d] is running on %s\n&quot;, myid, newid, numprocs, processor_name);<br>
+      else<br>      {<br>     MPI_Comm_rank( server_comm, &amp;s_id );<br>     fprintf(stderr,&quot;Server [id = %d, %d, %d of %d] is running on %s\n&quot;, myid, newid, s_id, numprocs, processor_name);<br>      }<br>   }<br>
+<br>   if ( myid == 0 )<br>      next = 10;<br>   <br>   MPI_Bcast( &amp;next, 1, MPI_INT, 0, world_comm );<br>   fprintf(stderr,&quot;[%d] next = %d\n&quot;, myid, next );<br>   <br>   if ( myid &gt; 0 )<br>   {<br>      int i, j;<br>
+      int rank, size;<br>      MPI_Status status;<br>      <br>      MPI_Comm_size( comp_comm, &amp;size );<br>      MPI_Comm_rank( comp_comm, &amp;rank );<br><br>      if ( rank == 0 )<br>      {<br>     char buffer[BUFLEN];<br>
+     <br>     for (i = 0; i &lt; LOOPS * ( size - 1 ); i++) <br>     {<br>        int which_source, which_tag;<br>        <br>        MPI_Probe( MPI_ANY_SOURCE, MPI_ANY_TAG, comp_comm, &amp;status );<br>        which_source = status.MPI_SOURCE;<br>
+        which_tag = status.MPI_TAG;<br>        printf( &quot;Receiving buffer from %d, buffer = &quot;, which_source );<br>        MPI_Recv( buffer, BUFLEN, MPI_CHAR, which_source, which_tag, comp_comm, &amp;status );<br>
+        printf( &quot;%s\n&quot;, buffer );<br>     }<br>      }<br>      else<br>      {<br>     MPI_Request* request[BUFFERS];<br>     int sent[ BUFFERS ];<br>     int index = 0;<br>     char* buffer[BUFFERS];<br><br>     for (i = 0; i &lt; BUFFERS; i++) <br>
+     {<br>        MPI_Request* requester = (MPI_Request *) malloc( sizeof( MPI_Request ) );<br>        char* c = (char *) malloc(BUFLEN * sizeof( MPI_Request ) );<br>        /* Should really check for failure, but not for this test */<br>
+        request[ i ] = requester;<br>        sent[ i ] = 0;<br>        buffer[ i ] = c;<br>     }<br>        <br>     for (i = 0; i &lt; LOOPS; i++) <br>     {<br>        printf( &quot;Sending buffer %d from %d\n&quot;, i, rank );<br>
+        sprintf( buffer[ index ], &quot;hello from %d for the %d time&quot;, rank, i );<br>        if ( sent[ index ] )<br>        {<br>           sent[ index ] = 0;<br>           MPI_Wait( request[ index ], &amp;status );<br>
+        }<br>        <br>        MPI_Isend( buffer[ index ], BUFLEN, MPI_CHAR, 0, 99, comp_comm, <br>               request[ index ] );<br>        <br>        sent[ index ] = 1;<br>        index = ( index + 1 ) % BUFFERS;<br>
+        <br>        /* Randomly sleep to fake a computation loop*/<br>        usleep( (unsigned long)(500000 * drand48()) );<br>     }<br><br>     /* Clean up */<br>     for (i = 0; i &lt; BUFFERS; i++) <br>     {<br>        if ( sent[ i ] )<br>
+        {<br>           sent[ i ] = 0;<br>           MPI_Wait( request[ i ], &amp;status );<br>        }<br>        free( request[ i ] );<br>        free( buffer[ i ] );<br>     }<br>      }<br>   }<br>   <br>   MPI_Barrier( world_comm );<br>
+   MPI_Finalize();<br>   return (0);<br>}<br><br><br><div class="gmail_quote">On Fri, Jun 19, 2009 at 10:50 AM, Eugene Loh <span dir="ltr">&lt;<a href="mailto:Eugene.Loh@sun.com">Eugene.Loh@sun.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div class="im">Mark Bolstad wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+I&#39;ll post the test code if requested (this email is already long)<br>
+</blockquote>
+<br></div>
+Yipes, how long is the test code?  Short enough to send, yes?  Please send.<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br>
+

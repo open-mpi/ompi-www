@@ -1,0 +1,104 @@
+Thanks a lot!<br><br>Z Koza<br><br><div class="gmail_quote">2012/8/30 Gus Correa <span dir="ltr">&lt;<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Hi  Zbigniew<br>
+<br>
+Besides the OpenMPI processor affinity capability that Jeff mentioned.<br>
+<br>
+If your Curie cluster has a resource manager [Torque, SGE, etc],<br>
+your job submission script to the resource manager/ queue system<br>
+should specifically request a single node, for the test that you have in mind.<br>
+<br>
+For instance, on Torque/PBS, this would be done by adding this directive to<br>
+the top of the job script:<br>
+<br>
+#PBS -l nodes=1:ppn=8<br>
+...<br>
+mpiexec -np 8 ...<br>
+<br>
+meaning that you want the 8 processors [i.e. cores] to be in a single node.<br>
+<br>
+On top of this, you need to add the appropriate process binding<br>
+keywords to the mpiexec command line, as Jeff suggested.<br>
+&#39;man mpiexec&#39; will tell you a lot about the OpenMPI process binding capability, specially in 1.6 and 1.4 series.<br>
+<br>
+In the best of the worlds your resource manager has the ability to also assign a group of<br>
+cores exclusively to each of the jobs that may be sharing the node.<br>
+Say, job1 requests 4 cores and gets cores 0-3 and cannot use any other cores,<br>
+job2 requests 8 cores and gets cores 4-11 and cannot use any other cores, and so on.<br>
+<br>
+However, not all resource managers/ queue systems are built this way [particularly the older versions],<br>
+and may let the various job processes to drift across all cores in the node.<br>
+<br>
+If the resource manager is old and doesn&#39;t have that hardware locality capability,<br>
+and if you don&#39;t want your performance test to risk being polluted by<br>
+other jobs running on the same node, that perhaps share the same cores with your job,<br>
+then you can request all 32 cores in the node for your job,<br>
+but use only 8 of them to run your MPI program.<br>
+It is wasteful, but may be the only way to go.<br>
+For instance, on Torque:<br>
+<br>
+#PBS -l nodes=1:ppn=32<br>
+...<br>
+mpiexec -np 8 ...<br>
+<br>
+Again, add the OpenMPI process binding keywords to the mpiexec command line,<br>
+to ensure the use of a fixed group of 8 cores.<br>
+<br>
+With SGE and Slurm the syntax is different than the above,<br>
+but I would guess that there is an equivalent setup.<br>
+<br>
+I hope this helps,<br>
+Gus Correa<div class="HOEnZb"><div class="h5"><br>
+<br>
+On 08/30/2012 08:07 AM, Jeff Squyres wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+In the OMPI v1.6 series, you can use the processor affinity options.  And you can use --report-bindings to show exactly where processes were bound.  For example:<br>
+<br>
+-----<br>
+% mpirun -np 4 --bind-to-core --report-bindings -bycore uptime<br>
+[svbu-mpi056:18904] MCW rank 0 bound to socket 0[core 0]: [B . . .][. . . .]<br>
+[svbu-mpi056:18904] MCW rank 1 bound to socket 0[core 1]: [. B . .][. . . .]<br>
+[svbu-mpi056:18904] MCW rank 2 bound to socket 0[core 2]: [. . B .][. . . .]<br>
+[svbu-mpi056:18904] MCW rank 3 bound to socket 0[core 3]: [. . . B][. . . .]<br>
+  05:06:13 up 7 days,  6:57,  1 user,  load average: 0.29, 0.10, 0.03<br>
+  05:06:13 up 7 days,  6:57,  1 user,  load average: 0.29, 0.10, 0.03<br>
+  05:06:13 up 7 days,  6:57,  1 user,  load average: 0.29, 0.10, 0.03<br>
+  05:06:13 up 7 days,  6:57,  1 user,  load average: 0.29, 0.10, 0.03<br>
+%<br>
+-----<br>
+<br>
+I bound each process to a single core, and mapped them on a round-robin basis by core.  Hence, all 4 processes ended up on their own cores on a single processor socket.<br>
+<br>
+The --report-bindings output shows that this particular machine has 2 sockets, each with 4 cores.<br>
+<br>
+<br>
+<br>
+On Aug 30, 2012, at 5:37 AM, Zbigniew Koza wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Hi,<br>
+<br>
+consider this specification:<br>
+<br>
+&quot;Curie fat consists in 360 nodes which contains 4 eight cores CPU Nehalem-EX clocked at 2.27 GHz, let 32 cores / node and 11520 cores for the full fat configuration&quot;<br>
+<br>
+Suppose I would like to run some performance tests just on a single processor rather than 4 of them.<br>
+Is there a way to do this?<br>
+I&#39;m afraid specifying that I need 1 cluster node with 8 MPI prcesses<br>
+will result in OS distributing these 8 processes among 4<br>
+processors forming the node, and this is not what I&#39;m after.<br>
+<br>
+Z Koza<br>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+</blockquote>
+<br>
+</blockquote>
+<br>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br>
+

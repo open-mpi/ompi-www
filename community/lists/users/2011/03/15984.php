@@ -1,0 +1,203 @@
+<?
+$subject_val = "Re: [OMPI users] keyval parser: error 1 reading	file	mpicc-wrapper-data.txt";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Thu Mar 24 15:13:10 2011" -->
+<!-- isoreceived="20110324191310" -->
+<!-- sent="Thu, 24 Mar 2011 13:13:00 -0600" -->
+<!-- isosent="20110324191300" -->
+<!-- name="Ralph Castain" -->
+<!-- email="rhc_at_[hidden]" -->
+<!-- subject="Re: [OMPI users] keyval parser: error 1 reading	file	mpicc-wrapper-data.txt" -->
+<!-- id="F6DFD5F3-0A84-4C5F-BA10-292621DD3289_at_open-mpi.org" -->
+<!-- charset="us-ascii" -->
+<!-- inreplyto="4D8B9137.2020101_at_ldeo.columbia.edu" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI users] keyval parser: error 1 reading	file	mpicc-wrapper-data.txt<br>
+<strong>From:</strong> Ralph Castain (<em>rhc_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2011-03-24 15:13:00
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="15985.php">McCalla, Mac: "Re: [OMPI users] intel compiler linking issue and issue ofenvironment variable on remote node, with open mpi 1.4.3"</a>
+<li><strong>Previous message:</strong> <a href="15983.php">Ralph Castain: "Re: [OMPI users] intel compiler linking issue and issue of environment variable on remote node, with open mpi 1.4.3"</a>
+<li><strong>In reply to:</strong> <a href="15981.php">Gus Correa: "Re: [OMPI users] keyval parser: error 1 reading	file	mpicc-wrapper-data.txt"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="16040.php">Gus Correa: "Re: [OMPI users] keyval parser: error 1	reading	file	mpicc-wrapper-data.txt"</a>
+<li><strong>Reply:</strong> <a href="16040.php">Gus Correa: "Re: [OMPI users] keyval parser: error 1	reading	file	mpicc-wrapper-data.txt"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Good to hear (well, all except that bit about the conspiracy...)!
+<br>
+<p><p>On Mar 24, 2011, at 12:45 PM, Gus Correa wrote:
+<br>
+<p><span class="quotelev1">&gt; Hi Ralph, list
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Just for the record:
+</span><br>
+<span class="quotelev1">&gt; I configured and built OpenMPI 1.4.3 with gcc/g++/ifort again today.
+</span><br>
+<span class="quotelev1">&gt; The mpicc/opal_wrapper parser error disappeared.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; The whole problem must have been some computer daemon spell.
+</span><br>
+<span class="quotelev1">&gt; Other than my growing feeling that flipping bits and logic gates
+</span><br>
+<span class="quotelev1">&gt; have fun conspiring against my sanity, all is well now.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Thank you,
+</span><br>
+<span class="quotelev1">&gt; Gus Correa
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Gus Correa wrote:
+</span><br>
+<span class="quotelev2">&gt;&gt; Ralph Castain wrote:
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; On Mar 23, 2011, at 3:19 PM, Gus Correa wrote:
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Dear OpenMPI Pros
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Why am I getting the parser error below?
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; It seems not to recognize comment lines (#).
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; This is OpenMPI 1.4.3.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; The same error happens with the other compiler wrappers too.
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; However, the wrappers compile and produce an executable.
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; No idea - I just tested it and didn't get that error. Did you configure this for script wrapper compilers instead of binaries?
+</span><br>
+<span class="quotelev3">&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Thank you,
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Gus Correa
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; Parser error:
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; $ mpicc hello_c.c
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; [myhost.mydomain:06489] keyval parser: error 1 reading file /my/path/to/openmpi/share/openmpi/mpicc-wrapper-data.txt at line 1:
+</span><br>
+<span class="quotelev4">&gt;&gt;&gt;&gt; # There can be multiple blocks of configuration data, chosen by
+</span><br>
+<span class="quotelev2">&gt;&gt; Thank you, Ralph.
+</span><br>
+<span class="quotelev2">&gt;&gt; I have two OpenMPI 1.4.3 builds on this cluster.
+</span><br>
+<span class="quotelev2">&gt;&gt; One with gcc/g++/gfortran,
+</span><br>
+<span class="quotelev2">&gt;&gt; the other with gcc/g++ and Intel ifort (12.0.0).
+</span><br>
+<span class="quotelev2">&gt;&gt; The Gnu-only works right, no parser error.
+</span><br>
+<span class="quotelev2">&gt;&gt; The error is restricted to the Gnu-Intel combination.
+</span><br>
+<span class="quotelev2">&gt;&gt; Awkward.
+</span><br>
+<span class="quotelev2">&gt;&gt; Both were configured with these parameters:
+</span><br>
+<span class="quotelev2">&gt;&gt; --prefix=${MYINSTALLDIR} \
+</span><br>
+<span class="quotelev2">&gt;&gt; --with-libnuma=/usr \
+</span><br>
+<span class="quotelev2">&gt;&gt; --with-tm=/opt/torque/2.4.11 \
+</span><br>
+<span class="quotelev2">&gt;&gt; --with-openib=/usr \
+</span><br>
+<span class="quotelev2">&gt;&gt; --enable-static
+</span><br>
+<span class="quotelev2">&gt;&gt; The opal_wrapper is a binary in both cases.
+</span><br>
+<span class="quotelev2">&gt;&gt; To make things more confusing, on another cluster with (older)
+</span><br>
+<span class="quotelev2">&gt;&gt; Intel compiler 10.1.017 the Gnu+Intel build of OpenMPI 1.4.3
+</span><br>
+<span class="quotelev2">&gt;&gt; doesn't have this parser error.
+</span><br>
+<span class="quotelev2">&gt;&gt; Thank you,
+</span><br>
+<span class="quotelev2">&gt;&gt; Gus Correa
+</span><br>
+<span class="quotelev2">&gt;&gt; _______________________________________________
+</span><br>
+<span class="quotelev2">&gt;&gt; users mailing list
+</span><br>
+<span class="quotelev2">&gt;&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev2">&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; users mailing list
+</span><br>
+<span class="quotelev1">&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="15985.php">McCalla, Mac: "Re: [OMPI users] intel compiler linking issue and issue ofenvironment variable on remote node, with open mpi 1.4.3"</a>
+<li><strong>Previous message:</strong> <a href="15983.php">Ralph Castain: "Re: [OMPI users] intel compiler linking issue and issue of environment variable on remote node, with open mpi 1.4.3"</a>
+<li><strong>In reply to:</strong> <a href="15981.php">Gus Correa: "Re: [OMPI users] keyval parser: error 1 reading	file	mpicc-wrapper-data.txt"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="16040.php">Gus Correa: "Re: [OMPI users] keyval parser: error 1	reading	file	mpicc-wrapper-data.txt"</a>
+<li><strong>Reply:</strong> <a href="16040.php">Gus Correa: "Re: [OMPI users] keyval parser: error 1	reading	file	mpicc-wrapper-data.txt"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

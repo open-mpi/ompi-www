@@ -1,0 +1,264 @@
+/**** (c) Marco Sbrighi - CINECA ****/
+
+
+
+#include "mpi.h"
+
+#include <stdlib.h>
+#include <limits.h>
+#include <stdio.h>
+
+#ifndef HOST_NAME_MAX
+#pragma warn self defined HOST_NAME_MAX
+#define HOST_NAME_MAX 255
+#endif
+
+#ifndef _POSIX_PATH_MAX
+#pragma warn self defined _POSIX_PATH_MAX
+#define _POSIX_PATH_MAX 2048
+#endif
+
+int ReduceExitStatus(int rank, int exitstat, FILE* out);
+int exitall(int rank, int exitstat, FILE* out);
+void checkAbort(MPI_Comm comm, int err);
+int checkFail(MPI_Comm comm, int err);
+int (*op ) (MPI_Comm,int);
+int bcast(MPI_Comm,int);
+int reduce(MPI_Comm,int);
+int allreduce(MPI_Comm, int);
+
+
+char myname[LINE_MAX];
+
+
+char *wbuf, *rbuf;
+
+
+int ReduceExitStatus(int rank, int exitstat, FILE* out)
+{
+  int commstat,retc;
+  commstat=0;
+  retc= MPI_Allreduce (&exitstat, &commstat,1, MPI_INT, MPI_BOR,MPI_COMM_WORLD);
+  fprintf(stdout, "Reducing %d. Allreduce is exiting with status %d reporting %d to cummunicator.\n",exitstat,retc,commstat );
+  
+  return  (commstat);
+}
+
+int exitall(int rank, int exitstat, FILE* out) {
+  int commstat;
+  commstat=0;
+  commstat=ReduceExitStatus(rank,exitstat,out);
+  MPI_Finalize();
+  return  (commstat);
+}
+
+void checkAbort(MPI_Comm comm, int err)
+{
+  if (err != MPI_SUCCESS) MPI_Abort(comm, err);
+}
+
+int checkFail(MPI_Comm comm, int err)
+{
+  return err == MPI_SUCCESS ? 1:0;
+}
+
+
+int myid, n_myid;
+
+
+char processor_name[MPI_MAX_PROCESSOR_NAME];
+
+
+
+
+int main(int argc, char *argv[])
+{
+    int  i, namelen;
+
+    
+    int last_opt,j;
+    size_t count;
+
+    //    size_t bsize;
+
+    size_t minbuf, maxbuf, stepbuf;
+    int minc, maxc, stepc;
+    int err, color,key;
+    MPI_Comm n_comm;
+    double stime,etime,ttime;
+    double timeout;
+    double status;
+    int numprocs;
+    char* opname; 
+    //    double sbuf[4];
+
+    //    usec_timer_t t;
+
+    void *attr_value;
+    int flag, commsize;
+    size_t bufsize;
+    int rep, maxrep;
+
+    long long deltat;
+    //mpirun.lsf ./collect.sh -d 1 -minc 35 -minbuf 0 -maxbuf 1048576 -stepbuf 131072 -op reduce 
+
+    MPI_Init(&argc,&argv);
+    MPI_Comm_size(MPI_COMM_WORLD,&numprocs);
+    MPI_Comm_rank(MPI_COMM_WORLD,&myid);
+    MPI_Get_processor_name(processor_name,&namelen);
+ 
+    processor_name[namelen]=(char)0;
+    
+    if ( numprocs < 2 ) {
+      
+      if (myid==0) { 
+	fprintf(stderr, "--> please launch at least with 2 MPI processes\n");
+      }
+      return exitall(myid,0,stderr); 
+    }
+
+    minc=35;
+    maxc=numprocs;
+    stepc=1;
+    maxbuf=1048576;
+    minbuf=0;
+    stepbuf=131072;
+    maxrep=20;
+    op=reduce;
+    timeout= 30000.0/1000.0;
+
+
+    
+    if (myid==0) {
+      /* sync Wtime? */
+      err=MPI_Attr_get (MPI_COMM_WORLD, MPI_WTIME_IS_GLOBAL, &attr_value, &flag);
+      checkAbort(MPI_COMM_WORLD,err);
+  
+      if (flag) {
+	if ( *(int*)attr_value < 0 || *(int*)attr_value > 1)
+	  fprintf(stdout, "The value of WTIME_IS_GLOBAL %d is not valid.\n", *(int*)attr_value );
+	else 
+	  fprintf(stdout, "This implementation support MPI_Wtime sync across processes! Enjoy.\n");
+      }
+
+    }
+
+    fflush(stdout); 
+
+    if ( (wbuf=(char*) malloc ( maxbuf*sizeof(char))) == NULL) {
+       fprintf(stderr, "%d - Unable to allocate %lld bytes of memory.\n", myid, (long long int) maxbuf);
+       MPI_Abort(MPI_COMM_WORLD,2);
+    }
+
+    if ( (rbuf=(char*) malloc ( maxbuf*sizeof(char))) == NULL) {
+       fprintf(stderr, "%d - Unable to allocate %lld bytes of memory.\n", myid, (long long int) maxbuf);
+       MPI_Abort(MPI_COMM_WORLD,2);
+    }
+    /* root processor =0, for easy */
+
+    //    RENAME_UTIMER(&t, "Collective");
+    // RESET_UTIMER(&t,NULL);      
+
+    if ( myid==0) fprintf(stdout,"RA  -  RB    np   size   msec\n"); 
+
+    for ( commsize = minc; commsize <= maxc; commsize += stepc) {
+
+/*       err=MPI_Barrier(MPI_COMM_WORLD); */
+/*       checkAbort ( MPI_COMM_WORLD, err ) ; */
+      
+      color = (myid < commsize ? 1 : 2);  key = 0;
+      err=MPI_Comm_split(MPI_COMM_WORLD,color,key,&n_comm);
+      checkAbort(MPI_COMM_WORLD,err);
+      err=MPI_Comm_rank(n_comm, &n_myid);
+      checkAbort(MPI_COMM_WORLD,err);
+
+
+
+      if ( color == 1 ) {
+	if (n_myid==0) {
+	  fprintf(stdout, "%03d - %03d - %03d ROOT START\n", myid, n_myid, commsize);
+	  /********************************* the ROOT BEGINS HERE *******************************************/
+	} else {
+	  /**************************** the NON ROOT BEGINS HERE ***********************************************/
+	  fprintf(stdout, "%03d - %03d - %03d NOOT START\n", myid, n_myid, commsize);
+	} 
+	fflush(stdout);
+	for ( bufsize = minbuf; bufsize <= maxbuf; bufsize += stepbuf ) {
+	  
+	  count = bufsize/sizeof(int);
+
+	  //	  if ( n_myid == 0)  START_UTIMER(&t);
+	  for ( rep=0; rep< maxrep; rep++ ) {
+	    
+	    err=op(n_comm, count);
+	    checkAbort ( MPI_COMM_WORLD, err ) ;
+	    //            err=MPI_Barrier(n_comm);
+	    //            checkAbort ( MPI_COMM_WORLD, err ) ;
+	  }
+	  if ( n_myid == 0) { 
+	    /*	    STOP_UTIMER(&t);
+	    deltat=get_lastelap_utimer(&t);
+	    fprintf(stdout, "%03d - %03d of %d - %lld  %f\n", n_myid, myid, commsize, (long long) count*sizeof(int), ((double) deltat)/(USEC_PER_SEC*maxrep) ); */
+	    fprintf(stdout, "%03d - %03d of %d - %lld  %f\n", n_myid, myid, commsize, (long long int) (count*sizeof(int)), 0.0 );
+	    fflush(stdout);
+	  }
+
+	}
+
+	if ( n_myid == 0) { 
+	  
+	  fprintf(stdout, "%03d - %03d - %03d ROOT STOP\n", myid, n_myid, commsize);
+	  /********************************* the ROOT STOP HERE *******************************************/
+	} else {
+	  /**************************** the NON ROOT STOP HERE **********************************************/
+	  fprintf(stdout, "%03d - %03d - %03d NOOT STOP\n", myid, n_myid, commsize);
+	}
+	fflush(stdout);
+      }
+
+      //      err=MPI_Barrier(MPI_COMM_WORLD);
+      //checkAbort ( MPI_COMM_WORLD, err ) ;
+      err=MPI_Comm_free(&n_comm);
+      checkAbort ( MPI_COMM_WORLD, err ) ;
+/*       if (n_myid==0) { */
+/* 	fprintf(stdout, "%03d - %03d - %03d ROOT STOP\n", myid, n_myid, commsize); */
+/* 	/\********************************* the ROOT STOP HERE *******************************************\/ */
+/*       } else { */
+/* 	/\**************************** the NON ROOT STOP HERE ***********************************************\/ */
+/* 	fprintf(stdout, "%03d - %03d - %03d NOOT STOP\n", myid, n_myid, commsize); */
+/*       } */
+      fflush(stdout);
+
+      
+    }  
+      
+
+
+
+    MPI_Finalize();   
+    return (0);
+
+}
+
+
+int bcast( MPI_Comm comm, int count ) 
+{
+  
+  return MPI_Bcast ( wbuf, count, MPI_INT, 0, comm );
+ 
+}
+
+int reduce( MPI_Comm comm, int count ) 
+{
+  
+  return MPI_Reduce ( wbuf, rbuf, count, MPI_INT, MPI_SUM, 0, comm );
+  
+}
+
+int allreduce( MPI_Comm comm, int count ) 
+{
+  
+  return MPI_Allreduce ( wbuf, rbuf, count, MPI_INT, MPI_SUM, comm );
+  
+}
+

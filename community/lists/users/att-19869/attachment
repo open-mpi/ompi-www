@@ -1,0 +1,132 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">FWIW: the rmcast framework shouldn't be in 1.6. Jeff and I are testing removal and should have it out of there soon.<div><br></div><div>Meantime, the best solution is to "--enable-mca-no-build rmcast"</div><div><br><div><div>On Jul 30, 2012, at 7:15 AM, TERRY DONTJE wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">
+  
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type">
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    Do you know what r# of 1.6 you were trying to compile?&nbsp; Is this via
+    the tarball or svn?<br>
+    <br>
+    thanks,<br>
+    <br>
+    --td<br>
+    <br>
+    On 7/30/2012 9:41 AM, Daniel Junglas wrote:
+    <blockquote cite="mid:OF8A12815A.D852EBAF-ONC1257A4B.004A1753-C1257A4B.004B4B83@de.ibm.com" type="cite">
+      <pre wrap="">Hi,
+
+I compiled OpenMPI 1.6 on a 64bit Solaris ultrasparc machine.
+Compilation and installation worked without a problem. However,
+when trying to run an application with mpirun I always faced
+this error:
+
+[hostname:14798] [[50433,0],0] rmcast:init: setsockopt() failed on 
+MULTICAST_IF
+        for multicast network xxx.xxx.xxx.xxx interface xxx.xxx.xxx.xxx
+        Error: Invalid argument (22)
+[hostname:14798] [[50433,0],0] ORTE_ERROR_LOG: Error in file 
+../../../../../openmpi-1.6/orte/mca/rmcast/udp/rmcast_udp.c at line 825
+[hostname:14798] [[50433,0],0] ORTE_ERROR_LOG: Error in file 
+../../../../../openmpi-1.6/orte/mca/rmcast/udp/rmcast_udp.c at line 744
+[hostname:14798] [[50433,0],0] ORTE_ERROR_LOG: Error in file 
+../../../../../openmpi-1.6/orte/mca/rmcast/udp/rmcast_udp.c at line 193
+[hostname:14798] [[50433,0],0] ORTE_ERROR_LOG: Error in file 
+../../../../openmpi-1.6/orte/mca/rmcast/base/rmcast_base_select.c at line 
+56
+[hostname:14798] [[50433,0],0] ORTE_ERROR_LOG: Error in file 
+../../../../../openmpi-1.6/orte/mca/ess/hnp/ess_hnp_module.c at line 233
+--------------------------------------------------------------------------
+It looks like orte_init failed for some reason; your parallel process is
+likely to abort.  There are many reasons that a parallel process can
+fail during orte_init; some of which are due to configuration or
+environment problems.  This failure appears to be an internal failure;
+here's some additional information (which may only be relevant to an
+Open MPI developer):
+
+  orte_rmcast_base_select failed
+  --&gt; Returned value Error (-1) instead of ORTE_SUCCESS
+
+
+After some digging I found that the following patch seems to fix the
+problem (at least the application seems to run correct now):
+--- a/orte/mca/rmcast/udp/rmcast_udp.c  Tue Apr  3 16:30:29 2012
++++ b/orte/mca/rmcast/udp/rmcast_udp.c  Mon Jul 30 15:12:02 2012
+@@ -936,9 +936,16 @@
+         }
+     } else {
+         /* on the xmit side, need to set the interface */
++        void const *addrptr;
+         memset(&amp;inaddr, 0, sizeof(inaddr));
+         inaddr.sin_addr.s_addr = htonl(chan-&gt;interface);
++#ifdef __sun
++        addrlen = sizeof(inaddr.sin_addr);
++        addrptr = (void *)&amp;inaddr.sin_addr;
++#else
+         addrlen = sizeof(struct sockaddr_in);
++        addrptr = (void *)&amp;inaddr;
++#endif
+ 
+         OPAL_OUTPUT_VERBOSE((2, orte_rmcast_base.rmcast_output,
+                              "setup:socket:xmit interface 
+%03d.%03d.%03d.%03d",
+@@ -945,7 +952,7 @@
+                              OPAL_IF_FORMAT_ADDR(chan-&gt;interface)));
+ 
+         if ((setsockopt(target_sd, IPPROTO_IP, IP_MULTICAST_IF, 
+-                        (void *)&amp;inaddr, addrlen)) &lt; 0) {
++                        addrptr, addrlen)) &lt; 0) {
+             opal_output(0, "%s rmcast:init: setsockopt() failed on 
+MULTICAST_IF\n"
+                         "\tfor multicast network %03d.%03d.%03d.%03d 
+interface %03d.%03d.%03d.%03d\n\tError: %s (%d)",
+                         ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+Can anybody confirm that the patch is good/correct? In particular
+that the '__sun' part is the right thing to do?
+
+Thanks,
+
+Daniel
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></pre>
+    </blockquote>
+    <br>
+    <div class="moz-signature">-- <br>
+      <meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type">
+      <div class="moz-signature">
+        <meta http-equiv="content-type" content="text/html;
+          charset=ISO-8859-1">
+        <title></title>
+        <div class="moz-signature">
+          <div class="moz-signature">
+            <div class="moz-signature">
+              <div class="moz-signature">Terry D. Dontje | Principal
+                Software Engineer<br>
+                <div class="moz-signature"><font color="#666666" face="Verdana" size="2">Developer
+                    Tools
+                    Engineering | +1.781.442.2631<br>
+                  </font>
+                  <font color="#ff0000" face="Verdana" size="2">Oracle
+                  </font><font color="#666666" face="Verdana" size="2"><b>
+                      - Performance
+                      Technologies</b></font><br>
+                  <font color="#666666" face="Verdana" size="2">
+                    95 Network Drive, Burlington, MA 01803<br>
+                    Email <a moz-do-not-send="true" href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+                  </font><br>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <br>
+    </div>
+  </div>
+
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/users</blockquote></div><br></div></body></html>

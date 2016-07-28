@@ -1,0 +1,96 @@
+Abe-san,<div><br></div><div>you can be blocking on one side, and non blocking on the other side.</div><div>for example, one task can do MPI_Send, and the other MPI_Irecv and MPI_Wait.</div><div><br></div><div>in order to avoid deadlock, your program should do</div><div>1. master MPI_Isend and start the workers</div><div>2. worker receive and process messages (in there is one recv per thread, you can do MPI_Recv e.g. blocking recv)</div><div>3. master MPI_Wait the request used in MPI_Isend</div><div>4. do simulation</div><div>I do not know if some kind of synchronization is required between master and workers.</div><div>the key point is you MPI_Wait after the workers have been started.</div><div><br></div><div>I do not know all the details of your program, but you might avoid using threads :</div><div>1. MPI_Isend</div><div>2. several MPI_Irecv</div><div>3. MPI_Waitall (or a loop with MPI_Waitany/MPI_Waitsome)</div><div>4. do simulation</div><div><br></div><div>if you really want threads, an other option is to start the worker after MPI_Waitany/MPI_Waitsome</div><div><br></div><div>once again, I do not know your full program, so I can just guess.</div>you might also want to try an other MPI flavor (such as mpich), since your program could be correct and the deadlock might be open MPI specific.<div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><div><br>On Wednesday, November 4, 2015, ABE Hiroshi &lt;<a href="mailto:habe36@gmail.com">habe36@gmail.com</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Dear Gilles-san and all,<br>
+<br>
+I thought MPI_Isend kept the sent data and stacked up in somewhere waiting corresponding MPI_Irecv.<br>
+The image of my code regarding MPI,<br>
+1. send ALL tag-ed message to the other node (MPI_Isend) in master thread, then launch worker threads and<br>
+2. receive the corresponding tag-ed messages from the other node (MPI_Irecv ) in the worker threads.<br>
+3. do simulation<br>
+<br>
+Doesn’t it work? How silly I was. I coded several sample programs but I couldn’t find the problem.<br>
+<br>
+Okay, may I understand that both MPI_Send/Recv and MPI_Isend/Irecv must be called sequencially just like POP/PUSH with stack?<br>
+<br>
+With my simulation algorithms the order of send and receive messages cannot be in sequencial in the default way. In that case how do you build the MPI messaging. Should the order of the MPI messages send to the destination node at first?<br>
+<br>
+Thank you in advance for your suggestions.<br>
+<br>
+Sincerely<br>
+Hiroshi ABE<br>
+<br>
+2015/11/04 18:10、Gilles Gouaillardet &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;gilles.gouaillardet@gmail.com&#39;)">gilles.gouaillardet@gmail.com</a>&gt; のメール：<br>
+<br>
+&gt; Abe-san,<br>
+&gt;<br>
+&gt; MPI_Isend followed by MPI_Wait is equivalent to MPI_Send<br>
+&gt;<br>
+&gt; Depending on message size and inflight messages, that can deadlock if two tasks send to each other and no recv has been posted.<br>
+&gt;<br>
+&gt; Cheers,<br>
+&gt;<br>
+&gt; Gilles<br>
+&gt;<br>
+&gt; ABE Hiroshi &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;habe36@gmail.com&#39;)">habe36@gmail.com</a>&gt; wrote:<br>
+&gt;&gt; Dear All,<br>
+&gt;&gt;<br>
+&gt;&gt; Installed openmpi 1.10.0 and gcc-5.2 using Fink (<a href="http://www.finkproject.org" target="_blank">http://www.finkproject.org</a>) but nothing is changed with my code.<br>
+&gt;&gt;<br>
+&gt;&gt; Regarding the MPI_Finalize error in my previous mail, it should be my fault. I had removed all mpi stuff in /usr/local/ manually and the openmpi-1.10.0 had been installed then the error message didn’t appear now. Maybe some old version of openmpi stuff still remained there.<br>
+&gt;&gt;<br>
+&gt;&gt; Anyway, I found the reason of my problem. The code is :<br>
+&gt;&gt;<br>
+&gt;&gt; void<br>
+&gt;&gt; Block::MPISendEqualInterChangeData( DIRECTION dir, int rank, int id ) {<br>
+&gt;&gt;<br>
+&gt;&gt;   GetEqualInterChangeData( dir, cf[0] );<br>
+&gt;&gt;<br>
+&gt;&gt;   int N = GetNumGrid();<br>
+&gt;&gt;   int nb = 6*N*N*1;<br>
+&gt;&gt;   nb = 1010;<br>
+&gt;&gt; //    float *buf = new float[ nb ];<br>
+&gt;&gt;   float *buf = (float *)malloc( sizeof(float)*nb);<br>
+&gt;&gt;   for( int i = 0; i &lt; nb; i++ ) buf[i] = 0.0;<br>
+&gt;&gt;<br>
+&gt;&gt;   MPI_Request req;<br>
+&gt;&gt;   MPI_Status  status;<br>
+&gt;&gt;<br>
+&gt;&gt;   int tag = 100 * id + (int)dir;<br>
+&gt;&gt;<br>
+&gt;&gt;   MPI_Isend( buf, nb, MPI_REAL4, rank, tag, MPI_COMM_WORLD, &amp;req );<br>
+&gt;&gt;   MPI_Wait( &amp;req, &amp;status );<br>
+&gt;&gt;<br>
+&gt;&gt; //    delete [] buf;<br>
+&gt;&gt;   free( buf );<br>
+&gt;&gt; }<br>
+&gt;&gt;<br>
+&gt;&gt; This works. If the “nb” value changes to more than “1010”, MPI_Wait will stall.<br>
+&gt;&gt; This means the upper limit of MPI_Isend would be 4 x 1010 = 4040 bytes.<br>
+&gt;&gt;<br>
+&gt;&gt; If this is true, is there any way to increase this?. I guess this should be wrong and there should be something wrong with my system.<br>
+&gt;&gt;<br>
+&gt;&gt; Any idea and suggestions are really appreciated.<br>
+&gt;&gt;<br>
+&gt;&gt; Thank you.<br>
+&gt;&gt;<br>
+&gt;&gt; 2015/11/03 8:05、Jeff Squyres (jsquyres) &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;jsquyres@cisco.com&#39;)">jsquyres@cisco.com</a>&gt; のメール：<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; On Oct 29, 2015, at 10:24 PM, ABE Hiroshi &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;habe36@gmail.com&#39;)">habe36@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Regarding my code I mentioned in my original mail, the behaviour is very weird. MPI_Isend is called from the different named function, it works.<br>
+&gt;&gt;&gt;&gt; And I wrote a sample program to try to reproduce my problem but it works fine,  except the problem of MPI_Finalize.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; So I decided to make gcc-5.2 and make openmpi on it, which seems to be a recommendation of the FINK project.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Ok.  Per the prior mail, if you can make a small reproducer, that would be most helpful in tracking down the issue.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thanks!<br>
+&gt;&gt;<br>
+<br>
+ABE Hiroshi<br>
+ from Tokorozawa, JAPAN<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;users@open-mpi.org&#39;)">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/11/27987.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/11/27987.php</a></blockquote></div></div>
+

@@ -1,0 +1,283 @@
+I use the taskset command, or just use &#39;top&#39; and watch the performance.<br><br><div class="gmail_quote">On Thu, Jul 29, 2010 at 12:02 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div style="word-wrap:break-word">I don&#39;t see anything in your code that would bind, but I also don&#39;t see anything that actually tells you whether or not your are bound. It appears that MPI_Get_processor_name is simply returning the name of the node as opposed to the name/id of any specific core. How do you know what core the thread is actually executing on?<div>
+
+<br></div><div><br><div><br></div><div>This would tell you if your code was bouncing between cores. <div><div></div><div class="h5"><br><div><div>On Jul 29, 2010, at 10:43 AM, David Akin wrote:</div><br><blockquote type="cite">
+
+Sorry for the confusion. What I need is for all OpenMP threads to *not* stay on one core. I *would* rather each OpenMP thread to run on a separate core. Is it my example code? My gut reaction is no because I can manipulate (somewhat) the cores the threads are assigned by adding -bysocket -bind-to-socket to mpirun.<div>
+
+
+
+<br><div class="gmail_quote">On Thu, Jul 29, 2010 at 10:08 AM, Terry Dontje <span dir="ltr">&lt;<a href="mailto:terry.dontje@oracle.com" target="_blank">terry.dontje@oracle.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+
+
+
+
+  
+
+<div bgcolor="#ffffff" text="#000000"><div>
+Ralph Castain wrote:
+<blockquote type="cite"><br>
+  <div>
+  <div>On Jul 29, 2010, at 5:09 AM, Terry Dontje wrote:</div>
+  <br>
+  <blockquote type="cite">
+    <div bgcolor="#ffffff" text="#000000">Ralph Castain wrote:
+    <blockquote type="cite">
+      <pre>How are you running it when the threads are all on one core?
+
+If you are specifying --bind-to-core, then of course all the threads will be on one core since we bind the process (not the thread). If you are specifying -mca mpi_paffinity_alone 1, then the same behavior results.
+
+Generally, if you want to bind threads, the only way to do it is with a rank file. We -might- figure out a way to provide an interface for thread-level binding, but I&#39;m not sure about that right now. As things stand, OMPI has no visibility into the fact that your app spawned threads.
+
+
+  </pre>
+    </blockquote>
+Huh???  That&#39;s not completely correct.  If you have a multiple socket
+machine you could to -bind-to-socket -bysocket and spread the processes
+that way.  Also couldn&#39;t you use the -cpus-per-proc with -bind-to-core
+to get a process to bind to a non-socket amount of cpus?<br>
+    </div>
+  </blockquote>
+  <div><br>
+  </div>
+Yes, you could do bind-to-socket, though that still constrains the
+threads to only that one socket. What was asked about here was the
+ability to bind-to-core at the thread level, and that is something OMPI
+doesn&#39;t support.</div>
+  <div><br>
+  </div>
+</blockquote></div>
+Sorry I did not get that constraint.  So to be clear what is being
+asked is to have the ability to bind a processes threads to specific
+cores.  If so then to the letter of what that means I agree you cannot
+do that.  <br>
+<br>
+However, what may be the next best thing is to specify binding of a
+process to a group of resources.  That&#39;s essentially what my suggestion
+above is doing.  <br>
+<br>
+I do agree with Ralph that once you start overloading the socket with
+more threads then it can handle problems will ensue.<br>
+<br>
+--td<br>
+<blockquote type="cite"><div><div></div><div>
+  <div><br>
+  <blockquote type="cite">
+    <div bgcolor="#ffffff" text="#000000"><br>
+This is all documented in the mpirun manpage.<br>
+    <br>
+That being said, I also am confused, like Ralph, as to why no options
+is causing your code bind.  Maybe add a --report-bindings to your
+mpirun line to see what OMPI thinks it is doing in this regard?<br>
+    </div>
+  </blockquote>
+  <div><br>
+  </div>
+This is a good suggestion - I&#39;m beginning to believe that the binding
+is happening in the user&#39;s app and not OMPI.</div>
+  <div><br>
+  </div>
+  <div><br>
+  <blockquote type="cite">
+    <div bgcolor="#ffffff" text="#000000"><br>
+--td<br>
+    <br>
+--td<br>
+    <blockquote type="cite">
+      <pre>On Jul 28, 2010, at 5:47 PM, David Akin wrote:
+
+  </pre>
+      <blockquote type="cite">
+        <pre>All,
+I&#39;m trying to get the OpenMP portion of the code below to run
+multicore on a couple of 8 core nodes.
+
+Good news: multiple threads are being spawned on each node in the run.
+Bad news: each of the threads only runs on a single core, leaving 7
+cores basically idle.
+Sorta good news: if I provide a rank file I get the threads running on
+different cores within each node (PITA.
+
+Here&#39;s the first lines of output.
+
+/usr/mpi/gcc/openmpi-1.4-qlc/bin/mpirun -host c005,c006 -np 2 -rf
+rank.file -x OMP_NUM_THREADS=4 hybrid4.gcc
+
+Hello from thread 2 out of 4 from process 1 out of 2 on c006.local
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=2
+Hello from thread 3 out of 4 from process 1 out of 2 on c006.local
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=3
+Hello from thread 1 out of 4 from process 1 out of 2 on c006.local
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=1
+Hello from thread 1 out of 4 from process 0 out of 2 on c005.local
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=1
+Hello from thread 3 out of 4 from process 0 out of 2 on c005.local
+Hello from thread 2 out of 4 from process 0 out of 2 on c005.local
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=3
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=2
+Hello from thread 0 out of 4 from process 0 out of 2 on c005.local
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=0
+Hello from thread 0 out of 4 from process 1 out of 2 on c006.local
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=0
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=3
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=2
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=0
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=3
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=3
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=2
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=0
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=1
+.
+.
+.
+
+Here&#39;s the simple code:
+#include &lt;stdio.h&gt;
+#include &quot;mpi.h&quot;
+#include &lt;omp.h&gt;
+
+int main(int argc, char *argv[]) {
+ int numprocs, rank, namelen;
+ char processor_name[MPI_MAX_PROCESSOR_NAME];
+ int iam = 0, np = 1;
+ char name[MPI_MAX_PROCESSOR_NAME];   /* MPI_MAX_PROCESSOR_NAME ==
+128         */
+ int O_ID;                            /* OpenMP thread ID
+        */
+ int M_ID;                            /* MPI rank ID
+        */
+ int rtn_val;
+
+ MPI_Init(&amp;argc, &amp;argv);
+ MPI_Comm_size(MPI_COMM_WORLD, &amp;numprocs);
+ MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);
+ MPI_Get_processor_name(processor_name, &amp;namelen);
+
+ #pragma omp parallel default(shared) private(iam, np,O_ID)
+ {
+   np = omp_get_num_threads();
+   iam = omp_get_thread_num();
+   printf(&quot;Hello from thread %d out of %d from process %d out of %d on %s\n&quot;,
+          iam, np, rank, numprocs, processor_name);
+   int i=0;
+   int j=0;
+   double counter=0;
+   for(i =0;i&lt;99999999;i++)
+           {
+            O_ID = omp_get_thread_num();          /* get OpenMP
+thread ID                 */
+            MPI_Get_processor_name(name,&amp;namelen);
+            rtn_val = MPI_Comm_rank(MPI_COMM_WORLD,&amp;M_ID);
+            printf(&quot;another parallel region:       name:%s
+MPI_RANK_ID=%d OMP_THREAD_ID=%d\n&quot;, name,M_ID,O_ID);
+            for(j = 0;j&lt;999999999;j++)
+             {
+              counter=counter+i;
+             }
+           }
+
+ }
+
+ MPI_Finalize();
+
+}
+_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+    </pre>
+      </blockquote>
+      <pre>_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+  </pre>
+    </blockquote>
+    <br>
+    <br>
+    <div>-- <br>
+    <span>&lt;Mail Attachment.gif&gt;</span><br>
+    <div>
+    <div>
+    <div>
+    <div>Terry D. Dontje | Principal Software
+Engineer<br>
+    <div><font color="#666666" face="Verdana" size="2">Developer
+Tools
+Engineering | +1.650.633.7054<br>
+    </font>
+    <font color="#ff0000" face="Verdana" size="2">Oracle
+    </font><font color="#666666" face="Verdana" size="2"><b> -
+Performance
+Technologies</b></font><br>
+    <font color="#666666" face="Verdana" size="2">
+95 Network Drive, Burlington, MA 01803<br>
+Email <a href="mailto:terry.dontje@oracle.com" target="_blank">terry.dontje@oracle.com</a><br>
+    </font><br>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
+_______________________________________________<br>
+users mailing list<br>
+    <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+  </div>
+  <br>
+  </div></div><pre><hr size="4" width="90%"><div>
+_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></pre>
+</blockquote>
+<br>
+<br>
+<div>-- <br>
+
+
+<img alt="Oracle"><div><br>
+<div>
+<div>
+<div>
+<div>Terry D. Dontje | Principal Software Engineer<br>
+<div><font color="#666666" face="Verdana" size="2">Developer
+Tools
+Engineering | +1.650.633.7054<br>
+</font>
+<font color="#ff0000" face="Verdana" size="2">Oracle
+</font><font color="#666666" face="Verdana" size="2"><b> - Performance
+Technologies</b></font><br>
+<font color="#666666" face="Verdana" size="2">
+95 Network Drive, Burlington, MA 01803<br>
+Email <a href="mailto:terry.dontje@oracle.com" target="_blank">terry.dontje@oracle.com</a><br>
+</font><br>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div></div>
+</div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote></div>
+</div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+
+</div><br></div></div></div></div></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br><br clear="all"><br>-- <br>David Akin, RHCE<br>Sr. Systems Analyst and HPC Roadie<br>
+
+OU Supercomputing Center for Education &amp; Research (OSCER)<br>University of Oklahoma Information Technology<br><a href="mailto:david.akin@ou.edu">david.akin@ou.edu</a><br>405-598-7685<br><br>Don&#39;t forget - Aug 8-14 @ OU: Intermediate Parallel Programming &amp; Cluster Computing Free Workshop<br>
+
+
+

@@ -1,0 +1,142 @@
+<html><body>
+<p>MPI_COMM_SELF is one example. The only task it contains is the local task.<br>
+<br>
+The other case I had in mind is where there is a master  doing all spawns. Master is launched as an MPI &quot;job&quot; but it has only one task. In that master, even MPI_COMM_WORLD is what I called a &quot;single task communicator&quot;.<br>
+<br>
+Because the collective spawn call is &quot;collective: across only one task in this case, it does not have the same sort of dependency on what other tasks do.<br>
+<br>
+I think it is common for a single task master to have responsibility for all spawns in the kind of model yours sounds like.  I did not study the conversation enough to knew if you are doing all spawn calls from a  &quot;single task communicator&quot; and I was trying to give a broadly useful explanation.<br>
+<br>
+<br>
+Dick Treumann  -  MPI Team           <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 09/25/2009 02:59:04 AM:<br>
+<br>
+&gt; [image removed] </tt><br>
+<tt>&gt; <br>
+&gt; Re: [OMPI users] Multi-threading with OpenMPI ?</tt><br>
+<tt>&gt; <br>
+&gt; Ashika Umanga Umagiliya </tt><br>
+<tt>&gt; <br>
+&gt; to:</tt><br>
+<tt>&gt; <br>
+&gt; Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; 09/25/2009 03:00 AM</tt><br>
+<tt>&gt; <br>
+&gt; Sent by:</tt><br>
+<tt>&gt; <br>
+&gt; users-bounces@open-mpi.org</tt><br>
+<tt>&gt; <br>
+&gt; Please respond to Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; Thank you Dick for your detailed reply,<br>
+&gt; <br>
+&gt; I am sorry, could you explain more what you meant by &quot;unless you are<br>
+&gt; calling MPI_Comm_spawn on a single task communicator you would need <br>
+&gt; to have a different input communicator for each thread that will <br>
+&gt; make an MPI_Comm_spawn call&quot; , i am confused with the term &quot;single <br>
+&gt; task communicator&quot; <br>
+&gt; <br>
+&gt; Best Regards,<br>
+&gt; umanga<br>
+&gt; <br>
+&gt; Richard Treumann wrote: </tt><br>
+<tt>&gt; It is dangerous to hold a local lock (like a mutex} across a <br>
+&gt; blocking MPI call unless you can be 100% sure everything that must <br>
+&gt; happen remotely will be completely independent of what is done with <br>
+&gt; local locks &amp; communication dependancies on other tasks.<br>
+&gt; <br>
+&gt; It is likely that a MPI_Comm_spawn call in which the spawning <br>
+&gt; communicator is MPI_COMM_SELF would be safe to serialize with a <br>
+&gt; mutex. But be careful and do not view this as an approach to making <br>
+&gt; MPI applications thread safe in general. Also, unless you are <br>
+&gt; calling MPI_Comm_spawn on a single task communicator you would need <br>
+&gt; to have a different input communicator for each thread that will <br>
+&gt; make an MPI_Comm_spawn call. MPI requires that collective calls on a<br>
+&gt; given communicator be made in the same order by all participating tasks.<br>
+&gt; <br>
+&gt; If there are two or more tasks making the MPI_Comm_spawn call <br>
+&gt; collectively from multiple threads (even with per-thread input <br>
+&gt; communicators) then using a local lock this way is pretty sure to <br>
+&gt; deadlock at some point. Say task 0 serializes spawning threads as A <br>
+&gt; then B and task 1 serializes them as B then A. The job will deadlock<br>
+&gt; because task 0 cannot free its lock for thread A until task 1 makes <br>
+&gt; the spawn call for thread A as well. That will never happen if task <br>
+&gt; 1 is stuck in a lock that will not release until task 0 makes its <br>
+&gt; call for thread B. <br>
+&gt; <br>
+&gt; When you look at the code for a particular task and consider thread <br>
+&gt; interactions within the task, the use of the lock looks safe. It is <br>
+&gt; only when you consider the dependancies on what other tasks are <br>
+&gt; doing that the danger becomes clear. This particular case is pretty <br>
+&gt; easy to see but sometime when there is a temptation to hold a local <br>
+&gt; mutex across an blocking MPI call, the chain of dependancies that <br>
+&gt; can lead to deadlock becomes very hard to predict. <br>
+&gt; <br>
+&gt; BTW - maybe this is obvious but you also need to protect the logic <br>
+&gt; which calls MPI_Thread_init to make sure you do not have a a race in<br>
+&gt; which 2 threads each race to test the flag for whether <br>
+&gt; MPI_Init_thread has already been called. If two thread do:<br>
+&gt; 1) if (MPI_Inited_flag == FALSE) {<br>
+&gt; 2) set MPI_Inited_flag<br>
+&gt; 3) MPI_Init_thread<br>
+&gt; 4) }<br>
+&gt; You have a couple race conditions. <br>
+&gt; 1) Two threads may both try to call MPI_Iint_thread if one thread <br>
+&gt; tests &quot; if (MPI_Inited_flag == FALSE)&quot; while the other is between <br>
+&gt; statements 1 &amp; 2. <br>
+&gt; 2) If some thread tests &quot;if (MPI_Inited_flag == FALSE)&quot; while <br>
+&gt; another thread is between statements 2 and 3, that thread could <br>
+&gt; assume MPI_Init_thread is done and make the MPI_Comm_spawn call <br>
+&gt; before the thread that is trying to initialize MPI manages to do it.<br>
+&gt; <br>
+&gt; Dick<br>
+&gt; <br>
+&gt; <br>
+&gt; Dick Treumann - MPI Team <br>
+&gt; IBM Systems &amp; Technology Group<br>
+&gt; Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+&gt; Tele (845) 433-7846 Fax (845) 433-8363<br>
+&gt; <br>
+&gt; <br>
+&gt; users-bounces@open-mpi.org wrote on 09/17/2009 11:36:48 PM:<br>
+&gt; <br>
+&gt; &gt; [image removed] <br>
+&gt; &gt; <br>
+&gt; &gt; Re: [OMPI users] Multi-threading with OpenMPI ?<br>
+&gt; &gt; <br>
+&gt; &gt; Ralph Castain <br>
+&gt; &gt; <br>
+&gt; &gt; to:<br>
+&gt; &gt; <br>
+&gt; &gt; Open MPI Users<br>
+&gt; &gt; <br>
+&gt; &gt; 09/17/2009 11:37 PM<br>
+&gt; &gt; <br>
+&gt; &gt; Sent by:<br>
+&gt; &gt; <br>
+&gt; &gt; users-bounces@open-mpi.org<br>
+&gt; &gt; <br>
+&gt; &gt; Please respond to Open MPI Users<br>
+&gt; &gt; <br>
+&gt; &gt; Only thing I can suggest is to place a thread lock around the call to &nbsp;<br>
+&gt; &gt; comm_spawn so that only one thread at a time can execute that &nbsp;<br>
+&gt; &gt; function. The call to mpi_init_thread is fine - you just need to &nbsp;<br>
+&gt; &gt; explicitly protect the call to comm_spawn.<br>
+&gt; &gt; <br>
+&gt; &gt; </tt><br>
+<tt>&gt; <br>
+&gt; <br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt><br>
+<tt>&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt></body></html>

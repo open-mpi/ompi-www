@@ -1,0 +1,59 @@
+<div dir="ltr"><div class="gmail_quote">The only agreement we have so far is that from the perspective of a user having a questionable usage of a particular datatype in a extremely particular reduction operation the situation can be perceived as unfriendly.</div><div class="gmail_quote"><br></div><div class="gmail_quote">Your argument is that if in a particular OMPI installation Fortran support is not provided, we should not provide any of the MPI Fortran datatypes because of possible mismatch between the different types and compilers involved. Allow me to turn this question around: In which language we provide (and always provided) support for all ops related to Fortran datatypes? Thus, your argument is fallacious, based on the uncertain expectation that only a Fortran function is able to correctly handle basic Fortran types.</div><div class="gmail_quote"><br></div><div class="gmail_quote">My argument is that support for Fortran datatype is trivial to provide (and mandated by the standard). To sustain my argument I claim that despite the fact that we provide all the operators for all the types in C, including for the predefined Fortran and CXX datatypes, we had zero complains about any potential issue with them. Taking in account the wild combination of platforms, compilers and configuration environments where Open MPI is deployed, from a pragmatic perspective this highly suggest that indeed DOUBLE PRECISION and double are more similar than you think they are, and that our original assumption when designing the datatype support was valid.</div><div class="gmail_quote"><br></div><div class="gmail_quote">I like pragmatic solutions, if it&#39;s not broken or fun to implement, I don&#39;t get excited. And honestly the issue at hand doesn&#39;t qualify for none of the above.</div><div class="gmail_quote"><br></div><div class="gmail_quote">You want a simple solution? Enable all ops for all basic predefined types, even when Fortran support is not provided. 10 lines of code, that will save everybody&#39;s time, and that based on prior experiences will always provide the correct outcome. The bonus here is that this will allow our users to reach the serendipity JeffH was talking about.</div><div><br></div><div>George.</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, Feb 9, 2016 at 3:51 PM, Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><span class="">On Feb 9, 2016, at 12:21 AM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu">bosilca@icl.utk.edu</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Sorry to spoil the fun here, but this proposal is a very bad idea. It is mandated by the MPI standard, page 25 line 27 (v3.1), not only to provide all predefined datatypes, but to have support for them. There are optional datatypes, but MPI_DOUBLE_PRECISION (which is explicitly the base predefined datatype for MPI_2DOUBLE_PRECISION) is not one of them.<br>
+<br>
+</span>I don&#39;t quite follow the logic here.<br>
+<br>
+The mpif.h interface is mandated by The MPI spec.  If you&#39;re building Open MPI on a platform without a Fortran compiler, then by definition, you don&#39;t get a compliant MPI implementation because you&#39;re missing a key requirement (i.e., a Fortran compiler).  We -- the Open MPI developers -- have chosen to enable this non-conformant scenario because there are valid use cases for it with our users.<br>
+<br>
+Meaning: there is no question that this is not conformant behavior.  Saying that we can&#39;t do it because it is not conformat is tautological.<br>
+<br>
+What we&#39;re discussing is how to make the behavior useful to end users in this already-defined-to-be-non-conformant situation.<br>
+<br>
+Also, note that Open MPI disables a bunch of other datatypes if they can&#39;t be supported -- just search for the use of the macro UNAVAILABLE in ompi/datatype/ompi_datatype_internal.h (which lead to run-time failures if they can&#39;t be used).  The question here is whether that should be a compile time vs. run time failure.  I think there&#39;s good arguments for making them be compile time failures, if possible.<br>
+<span class=""><br>
+&gt; Now we can argue if DOUBLE PRECISION in Fortran is a double in C.<br>
+<br>
+</span>FWIW:<br>
+<br>
+1. MPI-3.1 Annex A p674 states that MPI_DOUBLE_PRECISION is a Fortran datatype that corresponds to the Fortran type &quot;DOUBLE PRECISION&quot;.<br>
+2. MPI-3.1 5.9.4 p180 declares MPI_2DOUBLE_PRECISION to be a pair of Fortran DOUBLE PRECISION variables.<br>
+<br>
+Whether or not DOUBLE PRECISION is exactly equivalent to a C double is an entirely different question.<br>
+<span class=""><br>
+&gt; As these languages are interoperable,<br>
+<br>
+</span>That&#39;s an extremely broad statement.  :-)<br>
+<br>
+To be pedantic: there are many things in each language that do not exactly interoperate with each other.  Indeed, F08 explicitly added a bunch of things to the Fortran language to precisely allow interop between C and Fortran (e.g., continued enhancements to the definitions of BIND(C) and related things).  But there are still many things between that two that are not identical -- the two languages do not have a 1-to-1 correspondence for every one of their features.<br>
+<span class=""><br>
+&gt; and there is no explicit conversion function, it is safe to assume this is the case.<br>
+<br>
+</span>Whether or not Fortran&#39;s DOUBLE PRECISION is exactly equivalent to a C double (and whether a pair of Fortran DOUBLE precision variables is exactly equivalent to a pair of C double variables) is not something you can assume.<br>
+<br>
+Easy case to pick on: what if the user compiles their Fortran program with -i 8? (i.e., integers are double their normal size)  We tell Open MPI users that this scenario is supported, but only if they configure Open MPI with FCFLAGS=&quot;-i 8&quot; so that Open MPI&#39;s configure can figure out that INTEGER is 8 bytes long (and therefore doesn&#39;t correspond to a C int).  ...and so on.<br>
+<br>
+There&#39;s a similar compiler flag for floating point values (&quot;-d 8&quot;?  I don&#39;t remember offhand), that makes the assumption that Fortran DOUBLE PRECISION === C double a bad one.<br>
+<br>
+Also, we&#39;ve definitely run into cases in the past where the alignments of Fortran datatypes are different than the alignments of C datatypes.<br>
+<br>
+In short: the only way that we can *know* that a Fortran datatype is equivalent to a C datatype is to actually *test* it.  Given that Open MPI already disables a bunch of datatypes when it can&#39;t support them, it&#39;s not unreadable to<br>
+<br>
+a) disable all Fortran types when Open MPI was not configure with a Fortran compiler, and<br>
+   --&gt; OR Provide the option for the user to choose between<br>
+       &quot;You didn&#39;t configure with a Fortran compiler, so I&#39;ll assume C types===Fortran types&quot; (i.e., some of today&#39;s behavior), and<br>
+       &quot;You didn&#39;t configure with a Fortran compiler, so I&#39;ll disable all Fortran types&quot;<br>
+b) see if we can make unsupported datatypes be compile-time failures instead of run-time failures.<br>
+<span class=""><br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" rel="noreferrer" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</span>Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/02/28474.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/02/28474.php</a><br>
+</blockquote></div><br></div>
+

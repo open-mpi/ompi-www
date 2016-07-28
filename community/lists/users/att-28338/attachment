@@ -1,0 +1,149 @@
+<div dir="ltr">You will find the MPI Fortran 2008 bindings to be significantly better w.r.t. MPI types.  See e.g. MPI 3.1 section 17.2.5 where it describes TYPE(MPI_Status), which means that the status object is a first-class type in the Fortran 2008 interface, rather than being an error prone INTEGER array.<div><br></div><div>I haven&#39;t used Fortran 2008 bindings in a nontrivial way yet, but it is my understanding that Open-MPI has a good implementation of them and has for a relatively long time.</div><div><br></div><div>For multilingual MPI programmers, the Fortran 2008 bindings will be quite easy to understand from the perspective of the C bindings, since they are quite similar in many respects.</div><div><br></div><div>Jeff</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Fri, Jan 22, 2016 at 7:12 AM, Paweł Jarzębski <span dir="ltr">&lt;<a href="mailto:pjarz@ippt.pan.pl" target="_blank">pjarz@ippt.pan.pl</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    Thx a lot. I will be more careful with declaration of the MPI
+    variables.<br>
+    <br>
+    Pawel J.<br>
+    <br>
+    <div>W dniu 2016-01-22 o 16:06, Nick Papior
+      pisze:<br>
+    </div>
+    <blockquote type="cite"><div><div class="h5">
+      
+      <div dir="ltr">The status field should be
+        <div><br>
+        </div>
+        <div>integer :: stat(MPI_STATUS_SIZE)</div>
+        <div><br>
+        </div>
+        <div>Perhaps n is located stackwise just after the stat
+          variable, which then overwrites it.</div>
+      </div>
+      <div class="gmail_extra"><br>
+        <div class="gmail_quote">2016-01-22 15:37 GMT+01:00 Paweł
+          Jarzębski <span dir="ltr">&lt;<a href="mailto:pjarz@ippt.pan.pl" target="_blank">pjarz@ippt.pan.pl</a>&gt;</span>:<br>
+          <blockquote class="gmail_quote">Hi,<br>
+            <br>
+            I wrote this code:<br>
+            <br>
+                  program hello<br>
+                   implicit none<br>
+            <br>
+                   include &#39;mpif.h&#39;<br>
+                   integer :: rank, dest, source, tag, ierr, stat<br>
+                   integer :: n<br>
+                   integer :: taskinfo, ptr<br>
+            <br>
+                   call MPI_INIT(ierr)<br>
+                   call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)<br>
+            <br>
+                   if(rank.eq.0) then<br>
+                    write(*,*) &#39;Hello&#39;<br>
+            <br>
+                    n = 20<br>
+                    dest = 1<br>
+                    tag = 1<br>
+                    taskinfo = n<br>
+                    call MPI_SEND(taskinfo, 1, MPI_INTEGER, dest, tag,<br>
+                 1       MPI_COMM_WORLD, ierr)<br>
+            <br>
+                    tag = tag + 1<br>
+                    call MPI_SEND(ptr, 1, MPI_INTEGER, dest, tag,<br>
+                 1       MPI_COMM_WORLD, ierr)<br>
+            <br>
+                   else<br>
+                    source = 0<br>
+                    tag = 1<br>
+            <br>
+            !        n = 1<br>
+                    call MPI_RECV(taskinfo, 1, MPI_INTEGER, source, tag,<br>
+                 1       MPI_COMM_WORLD, stat, ierr)<br>
+            <br>
+                    n = taskinfo<br>
+            <br>
+                    tag = tag + 1<br>
+            <br>
+                    write(*,*) &#39;n1 &#39;, n<br>
+                    write(*,*) &#39;taskinfo1 &#39;, taskinfo<br>
+                    call MPI_RECV(ptr, 1, MPI_INTEGER, source, tag,<br>
+                 1       MPI_COMM_WORLD, stat, ierr)<br>
+                    write(*,*) &#39;n2 &#39;, n<br>
+                    write(*,*) &#39;taskinfo2 &#39;, taskinfo<br>
+                   endif<br>
+            <br>
+                   call MPI_FINALIZE(ierr)<br>
+                  end<br>
+            <br>
+            <br>
+            I supposed that it should produce this:<br>
+             Hello<br>
+             n1           20<br>
+             taskinfo1           20<br>
+             n2            20<br>
+             taskinfo2           20<br>
+            <br>
+            But in fact it produces this:<br>
+             Hello<br>
+             n1           20<br>
+             taskinfo1           20<br>
+             n2            2<br>
+             taskinfo2           20<br>
+            <br>
+            It&#39;s strange to me that variable &quot;n&quot; is changed after call
+            to MPI subroutine, but I dont even put it in calls to MPI.<br>
+            If I comment line 13 with &quot; write(*,*) &#39;Hello&#39; &quot; everything
+            is ok. If I uncomment line 30 with &quot;n = 1&quot;, everything is ok
+            as well.<br>
+            <br>
+            Could anybody explain me what is happening?<br>
+            <br>
+            I tested it on:<br>
+              1) intel fortran compiler 14.0 and openmpi 1.6.5<br>
+              1) intel fortran compiler 13.1.3 and openmpi 1.8.4<br>
+            <br>
+            Best regards,<br>
+            Pawel J.<br>
+            <br>
+            <br>
+            <br>
+            <br>
+            _______________________________________________<br>
+            users mailing list<br>
+            <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+            Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+            Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/01/28334.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/01/28334.php</a><br>
+          </blockquote>
+        </div>
+        <br>
+        <br>
+        <div><br>
+        </div>
+        -- <br>
+        <div>
+          <div dir="ltr">
+            <div>Kind regards Nick</div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      </div></div><pre><div><div class="h5">_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/01/28336.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/01/28336.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/01/28337.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/01/28337.php</a><br></blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature">Jeff Hammond<br><a href="mailto:jeff.science@gmail.com" target="_blank">jeff.science@gmail.com</a><br><a href="http://jeffhammond.github.io/" target="_blank">http://jeffhammond.github.io/</a></div>
+</div>
+

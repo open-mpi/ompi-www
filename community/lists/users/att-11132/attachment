@@ -1,0 +1,29 @@
+<div class="gmail_quote">Hi all.<br>(sorry for duplication, if it is)<br><br>I have to parallelize a CFD code using domain/grid/mesh partitioning among the processes. Before running, we do not know,<br>(i) How many processes we will use ( np  is unknown)<br>
+
+(ii) A process will have how many neighbouring processes (my_nbrs = ?)<br>(iii) How many entries a process need to send to a particular neighbouring process.<br>But when the code run, I calculate all of this info easily.<br>
+
+<br><br>The problem is to copy a number of entries to an array then send that array to a destination process. The same sender has to repeat this work to send data to all of its neighbouring processes. Is this following code fine:<br>
+
+<br>DO i = 1, my_nbrs<br>   DO j = 1, few_entries_for_this_neighbour <br>       send_array(j)   =    my_array(jth_particular_entry)<br>   ENDDO<br>   CALL MPI_ISEND(send_array(1:j),j, MPI_REAL8, dest(i), tag, MPI_COMM_WORLD, request1(i), ierr)<br>
+
+ENDDO<br><br>And the corresponding receives, at each process:<br><br>DO i = 1, my_nbrs<br>   k = few_entries_from_this_neighbour<br>   CALL MPI_IRECV(recv_array(1:k),k, MPI_REAL8, source(i), tag, MPI_COMM_WORLD, request2(i), ierr)<br>
+
+   DO j = 1, few_from_source(i) <br>       received_data(j)   =    recv_array(j)<br>   ENDDO<br>ENDDO<br><br>After the above MPI_WAITALL.<br><br><br>I think this code will not work. Both for sending and receiving. For the non-blocking sends we cannot use send_array to send data to other processes like above (as we are not sure for the availability of application buffer for reuse). Am I right? <br>
+
+<br>Similar problem is with recv array; data from multiple processes cannot be received in the same array like above. Am I right?<br><br><br>Target is to hide communication behind computation. So need non blocking communication. As we do know value of np or values of my_nbrs for each process, we cannot decide to create so many arrays. Please suggest solution.<br>
+
+<br><br>===================<br>A more subtle solution that I could assume is following:<br><br>cc = 0<br>DO i = 1, my_nbrs<br>   DO j = 1, few_entries_for_this_neighbour <br>       send_array(cc+j)   =    my_array(jth_particular_entry)<br>
+
+   ENDDO<br>   CALL MPI_ISEND(send_array(cc:cc+j),j, MPI_REAL8, dest(i), tag, MPI_COMM_WORLD, request1(i), ierr)<br>   cc = cc  + j<br>ENDDO<br><br>And the corresponding receives, at each process:<br><br>cc = 0<br>DO i = 1, my_nbrs<br>
+
+   k = few_entries_from_this_neighbour<br>   CALL MPI_IRECV(recv_array(cc+1:cc+k),k, MPI_REAL8, source(i), tag, MPI_COMM_WORLD, request2(i), ierr)<br>   DO j = 1, k <br>       received_data(j)   =    recv_array(cc+j)<br>
+   ENDDO<br>
+   cc = cc + k<br>ENDDO<br><br>After the above MPI_WAITALL.<br><br>Means that,<br>send_array for all neighbours will have a collected shape:<br>send_array = [... entries for nbr 1 ..., ... entries for nbr 1 ..., ..., ... entries for last nbr ...]<br>
+
+And the respective entries will be send to respective neighbours as above. <br><br><br>recv_array for all neighbours will have a collected shape:<br>recv_array = [... entries from nbr 1 ..., ... entries from nbr 1 ..., ..., ... entries from last nbr ...]<br>
+
+And the entries from the processes will be received at respective locations/portion in the recv_array.<br><br><br>Is this scheme is quite fine and correct.<br><br>I am in search of efficient one.<br><br>Request for help.<br>
+
+<br><br>With best regards,<br><font color="#888888">Amjad Ali.<br><br>
+</font></div><br>
+

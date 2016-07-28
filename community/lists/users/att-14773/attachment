@@ -1,0 +1,110 @@
+Hi Reuti<br><br><div class="gmail_quote"><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div class="im">
+<br>
+&gt; 2. have SGE bind procs it launches to -all- of those cores. I believe SGE does this automatically to constrain the procs to running on only those cores.<br>
+<br>
+</div>This is another &quot;bug/feature&quot; in SGE: it&#39;s a matter of discussion, whether the shepherd should get exactly one core (in case you use more than one `qrsh`per node) for each call, or *all* cores assigned (which we need right now, as the processes in Open MPI will be forks of orte daemon). About such a situtation I filled an issue a long time ago and &quot;limit_to_one_qrsh_per_host yes/no&quot; in the PE definition would do (this setting should then also change the core allocation of the master process):<br>
+
+<br>
+<a href="http://gridengine.sunsource.net/issues/show_bug.cgi?id=1254" target="_blank">http://gridengine.sunsource.net/issues/show_bug.cgi?id=1254</a></blockquote><div><br></div><div>I believe this is indeed the crux of the issue</div>
+<div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><br>
+<div class="im"><br>
+<br>
+&gt; 3. tell OMPI to --bind-to-core.<br>
+&gt;<br>
+&gt; In other words, tell SGE to allocate a certain number of cores on each node, but to bind each proc to all of them (i.e., don&#39;t bind a proc to a specific core). I&#39;m pretty sure that is a standard SGE option today (at least, I know it used to be). I don&#39;t believe any patch or devel work is required (to either SGE or OMPI).<br>
+
+<br>
+</div>When you use a fixed allocation_rule and a matching -binding request it will work today. But any other case won&#39;t be distributed in the correct way.<br></blockquote><div><br></div><div>Is it possible to not include the -binding request? If SGE is told to use a fixed allocation_rule, and to allocate (for example) 2 cores/node, then won&#39;t the orted see itself bound to two specific cores on each node? We would then be okay as the spawned children of orted would inherit its binding. Just don&#39;t tell mpirun to bind the processes and the threads of those MPI procs will be able to operate across the provided cores.</div>
+<div><br></div><div>Or does SGE only allocate 2 cores/node in that case (i.e., allocate, but no -binding given), but doesn&#39;t bind the orted to any two specific cores? If so, then that would be a problem as the orted would think itself unconstrained. If I understand the thread correctly, you&#39;re saying that this is what happens today - true?</div>
+<div><br></div><div> </div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<font color="#888888"><br>
+-- Reuti<br>
+</font><div><div></div><div class="h5"><br>
+<br>
+&gt;<br>
+&gt;<br>
+&gt; On Tue, Nov 16, 2010 at 4:07 AM, Reuti &lt;<a href="mailto:reuti@staff.uni-marburg.de">reuti@staff.uni-marburg.de</a>&gt; wrote:<br>
+&gt; Am 16.11.2010 um 10:26 schrieb Chris Jewell:<br>
+&gt;<br>
+&gt; &gt; Hi all,<br>
+&gt; &gt;<br>
+&gt; &gt;&gt; On 11/15/2010 02:11 PM, Reuti wrote:<br>
+&gt; &gt;&gt;&gt; Just to give my understanding of the problem:<br>
+&gt; &gt;&gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt;&gt;&gt;&gt; Sorry, I am still trying to grok all your email as what the problem you<br>
+&gt; &gt;&gt;&gt;&gt;&gt;&gt; are trying to solve. So is the issue is trying to have two jobs having<br>
+&gt; &gt;&gt;&gt;&gt;&gt;&gt; processes on the same node be able to bind there processes on different<br>
+&gt; &gt;&gt;&gt;&gt;&gt;&gt; resources. Like core 1 for the first job and core 2 and 3 for the 2nd job?<br>
+&gt; &gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt;&gt;&gt;&gt; --td<br>
+&gt; &gt;&gt; You can&#39;t get 2 slots on a machine, as it&#39;s limited by the core count to one here, so such a slot allocation shouldn&#39;t occur at all.<br>
+&gt; &gt;<br>
+&gt; &gt; So to clarify, the current -binding &lt;binding_strategy&gt;:&lt;binding_amount&gt; allocates binding_amount cores to each sge_shepherd process associated with a job_id.  There appears to be only one sge_shepherd process per job_id per execution node, so all child processes run on these allocated cores.  This is irrespective of the number of slots allocated to the node.<br>
+
+&gt; &gt;<br>
+&gt; &gt; I agree with Reuti that the binding_amount parameter should be a maximum number of bound cores per node, with the actual number determined by the number of slots allocated per node.  FWIW, an alternative approach might be to have another binding_type (&#39;slot&#39;, say) that automatically allocated one core per slot.<br>
+
+&gt; &gt;<br>
+&gt; &gt; Of course, a complex situation might arise if a user submits a combined MPI/multithreaded job, but then I guess we&#39;re into the realm of setting allocation_rule.<br>
+&gt;<br>
+&gt; IIRC there was a discussion on the [GE users] list about it, to get an uniform distribution on all slave nodes for such jobs, as also e.g. $OMP_NUM_THREADS will be set to the same value for all slave nodes for hybrid jobs. Otherwise it would be necessary to adjust SGE to set this value in the &quot;-builtin-&quot; startup method automatically on all nodes to the local granted slots value. For now a fixed allocation rule of 1,2,4 or whatever must be used and you have to submit by reqeusting a wildcard PE to get any of these defined PEs for an even distribution and you don&#39;t care whether it&#39;s two times two slots, one time four slots, or four times one slot.<br>
+
+&gt;<br>
+&gt; In my understanding, any type of parallel job should always request and get the total number of slots equal to the cores it needs to execute. Independent whether these are threads, forks or any hybrid type of jobs. Otherwise any resource planing and reservation will most likely fail. Nevertheless, there might exist rare cases where you submit an exclusive serial job but create threads/forks in the end. But such a setup should be an exception, not the default.<br>
+
+&gt;<br>
+&gt;<br>
+&gt; &gt; Is it going to be worth looking at creating a patch for this?<br>
+&gt;<br>
+&gt; Absolute.<br>
+&gt;<br>
+&gt;<br>
+&gt; &gt;  I don&#39;t know much of the internals of SGE -- would it be hard work to do?  I&#39;ve not that much time to dedicate towards it, but I could put some effort in if necessary...<br>
+&gt;<br>
+&gt; I don&#39;t know about the exact coding for it, but when it&#39;s for now a plain &quot;copy&quot; of the binding list, then it should become a loop to create a list of cores from the original specification until all granted slots got a core allocated.<br>
+
+&gt;<br>
+&gt; -- Reuti<br>
+&gt;<br>
+&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Chris<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; --<br>
+&gt; &gt; Dr Chris Jewell<br>
+&gt; &gt; Department of Statistics<br>
+&gt; &gt; University of Warwick<br>
+&gt; &gt; Coventry<br>
+&gt; &gt; CV4 7AL<br>
+&gt; &gt; UK<br>
+&gt; &gt; Tel: +44 (0)24 7615 0778<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; users mailing list<br>
+&gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br>
+

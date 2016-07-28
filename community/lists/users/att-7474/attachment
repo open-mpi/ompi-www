@@ -1,0 +1,127 @@
+<p>maybe it&#39;s related to <a href="https://svn.open-mpi.org/trac/ompi/ticket/1378">https://svn.open-mpi.org/trac/ompi/ticket/1378</a> &nbsp;??<br></p><br><div><span class="gmail_quote">On 12/5/08, <b class="gmail_sendername">Justin</b> &lt;<a href="mailto:luitjens@cs.utah.edu">luitjens@cs.utah.edu</a>&gt; wrote:</span><blockquote class="gmail_quote" style="margin:0;margin-left:0.8ex;border-left:1px #ccc solid;padding-left:1ex">
+The reason i&#39;d like to disable these eager buffers is to help detect the deadlock better. &nbsp;I would not run with this for a normal run but it would be useful for debugging. &nbsp;If the deadlock is indeed due to our code then disabling any shared buffers or eager sends would make that deadlock reproduceable. &nbsp; &nbsp;In addition we might be able to lower the number of processors down. &nbsp;Right now determining which processor is deadlocks when we are using 8K cores and each processor has hundreds of messages sent out would be quite difficult.<br>
+
+<br>
+Thanks for your suggestions,<br><span class="sg">
+Justin</span><div><span class="e" id="q_11e090a23ac99efd_2"><br>
+Brock Palen wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+OpenMPI has differnt eager limits for all the network types, on your system run:<br>
+<br>
+ompi_info --param btl all<br>
+<br>
+and look for the eager_limits<br>
+You can set these values to 0 using the syntax I showed you before. That would disable eager messages.<br>
+There might be a better way to disable eager messages.<br>
+Not sure why you would want to disable them, they are there for performance.<br>
+<br>
+Maybe you would still see a deadlock if every message was below the threshold. I think there is a limit of the number of eager messages a receving cpus will accept. Not sure about that though. &nbsp;I still kind of doubt it though.<br>
+
+<br>
+Try tweaking your buffer sizes, &nbsp;make the openib &nbsp;btl eager limit the same as shared memory. and see if you get locks up between hosts and not just shared memory.<br>
+<br>
+Brock Palen<br>
+<a href="http://www.umich.edu/~brockp" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">www.umich.edu/~brockp</a><br>
+Center for Advanced Computing<br>
+<a href="mailto:brockp@umich.edu" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">brockp@umich.edu</a><br>
+(734)936-1985<br>
+<br>
+<br>
+<br>
+On Dec 5, 2008, at 2:10 PM, Justin wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Thank you for this info. &nbsp;I should add that our code tends to post a lot of sends prior to the other side posting receives. &nbsp;This causes a lot of unexpected messages to exist. &nbsp;Our code explicitly matches up all tags and processors (that is we do not use MPI wild cards). &nbsp;If we had a dead lock I would think we would see it regardless of weather or not we cross the roundevous threshold. &nbsp;I guess one way to test this would be to to set this threshold to 0. &nbsp;If it then dead locks we would likely be able to track down the deadlock. &nbsp;Are there any other parameters we can send mpi that will turn off buffering?<br>
+
+<br>
+Thanks,<br>
+Justin<br>
+<br>
+Brock Palen wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+When ever this happens we found the code to have a deadlock. &nbsp;users never saw it until they cross the eager-&gt;roundevous threshold.<br>
+<br>
+Yes you can disable shared memory with:<br>
+<br>
+mpirun --mca btl ^sm<br>
+<br>
+Or you can try increasing the eager limit.<br>
+<br>
+ompi_info --param btl sm<br>
+<br>
+MCA btl: parameter &quot;btl_sm_eager_limit&quot; (current value:<br>
+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&quot;4096&quot;)<br>
+<br>
+You can modify this limit at run time, &nbsp;I think (can&#39;t test it right now) it is just:<br>
+<br>
+mpirun --mca btl_sm_eager_limit 40960<br>
+<br>
+I think you can also in tweaking these values use env Vars in place of putting it all in the mpirun line:<br>
+<br>
+export OMPI_MCA_btl_sm_eager_limit=40960<br>
+<br>
+See:<br>
+<a href="http://www.open-mpi.org/faq/?category=tuning" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/faq/?category=tuning</a><br>
+<br>
+<br>
+Brock Palen<br>
+<a href="http://www.umich.edu/~brockp" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">www.umich.edu/~brockp</a><br>
+Center for Advanced Computing<br>
+<a href="mailto:brockp@umich.edu" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">brockp@umich.edu</a><br>
+(734)936-1985<br>
+<br>
+<br>
+<br>
+On Dec 5, 2008, at 12:22 PM, Justin wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Hi,<br>
+<br>
+We are currently using OpenMPI 1.3 on Ranger for large processor jobs (8K+). &nbsp;Our code appears to be occasionally deadlocking at random within point to point communication (see stacktrace below). &nbsp;This code has been tested on many different MPI versions and as far as we know it does not contain a deadlock. &nbsp;However, in the past we have ran into problems with shared memory optimizations within MPI causing deadlocks. &nbsp;We can usually avoid these by setting a few environment variables to either increase the size of shared memory buffers or disable shared memory optimizations all together. &nbsp; Does OpenMPI have any known deadlocks that might be causing our deadlocks? &nbsp;If are there any work arounds? &nbsp;Also how do we disable shared memory within OpenMPI?<br>
+
+<br>
+Here is an example of where processors are hanging:<br>
+<br>
+#0 &nbsp;0x00002b2df3522683 in mca_btl_sm_component_progress () from /opt/apps/intel10_1/openmpi/1.3/lib/openmpi/mca_btl_sm.so<br>
+#1 &nbsp;0x00002b2df2cb46bf in mca_bml_r2_progress () from /opt/apps/intel10_1/openmpi/1.3/lib/openmpi/mca_bml_r2.so<br>
+#2 &nbsp;0x00002b2df0032ea4 in opal_progress () from /opt/apps/intel10_1/openmpi/1.3/lib/libopen-pal.so.0<br>
+#3 &nbsp;0x00002b2ded0d7622 in ompi_request_default_wait_some () from /opt/apps/intel10_1/openmpi/1.3//lib/libmpi.so.0<br>
+#4 &nbsp;0x00002b2ded109e34 in PMPI_Waitsome () from /opt/apps/intel10_1/openmpi/1.3//lib/libmpi.so.0<br>
+<br>
+<br>
+Thanks,<br>
+Justin<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+</blockquote>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+</blockquote>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</span></div></blockquote></div><br>
+

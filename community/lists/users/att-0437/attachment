@@ -1,0 +1,217 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="MS Exchange Server version 6.5.7226.0">
+<TITLE>const_cast&lt;&gt;(), Alltoallw() and Spawn_multiple()</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/plain format -->
+
+<P><FONT SIZE=2>Hi,<BR>
+<BR>
+I just tried OpenMPI 1.0.1 and this time I had much less warnings related to the C++ API than I had with version 1.0.0 (I compile with g++ -Wall).<BR>
+<BR>
+I nonetheless looked at the C++ headers and found that those warnings were still related to the use of C-style cast.<BR>
+<BR>
+Some of them were simply casting away the const type qualifier to call the C API MPI functions. Those casts could easily be converted to the const_cast&lt;&gt;() operator specially designed to do this.<BR>
+<BR>
+I however found that some others were simply wrong and leading to faulty operations. Those casts are located in Intracomm::Alltoallw() and Intracomm::Spawn_multiple() methods.<BR>
+<BR>
+In the first method, a pointer to a table of const MPI::Datatype objects is casted into a pointer to a table of MPI_Datatype types and in the second one, a pointer to a table of const MPI::Info objects is casted into a pointer to a table of MPI_Info types.<BR>
+<BR>
+That is it is assumed that the MPI::Datatype and MPI::Info have respectively the same memory layout as the corresponding C types MPI_Datatype and MPI_Info.<BR>
+<BR>
+This assumption is incorrect in both cases even if MPI::Datatype class contains only a single data member of type MPI_Datatype and even if MPI::Info class contains only a single data member of type MPI_Info.<BR>
+<BR>
+It is incorrect because MPI::Datatype and MPI::Info classes are polymorphics. That is each of them contains at least one virtual method. Since polymorphic classes needs to access the virtual methods table (pointer to members and offset to adjust &quot;this&quot;), the C++ compiler needs to insert at least another member. In all the implementation I've seen this is done by adding a member pointing to the virtual table for the exact class (named &quot;__vtbl&quot;). The resulting classes are then larger than they appear (ex: on my IA32 Linux machine sizeof(MPI::Datatype)==8 and sizeof(MPI::Info)==8 even if sizeof(MPI_Datatype)==4 and sizeof(MPI_Info)==4), the memory layout differs and therefore corresponding pointers cannot be converted by simple type casts.<BR>
+<BR>
+A table of MPI::Datatype object have then to be converted into a table of MPI_Datatype by a temporary table and a small loop. The same is true for MPI::Info and MPI_Info.<BR>
+<BR>
+I modified errhandler.h, intracomm.h and intracomm_inln.h files to implement those corrections. As expected it removes the warnings during compilation and should correct the conversion problems in Intracomm::Alltoallw() and Intracomm::Spawn_multiple() methods.<BR>
+<BR>
+Bellow is the difference between my modified version of OpenMPI and the original one.<BR>
+<BR>
+Please consider this patch for your next release.<BR>
+<BR>
+Thanks,<BR>
+<BR>
+Martin Audet, Research Officer<BR>
+E: martin.audet@imi.cnrc-nrc.gc.ca&nbsp; T: 450-641-5034<BR>
+Indstrial Material Institute, National Research Council<BR>
+75 de Mortagne,<BR>
+Boucherville, QC<BR>
+J4B 6Y4, Canada<BR>
+<BR>
+<BR>
+<BR>
+<BR>
+<BR>
+diff --recursive --unified openmpi-1.0.1/ompi/mpi/cxx/errhandler.h openmpi-1.0.1ma/ompi/mpi/cxx/errhandler.h<BR>
+--- openmpi-1.0.1/ompi/mpi/cxx/errhandler.h&nbsp;&nbsp;&nbsp;&nbsp; 2005-11-11 14:21:36.000000000 -0500<BR>
++++ openmpi-1.0.1ma/ompi/mpi/cxx/errhandler.h&nbsp;&nbsp; 2005-12-14 15:29:56.000000000 -0500<BR>
+@@ -124,7 +124,7 @@<BR>
+&nbsp;#if ! 0 /* OMPI_ENABLE_MPI_PROFILING */<BR>
+&nbsp;&nbsp;&nbsp;&nbsp; // $%%@#%# AIX/POE 2.3.0.0 makes us put in this cast here<BR>
+&nbsp;&nbsp;&nbsp;&nbsp; (void)MPI_Errhandler_create((MPI_Handler_function*) &amp;ompi_mpi_cxx_throw_excptn_fctn,<BR>
+-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (MPI_Errhandler *) &amp;mpi_errhandler);<BR>
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const_cast&lt;MPI_Errhandler *&gt;(&amp;mpi_errhandler));<BR>
+&nbsp;#else<BR>
+&nbsp;&nbsp;&nbsp;&nbsp; pmpi_errhandler.init();<BR>
+&nbsp;#endif<BR>
+@@ -134,7 +134,7 @@<BR>
+&nbsp;&nbsp; //this is called from MPI::Finalize<BR>
+&nbsp;&nbsp; inline void free() const {<BR>
+&nbsp;#if ! 0 /* OMPI_ENABLE_MPI_PROFILING */<BR>
+-&nbsp;&nbsp;&nbsp; (void)MPI_Errhandler_free((MPI_Errhandler *) &amp;mpi_errhandler);<BR>
++&nbsp;&nbsp;&nbsp; (void)MPI_Errhandler_free(const_cast&lt;MPI_Errhandler *&gt;(&amp;mpi_errhandler));<BR>
+&nbsp;#else<BR>
+&nbsp;&nbsp;&nbsp;&nbsp; pmpi_errhandler.free();<BR>
+&nbsp;#endif<BR>
+diff --recursive --unified openmpi-1.0.1/ompi/mpi/cxx/intracomm.h openmpi-1.0.1ma/ompi/mpi/cxx/intracomm.h<BR>
+--- openmpi-1.0.1/ompi/mpi/cxx/intracomm.h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2005-11-11 14:21:36.000000000 -0500<BR>
++++ openmpi-1.0.1ma/ompi/mpi/cxx/intracomm.h&nbsp;&nbsp;&nbsp; 2005-12-14 16:09:29.000000000 -0500<BR>
+@@ -228,6 +228,10 @@<BR>
+&nbsp;&nbsp; PMPI::Intracomm pmpi_comm;<BR>
+&nbsp;#endif<BR>
+<BR>
++&nbsp; // Convert an array of p_nbr Info object into an array of MPI_Info.<BR>
++&nbsp; // A pointer to the allocated array is returned and must be eventually deleted.<BR>
++&nbsp; static inline MPI_Info *convert_info_to_mpi_info(int p_nbr, const Info p_info_tbl[]);<BR>
++<BR>
+&nbsp;public: // JGS see above about friend decls<BR>
+&nbsp;#if ! 0 /* OMPI_ENABLE_MPI_PROFILING */<BR>
+&nbsp;&nbsp; static Op* current_op;<BR>
+diff --recursive --unified openmpi-1.0.1/ompi/mpi/cxx/intracomm_inln.h openmpi-1.0.1ma/ompi/mpi/cxx/intracomm_inln.h<BR>
+--- openmpi-1.0.1/ompi/mpi/cxx/intracomm_inln.h 2005-11-30 06:06:07.000000000 -0500<BR>
++++ openmpi-1.0.1ma/ompi/mpi/cxx/intracomm_inln.h&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2005-12-14 16:09:35.000000000 -0500<BR>
+@@ -144,13 +144,26 @@<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; void *recvbuf, const int recvcounts[],<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const int rdispls[], const Datatype recvtypes[]) const<BR>
+&nbsp;{<BR>
++&nbsp; const int comm_size = Get_size();<BR>
++&nbsp; MPI_Datatype *const data_type_tbl = new MPI_Datatype [2*comm_size];<BR>
++<BR>
++&nbsp; // This must be done because Datatype arrays cannot be converted directly into<BR>
++&nbsp; // MPI_Datatype arrays. Since Datatype have virtual methods, Datatype is typically<BR>
++&nbsp; // larger.<BR>
++&nbsp; for (int i_rank=0; i_rank &lt; comm_size; i_rank++) {<BR>
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; data_type_tbl[i_rank&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ] = sendtypes[i_rank];<BR>
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; data_type_tbl[i_rank + comm_size] = recvtypes[i_rank];<BR>
++&nbsp; }<BR>
++<BR>
+&nbsp;&nbsp; (void)MPI_Alltoallw(const_cast&lt;void *&gt;(sendbuf),<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const_cast&lt;int *&gt;(sendcounts),<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const_cast&lt;int *&gt;(sdispls),<BR>
+-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (MPI_Datatype *)(sendtypes), recvbuf,<BR>
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; data_type_tbl,recvbuf,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const_cast&lt;int *&gt;(recvcounts),<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const_cast&lt;int *&gt;(rdispls),<BR>
+-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (MPI_Datatype *)(recvtypes), mpi_comm);<BR>
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &amp;data_type_tbl[comm_size], mpi_comm);<BR>
++<BR>
++&nbsp; delete [] data_type_tbl;<BR>
+&nbsp;}<BR>
+<BR>
+&nbsp;inline void<BR>
+@@ -158,7 +171,7 @@<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const MPI::Datatype &amp; datatype, const MPI::Op&amp; op,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; int root) const<BR>
+&nbsp;{<BR>
+-&nbsp; current_op = (MPI::Op*)&amp;op;<BR>
++&nbsp; current_op = const_cast&lt;MPI::Op*&gt;(&amp;op);<BR>
+&nbsp;&nbsp; (void)MPI_Reduce(const_cast&lt;void *&gt;(sendbuf), recvbuf, count, datatype, op, root, mpi_comm);<BR>
+&nbsp;&nbsp; current_op = (Op*)0;<BR>
+&nbsp;}<BR>
+@@ -167,7 +180,7 @@<BR>
+&nbsp;MPI::Intracomm::Allreduce(const void *sendbuf, void *recvbuf, int count,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; const MPI::Datatype &amp; datatype, const MPI::Op&amp; op) const<BR>
+&nbsp;{<BR>
+-&nbsp; current_op = (MPI::Op*)&amp;op;<BR>
++&nbsp; current_op = const_cast&lt;MPI::Op*&gt;(&amp;op);<BR>
+&nbsp;&nbsp; (void)MPI_Allreduce (const_cast&lt;void *&gt;(sendbuf), recvbuf, count, datatype,&nbsp; op, mpi_comm);<BR>
+&nbsp;&nbsp; current_op = (Op*)0;<BR>
+&nbsp;}<BR>
+@@ -178,7 +191,7 @@<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const MPI::Datatype &amp; datatype,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const MPI::Op&amp; op) const<BR>
+&nbsp;{<BR>
+-&nbsp; current_op = (MPI::Op*)&amp;op;<BR>
++&nbsp; current_op = const_cast&lt;MPI::Op*&gt;(&amp;op);<BR>
+&nbsp;&nbsp; (void)MPI_Reduce_scatter(const_cast&lt;void *&gt;(sendbuf), recvbuf, recvcounts,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; datatype, op, mpi_comm);<BR>
+&nbsp;&nbsp; current_op = (Op*)0;<BR>
+@@ -188,7 +201,7 @@<BR>
+&nbsp;MPI::Intracomm::Scan(const void *sendbuf, void *recvbuf, int count,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const MPI::Datatype &amp; datatype, const MPI::Op&amp; op) const<BR>
+&nbsp;{<BR>
+-&nbsp; current_op = (MPI::Op*)&amp;op;<BR>
++&nbsp; current_op = const_cast&lt;MPI::Op*&gt;(&amp;op);<BR>
+&nbsp;&nbsp; (void)MPI_Scan(const_cast&lt;void *&gt;(sendbuf), recvbuf, count, datatype, op, mpi_comm);<BR>
+&nbsp;&nbsp; current_op = (Op*)0;<BR>
+&nbsp;}<BR>
+@@ -198,7 +211,7 @@<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const MPI::Datatype &amp; datatype,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const MPI::Op&amp; op) const<BR>
+&nbsp;{<BR>
+-&nbsp; current_op = (MPI::Op*)&amp;op;<BR>
++&nbsp; current_op = const_cast&lt;MPI::Op*&gt;(&amp;op);<BR>
+&nbsp;&nbsp; (void)MPI_Exscan(const_cast&lt;void *&gt;(sendbuf), recvbuf, count, datatype, op, mpi_comm);<BR>
+&nbsp;&nbsp; current_op = (Op*)0;<BR>
+&nbsp;}<BR>
+@@ -328,6 +341,17 @@<BR>
+&nbsp;&nbsp; return newcomm;<BR>
+&nbsp;}<BR>
+<BR>
++inline MPI_Info *<BR>
++MPI::Intracomm::convert_info_to_mpi_info(int p_nbr, const Info p_info_tbl[])<BR>
++{<BR>
++&nbsp;&nbsp; MPI_Info *const mpi_info_tbl = new MPI_Info [p_nbr];<BR>
++<BR>
++&nbsp;&nbsp; for (int i_tbl=0; i_tbl &lt; p_nbr; i_tbl++) {<BR>
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mpi_info_tbl[i_tbl] = p_info_tbl[i_tbl];<BR>
++&nbsp;&nbsp; }<BR>
++<BR>
++&nbsp;&nbsp; return mpi_info_tbl;<BR>
++}<BR>
+<BR>
+&nbsp;inline MPI::Intercomm<BR>
+&nbsp;MPI::Intracomm::Spawn_multiple(int count,<BR>
+@@ -337,10 +361,15 @@<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const Info array_of_info[], int root)<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp; MPI_Comm newcomm;<BR>
++&nbsp; MPI_Info *const array_of_mpi_info = convert_info_to_mpi_info(count, array_of_info);<BR>
++<BR>
+&nbsp;&nbsp; MPI_Comm_spawn_multiple(count, const_cast&lt;char **&gt;(array_of_commands),<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; const_cast&lt;char ***&gt;(array_of_argv), const_cast&lt;int *&gt;(array_of_maxprocs),<BR>
+-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; (MPI_Info *) array_of_info, root,<BR>
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; array_of_mpi_info, root,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; mpi_comm, &amp;newcomm, (int *)MPI_ERRCODES_IGNORE);<BR>
++<BR>
++&nbsp; delete [] array_of_mpi_info;<BR>
++<BR>
+&nbsp;&nbsp; return newcomm;<BR>
+&nbsp;}<BR>
+<BR>
+@@ -354,10 +383,15 @@<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; int array_of_errcodes[])<BR>
+&nbsp;{<BR>
+&nbsp;&nbsp; MPI_Comm newcomm;<BR>
++&nbsp; MPI_Info *const array_of_mpi_info = convert_info_to_mpi_info(count, array_of_info);<BR>
++<BR>
+&nbsp;&nbsp; MPI_Comm_spawn_multiple(count, const_cast&lt;char **&gt;(array_of_commands),<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const_cast&lt;char ***&gt;(array_of_argv), const_cast&lt;int *&gt;(array_of_maxprocs),<BR>
+-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (MPI_Info *) array_of_info, root,<BR>
++&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; array_of_mpi_info, root,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mpi_comm, &amp;newcomm, array_of_errcodes);<BR>
++<BR>
++&nbsp; delete [] array_of_mpi_info;<BR>
++<BR>
+&nbsp;&nbsp; return newcomm;<BR>
+&nbsp;}<BR>
+&nbsp;</FONT>
+</P>
+
+</BODY>
+</HTML>

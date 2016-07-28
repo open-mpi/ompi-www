@@ -1,0 +1,211 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Jun,<br>
+    <br>
+    a patch is available at
+<a class="moz-txt-link-freetext" href="https://github.com/ggouaillardet/ompi-release/commit/f277beace9fbe8dd71f733602b5d4b0344d77a29.patch">https://github.com/ggouaillardet/ompi-release/commit/f277beace9fbe8dd71f733602b5d4b0344d77a29.patch</a><br>
+    this is not a bulletproof one, but it does fix your problem.<br>
+    <br>
+    in this case, MPI_Ineighbor_alltoallw is invoked with sendbuf ==
+    recvbuf, and internally,<br>
+    libnbc considers this is an in place alltoall, and hence allocate a
+    temporary buffer<br>
+    (that is now (almost) correctly used with this patch)<br>
+    this is suboptimal, since even if sendbuf == recvbuf, the
+    displacements you use ensure there<br>
+    is no overlap.<br>
+    <br>
+    bottom line, this patch does fix your problem, but because of the
+    libnbc internals, the second MPI_Ineighbor_alltoallw is suboptimal
+    (assuming such a call is allowed by the standard)<br>
+    <br>
+    master does things differently, and there is no such bug here.<br>
+    <br>
+    <br>
+    George,<br>
+    <br>
+    is it valid (per the MPI standard) to invoke MPI_Ineighbor_alltoallw
+    with sendbuf == recvbuf ?<br>
+    <br>
+    bonus question :<br>
+    what if we have sendbuf != recvbuf, but the data overlap because of
+    the displacements ?<br>
+    for example :<br>
+    int buf[1];<br>
+    MPI_Ineighbor_alltoallw(buf, 1, {0}, MPI_INT, buf+1, 1, {-4},
+    MPI_INT, MPI_COMM_WORLD, &amp;request)<br>
+    is this allowed per the MPI standard ? if yes, then the
+    implementation should figure this out, and i am pretty sure it does
+    not currently.<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <br>
+    <div class="moz-cite-prefix">On 3/8/2016 9:18 AM, Jun Kudo wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CAO5ZQ3s_8jqAOx0dTuScBvM==M5Rh54+6EW=t1y5GHN+Q_TJng@mail.gmail.com"
+      type="cite">
+      <div dir="ltr">
+        <div>Giles,</div>
+        <div>Thanks for the small bug fix.  It helped clear up that test
+          case but I'm again running into another segmentation fault on
+          a more complicated problem.</div>
+        <div><br>
+        </div>
+        <div>I've attached another 'working' example.  This time I am
+          using the MPI_Ineighbor_alltoallw on a triangular topology; 
+          node 0 communicates bi-directionally with nodes 1 and 2, node
+          1 with nodes 0 and 2, and node 2 with node 0 and 1.  Each node
+          is sending one double (with value my_rank) to each of its
+          neighbors.  </div>
+        <div><br>
+        </div>
+        <div>The code has two different calls to the MPI API that only
+          differ in the receive buffer arguments.  In both versions, I
+          am sending from and receiving into the same static array.  In
+          the working (non-segfaulting) version, I am receiving into the
+          latter half of the array by pointing to the start of the
+          second half (&amp;send_number[2]) and specifying displacements
+          of 0 and 8 bytes.  In the segfaulting version, I am again
+          receiving into the latter half of the array by pointing to the
+          start of the array (send_number) with displacements of 16 to
+          24 bytes.</div>
+        <div><br>
+        </div>
+        <div>The program run with the command 'mpirun -n 3
+          ./simpleneighborhood_multiple' compiled with the latest <span>OpenMPI</span> 
+          (1.10.2) + patch encounters a segmentation fault when
+          receiving using the latter commands.  The same program
+          compiled with MPICH (3.2) runs without any problems and with
+          the expected results. </div>
+        <div><br>
+        </div>
+        <div>Let me know if I'm screwing anything up.  Thanks for the
+          help.</div>
+        <div><br>
+        </div>
+        <div>Sincerely,</div>
+        <div>Jun</div>
+        <div><br>
+        </div>
+      </div>
+      <div class="gmail_extra"><br>
+        <div class="gmail_quote">On Mon, Feb 29, 2016 at 9:34 PM, Gilles
+          Gouaillardet <span dir="ltr">&lt;<a moz-do-not-send="true"
+              href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span>
+          wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0
+            .8ex;border-left:1px #ccc solid;padding-left:1ex">
+            <div text="#000000" bgcolor="#FFFFFF"> Thanks for the report
+              and the test case,<br>
+              <br>
+              this is a bug and i pushed a commit to master.<br>
+              for the time being, you can download a patch for v1.10 at
+              <a moz-do-not-send="true"
+href="https://github.com/ggouaillardet/ompi-release/commit/4afdab0aa86e5127767c4dfbdb763b4cb641e37a.patch"
+                target="_blank">https://github.com/ggouaillardet/ompi-release/commit/4afdab0aa86e5127767c4dfbdb763b4cb641e37a.patch</a><br>
+              <br>
+              Cheers,<br>
+              <br>
+              Gilles
+              <div>
+                <div class="h5"><br>
+                  <br>
+                  <div>On 3/1/2016 12:17 AM, Jun Kudo wrote:<br>
+                  </div>
+                </div>
+              </div>
+              <blockquote type="cite">
+                <div>
+                  <div class="h5">
+                    <div dir="ltr">
+                      <div>Hello,</div>
+                      <div>I'm trying to use the neighborhood collective
+                        communication capabilities (MPI_Ineighbor_x) of
+                        MPI coupled with the distributed graph
+                        constructor (MPI_Dist_graph_create_adjacent) but
+                        I'm encountering a segmentation fault on a test
+                        case.</div>
+                      <div><br>
+                      </div>
+                      <div>I have attached a 'working' example where I
+                        create a MPI communicator with a simple
+                        distributed graph topology where Rank 0
+                        contains Node 0 that communicates
+                        bi-directionally (receiving from and sending
+                        to) with Node 1 located on Rank 1.  I then
+                        attempt to send integer messages using the
+                        neighborhood collective MPI_Ineighbor_alltoall. 
+                        The program run with the command 'mpirun -n 2
+                        ./simpleneighborhood' compiled with the latest
+                        OpenMPI  (1.10.2) encounters a segmentation
+                        fault during the non-blocking call.  The same
+                        program compiled with MPICH (3.2) runs without
+                        any problems and with the expected results.  To
+                        muddy the waters a little more, the same program
+                        compiled with OpenMPI but using the blocking
+                        neighborhood collective, MPI_Neighbor_alltoall,
+                        seems to run just fine as well.</div>
+                      <div><br>
+                      </div>
+                      <div>I'm not really sure at this point if I'm
+                        making a simple mistake in the construction of
+                        my test or if something is more fundamentally
+                        wrong.  I would appreciate any insight into my
+                        problem!  </div>
+                      <div><br>
+                      </div>
+                      <div>Thanks ahead of the time for help and let me
+                        know if I can provide anymore information.</div>
+                      <div><br>
+                      </div>
+                      <div>Sincerely,</div>
+                      <div>Jun</div>
+                    </div>
+                    <br>
+                    <fieldset></fieldset>
+                    <br>
+                  </div>
+                </div>
+                <pre>_______________________________________________
+users mailing list
+<a moz-do-not-send="true" href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" href="http://www.open-mpi.org/community/lists/users/2016/02/28608.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/02/28608.php</a></pre>
+              </blockquote>
+              <br>
+            </div>
+            <br>
+            _______________________________________________<br>
+            users mailing list<br>
+            <a moz-do-not-send="true" href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+            Subscription: <a moz-do-not-send="true"
+              href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+              target="_blank" rel="noreferrer">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+            Link to this post: <a moz-do-not-send="true"
+              href="http://www.open-mpi.org/community/lists/users/2016/02/28610.php"
+              target="_blank" rel="noreferrer">http://www.open-mpi.org/community/lists/users/2016/02/28610.php</a><br>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28655.php">http://www.open-mpi.org/community/lists/users/2016/03/28655.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

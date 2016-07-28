@@ -1,0 +1,321 @@
+diff --git a/ompi/mpiext/affinity/c/mpiext_affinity_str.c b/ompi/mpiext/affinity/c/mpiext_affinity_str.c
+index 62fa0cc..a4d98c4 100644
+--- a/ompi/mpiext/affinity/c/mpiext_affinity_str.c
++++ b/ompi/mpiext/affinity/c/mpiext_affinity_str.c
+@@ -108,7 +108,8 @@ static int get_rsrc_ompi_bound(char str[OMPI_AFFINITY_STRING_MAX])
+     } else {
+         ret = opal_hwloc_base_cset2str(str, OMPI_AFFINITY_STRING_MAX,
+                                        opal_hwloc_topology,
+-                                       orte_proc_applied_binding);
++                                       orte_proc_applied_binding,
++                                       OPAL_BIND_TO_NONE);
+     }
+     if (OPAL_ERR_NOT_BOUND == ret) {
+         strncpy(str, not_bound_str, OMPI_AFFINITY_STRING_MAX - 1);
+@@ -159,7 +160,8 @@ static int get_rsrc_current_binding(char str[OMPI_AFFINITY_STRING_MAX])
+     else {
+         ret = opal_hwloc_base_cset2str(str, OMPI_AFFINITY_STRING_MAX,
+                                        opal_hwloc_topology,
+-                                       boundset);
++                                       boundset,
++                                       OPAL_BIND_TO_NONE);
+         if (OPAL_ERR_NOT_BOUND == ret) {
+             strncpy(str, not_bound_str, OMPI_AFFINITY_STRING_MAX - 1);
+             ret = OMPI_SUCCESS;
+diff --git a/opal/mca/hwloc/base/base.h b/opal/mca/hwloc/base/base.h
+index 826aeb8..5c83433 100644
+--- a/opal/mca/hwloc/base/base.h
++++ b/opal/mca/hwloc/base/base.h
+@@ -1,6 +1,8 @@
+ /*
+  * Copyright (c) 2011-2012 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2013-2015 Intel, Inc. All rights reserved.
++ * Copyright (c) 2015      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -246,13 +248,20 @@ OPAL_DECLSPEC int opal_hwloc_print(char **output, char *prefix,
+                                    hwloc_topology_t src,
+                                    opal_data_type_t type);
+ 
++/*
++ * convert an opal_binding_policy_t to an hwloc_obj_t
++ */
++OPAL_DECLSPEC unsigned int opal_hwloc_base_opal_binding_policy2hwloc_obj(
++                               opal_binding_policy_t binding);
++
+ /**
+  * Make a prettyprint string for a hwloc_cpuset_t (e.g., "socket
+  * 2[core 3]").
+  */
+ OPAL_DECLSPEC int opal_hwloc_base_cset2str(char *str, int len,
+                                            hwloc_topology_t topo,
+-                                           hwloc_cpuset_t cpuset);
++                                           hwloc_cpuset_t cpuset,
++                                           opal_binding_policy_t binding);
+ 
+ /**
+  * Make a prettyprint string for a cset in a map format.
+diff --git a/opal/mca/hwloc/base/hwloc_base_dt.c b/opal/mca/hwloc/base/hwloc_base_dt.c
+index 13763ea..1c061e0 100644
+--- a/opal/mca/hwloc/base/hwloc_base_dt.c
++++ b/opal/mca/hwloc/base/hwloc_base_dt.c
+@@ -105,7 +105,6 @@ int opal_hwloc_unpack(opal_buffer_t *buffer, void *dest,
+          * explicitly set a flag so hwloc sets things up correctly
+          */
+         if (0 != hwloc_topology_set_flags(t, (HWLOC_TOPOLOGY_FLAG_IS_THISSYSTEM |
+-                                              HWLOC_TOPOLOGY_FLAG_WHOLE_SYSTEM |
+                                               HWLOC_TOPOLOGY_FLAG_IO_DEVICES))) {
+             rc = OPAL_ERROR;
+             hwloc_topology_destroy(t);
+diff --git a/opal/mca/hwloc/base/hwloc_base_util.c b/opal/mca/hwloc/base/hwloc_base_util.c
+index cd429ee..b844e59 100644
+--- a/opal/mca/hwloc/base/hwloc_base_util.c
++++ b/opal/mca/hwloc/base/hwloc_base_util.c
+@@ -248,8 +248,7 @@ int opal_hwloc_base_get_topology(void)
+     if (NULL == opal_hwloc_base_topo_file) {
+         if (0 != hwloc_topology_init(&opal_hwloc_topology) ||
+             0 != hwloc_topology_set_flags(opal_hwloc_topology,
+-                                          (HWLOC_TOPOLOGY_FLAG_WHOLE_SYSTEM |
+-                                           HWLOC_TOPOLOGY_FLAG_IO_DEVICES)) ||
++                                          HWLOC_TOPOLOGY_FLAG_IO_DEVICES) ||
+             0 != hwloc_topology_load(opal_hwloc_topology)) {
+             return OPAL_ERR_NOT_SUPPORTED;
+         }
+@@ -294,7 +293,6 @@ int opal_hwloc_base_set_topology(char *topofile)
+      */
+     if (0 != hwloc_topology_set_flags(opal_hwloc_topology,
+                                       (HWLOC_TOPOLOGY_FLAG_IS_THISSYSTEM |
+-                                       HWLOC_TOPOLOGY_FLAG_WHOLE_SYSTEM |
+                                        HWLOC_TOPOLOGY_FLAG_IO_DEVICES))) {
+         hwloc_topology_destroy(opal_hwloc_topology);
+         return OPAL_ERR_NOT_SUPPORTED;
+@@ -492,10 +490,6 @@ static void df_search_cores(hwloc_obj_t obj, unsigned int *cnt)
+             obj->userdata = (void*)data;
+         }
+         if (NULL == opal_hwloc_base_cpu_set) {
+-            if (!hwloc_bitmap_isincluded(obj->cpuset, obj->allowed_cpuset)) {
+-                /* do not count not allowed cores */
+-                return;
+-            }
+             data->npus = 1;
+         }
+         *cnt += data->npus;
+@@ -1782,11 +1776,34 @@ static int build_map(int *num_sockets_arg, int *num_cores_arg,
+ }
+ 
+ /*
++ * convert an opal_binding_policy_t to an hwloc_obj_t
++ */
++unsigned int opal_hwloc_base_opal_binding_policy2hwloc_obj(
++                           opal_binding_policy_t binding)
++{
++    switch (OPAL_GET_BINDING_POLICY(binding)) {
++        case OPAL_BIND_TO_BOARD:
++            return HWLOC_OBJ_MACHINE;
++        case OPAL_BIND_TO_NUMA:
++            return HWLOC_OBJ_NUMANODE;
++        case OPAL_BIND_TO_SOCKET:
++            return HWLOC_OBJ_PACKAGE;
++        case OPAL_BIND_TO_CORE:
++            return HWLOC_OBJ_CORE;
++        case OPAL_BIND_TO_HWTHREAD:
++            return HWLOC_OBJ_PU;
++        default:
++            return HWLOC_OBJ_TYPE_MAX;
++    }
++}
++
++/*
+  * Make a prettyprint string for a hwloc_cpuset_t
+  */
+ int opal_hwloc_base_cset2str(char *str, int len,
+                              hwloc_topology_t topo,
+-                             hwloc_cpuset_t cpuset)
++                             hwloc_cpuset_t cpuset,
++                             opal_binding_policy_t binding)
+ {
+     bool first;
+     int num_sockets, num_cores;
+@@ -1804,7 +1821,8 @@ int opal_hwloc_base_cset2str(char *str, int len,
+         return OPAL_ERR_NOT_BOUND;
+     }
+ 
+-    /* if the cpuset includes all available cpus, then we are unbound */
++    /* if the cpuset includes all available cpus and unless requested
++     * by the binding policy, then we are unbound, */
+     root = hwloc_get_root_obj(topo);
+     if (NULL == root->userdata) {
+         opal_hwloc_base_filter_cpus(topo);
+@@ -1813,7 +1831,9 @@ int opal_hwloc_base_cset2str(char *str, int len,
+         if (NULL == sum->available) {
+            return OPAL_ERROR;
+         }
+-        if (0 != hwloc_bitmap_isincluded(sum->available, cpuset)) {
++        if (0 != hwloc_bitmap_isincluded(sum->available, cpuset) &&
++            (!OPAL_BINDING_POLICY_IS_SET(binding) ||
++             1 != opal_hwloc_base_get_nbobjs_by_type(topo, opal_hwloc_base_opal_binding_policy2hwloc_obj(binding), 0, OPAL_HWLOC_LOGICAL))) {
+             return OPAL_ERR_NOT_BOUND;
+         }
+     }
+diff --git a/orte/mca/ess/base/ess_base_fns.c b/orte/mca/ess/base/ess_base_fns.c
+index ab12172..43d6c63 100644
+--- a/orte/mca/ess/base/ess_base_fns.c
++++ b/orte/mca/ess/base/ess_base_fns.c
+@@ -282,7 +282,7 @@ int orte_ess_base_proc_binding(void)
+         /* report the binding, if requested */
+         if (opal_hwloc_report_bindings || 4 < opal_output_get_verbosity(orte_ess_base_framework.framework_output)) {
+             char tmp1[1024], tmp2[1024];
+-            if (OPAL_ERR_NOT_BOUND == opal_hwloc_base_cset2str(tmp1, sizeof(tmp1), opal_hwloc_topology, mycpus)) {
++            if (OPAL_ERR_NOT_BOUND == opal_hwloc_base_cset2str(tmp1, sizeof(tmp1), opal_hwloc_topology, mycpus, OPAL_BIND_TO_NONE)) {
+                 opal_output(0, "MCW rank %d is not bound (or bound to all available processors)", ORTE_PROC_MY_NAME->vpid);
+             } else {
+                 opal_hwloc_base_cset2mapstr(tmp2, sizeof(tmp2), opal_hwloc_topology, mycpus);
+diff --git a/orte/mca/rmaps/base/help-orte-rmaps-base.txt b/orte/mca/rmaps/base/help-orte-rmaps-base.txt
+index ac89d7e..770a155 100644
+--- a/orte/mca/rmaps/base/help-orte-rmaps-base.txt
++++ b/orte/mca/rmaps/base/help-orte-rmaps-base.txt
+@@ -338,3 +338,11 @@ or provide more node locations in the file.
+ The request to map processes by distance could not be completed
+ because device to map near by was not specified. Please, use
+ rmaps_dist_device mca parameter to set it.
++
++[conflicting-policies]
++The requested mapping and binding policies makes little sense:
++
++  Mapping policy:  %s
++  Binding policy:  %s
++
++If this is what you really want to do, you can ignore this message.
+diff --git a/orte/mca/rmaps/base/rmaps_base_binding.c b/orte/mca/rmaps/base/rmaps_base_binding.c
+index cf35a81..9e67ba6 100644
+--- a/orte/mca/rmaps/base/rmaps_base_binding.c
++++ b/orte/mca/rmaps/base/rmaps_base_binding.c
+@@ -320,28 +320,50 @@ static int bind_downwards(orte_job_t *jdata,
+                 trg_obj->userdata = data;
+             }
+             data->num_bound++;
+-            /* error out if adding a proc would cause overload and that wasn't allowed,
+-             * and it wasn't a default binding policy (i.e., the user requested it)
++            /* before thinking of overloading a resource,
++             * try to find some not yet oversubscribed resource
+              */
+-            if (ncpus < data->num_bound &&
+-                !OPAL_BIND_OVERLOAD_ALLOWED(jdata->map->binding)) {
+-                if (OPAL_BINDING_POLICY_IS_SET(jdata->map->binding)) {
+-                    /* if the user specified a binding policy, then we cannot meet
+-                     * it since overload isn't allowed, so error out - have the
+-                     * message indicate that setting overload allowed will remove
+-                     * this restriction */
+-                    orte_show_help("help-orte-rmaps-base.txt", "rmaps:binding-overload", true,
+-                                   opal_hwloc_base_print_binding(map->binding), node->name,
+-                                   data->num_bound, ncpus);
+-                    hwloc_bitmap_free(totalcpuset);
+-                    return ORTE_ERR_SILENT;
+-                } else {
+-                    /* if we have the default binding policy, then just don't bind */
+-                    OPAL_SET_BINDING_POLICY(map->binding, OPAL_BIND_TO_NONE);
+-                    unbind_procs(jdata);
+-                    hwloc_bitmap_zero(totalcpuset);
+-                    return ORTE_SUCCESS;
++            if (ncpus < data->num_bound) {
++                hwloc_obj_t alt_obj;
++                unsigned int alt_ncpus = 0;
++                opal_hwloc_obj_data_t *alt_data = NULL;
++                assert (1 == hwloc_get_nbobjs_by_depth(node->topology, 0));
++                alt_obj = opal_hwloc_base_find_min_bound_target_under_obj(node->topology,
++                                                                          hwloc_get_root_obj(node->topology),
++                                                                          target, cache_level);
++                assert (NULL != alt_obj);
++                alt_ncpus = opal_hwloc_base_get_npus(node->topology, alt_obj);
++                if (NULL == (alt_data = (opal_hwloc_obj_data_t*)alt_obj->userdata)) {
++                    alt_data = OBJ_NEW(opal_hwloc_obj_data_t);
++                    alt_obj->userdata = alt_data;
++                }
++                /* error out if adding a proc would cause overload and that wasn't allowed,
++                 * and it wasn't a default binding policy (i.e., the user requested it)
++                 */
++                if (!OPAL_BIND_OVERLOAD_ALLOWED(jdata->map->binding)) {
++                    if (alt_ncpus < alt_data->num_bound) {
++                        if (OPAL_BINDING_POLICY_IS_SET(jdata->map->binding)) {
++                            /* if the user specified a binding policy, then we cannot meet
++                             * it since overload isn't allowed, so error out - have the
++                             * message indicate that setting overload allowed will remove
++                             * this restriction */
++                            orte_show_help("help-orte-rmaps-base.txt", "rmaps:binding-overload", true,
++                                           opal_hwloc_base_print_binding(map->binding), node->name,
++                                           data->num_bound, ncpus);
++                            hwloc_bitmap_free(totalcpuset);
++                            return ORTE_ERR_SILENT;
++                        } else {
++                            /* if we have the default binding policy, then just don't bind */
++                            OPAL_SET_BINDING_POLICY(map->binding, OPAL_BIND_TO_NONE);
++                            unbind_procs(jdata);
++                            hwloc_bitmap_zero(totalcpuset);
++                            return ORTE_SUCCESS;
++                        }
++                    }
+                 }
++                alt_data->num_bound++;
++                data->num_bound--;
++                trg_obj = alt_obj;
+             }
+             /* bind the proc here */
+             cpus = opal_hwloc_base_get_available_cpus(node->topology, trg_obj);
+@@ -363,7 +385,7 @@ static int bind_downwards(orte_job_t *jdata,
+         if (4 < opal_output_get_verbosity(orte_rmaps_base_framework.framework_output)) {
+             char tmp1[1024], tmp2[1024];
+             if (OPAL_ERR_NOT_BOUND == opal_hwloc_base_cset2str(tmp1, sizeof(tmp1),
+-                                                               node->topology, totalcpuset)) {
++                                                               node->topology, totalcpuset, OPAL_BIND_TO_NONE)) {
+                 opal_output(orte_rmaps_base_framework.framework_output,
+                             "%s PROC %s ON %s IS NOT BOUND",
+                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+diff --git a/orte/mca/rmaps/base/rmaps_base_frame.c b/orte/mca/rmaps/base/rmaps_base_frame.c
+index d11658c..105134c 100644
+--- a/orte/mca/rmaps/base/rmaps_base_frame.c
++++ b/orte/mca/rmaps/base/rmaps_base_frame.c
+@@ -504,6 +504,15 @@ static int orte_rmaps_base_open(mca_base_open_flag_t flags)
+         opal_hwloc_binding_policy |= OPAL_BIND_ALLOW_OVERLOAD;
+     }
+ 
++    if (ORTE_GET_MAPPING_DIRECTIVE(orte_rmaps_base.mapping) &&
++        OPAL_BINDING_POLICY_IS_SET(opal_hwloc_binding_policy) &&
++        (ORTE_GET_MAPPING_POLICY(orte_rmaps_base.mapping) >
++         OPAL_GET_BINDING_POLICY(opal_hwloc_binding_policy))) {
++        orte_show_help("help-orte-rmaps-base.txt", "conflicting-policies", true,
++                       orte_rmaps_base_print_mapping(orte_rmaps_base.mapping),
++                       opal_hwloc_base_print_binding(opal_hwloc_binding_policy));
++    }
++
+     /* should we display a detailed (developer-quality) version of the map after determining it? */
+     if (rmaps_base_display_devel_map) {
+         orte_rmaps_base.display_map = true;
+diff --git a/orte/mca/rtc/hwloc/rtc_hwloc.c b/orte/mca/rtc/hwloc/rtc_hwloc.c
+index 91cb183..0d5254f 100644
+--- a/orte/mca/rtc/hwloc/rtc_hwloc.c
++++ b/orte/mca/rtc/hwloc/rtc_hwloc.c
+@@ -214,7 +214,7 @@ static void set(orte_job_t *jobdat,
+                 opal_output(0, "MCW rank %d is not bound",
+                             child->name.vpid);
+             } else {
+-                if (OPAL_ERR_NOT_BOUND == opal_hwloc_base_cset2str(tmp1, sizeof(tmp1), opal_hwloc_topology, mycpus)) {
++                if (OPAL_ERR_NOT_BOUND == opal_hwloc_base_cset2str(tmp1, sizeof(tmp1), opal_hwloc_topology, mycpus, jobdat->map->binding)) {
+                     opal_output(0, "MCW rank %d is not bound (or bound to all available processors)", child->name.vpid);
+                 } else {
+                     opal_hwloc_base_cset2mapstr(tmp2, sizeof(tmp2), opal_hwloc_topology, mycpus);
+diff --git a/orte/runtime/data_type_support/orte_dt_print_fns.c b/orte/runtime/data_type_support/orte_dt_print_fns.c
+index 9bf84f4..c77baa7 100644
+--- a/orte/runtime/data_type_support/orte_dt_print_fns.c
++++ b/orte/runtime/data_type_support/orte_dt_print_fns.c
+@@ -477,7 +477,7 @@ int orte_dt_print_proc(char **output, char *prefix, orte_proc_t *src, opal_data_
+             NULL != src->node->topology) {
+             mycpus = hwloc_bitmap_alloc();
+             hwloc_bitmap_list_sscanf(mycpus, cpu_bitmap);
+-            if (OPAL_ERR_NOT_BOUND == opal_hwloc_base_cset2str(tmp1, sizeof(tmp1), src->node->topology, mycpus)) {
++            if (OPAL_ERR_NOT_BOUND == opal_hwloc_base_cset2str(tmp1, sizeof(tmp1), src->node->topology, mycpus, OPAL_BIND_TO_NONE)) {
+                 str = strdup("UNBOUND");
+             } else {
+                 opal_hwloc_base_cset2mapstr(tmp2, sizeof(tmp2), src->node->topology, mycpus);
+

@@ -1,0 +1,111 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title></title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<meta content="text/html;charset=us-ascii" http-equiv="Content-Type">
+<title></title>
+<br>
+Attached is some error output from my tests of 1-sided message passing,
+plus my info file.&nbsp; Below are two copies of a simple fortran subroutine
+that mimics mpi_allgatherv using&nbsp; mpi-get calls.&nbsp; The top version
+fails, the bottom runs OK.&nbsp; It seems clear from these examples, plus
+the 'self_send' phrases in the error output, that there is a problem
+internally with a processor sending data to itself.&nbsp; I know that your
+'mpi_get' implementation is simply a wrapper around 'send/recv' calls,
+so clearly this shouldn't happen.&nbsp; However, the<br>
+problem does not happen in all cases; I tried to duplicate it in a
+simple stand-alone program with mpi_get calls and was unable to make it
+fail.&nbsp; Go figure.<br>
+<br>
+Tom<br>
+<br>
+<br>
+***************&nbsp; This version fails, producing the error output
+attached ***********<br>
+<br>
+&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; subroutine allgatherv_get(xrma,ijsiz,ijstrt,xx,iwinget)<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; use mpinog<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; implicit none<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; real xrma(*) , xx(*)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer ijsiz(nproc) , ijstrt(nproc)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer iwinget , ierr , msgsize , j , nn,i<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; itarget_disp = 0<br>
+!<br>
+! iwinget is 'handle' to array 'xrma'<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_win_fence(0,iwinget,ierr)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; do 200 j = 1,nproc<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nn = ijstrt(j) + 1<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; msgsize = ijsiz(j)<br>
+!<br>
+! 'get' data from RMA window<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_get(xx(nn),msgsize,mpireal,j-1,itarget_disp,msgsize,<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mpireal,iwinget,ierr)<br>
+!<br>
+&nbsp; 200 continue<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_win_fence(0,iwinget,ierr)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; end<br>
+&nbsp;&nbsp; <br>
+<br>
+****************&nbsp; This version runs &nbsp; *****************************<br>
+<br>
+&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; subroutine allgatherv_get(xrma,ijsiz,ijstrt,xx,iwinget)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; use mpinog<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; implicit none<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; real xrma(*) , xx(*)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer ijsiz(nproc) , ijstrt(nproc)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer iwinget , ierr , msgsize , j , nn,i<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; itarget_disp = 0<br>
+!<br>
+! 'iwinget 'is 'handle' to array 'xrma'<br>
+! 'ir' is rank+1<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_win_fence(0,iwinget,ierr)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; do 200 j = 1,nproc<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nn = ijstrt(j) + 1<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; msgsize = ijsiz(j)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if(ir.ne.j)then<br>
+!<br>
+! if 'off-processor' then 'get' data from RMA window<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_get(xx(nn),msgsize,mpireal,j-1,itarget_disp,msgsize,<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mpireal,iwinget,ierr)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; else<br>
+!<br>
+! for 'on-processor case, bypass MPI and do direct memory-memory copies<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; do 120 i = 1,msgsize<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; xx(i+ijstrt(j)) = xrma(i)<br>
+&nbsp; 120&nbsp;&nbsp;&nbsp;&nbsp; continue<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; endif<br>
+!<br>
+&nbsp; 200 continue<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_win_fence(0,iwinget,ierr)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; end<br>
+<br>
+</body>
+</html>
+

@@ -1,0 +1,223 @@
+Hi Jordy,<br><br>I don&#39;t think this part caused the problem. For fortran, it doesn&#39;t matter if the pointer is NULL as long as the count requested from the processor is 0. Actually I tested the code and it passed this part without problem. I believe it aborted at MPI_FILE_SET_VIEW part.<br>
+<br>Just curious, how does C handle the case that we need to collect data in array q but only part of the processors has q with a length greater than 0?<br><br>Thanks for your reply,<br>Kan<br><br><br><br><br><div class="gmail_quote">
+On Wed, Feb 24, 2010 at 2:29 AM, jody <span dir="ltr">&lt;<a href="mailto:jody.xha@gmail.com">jody.xha@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Hi<br>
+I know nearly nothing about fortran<br>
+but it looks to me as  the pointer &#39;temp&#39; in<br>
+<div class="im"><br>
+&gt; call MPI_FILE_WRITE(FH, temp, COUNT, MPI_REAL8, STATUS, IERR)<br>
+<br>
+</div>is not defined (or perhaps NULL?) for all processors except processor 0 :<br>
+<div class="im"><br>
+&gt; if ( myid == 0 ) then<br>
+&gt;     count = 1<br>
+&gt;  else<br>
+&gt;     count = 0<br>
+&gt;  end if<br>
+&gt;<br>
+&gt; if (count .gt. 0) then<br>
+&gt;     allocate(temp(count))<br>
+&gt;     temp(1) = 2122010.0d0<br>
+&gt;  end if<br>
+<br>
+</div>In C/C++ something like this would almost certainly lead to a crash,<br>
+but i don&#39;t know if this would be the case in Fortran...<br>
+jody<br>
+<div><div></div><div class="h5"><br>
+<br>
+On Wed, Feb 24, 2010 at 4:38 AM, w k &lt;<a href="mailto:thuwk99@gmail.com">thuwk99@gmail.com</a>&gt; wrote:<br>
+&gt; Hello everyone,<br>
+&gt;<br>
+&gt;<br>
+&gt; I&#39;m trying to implement some functions in my code using parallel writing.<br>
+&gt; Each processor has an array, say q, whose length is single_no(could be zero<br>
+&gt; on some processors). I want to write q down to a common file, but the<br>
+&gt; elements of q would be scattered to their locations in this file. The<br>
+&gt; locations of the elements are described by a map. I wrote my testing code<br>
+&gt; according to an example in a MPI-2 tutorial which can be found here:<br>
+&gt; <a href="http://www.npaci.edu/ahm2002/ahm_ppt/Parallel_IO_MPI_2.ppt" target="_blank">www.npaci.edu/ahm2002/ahm_ppt/Parallel_IO_MPI_2.ppt</a>. This way of writing is<br>
+&gt; called &quot;Accessing Irregularly Distributed Arrays&quot; in this tutorial and the<br>
+&gt; example is given in page 42.<br>
+&gt;<br>
+&gt; I tested my code with mvapich and got the result as expected. But when I<br>
+&gt; tested it with openmpi, it didn&#39;t work. I tried the version 1.2.8 and 1.4<br>
+&gt; and both didn&#39;t work. I tried two clusters. Both of them are intel chips<br>
+&gt; (woodcrest and nehalem), DDR infiniband with Linux system. I got some error<br>
+&gt; message like<br>
+&gt;<br>
+&gt; +++++++++++++++++++++++++++++++++++++++++++++++++++<br>
+&gt; [n0883:08251] *** Process received signal ***<br>
+&gt; [n0883:08249] *** Process received signal ***<br>
+&gt; [n0883:08249] Signal: Segmentation fault (11)<br>
+&gt; [n0883:08249] Signal code: Address not mapped (1)<br>
+&gt; [n0883:08249] Failing at address: (nil)<br>
+&gt; [n0883:08251] Signal: Segmentation fault (11)<br>
+&gt; [n0883:08251] Signal code: Address not mapped (1)<br>
+&gt; [n0883:08251] Failing at address: (nil)<br>
+&gt; [n0883:08248] *** Process received signal ***<br>
+&gt; [n0883:08250] *** Process received signal ***<br>
+&gt; [n0883:08248] Signal: Segmentation fault (11)<br>
+&gt; [n0883:08248] Signal code: Address not mapped (1)<br>
+&gt; [n0883:08248] Failing at address: (nil)<br>
+&gt; [n0883:08250] Signal: Segmentation fault (11)<br>
+&gt; [n0883:08250] Signal code: Address not mapped (1)<br>
+&gt; [n0883:08250] Failing at address: (nil)<br>
+&gt; [n0883:08251] [ 0] /lib64/libpthread.so.0 [0x2b4f0a2f0d60]<br>
+&gt; +++++++++++++++++++++++++++++++++++++++++++++++++++<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; My testing code is here:<br>
+&gt;<br>
+&gt; ===========================================================================================================<br>
+&gt; program test_MPI_write_adv2<br>
+&gt;<br>
+&gt;<br>
+&gt;   !-- Template for any mpi program<br>
+&gt;<br>
+&gt;   implicit none<br>
+&gt;<br>
+&gt;   !--Include the mpi header file<br>
+&gt;   include &#39;mpif.h&#39;              ! --&gt; Required statement<br>
+&gt;<br>
+&gt;   !--Declare all variables and arrays.<br>
+&gt;   integer :: fh, ierr, myid, numprocs, itag, etype, filetype, info<br>
+&gt;   integer :: status(MPI_STATUS_SIZE)<br>
+&gt;   integer :: irc, ip<br>
+&gt;   integer(kind=mpi_offset_kind) :: offset, disp<br>
+&gt;   integer :: i, j, k<br>
+&gt;<br>
+&gt;   integer :: num<br>
+&gt;<br>
+&gt;   character(len=64) :: filename<br>
+&gt;<br>
+&gt;   real(8), pointer :: q(:), temp(:)<br>
+&gt;   integer, pointer :: map(:)<br>
+&gt;   integer :: single_no, count<br>
+&gt;<br>
+&gt;<br>
+&gt;   !--Initialize MPI<br>
+&gt;   call MPI_INIT( ierr )         ! --&gt; Required statement<br>
+&gt;<br>
+&gt;   !--Who am I? --- get my rank=myid<br>
+&gt;   call MPI_COMM_RANK( MPI_COMM_WORLD, myid, ierr )<br>
+&gt;<br>
+&gt;   !--How many processes in the global group?<br>
+&gt;   call MPI_COMM_SIZE( MPI_COMM_WORLD, numprocs, ierr )<br>
+&gt;<br>
+&gt;   if ( myid == 0 ) then<br>
+&gt;      single_no = 4<br>
+&gt;   elseif ( myid == 1 ) then<br>
+&gt;      single_no = 2<br>
+&gt;   elseif ( myid == 2 ) then<br>
+&gt;      single_no = 2<br>
+&gt;   elseif ( myid == 3 ) then<br>
+&gt;      single_no = 3<br>
+&gt;   else<br>
+&gt;      single_no = 0<br>
+&gt;   end if<br>
+&gt;<br>
+&gt;   if (single_no .gt. 0) allocate(map(single_no))<br>
+&gt;<br>
+&gt;   if ( myid == 0 ) then<br>
+&gt;      map = (/ 0, 2, 5, 6 /)<br>
+&gt;   elseif ( myid == 1 ) then<br>
+&gt;      map = (/ 1, 4 /)<br>
+&gt;   elseif ( myid == 2 ) then<br>
+&gt;      map = (/ 3, 9 /)<br>
+&gt;   elseif ( myid == 3 ) then<br>
+&gt;      map = (/ 7, 8, 10 /)<br>
+&gt;   end if<br>
+&gt;<br>
+&gt;   if (single_no .gt. 0) allocate(q(single_no))<br>
+&gt;<br>
+&gt;   if (single_no .gt. 0) then<br>
+&gt;      do i = 1,single_no<br>
+&gt;         q(i) = dble(myid+1)*100.0d0 + dble(map(i)+1)<br>
+&gt;      end do<br>
+&gt;   end if<br>
+&gt;<br>
+&gt;   if (single_no .gt. 0) map = map + 1<br>
+&gt;<br>
+&gt;   if ( myid == 0 ) then<br>
+&gt;      count = 1<br>
+&gt;   else<br>
+&gt;      count = 0<br>
+&gt;   end if<br>
+&gt;<br>
+&gt;   if (count .gt. 0) then<br>
+&gt;      allocate(temp(count))<br>
+&gt;      temp(1) = 2122010.0d0<br>
+&gt;   end if<br>
+&gt;<br>
+&gt;   write(filename,&#39;(a)&#39;) &#39;test_write.bin&#39;<br>
+&gt;<br>
+&gt;   call MPI_FILE_OPEN(MPI_COMM_WORLD, filename,<br>
+&gt; MPI_MODE_RDWR+MPI_MODE_CREATE, MPI_INFO_NULL, fh, ierr)<br>
+&gt;<br>
+&gt;   call MPI_FILE_WRITE(FH, temp, COUNT, MPI_REAL8, STATUS, IERR)<br>
+&gt;<br>
+&gt;   call MPI_TYPE_CREATE_INDEXED_BLOCK(single_no, 1, map,<br>
+&gt; MPI_DOUBLE_PRECISION, filetype, ierr)<br>
+&gt;   call MPI_TYPE_COMMIT(filetype, ierr)<br>
+&gt;   disp = 0<br>
+&gt;   call MPI_FILE_SET_VIEW(fh, disp, MPI_DOUBLE_PRECISION, filetype, &#39;native&#39;,<br>
+&gt; MPI_INFO_NULL, ierr)<br>
+&gt;   call MPI_FILE_WRITE_ALL(fh, q, single_no, MPI_DOUBLE_PRECISION, status,<br>
+&gt; ierr)<br>
+&gt;   call MPI_FILE_CLOSE(fh, ierr)<br>
+&gt;<br>
+&gt;<br>
+&gt;   if (single_no .gt. 0) deallocate(map)<br>
+&gt;<br>
+&gt;   if (single_no .gt. 0) deallocate(q)<br>
+&gt;<br>
+&gt;   if (count .gt. 0) deallocate(temp)<br>
+&gt;<br>
+&gt;   !--Finilize MPI<br>
+&gt;   call MPI_FINALIZE(irc)        ! ---&gt; Required statement<br>
+&gt;<br>
+&gt;   stop<br>
+&gt;<br>
+&gt;<br>
+&gt; end program test_MPI_write_adv2<br>
+&gt; ===========================================================================================================<br>
+&gt;<br>
+&gt;<br>
+&gt; The expected result is (should be in binary but the values are as follows) :<br>
+&gt;<br>
+&gt;    2122010.00000000<br>
+&gt;    101.000000000000<br>
+&gt;    202.000000000000<br>
+&gt;    103.000000000000<br>
+&gt;    304.000000000000<br>
+&gt;    205.000000000000<br>
+&gt;    106.000000000000<br>
+&gt;    107.000000000000<br>
+&gt;    408.000000000000<br>
+&gt;    409.000000000000<br>
+&gt;    310.000000000000<br>
+&gt;    411.000000000000<br>
+&gt;<br>
+&gt;<br>
+&gt; Can anyone help me on this problem?<br>
+&gt;<br>
+&gt;<br>
+&gt; Thanks a lot,<br>
+&gt; Kan<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+</div></div>&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br>
+

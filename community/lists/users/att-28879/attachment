@@ -1,0 +1,284 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    your program works fine on my environment.<br>
+    <br>
+    this is typical of a firewall running on your host(s), can you
+    double check that ?<br>
+    <br>
+    a simple way to do that is to<br>
+    10.10.10.11# nc -l 1024<br>
+    <br>
+    and on the other node<br>
+    echo ahah | nc 10.10.10.11 1024<br>
+    <br>
+    the first command should print "ahah" unless the host is unreachable
+    and/or the tcp connection is denied by the firewall.<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <br>
+    <div class="moz-cite-prefix">On 4/4/2016 9:44 AM, dpchoudh . wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CAHXxYDhLzTFDrYtBhEqiH8Amd0taDDXi5=mqokGXFs2ypeQbrQ@mail.gmail.com"
+      type="cite">
+      <div dir="ltr">
+        <div>
+          <div>
+            <div>
+              <div>
+                <div>Hello Gilles<br>
+                  <br>
+                </div>
+                Thanks for your help.<br>
+                <br>
+              </div>
+              My question was more of a sanity check on myself. That
+              little program I sent looked correct to me; do you see
+              anything wrong with it?<br>
+              <br>
+            </div>
+            What I am running on my setup is an instrumented OMPI stack,
+            taken from git HEAD, in an attempt to understand how some of
+            the internals work. If you think the code is correct, it is
+            quite possible that one of those 'instrumentations' is
+            causing this.<br>
+            <br>
+          </div>
+          And BTW, adding -mca pml ob1 makes the code hang at MPI_Send
+          (as opposed to MPI_Recv())<br>
+          <br>
+          [smallMPI:51673] mca: bml: Using tcp btl for send to
+          [[51894,1],1] on node 10.10.10.11<br>
+          [smallMPI:51673] mca: bml: Using tcp btl for send to
+          [[51894,1],1] on node 10.10.10.11<br>
+          [smallMPI:51673] mca: bml: Using tcp btl for send to
+          [[51894,1],1] on node 10.10.10.11<br>
+          [smallMPI:51673] mca: bml: Using tcp btl for send to
+          [[51894,1],1] on node 10.10.10.11<br>
+          [smallMPI:51673] btl: tcp: attempting to connect() to
+          [[51894,1],1] address 10.10.10.11 on port 1024 &lt;--- Hangs
+          here<br>
+          <br>
+        </div>
+        But 10.10.10.11 is pingable:<br>
+        [durga@smallMPI ~]$ ping bigMPI<br>
+        PING bigMPI (10.10.10.11) 56(84) bytes of data.<br>
+        64 bytes from bigMPI (10.10.10.11): icmp_seq=1 ttl=64 time=0.247
+        ms<br>
+        <div><br>
+        </div>
+      </div>
+      <div class="gmail_extra"><br clear="all">
+        <div>
+          <div class="gmail_signature">
+            <div dir="ltr">
+              <div>We learn from history that we never learn from
+                history.<br>
+              </div>
+            </div>
+          </div>
+        </div>
+        <br>
+        <div class="gmail_quote">On Sun, Apr 3, 2016 at 8:04 PM, Gilles
+          Gouaillardet <span dir="ltr">&lt;<a moz-do-not-send="true"
+              href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span>
+          wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0
+            .8ex;border-left:1px #ccc solid;padding-left:1ex">
+            <div bgcolor="#FFFFFF" text="#000000"> Hi,<br>
+              <br>
+              per a previous message, can you give a try to<br>
+              mpirun -np 2 -hostfile ~/hostfile -mca btl self,tcp --mca
+              pml ob1 ./mpitest<br>
+              <br>
+              if it still hangs, the issue could be OpenMPI think some
+              subnets are reachable but they are not.<br>
+              <br>
+              for diagnostic : <br>
+              mpirun --mca btl_base_verbose 100 ...<br>
+              <br>
+              you can explicitly include/exclude subnets with<br>
+              --mca btl_tcp_if_include xxx<br>
+              or<br>
+              --mca btl_tcp_if_exclude yyy<br>
+              <br>
+              for example,<br>
+              mpirun --mca btl_btp_if_include <a moz-do-not-send="true"
+                href="http://192.168.0.0/24" target="_blank">192.168.0.0/24</a>
+              -np 2 -hostfile ~/hostfile --mca btl self,tcp --mca pml
+              ob1 ./mpitest<br>
+              should do the trick<br>
+              <br>
+              Cheers,<br>
+              <br>
+              Gilles
+              <div>
+                <div class="h5"><br>
+                  <br>
+                  <br>
+                  <br>
+                  <div>On 4/4/2016 8:32 AM, dpchoudh . wrote:<br>
+                  </div>
+                </div>
+              </div>
+              <blockquote type="cite">
+                <div>
+                  <div class="h5">
+                    <div dir="ltr">
+                      <div>
+                        <div>
+                          <div>
+                            <div>
+                              <div>
+                                <div>Hello all<br>
+                                  <br>
+                                </div>
+                                I don't mean to be competing for the
+                                'silliest question of the year award',
+                                but I can't figure this out on my own:<br>
+                                <br>
+                              </div>
+                              My 'cluster' has 2 machines, bigMPI and
+                              smallMPI. They are connected via several
+                              (types of) networks and the connectivity
+                              is OK.<br>
+                              <br>
+                            </div>
+                            In this setup, the following program hangs
+                            after printing<br>
+                            <br>
+                            Hello world from processor smallMPI, rank 0
+                            out of 2 processors<br>
+                            Hello world from processor bigMPI, rank 1
+                            out of 2 processors<br>
+                            smallMPI sent haha!<br>
+                            <br>
+                            <br>
+                          </div>
+                          Obviously it is hanging at MPI_Recv(). But
+                          why? My command line is as follows, but this
+                          happens if I try openib BTL (instead of TCP)
+                          as well.<br>
+                          <br>
+                          mpirun -np 2 -hostfile ~/hostfile -mca btl
+                          self,tcp ./mpitest<br>
+                          <br>
+                        </div>
+                        It must be something *really* trivial, but I am
+                        drawing a blank right now.<br>
+                        <br>
+                      </div>
+                      Please help!<br>
+                      <br>
+                      #include &lt;mpi.h&gt;<br>
+                      #include &lt;stdio.h&gt;<br>
+                      #include &lt;string.h&gt;<br>
+                      <br>
+                      int main(int argc, char** argv)<br>
+                      {<br>
+                          int world_size, world_rank, name_len;<br>
+                          char hostname[MPI_MAX_PROCESSOR_NAME], buf[8];<br>
+                      <br>
+                          MPI_Init(&amp;argc, &amp;argv);<br>
+                          MPI_Comm_size(MPI_COMM_WORLD,
+                      &amp;world_size);<br>
+                          MPI_Comm_rank(MPI_COMM_WORLD,
+                      &amp;world_rank);<br>
+                          MPI_Get_processor_name(hostname,
+                      &amp;name_len);<br>
+                          printf("Hello world from processor %s, rank %d
+                      out of %d processors\n", hostname, world_rank,
+                      world_size);<br>
+                          if (world_rank == 1)<br>
+                          {<br>
+                          MPI_Recv(buf, 6, MPI_CHAR, 0, 99,
+                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);<br>
+                          printf("%s received %s\n", hostname, buf);<br>
+                          }<br>
+                          else<br>
+                          {<br>
+                          strcpy(buf, "haha!");<br>
+                          MPI_Send(buf, 6, MPI_CHAR, 1, 99,
+                      MPI_COMM_WORLD);<br>
+                          printf("%s sent %s\n", hostname, buf);<br>
+                          }<br>
+                          MPI_Barrier(MPI_COMM_WORLD);<br>
+                          MPI_Finalize();<br>
+                          return 0;<br>
+                      }<br>
+                      <br>
+                      <div>
+                        <div>
+                          <div>
+                            <div>
+                              <div>
+                                <div>
+                                  <div>
+                                    <div><br>
+                                      <br clear="all">
+                                      <div>
+                                        <div>
+                                          <div dir="ltr">
+                                            <div>We learn from history
+                                              that we never learn from
+                                              history.<br>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <br>
+                    <fieldset></fieldset>
+                    <br>
+                  </div>
+                </div>
+                <pre>_______________________________________________
+users mailing list
+<a moz-do-not-send="true" href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" href="http://www.open-mpi.org/community/lists/users/2016/04/28876.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/04/28876.php</a></pre>
+              </blockquote>
+              <br>
+            </div>
+            <br>
+            _______________________________________________<br>
+            users mailing list<br>
+            <a moz-do-not-send="true" href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+            Subscription: <a moz-do-not-send="true"
+              href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+              rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+            Link to this post: <a moz-do-not-send="true"
+              href="http://www.open-mpi.org/community/lists/users/2016/04/28877.php"
+              rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/04/28877.php</a><br>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/04/28878.php">http://www.open-mpi.org/community/lists/users/2016/04/28878.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

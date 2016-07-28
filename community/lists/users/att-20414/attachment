@@ -1,0 +1,440 @@
+Sorry for delayed response - been on the road all day.<br><br>Usually we use the standard NetPipe, IMB, and other benchmarks to measure latency. IIRC, these are all point-to-point measurements - i.e., they measure the latency for a single process sending to one other process (typically on the order of a couple of microseconds). The tests may have multiple processes running, but they don&#39;t have one process receiving messages from multiple senders.<br>
+<br>You will, of course, see increased delays in that scenario just due to cycle time - we give you a message, but cannot give you another one until you return from our delivery callback. So the longer you spend in the callback, the slower we go.<br>
+<br>In one use-case I recently helped with, we had a &quot;harvesting&quot; thread that simply reaped the messages from the MPI callback and stuffed them into a multi-threaded processing queue. This minimized the MPI &quot;latency&quot;, but of course the overall thruput depended on the speed of the follow-on queue. In our case, we only had one process running on each node (like you), and had lots of cores on the node - so we cranked up the threads in the processing queue and rammed the data thru the pipe.<br>
+<br>Your design looks similar, so you might benefit from a similar approach. Just don&#39;t try to have multiple MPI callbacks each sitting in a separate thread as thread support in MPI isn&#39;t good - better to have a single thread handling the MPI stuff, and then push it into a queue that multiple threads can access.<br>
+<br>Anyway, glad that helped diagnose the issue.<br>Ralph<br><br><br><br><br><div class="gmail_quote">On Thu, Oct 4, 2012 at 6:55 AM, Hodge, Gary C <span dir="ltr">&lt;<a href="mailto:gary.c.hodge@lmco.com" target="_blank">gary.c.hodge@lmco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+
+
+
+<div link="blue" vlink="purple" lang="EN-US">
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">Once I read your comment, Ralph, about this being “orders of magnitude worse than anything we measure”, I knew it had to be our problem<u></u><u></u></span></p>
+
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d"><u></u> <u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">We already had some debug code in place to measure when we send and when we receive over MPI.  I turned this code on and ran with 12 slaves instead of 4.<u></u><u></u></span></p>
+
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">Our debug showed that once an SP does a send, it is received at the GP in less than 1 ms.   I then decided to take a close look at when each SP was sending
+ a message.<u></u><u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">It turns out that the first 9 slaves send out messages at very regular intervals, but the last 3 slaves have 200 - 600 ms delays in sending out a message.<u></u><u></u></span></p>
+
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">It could be that our SPs have a problem when many are running at once.  It is also interesting to note that the first 9 slaves run on the same blade chassis
+ as the GP and<u></u><u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">the last 3 SPs run on our second blade chassis.  I will later experiment with the placement of our SPs across chassis to see if this an important factor or
+ not.<u></u><u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d"><u></u> <u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">When I first reported this problem, I had only turned on debug in the receiving GP process.  The latency I was seeing then was the difference between when I
+ received a message<u></u><u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">from the 10<sup>th</sup> slave and when I received the last message from the 10<sup>th</sup> slave.  The time we use for our debug  comes from an MPI_Wtime
+ call.<u></u><u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d"><u></u> <u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">Ralph, for my future reference, could you share how many processes were sending to a single process in your testing, and what were the size of the messages
+ sent?<u></u><u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d"><u></u> <u></u></span></p>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">Hristo, thanks for your input, I had already spent a few days searching the faqs and tuning guides before posting.<u></u><u></u></span></p>
+
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d"><u></u> <u></u></span></p>
+<div>
+<div style="border:none;border-top:solid #b5c4df 1.0pt;padding:3.0pt 0in 0in 0in">
+<p class="MsoNormal"><b><span style="font-size:10.0pt;font-family:&quot;Tahoma&quot;,&quot;sans-serif&quot;">From:</span></b><span style="font-size:10.0pt;font-family:&quot;Tahoma&quot;,&quot;sans-serif&quot;"> <a href="mailto:users-bounces@open-mpi.org" target="_blank">users-bounces@open-mpi.org</a> [mailto:<a href="mailto:users-bounces@open-mpi.org" target="_blank">users-bounces@open-mpi.org</a>]
+<b>On Behalf Of </b>Ralph Castain<br>
+<b>Sent:</b> Wednesday, October 03, 2012 4:01 PM<br>
+<b>To:</b> Open MPI Users<br>
+<b>Subject:</b> Re: [OMPI users] EXTERNAL: Re: unacceptable latency in gathering process<u></u><u></u></span></p>
+</div>
+</div><div><div class="h5">
+<p class="MsoNormal"><u></u> <u></u></p>
+<p class="MsoNormal">Hmmm...you probably can&#39;t without digging down into the diagnostics.<u></u><u></u></p>
+<div>
+<p class="MsoNormal"><u></u> <u></u></p>
+</div>
+<div>
+<p class="MsoNormal">Perhaps we could help more if we had some idea how you are measuring this &quot;latency&quot;. I ask because that is orders of magnitude worse than anything we measure - so I suspect the problem is in your app (i.e., that the time you are measuring
+ is actually how long it takes you to get around to processing a message that was received some time ago).<u></u><u></u></p>
+<div>
+<p class="MsoNormal"><u></u> <u></u></p>
+</div>
+<div>
+<p class="MsoNormal"><u></u> <u></u></p>
+<div>
+<div>
+<p class="MsoNormal">On Oct 3, 2012, at 11:52 AM, &quot;Hodge, Gary C&quot; &lt;<a href="mailto:gary.c.hodge@lmco.com" target="_blank">gary.c.hodge@lmco.com</a>&gt; wrote:<u></u><u></u></p>
+</div>
+<p class="MsoNormal"><br>
+<br>
+<u></u><u></u></p>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d">how do I tell the difference between when the message was received and when the message was picked up in MPI_Test?</span><u></u><u></u></p>
+
+</div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;;color:#1f497d"> </span><u></u><u></u></p>
+</div>
+<div>
+<div style="border:none;border-top:solid #b5c4df 1.0pt;padding:3.0pt 0in 0in 0in">
+<div>
+<p class="MsoNormal"><b><span style="font-size:10.0pt;font-family:&quot;Tahoma&quot;,&quot;sans-serif&quot;">From:</span></b><span><span style="font-size:10.0pt;font-family:&quot;Tahoma&quot;,&quot;sans-serif&quot;"> </span></span><span style="font-size:10.0pt;font-family:&quot;Tahoma&quot;,&quot;sans-serif&quot;"><a href="mailto:users-bounces@open-mpi.org" target="_blank">users-bounces@open-mpi.org</a>
+ [mailto:<a href="mailto:users-" target="_blank">users-</a><a href="mailto:bounces@open-mpi.org" target="_blank">bounces@open-mpi.org</a>]<span> </span><b>On Behalf Of<span> </span></b>Ralph Castain<br>
+<b>Sent:</b><span> </span>Wednesday, October 03, 2012 1:00 PM<br>
+<b>To:</b><span> </span>Open MPI Users<br>
+<b>Subject:</b><span> </span>EXTERNAL: Re: [OMPI users] unacceptable latency in gathering process</span><u></u><u></u></p>
+</div>
+</div>
+</div>
+<div>
+<p class="MsoNormal"> <u></u><u></u></p>
+</div>
+<div>
+<p class="MsoNormal">Out of curiosity, have you logged the time when the SP called &quot;send&quot; and compared it to the time when the message was received, and when that message is picked up in MPI_Test? In other words, have you actually verified that the delay is
+ in the MPI library as opposed to in your application?<u></u><u></u></p>
+</div>
+<div>
+<div>
+<p class="MsoNormal"> <u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"> <u></u><u></u></p>
+</div>
+<div>
+<div>
+<div>
+<p class="MsoNormal">On Oct 3, 2012, at 9:40 AM, &quot;Hodge, Gary C&quot; &lt;<a href="mailto:gary.c.hodge@lmco.com" target="_blank"><span style="color:purple">gary.c.hodge@lmco.com</span></a>&gt; wrote:<u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<p class="MsoNormal"><br>
+<br>
+<br>
+<u></u><u></u></p>
+</div>
+<div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Hi all,</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">I am running on an IBM BladeCenter, using Open MPI 1.4.1, and opensm subnet manager for Infiniband</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Our application has real time requirements and it has recently been proven that it does not scale to meet future requirements.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Presently, I am re-organizing the application to process work in a more parallel manner then it does now.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Jobs arrive at the rate of 200 per second and are sub-divided into groups of objects by a master process (MP) on its own node.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">The MP then assigns the object groups to 20 slave processes (SP), each running on their own node, to do the expensive computational work in parallel.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">The SPs then send their results to a gatherer process (GP) on its own node that merges the results for the job and sends it onward for final processing.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">The highest latency for the last 1024 jobs that were processed is then written to a log file that is displayed by a GUI.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Each process uses the same controller method for sending and  receiving messages as follows:</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">For (each CPU that sends us input)</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">{</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">MPI_Irecv(….)</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">}</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">While (true)</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">{</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">                For (each CPU that sends us input)</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">{</span><u></u><u></u></p>
+</div>
+</div>
+<div style="margin-left:.5in">
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">MPI_Test(….)</span><u></u><u></u></p>
+</div>
+</div>
+<div style="margin-left:.5in">
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">If (message was received)</span><u></u><u></u></p>
+</div>
+</div>
+<div style="margin-left:.5in">
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">{</span><u></u><u></u></p>
+</div>
+</div>
+<div style="margin-left:.5in">
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">                Copy the message</span><u></u><u></u></p>
+</div>
+</div>
+<div style="margin-left:1.0in">
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Queue the copy to our input queue</span><u></u><u></u></p>
+</div>
+</div>
+<div style="margin-left:.5in">
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">                MPI_Irecv(…)</span><u></u><u></u></p>
+</div>
+</div>
+<div style="margin-left:.5in">
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">}</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">}</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">If (there are messages on our input queue)</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">{</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">                … process the FIRST message on queue (this may queue messages for output) ….</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">                For (each message on our output queue)</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">                {</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">                                MPI_Send(…)</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">                }</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal" style="text-indent:.5in"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">}             </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">}</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">My problem is that I do not meet our applications performance requirements for a job (~ 20 ms) until I reduce the number of SPs from 20 to 4 or less.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">I added some debug into the GP and found that there are never more than 14 messages received in the for loop that calls MPI_Test.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">The messages that were sent from the other 6 SPs will eventually arrive at the GP in a long stream after experiencing high latency (over 600 ms).</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Going forward, we need to handle more objects per job and will need to have more than 4 SPs to keep up.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">My thought is that I have to obey this 4 SPs to 1 GP ratio and create intermediate GPs to gather results from every 4 slaves.</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Is this a contention problem at the GP?</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Is there debugging or logging I can turn on in the MPI to prove that contention is occurring?</span><u></u><u></u></p>
+
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Can I configure MPI receive processing to improve upon the 4 to 1 ratio?</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Can I improve the controller method (listed above) to gain a performance improvement?</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Thanks for any suggestions.</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;">Gary Hodge</span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<div>
+<p class="MsoNormal"><span style="font-size:11.0pt;font-family:&quot;Calibri&quot;,&quot;sans-serif&quot;"> </span><u></u><u></u></p>
+</div>
+</div>
+<div>
+<p class="MsoNormal"><span style="font-size:13.5pt;font-family:&quot;Helvetica&quot;,&quot;sans-serif&quot;">_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank"><span style="color:purple">users@open-mpi.org</span></a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank"><span style="color:purple">http://www.open-mpi.org/mailman/listinfo.cgi/users</span></a></span><u></u><u></u></p>
+</div>
+</div>
+</div>
+<div>
+<p class="MsoNormal"> <u></u><u></u></p>
+</div>
+</div>
+<p class="MsoNormal"><span style="font-size:13.5pt;font-family:&quot;Helvetica&quot;,&quot;sans-serif&quot;">_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank"><span style="color:purple">users@open-mpi.org</span></a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank"><span style="color:purple">http://www.open-mpi.org/mailman/listinfo.cgi/users</span></a><u></u><u></u></span></p>
+</div>
+</div>
+<p class="MsoNormal"><u></u> <u></u></p>
+</div>
+</div>
+</div></div></div>
+</div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br>
+

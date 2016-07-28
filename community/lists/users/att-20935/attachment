@@ -1,0 +1,65 @@
+Hi Justin,<br><br>Quick grepping reveals several cuMemcpy calls in OpenMPI. Some of them are even synchronous, meaning stream0.<br><br>I think the best way of exploring this sort of behavior is to execute OpenMPI runtime (thanks to its open-source nature!) under debugger. Rebuild OpenMPI with -g -O0, add some initial sleep() into your app, such that this time would be sufficient to gdb-attach to one of MPI processes. Once attached, first put break on the beginning of your region of interest and then break on cuMemcpy and cuMemcpyAsync.<br>
+<br>Best,<br>- D.<br><br><div class="gmail_quote">2012/12/13 Justin Luitjens <span dir="ltr">&lt;<a href="mailto:jluitjens@nvidia.com" target="_blank">jluitjens@nvidia.com</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Hello,<br>
+<br>
+I&#39;m working on an application using OpenMPI with CUDA and GPUDirect.  I would like to get the MPI transfers to overlap with computation on the CUDA device.  To do this I need to ensure that all memory transfers do not go to stream 0.  In this application I have one step that performs an MPI_Alltoall operation.  Ideally I would like this Alltoall operation to be asynchronous.  Thus I have implemented my own Alltoall using Isend and Irecv.  Which can be found at the bottom of this email.<br>
+
+<br>
+The profiler shows that this operation has some very odd PCI-E traffic that I was hoping someone could explain and help me eliminate.  In this example NPES=2 and each process has its own M2090 GPU.  I am using cuda 5.0 and OpenMPI-1.7rc5.  The behavior I am seeing is the following.  Once the Isend loop occurs there is a sequence of DtoH followed by HtoD transfers.  These transfers are 256K in size and there are 28 of them that occur.  Each of these transfers are placed in stream0.  After this there are a few more small transfers also placed in stream0.  Finally when the 3rd loop occurs there are 2 DtoD transfers (this is the actual data being exchanged).<br>
+
+<br>
+Can anyone explain what all of the traffic ping-ponging back and forth between the host and device is?  Is this traffic necessary?<br>
+<br>
+Thanks,<br>
+Justin<br>
+<br>
+<br>
+uint64_t scatter_gather( uint128 * input_buffer, uint128 *output_buffer, uint128 *recv_buckets, int* send_sizes, int MAX_RECV_SIZE_PER_PE) {<br>
+<br>
+  std::vector&lt;MPI_Request&gt; srequest(NPES), rrequest(NPES);<br>
+<br>
+  //Start receives<br>
+  for(int p=0;p&lt;NPES;p++) {<br>
+    MPI_Irecv(recv_buckets+MAX_RECV_SIZE_PER_PE*p,MAX_RECV_SIZE_PER_PE,MPI_INT_128,p,0,MPI_COMM_WORLD,&amp;rrequest[p]);<br>
+  }<br>
+<br>
+  //Start sends<br>
+  int send_count=0;<br>
+  for(int p=0;p&lt;NPES;p++) {<br>
+    MPI_Isend(input_buffer+send_count,send_sizes[p],MPI_INT_128,p,0,MPI_COMM_WORLD,&amp;srequest[p]);<br>
+    send_count+=send_sizes[p];<br>
+  }<br>
+<br>
+  //Process outstanding receives<br>
+  int recv_count=0;<br>
+  for(int p=0;p&lt;NPES;p++) {<br>
+    MPI_Status status;<br>
+    MPI_Wait(&amp;rrequest[p],&amp;status);<br>
+    int count;<br>
+    MPI_Get_count(&amp;status,MPI_INT_128,&amp;count);<br>
+    assert(count&lt;MAX_RECV_SIZE_PER_PE);<br>
+    cudaMemcpy(output_buffer+recv_count,recv_buckets+MAX_RECV_SIZE_PER_PE*p,count*sizeof(uint128),cudaMemcpyDeviceToDevice);<br>
+    recv_count+=count;<br>
+  }<br>
+<br>
+  //Wait for outstanding sends<br>
+  for(int p=0;p&lt;NPES;p++) {<br>
+    MPI_Status status;<br>
+    MPI_Wait(&amp;srequest[p],&amp;status);<br>
+  }<br>
+  return recv_count;<br>
+}<br>
+<br>
+-----------------------------------------------------------------------------------<br>
+This email message is for the sole use of the intended recipient(s) and may contain<br>
+confidential information.  Any unauthorized review, use, disclosure or distribution<br>
+is prohibited.  If you are not the intended recipient, please contact the sender by<br>
+reply email and destroy all copies of the original message.<br>
+-----------------------------------------------------------------------------------<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br>
+

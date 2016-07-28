@@ -1,0 +1,181 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">The current version of Open MPI doesn't handle such situations. You either have to configure your NAT differently or try to get your hands on one of the NAT-aware versions as described here&nbsp;<a href="http://www-lipn.univ-paris13.fr/~coti/QosCosGrid/qcgompi.php">http://www-lipn.univ-paris13.fr/~coti/QosCosGrid/qcgompi.php</a>.<div><br></div><div>&nbsp; george.</div><div><br><div><div>On Oct 10, 2011, at 12:14 , (.-=Kiwi=-.) wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">I'm confused... my IPs right now are:<br><br>Computer 1 (192.168.31.2 internal / 210.1.1.39 external)<br>Computer 2 (192.168.31.3 internal / 210.1.1.40 external)<br>Computer 3 (210.1.1.137)<br><br>I want Computer 1 to launch mpirun and Computer 3 to do the task.<br>
+
+
+<br>I tried both these commands first on Computer 1 and then also on Computer 3:<br><br>ompi_info --mca btl_tcp_if_include "<a href="http://210.0.0.0/8" target="_blank">210.0.0.0/8</a>" --mca oob_tcp_if_include "<a href="http://210.0.0.0/8" target="_blank">210.0.0.0/8</a>" (didn't work, Computer 3 tries to answer to 192.168.31.2 instead of 210.1.1.39)<br>
+
+
+ompi_info --mca btl_tcp_if_include "<a href="http://210.1.1.0/8" target="_blank">210.1.1.0/8</a>" --mca oob_tcp_if_include "<a href="http://210.1.1.0/8" target="_blank">210.1.1.0/8</a>" (the same, still answering to the wrong IP).<br>
+
+
+<br>What am I doing wrong?<br clear="all"><br>---<br><br>
+<br><br><div class="gmail_quote">On Wed, Oct 5, 2011 at 8:08 PM, George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+The real solution is to evict the private addresses from both levels (MPI and ORTE). However, based on the ordering of the interfaces, I guess you cannot do it by name (eth0 has a private address on one side but a public one on the other).<br>
+
+
+
+<br>
+No panic! There is support for this.<br>
+<br>
+Look at the output of "ompi_info --param btw tcp" attached below:<br>
+<br>
+&gt; &nbsp;MCA btl: parameter "btl_tcp_if_include" (current value: &lt;none&gt;, data<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; source: default value)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Comma-delimited list of devices or CIDR notation of networks<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; to use for MPI communication (e.g., "eth0,eth1" or<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "<a href="http://192.168.0.0/16,10.1.4.0/24" target="_blank">192.168.0.0/16,10.1.4.0/24</a>"). &nbsp;Mutually exclusive with<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; btl_tcp_if_exclude.<br>
+&gt; &nbsp;MCA btl: parameter "btl_tcp_if_exclude" (current value: &lt;lo,sppp&gt;, data<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; source: default value)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Comma-delimited list of devices or CIDR notation of networks<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; to NOT use for MPI communication -- all devices not matching<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; these specifications will be used (e.g., "eth0,eth1" or<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "<a href="http://192.168.0.0/16,10.1.4.0/24" target="_blank">192.168.0.0/16,10.1.4.0/24</a>"). &nbsp;Mutually exclusive with<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; btl_tcp_if_include.<br>
+<br>
+You can use the [btl|oob]_tcp_if_[include|exclude] either with names or with IP ranges. Add the following to your mpirun:<br>
+<br>
+--mca btl_tcp_if_include "<a href="http://210.0.0.0/8" target="_blank">210.0.0.0/8</a>" --mca oob_tcp_if_include "<a href="http://210.0.0.0/8" target="_blank">210.0.0.0/8</a>"<br>
+<br>
+and everything should work in all cases.<br>
+<font color="#888888"><br>
+ &nbsp;george.<br>
+</font><div><div></div><div><br>
+On Oct 5, 2011, at 12:13 , Jeff Squyres wrote:<br>
+<br>
+&gt; Check out this FAQ entry:<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;<a href="http://www.open-mpi.org/faq/?category=tcp#tcp-selection" target="_blank">http://www.open-mpi.org/faq/?category=tcp#tcp-selection</a><br>
+&gt;<br>
+&gt; Note that there are btl_tcp_if_include / btl_tcp_if_exclude: these control MPI-level communications. &nbsp;There's also oob_tcp_if_include / oob_tcp_if_exclude (that take the same kinds of values as btl_tcp_if_include/exclude) that control OMPI's run-time environment communications.<br>
+
+
+
+&gt;<br>
+&gt;<br>
+&gt; On Oct 5, 2011, at 12:01 PM, (.-=Kiwi=-.) wrote:<br>
+&gt;<br>
+&gt;&gt; "OMPI always tries to use the lowest numbered address first - just a natural ordering."<br>
+&gt;&gt;<br>
+&gt;&gt; That doesn't seem to be the reason. We changed the private IPs to 212... (a higher number than the public 210... IPs) and still MPI tries to go to 212 afterwards.<br>
+&gt;&gt;<br>
+&gt;&gt; We're reading the oob_tcp and btl_tcp parameters but we're not sure how to do it.<br>
+&gt;&gt;<br>
+&gt;&gt; "But if hello world doesn't even run, then try running with "mpirun --mca oob_tcp_if_include &lt;the interface(s) you want to use&gt; ...", per Ralph's suggestion. &nbsp;If *that* doesn't work, also add "--mca btl_tcp_if_include ..." as well."<br>
+
+
+
+&gt;&gt;<br>
+&gt;&gt; We tried doing from Computer 1:<br>
+&gt;&gt;<br>
+&gt;&gt; orterun -mca oob_tcp_debug 1 -np 1 -host 212...3 ifconfig<br>
+&gt;&gt;<br>
+&gt;&gt; and everything was ok<br>
+&gt;&gt;<br>
+&gt;&gt; We tried doing from Computer 1:<br>
+&gt;&gt;<br>
+&gt;&gt; orterun -mca oob_tcp_debug 1 -np 1 -host 210...101 ifconfig<br>
+&gt;&gt;<br>
+&gt;&gt; and it says:<br>
+&gt;&gt;<br>
+&gt;&gt; There are no allocated resources for the application<br>
+&gt;&gt; &nbsp;ifconfig<br>
+&gt;&gt; that match the requested mapping:<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; Verify that you have mapped the allocated resources properly using the<br>
+&gt;&gt; --host or --hostfile specification.<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; A daemon (pid unknown) died unexpectedly on signal 1 &nbsp;while attempting to<br>
+&gt;&gt; launch so we are aborting. [...]<br>
+&gt;&gt;<br>
+&gt;&gt; Any other ideas?<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On Wed, Oct 5, 2011 at 1:54 AM, Ralph Castain &lt;<a href="mailto:rhc.openmpi@gmail.com" target="_blank">rhc.openmpi@gmail.com</a>&gt; wrote:<br>
+&gt;&gt; OMPI always tries to use the lowest numbered address first - just a natural ordering. You need to tell it to use just the public ones for this topology. Use the oob_tcp and btl_tcp parameters to do this. See "ompi_info --param oob tcp" and "ompi_info --param btl tcp" for the exact syntax.<br>
+
+
+
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; Sent from my iPad<br>
+&gt;&gt;<br>
+&gt;&gt; On Oct 4, 2011, at 10:21 AM, "(.-=Kiwi=-.)" &lt;<a href="mailto:heffeque@gmail.com" target="_blank">heffeque@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; We are constructing a set of computers with Open MPI and there's a small problem with mixing public and private IPs.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; We aren't sure about what's causing the problem or how to solve it.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; The files are shared thanks to NFS and we have a couple computers with private IPs and public IPs that we want them to send MPI work to some machines that have public IPs.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I'm going to try to describe with example IPs.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Computer 1 sees itself as eth0: &nbsp;172...2 &nbsp;but has a public IP assigned: &nbsp;210...2<br>
+&gt;&gt;&gt; Computer 2 sees itself as eth0: &nbsp;172...3 &nbsp;but has a public IP assigned: &nbsp;210...3<br>
+&gt;&gt;&gt; Computers outside the subnet directly have public IPs assigned: &nbsp;210...100+<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; The computers outside see Computer 1 and 2 only with 210... they can't see the 172... internal IPs.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; If an outside computer launches mpirun to Computer 1, it works ok.<br>
+&gt;&gt;&gt; If Computer 1 tries to launch mpirun to Computer 2 (with 172...) it also works ok (not with 210... because they don't know that that's their public IP, but that's not an issue).<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; The problem comes when Computer 1 or 2 try to launch mpirun to outside computers.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; We tried to check out what was happening and installed wireshark on an outside computer and it seems that the ssh part works ok (the ssh talk between 210...2 and 210...101 is ok), but after that the outside computer tries to send a TCP SYN package to 172...2 instead of 210...2 and the rest of the packets onward the same.<br>
+
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Is there a way to solve this problem?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I've read this ( <a href="http://www.open-mpi.org/community/lists/users/2009/11/11184.php" target="_blank">http://www.open-mpi.org/community/lists/users/2009/11/11184.php</a> ) but I'm not really sure what he's doing there.<br>
+
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; We have the option of plugging Computer 1 and Computer 2 directly to the switch that the outside computers are on, but we'd rather not because we'd prefer the computers to stay on the private network, but if there's no other way, I guess we can.<br>
+
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Can it be done without having to change the network topology?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thanks in advance.<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Jeff Squyres<br>
+&gt; <a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+&gt; For corporate legal information go to:<br>
+&gt; <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/users</blockquote></div><br></div></body></html>

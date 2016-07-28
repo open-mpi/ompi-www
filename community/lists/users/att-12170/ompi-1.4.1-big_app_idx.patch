@@ -1,0 +1,112 @@
+diff -ur openmpi-1.4.1/orte/mca/odls/base/odls_base_default_fns.c openmpi-1.4.1-new/orte/mca/odls/base/odls_base_default_fns.c
+--- openmpi-1.4.1/orte/mca/odls/base/odls_base_default_fns.c	2009-12-08 20:36:37.000000000 +0000
++++ openmpi-1.4.1-new/orte/mca/odls/base/odls_base_default_fns.c	2010-02-27 12:21:14.000000000 +0000
+@@ -74,7 +74,7 @@
+ #include "orte/mca/odls/base/base.h"
+ #include "orte/mca/odls/base/odls_private.h"
+ 
+-static int8_t *app_idx;
++static int32_t *app_idx;
+ 
+ /* IT IS CRITICAL THAT ANY CHANGE IN THE ORDER OF THE INFO PACKED IN
+  * THIS FUNCTION BE REFLECTED IN THE CONSTRUCT_CHILD_LIST PARSER BELOW
+@@ -1555,7 +1577,7 @@
+     nrank = 0;
+     opal_dss.pack(&buffer, &nrank, 1, ORTE_NODE_RANK);  /* node rank */
+     one8 = 0;
+-    opal_dss.pack(&buffer, &one8, 1, OPAL_INT8);  /* app_idx */
++    opal_dss.pack(&buffer, &one32, 1, OPAL_INT32);  /* app_idx */
+     jobdat->pmap = (opal_byte_object_t*)malloc(sizeof(opal_byte_object_t));
+     opal_dss.unload(&buffer, (void**)&jobdat->pmap->bytes, &jobdat->pmap->size);
+     OBJ_DESTRUCT(&buffer);
+diff -ur openmpi-1.4.1/orte/runtime/orte_globals.h openmpi-1.4.1-new/orte/runtime/orte_globals.h
+--- openmpi-1.4.1/orte/runtime/orte_globals.h	2009-12-08 20:36:44.000000000 +0000
++++ openmpi-1.4.1-new/orte/runtime/orte_globals.h	2010-02-27 12:30:20.000000000 +0000
+@@ -137,7 +137,7 @@
+     /** Parent object */
+     opal_object_t super;
+     /** Unique index when multiple apps per job */
+-    int8_t idx;
++    int32_t idx;
+     /** Absolute pathname of argv[0] */
+     char   *app;
+     /** Number of copies of this process that are to be launched */
+@@ -382,7 +382,7 @@
+     /* exit code */
+     orte_exit_code_t exit_code;
+     /* the app_context that generated this proc */
+-    int8_t app_idx;
++    int32_t app_idx;
+     /* a cpu list, if specified by the user */
+     char *slot_list;
+     /* pointer to the node where this proc is executing */
+diff -ur openmpi-1.4.1/orte/util/nidmap.c openmpi-1.4.1-new/orte/util/nidmap.c
+--- openmpi-1.4.1/orte/util/nidmap.c	2009-12-08 20:36:44.000000000 +0000
++++ openmpi-1.4.1-new/orte/util/nidmap.c	2010-02-27 12:23:18.000000000 +0000
+@@ -589,7 +589,7 @@
+     int32_t *nodes;
+     orte_proc_t **procs;
+     orte_vpid_t i;
+-    int8_t *tmp;
++    int32_t *tmp;
+     opal_buffer_t buf;
+     orte_local_rank_t *lrank;
+     orte_node_rank_t *nrank;
+@@ -645,11 +645,11 @@
+     free(nrank);
+     
+     /* transfer and pack the app_idx in one pack */
+-    tmp = (int8_t*)malloc(jdata->num_procs);
++    tmp = (int32_t*)malloc(jdata->num_procs * sizeof(int32_t));
+     for (i=0; i < jdata->num_procs; i++) {
+         tmp[i] = procs[i]->app_idx;
+     }
+-    if (ORTE_SUCCESS != (rc = opal_dss.pack(&buf, tmp, jdata->num_procs, OPAL_INT8))) {
++    if (ORTE_SUCCESS != (rc = opal_dss.pack(&buf, tmp, jdata->num_procs, OPAL_INT32))) {
+         ORTE_ERROR_LOG(rc);
+         return rc;
+     }
+@@ -664,7 +665,7 @@
+ 
+ 
+ int orte_util_decode_pidmap(opal_byte_object_t *bo, orte_vpid_t *nprocs,
+-                            opal_value_array_t *procs, int8_t **app_idx,
++                            opal_value_array_t *procs, int32_t **app_idx,
+                             char ***slot_str)
+ {
+     orte_vpid_t i, num_procs;
+@@ -672,7 +673,7 @@
+     int32_t *nodes;
+     orte_local_rank_t *local_rank;
+     orte_node_rank_t *node_rank;
+-    int8_t *idx;
++    int32_t *idx;
+     orte_std_cntr_t n;
+     opal_buffer_t buf;
+     int rc;
+@@ -746,10 +747,10 @@
+     }
+     
+     /* allocate memory for app_idx */
+-    idx = (int8_t*)malloc(num_procs);
++    idx = (int32_t*)malloc(num_procs * sizeof(int32_t));
+     /* unpack app_idx in one shot */
+     n=num_procs;
+-    if (ORTE_SUCCESS != (rc = opal_dss.unpack(&buf, idx, &n, OPAL_INT8))) {
++    if (ORTE_SUCCESS != (rc = opal_dss.unpack(&buf, idx, &n, OPAL_INT32))) {
+         ORTE_ERROR_LOG(rc);
+         return rc;
+     }
+diff -ur openmpi-1.4.1/orte/util/nidmap.h openmpi-1.4.1-new/orte/util/nidmap.h
+--- openmpi-1.4.1/orte/util/nidmap.h	2009-12-08 20:36:44.000000000 +0000
++++ openmpi-1.4.1-new/orte/util/nidmap.h	2010-02-27 11:59:52.000000000 +0000
+@@ -49,7 +49,7 @@
+ 
+ ORTE_DECLSPEC int orte_util_encode_pidmap(orte_job_t *jdata, opal_byte_object_t *boptr);
+ ORTE_DECLSPEC int orte_util_decode_pidmap(opal_byte_object_t *boptr, orte_vpid_t *num_procs,
+-                                          opal_value_array_t *procs, int8_t **app_idx,
++                                          opal_value_array_t *procs, int32_t **app_idx,
+                                           char ***slot_str);
+ 
+ 
+

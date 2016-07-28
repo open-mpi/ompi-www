@@ -1,0 +1,236 @@
+<div dir="ltr"><div class="gmail_quote"><div dir="ltr"><div><div><div><div><div><div><div><div><div>Ok, all, where to begin...<br><br></div>Perhaps I should start with the most pressing issue for me.  I need 64-bit indexing <br>
+</div><br>@Martin,<br>   you indicated that even if I get this up and running, the MPI library still uses signed 32-bit ints to count (your term), or index (my term) the recvbuffer lengths.  More concretely,<br>
+
+</div>in a call to MPI_Allgatherv( buffer, count, MPI_Integer, recvbuf, recv-count, displ, MPI_integer, MPI_COMM_WORLD, status, mpierr): count, recvcounts, and displs must be  32-bit integers, not 64-bit.  Actually, all I need is displs to hold 64-bit values...<br>
+
+
+</div>If this is true, then compiling OpenMPI this way is not a solution.  I&#39;ll have to restructure my code to collect 31-bit chunks...<br>Not that it matters, but I&#39;m not using DIRAC, but a custom code to compute circuit analyses.<br>
+
+<br></div>@Jeff,<br></div>  Interesting, your runtime behavior has a different error than mine.  You have problems with the passed variable tempInt, which would make sense for the reasons you gave.  However, my problem involves the fact that the local variable &quot;rank&quot; gets overwritten by a memory corruption after MPI_RECV is called.<br>
+
+<br></div><div>Re: config.log. I will try to have the admin guy recompile tomorrow and see if I can get the log for you.  <br></div><div><br></div>BTW, I&#39;m using the gcc 4.7.2 compiler suite on a Rocks 5.4 HPC cluster.  I use the options -m64 and -fdefault-integer-8<br>
+
+<br></div>Cheers,<br></div>--Jim<br><div><div><br></div></div></div><div class="HOEnZb"><div class="h5"><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, Oct 30, 2013 at 7:36 PM, Martin Siegert <span dir="ltr">&lt;<a href="mailto:siegert@sfu.ca" target="_blank">siegert@sfu.ca</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi Jim,<br>
+<br>
+I have quite a bit experience with compiling openmpi for dirac.<br>
+Here is what I use to configure openmpi:<br>
+<br>
+./configure --prefix=$instdir \<br>
+            --disable-silent-rules \<br>
+            --enable-mpirun-prefix-by-default \<br>
+            --with-threads=posix \<br>
+            --enable-cxx-exceptions \<br>
+            --with-tm=$torquedir \<br>
+            --with-wrapper-ldflags=&quot;-Wl,-rpath,${instdir}/lib&quot; \<br>
+            --with-openib \<br>
+            --with-hwloc=$hwlocdir \<br>
+            CC=gcc \<br>
+            CXX=g++ \<br>
+            FC=&quot;$FC&quot; \<br>
+            F77=&quot;$FC&quot; \<br>
+            CFLAGS=&quot;-O3&quot; \<br>
+            CXXFLAGS=&quot;-O3&quot; \<br>
+            FFLAGS=&quot;-O3 $I8FLAG&quot; \<br>
+            FCFLAGS=&quot;-O3 $I8FLAG&quot;<br>
+<br>
+You need to set FC to either ifort or gfortran (those are the two compilers<br>
+that I have used) and set I8FLAG to -fdefault-integer-8 for gfortran or<br>
+-i8 for ifort.<br>
+Set torquedir to the directory where torque is installed ($torquedir/lib<br>
+must contain libtorque.so), if you are running jobs under torque; otherwise<br>
+remove the --with-tm=... line.<br>
+Set hwlocdir to the directory where you have hwloc installed. You many not<br>
+need the -with-hwloc=... option because openmpi comes with a hwloc version<br>
+(I don&#39;t have experience with that because we install hwloc independently).<br>
+Set instdir to the directory where you what to install openmpi.<br>
+You may or may not need the --with-openib option depending on whether<br>
+you have an Infiniband interconnect.<br>
+<br>
+After configure/make/make install this so compiled version can be used<br>
+with dirac without changing the dirac source code.<br>
+(there is one caveat: you should make sure that all &quot;count&quot; variables<br>
+in MPI calls in dirac are smaller than 2^31-1. I have run into a few cases<br>
+when that is not the case; this problem can be overcome by replacing<br>
+MPI_Allreduce calls in dirac with a wrapper that calls MPI_Allreduce<br>
+repeatedly). This is what I use to setup dirac:<br>
+<br>
+export PATH=$instdir/bin<br>
+./setup --prefix=$diracinstdir \<br>
+        --fc=mpif90 \<br>
+        --cc=mpicc \<br>
+        --int64 \<br>
+        --explicit-libs=&quot;-lmkl_intel_ilp64 -lmkl_sequential -lmkl_core&quot;<br>
+<br>
+where $instdir is the directory where you installed openmpi from above.<br>
+<br>
+I would never use the so-compiled openmpi version for anything other<br>
+than dirac though. I am not saying that it cannot work (at a minimum<br>
+you need to compile Fortran programs with the appropriate I8FLAG),<br>
+but it is an unnecessary complication: I have not encountered a piece<br>
+of software other than dirac that requires this.<br>
+<br>
+Cheers,<br>
+Martin<br>
+<br>
+--<br>
+Martin Siegert<br>
+Head, Research Computing<br>
+WestGrid/ComputeCanada Site Lead<br>
+Simon Fraser University<br>
+Burnaby, British Columbia<br>
+Canada<br>
+<div><br>
+On Wed, Oct 30, 2013 at 06:00:56PM -0500, Jim Parker wrote:<br>
+&gt;<br>
+&gt;    Jeff,<br>
+&gt;      Here&#39;s what I know:<br>
+&gt;    1.  Checked FAQs.  Done<br>
+&gt;    2.  Version 1.6.5<br>
+&gt;    3. config.log file has been removed by the sysadmin...<br>
+&gt;    4. ompi_info -a from head node is in attached as headnode.out<br>
+&gt;    5. N/A<br>
+&gt;    6. compute node info in attached as compute-x-yy.out<br>
+&gt;    7. As discussed, local variables are being overwritten after calls to<br>
+&gt;    MPI_RECV from Fortran code<br>
+&gt;    8. ifconfig output from head node and computes listed as *-ifconfig.out<br>
+&gt;    Cheers,<br>
+&gt;    --Jim<br>
+&gt;<br>
+&gt;    On Wed, Oct 30, 2013 at 5:29 PM, Jeff Squyres (jsquyres)<br>
+</div><div>&gt;    &lt;[1]<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt;      Can you send the information listed here:<br>
+</div>&gt;          [2]<a href="http://www.open-mpi.org/community/help/" target="_blank">http://www.open-mpi.org/community/help/</a><br>
+&gt;<br>
+&gt;    On Oct 30, 2013, at 6:22 PM, Jim Parker &lt;[3]<a href="mailto:jimparker96313@gmail.com" target="_blank">jimparker96313@gmail.com</a>&gt;<br>
+<div>&gt;    wrote:<br>
+&gt;    &gt; Jeff and Ralph,<br>
+&gt;    &gt;   Ok, I downshifted to a helloWorld example (attached), bottom line<br>
+&gt;    after I hit the MPI_Recv call, my local variable (rank) gets borked.<br>
+&gt;    &gt;<br>
+&gt;    &gt; I have compiled with -m64 -fdefault-integer-8 and even have assigned<br>
+&gt;    kind=8 to the integers (which would be the preferred method in my case)<br>
+&gt;    &gt;<br>
+&gt;    &gt; Your help is appreciated.<br>
+&gt;    &gt;<br>
+&gt;    &gt; Cheers,<br>
+&gt;    &gt; --Jim<br>
+&gt;    &gt;<br>
+&gt;    &gt;<br>
+&gt;    &gt;<br>
+&gt;    &gt; On Wed, Oct 30, 2013 at 4:49 PM, Jeff Squyres (jsquyres)<br>
+</div>&gt;    &lt;[4]<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt; wrote:<br>
+&gt;    &gt; On Oct 30, 2013, at 4:35 PM, Jim Parker &lt;[5]<a href="mailto:jimparker96313@gmail.com" target="_blank">jimparker96313@gmail.com</a>&gt;<br>
+<div>&gt;    wrote:<br>
+&gt;    &gt;<br>
+&gt;    &gt; &gt;   I have recently built a cluster that uses the 64-bit indexing<br>
+&gt;    feature of OpenMPI following the directions at<br>
+&gt;    &gt; &gt;<br>
+</div>&gt;    [6]<a href="http://wiki.chem.vu.nl/dirac/index.php/How_to_build_MPI_libraries_fo" target="_blank">http://wiki.chem.vu.nl/dirac/index.php/How_to_build_MPI_libraries_fo</a><br>
+<div><div>&gt;    r_64-bit_integers<br>
+&gt;    &gt;<br>
+&gt;    &gt; That should be correct (i.e., passing -i8 in FFLAGS and FCFLAGS for<br>
+&gt;    OMPI 1.6.x).<br>
+&gt;    &gt;<br>
+&gt;    &gt; &gt; My question is what are the new prototypes for the MPI calls ?<br>
+&gt;    &gt; &gt; specifically<br>
+&gt;    &gt; &gt; MPI_RECV<br>
+&gt;    &gt; &gt; MPI_Allgathterv<br>
+&gt;    &gt;<br>
+&gt;    &gt; They&#39;re the same as they&#39;ve always been.<br>
+&gt;    &gt;<br>
+&gt;    &gt; The magic is that the -i8 flag tells the compiler &quot;make all Fortran<br>
+&gt;    INTEGERs be 8 bytes, not (the default) 4.&quot;  So Ralph&#39;s answer was<br>
+&gt;    correct in that all the MPI parameters are INTEGERs -- but you can tell<br>
+&gt;    the compiler that all INTEGERs are 8 bytes, not 4, and therefore get<br>
+&gt;    &quot;large&quot; integers.<br>
+&gt;    &gt;<br>
+&gt;    &gt; Note that this means that you need to compile your application with<br>
+&gt;    -i8, too.  That will make *your* INTEGERs also be 8 bytes, and then<br>
+&gt;    you&#39;ll match what Open MPI is doing.<br>
+&gt;    &gt;<br>
+&gt;    &gt; &gt; I&#39;m curious because some off my local variables get killed (set to<br>
+&gt;    null) upon my first call to MPI_RECV.  Typically, this is due (in<br>
+&gt;    Fortran) to someone not setting the &#39;status&#39; variable to an appropriate<br>
+&gt;    array size.<br>
+&gt;    &gt;<br>
+&gt;    &gt; If you didn&#39;t compile your application with -i8, this could well be<br>
+&gt;    because your application is treating INTEGERs as 4 bytes, but OMPI is<br>
+&gt;    treating INTEGERs as 8 bytes.  Nothing good can come from that.<br>
+&gt;    &gt;<br>
+&gt;    &gt; If you *did* compile your application with -i8 and you&#39;re seeing this<br>
+&gt;    kind of wonkyness, we should dig deeper and see what&#39;s going on.<br>
+&gt;    &gt;<br>
+&gt;    &gt; &gt; My review of mpif.h and mpi.h seem to indicate that the functions<br>
+&gt;    are defined as C int types and therefore , I assume, the coercion<br>
+&gt;    during the compile makes the library support 64-bit indexing.  ie. int<br>
+&gt;    -&gt; long int<br>
+&gt;    &gt;<br>
+&gt;    &gt; FWIW: We actually define a type MPI_Fint; its actual type is<br>
+&gt;    determined by configure (int or long int, IIRC).  When your Fortran<br>
+&gt;    code calls C, we use the MPI_Fint type for parameters, and so it will<br>
+&gt;    be either a 4 or 8 byte integer type.<br>
+&gt;    &gt;<br>
+&gt;    &gt; --<br>
+&gt;    &gt; Jeff Squyres<br>
+</div></div>&gt;    &gt; [7]<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+<div>&gt;    &gt; For corporate legal information go to:<br>
+</div>&gt;    [8]<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;    &gt;<br>
+&gt;    &gt; _______________________________________________<br>
+&gt;    &gt; users mailing list<br>
+&gt;    &gt; [9]<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;    &gt; [10]<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;    &gt;<br>
+&gt;<br>
+&gt;      &gt;<br>
+&gt;      &lt;mpi-test-64bit.tar.bz2&gt;____________________________________________<br>
+&gt;      ___<br>
+&gt;<br>
+&gt;    &gt; users mailing list<br>
+&gt;    &gt; [11]<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;    &gt; [12]<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;    --<br>
+&gt;    Jeff Squyres<br>
+&gt;    [13]<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+<div>&gt;    For corporate legal information go to:<br>
+</div>&gt;    [14]<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;    _______________________________________________<br>
+&gt;    users mailing list<br>
+&gt;    [15]<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;    [16]<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; References<br>
+&gt;<br>
+&gt;    1. mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+&gt;    2. <a href="http://www.open-mpi.org/community/help/" target="_blank">http://www.open-mpi.org/community/help/</a><br>
+&gt;    3. mailto:<a href="mailto:jimparker96313@gmail.com" target="_blank">jimparker96313@gmail.com</a><br>
+&gt;    4. mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+&gt;    5. mailto:<a href="mailto:jimparker96313@gmail.com" target="_blank">jimparker96313@gmail.com</a><br>
+&gt;    6. <a href="http://wiki.chem.vu.nl/dirac/index.php/How_to_build_MPI_libraries_for_64-bit_integers" target="_blank">http://wiki.chem.vu.nl/dirac/index.php/How_to_build_MPI_libraries_for_64-bit_integers</a><br>
+&gt;    7. mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+&gt;    8. <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;    9. mailto:<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;   10. <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;   11. mailto:<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;   12. <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;   13. mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+&gt;   14. <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;   15. mailto:<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt;   16. <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<div><div><br>
+<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br></div>
+</div></div></div><br></div>
+

@@ -1,0 +1,118 @@
+Correct, I am using 1.2.6 and not running a persistent deamon (thank you for the link Pak by the way).<br>However, in the Client/Server test thread I&#39;m showing a complete example where I tried to run both applications through the same mpirun command and still having an internal error:<br>
+<a href="http://www.open-mpi.org/community/lists/users/2008/04/5537.php">http://www.open-mpi.org/community/lists/users/2008/04/5537.php</a><br><br><div class="gmail_quote">On Mon, May 5, 2008 at 10:18 AM, Ralph Castain &lt;<a href="mailto:rhc@lanl.gov">rhc@lanl.gov</a>&gt; wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">I assume you are using some variant of OMPI 1.2?<br>
+<br>
+When last I checked, which admittedly was quite a while ago, this worked on<br>
+the 1.2.x series. However, I note something here that may be a problem. In<br>
+the 1.2.x series, we do not have a global publish/lookup service - the<br>
+application doing the publish must be launched by the same mpirun as the<br>
+application doing the lookup.<br>
+<br>
+The code below only does the lookup, and appears to be asking that you<br>
+provide some server name. I assume you are somehow looking up the name of<br>
+the mpirun that launched the application that did the publish, and hoping<br>
+the two will cross-connect? Unfortunately, I don&#39;t believe the 1.2.x code is<br>
+smart enough to figure out how to do that.<br>
+<br>
+This is cleaned up in the upcoming 1.3 release and should work much<br>
+smoother.<br>
+<br>
+Ralph<br>
+<div><div></div><div class="Wj3C7c"><br>
+<br>
+<br>
+On 4/27/08 6:58 PM, &quot;Alberto Giannetti&quot; &lt;<a href="mailto:albertogiannetti@gmail.com">albertogiannetti@gmail.com</a>&gt; wrote:<br>
+<br>
+&gt; I am having error using MPI_Lookup_name. The same program works fine<br>
+&gt; when using MPICH:<br>
+&gt;<br>
+&gt;<br>
+&gt; /usr/local/bin/mpiexec -np 2 ./client myfriend<br>
+&gt; Processor 0 (662, Sender) initialized<br>
+&gt; Processor 0 looking for service myfriend-0<br>
+&gt; Processor 1 (664, Sender) initialized<br>
+&gt; Processor 1 looking for service myfriend-1<br>
+&gt; [local:00662] *** An error occurred in MPI_Lookup_name<br>
+&gt; [local:00662] *** on communicator MPI_COMM_WORLD<br>
+&gt; [local:00662] *** MPI_ERR_NAME: invalid name argument<br>
+&gt; [local:00662] *** MPI_ERRORS_ARE_FATAL (goodbye)<br>
+&gt; [local:00664] *** An error occurred in MPI_Lookup_name<br>
+&gt; [local:00664] *** on communicator MPI_COMM_WORLD<br>
+&gt; [local:00664] *** MPI_ERR_NAME: invalid name argument<br>
+&gt; [local:00664] *** MPI_ERRORS_ARE_FATAL (goodbye)<br>
+&gt;<br>
+&gt;<br>
+&gt; int main(int argc, char* argv[])<br>
+&gt; {<br>
+&gt; &nbsp; &nbsp;int rank, i;<br>
+&gt; &nbsp; &nbsp;float data[100];<br>
+&gt; &nbsp; &nbsp;char cdata[64];<br>
+&gt; &nbsp; &nbsp;char myport[MPI_MAX_PORT_NAME];<br>
+&gt; &nbsp; &nbsp;char myservice[64];<br>
+&gt; &nbsp; &nbsp;MPI_Comm intercomm;<br>
+&gt; &nbsp; &nbsp;MPI_Status status;<br>
+&gt; &nbsp; &nbsp;int intercomm_size;<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;MPI_Init(&amp;argc, &amp;argv);<br>
+&gt; &nbsp; &nbsp;MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d (%d, Sender) initialized\n&quot;, rank, getpid());<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;if( argc &lt; 2 ) {<br>
+&gt; &nbsp; &nbsp; &nbsp;fprintf(stderr, &quot;Require server name\n&quot;);<br>
+&gt; &nbsp; &nbsp; &nbsp;MPI_Finalize();<br>
+&gt; &nbsp; &nbsp; &nbsp;exit(-1);<br>
+&gt; &nbsp; &nbsp;}<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;for( i = 0; i &lt; 100; i++ )<br>
+&gt; &nbsp; &nbsp; &nbsp;data[i] = i;<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;sprintf(myservice, &quot;%s-%d&quot;, argv[1], rank);<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d looking for service %s\n&quot;, rank, myservice);<br>
+&gt; &nbsp; &nbsp;MPI_Lookup_name(myservice, MPI_INFO_NULL, myport);<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d found port %s looking for service %s\n&quot;,<br>
+&gt; rank, myport, myservice);<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;while( 1 ) {<br>
+&gt; &nbsp; &nbsp; &nbsp;printf(&quot;Processor %d connecting to &#39;%s&#39;\n&quot;, rank, myport);<br>
+&gt; &nbsp; &nbsp; &nbsp;if( MPI_Comm_connect(myport, MPI_INFO_NULL, 0, MPI_COMM_SELF,<br>
+&gt; &amp;intercomm) == MPI_SUCCESS )<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp;break;<br>
+&gt; &nbsp; &nbsp; &nbsp;sleep(1);<br>
+&gt; &nbsp; &nbsp;}<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d connected\n&quot;, rank);<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;MPI_Comm_remote_size(intercomm, &amp;intercomm_size);<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d remote comm size is %d\n&quot;, rank,<br>
+&gt; intercomm_size);<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d sending data through intercomm to rank 0...<br>
+&gt; \n&quot;, rank);<br>
+&gt; &nbsp; &nbsp;MPI_Send(data, 100, MPI_FLOAT, 0, rank, intercomm);<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d data sent!\n&quot;, rank);<br>
+&gt; &nbsp; &nbsp;MPI_Recv(cdata, 12, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG,<br>
+&gt; intercomm, &amp;status);<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d received string data &#39;%s&#39; from rank %d, tag %d<br>
+&gt; \n&quot;, rank, cdata, status.MPI_SOURCE, status.MPI_TAG);<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;sleep(5);<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d disconnecting communicator\n&quot;, rank);<br>
+&gt; &nbsp; &nbsp;MPI_Comm_disconnect(&amp;intercomm);<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d finalizing\n&quot;, rank);<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;MPI_Finalize();<br>
+&gt; &nbsp; &nbsp;printf(&quot;Processor %d Goodbye!\n&quot;, rank);<br>
+&gt; }<br>
+&gt;<br>
+</div></div>&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br>
+

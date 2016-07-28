@@ -1,0 +1,132 @@
+I was able to get rid of  the segfaults/invalid reads by disabling the shared memory path.  They still reported an error with uninitialized memory in the same spot which I believe is due to the struct being padded for alignment.  I added a supression and was able to get past this part just fine.<br>
+
+<br>Thanks,<br>Justin<br><br><div class="gmail_quote">On Thu, Jul 9, 2009 at 5:16 AM, Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+
+<div class="im">On Jul 7, 2009, at 11:47 AM, Justin wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+(Sorry if this is posted twice, I sent the same email yesterday but it<br>
+never appeared on the list).<br>
+<br>
+</blockquote>
+<br></div>
+Sorry for the delay in replying.  FWIW, I got your original message as well.<div class="im"><br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Hi,  I am attempting to debug a memory corruption in an mpi program<br>
+using valgrind.  However, when I run with valgrind I get semi-random<br>
+segfaults and valgrind messages with the openmpi library.  Here is an<br>
+example of such a seg fault:<br>
+<br>
+==6153==<br>
+==6153== Invalid read of size 8<br>
+==6153==    at 0x19102EA0: (within /usr/lib/openmpi/lib/openmpi/<br>
+mca_btl_sm.so)<br>
+<br>
+</blockquote>
+...<br>
+</div><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+==6153==  Address 0x10 is not stack&#39;d, malloc&#39;d or (recently) free&#39;d<div class="im"><br>
+^G^G^GThread &quot;main&quot;(pid 6153) caught signal SIGSEGV at address (nil)<br>
+(segmentation violation)<br>
+<br>
+Looking at the code for our isend at SFC.h:298 does not seem to have any<br>
+errors:<br>
+<br>
+=============================================<br>
+  MergeInfo&lt;BITS&gt; myinfo,theirinfo;<br>
+<br>
+  MPI_Request srequest, rrequest;<br>
+  MPI_Status status;<br>
+<br>
+  myinfo.n=n;<br>
+  if(n!=0)<br>
+  {<br>
+    myinfo.min=sendbuf[0].bits;<br>
+    myinfo.max=sendbuf[n-1].bits;<br>
+  }<br>
+  //cout &lt;&lt; rank &lt;&lt; &quot; n:&quot; &lt;&lt; n &lt;&lt; &quot; min:&quot; &lt;&lt; (int)myinfo.min &lt;&lt; &quot;max:&quot;<br>
+&lt;&lt; (int)myinfo.max &lt;&lt; endl;<br>
+<br>
+  MPI_Isend(&amp;myinfo,sizeof(MergeInfo&lt;BITS&gt;),MPI_BYTE,to,0,Comm,&amp;srequest);<br>
+==============================================<br>
+<br>
+myinfo is a struct located on the stack, to is the rank of the processor<br>
+that the message is being sent to, and srequest is also on the stack.<br>
+In addition this message is waited on prior to exiting this block of<br>
+code so they still exist on the stack.  When I don&#39;t run with valgrind<br>
+my program runs past this point just fine.<br>
+<br>
+</div></blockquote>
+<br>
+Strange.  I can&#39;t think of an immediate reason as to why this would happen -- does it also happen if you use a blocking send (vs. an Isend)?  Is myinfo a complex object, or a variable-length object?<div><div></div><div class="h5">
+
+<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+I am currently using openmpi 1.3 from the debian unstable branch.  I<br>
+also see the same type of segfault in a different portion of the code<br>
+involving an MPI_Allgather which can be seen below:<br>
+<br>
+==============================================<br>
+==22736== Use of uninitialised value of size 8<br>
+==22736==    at 0x19104775: mca_btl_sm_component_progress (opal_list.h:322)<br>
+==22736==    by 0x1382CE09: opal_progress (opal_progress.c:207)<br>
+==22736==    by 0xB404264: ompi_request_default_wait_all (condition.h:99)<br>
+==22736==    by 0x1A1ADC16: ompi_coll_tuned_sendrecv_actual<br>
+(coll_tuned_util.c:55)<br>
+==22736==    by 0x1A1B61E1: ompi_coll_tuned_allgatherv_intra_bruck<br>
+(coll_tuned_util.h:60)<br>
+==22736==    by 0xB418B2E: PMPI_Allgatherv (pallgatherv.c:121)<br>
+==22736==    by 0x646CCF7: Uintah::Level::setBCTypes() (Level.cc:728)<br>
+==22736==    by 0x646D823: Uintah::Level::finalizeLevel() (Level.cc:537)<br>
+==22736==    by 0x6465457:<br>
+Uintah::Grid::problemSetup(Uintah::Handle&lt;Uintah::ProblemSpec&gt; const&amp;,<br>
+Uintah::ProcessorGroup const*, bool) (Grid.cc:866)<br>
+==22736==    by 0x8345759: Uintah::SimulationController::gridSetup()<br>
+(SimulationController.cc:243)<br>
+==22736==    by 0x834F418: Uintah::AMRSimulationController::run()<br>
+(AMRSimulationController.cc:117)<br>
+==22736==    by 0x4089AE: main (sus.cc:629)<br>
+==22736==<br>
+==22736== Invalid read of size 8<br>
+==22736==    at 0x19104775: mca_btl_sm_component_progress (opal_list.h:322)<br>
+==22736==    by 0x1382CE09: opal_progress (opal_progress.c:207)<br>
+==22736==    by 0xB404264: ompi_request_default_wait_all (condition.h:99)<br>
+==22736==    by 0x1A1ADC16: ompi_coll_tuned_sendrecv_actual<br>
+(coll_tuned_util.c:55)<br>
+==22736==    by 0x1A1B61E1: ompi_coll_tuned_allgatherv_intra_bruck<br>
+(coll_tuned_util.h:60)<br>
+==22736==    by 0xB418B2E: PMPI_Allgatherv (pallgatherv.c:121)<br>
+==22736==    by 0x646CCF7: Uintah::Level::setBCTypes() (Level.cc:728)<br>
+==22736==    by 0x646D823: Uintah::Level::finalizeLevel() (Level.cc:537)<br>
+==22736==    by 0x6465457:<br>
+Uintah::Grid::problemSetup(Uintah::Handle&lt;Uintah::ProblemSpec&gt; const&amp;,<br>
+Uintah::ProcessorGroup const*, bool) (Grid.cc:866)<br>
+==22736==    by 0x8345759: Uintah::SimulationController::gridSetup()<br>
+(SimulationController.cc:243)<br>
+==22736==    by 0x834F418: Uintah::AMRSimulationController::run()<br>
+(AMRSimulationController.cc:117)<br>
+==22736==    by 0x4089AE: main (sus.cc:629)<br>
+================================================================<br>
+<br>
+Are these problems with openmpi and is there any known work arounds?<br>
+<br>
+</blockquote>
+<br>
+<br></div></div>
+These are new to me.  The problem does seem to occur with OMPI&#39;s shared memory device; you might want to try a different point-to-point device (e.g., tcp?) to see if the problem goes away.  But be aware that the problem &quot;going away&quot; does not really pinpoint the location of the problem -- moving to a slower transport (like tcp) may simply change timing such that the problem does not occur.  I.e., the problem could still exist in either your code or OMPI -- this would simply be a workaround.<br>
+
+<font color="#888888">
+<br>
+-- <br>
+Jeff Squyres<br>
+Cisco Systems</font><div><div></div><div class="h5"><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+</div></div></blockquote></div><br>
+

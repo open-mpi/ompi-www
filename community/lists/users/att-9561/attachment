@@ -1,0 +1,124 @@
+We deliberately choose to not initialize our msg buffers as this takes considerable time. Instead, we fill in only the portion required by a given message, and then send only that much of the buffer. Thus, the uninitialized portion is ignored.<br>
+<br>I don&#39;t know of a way to tell valgrind to ignore it, I&#39;m afraid - perhaps a valgrind guru can be of help. :-/<br><br>Ralph<br><br><br><div class="gmail_quote">On Mon, Jun 8, 2009 at 1:09 PM, tom fogal <span dir="ltr">&lt;<a href="mailto:tfogal@alumni.unh.edu">tfogal@alumni.unh.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Hi all,<br>
+<br>
+I&#39;ve configured a source build of OpenMPI 1.3.2 with valgrind enabled<br>
+[1], and I&#39;m seeing a lot of errors with writev() when I run this under<br>
+valgrind.  For example, with the following `hello, world&#39; program:<br>
+<br>
+  #include &lt;stdio.h&gt;<br>
+  #include &lt;mpi.h&gt;<br>
+<br>
+  int main(int argc, char *argv[]) {<br>
+    MPI_Init(&amp;argc, &amp;argv);<br>
+<br>
+    puts(&quot;Hello, world!&quot;);<br>
+    MPI_Finalize();<br>
+    return 0;<br>
+  }<br>
+<br>
+I see errors like the following:<br>
+<br>
+  ==12342== Syscall param writev(vector[...]) points to uninitialised byte(s)<br>
+  ==12342==    at 0x61DF733: writev (in /lib/<a href="http://libc-2.7.so" target="_blank">libc-2.7.so</a>)<br>
+  ==12342==    by 0x7889AB9: mca_oob_tcp_msg_send_handler (oob_tcp_msg.c:265)<br>
+  ==12342==    by 0x788B1A0: mca_oob_tcp_peer_send (oob_tcp_peer.c:197)<br>
+  ==12342==    by 0x788FF2A: mca_oob_tcp_send_nb (oob_tcp_send.c:167)<br>
+  ==12342==    by 0x767C7EC: orte_rml_oob_send (rml_oob_send.c:137)<br>
+  ==12342==    by 0x767D19A: orte_rml_oob_send_buffer (rml_oob_send.c:269)<br>
+  ==12342==    by 0x7C9F3DF: allgather (grpcomm_bad_module.c:369)<br>
+  ==12342==    by 0x7C9FD9E: modex (grpcomm_bad_module.c:497)<br>
+  ==12342==    by 0x4E6DCAF: ompi_mpi_init (ompi_mpi_init.c:626)<br>
+<br>
+The full vg log is appended [2].  Of course, I could just suppress<br>
+this error, but I get this for a lot (every?) MPI call which does<br>
+communication, it seems (broadcasts, sends, recv&#39;s, allgathers, etc.).<br>
+I&#39;m worried a suppression would suppress too much / suppress an error<br>
+I&#39;ve caused.<br>
+<br>
+Have others seen this?  Can I suppress perhaps from the<br>
+orte_rml_oob_send_buffer down (safely)?<br>
+<br>
+-tom<br>
+<br>
+[1] configured via: gnu_pkg \<br>
+    --enable-debug \<br>
+    --enable-memchecker \<br>
+    --disable-mpi-f77 \<br>
+    --enable-pretty-print-stacktrace \<br>
+    --enable-cxx-exceptions \<br>
+    --enable-mpi-threads \<br>
+    --with-valgrind=${PREFIX} \<br>
+    --without-gm \<br>
+    --without-mx \<br>
+    --without-openib \<br>
+    --without-psm \<br>
+    --with-pic \<br>
+    --with-gnu-ld<br>
+  where gnu_pkg is basically a function which calls configure with<br>
+  --prefix=${PREFIX}.<br>
+<br>
+[2]<br>
+==12342== Memcheck, a memory error detector.<br>
+==12342== Copyright (C) 2002-2008, and GNU GPL&#39;d, by Julian Seward et al.<br>
+==12342== Using LibVEX rev 1884, a library for dynamic binary translation.<br>
+==12342== Copyright (C) 2004-2008, and GNU GPL&#39;d, by OpenWorks LLP.<br>
+==12342== Using valgrind-3.4.1, a dynamic binary instrumentation framework.<br>
+==12342== Copyright (C) 2000-2008, and GNU GPL&#39;d, by Julian Seward et al.<br>
+==12342== For more details, rerun with: -v<br>
+==12342==<br>
+==12342== My PID = 12342, parent PID = 12341.  Prog and args are:<br>
+==12342==    ./a.out<br>
+==12342==<br>
+==12342== Warning: client syscall munmap tried to modify addresses 0xffffffffffffffff-0xffe<br>
+==12342== Syscall param writev(vector[...]) points to uninitialised byte(s)<br>
+==12342==    at 0x61DF733: writev (in /lib/<a href="http://libc-2.7.so" target="_blank">libc-2.7.so</a>)<br>
+==12342==    by 0x7889AB9: mca_oob_tcp_msg_send_handler (oob_tcp_msg.c:265)<br>
+==12342==    by 0x788B1A0: mca_oob_tcp_peer_send (oob_tcp_peer.c:197)<br>
+==12342==    by 0x788FF2A: mca_oob_tcp_send_nb (oob_tcp_send.c:167)<br>
+==12342==    by 0x767C7EC: orte_rml_oob_send (rml_oob_send.c:137)<br>
+==12342==    by 0x767D19A: orte_rml_oob_send_buffer (rml_oob_send.c:269)<br>
+==12342==    by 0x7C9F3DF: allgather (grpcomm_bad_module.c:369)<br>
+==12342==    by 0x7C9FD9E: modex (grpcomm_bad_module.c:497)<br>
+==12342==    by 0x4E6DCAF: ompi_mpi_init (ompi_mpi_init.c:626)<br>
+==12342==    by 0x4EAAC88: PMPI_Init (pinit.c:80)<br>
+==12342==    by 0x400857: main (hello.c:5)<br>
+==12342==  Address 0x677697b is 107 bytes inside a block of size 256 alloc&#39;d<br>
+==12342==    at 0x4C22A51: realloc (vg_replace_malloc.c:429)<br>
+==12342==    by 0x53DCBE0: opal_dss_buffer_extend (dss_internal_functions.c:63)<br>
+==12342==    by 0x53DE4BA: opal_dss_copy_payload (dss_load_unload.c:164)<br>
+==12342==    by 0x7C9F314: allgather (grpcomm_bad_module.c:363)<br>
+==12342==    by 0x7C9FD9E: modex (grpcomm_bad_module.c:497)<br>
+==12342==    by 0x4E6DCAF: ompi_mpi_init (ompi_mpi_init.c:626)<br>
+==12342==    by 0x4EAAC88: PMPI_Init (pinit.c:80)<br>
+==12342==    by 0x400857: main (hello.c:5)<br>
+==12342==  Uninitialised value was created by a stack allocation<br>
+==12342==    at 0x53FFA60: opal_ifinit (if.c:147)<br>
+{<br>
+   &lt;insert a suppression name here&gt;<br>
+   Memcheck:Param<br>
+   writev(vector[...])<br>
+   fun:writev<br>
+   fun:mca_oob_tcp_msg_send_handler<br>
+   fun:mca_oob_tcp_peer_send<br>
+   fun:mca_oob_tcp_send_nb<br>
+   fun:orte_rml_oob_send<br>
+   fun:orte_rml_oob_send_buffer<br>
+   fun:allgather<br>
+   fun:modex<br>
+   fun:ompi_mpi_init<br>
+   fun:PMPI_Init<br>
+   fun:main<br>
+}<br>
+==12342==<br>
+==12342== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 307 from 3)<br>
+==12342== malloc/free: in use at exit: 204,012 bytes in 2,022 blocks.<br>
+==12342== malloc/free: 10,382 allocs, 8,360 frees, 14,603,162 bytes allocated.<br>
+==12342== For a detailed leak analysis,  rerun with: --leak-check=yes<br>
+==12342== For counts of detected errors, rerun with: -v<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br>
+

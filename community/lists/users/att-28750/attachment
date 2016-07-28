@@ -1,0 +1,233 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Brian,<br>
+    <br>
+    unlike Ralph, i will assume all your processes are MPI tasks.<br>
+    <br>
+    at first glance, the MPI philosophy is the other way around :<br>
+    start with mpirun -np 1 traffic_cop, and then
+    MPI_Comm_spawn("child") when you need more workers.<br>
+    <br>
+    that being said, if you are fine with having idle children (e.g.
+    children that consume no CPU resources, but do keep memory, network
+    and other system resources allocated), then you can start 256 mpi
+    tasks, either with<br>
+    mpirun -np 256 cop_children<br>
+    or<br>
+    mpirun -np 1 traffic_cop : -np 255 children<br>
+    /*i am not 100% sure about the syntax here ... */<br>
+    <br>
+    there is no MPI way to signal a task, but you can have your children
+    wait for a message from the master.<br>
+    unless you are using a TCP interconnect, i do no think OpenMPI is
+    production ready for MPI_THREAD_MULTIPLE,<br>
+    so one option is to have your children MPI_Recv() information from
+    the traffic cop in the main process, and do the real job is an other
+    pthread (so the main process can kill the working thread when
+    MPI_Recv returns)<br>
+    an other option is to MPI_Irecv(), do the job and periodically
+    MPI_Test() to check if there is any order from the traffic cop.<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <div class="moz-cite-prefix">On 3/18/2016 8:38 AM, Ralph Castain
+      wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:33EF877B-DB1B-41D2-9DA5-4B37FDF26FD3@open-mpi.org"
+      type="cite">
+      <meta http-equiv="Content-Type" content="text/html;
+        charset=windows-1252">
+      Hmmm….I haven’t heard of that specific use-case, but I have seen
+      some similar things. Did you want the processes to be paused, or
+      killed, when you scale down? Obviously, I’m assuming they are not
+      MPI procs, yes?
+      <div class=""><br class="">
+      </div>
+      <div class="">I can certainly see a way to make mpirun do it
+        without too much fuss, though it would require a message as
+        opposed to a signal so you can indicate how many procs to
+        “idle/kill”.</div>
+      <div class=""><br class="">
+      </div>
+      <div class=""><br class="">
+        <div class="">
+          <div>
+            <blockquote type="cite" class="">
+              <div class="">On Mar 17, 2016, at 3:22 PM, Andrus, Brian
+                Contractor &lt;<a moz-do-not-send="true"
+                  href="mailto:bdandrus@nps.edu" class="">bdandrus@nps.edu</a>&gt;
+                wrote:</div>
+              <br class="Apple-interchange-newline">
+              <div class="">
+                <div class="WordSection1" style="page: WordSection1;
+                  font-family: Helvetica; font-size: 12px; font-style:
+                  normal; font-variant: normal; font-weight: normal;
+                  letter-spacing: normal; orphans: auto; text-align:
+                  start; text-indent: 0px; text-transform: none;
+                  white-space: normal; widows: auto; word-spacing: 0px;
+                  -webkit-text-stroke-width: 0px;">
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class="">All,<o:p
+                      class=""></o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class=""><o:p
+                      class=""> </o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class="">I have
+                    an mpi-based program that has a master process that
+                    acts as a ‘traffic cop’ in that it hands out work to
+                    child processes.<o:p class=""></o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class=""><o:p
+                      class=""> </o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class="">I want
+                    to be able to dynamically throttle how many child
+                    processes are in use at any given time.<o:p class=""></o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class=""><o:p
+                      class=""> </o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class="">For
+                    instance, if I start it with “mpirun -n 512” I could
+                    send a signal to tell it to only use 256 of them for
+                    a bit and then tell it to scale back up. The upper
+                    limit being the number of processes mpirun was
+                    launched with.<o:p class=""></o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class=""><o:p
+                      class=""> </o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class=""><o:p
+                      class=""> </o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class="">Has
+                    anyone done anything like this? Maybe a better way
+                    to do it?<o:p class=""></o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class="">Basically
+                    my program is crunching through a large text file,
+                    examining each line for various things.<o:p class=""></o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class=""><o:p
+                      class=""> </o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class="">Thanks
+                    in advance for any insight,<o:p class=""></o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class=""><o:p
+                      class=""> </o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class="">Brian
+                    Andrus<o:p class=""></o:p></div>
+                  <div style="margin: 0in 0in 0.0001pt; font-size: 11pt;
+                    font-family: Calibri, sans-serif;" class=""><o:p
+                      class=""> </o:p></div>
+                </div>
+                <span style="font-family: Helvetica; font-size: 12px;
+                  font-style: normal; font-variant: normal; font-weight:
+                  normal; letter-spacing: normal; orphans: auto;
+                  text-align: start; text-indent: 0px; text-transform:
+                  none; white-space: normal; widows: auto; word-spacing:
+                  0px; -webkit-text-stroke-width: 0px; float: none;
+                  display: inline !important;" class="">_______________________________________________</span><br
+                  style="font-family: Helvetica; font-size: 12px;
+                  font-style: normal; font-variant: normal; font-weight:
+                  normal; letter-spacing: normal; orphans: auto;
+                  text-align: start; text-indent: 0px; text-transform:
+                  none; white-space: normal; widows: auto; word-spacing:
+                  0px; -webkit-text-stroke-width: 0px;" class="">
+                <span style="font-family: Helvetica; font-size: 12px;
+                  font-style: normal; font-variant: normal; font-weight:
+                  normal; letter-spacing: normal; orphans: auto;
+                  text-align: start; text-indent: 0px; text-transform:
+                  none; white-space: normal; widows: auto; word-spacing:
+                  0px; -webkit-text-stroke-width: 0px; float: none;
+                  display: inline !important;" class="">users mailing
+                  list</span><br style="font-family: Helvetica;
+                  font-size: 12px; font-style: normal; font-variant:
+                  normal; font-weight: normal; letter-spacing: normal;
+                  orphans: auto; text-align: start; text-indent: 0px;
+                  text-transform: none; white-space: normal; widows:
+                  auto; word-spacing: 0px; -webkit-text-stroke-width:
+                  0px;" class="">
+                <a moz-do-not-send="true"
+                  href="mailto:users@open-mpi.org" style="color:
+                  rgb(149, 79, 114); text-decoration: underline;
+                  font-family: Helvetica; font-size: 12px; font-style:
+                  normal; font-variant: normal; font-weight: normal;
+                  letter-spacing: normal; orphans: auto; text-align:
+                  start; text-indent: 0px; text-transform: none;
+                  white-space: normal; widows: auto; word-spacing: 0px;
+                  -webkit-text-stroke-width: 0px;" class="">users@open-mpi.org</a><br
+                  style="font-family: Helvetica; font-size: 12px;
+                  font-style: normal; font-variant: normal; font-weight:
+                  normal; letter-spacing: normal; orphans: auto;
+                  text-align: start; text-indent: 0px; text-transform:
+                  none; white-space: normal; widows: auto; word-spacing:
+                  0px; -webkit-text-stroke-width: 0px;" class="">
+                <span style="font-family: Helvetica; font-size: 12px;
+                  font-style: normal; font-variant: normal; font-weight:
+                  normal; letter-spacing: normal; orphans: auto;
+                  text-align: start; text-indent: 0px; text-transform:
+                  none; white-space: normal; widows: auto; word-spacing:
+                  0px; -webkit-text-stroke-width: 0px; float: none;
+                  display: inline !important;" class="">Subscription:<span
+                    class="Apple-converted-space"> </span></span><a
+                  moz-do-not-send="true"
+                  href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+                  style="color: rgb(149, 79, 114); text-decoration:
+                  underline; font-family: Helvetica; font-size: 12px;
+                  font-style: normal; font-variant: normal; font-weight:
+                  normal; letter-spacing: normal; orphans: auto;
+                  text-align: start; text-indent: 0px; text-transform:
+                  none; white-space: normal; widows: auto; word-spacing:
+                  0px; -webkit-text-stroke-width: 0px;" class=""><a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></a><br
+                  style="font-family: Helvetica; font-size: 12px;
+                  font-style: normal; font-variant: normal; font-weight:
+                  normal; letter-spacing: normal; orphans: auto;
+                  text-align: start; text-indent: 0px; text-transform:
+                  none; white-space: normal; widows: auto; word-spacing:
+                  0px; -webkit-text-stroke-width: 0px;" class="">
+                <span style="font-family: Helvetica; font-size: 12px;
+                  font-style: normal; font-variant: normal; font-weight:
+                  normal; letter-spacing: normal; orphans: auto;
+                  text-align: start; text-indent: 0px; text-transform:
+                  none; white-space: normal; widows: auto; word-spacing:
+                  0px; -webkit-text-stroke-width: 0px; float: none;
+                  display: inline !important;" class="">Link to this
+                  post:<span class="Apple-converted-space"> </span></span><a
+                  moz-do-not-send="true"
+                  href="http://www.open-mpi.org/community/lists/users/2016/03/28744.php"
+                  style="color: rgb(149, 79, 114); text-decoration:
+                  underline; font-family: Helvetica; font-size: 12px;
+                  font-style: normal; font-variant: normal; font-weight:
+                  normal; letter-spacing: normal; orphans: auto;
+                  text-align: start; text-indent: 0px; text-transform:
+                  none; white-space: normal; widows: auto; word-spacing:
+                  0px; -webkit-text-stroke-width: 0px;" class=""><a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28744.php">http://www.open-mpi.org/community/lists/users/2016/03/28744.php</a></a></div>
+            </blockquote>
+          </div>
+          <br class="">
+        </div>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28745.php">http://www.open-mpi.org/community/lists/users/2016/03/28745.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

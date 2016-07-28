@@ -1,0 +1,113 @@
+<html><body>
+<p><font size="4">MPI standard compliant management of eager send requires that this program work. There is nothing that says &quot;unless eager limit is set too high/low.&quot;  Honoring this requirement in an MPI implementation can be costly. There are practical reasons to pass up this requirement because most applications do not need it.</font><br>
+<br>
+<font size="4">I would like to see the MPI Forum find a way to relax this requirement and I have made a proposal that would do so that would not invalidate any current MPI program.</font><br>
+<br>
+<font size="4"> I would consider simply removing this requirement if the MPI Forum decides that it is OK for some valid MPI 2.2 programs to be invalid MPI 3.0 programs but I hope the Forum does not go the direction of breaking existing valid MPI programs.</font><br>
+<br>
+<font size="4">Ashley says below:  &quot;</font><font size="4">If the MPI_SEND isn't blocking then each rank will send 50 messages to rank zero and you'll have 2000 messages ....&quot;</font><br>
+<br>
+<font size="4">What the standard says is MPI_SEND must block before there are more messages at the destination than it can manage. </font><br>
+<br>
+<font size="4">I do not think ignoring that the standard  requires this program to work is a very good solution.</font><br>
+<br>
+<font size="4">           Dick</font><br>
+<br>
+<br>
+<font size="4">Here is what the standard says:</font><br>
+<br>
+<font size="4">Section 3.4 MPI 2.2 page 39:1..7</font><br>
+<br>
+<font size="4">The send call described in Section </font><font size="4">3.2.1 </font><font size="4">uses the </font><font size="4">standard </font><font size="4">communication mode. In this mode, it is up to </font><font size="4">MPI </font><font size="4">to decide whether outgoing messages will be buffered. </font><font size="4">MPI </font><font size="4">may buffer outgoing messages. In such a case, the send call may complete before a matching receive is invoked. On the other hand, buffer space may be unavailable, or </font><font size="4">MPI </font><font size="4">may choose not to buffer outgoing messages, for performance reasons. In this case, the send call will not complete until a matching receive has been posted, and the data has been moved to the receiver.</font><br>
+<br>
+<font size="4">Section 3.5 MPI 2.2 page 44:8..19</font><br>
+<br>
+<font size="4">A buffered send operation that cannot complete because of a lack of buffer space is erroneous. When such a situation is detected, an error is signalled that may cause the program to terminate abnormally. On the other hand, a standard send operation that cannot complete because of lack of buffer space will merely block, waiting for buffer space to become available or for a matching receive to be posted. This behavior is preferable in many situations. Consider a situation where a producer repeatedly produces new values and sends them to a consumer. Assume that the producer produces new values faster than the consumer can consume them. If buffered sends are used, then a buffer overflow will result. Additional synchronization has to be added to the program so as to prevent this from occurring. If standard sends are used, then the producer will be automatically throttled, as its send operations will block when buffer space is unavailable.</font><br>
+<br>
+<font face="CMR10">Note - in the paragraph above &quot;buffered send&quot; means MPI_BSEND, not eager send.</font><br>
+<br>
+Dick Treumann  -  MPI Team           <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 12/03/2009 05:33:51 AM:<br>
+<br>
+&gt; [image removed] </tt><br>
+<tt>&gt; <br>
+&gt; Re: [OMPI users] Program deadlocks, on simple send/recv loop</tt><br>
+<tt>&gt; <br>
+&gt; Ashley Pittman </tt><br>
+<tt>&gt; <br>
+&gt; to:</tt><br>
+<tt>&gt; <br>
+&gt; Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; 12/03/2009 05:35 AM</tt><br>
+<tt>&gt; <br>
+&gt; Sent by:</tt><br>
+<tt>&gt; <br>
+&gt; users-bounces@open-mpi.org</tt><br>
+<tt>&gt; <br>
+&gt; Please respond to Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; On Wed, 2009-12-02 at 13:11 -0500, Brock Palen wrote:<br>
+&gt; &gt; On Dec 1, 2009, at 11:15 AM, Ashley Pittman wrote:<br>
+&gt; &gt; &gt; On Tue, 2009-12-01 at 10:46 -0500, Brock Palen wrote:<br>
+&gt; &gt; &gt;&gt; The attached code, is an example where openmpi/1.3.2 will lock up, if<br>
+&gt; &gt; &gt;&gt; ran on 48 cores, of IB (4 cores per node),<br>
+&gt; &gt; &gt;&gt; The code loops over recv from all processors on rank 0 and sends from<br>
+&gt; &gt; &gt;&gt; all other ranks, as far as I know this should work, and I can't see<br>
+&gt; &gt; &gt;&gt; why not.<br>
+&gt; &gt; &gt;&gt; Note yes I know we can do the same thing with a gather, this is a<br>
+&gt; &gt; &gt;&gt; simple case to demonstrate the issue.<br>
+&gt; &gt; &gt;&gt; Note that if I increase the openib eager limit, the program runs,<br>
+&gt; &gt; &gt;&gt; which normally means improper MPI, but I can't on my own figure out<br>
+&gt; &gt; &gt;&gt; the problem with this code.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; What are you increasing the eager limit from and too?<br>
+&gt; &gt; <br>
+&gt; &gt; The same value as ethernet on our system,<br>
+&gt; &gt; mpirun --mca btl_openib_eager_limit 655360 --mca &nbsp;<br>
+&gt; &gt; btl_openib_max_send_size 655360 ./a.out<br>
+&gt; &gt; <br>
+&gt; &gt; Huge values compared to the defaults, but works,<br>
+&gt; <br>
+&gt; My understanding of the code is that each message will be 256k long and<br>
+&gt; the code pretty much guarantees that at some point there will be 46<br>
+&gt; messages in the queue in front of the one you are looking to receive<br>
+&gt; which makes a total of 11.5Mb, slightly less if you take shared memory<br>
+&gt; into account.<br>
+&gt; <br>
+&gt; If the MPI_SEND isn't blocking then each rank will send 50 messages to<br>
+&gt; rank zero and you'll have 2000 messages and 500Mb of data being received<br>
+&gt; with the message you want being somewhere towards the end of the queue.<br>
+&gt; <br>
+&gt; These numbers are far from huge but then compared to an eager limit of<br>
+&gt; 64k they aren't small either.<br>
+&gt; <br>
+&gt; I suspect the eager limit is being reached on COMM_WORLD rank 0 and it's<br>
+&gt; not pulling any more messages off the network pending some of the<br>
+&gt; existing ones being out of the queue but they never will be because the<br>
+&gt; message being waited for is one that's stuck on the network. &nbsp;As I say<br>
+&gt; the message queue for rank 0 when it's deadlocked would be interesting<br>
+&gt; to look at.<br>
+&gt; <br>
+&gt; In summary this code makes heavy use of unexpected messages and network<br>
+&gt; buffering, it's not surprising to me that it only works with eager<br>
+&gt; limits set fairly high.<br>
+&gt; <br>
+&gt; Ashley,<br>
+&gt; -- <br>
+&gt; <br>
+&gt; Ashley Pittman, Bath, UK.<br>
+&gt; <br>
+&gt; Padb - A parallel job inspection tool for cluster computing<br>
+&gt; <a href="http://padb.pittman.org.uk">http://padb.pittman.org.uk</a><br>
+&gt; <br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</tt></body></html>

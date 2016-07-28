@@ -1,0 +1,43 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=iso-8859-1"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Ah, now that's a little different failure mode than your original description. If it works without CR enabled, then the launcher is working just fine. The problem is in the checkpoint/restart integration.<div><br></div><div>There are some things that get initialized differently under CR, but I have no idea what they do or why they would have a problem when launched by LSF. I'm afraid our CR person has moved on to other pastures, so there is little we can do to help at this stage.</div><div><br></div><div>If you can run it with rsh, then perhaps that would be adequate? Afraid that's the best I can offer :-(</div><div><br></div><div><br><div><div>On Mar 31, 2013, at 1:18 AM, Jorge Naranjo Bouzas &lt;<a href="mailto:jonarbo@gmail.com">jonarbo@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div dir="ltr">Hi Ralph!<div><br></div><div>Thanks for your quick response ...&nbsp;</div><div><br></div><div>I also tried version 1.4.5 &nbsp;with the same result &nbsp;..</div><div><br></div><div>What changes did you make to version 1.7 ? Would that apply for 1.6 as well?</div>
+
+
+<div><br></div><div><br></div><div>I have bounded the failure to the file&nbsp;</div><div>orte/mca/plm/lsf/plm_lsf_module.c<br></div><div><br></div><div>precisely &nbsp;the "lsb_launch" call :<br>
+<br></div><div>&nbsp;if (lsb_launch(nodelist_argv, argv, LSF_DJOB_REPLACE_ENV | LSF_DJOB_NOWAIT, env) &lt; 0) {<br></div><div>....</div><div>}&nbsp;</div><div><br></div><div>apparently, when enabling CR, &nbsp;this call &nbsp;gets stalled and the code seems to keep waiting in :</div>
+
+
+<div><br></div><div>&nbsp; &nbsp;/* wait for daemons to callback */</div><div>&nbsp; &nbsp;if (ORTE_SUCCESS !=</div><div>&nbsp; &nbsp; &nbsp; (rc = orte_plm_base_daemon_callback(map-&gt;num_new_daemons))) {</div><div>&nbsp; &nbsp; &nbsp; OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,</div>
+
+
+<div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; "%s plm:lsf: daemon launch failed for job %s on error %s",</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),</div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ORTE_JOBID_PRINT(active_job), ORTE_ERROR_NAME(rc)));</div>
+
+
+<div>&nbsp; &nbsp; &nbsp; &nbsp;goto cleanup;</div><div>&nbsp;&nbsp; }&nbsp;</div><div><br></div><div>For both cases (with and without "-am ft-enable-cr" option) I have dumped the values of "nodelist_argv" , "argv" and "env" and the only significative differences (other than the PID or JOBID ) are:<br>
+
+</div><div><br></div><div><div>&lt; argv = orted -mca ess lsf -mca orte_ess_jobid 2036989952 -mca orte_ess_vpid 1 -mca orte_ess_num_procs 2 --hnp-uri "2036989952.0;<a href="tcp://172.29.1.79:41940;tcp://">tcp://172.29.1.79:41940;tcp://</a><a href="http://10.34.1.79:41940/">10.34.1.79:41940</a>"</div>
+
+<div>---</div><div>&gt; argv = orted -mca ess lsf -mca orte_ess_jobid 2116943872 -mca orte_ess_vpid 1 -mca orte_ess_num_procs 2 --hnp-uri "2116943872.0;<a href="tcp://172.29.1.79:58063;tcp://">tcp://172.29.1.79:58063;tcp://</a><a href="http://10.34.1.79:58063/">10.34.1.79:58063</a>" -mca mca_base_param_file_prefix ft-enable-cr -mca mca_base_param_file_path /opt/share/mpi-openmpi/1.4.5-gcc-4.6.0/el6/x86_64/share/openmpi/amca-param-sets:/home/naranjja/Tests/BLCR -mca mca_base_param_file_path_force /home/naranjja/Tests/BLCR</div>
+
+</div><div><br></div><div><br></div><div style="">and&nbsp;</div><div style=""><br></div><div style="">&gt; OMPI_MCA_mca_base_param_file_prefix=ft-enable-cr<br></div><div><br></div><div style="">When run without "-am ft-enable-cr" it works but when I enable it, the processes are never started ... :S</div>
+
+<div style=""><br></div><div style="">Thanks!</div><div style=""><br></div><div style="">Jorge</div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br>
+</div><div><br></div><div><br></div><div><br></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Sat, Mar 30, 2013 at 6:29 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+
+
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex"><div style="word-wrap:break-word">It is quite likely that the lsf integration on the 1.6 series is broken. We don't have a way to test it any more (all our LSF access is gone). I recently was briefly given access to an LSF machine and fixed it for the 1.7 series, but that series doesn't support checkpoint/restart.<div>
+
+
+<br></div><div><br><div><div><div>On Mar 30, 2013, at 1:01 AM, Jorge Naranjo Bouzas &lt;<a href="mailto:jonarbo@gmail.com" target="_blank">jonarbo@gmail.com</a>&gt; wrote:</div><br></div><blockquote type="cite">
+
+
+<div><div dir="ltr"><p>Hello!</p><p>We are having problems integrating BLCR + OpenMPI + LSF in a linux cluster with Infiniband<br></p><p>We compiled OpenMPI version 1.6 with gcc version 4.6.0 ... The configure line was like:<br>
+
+
+</p><p>./configure --prefix=/opt/share/mpi-openmpi/1.6-gcc-4.6.0/el6/x86_64 --with-lsf --with-openib --with-blcr=/opt/share/blcrv0.8.4.app/ --with-ft=cr --enable-ft-thread --enable-opal-multi-threads --with-psm<br></p><p>
+
+
+The problem I am having is that for some reason the ft-enable-cr features freezes my mpi application when I use more that one node. The job is never started ...<br></p><p>We narrowed the search down and we noticed that when mpirun is used out of the batch system, it works... but as soon as the mpirun detects the env variable LSB_JOBID and assumes it is under LSF environment, the problem arises... Additionally, if we use "--mca plm rsh" which should deactivate the LSF integration , it works again, as expected...</p><p>So, or guess is: or there is something misconfigured in our LSF or there is a problem in the plm module inside openmpi ...<br></p><p>Any hint???<br></p><p>Thanks!!<br></p><p>Jorge Naranjo<br></p></div></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+
+
+</div><br></div></div></blockquote></div><br></div></div>
+</blockquote></div><br></div></body></html>

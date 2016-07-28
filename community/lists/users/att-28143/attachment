@@ -1,0 +1,158 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Daniel,<br>
+    <br>
+    your program works fine with mpich, and this is very likely an
+    OpenMPI bug<br>
+    <br>
+    here is an intermediate patch that solves your problem, but i still
+    have to fully test<br>
+    <br>
+    Best regards,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <div class="moz-cite-prefix">On 12/9/2015 2:56 AM, GARMANN, DANIEL J
+      DR-02 USAF AFMC AFRL/RQVA wrote:<br>
+    </div>
+    <blockquote
+cite="mid:4641861431110A4D99D995E4B7CC6B4511BB4F3F@52ZHTX-D02-01A.area52.afnoapps.usaf.mil"
+      type="cite">
+      <pre wrap="">Hello all,
+
+I've noticed a change in behavior with subarray datatypes in OpenMPI 1.10.1 where the lower bounds and extents are different than previous versions.  This leads to incorrect displacements when using the subarrays with MPI-IO.  I've attached a sample code for 2 processors the shows the issue.  When run on 2 processors, the program will decompose a 10x10 array of real(8) elements into two subarrays, dimensioned 5x10 each.  It then serially writes a file with two full arrays, x and y, with values between 1.0 and 10.0, that will then be read in via MPI-IO with the unique subarrays created on each processor, where rank 0 gets all x &lt;= 5.0, and rank 1 gets all x &gt; 5.0.  
+
+--- OpenMPI version 1.10.0 gives the correct behavior with the following output: 
+
+FULL ARRAY SIZE: 10 10
+
+RANK = 0
+   SUBARRAY DIMENSIONS :  5, 10
+   SUBARRAY INDICES    :  0,  0
+   LOWER BOUND : 0
+   EXTENT      : 800
+   X-VALUES :   1.0  2.0  3.0  4.0  5.0
+   Y-VALUES :   1.0  2.0  3.0  4.0  5.0  6.0  7.0  8.0  9.0 10.0
+
+RANK = 1
+   SUBARRAY DIMENSIONS :  5, 10
+   SUBARRAY INDICES    :  5,  0
+   LOWER BOUND : 0
+   EXTENT      : 800
+   X-VALUES :   6.0  7.0  8.0  9.0 10.0
+   Y-VALUES :   1.0  2.0  3.0  4.0  5.0  6.0  7.0  8.0  9.0 10.0
+
+
+--- OpenMPI version 1.10.1 results in the following, where you will notice different lower bounds and extents resulting in the wrong y-values on rank 0:
+
+RANK = 0
+   SUBARRAY DIMENSIONS :  5, 10
+   SUBARRAY INDICES    :  0,  0
+   LOWER BOUND : 0
+   EXTENT      : 760
+   X-VALUES :   1.0  2.0  3.0  4.0  5.0
+   Y-VALUES :   6.0  1.0  2.0  3.0  4.0  5.0  6.0  7.0  8.0  9.0
+
+RANK = 1
+   SUBARRAY DIMENSIONS :  5, 10
+   SUBARRAY INDICES    :  5,  0
+   LOWER BOUND : 40
+   EXTENT      : 760
+   X-VALUES :   6.0  7.0  8.0  9.0 10.0
+   Y-VALUES :   1.0  2.0  3.0  4.0  5.0  6.0  7.0  8.0  9.0 10.0
+
+
+Is this a bug with OpenMPI 1.10.1 or am I assuming something incorrectly in my program?  I realize it would be best to read all the data through one call to MPI_FILE_READ_ALL; however, this sample program is a very simple example of a much more complex program that cannot buffer the I/O so easily, so I am compelled to stick with successive reads of the subarray datatypes.  
+
+Any help is greatly appreciated!
+
+Best regards,
+Dan Garmann
+
+
+
+PROGRAM test_extent
+
+   IMPLICIT NONE
+
+   INCLUDE 'mpif.h'
+
+   INTEGER, PARAMETER :: num_dims = 2
+   INTEGER :: ierr, num_procs, i, j, n, myrank, subarray_type, subsize, arrsize, fid
+   INTEGER, DIMENSION(num_dims) :: arrdim, subdim, subind
+   INTEGER(KIND=MPI_ADDRESS_KIND) :: lower_bound, extent
+   REAL(KIND=8), DIMENSION(10,10) :: x, y
+   REAL(KIND=8), DIMENSION( 5,10) :: xsub, ysub
+
+   CALL MPI_INIT( ierr )
+   CALL MPI_COMM_RANK( mpi_comm_world, myrank, ierr )
+   CALL MPI_COMM_SIZE( mpi_comm_world, num_procs, ierr )
+
+   arrdim = (/ 10, 10 /)    ! Full array dimensions
+   subdim = (/  5, 10 /)  ! Sub-array dimensions
+   subind = (/ myrank*5, 0 /) ! Sub-array stating index in full array (base 0)
+   arrsize = PRODUCT(arrdim) ! number of elements in full array
+   subsize = PRODUCT(subdim) ! number of elements in sub-array
+
+   CALL MPI_TYPE_CREATE_SUBARRAY( num_dims, arrdim, subdim, subind, &amp;
+   &amp;                              MPI_ORDER_FORTRAN, MPI_REAL8, subarray_type, ierr )
+   CALL MPI_TYPE_COMMIT ( subarray_type, ierr )
+   CALL MPI_TYPE_GET_EXTENT( subarray_type, lower_bound, extent, ierr )
+
+   ! Write temporary file for testing MPI-IO
+   IF (myrank == 0) THEN
+      DO j = 1, 10
+         DO i = 1, 10
+            x(i,j) = REAL(i,KIND=8)
+            y(i,j) = REAL(j,KIND=8)
+         END DO
+      END DO
+      OPEN(UNIT=1,FILE='io_test.dat',FORM='UNFORMATTED',ACCESS='STREAM',ACTION='WRITE',STATUS='REPLACE')
+      WRITE(1) x, y
+      CLOSE(1)
+   END IF
+
+   ! Open test file and read using MPI-IO with the sub-array datatype
+   CALL MPI_FILE_OPEN( mpi_comm_world, 'io_test.dat', MPI_MODE_RDONLY, MPI_INFO_NULL, fid, ierr )
+   CALL MPI_FILE_SET_VIEW( fid, 0_MPI_OFFSET_KIND, MPI_REAL8, subarray_type, 'NATIVE', MPI_INFO_NULL, ierr )
+   CALL MPI_FILE_READ_ALL( fid, xsub, subsize, MPI_REAL8, MPI_STATUS_IGNORE, ierr )
+   CALL MPI_FILE_READ_ALL( fid, ysub, subsize, MPI_REAL8, MPI_STATUS_IGNORE, ierr )
+   CALL MPI_FILE_CLOSE( fid, ierr )
+
+   ! Write output to screen
+   IF (myrank == 0) WRITE(*,'(A,I0,1X,I0)') 'FULL ARRAY SIZE: ', arrdim
+   DO n = 0, num_procs-1
+      IF (myrank == n) THEN
+         WRITE(*,'(/A,I0)') 'RANK = ', myrank
+         WRITE(*,'(3X,A,I2,", ",I2)') 'SUBARRAY DIMENSIONS : ', subdim
+         WRITE(*,'(3X,A,I2,", ",I2)') 'SUBARRAY INDICES    : ', subind
+         WRITE(*,'(2(3X,A,I0))') 'LOWER BOUND : ', lower_bound
+         WRITE(*,'(3X,A,I0)') 'EXTENT      : ', extent
+         WRITE(*,'(3X,A, 5F5.1)') 'X-VALUES : ', xsub(:,1)
+         WRITE(*,'(3X,A,10F5.1)') 'Y-VALUES : ', ysub(1,:)
+      END IF
+      CALL MPI_BARRIER( mpi_comm_world, ierr )
+   END DO
+   CALL MPI_FINALIZE( ierr )
+   STOP
+
+END PROGRAM test_extent
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/12/28142.php">http://www.open-mpi.org/community/lists/users/2015/12/28142.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

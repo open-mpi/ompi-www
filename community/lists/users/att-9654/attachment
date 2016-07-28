@@ -1,0 +1,39 @@
+Thanks, that at least explains what is going on. Because I have an unbalanced work load (at least for now) I assume that I&#39;ll need to poll. If I replace the compositor loop with the following, it appears that I prevent the serialization/starvation and service the servers equally. I can think of edge cases where it isn&#39;t very efficient, so I&#39;ll explore different options (perhaps instead of looping I can probe one higher and increment on each receive). <br>
+<br>Thanks again.<br><br>Here&#39;s the new output:<br>...<br>Sending buffer 3 from 3<br>Sending buffer 3 from 2<br>Sending buffer 4 from 1<br>Receiving buffer from 1, buffer = hello from 1 for the 0 time<br> -- Probing for 2<br>
+ -- Found a message<br>Sending buffer 4 from 3<br>Sending buffer 4 from 2<br>Receiving buffer from 2, buffer = hello from 2 for the 0 time<br> -- Probing for 3<br> -- Found a message<br>Receiving buffer from 3, buffer = hello from 3 for the 0 time<br>
+ -- Probing for 1<br> -- Found a message<br>Sending buffer 5 from 1<br>Receiving buffer from 1, buffer = hello from 1 for the 1 time<br> -- Probing for 2<br> -- Found a message<br>Sending buffer 5 from 2<br>Sending buffer 5 from 3<br>
+Receiving buffer from 2, buffer = hello from 2 for the 1 time<br> -- Probing for 3<br> -- Found a message<br>Receiving buffer from 3, buffer = hello from 3 for the 1 time<br>...<br>and the replacement code:<br><br>     int last = 0;<br>
+     <br>     for (i = 0; i &lt; LOOPS * ( size - 1 ); i++) <br>     {<br>        int which_source, which_tag, flag;<br><br>        MPI_Probe( MPI_ANY_SOURCE, MPI_ANY_TAG, comp_comm, &amp;status );<br>        which_source = status.MPI_SOURCE;<br>
+        which_tag = status.MPI_TAG;<br>        if ( which_source &lt;= last )<br>        {<br>           MPI_Status probe_status;<br>           <br>           for (j = 0; j &lt; size - 1; j++) <br>           {<br>          int probe_id = ( ( last + j ) % ( size - 1)  ) + 1;<br>
+<br>          printf( &quot; -- Probing for %d\n&quot;, probe_id );<br>          <br>          MPI_Iprobe( probe_id, MPI_ANY_TAG, comp_comm, &amp;flag, &amp;probe_status );<br>          if ( flag )<br>          {<br>             printf( &quot; -- Found a message\n&quot; );<br>
+             which_source = probe_status.MPI_SOURCE;<br>             which_tag = probe_status.MPI_TAG;<br>             break;<br>          }<br>           }<br>        }<br>           <br>        printf( &quot;Receiving buffer from %d, buffer = &quot;, which_source );<br>
+        MPI_Recv( buffer, BUFLEN, MPI_CHAR, which_source, which_tag, comp_comm, &amp;status );<br>        printf( &quot;%s\n&quot;, buffer );<br>        last = which_source;<br>     }<br><br><br>Mark<br><br><div class="gmail_quote">
+On Fri, Jun 19, 2009 at 5:33 PM, Eugene Loh <span dir="ltr">&lt;<a href="mailto:Eugene.Loh@sun.com">Eugene.Loh@sun.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<div class="im">George Bosilca wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+MPI does not impose any global order on the messages. The only  requirement is that between two peers on the same communicator the  messages (or at least the part required for the matching) is delivered  in order. This make both execution traces you sent with your original  email (shared memory and TCP) valid from the MPI perspective.<br>
+
+<br>
+Moreover, MPI doesn&#39;t impose any order in the matching when ANY_SOURCE  is used. In Open MPI we do the matching _ALWAYS_ starting from rank 0  to n in the specified communicator. BEWARE: The remaining of this  paragraph is deep black magic of an MPI implementation internals. The  main difference between the behavior of SM and TCP here directly  reflect their eager size, 4K for SM and 64K for TCP. Therefore, for  your example, for TCP all your messages are eager messages (i.e. are  completely transfered to the destination process in just one go),  while for SM they all require a rendez-vous. This directly impact the  ordering of the messages on the receiver, and therefore the order of  the matching. However, I have to insist on this, this behavior is  correct based on the MPI standard specifications.<br>
+
+</blockquote>
+<br></div>
+I&#39;m going to try a technical explanation of what&#39;s going on inside OMPI and then words of advice to Mark.<br>
+<br>
+First, the technical explanation.  As George says, what&#39;s going on is legal.  The &quot;servers&quot; all queue up sends to the &quot;compositor&quot;.  These are long, rendezvous sends (at least when they&#39;re on-node).  So, none of these sends completes.  The compositor looks for an in-coming message.  It&#39;s gets the header of the message and sends back an acknowledgement that the rest of the message can be sent.  The &quot;server&quot; gets the acknowledgement and starts sending more of the message.  The compositor, in order to get to the remainder of the message, keeps draining all the other stuff servers are sending it.  Once the first message is completely received, the compositor looks for the next message to process and happens to pick up the first server again.  It won&#39;t go to anyone else under server 1 is exhausted.  Legal, but from Mark&#39;s point of view not desirable.  The compositor is busy all the time.  Mark just wants it to employ a different order.<br>
+
+<br>
+The receives are &quot;serialized&quot;.  Of course they must be since the receiver is a single process.  But Mark&#39;s performance issue is that the servers aren&#39;t being serviced equally.  So, they back up while server unfairly gets all the attention.<br>
+
+<br>
+Mark, your test code has a set of buffers it cycles through on each server.  Could you do something similar on the compositor side?  Have a set of resources for each server.  If you want the compositor to service all servers equally/fairly, you&#39;re going to have to prescribe this behavior in your MPI code.  The MPI implementation can&#39;t be relied on to do this for you.<br>
+
+<br>
+If this doesn&#39;t make sense, let me know and I&#39;ll try to sketch is out more explicitly.<div><div></div><div class="h5"><br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br>
+

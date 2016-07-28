@@ -1,0 +1,214 @@
+<div dir="ltr">
+
+
+	
+	
+	
+	
+	
+	<style type="text/css">
+	<!--
+		@page { margin: 0.79in }
+		P { margin-bottom: 0.08in }
+		A:link { so-language: zxx }
+	-->
+	</style>
+
+
+<p style="margin-bottom:0in">Dear All,</p>
+<p style="margin-bottom:0in"><br>
+</p>
+<p style="margin-bottom:0in">I meet a strange problem using
+MPI_Allgatherv when the send buf size becomes bigger but not that
+big.</p>
+<p style="margin-bottom:0in"><a name="__DdeLink__6345_1789100724"></a>
+The following simple testing code of MPI_Allgatherv runs fine when I
+use processors on same machine.</p>
+<p style="margin-bottom:0in">However, when I use processors on
+different machine, I see following problems on different send buf
+size.</p>
+<p style="margin-bottom:0in"><br>
+</p>
+<p style="margin-bottom:0in"><a name="__DdeLink__6333_1789100724"></a>
+1. Bufsize = 2^28, run on 2 processors. OK</p>
+<p style="margin-bottom:0in">2. Bufsize = 2^28, run on 4 processors.
+Error</p>
+<p style="margin-bottom:0in">[btl_tcp_frag.c:209:mca_btl_tcp_frag_recv]
+mca_btl_tcp_frag_recv: readv error (0xffffffff85f526f8, 2147483592)  
+     Bad address(1)</p>
+<p style="margin-bottom:0in"><a name="__DdeLink__6339_1789100724"></a>
+3. Bufsize = 2^28 – 1, run on 4 or 5 or 6 processors. OK</p>
+<p style="margin-bottom:0in"><a name="__DdeLink__6337_1789100724"></a><a name="__DdeLink__6343_1789100724"></a>
+4. Bufsize = 2^29, run on 2 processors. Error shown below OR hang
+there with no error shown</p>
+<p style="margin-bottom:0in">[btl_tcp_frag.c:209:mca_btl_tcp_frag_recv]
+mca_btl_tcp_frag_recv: readv error (0xffffffff964605d0, 2147483632)  
+     Bad address(1)</p>
+<p style="margin-bottom:0in"><a name="__DdeLink__6341_1789100724"></a>
+5. Bufsize =2^29-1, run on 2 processors. OK</p>
+<p style="margin-bottom:0in">6. Bufsize =2^29-1 , run on 4
+processors. hang there with no error shown</p>
+<p style="margin-bottom:0in"><br>
+</p>
+<p style="margin-bottom:0in">I suspect the error is that when
+receive buf reaches 2^30,  mca_btl_tcp_frag_recv will have some
+number close to int limit. However, this suspect is not well
+supported by the testcase above. And I have no clue why there is this
+limit. The problem may also be in network configuration since same
+machine doesn’t have this problem. 
+</p>
+<p style="margin-bottom:0in"><br>
+</p>
+<p style="margin-bottom:0in">Please take a look at the following
+test code and help me to solve the problem.</p>
+<p style="margin-bottom:0in"><br>
+</p>
+<p style="margin-bottom:0in">#include &lt;stdio.h&gt;
+</p>
+<p style="margin-bottom:0in">#include &lt;stdlib.h&gt;
+</p>
+<p style="margin-bottom:0in">#include &lt;string.h&gt;
+</p>
+<p style="margin-bottom:0in">#include &lt;unistd.h&gt;
+</p>
+<p style="margin-bottom:0in">#include &lt;time.h&gt;
+</p>
+<p style="margin-bottom:0in">#include &quot;mpi.h&quot;
+</p>
+<p style="margin-bottom:0in">
+</p>
+<p style="margin-bottom:0in">int main(int argc, char ** argv)
+</p>
+<p style="margin-bottom:0in">{
+</p>
+<p style="margin-bottom:0in">
+</p>
+<p style="margin-bottom:0in">  int myid,nproc;
+</p>
+<p style="margin-bottom:0in">  long i,j;
+</p>
+<p style="margin-bottom:0in">  long size;
+</p>
+<p style="margin-bottom:0in">  long bufsize;
+</p>
+<p style="margin-bottom:0in">  int *rbuf;
+</p>
+<p style="margin-bottom:0in">  int *sbuf;
+</p>
+<p style="margin-bottom:0in">  char
+hostname[MPI_MAX_PROCESSOR_NAME];
+</p>
+<p style="margin-bottom:0in">  int len;
+</p>
+<p style="margin-bottom:0in">  
+</p>
+<p style="margin-bottom:0in">  size = (long) 2*1024*1024*1024-1;
+</p>
+<p style="margin-bottom:0in">    
+</p>
+<p style="margin-bottom:0in">  MPI_Init(&amp;argc, &amp;argv);
+</p>
+<p style="margin-bottom:0in">  MPI_Comm_rank(MPI_COMM_WORLD,
+&amp;myid);
+</p>
+<p style="margin-bottom:0in">  MPI_Comm_size(MPI_COMM_WORLD,
+&amp;nproc);
+</p>
+<p style="margin-bottom:0in">  MPI_Get_processor_name(hostname,
+&amp;len);
+</p>
+<p style="margin-bottom:0in">  printf(&quot;I am process %d with
+pid: %d at %s\n&quot;,myid,getpid(),hostname);
+</p>
+<p style="margin-bottom:0in">  sleep(2);
+</p>
+<p style="margin-bottom:0in"><br>
+</p>
+<p style="margin-bottom:0in">  if (myid == 0) 
+</p>
+<p style="margin-bottom:0in">   printf(&quot;size : %ld\n&quot;,size);
+</p>
+<p style="margin-bottom:0in">  sbuf = (int *)
+calloc(size,sizeof(MPI_INT));
+</p>
+<p style="margin-bottom:0in">  if (sbuf == NULL) {
+</p>
+<p style="margin-bottom:0in">    printf(&quot;fail to allocate
+memory of sbuf\n&quot;);
+</p>
+<p style="margin-bottom:0in">    exit(1);
+</p>
+<p style="margin-bottom:0in">  }  
+</p>
+<p style="margin-bottom:0in">  rbuf = (int *)
+calloc(size,sizeof(MPI_INT));
+</p>
+<p style="margin-bottom:0in">  if (rbuf == NULL) {
+</p>
+<p style="margin-bottom:0in">    printf(&quot;fail to allocate
+memory of rbuf\n&quot;);
+</p>
+<p style="margin-bottom:0in">    exit(1);
+</p>
+<p style="margin-bottom:0in">  }
+</p>
+<p style="margin-bottom:0in">
+</p>
+<p style="margin-bottom:0in">  int *recvCount =
+calloc(nproc,sizeof(int));
+</p>
+<p style="margin-bottom:0in">  int *displ =
+calloc(nproc,sizeof(int));
+</p>
+<p style="margin-bottom:0in">    
+</p>
+<p style="margin-bottom:0in">  bufsize = 268435456; //which is 2^28
+</p>
+<p style="margin-bottom:0in">  for(i=0;i&lt;nproc;++i) {
+</p>
+<p style="margin-bottom:0in">    recvCount[i] = bufsize;
+</p>
+<p style="margin-bottom:0in">    displ[i] = bufsize*i; 
+</p>
+<p style="margin-bottom:0in">  }
+</p>
+<p style="margin-bottom:0in">    
+</p>
+<p style="margin-bottom:0in">  for (i=0;i&lt;bufsize;++i)
+</p>
+<p style="margin-bottom:0in">    sbuf[i] = myid+i;
+</p>
+<p style="margin-bottom:0in">  printf(&quot;buffer size: %ld
+recvCount[0]:%d last displ
+index:%d\n&quot;,bufsize,recvCount[0],displ[nproc-1]);
+</p>
+<p style="margin-bottom:0in">  fflush(stdout);
+</p>
+<p style="margin-bottom:0in"><br>
+</p>
+<p style="margin-bottom:0in">  MPI_Allgatherv(sbuf,recvCount[0],
+MPI_INT,rbuf,recvCount,displ,MPI_INT,
+</p>
+<p style="margin-bottom:0in">		       MPI_COMM_WORLD);
+</p>
+<p style="margin-bottom:0in"><br>
+</p>
+<p style="margin-bottom:0in">  printf(&quot;OK\n&quot;);
+</p>
+<p style="margin-bottom:0in">  fflush(stdout);
+</p>
+<p style="margin-bottom:0in">  
+</p>
+<p style="margin-bottom:0in">  MPI_Finalize();
+</p>
+<p style="margin-bottom:0in">  return 0;
+</p>
+<p style="margin-bottom:0in">
+</p>
+<p style="margin-bottom:0in">}
+</p>
+<p style="margin-bottom:0in">
+</p>
+
+</div>
+

@@ -1,0 +1,166 @@
+Thanks Marko,<div><br></div><div>I will check that tomorrow.</div><div>I did pretty much the same thing, but without testfile0, that looks pretty useless here.</div><div>fwiw, in the past we saw some random crashes and the root cause was MPI did not retain some objects, and bad things happened when the garbage collector ran.</div><div><br></div><div>btw, are you running on an x86_64 arch ?</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Monday, January 25, 2016, Marko Blatzheim &lt;<a href="mailto:Marko-Blatzheim@web.de">Marko-Blatzheim@web.de</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div style="font-family:Verdana;font-size:12.0px"><div>
+<div>Hi Gilles,</div>
+
+<div> </div>
+
+<div>I checked out openMPI Master 2 weeks ago.</div>
+
+<div>JVM is: java version &quot;1.7.0_25&quot;<br>
+Java(TM) SE Runtime Environment (build 1.7.0_25-b15)<br>
+Java HotSpot(TM) 64-Bit Server VM (build 23.25-b01, mixed mode)</div>
+
+<div>command line is: mpirun -np 2 java -jar MPI_open.jar</div>
+
+<div>
+<div> </div>
+
+<div>The segmentation fault is in the line with: test = is.readObject();</div>
+
+<div> </div>
+
+<div>
+<div><br>
+package mpi_open;</div>
+
+<div>import java.io.ByteArrayInputStream;<br>
+import java.io.FileOutputStream;<br>
+import java.io.IOException;<br>
+import java.io.ObjectInputStream;<br>
+import java.io.ObjectOutputStream;<br>
+import java.io.Serializable;<br>
+import java.util.ArrayList;<br>
+import java.util.Random;<br>
+import mpi.File;<br>
+import mpi.MPI;<br>
+import mpi.MPIException;<br>
+import mpi.Status;</div>
+
+<div><br>
+public class MPI_open {</div>
+
+<div><br>
+    public static void main(String[] args) throws MPIException, IOException, ClassNotFoundException {<br>
+       <br>
+        MPI.Init(args);<br>
+        int myRank = MPI.COMM_WORLD.getRank();<br>
+        if (myRank == 0) {<br>
+            // create file<br>
+            int num = 1000000;<br>
+            Random r = new Random(1234);<br>
+            ArrayList&lt;Serializable&gt; obj0 = new ArrayList&lt;&gt;(num);<br>
+            double[] obj1 = new double[num];<br>
+            for (int j = 0; j &lt; num; j++) {<br>
+                double d = r.nextGaussian();<br>
+                obj0.add(d);<br>
+                obj1[j] = d;<br>
+            }<br>
+            obj0.trimToSize();</div>
+
+<div>            System.out.println(&quot;objects created&quot;);</div>
+
+<div>            java.io.File f = new java.io.File(&quot;testfile0&quot;);<br>
+            ObjectOutputStream out = null;<br>
+            try {<br>
+                out = new ObjectOutputStream(new FileOutputStream(f));<br>
+                System.out.println(&quot;out1&quot;);<br>
+                out.writeObject(obj1);<br>
+                System.out.println(&quot;out2&quot;);<br>
+            } catch (java.lang.ClassCastException x) {<br>
+                throw x;<br>
+            } finally {<br>
+                if (out != null) {<br>
+                    out.close();<br>
+                }<br>
+            }</div>
+
+<div>            System.out.println(&quot;file 1 done&quot;);</div>
+
+<div>            java.io.File f1 = new java.io.File(&quot;testfile1&quot;);<br>
+            ObjectOutputStream out1 = null;<br>
+            try {<br>
+                out1 = new ObjectOutputStream(new FileOutputStream(f1));<br>
+                out1.writeObject(obj0);<br>
+            } catch (java.lang.ClassCastException x) {<br>
+                throw x;<br>
+            } finally {<br>
+                if (out1 != null) {<br>
+                    out1.close();<br>
+                }<br>
+            }<br>
+            System.out.println(&quot;file 2 done&quot;);</div>
+
+<div>            String filename = &quot;testfile1&quot;;<br>
+            byte[] readbuf;</div>
+
+<div>            File myfile = new File(MPI.COMM_SELF, filename, MPI.MODE_RDONLY);<br>
+            int filesize = (int) myfile.getSize();<br>
+            readbuf = new byte[filesize];<br>
+            Status status = myfile.read(readbuf, filesize, MPI.BYTE);<br>
+            Object test = null;</div>
+
+<div>            ByteArrayInputStream in = new ByteArrayInputStream(readbuf);<br>
+            ObjectInputStream is = new ObjectInputStream(in);<br>
+            System.out.println(&quot;Program fine until this line!&quot;);<br>
+            test = is.readObject();<br>
+        }</div>
+
+<div>        MPI.Finalize();<br>
+    }<br>
+}</div>
+</div>
+
+<div> </div>
+
+<div>Thanks</div>
+
+<div>Marko</div>
+
+<div> </div>
+
+<div name="quote" style="margin:10px 5px 5px 10px;padding:10px 0 10px 10px;border-left:2px solid #c3d9e5;word-wrap:break-word">
+<div style="margin:0 0 10px 0"><b>Gesendet:</b> Montag, 25. Januar 2016 um 01:04 Uhr<br>
+<b>Von:</b> &quot;Gilles Gouaillardet&quot; &lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;gilles@rist.or.jp&#39;);" target="_blank">gilles@rist.or.jp</a>&gt;<br>
+<b>An:</b> &quot;Open MPI Users&quot; &lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;users@open-mpi.org&#39;);" target="_blank">users@open-mpi.org</a>&gt;<br>
+<b>Betreff:</b> Re: [OMPI users] segmentation fault with java MPI</div>
+
+<div name="quoted-content">Marko,<br>
+<br>
+i wrote a test program based on your code snippet and it works for me.<br>
+<br>
+could you please :<br>
+- post a standalone test case that is ready to be compiled and ran<br>
+- which version of OpenMPI are you using ?<br>
+- which JVM are you using ? (vendor and version)<br>
+- post your full command line<br>
+<br>
+Cheers,<br>
+<br>
+Gilles<br>
+<br>
+On 1/25/2016 8:23 AM, Marko Blatzheim wrote:<br>
+&gt; String filename = &quot;testfile&quot;;<br>
+&gt; byte[] readbuf;<br>
+&gt;<br>
+&gt; File myfile = new File(MPI.COMM_SELF, filename, MPI.MODE_RDONLY);<br>
+&gt; int filesize = (int) myfile.getSize();<br>
+&gt; readbuf = new byte[filesize];<br>
+&gt;<br>
+&gt; byte[] copyarray = new byte[filesize];<br>
+&gt; Status status = myfile.read(readbuf, filesize, MPI.BYTE);<br>
+&gt; Object test = null;<br>
+&gt; if (myrank == 0) {<br>
+&gt; ByteArrayInputStream in = new ByteArrayInputStream(readbuf);<br>
+&gt; ObjectInputStream is = new ObjectInputStream(in);<br>
+&gt; test = is.readObject(); // This line causes a<br>
+&gt; segmnentation fault<br>
+&gt; }<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;users@open-mpi.org&#39;);" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/01/28360.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/01/28360.php</a></div>
+</div>
+</div>
+</div></div></div>
+</blockquote></div>

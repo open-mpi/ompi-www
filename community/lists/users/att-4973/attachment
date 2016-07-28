@@ -1,0 +1,214 @@
+<html><body>
+<p>Hi George<br>
+<br>
+Sorry - This is not a valid MPI program.  It violates the requirement that a program not depend on there being any system buffering.  See page 32-33 of MPI 1.1<br>
+<br>
+ Lets simplify to:<br>
+Task 0:<br>
+MPI_Recv( from 1 with tag 1)<br>
+MPI_Recv( from 1 with tag 0)<br>
+<br>
+Task 1:<br>
+MPI_Send(to 0 with tag 0)<br>
+MPI_Send(to 0 with tag 1)<br>
+<br>
+Without any early arrival buffer (or with eager size set to 0) task 0 will hang in the first MPI_Recv and never post a recv with tag 0.  Task 1 will hang in the MPI_Send with tag 0 because it cannot get past it until the matching recv is posted by task 0.  <br>
+<br>
+If there is enough early arrival buffer for the first MPI_Send on task 1 to complete and the second MPI_Send to be posted the example will run. Once both sends are posted by task 1, task 0 will harvest the second send and get out of its first recv. Task 0's second recv can now pick up the message from the early arrival buffer where it had to go to let task 1complete send 1 and post send 2.<br>
+<br>
+If an application wants to do this kind of order inversion it should use some non blocking operations.  For example, if task 0 posted an MPI_Irecv for tag 1, an MPI_Recv for tag 0 and lastly, an MPI_Wait for the Irecv, the example is valid.<br>
+<br>
+I am not aware of any case where the standard allows a correct MPI program to be deadlocked by an implementation limit.  It can be failed if it exceeds a limit but I do not think it is ever OK to hang.<br>
+<br>
+             Dick<br>
+<br>
+Dick Treumann  -  MPI Team/TCEM            <br>
+IBM Systems &amp; Technology Group<br>
+Dept 0lva / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 02/04/2008 04:41:21 PM:<br>
+<br>
+&gt; Please allow me to slightly modify your example. It still follow the &nbsp;<br>
+&gt; rules from the MPI standard, so I think it's a 100% standard compliant &nbsp;<br>
+&gt; parallel application.<br>
+&gt; <br>
+&gt; +------------------------------------------------------------+<br>
+&gt; | &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; task 0: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;|<br>
+&gt; +------------------------------------------------------------+<br>
+&gt; | MPI_Init() &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; |<br>
+&gt; | sleep(3000) &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;|<br>
+&gt; | for( msg = 0; msg &lt; 5000; msg++ ) { &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;|<br>
+&gt; | &nbsp; for( peer = 0; peer &lt; com_size; peer++ ) { &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; |<br>
+&gt; | &nbsp; &nbsp; MPI_Recv( ..., from = peer, tag = (5000 - msg),... ); &nbsp;|<br>
+&gt; | &nbsp; } &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;|<br>
+&gt; | } &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;|<br>
+&gt; +------------------------------------------------------------+<br>
+&gt; <br>
+&gt; +------------------------------------------------------------+<br>
+&gt; | &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; task 1 to com_size: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;|<br>
+&gt; +------------------------------------------------------------+<br>
+&gt; | MPI_Init() &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; |<br>
+&gt; | for( msg = 0; msg &lt; 5000; msg++ ) { &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;|<br>
+&gt; | &nbsp; MPI_Send( ..., 0, tag = msg, ... ); &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;|<br>
+&gt; | } &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;|<br>
+&gt; +------------------------------------------------------------+<br>
+&gt; <br>
+&gt; Isn't that the flow control will stop the application to run to &nbsp;<br>
+&gt; completion ? It's easy to write an application that break a particular &nbsp;<br>
+&gt; MPI implementation. It doesn't necessarily make this implementation &nbsp;<br>
+&gt; non standard compliant.<br>
+&gt; <br>
+&gt; george.<br>
+&gt; <br>
+&gt; On Feb 4, 2008, at 9:08 AM, Richard Treumann wrote:<br>
+&gt; <br>
+&gt; &gt; Is what George says accurate? If so, it sounds to me like OpenMPI &nbsp;<br>
+&gt; &gt; does not comply with the MPI standard on the behavior of eager &nbsp;<br>
+&gt; &gt; protocol. MPICH is getting dinged in this discussion because they &nbsp;<br>
+&gt; &gt; have complied with the requirements of the MPI standard. IBM MPI &nbsp;<br>
+&gt; &gt; also complies with the standard.<br>
+&gt; &gt;<br>
+&gt; &gt; If there is any debate about whether the MPI standard does (or &nbsp;<br>
+&gt; &gt; should) require the behavior I describe below then we should move &nbsp;<br>
+&gt; &gt; the discussion to the MPI 2.1 Forum and get a clarification.<br>
+&gt; &gt;<br>
+&gt; &gt; To me, the MPI standard is clear that a program like this:<br>
+&gt; &gt;<br>
+&gt; &gt; task 0:<br>
+&gt; &gt; MPI_Init<br>
+&gt; &gt; sleep(3000);<br>
+&gt; &gt; start receiving messages<br>
+&gt; &gt;<br>
+&gt; &gt; each of tasks 1 to n-1:<br>
+&gt; &gt; MPI_Init<br>
+&gt; &gt; loop 5000 times<br>
+&gt; &gt; MPI_Send(small message to 0)<br>
+&gt; &gt; end loop<br>
+&gt; &gt;<br>
+&gt; &gt; May send some small messages eagerly if there is space at task 0 but &nbsp;<br>
+&gt; &gt; must block each task 1 to n-1 before allowing task 0 to run out of &nbsp;<br>
+&gt; &gt; eager buffer space. Doing this requires a token or credit management &nbsp;<br>
+&gt; &gt; system in which each task has credits for known buffer space at task &nbsp;<br>
+&gt; &gt; 0. Each task will send eagerly to task 0 until the sender runs out &nbsp;<br>
+&gt; &gt; of credits and then must switch to rendezvous protocol. Tasks 1to &nbsp;<br>
+&gt; &gt; n-1 might each do 3 MPI_Sends or 300 MPI_Sends before blocking, &nbsp;<br>
+&gt; &gt; depending on how much buffer space there is at task 0 but they would &nbsp;<br>
+&gt; &gt; need to block in some MPI_Send before task 0 blows up.<br>
+&gt; &gt;<br>
+&gt; &gt; When task 0 wakes up and begins receiving the early arrivals, tasks &nbsp;<br>
+&gt; &gt; 1 to n-1 will unblock and resume looping.. Allowing the user to shut &nbsp;<br>
+&gt; &gt; off eager protocol by setting eager size to 0 does not fix the &nbsp;<br>
+&gt; &gt; standards compliance issue. You must either have no eager protocol &nbsp;<br>
+&gt; &gt; at all or must have a eager message token/credit strategy.<br>
+&gt; &gt;<br>
+&gt; &gt; Dick<br>
+&gt; &gt;<br>
+&gt; &gt; Dick Treumann - MPI Team/TCEM<br>
+&gt; &gt; IBM Systems &amp; Technology Group<br>
+&gt; &gt; Dept 0lva / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+&gt; &gt; Tele (845) 433-7846 Fax (845) 433-8363<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; users-bounces@open-mpi.org wrote on 02/03/2008 06:59:38 PM:<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; Well ... this is exactly the kind of behavior a high performance<br>
+&gt; &gt; &gt; application try to achieve isn't it ?<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; The problem here is not the flow control. What you need is to avoid<br>
+&gt; &gt; &gt; buffering the messages on the receiver side. Luckily, Open MPI is<br>
+&gt; &gt; &gt; entirely configurable at runtime, so this situation is really easy &nbsp;<br>
+&gt; &gt; to<br>
+&gt; &gt; &gt; deal with even at the user level. Set the eager size to zero, and no<br>
+&gt; &gt; &gt; buffering on the receiver side will be made. Your program will &nbsp;<br>
+&gt; &gt; survive<br>
+&gt; &gt; &gt; as long as there is some available memory on the receiver.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; &nbsp; &nbsp;Thanks,<br>
+&gt; &gt; &gt; &nbsp; &nbsp; &nbsp;George.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; On Feb 1, 2008, at 6:32 PM, 8mj6tc902@sneakemail.com wrote:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; That would make sense. I able to break OpenMPI by having Node A &nbsp;<br>
+&gt; &gt; wait<br>
+&gt; &gt; &gt; &gt; for<br>
+&gt; &gt; &gt; &gt; messages from Node B. Node B is in fact sleeping while Node C &nbsp;<br>
+&gt; &gt; bombards<br>
+&gt; &gt; &gt; &gt; Node A with a few thousand messages. After a while Node B wakes &nbsp;<br>
+&gt; &gt; up and<br>
+&gt; &gt; &gt; &gt; sends Node A the message it's been waiting on, but Node A has long<br>
+&gt; &gt; &gt; &gt; since<br>
+&gt; &gt; &gt; &gt; been buried and seg faults. If I decrease the number of messages &nbsp;<br>
+&gt; &gt; C is<br>
+&gt; &gt; &gt; &gt; sending, it works properly. This was on OpenMPI 1.2.4 (using I &nbsp;<br>
+&gt; &gt; think<br>
+&gt; &gt; &gt; &gt; the<br>
+&gt; &gt; &gt; &gt; SM BTL (might have been MX or TCP, but certainly not infiniband. I<br>
+&gt; &gt; &gt; &gt; could<br>
+&gt; &gt; &gt; &gt; dig up the test and try again if anyone is seriously curious).<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; Trying the same test on MPICH/MX went very very slow (I don't &nbsp;<br>
+&gt; &gt; think<br>
+&gt; &gt; &gt; &gt; they<br>
+&gt; &gt; &gt; &gt; have any clever buffer management) but it didn't crash.<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; Sacerdoti, Federico Federico.Sacerdoti-at-deshaw.com<br>
+&gt; &gt; &gt; &gt; |openmpi-users/Allow| wrote:<br>
+&gt; &gt; &gt; &gt;&gt; Hi,<br>
+&gt; &gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt; &gt;&gt; I am readying an openmpi 1.2.5 software stack for use with a<br>
+&gt; &gt; &gt; &gt;&gt; many-thousand core cluster. I have a question about sending small<br>
+&gt; &gt; &gt; &gt;&gt; messages that I hope can be answered on this list.<br>
+&gt; &gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt; &gt;&gt; I was under the impression that if node A wants to send a small &nbsp;<br>
+&gt; &gt; MPI<br>
+&gt; &gt; &gt; &gt;&gt; message to node B, it must have a credit to do so. The credit<br>
+&gt; &gt; &gt; &gt;&gt; assures A<br>
+&gt; &gt; &gt; &gt;&gt; that B has enough buffer space to accept the message. Credits are<br>
+&gt; &gt; &gt; &gt;&gt; required by the mpi layer regardless of the BTL transport layer &nbsp;<br>
+&gt; &gt; used.<br>
+&gt; &gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt; &gt;&gt; I have been told by a Voltaire tech that this is not so, the<br>
+&gt; &gt; &gt; &gt;&gt; credits are<br>
+&gt; &gt; &gt; &gt;&gt; used by the infiniband transport layer to reliably send a &nbsp;<br>
+&gt; &gt; message,<br>
+&gt; &gt; &gt; &gt;&gt; and<br>
+&gt; &gt; &gt; &gt;&gt; is not an openmpi feature.<br>
+&gt; &gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt; &gt;&gt; Thanks,<br>
+&gt; &gt; &gt; &gt;&gt; Federico<br>
+&gt; &gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt; &gt;&gt; _______________________________________________<br>
+&gt; &gt; &gt; &gt;&gt; users mailing list<br>
+&gt; &gt; &gt; &gt;&gt; users@open-mpi.org<br>
+&gt; &gt; &gt; &gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; --<br>
+&gt; &gt; &gt; &gt; --Kris<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; 叶ってしまう夢は本当の夢と言えん。<br>
+&gt; &gt; &gt; &gt; [A dream that comes true can't really be called a dream.]<br>
+&gt; &gt; &gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; &gt; users mailing list<br>
+&gt; &gt; &gt; &gt; users@open-mpi.org<br>
+&gt; &gt; &gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; [attachment &quot;smime.p7s&quot; deleted by Richard<br>
+&gt; &gt; &gt; Treumann/Poughkeepsie/IBM] &nbsp;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; users mailing list<br>
+&gt; &gt; &gt; users@open-mpi.org<br>
+&gt; &gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; users mailing list<br>
+&gt; &gt; users@open-mpi.org<br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; <br>
+&gt; [attachment &quot;smime.p7s&quot; deleted by Richard <br>
+&gt; Treumann/Poughkeepsie/IBM] _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt></body></html>

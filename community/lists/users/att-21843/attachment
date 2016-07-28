@@ -1,0 +1,66 @@
+<div dir="ltr">Hi Gus,<div><br></div><div style>Thanks for your suggestion! </div><div style><br></div><div style>The problem of this two-phased data exchange is as follows. Each rank can have data blocks that will be exchanged to potentially all other ranks. So if a rank needs to tell all the other ranks about which blocks to receive, it would require an all-to-all collective communication during phase one (e.g., MPI_Gatherallv). Because such collective communication is blocking in current stable OpenMPI (MPI-2), it would have a negative impact on scalability of the application, especially when we have a large number of MPI ranks. This negative impact would not be compensated by the bandwidth saved :-)</div>
+<div style><br></div><div style>What I really need is something like this: Isend sets count to 0 if a block is not dirty. On the receiving side, MPI_Waitall deallocates the corresponding Irecv request immediately and sets the Irecv request handle to MPI_REQUEST_NULL as if it were a normal Irecv. I am wondering if someone could confirm this behavior with me? I could do an experiment on this too...</div>
+<div style><br></div><div style>Regards,</div><div style><br></div><div style>Jacky</div><div style><br></div><div style><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, May 1, 2013 at 3:46 PM, Gus Correa <span dir="ltr">&lt;<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Maybe start the data exchange by sending a (presumably short)<br>
+list/array/index-function of the dirty/not-dirty blocks status<br>
+(say, 0=not-dirty,1=dirty),<br>
+then putting if conditionals before the Isend/Irecv so that only<br>
+dirty blocks are exchanged?<br>
+<br>
+I hope this helps,<br>
+Gus Correa<div><div class="h5"><br>
+<br>
+<br>
+<br>
+On 05/01/2013 01:28 PM, Thomas Watson wrote:<br>
+</div></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div class="h5">
+Hi,<br>
+<br>
+I have a program where each MPI rank hosts a set of data blocks. After<br>
+doing computation over *some of* its local data blocks, each MPI rank<br>
+needs to exchange data with other ranks. Note that the computation may<br>
+involve only a subset of the data blocks on a MPI rank. The data<br>
+exchange is achieved at each MPI rank through Isend and Irecv and then<br>
+Waitall to complete the requests. Each pair of Isend and Irecv exchanges<br>
+a corresponding pair of data blocks at different ranks. Right now, we do<br>
+Isend/Irecv for EVERY block!<br>
+<br>
+The idea is that because the computation at a rank may only involves a<br>
+subset of blocks, we could mark those blocks as dirty during the<br>
+computation. And to reduce data exchange bandwidth, we could only<br>
+exchanges those *dirty* pairs across ranks.<br>
+<br>
+The problem is: if a rank does not compute on a block &#39;m&#39;, and if it<br>
+does not call Isend for &#39;m&#39;, then the receiving rank must somehow know<br>
+this and either a) does not call Irecv for &#39;m&#39; as well, or b) let Irecv<br>
+for &#39;m&#39; fail gracefully.<br>
+<br>
+My questions are:<br>
+1. how Irecv will behave (actually how MPI_Waitall will behave) if the<br>
+corresponding Isend is missing?<br>
+<br>
+2. If we still post Isend for &#39;m&#39;, but because we really do not need to<br>
+send any data for &#39;m&#39;, can I just set a &quot;flag&quot; in Isend so that<br>
+MPI_Waitall on the receiving side will &quot;cancel&quot; the corresponding Irecv<br>
+immediately? For example, I can set the count in Isend to 0, and on the<br>
+receiving side, when MPI_Waitall see a message with empty payload, it<br>
+reclaims the corresponding Irecv? In my code, the correspondence between<br>
+a pair of Isend and Irecv is established by a matching TAG.<br>
+<br>
+Thanks!<br>
+<br>
+Jacky<br>
+<br>
+<br></div></div>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+</blockquote>
+<br>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br></div>
+

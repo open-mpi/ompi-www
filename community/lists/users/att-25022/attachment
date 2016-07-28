@@ -1,0 +1,111 @@
+<div dir="ltr"><div>Open MPI Users,</div><div><br></div><div>I work on a large climate model called GEOS-5 and we&#39;ve recently managed to get it to compile with gfortran 4.9.1 (our usual compilers are Intel and PGI for performance). In doing so, we asked our admins to install Open MPI 1.8.1 as the MPI stack instead of MVAPICH2 2.0 mainly because we figure the gfortran port is more geared to a desktop.</div>
+
+<div><br></div><div>So, the model builds just fine but when we run it, it stalls in our &quot;History&quot; component whose job is to write out netCDF files of output. The odd thing is, though, this stall seems to happen more on our Sandy Bridge nodes than on our Westmere nodes, but both hang.</div>
+
+<div><br></div><div>A colleague has made a single-file code that emulates our History component (the MPI traffic part) that we&#39;ve used to report bugs to MVAPICH and I asked him to try it with this issue and it seems to duplicate it.</div>
+
+<div><br></div><div>To wit, a &quot;successful&quot; run of the code is:</div><div><br></div><div><div><font face="courier new, monospace">(1003) $ mpirun -np 96 ./mpi_reproducer.x 4 24</font></div><div><font face="courier new, monospace">srun.slurm: cluster configuration lacks support for cpu binding</font></div>
+
+<div><font face="courier new, monospace">srun.slurm: cluster configuration lacks support for cpu binding</font></div><div><font face="courier new, monospace">--------------------------------------------------------------------------</font></div>
+
+<div><font face="courier new, monospace">WARNING: Open MPI will create a shared memory backing file in a</font></div><div><font face="courier new, monospace">directory that appears to be mounted on a network filesystem.</font></div>
+
+<div><font face="courier new, monospace">Creating the shared memory backup file on a network file system, such</font></div><div><font face="courier new, monospace">as NFS or Lustre is not recommended -- it may cause excessive network</font></div>
+
+<div><font face="courier new, monospace">traffic to your file servers and/or cause shared memory traffic in</font></div><div><font face="courier new, monospace">Open MPI to be much slower than expected.</font></div><div>
+<font face="courier new, monospace"><br>
+</font></div><div><font face="courier new, monospace">You may want to check what the typical temporary directory is on your</font></div><div><font face="courier new, monospace">node.  Possible sources of the location of this temporary directory</font></div>
+
+<div><font face="courier new, monospace">include the $TEMPDIR, $TEMP, and $TMP environment variables.</font></div><div><font face="courier new, monospace"><br></font></div><div><font face="courier new, monospace">Note, too, that system administrators can set a list of filesystems</font></div>
+
+<div><font face="courier new, monospace">where Open MPI is disallowed from creating temporary files by setting</font></div><div><font face="courier new, monospace">the MCA parameter &quot;orte_no_session_dir&quot;.</font></div>
+
+<div><font face="courier new, monospace"><br></font></div><div><font face="courier new, monospace">  Local host: borg01s026</font></div><div><font face="courier new, monospace">  Fileame:    /gpfsm/dnb31/tdirs/pbs/slurm.2202701.mathomp4/openmpi-sessions-mathomp4@borg01s026_0/60464/1/shared_mem_pool.borg01s026</font></div>
+
+<div><font face="courier new, monospace"><br></font></div><div><font face="courier new, monospace">You can set the MCA paramter shmem_mmap_enable_nfs_warning to 0 to</font></div><div><font face="courier new, monospace">disable this message.</font></div>
+
+<div><font face="courier new, monospace">--------------------------------------------------------------------------</font></div><div><font face="courier new, monospace"> nx:            4</font></div><div><font face="courier new, monospace"> ny:           24</font></div>
+
+<div><font face="courier new, monospace"> comm size is           96</font></div><div><font face="courier new, monospace"> local array sizes are          12          12</font></div><div><font face="courier new, monospace"> filling local arrays</font></div>
+
+<div><font face="courier new, monospace"> creating requests</font></div><div><font face="courier new, monospace"> igather</font></div><div><font face="courier new, monospace"> before collective wait</font></div><div><font face="courier new, monospace"> after collective wait</font></div>
+
+<div><font face="courier new, monospace"> result is            1   1.00000000       1.00000000    </font></div><div><font face="courier new, monospace"> result is            2   1.41421354       1.41421354    </font></div>
+
+<div><font face="courier new, monospace"> result is            3   1.73205078       1.73205078    </font></div><div><font face="courier new, monospace"> result is            4   2.00000000       2.00000000    </font></div>
+
+<div><font face="courier new, monospace"> result is            5   2.23606801       2.23606801    </font></div><div><font face="courier new, monospace"> result is            6   2.44948983       2.44948983    </font></div>
+
+<div><font face="courier new, monospace"> result is            7   2.64575124       2.64575124    </font></div><div><font face="courier new, monospace"> result is            8   2.82842708       2.82842708    </font></div>
+
+</div><div><font face="courier new, monospace">...snip...</font></div><div><div><font face="courier new, monospace"> result is          939   30.6431065       30.6431065    </font></div><div><font face="courier new, monospace"> result is          940   30.6594200       30.6594200    </font></div>
+
+<div><font face="courier new, monospace"> result is          941   30.6757240       30.6757240    </font></div><div><font face="courier new, monospace"> result is          942   30.6920185       30.6920185    </font></div>
+
+<div><font face="courier new, monospace"> result is          943   30.7083054       30.7083054    </font></div><div><font face="courier new, monospace"> result is          944   30.7245827       30.7245827    </font></div>
+
+<div><font face="courier new, monospace"> result is          945   30.7408524       30.7408524    </font></div></div><div><br></div><div>Where the second and third columns of numbers are just the square root of the first.</div>
+
+<div><br></div><div>But, often, the runs do this (note I&#39;m removing the <font face="courier new, monospace">shmem_mmap_enable_nfs_warning</font> message for sanity&#39;s sake from these copy and pastes):</div><div><br>
+
+</div><div><div><font face="courier new, monospace">(1196) $ mpirun -np 96 ./mpi_reproducer.x 4 24</font></div><div><font face="courier new, monospace">srun.slurm: cluster configuration lacks support for cpu binding</font></div>
+
+<div><font face="courier new, monospace">srun.slurm: cluster configuration lacks support for cpu binding</font></div><div><span style="font-family:&#39;courier new&#39;,monospace"> nx:            4</span><br></div><div><font face="courier new, monospace"> ny:           24</font></div>
+
+<div><font face="courier new, monospace"> comm size is           96</font></div><div><font face="courier new, monospace"> local array sizes are          12          12</font></div><div><font face="courier new, monospace"> filling local arrays</font></div>
+
+<div><font face="courier new, monospace"> creating requests</font></div><div><font face="courier new, monospace"> igather</font></div><div><font face="courier new, monospace"> before collective wait</font></div><div><font face="courier new, monospace"> after collective wait</font></div>
+
+<div><font face="courier new, monospace"> result is            1   1.00000000       1.00000000    </font></div><div><font face="courier new, monospace"> result is            2   1.41421354       1.41421354    </font></div>
+
+<div><font face="courier new, monospace">[borg01w021:09264] 89 more processes have sent help message help-opal-shmem-mmap.txt / mmap on nfs</font></div><div><font face="courier new, monospace">[borg01w021:09264] Set MCA parameter &quot;orte_base_help_aggregate&quot; to 0 to see all help / error messages</font></div>
+
+</div><div><br></div><div>where it prints out a few results.</div><div><br></div><div>The worst case is most often seen on Sandy Bridge and is the most often failure:</div><div><br></div><div><div><font face="courier new, monospace">(1197) $ mpirun -np 96 ./mpi_reproducer.x 4 24</font></div>
+
+<div><font face="courier new, monospace">srun.slurm: cluster configuration lacks support for cpu binding</font></div><div><font face="courier new, monospace">srun.slurm: cluster configuration lacks support for cpu binding</font></div>
+
+<div><span style="font-family:&#39;courier new&#39;,monospace"> nx:            4</span><br></div><div><font face="courier new, monospace"> ny:           24</font></div><div><font face="courier new, monospace"> comm size is           96</font></div>
+
+<div><font face="courier new, monospace"> local array sizes are          12          12</font></div><div><font face="courier new, monospace"> filling local arrays</font></div><div><font face="courier new, monospace"> creating requests</font></div>
+
+<div><font face="courier new, monospace"> igather</font></div><div><font face="courier new, monospace"> before collective wait</font></div><div><font face="courier new, monospace">[borg01w021:09367] 89 more processes have sent help message help-opal-shmem-mmap.txt / mmap on nfs</font></div>
+
+<div><font face="courier new, monospace">[borg01w021:09367] Set MCA parameter &quot;orte_base_help_aggregate&quot; to 0 to see all help / error messages</font></div></div><div><br></div><div>This halt best compares to our full model code. It halts much at the same &quot;place&quot; around a collective wait.</div>
+
+<div><br></div><div>Finally, if I <font face="courier new, monospace">setenv OMPI_MCA_orte_base_help_aggregate 0</font> (to see all help/error messages) I usually just &quot;hang&quot; with no error message at all (additionally turning off the warning):</div>
+
+<div><br></div><div><div><font face="courier new, monospace">(1203) $ setenv OMPI_MCA_orte_base_help_aggregate 0</font></div></div><div><div><font face="courier new, monospace">(1203) $ setenv OMPI_MCA_shmem_mmap_enable_nfs_warning 0</font></div>
+
+<div><font face="courier new, monospace">(1204) $ mpirun -np 96 ./mpi_reproducer.x 4 24</font></div><div><font face="courier new, monospace">srun.slurm: cluster configuration lacks support for cpu binding</font></div><div>
+
+<font face="courier new, monospace">srun.slurm: cluster configuration lacks support for cpu binding</font></div><div><font face="courier new, monospace"> nx:            4</font></div><div><font face="courier new, monospace"> ny:           24</font></div>
+
+<div><font face="courier new, monospace"> comm size is           96</font></div><div><font face="courier new, monospace"> local array sizes are          12          12</font></div><div><font face="courier new, monospace"> filling local arrays</font></div>
+
+<div><font face="courier new, monospace"> creating requests</font></div><div><font face="courier new, monospace"> igather</font></div><div><font face="courier new, monospace"> before collective wait</font></div><div><br>
+</div>
+</div><div>Note, this problem doesn&#39;t seem to appear at lower number of processes (16, 24, 32) but does seem pretty consistent at 96, especially on Sandy Bridges.</div><div><br></div><div>Also, yes, we get that weird srun.slurm warning but we always seem to get that (Open MPI, MVAPICH) so while our admins are trying to correct that, at present it is not our worry.</div>
+
+<div><br></div><div>The MPI stack was compiled with (per our admins):</div><div><br></div><div><div><font face="courier new, monospace">export CFLAGS=&quot;-fPIC -m64&quot;</font></div><div><font face="courier new, monospace">export CXXFLAGS=&quot;-fPIC -m64&quot;</font></div>
+
+<div><font face="courier new, monospace">export FFLAGS=&quot;-fPIC&quot;</font></div><div><font face="courier new, monospace">export FCFLAGS=&quot;-fPIC&quot;</font></div><div><font face="courier new, monospace">export F90FLAGS=&quot;-fPIC&quot;</font></div>
+
+<div><font face="courier new, monospace"><br></font></div><div><font face="courier new, monospace">export LDFLAGS=&quot;-L/usr/nlocal/slurm/2.6.3/lib64&quot;</font></div><div><font face="courier new, monospace">export CPPFLAGS=&quot;-I/usr/nlocal/slurm/2.6.3/include&quot;</font></div>
+
+<div><font face="courier new, monospace"><br></font></div><div><font face="courier new, monospace">export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/nlocal/slurm/2.6.3/lib64</font></div><div><font face="courier new, monospace"><br>
+
+</font></div><div><font face="courier new, monospace">../configure --with-slurm --disable-wrapper-rpath --enable-shared</font></div><div><font face="courier new, monospace">--enable-mca-no-build=btl-usnic --prefix=${PREFIX}</font></div>
+
+</div><div><br></div><div>The output of &quot;ompi_info --all&quot; is found:</div><div><br></div><div>  <a href="https://gist.github.com/mathomp4/301723165efbbb616184#file-ompi_info-out">https://gist.github.com/mathomp4/301723165efbbb616184#file-ompi_info-out</a></div>
+
+<div><br></div><div>The reproducer code can be found here:</div><div><br></div><div>  <a href="https://gist.github.com/mathomp4/301723165efbbb616184#file-mpi_reproducer-f90">https://gist.github.com/mathomp4/301723165efbbb616184#file-mpi_reproducer-f90</a></div>
+
+<div><br></div><div>The reproducer is easily built with just &#39;mpif90&#39; and to run it:</div><div><br></div><div><font face="courier new, monospace">  mpirun -np NPROCS ./mpi_reproducer.x NX NY</font></div><div><br>
+</div>
+<div>where NX*NY has to equal NPROCS and it&#39;s best to keep them even numbers. (There might be a few more restrictions and the code will die if you violate them.)</div><div><br></div><div>Thanks,</div><div>Matt Thompson</div>
+
+<div><br></div><div dir="ltr"><div><div>-- </div><div>Matt Thompson          SSAI, Sr Software Test Engr</div><div>NASA GSFC, Global Modeling and Assimilation Office</div><div>Code 610.1, 8800 Greenbelt Rd, Greenbelt, MD 20771</div>
+
+<div>Phone: 301-614-6712              Fax: 301-614-6246 </div></div><div><br></div></div>
+</div>
+

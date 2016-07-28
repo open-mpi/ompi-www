@@ -1,0 +1,116 @@
+Index: orte/mca/odls/base/odls_base_default_fns.c
+===================================================================
+--- orte/mca/odls/base/odls_base_default_fns.c	(revision 22725)
++++ orte/mca/odls/base/odls_base_default_fns.c	(working copy)
+@@ -89,9 +89,8 @@
+     orte_job_map_t *map;
+     opal_buffer_t *wireup;
+     opal_byte_object_t bo, *boptr;
+-    int32_t numbytes, *tmp32;
++    int32_t numbytes, *tmp32A, *tmp32B;
+     int8_t flag;
+-    int8_t *tmp;
+     orte_vpid_t i;
+     int j;
+     orte_daemon_cmd_flag_t command;
+@@ -386,25 +385,25 @@
+     free(bo.bytes);
+     
+     /* transfer and pack the app_idx and restart arrays for this job */
+-    tmp = (int8_t*)malloc(jdata->num_procs);
+-    tmp32 = (int32_t*)malloc(jdata->num_procs * sizeof(int32_t));
++    tmp32A = (int32_t*)malloc(jdata->num_procs * sizeof(int32_t));
++    tmp32B = (int32_t*)malloc(jdata->num_procs * sizeof(int32_t));
+     for (j=0, i=0; i < jdata->num_procs && j < jdata->procs->size; j++) {
+         if (NULL == (proc = (orte_proc_t*)opal_pointer_array_get_item(jdata->procs, j))) {
+             continue;
+         }
+-        tmp[i] = proc->app_idx;
+-        tmp32[i++] = proc->restarts;
++        tmp32A[i] = proc->app_idx;
++        tmp32B[i++] = proc->restarts;
+     }
+-    if (ORTE_SUCCESS != (rc = opal_dss.pack(data, tmp, jdata->num_procs, OPAL_INT8))) {
++    if (ORTE_SUCCESS != (rc = opal_dss.pack(data, tmp32A, jdata->num_procs, OPAL_INT32))) {
+         ORTE_ERROR_LOG(rc);
+         return rc;
+     }
+-    free(tmp);
+-    if (ORTE_SUCCESS != (rc = opal_dss.pack(data, tmp32, jdata->num_procs, OPAL_INT32))) {
++    free(tmp32A);
++    if (ORTE_SUCCESS != (rc = opal_dss.pack(data, tmp32B, jdata->num_procs, OPAL_INT32))) {
+         ORTE_ERROR_LOG(rc);
+         return rc;
+     }
+-    free(tmp32);
++    free(tmp32B);
+     
+     /* are there cpu_list strings? */
+     if (jdata->map->cpu_lists) {
+@@ -579,7 +578,7 @@
+     opal_buffer_t alert;
+     opal_list_item_t *item;
+     int8_t flag;
+-    int8_t *app_idx=NULL;
++    int32_t *app_idx=NULL;
+     int32_t *restarts=NULL;
+     char **slot_str=NULL;
+     orte_jobid_t debugger;
+@@ -643,8 +642,8 @@
+             }
+         }
+         /* fake an app_idx array */
+-        app_idx = (int8_t*)malloc(jobdat->num_procs * sizeof(int8_t));
+-        memset(app_idx, 0, jobdat->num_procs * sizeof(int8_t));
++        app_idx = (int32_t*)malloc(jobdat->num_procs * sizeof(int32_t));
++        memset(app_idx, 0, jobdat->num_procs * sizeof(int32_t));
+         /* if we are doing a timing test, store the time the msg was recvd */
+         if (orte_timing) {
+             jobdat->launch_msg_recvd.tv_sec = orte_daemon_msg_recvd.tv_sec;
+@@ -846,10 +845,10 @@
+     }
+    
+     /* allocate memory for app_idx */
+-    app_idx = (int8_t*)malloc(jobdat->num_procs);
++    app_idx = (int32_t*)malloc(jobdat->num_procs * sizeof(int32_t));
+     /* unpack app_idx in one shot */
+     cnt=jobdat->num_procs;
+-    if (ORTE_SUCCESS != (rc = opal_dss.unpack(data, app_idx, &cnt, OPAL_INT8))) {
++    if (ORTE_SUCCESS != (rc = opal_dss.unpack(data, app_idx, &cnt, OPAL_INT32))) {
+         ORTE_ERROR_LOG(rc);
+         goto REPORT_ERROR;
+     }
+@@ -2213,8 +2212,8 @@
+     opal_dss.pack(&buffer, &lrank, 1, ORTE_LOCAL_RANK);  /* local rank */
+     nrank = 0;
+     opal_dss.pack(&buffer, &nrank, 1, ORTE_NODE_RANK);  /* node rank */
+-    one8 = 0;
+-    opal_dss.pack(&buffer, &one8, 1, OPAL_INT8);  /* app_idx */
++    one32 = 0;
++    opal_dss.pack(&buffer, &one32, 1, OPAL_INT32);  /* app_idx */
+     /* setup a byte object and unload the packed data to it */
+     bo = (opal_byte_object_t*)malloc(sizeof(opal_byte_object_t));
+     opal_dss.unload(&buffer, (void**)&bo->bytes, &bo->size);
+Index: orte/runtime/orte_globals.h
+===================================================================
+--- orte/runtime/orte_globals.h	(revision 22725)
++++ orte/runtime/orte_globals.h	(working copy)
+@@ -167,7 +167,7 @@
+     /** Parent object */
+     opal_object_t super;
+     /** Unique index when multiple apps per job */
+-    int8_t idx;
++    int32_t idx;
+     /** Absolute pathname of argv[0] */
+     char   *app;
+     /** Number of copies of this process that are to be launched */
+@@ -423,7 +423,7 @@
+     /* exit code */
+     orte_exit_code_t exit_code;
+     /* the app_context that generated this proc */
+-    int8_t app_idx;
++    int32_t app_idx;
+     /* a cpu list, if specified by the user */
+     char *slot_list;
+     /* pointer to the node where this proc is executing */
+

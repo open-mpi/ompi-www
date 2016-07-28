@@ -1,0 +1,169 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; "><br><div><div>On Jul 29, 2010, at 5:09 AM, Terry Dontje wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">
+<div bgcolor="#ffffff" text="#000000">
+Ralph Castain wrote:
+<blockquote cite="mid:92EA530F-F1C8-4693-B7F3-A99BF434D6FC@open-mpi.org" type="cite">
+  <pre wrap="">How are you running it when the threads are all on one core?
+
+If you are specifying --bind-to-core, then of course all the threads will be on one core since we bind the process (not the thread). If you are specifying -mca mpi_paffinity_alone 1, then the same behavior results.
+
+Generally, if you want to bind threads, the only way to do it is with a rank file. We -might- figure out a way to provide an interface for thread-level binding, but I'm not sure about that right now. As things stand, OMPI has no visibility into the fact that your app spawned threads.
+
+
+  </pre>
+</blockquote>
+Huh???&nbsp; That's not completely correct.&nbsp; If you have a multiple socket
+machine you could to -bind-to-socket -bysocket and spread the processes
+that way.&nbsp; Also couldn't you use the -cpus-per-proc with -bind-to-core
+to get a process to bind to a non-socket amount of cpus?<br></div></blockquote><div><br></div>Yes, you could do bind-to-socket, though that still constrains the threads to only that one socket. What was asked about here was the ability to bind-to-core at the thread level, and that is something OMPI doesn't support.</div><div><br></div><div><br><blockquote type="cite"><div bgcolor="#ffffff" text="#000000">
+<br>
+This is all documented in the mpirun manpage.<br>
+<br>
+That being said, I also am confused, like Ralph, as to why no options
+is causing your code bind.&nbsp; Maybe add a --report-bindings to your
+mpirun line to see what OMPI thinks it is doing in this regard?<br></div></blockquote><div><br></div>This is a good suggestion - I'm beginning to believe that the binding is happening in the user's app and not OMPI.</div><div><br></div><div><br><blockquote type="cite"><div bgcolor="#ffffff" text="#000000">
+<br>
+--td<br>
+<br>
+--td<br>
+<blockquote cite="mid:92EA530F-F1C8-4693-B7F3-A99BF434D6FC@open-mpi.org" type="cite">
+  <pre wrap="">On Jul 28, 2010, at 5:47 PM, David Akin wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">All,
+I'm trying to get the OpenMP portion of the code below to run
+multicore on a couple of 8 core nodes.
+
+Good news: multiple threads are being spawned on each node in the run.
+Bad news: each of the threads only runs on a single core, leaving 7
+cores basically idle.
+Sorta good news: if I provide a rank file I get the threads running on
+different cores within each node (PITA.
+
+Here's the first lines of output.
+
+/usr/mpi/gcc/openmpi-1.4-qlc/bin/mpirun -host c005,c006 -np 2 -rf
+rank.file -x OMP_NUM_THREADS=4 hybrid4.gcc
+
+Hello from thread 2 out of 4 from process 1 out of 2 on c006.local
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=2
+Hello from thread 3 out of 4 from process 1 out of 2 on c006.local
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=3
+Hello from thread 1 out of 4 from process 1 out of 2 on c006.local
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=1
+Hello from thread 1 out of 4 from process 0 out of 2 on c005.local
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=1
+Hello from thread 3 out of 4 from process 0 out of 2 on c005.local
+Hello from thread 2 out of 4 from process 0 out of 2 on c005.local
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=3
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=2
+Hello from thread 0 out of 4 from process 0 out of 2 on c005.local
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=0
+Hello from thread 0 out of 4 from process 1 out of 2 on c006.local
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=0
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=3
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=2
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=0
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=3
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=3
+another parallel region:       name:c005.local MPI_RANK_ID=0 OMP_THREAD_ID=2
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=0
+another parallel region:       name:c006.local MPI_RANK_ID=1 OMP_THREAD_ID=1
+.
+.
+.
+
+Here's the simple code:
+#include &lt;stdio.h&gt;
+#include "mpi.h"
+#include &lt;omp.h&gt;
+
+int main(int argc, char *argv[]) {
+ int numprocs, rank, namelen;
+ char processor_name[MPI_MAX_PROCESSOR_NAME];
+ int iam = 0, np = 1;
+ char name[MPI_MAX_PROCESSOR_NAME];   /* MPI_MAX_PROCESSOR_NAME ==
+128         */
+ int O_ID;                            /* OpenMP thread ID
+        */
+ int M_ID;                            /* MPI rank ID
+        */
+ int rtn_val;
+
+ MPI_Init(&amp;argc, &amp;argv);
+ MPI_Comm_size(MPI_COMM_WORLD, &amp;numprocs);
+ MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);
+ MPI_Get_processor_name(processor_name, &amp;namelen);
+
+ #pragma omp parallel default(shared) private(iam, np,O_ID)
+ {
+   np = omp_get_num_threads();
+   iam = omp_get_thread_num();
+   printf("Hello from thread %d out of %d from process %d out of %d on %s\n",
+          iam, np, rank, numprocs, processor_name);
+   int i=0;
+   int j=0;
+   double counter=0;
+   for(i =0;i&lt;99999999;i++)
+           {
+            O_ID = omp_get_thread_num();          /* get OpenMP
+thread ID                 */
+            MPI_Get_processor_name(name,&amp;namelen);
+            rtn_val = MPI_Comm_rank(MPI_COMM_WORLD,&amp;M_ID);
+            printf("another parallel region:       name:%s
+MPI_RANK_ID=%d OMP_THREAD_ID=%d\n", name,M_ID,O_ID);
+            for(j = 0;j&lt;999999999;j++)
+             {
+              counter=counter+i;
+             }
+           }
+
+ }
+
+ MPI_Finalize();
+
+}
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+  </pre>
+</blockquote>
+<br>
+<br>
+<div class="moz-signature">-- <br>
+
+
+<span>&lt;Mail Attachment.gif&gt;</span><br>
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">Terry D. Dontje | Principal Software Engineer<br>
+<div class="moz-signature"><font color="#666666" face="Verdana" size="2">Developer
+Tools
+Engineering | +1.650.633.7054<br>
+</font>
+<font color="#ff0000" face="Verdana" size="2">Oracle
+</font><font color="#666666" face="Verdana" size="2"><b> - Performance
+Technologies</b></font><br>
+<font color="#666666" face="Verdana" size="2">
+95 Network Drive, Burlington, MA 01803<br>
+Email <a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+</font><br>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/users</blockquote></div><br></body></html>

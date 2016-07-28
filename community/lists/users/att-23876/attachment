@@ -1,0 +1,83 @@
+<div dir="ltr">Thanks Jeff, I understand better the different cases and how to choose as a function of the situation<br></div><div class="gmail_extra"><br><br><div class="gmail_quote">2014-03-17 16:31 GMT+01:00 Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span>:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">On Mar 16, 2014, at 10:24 PM, christophe petit &lt;<a href="mailto:christophe.petit09@gmail.com">christophe.petit09@gmail.com</a>&gt; wrote:<br>
+
+<br>
+&gt; I am studying the optimization strategy when the number of communication functions in a codeis high.<br>
+<div class="">&gt;<br>
+&gt; My courses on MPI say two things for optimization which are contradictory :<br>
+&gt;<br>
+&gt; 1*) You have to use temporary message copy to allow non-blocking sending and uncouple the sending and receiving<br>
+<br>
+</div>There&#39;s a lot of schools of thought here, and the real answer is going to depend on your application.<br>
+<br>
+If the message is &quot;short&quot; (and the exact definition of &quot;short&quot; depends on your platform -- it varies depending on your CPU, your memory, your CPU/memory interconnect, ...etc.), then copying to a pre-allocated bounce buffer is typically a good idea.  That lets you keep using your &quot;real&quot; buffer and not have to wait until communication is done.<br>
+
+<br>
+For &quot;long&quot; messages, the equation is a bit different.  If &quot;long&quot; isn&#39;t &quot;enormous&quot;, you might be able to have N buffers available, and simply work on 1 of them at a time in your main application and use the others for ongoing non-blocking communication.  This is sometimes called &quot;shadow&quot; copies, or &quot;ghost&quot; copies.<br>
+
+<br>
+Such shadow copies are most useful when you receive something each iteration, for example.  For example, something like this:<br>
+<br>
+  buffer[0] = malloc(...);<br>
+  buffer[1] = malloc(...);<br>
+  current = 0;<br>
+  while (still_doing_iterations) {<br>
+      MPI_Irecv(buffer[current], ..., &amp;req);<br>
+      /// work on buffer[current - 1]<br>
+      MPI_Wait(req, MPI_STATUS_IGNORE);<br>
+      current = 1 - current;<br>
+  }<br>
+<br>
+You get the idea.<br>
+<div class=""><br>
+&gt; 2*) Avoid using temporary message copy because the copy will add extra cost on execution time.<br>
+<br>
+</div>It will, if the memcpy cost is significant (especially compared to the network time to send it).  If the memcpy is small/insignificant, then don&#39;t worry about it.<br>
+<br>
+You&#39;ll need to determine where this crossover point is, however.<br>
+<br>
+Also keep in mind that MPI and/or the underlying network stack will likely be doing these kinds of things under the covers for you.  Indeed, if you send short messages -- even via MPI_SEND -- it may return &quot;immediately&quot;, indicating that MPI says it&#39;s safe for you to use the send buffer.  But that doesn&#39;t mean that the message has even actually left the current server and gone out onto the network yet (i.e., some other layer below you may have just done a memcpy because it was a short message, and the processing/sending of that message is still ongoing).<br>
+
+<div class=""><br>
+&gt; And then, we are adviced to do :<br>
+&gt;<br>
+&gt; - replace MPI_SEND by MPI_SSEND (synchroneous blocking sending) : it is said that execution is divided by a factor 2<br>
+<br>
+</div>This very, very much depends on your application.<br>
+<br>
+MPI_SSEND won&#39;t return until the receiver has started to receive the message.<br>
+<br>
+For some communication patterns, putting in this additional level of synchronization is helpful -- it keeps all MPI processes in tighter synchronization and you might experience less jitter, etc.  And therefore overall execution time is faster.<br>
+
+<br>
+But for others, it adds unnecessary delay.<br>
+<br>
+I&#39;d say it&#39;s an over-generalization that simply replacing MPI_SEND with MPI_SSEND always reduces execution time by 2.<br>
+<div class=""><br>
+&gt; - use MPI_ISSEND and MPI_IRECV with MPI_WAIT function to synchronize (synchroneous non-blocking sending) : it is said that execution is divided by a factor 3<br>
+<br>
+</div>Again, it depends on the app.  Generally, non-blocking communication is better -- *if your app can effectively overlap communication and computation*.<br>
+<br>
+If your app doesn&#39;t take advantage of this overlap, then you won&#39;t see such performance benefits.  For example:<br>
+<br>
+   MPI_Isend(buffer, ..., req);<br>
+   MPI_Wait(&amp;req, ...);<br>
+<br>
+Technically, the above uses ISEND and WAIT... but it&#39;s actually probably going to be *slower* than using MPI_SEND because you&#39;ve made multiple function calls with no additional work between the two -- so the app didn&#39;t effectively overlap the communication with any local computation.  Hence: no performance benefit.<br>
+
+<div class=""><br>
+&gt; So what&#39;s the best optimization ? Do we have to use temporary message copy or not and if yes, what&#39;s the case for ?<br>
+<br>
+</div>As you can probably see from my text above, the answer is: it depends.  :-)<br>
+<span class="HOEnZb"><font color="#888888"><br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</font></span></blockquote></div><br></div>
+

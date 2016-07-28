@@ -1,0 +1,119 @@
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html;
+      charset=ISO-8859-1">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Hi all,<br>
+    I encountered a strange problem: when running across nodes, the
+    first send/recv pairs work, but the second recv blocks indefinitely.
+    <br>
+    <br>
+    After some google, I found this:
+    <meta http-equiv="content-type" content="text/html;
+      charset=ISO-8859-1">
+    <a
+      href="http://www.open-mpi.org/community/lists/users/2012/02/18383.php">http://www.open-mpi.org/community/lists/users/2012/02/18383.php</a><br>
+    <br>
+    I use my laptop as a wireless router, and I NAT all traffic from
+    wlan0 to eth0 using iptables. After clearing all rules in iptables,
+    the problem gets solved.<br>
+    <br>
+    Has anyone also had the same problem? Do you have any idea what
+    causes this?<br>
+    thx:)<br>
+    <br>
+    Test program:<br>
+    #include &lt;stdio.h&gt;<br>
+    #include &lt;stdlib.h&gt;<br>
+    <br>
+    #include &lt;mpi.h&gt;<br>
+    <br>
+    int main(int argc, char *argv[]) <br>
+    {<br>
+    &nbsp;&nbsp;&nbsp; const int MASTER = 0;<br>
+    &nbsp;&nbsp;&nbsp; const int TAG_GENERAL = 1;<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; int i;<br>
+    &nbsp;&nbsp;&nbsp; int numTasks;<br>
+    &nbsp;&nbsp;&nbsp; int rank;<br>
+    &nbsp;&nbsp;&nbsp; int source;<br>
+    &nbsp;&nbsp;&nbsp; int dest;<br>
+    &nbsp;&nbsp;&nbsp; int rc;<br>
+    &nbsp;&nbsp;&nbsp; int count;<br>
+    &nbsp;&nbsp;&nbsp; int dataWaitingFlag;<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; char inMsg;<br>
+    &nbsp;&nbsp;&nbsp; char outMsg;<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; MPI_Status Stat;<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; // Initialize the MPI stack and pass 'argc' and 'argv' to each
+    slave node<br>
+    &nbsp;&nbsp;&nbsp; MPI_Init(&amp;argc,&amp;argv);<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; // Gets number of tasks/processes that this program is running
+    on<br>
+    &nbsp;&nbsp;&nbsp; MPI_Comm_size(MPI_COMM_WORLD, &amp;numTasks);<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; // Gets the rank (process/task number) that this program is
+    running on <br>
+    &nbsp;&nbsp;&nbsp; MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; // If the master node<br>
+    &nbsp;&nbsp;&nbsp; if (rank == MASTER) {<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; // Ssend out messages to all the sub-processes<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; for (dest = 1; dest &lt; numTasks; dest++) {<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; outMsg = rand() % 256;&nbsp;&nbsp;&nbsp; // Generate random message to
+    send to slave nodes<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; // Ssend a message to the destination&nbsp;&nbsp;&nbsp; <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; for (i = 0; i &lt; 5; i ++)<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; {<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; rc = MPI_Ssend(&amp;outMsg, 1, MPI_CHAR, dest,
+    TAG_GENERAL + i, MPI_COMM_WORLD);&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; printf("Task %d: Sent message %d to task %d with tag
+    %d\n",<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; rank, outMsg, dest, TAG_GENERAL + i);<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; }<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; }<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; } <br>
+    <br>
+    &nbsp;&nbsp;&nbsp; // Else a slave node<br>
+    &nbsp;&nbsp;&nbsp; else&nbsp; {<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; // Wait until a message is there to be received&nbsp;&nbsp;&nbsp; <br>
+    <br>
+    <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; // Get the message and put it in 'inMsg'<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; for (i = 0; i &lt; 5; i ++)<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; {<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; rc = MPI_Recv(&amp;inMsg, 1, MPI_CHAR, MASTER,
+    TAG_GENERAL + i, MPI_COMM_WORLD, &amp;Stat);<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; // Get how big the message is and put it in 'count'<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; rc = MPI_Get_count(&amp;Stat, MPI_CHAR, &amp;count);<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; printf("Task %d: Received %d char(s) (%d) from task %d
+    with tag %d \n",<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; rank, count, inMsg, Stat.MPI_SOURCE,
+    Stat.MPI_TAG);<br>
+    &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; }<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; }<br>
+    <br>
+    &nbsp;&nbsp;&nbsp; MPI_Finalize();<br>
+    }<br>
+    <br>
+    <br>
+    <br>
+    <br>
+    <pre class="moz-signature" cols="72">-- 
+&#36158;&#24320;
+&#28165;&#21326;&#22823;&#23398;&#35745;&#31639;&#26426;&#31995; &#35745;14&#29677;
+Kai Jia
+Dept. of Computer Science &amp; Technology
+Tsinghua University</pre>
+  </body>
+</html>
+

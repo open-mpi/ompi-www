@@ -1,0 +1,124 @@
+<br><br><div class="gmail_quote">On Wed, Apr 13, 2011 at 2:49 PM, Barrett, Brian W <span dir="ltr">&lt;<a href="mailto:bwbarre@sandia.gov">bwbarre@sandia.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+
+This is mostly an issue of how MPICH2 and Open MPI implement lock/unlock.<br>
+Some might call what I&#39;m about to describe erroneous.  I wrote the<br>
+one-sided code in Open MPI and may be among those people.<br><br></blockquote><blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+In both implementations, one-sided communication is not necessarily truly<br>
+asynchronous.  That is, the target of an operation may have to enter the<br>
+MPI library (MPI_Wtime does not count as entering the library in this<br>
+case) to progress Lock/Unlock calls.  So rank 2 calls lock (which is a<br>
+no-op in both implementations), calls put, calls unlock, and waits for a<br>
+response.  Ranks 0 and 1 wait for a second and enter lock, get, and<br>
+unlock.  At this point, data actually starts to move.  Chances are, rank 0<br>
+is going to process it&#39;s request first, hence the get from rank 0<br>
+returning 0.  Then rank 0 will perhaps process some other requests before<br>
+it leaves unlock (perhaps not), and enter barrier.  At this point, it will<br>
+progress everything until the other ranks enter barrier, meaning rank 2&#39;s<br>
+put and rank 2 and 3s get will finally be processed.<br>
+<br></blockquote><div><br>Brian,<br><br>Ok, that helps explain what&#39;s going on.<br>
+<br>
+I understand the difficulty in implementing truly asynchronous RMA especially<br>
+when the remote process does not yield to the progress engine periodically.<br>Although the standard is lacking and ambiguous on the details (ordering of RMA calls,<br>behavior of Lock/Unlock) of passive synchronization, it gives a sense that only the <br>
+
+origin process is explicitly involved in the transfer and passive target communication<br>can further be used to emulate a shared memory model via MPI calls.<br><br>But given the existing behavior, all bets are off and it renders passive synchronization<br>
+
+(MPI_Win_unlock) mostly similar to active synchronization (MPI_Win_fence).<br>
+In trying to emulate a distributed shared memory model, I was hoping to do things<br>like:<br><br>MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win);<br>MPI_Get(&amp;out, 1, MPI_INT, 0, 0, 1, MPI_INT, win);<br>if (out % 2 == 0)<br>
+
+     out++;<br>MPI_Accumulate(&amp;out, 1, MPI_INT, 0, 0, 1, MPI_INT, MPI_REPLACE, win);<br>MPI_Win_unlock(0, win);<br><br>but it is impossible to implement such atomic sections given no semantic guarantees<br>on ordering of the RMA calls.<br>
+
+<br>Thanks,<br>Abhishek<br> </div><blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+In case you&#39;re wondering, the specification wasn&#39;t disobeyed in the<br>
+communication order; the lock description is very loose and is relative to<br>
+other MPI events.  So if you put the barrier before the lock/get/unlock,<br>
+you&#39;d get the answer you wanted because rank 2&#39;s lock would have to occur<br>
+before rank 0&#39;s.  With no other MPI synchronization, there&#39;s no<br>
+requirement that be true, and the locking order could be 0, 1, 2, 2 if it<br>
+really wanted to be (ie, it would be perfectly legal for rank 1 to also<br>
+return 0).<br>
+<br>
+This is obviously not ideal, and one of the areas of focus for the MPI-3<br>
+standardization effort.  In Open MPI, adding true asynchronous behavior is<br>
+difficult.  The original design assumed that the lowest communication<br>
+layers would be able to provide asynchronous completion events to progress<br>
+the one-sided implementation.  Thus far, only the authors of the TCP stack<br>
+have provided such behavior and it&#39;s not as well tested as other modes of<br>
+operation.<br>
+<br>
+Brian<br>
+<div><div></div><div class="h5"><br>
+On 4/13/11 12:31 PM, &quot;Abhishek Kulkarni&quot; &lt;<a href="mailto:abbyzcool@gmail.com">abbyzcool@gmail.com</a>&gt; wrote:<br>
+<br>
+&gt;Hello,<br>
+&gt;<br>
+&gt;I am trying to better understand the semantics of passive synchronization<br>
+&gt;in one-sided communication calls. Doesn&#39;t MPI_Win_unlock()<br>
+&gt;block to ensure that all the preceeding RMA calls in that epoch have been<br>
+&gt;synced?<br>
+&gt;<br>
+&gt;In that case, why is an undefined value returned when trying to load from<br>
+&gt;a local window? (see below)<br>
+&gt;<br>
+&gt;    MPI_Alloc_mem(128, MPI_INFO_NULL, &amp;ptr);<br>
+&gt;    MPI_Win_create(ptr, 128, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &amp;win);<br>
+&gt;<br>
+&gt;    // write to the target window of the head node<br>
+&gt;    if (rank == (size - 1)) {<br>
+&gt;        MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win);<br>
+&gt;        in = 10;<br>
+&gt;        MPI_Put(&amp;in, 1, MPI_INT, 0, 0, 1, MPI_INT, win);<br>
+&gt;<br>
+&gt;        MPI_Win_unlock(0, win);<br>
+&gt;    } else {<br>
+&gt;        // busy wait<br>
+&gt;        start = MPI_Wtime();<br>
+&gt;        end = MPI_Wtime();<br>
+&gt;        while ((end - start) &lt; 1)<br>
+&gt;            end = MPI_Wtime();<br>
+&gt;    }<br>
+&gt;<br>
+&gt;    // read from the head node&#39;s window<br>
+&gt;    MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win);<br>
+&gt;    MPI_Get(&amp;out, 1, MPI_INT, 0, 0, 1, MPI_INT, win);<br>
+&gt;    MPI_Win_unlock(0, win);<br>
+&gt;<br>
+&gt;    MPI_Barrier(MPI_COMM_WORLD);<br>
+&gt;<br>
+&gt;    printf(&quot;R%d: %d\n&quot;, rank, out);<br>
+&gt;<br>
+&gt;The output of the above program with 1.5.3rc1 (and also with MPICH2<br>
+&gt;1.4rc2) is:<br>
+&gt;R2: 10<br>
+&gt;R1: 10<br>
+&gt;R0: 0<br>
+&gt;<br>
+&gt;whereas I expect to see:<br>
+&gt;R2: 10<br>
+&gt;R1: 10<br>
+&gt;R0: 10<br>
+&gt;<br>
+&gt;Thanks,<br>
+&gt;Abhishek<br>
+&gt;<br>
+</div></div>&gt;_______________________________________________<br>
+&gt;users mailing list<br>
+&gt;<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+--<br>
+  Brian W. Barrett<br>
+  Dept. 1423: Scalable System Software<br>
+  Sandia National Laboratories<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br>
+

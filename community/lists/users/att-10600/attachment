@@ -1,0 +1,292 @@
+<html><body>
+<p>Dennis <br>
+<br>
+In MPI, you must complete every MPI_Isend by MPI_Wait on the request handle (or a variant like MPI_Waitall or MPI_Test that returns TRUE).  An un-completed MPI_Isend leaves resources tied up.<br>
+<br>
+I do not know what symptom to expect from OpenMPI with this particular application error but the one you describe is plausible.<br>
+<br>
+<br>
+Dick Treumann  -  MPI Team           <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 09/09/2009 11:47:12 AM:<br>
+<br>
+&gt; [image removed] </tt><br>
+<tt>&gt; <br>
+&gt; [OMPI users] Messages getting lost during transmission (?)</tt><br>
+<tt>&gt; <br>
+&gt; Dennis Luxen </tt><br>
+<tt>&gt; <br>
+&gt; to:</tt><br>
+<tt>&gt; <br>
+&gt; users</tt><br>
+<tt>&gt; <br>
+&gt; 09/09/2009 11:48 AM</tt><br>
+<tt>&gt; <br>
+&gt; Sent by:</tt><br>
+<tt>&gt; <br>
+&gt; users-bounces@open-mpi.org</tt><br>
+<tt>&gt; <br>
+&gt; Please respond to Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; Hi all,<br>
+&gt; <br>
+&gt; I have a very strange behaviour in a program. It seems that messages <br>
+&gt; that are sent from one processor to another are getting lost.<br>
+&gt; <br>
+&gt; The problem is isolated in the attached source code. The code works as <br>
+&gt; follows. Two processess send each other 100k request. Each request is <br>
+&gt; answered and triggers a number of requests to the other process in <br>
+&gt; return. As you might already suspect, the communication is asynchronous.<br>
+&gt; <br>
+&gt; I already debugged the application and found that at one point during <br>
+&gt; the communication at least one of the processes does not receive any <br>
+&gt; messages anymore and hangs in the while loop beginning in line 45.<br>
+&gt; <br>
+&gt; The program is started with two processes on a single machine and no <br>
+&gt; other parameters: &quot;mpirun -np 2 ./mpi_test2&quot;.<br>
+&gt; <br>
+&gt; I appreciate your help.<br>
+&gt; <br>
+&gt; Best wishes,<br>
+&gt; Dennis<br>
+&gt; <br>
+&gt; -- <br>
+&gt; Dennis Luxen<br>
+&gt; Universität Karlsruhe (TH) &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Fon &nbsp;: +49 (721) 608-6781<br>
+&gt; Institut für Theoretische Informatik | Fax &nbsp;: +49 (721) 608-3088<br>
+&gt; Am Fasanengarten 5, Zimmer 220 &nbsp; &nbsp; &nbsp; | WWW &nbsp;: algo2.ira.uka.de/luxen<br>
+&gt; D-76131 Karlsruhe, Germany &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Email: luxen@kit.edu<br>
+&gt; --------------------------------------------------------------------<br>
+&gt; <br>
+&gt; #include &lt;iostream&gt;<br>
+&gt; #include &lt;fstream&gt;<br>
+&gt; #include &lt;sstream&gt;<br>
+&gt; #include &lt;cassert&gt;<br>
+&gt; #include &lt;queue&gt;<br>
+&gt; #include &lt;list&gt;<br>
+&gt; #include &lt;cstdlib&gt;<br>
+&gt; #include &lt;mpi.h&gt;<br>
+&gt; <br>
+&gt; std::ofstream output_file;<br>
+&gt; <br>
+&gt; enum {REQUEST_TAG=4321, ANSWER_TAG, FINISHED_TAG};<br>
+&gt; <br>
+&gt; typedef int Answer_type;<br>
+&gt; <br>
+&gt; <br>
+&gt; int main(int argc, char *argv[])<br>
+&gt; {<br>
+&gt; &nbsp; &nbsp;MPI_Init (&amp;argc, &amp;argv); &nbsp; // starts MPI<br>
+&gt; &nbsp; &nbsp;int number_of_PEs, my_PE_ID;<br>
+&gt; &nbsp; &nbsp;MPI_Comm_size(MPI_COMM_WORLD, &amp;number_of_PEs);<br>
+&gt; &nbsp; &nbsp;assert(number_of_PEs == 2);<br>
+&gt; &nbsp; &nbsp;MPI_Comm_rank(MPI_COMM_WORLD, &amp;my_PE_ID);<br>
+&gt; <br>
+&gt; &nbsp; &nbsp;std::srand(123456);<br>
+&gt; <br>
+&gt; &nbsp; &nbsp;int number_of_requests_to_send = 100000;<br>
+&gt; &nbsp; &nbsp;int number_of_requests_to_recv = number_of_requests_to_send;<br>
+&gt; &nbsp; &nbsp;int number_of_answers_to_recv &nbsp;= number_of_requests_to_send;<br>
+&gt; <br>
+&gt; &nbsp; &nbsp;std::stringstream filename;<br>
+&gt; &nbsp; &nbsp;filename&lt;&lt;&quot;output&quot;&lt;&lt;my_PE_ID&lt;&lt;&quot;.txt&quot;;<br>
+&gt; &nbsp; &nbsp;output_file.open(filename.str().c_str());<br>
+&gt; <br>
+&gt; &nbsp; &nbsp;int buffer[100];<br>
+&gt; &nbsp; &nbsp;MPI_Request dummy_request;<br>
+&gt; <br>
+&gt; &nbsp; &nbsp;//Send the first request<br>
+&gt; &nbsp; &nbsp;MPI_Isend(buffer, 1, MPI_INT, 1-my_PE_ID, REQUEST_TAG, <br>
+&gt; MPI_COMM_WORLD, &amp;dummy_request);<br>
+&gt; &nbsp; &nbsp;number_of_requests_to_send--;<br>
+&gt; <br>
+&gt; &nbsp; &nbsp;int working_PEs = number_of_PEs;<br>
+&gt; &nbsp; &nbsp;bool lack_of_work_sent = false;<br>
+&gt; &nbsp; &nbsp;bool there_was_change = true;<br>
+&gt; &nbsp; &nbsp;while(working_PEs &gt; 0)<br>
+&gt; &nbsp; &nbsp;{<br>
+&gt; &nbsp; &nbsp; &nbsp; if(there_was_change)<br>
+&gt; &nbsp; &nbsp; &nbsp; {<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;there_was_change = false;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;std::cout&lt;&lt;my_PE_ID&lt;&lt;&quot;: req_to_recv = &quot;&lt;&lt;number_of_requests_to_recv<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&lt;&lt;&quot;, req_to_send = &quot;&lt;&lt;number_of_requests_to_send<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&lt;&lt;&quot;, answers_to_recv = &quot;&lt;&lt;number_of_answers_to_recv<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&lt;&lt;std::endl;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;output_file&lt;&lt;my_PE_ID&lt;&lt;&quot;: req_to_recv = &quot;&lt;&lt;number_of_requests_to_recv<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&lt;&lt;&quot;, req_to_send = &quot;&lt;&lt;number_of_requests_to_send<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&lt;&lt;&quot;, answers_to_recv = &quot;&lt;&lt;number_of_answers_to_recv<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&lt;&lt;std::endl;<br>
+&gt; &nbsp; &nbsp; &nbsp; }<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp; MPI_Status status;<br>
+&gt; &nbsp; &nbsp; &nbsp; int flag = 1;<br>
+&gt; &nbsp; &nbsp; &nbsp; int number_of_answer;<br>
+&gt; // &nbsp; &nbsp; &nbsp;MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &amp;status);<br>
+&gt; &nbsp; &nbsp; &nbsp; MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &amp;flag,&amp;status);<br>
+&gt; &nbsp; &nbsp; &nbsp; if(flag)<br>
+&gt; &nbsp; &nbsp; &nbsp; {<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;there_was_change = true;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;switch(status.MPI_TAG){<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; case(REQUEST_TAG):<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Recv(buffer, 1, MPI_INT, status.MPI_SOURCE, <br>
+&gt; REQUEST_TAG, MPI_COMM_WORLD, &amp;status);<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Isend(buffer, (1&lt;&lt;(std::rand()%5))*sizeof(int), <br>
+&gt; MPI_BYTE, 1-my_PE_ID, ANSWER_TAG, MPI_COMM_WORLD, &amp;dummy_request);<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;number_of_requests_to_recv--;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; break;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; case(ANSWER_TAG):<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;number_of_answers_to_recv--;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Get_count( &amp;status, MPI_BYTE, &amp;number_of_answer);<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Recv(buffer, number_of_answer, MPI_BYTE, <br>
+&gt; status.MPI_SOURCE, ANSWER_TAG, MPI_COMM_WORLD, &amp;status);<br>
+&gt; <br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;for(int i = (number_of_answer+3)/4; (i&gt;0)&amp;&amp;<br>
+&gt; (number_of_requests_to_send&gt;0); i--)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;{<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MPI_Isend(buffer, 1, MPI_INT, 1-my_PE_ID, <br>
+&gt; REQUEST_TAG, MPI_COMM_WORLD, &amp;dummy_request);<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; number_of_requests_to_send--;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;}<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; break;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; case(FINISHED_TAG):<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Recv(buffer, 1, MPI_INT, status.MPI_SOURCE, <br>
+&gt; FINISHED_TAG, MPI_COMM_WORLD, &amp;status);<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;working_PEs--;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; break;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;}<br>
+&gt; &nbsp; &nbsp; &nbsp; }<br>
+&gt; &nbsp; &nbsp; &nbsp; if((number_of_answers_to_recv == 0) &amp;&amp; (!lack_of_work_sent))<br>
+&gt; &nbsp; &nbsp; &nbsp; {<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;there_was_change = true;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI_Isend(buffer, 1, MPI_INT, 1-my_PE_ID, FINISHED_TAG, <br>
+&gt; MPI_COMM_WORLD, &amp;dummy_request);<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;working_PEs--;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;lack_of_work_sent = true;<br>
+&gt; &nbsp; &nbsp; &nbsp; }<br>
+&gt; &nbsp; &nbsp;}<br>
+&gt; &nbsp; &nbsp;MPI_Barrier(MPI_COMM_WORLD);<br>
+&gt; &nbsp; &nbsp;std::cout&lt;&lt;my_PE_ID&lt;&lt;&quot;: Finished normaly&quot;&lt;&lt;std::endl;<br>
+&gt; &nbsp; &nbsp;MPI_Finalize();<br>
+&gt; <br>
+&gt; &nbsp; &nbsp;return 0;<br>
+&gt; }<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Package: Open MPI abuild@build26 Distribution<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Open MPI: 1.3.2<br>
+&gt; &nbsp; &nbsp;Open MPI SVN revision: r21054<br>
+&gt; &nbsp; &nbsp;Open MPI release date: Apr 21, 2009<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Open RTE: 1.3.2<br>
+&gt; &nbsp; &nbsp;Open RTE SVN revision: r21054<br>
+&gt; &nbsp; &nbsp;Open RTE release date: Apr 21, 2009<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; OPAL: 1.3.2<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp;OPAL SVN revision: r21054<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp;OPAL release date: Apr 21, 2009<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Ident string: 1.3.2<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Prefix: /usr/lib64/mpi/gcc/openmpi<br>
+&gt; &nbsp;Configured architecture: x86_64-suse-linux-gnu<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Configure host: build26<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Configured by: abuild<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Configured on: Tue May &nbsp;5 16:03:55 UTC 2009<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Configure host: build26<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Built by: abuild<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Built on: Tue May &nbsp;5 16:18:52 UTC 2009<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Built host: build26<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C bindings: yes<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++ bindings: yes<br>
+&gt; &nbsp; &nbsp; &nbsp; Fortran77 bindings: yes (all)<br>
+&gt; &nbsp; &nbsp; &nbsp; Fortran90 bindings: yes<br>
+&gt; &nbsp;Fortran90 bindings size: small<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C compiler: gcc<br>
+&gt; &nbsp; &nbsp; &nbsp;C compiler absolute: /usr/bin/gcc<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++ compiler: g++<br>
+&gt; &nbsp; &nbsp;C++ compiler absolute: /usr/bin/g++<br>
+&gt; &nbsp; &nbsp; &nbsp; Fortran77 compiler: gfortran<br>
+&gt; &nbsp; Fortran77 compiler abs: /usr/bin/gfortran<br>
+&gt; &nbsp; &nbsp; &nbsp; Fortran90 compiler: gfortran<br>
+&gt; &nbsp; Fortran90 compiler abs: /usr/bin/gfortran<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;C profiling: yes<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;C++ profiling: yes<br>
+&gt; &nbsp; &nbsp; &nbsp;Fortran77 profiling: yes<br>
+&gt; &nbsp; &nbsp; &nbsp;Fortran90 profiling: yes<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; C++ exceptions: no<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Thread support: posix (mpi: no, progress: no)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Sparse Groups: no<br>
+&gt; &nbsp; Internal debug support: no<br>
+&gt; &nbsp; &nbsp; &nbsp;MPI parameter check: runtime<br>
+&gt; Memory profiling support: no<br>
+&gt; Memory debugging support: no<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;libltdl support: yes<br>
+&gt; &nbsp; &nbsp;Heterogeneous support: no<br>
+&gt; &nbsp;mpirun default --prefix: no<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MPI I/O support: yes<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp;MPI_WTIME support: gettimeofday<br>
+&gt; Symbol visibility support: yes<br>
+&gt; &nbsp; &nbsp;FT Checkpoint support: no &nbsp;(checkpoint thread: no)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA backtrace: execinfo (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA memory: ptmalloc2 (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA paffinity: linux (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA carto: auto_detect (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA carto: file (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA maffinity: first_use (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA timer: linux (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA installdirs: env (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA installdirs: config (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA dpm: orte (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA pubsub: orte (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA allocator: basic (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA allocator: bucket (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA coll: basic (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA coll: hierarch (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA coll: inter (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA coll: self (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA coll: sm (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA coll: sync (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA coll: tuned (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA io: romio (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA mpool: fake (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA mpool: rdma (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA mpool: sm (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA pml: cm (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA pml: csum (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA pml: ob1 (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA pml: v (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA bml: r2 (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA rcache: vma (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA btl: self (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA btl: sm (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA btl: tcp (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA topo: unity (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA osc: pt2pt (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA osc: rdma (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA iof: hnp (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA iof: orted (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA iof: tool (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA oob: tcp (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA odls: default (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA ras: slurm (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA rmaps: rank_file (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA rmaps: round_robin (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA rmaps: seq (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA rml: oob (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA routed: binomial (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA routed: direct (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA routed: linear (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA plm: rsh (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA plm: slurm (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA filem: rsh (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MCA errmgr: default (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA ess: env (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA ess: hnp (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA ess: singleton (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA ess: slurm (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA ess: tool (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA grpcomm: bad (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;MCA grpcomm: basic (MCA v2.0, API v2.0, Component v1.3.2)<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt></body></html>

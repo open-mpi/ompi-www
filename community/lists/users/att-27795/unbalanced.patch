@@ -1,0 +1,84 @@
+commit c0a621b50635a338faebe44f9aaa58e9c0e1cefc
+Author: Gilles Gouaillardet <gilles@rist.or.jp>
+Date:   Mon Oct 5 16:55:12 2015 +0900
+
+    fix binding on a non symmetrical topology
+    
+    (cherry picked from commit e7f47fe96adfc1c4a20dfad7f5b837295f099b02)
+
+diff --git a/orte/mca/rmaps/base/rmaps_base_binding.c b/orte/mca/rmaps/base/rmaps_base_binding.c
+index a7bfb04..25befec 100644
+--- a/orte/mca/rmaps/base/rmaps_base_binding.c
++++ b/orte/mca/rmaps/base/rmaps_base_binding.c
+@@ -318,28 +318,50 @@ static int bind_downwards(orte_job_t *jdata,
+                 trg_obj->userdata = data;
+             }
+             data->num_bound++;
+-            /* error out if adding a proc would cause overload and that wasn't allowed,
+-             * and it wasn't a default binding policy (i.e., the user requested it)
++            /* before thinking of overloading a resource,
++             * try to find some not yet oversubscribed resource
+              */
+-            if (ncpus < data->num_bound &&
+-                !OPAL_BIND_OVERLOAD_ALLOWED(jdata->map->binding)) {
+-                if (OPAL_BINDING_POLICY_IS_SET(jdata->map->binding)) {
+-                    /* if the user specified a binding policy, then we cannot meet
+-                     * it since overload isn't allowed, so error out - have the
+-                     * message indicate that setting overload allowed will remove
+-                     * this restriction */
+-                    orte_show_help("help-orte-rmaps-base.txt", "rmaps:binding-overload", true,
+-                                   opal_hwloc_base_print_binding(map->binding), node->name,
+-                                   data->num_bound, ncpus);
+-                    hwloc_bitmap_free(totalcpuset);
+-                    return ORTE_ERR_SILENT;
+-                } else {
+-                    /* if we have the default binding policy, then just don't bind */
+-                    OPAL_SET_BINDING_POLICY(map->binding, OPAL_BIND_TO_NONE);
+-                    unbind_procs(jdata);
+-                    hwloc_bitmap_zero(totalcpuset);
+-                    return ORTE_SUCCESS;
++            if (ncpus < data->num_bound) {
++                hwloc_obj_t alt_obj;
++                unsigned int alt_ncpus = 0;
++                opal_hwloc_obj_data_t *alt_data = NULL;
++                assert (1 == hwloc_get_nbobjs_by_depth(node->topology, 0));
++                alt_obj = opal_hwloc_base_find_min_bound_target_under_obj(node->topology,
++                                                                          hwloc_get_root_obj(node->topology),
++                                                                          target, cache_level);
++                assert (NULL != alt_obj);
++                alt_ncpus = opal_hwloc_base_get_npus(node->topology, alt_obj);
++                if (NULL == (alt_data = (opal_hwloc_obj_data_t*)alt_obj->userdata)) {
++                    alt_data = OBJ_NEW(opal_hwloc_obj_data_t);
++                    alt_obj->userdata = alt_data;
++                }
++                /* error out if adding a proc would cause overload and that wasn't allowed,
++                 * and it wasn't a default binding policy (i.e., the user requested it)
++                 */
++                if (!OPAL_BIND_OVERLOAD_ALLOWED(jdata->map->binding)) {
++                    if (alt_ncpus < alt_data->num_bound) {
++                        if (OPAL_BINDING_POLICY_IS_SET(jdata->map->binding)) {
++                            /* if the user specified a binding policy, then we cannot meet
++                             * it since overload isn't allowed, so error out - have the
++                             * message indicate that setting overload allowed will remove
++                             * this restriction */
++                            orte_show_help("help-orte-rmaps-base.txt", "rmaps:binding-overload", true,
++                                           opal_hwloc_base_print_binding(map->binding), node->name,
++                                           data->num_bound, ncpus);
++                            hwloc_bitmap_free(totalcpuset);
++                            return ORTE_ERR_SILENT;
++                        } else {
++                            /* if we have the default binding policy, then just don't bind */
++                            OPAL_SET_BINDING_POLICY(map->binding, OPAL_BIND_TO_NONE);
++                            unbind_procs(jdata);
++                            hwloc_bitmap_zero(totalcpuset);
++                            return ORTE_SUCCESS;
++                        }
++                    }
+                 }
++                alt_data->num_bound++;
++                data->num_bound--;
++                trg_obj = alt_obj;
+             }
+             /* bind the proc here */
+             cpus = opal_hwloc_base_get_available_cpus(node->topology, trg_obj);
+

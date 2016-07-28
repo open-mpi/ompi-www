@@ -1,0 +1,227 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+    On 11/16/2010 08:24 PM, Ralph Castain wrote:
+    <blockquote
+      cite="mid:AANLkTikAw=Bn=femk1Nn_3ihaO4B83PSqSykkpoBfgPV@mail.gmail.com"
+      type="cite"><br>
+      <br>
+      <div class="gmail_quote">On Tue, Nov 16, 2010 at 12:23 PM, Terry
+        Dontje <span dir="ltr">&lt;<a moz-do-not-send="true"
+            href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a>&gt;</span>
+        wrote:<br>
+        <blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt
+          0.8ex; border-left: 1px solid rgb(204, 204, 204);
+          padding-left: 1ex;">
+          <div bgcolor="#ffffff" text="#000000">
+            <div class="im"> On 11/16/2010 01:31 PM, Reuti wrote:
+              <blockquote type="cite">
+                <pre>Hi Ralph,
+
+Am 16.11.2010 um 15:40 schrieb Ralph Castain:
+
+</pre>
+                <blockquote type="cite">
+                  <blockquote type="cite">
+                    <pre>2. have SGE bind procs it launches to -all- of those cores. I believe SGE does this automatically to constrain the procs to running on only those cores.
+</pre>
+                  </blockquote>
+                  <pre>This is another "bug/feature" in SGE: it's a matter of discussion, whether the shepherd should get exactly one core (in case you use more than one `qrsh`per node) for each call, or *all* cores assigned (which we need right now, as the processes in Open MPI will be forks of orte daemon). About such a situtation I filled an issue a long time ago and "limit_to_one_qrsh_per_host yes/no" in the PE definition would do (this setting should then also change the core allocation of the master process):
+
+<a moz-do-not-send="true" href="http://gridengine.sunsource.net/issues/show_bug.cgi?id=1254" target="_blank">http://gridengine.sunsource.net/issues/show_bug.cgi?id=1254</a>
+
+I believe this is indeed the crux of the issue
+</pre>
+                </blockquote>
+                <pre>fantastic to share the same view.
+
+</pre>
+              </blockquote>
+            </div>
+            FWIW, I think I agree too.
+            <div class="im"><br>
+              <blockquote type="cite">
+                <blockquote type="cite">
+                  <blockquote type="cite">
+                    <pre>3. tell OMPI to --bind-to-core.
+
+In other words, tell SGE to allocate a certain number of cores on each node, but to bind each proc to all of them (i.e., don't bind a proc to a specific core). I'm pretty sure that is a standard SGE option today (at least, I know it used to be). I don't believe any patch or devel work is required (to either SGE or OMPI).
+</pre>
+                  </blockquote>
+                  <pre>When you use a fixed allocation_rule and a matching -binding request it will work today. But any other case won't be distributed in the correct way.
+
+Is it possible to not include the -binding request? If SGE is told to use a fixed allocation_rule, and to allocate (for example) 2 cores/node, then won't the orted see 
+itself bound to two specific cores on each node?
+</pre>
+                </blockquote>
+                <pre>When you leave out the -binding, all jobs are allowed to run on any core.
+
+
+</pre>
+                <blockquote type="cite">
+                  <pre>We would then be okay as the spawned children of orted would inherit its binding. Just don't tell mpirun to bind the processes and the threads of those MPI procs will be able to operate across the provided cores.
+
+Or does SGE only allocate 2 cores/node in that case (i.e., allocate, but no -binding given), but doesn't bind the orted to any two specific cores? If so, then that would be a problem as the orted would think itself unconstrained. If I understand the thread correctly, you're saying that this is what happens today - true?
+</pre>
+                </blockquote>
+                <pre>Exactly. It won't apply any binding at all and orted would think of being unlimited. I.e. limited only by the number of slots it should use thereon.
+
+</pre>
+              </blockquote>
+            </div>
+            So I guess the question I have for Ralph.&nbsp; I thought, and
+            this might be mixing some of the ideas Jeff and I've been
+            talking about, that when a RM executes the orted with a
+            bound set of resources (ie cores) that orted would bind the
+            individual processes on a subset of the bounded resources.&nbsp;
+            Is this not really the case for 1.4.X branch?&nbsp; I believe it
+            is the case for the trunk based on Jeff's refactoring.</div>
+        </blockquote>
+        <div><br>
+        </div>
+        <div>You are absolutely correct, Terry, and the 1.4 release
+          series does include the proper code. The point here, though,
+          is that SGE binds the orted to a single core, even though
+          other cores are also allocated. So the orted detects an
+          external binding of one core, and binds all its children to
+          that same core.</div>
+      </div>
+    </blockquote>
+    I do not think you are right here.&nbsp; Chris sent the following which
+    looks like OGE (fka SGE) actually did bind the hnp to multiple
+    cores.&nbsp; However that message I believe is not coming from the
+    processes themselves and actually is only shown by the hnp.&nbsp; I
+    wonder if Chris adds a "-bind-to-core" option&nbsp; we'll see more output
+    from the a.out's before they exec unterm?<br>
+    <pre wrap="">Sure.   Here's the stderr of a job submitted to my cluster with 'qsub -pe mpi 8 -binding linear:2 myScript.com'  where myScript.com runs 'mpirun -mca ras_gridengine_verbose 100 --report-bindings ./unterm':
+<span class="moz-txt-citetags">&gt;&gt; </span>
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] System has detected external process binding to cores 0022
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] ras:gridengine: JOB_ID: 59352
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] ras:gridengine: PE_HOSTFILE: /usr/sge/default/spool/exec4/active_jobs/59352.1/pe_hostfile
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] ras:gridengine: exec4.cluster.stats.local: PE_HOSTFILE shows slots=2
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] ras:gridengine: exec2.cluster.stats.local: PE_HOSTFILE shows slots=1
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] ras:gridengine: exec7.cluster.stats.local: PE_HOSTFILE shows slots=1
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] ras:gridengine: exec3.cluster.stats.local: PE_HOSTFILE shows slots=1
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] ras:gridengine: exec6.cluster.stats.local: PE_HOSTFILE shows slots=1
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] ras:gridengine: exec1.cluster.stats.local: PE_HOSTFILE shows slots=1
+<span class="moz-txt-citetags">&gt;&gt; </span>[exec4:17384] ras:gridengine: exec5.cluster.stats.local: PE_HOSTFILE shows slots=1
+
+
+</pre>
+    --td<br>
+    <blockquote
+      cite="mid:AANLkTikAw=Bn=femk1Nn_3ihaO4B83PSqSykkpoBfgPV@mail.gmail.com"
+      type="cite">
+      <div class="gmail_quote">
+        <div>What I had suggested to Reuti was to not include the
+          -binding flag to SGE in the hopes that SGE would then bind the
+          orted to all the allocated cores. However, as I feared, SGE in
+          that case doesn't bind the orted at all - and so we assume the
+          entire node is available for our use.</div>
+        <div><br>
+        </div>
+        <div>This is an SGE issue. We need them to bind the orted to
+          -all- the allocated cores (and only those cores) in order for
+          us to operate correctly.</div>
+        <div><br>
+        </div>
+      </div>
+    </blockquote>
+    <br>
+    <blockquote
+      cite="mid:AANLkTikAw=Bn=femk1Nn_3ihaO4B83PSqSykkpoBfgPV@mail.gmail.com"
+      type="cite">
+      <div class="gmail_quote">
+        <div>&nbsp;</div>
+        <blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt
+          0.8ex; border-left: 1px solid rgb(204, 204, 204);
+          padding-left: 1ex;">
+          <div bgcolor="#ffffff" text="#000000">
+            <div class="im"><br>
+              <br>
+              <div>-- <br>
+                <img src="cid:part1.07090405.05030609@oracle.com"
+                  alt="Oracle"><br>
+                Terry D. Dontje | Principal Software Engineer<br>
+                <font size="2" color="#666666" face="Verdana">Developer
+                  Tools Engineering | +1.781.442.2631<br>
+                </font> <font size="2" color="#ff0000" face="Verdana">Oracle
+                </font><font size="2" color="#666666" face="Verdana"><b>
+                    - Performance Technologies</b></font><br>
+                <font size="2" color="#666666" face="Verdana"> 95
+                  Network Drive, Burlington, MA 01803<br>
+                  Email <a moz-do-not-send="true"
+                    href="mailto:terry.dontje@oracle.com"
+                    target="_blank">terry.dontje@oracle.com</a><br>
+                </font>
+                <div><br>
+                  <div>
+                    <div>
+                      <div>
+                        <div>
+                          <div> </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <br>
+                  <br>
+                </div>
+              </div>
+            </div>
+          </div>
+          <br>
+          _______________________________________________<br>
+          users mailing list<br>
+          <a moz-do-not-send="true" href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+          <a moz-do-not-send="true"
+            href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+            target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+        </blockquote>
+      </div>
+      <br>
+      <pre wrap="">
+<fieldset class="mimeAttachmentHeader"></fieldset>
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></pre>
+    </blockquote>
+    <br>
+    <br>
+    <div class="moz-signature">-- <br>
+      <meta http-equiv="content-type" content="text/html;
+        charset=ISO-8859-1">
+      <title></title>
+      <img src="cid:part2.05070400.06040206@oracle.com" alt="Oracle"><br>
+      Terry D. Dontje | Principal Software Engineer<br>
+      <font size="2" color="#666666" face="Verdana">Developer Tools
+        Engineering | +1.781.442.2631<br>
+      </font> <font size="2" color="#ff0000" face="Verdana">Oracle </font><font
+        size="2" color="#666666" face="Verdana"><b> - Performance
+          Technologies</b></font><br>
+      <font size="2" color="#666666" face="Verdana"> 95 Network Drive,
+        Burlington, MA 01803<br>
+        Email <a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+      </font>
+      <div class="moz-signature"><br>
+        <div class="moz-signature">
+          <div class="moz-signature">
+            <div class="moz-signature">
+              <div class="moz-signature">
+                <div class="moz-signature"> </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <br>
+        <br>
+      </div>
+    </div>
+  </body>
+</html>
+

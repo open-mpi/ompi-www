@@ -1,0 +1,256 @@
+Index: .
+===================================================================
+--- .	(revision 28183)
++++ .	(working copy)
+
+Property changes on: .
+___________________________________________________________________
+Modified: svn:mergeinfo
+   Merged /trunk:r28184
+Index: orte/mca/ess/base/ess_base_std_orted.c
+===================================================================
+--- orte/mca/ess/base/ess_base_std_orted.c	(revision 28183)
++++ orte/mca/ess/base/ess_base_std_orted.c	(working copy)
+@@ -316,13 +316,13 @@
+         goto error;
+     }
+ #if ORTE_ENABLE_STATIC_PORTS
+-    /* if we are using static ports or a common port, then we need to setup
++    /* if we are using static ports, then we need to setup
+      * the daemon info so the RML can function properly
+      * without requiring a wireup stage. This must be done
+      * after we enable_comm as that function determines our
+      * own port, which we need in order to construct the nidmap
+      */
+-    if (orte_static_ports || orte_use_common_port) {
++    if (orte_static_ports) {
+         /* define the routing tree so we know the pattern
+          * if we are trying to setup common or static ports
+          */
+Index: orte/mca/oob/tcp/oob_tcp.c
+===================================================================
+--- orte/mca/oob/tcp/oob_tcp.c	(revision 28183)
++++ orte/mca/oob/tcp/oob_tcp.c	(working copy)
+@@ -651,15 +651,8 @@
+        port in the range.  Otherwise, tcp_port_min will be 0, which
+        means "pick any port" */
+     if (AF_INET == af_family) {
+-        if (ORTE_PROC_IS_DAEMON && orte_use_common_port) {
+-            /* use the same port as the HNP */
+-            char *ptr, *portptr;
+-            portptr = strdup(orte_process_info.my_hnp_uri);
+-            ptr = strrchr(portptr, ':');
+-            ptr++;
+-            opal_argv_append_nosize(&ports, ptr);
+-            free(portptr);
+-        } else if (ORTE_PROC_IS_HNP || ORTE_PROC_IS_DAEMON) {
++        if (ORTE_PROC_IS_HNP || ORTE_PROC_IS_DAEMON ||
++            ORTE_PROC_IS_CM || ORTE_PROC_IS_CMSLAVE) {
+             if (NULL != mca_oob_tcp_component.tcp4_static_ports) {
+                 /* if static ports were provided, the daemon takes the
+                  * first entry in the list
+Index: orte/mca/plm/base/plm_base_launch_support.c
+===================================================================
+--- orte/mca/plm/base/plm_base_launch_support.c	(revision 28183)
++++ orte/mca/plm/base/plm_base_launch_support.c	(working copy)
+@@ -983,8 +983,8 @@
+     opal_argv_append(argc, argv, param);
+     free(param);
+ 
+-    /* if given and we have static ports or are using a common port, pass the node list */
+-    if ((orte_static_ports || orte_use_common_port) && NULL != nodes) {
++    /* if we have static ports, pass the node list */
++    if (orte_static_ports && NULL != nodes) {
+         /* convert the nodes to a regex */
+         if (ORTE_SUCCESS != (rc = orte_regex_create(nodes, &param))) {
+             ORTE_ERROR_LOG(rc);
+@@ -996,15 +996,6 @@
+         free(param);
+     }
+     
+-    if (orte_use_common_port) {
+-        /* tell the daemon to use the common port */
+-        opal_argv_append(argc, argv, "--use-common-port");
+-    } else {
+-        opal_argv_append(argc, argv, "-mca");
+-        opal_argv_append(argc, argv, "orte_use_common_port");
+-        opal_argv_append(argc, argv, "0");
+-    }
+-
+     /* warn the daemons if we are using a tree spawn pattern so they
+      * know they shouldn't do a rollup on their callback
+      */
+Index: orte/mca/plm/rsh/plm_rsh_module.c
+===================================================================
+--- orte/mca/plm/rsh/plm_rsh_module.c	(revision 28183)
++++ orte/mca/plm/rsh/plm_rsh_module.c	(working copy)
+@@ -793,11 +793,6 @@
+         goto cleanup;
+     }
+     
+-    /* ensure the system knows we are not using common ports since we are
+-     * doing a tree spawn
+-     */
+-    orte_use_common_port = false;
+-
+     /* setup the launch */
+     if (ORTE_SUCCESS != (rc = setup_launch(&argc, &argv, orte_process_info.nodename, &node_name_index1,
+                                            &proc_vpid_index, prefix))) {
+@@ -1090,11 +1085,6 @@
+         opal_byte_object_t bo, *boptr;
+         orte_job_t *jdatorted;
+         
+-        /* ensure all systems know we are not using a common port since we
+-         * are doing a tree spawn
+-         */
+-        orte_use_common_port = false;
+-
+         /* get the tree spawn buffer */
+         orte_tree_launch_cmd = OBJ_NEW(opal_buffer_t);
+         /* insert the tree_spawn cmd */
+Index: orte/mca/plm/slurm/plm_slurm_module.c
+===================================================================
+--- orte/mca/plm/slurm/plm_slurm_module.c	(revision 28183)
++++ orte/mca/plm/slurm/plm_slurm_module.c	(working copy)
+@@ -148,9 +148,6 @@
+         return rc;
+     }
+ 
+-    /* lock OFF the common port for now */
+-    orte_use_common_port = false;
+-
+     return rc;
+ }
+ 
+Index: orte/mca/routed/binomial/routed_binomial.c
+===================================================================
+--- orte/mca/routed/binomial/routed_binomial.c	(revision 28183)
++++ orte/mca/routed/binomial/routed_binomial.c	(working copy)
+@@ -375,7 +375,7 @@
+      
+     /* THIS CAME FROM OUR OWN JOB FAMILY... */
+     if (OPAL_EQUAL == orte_util_compare_name_fields(ORTE_NS_CMP_ALL, ORTE_PROC_MY_HNP, target)) {
+-        if (!hnp_direct || orte_static_ports || orte_use_common_port) {
++        if (!hnp_direct || orte_static_ports) {
+             OPAL_OUTPUT_VERBOSE((2, orte_routed_base_output,
+                                  "%s routing to the HNP through my parent %s",
+                                  ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+Index: orte/mca/routed/debruijn/routed_debruijn.c
+===================================================================
+--- orte/mca/routed/debruijn/routed_debruijn.c	(revision 28183)
++++ orte/mca/routed/debruijn/routed_debruijn.c	(working copy)
+@@ -385,7 +385,7 @@
+         /* THIS CAME FROM OUR OWN JOB FAMILY... */
+ 
+         if (OPAL_EQUAL == orte_util_compare_name_fields(ORTE_NS_CMP_ALL, ORTE_PROC_MY_HNP, target)) {
+-            if (!hnp_direct || orte_static_ports || orte_use_common_port) {
++            if (!hnp_direct || orte_static_ports) {
+                 OPAL_OUTPUT_VERBOSE((2, orte_routed_base_output,
+                                      "%s routing to the HNP through my parent %s",
+                                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+@@ -489,8 +489,8 @@
+                 return rc;
+             }
+ 
+-            /* if we are using static ports or a common port, set my lifeline to point at my parent */
+-            if (orte_static_ports || orte_use_common_port) {
++            /* if we are using static ports, set my lifeline to point at my parent */
++            if (orte_static_ports) {
+                 lifeline = ORTE_PROC_MY_PARENT;
+             } else {
+                 /* set our lifeline to the HNP - we will abort if that connection is lost */
+Index: orte/mca/routed/radix/routed_radix.c
+===================================================================
+--- orte/mca/routed/radix/routed_radix.c	(revision 28183)
++++ orte/mca/routed/radix/routed_radix.c	(working copy)
+@@ -379,7 +379,7 @@
+      * how to get there - otherwise, send it via the tree
+      */
+     if (OPAL_EQUAL == orte_util_compare_name_fields(ORTE_NS_CMP_ALL, ORTE_PROC_MY_HNP, target)) {
+-        if (!hnp_direct || orte_static_ports || orte_use_common_port) {
++        if (!hnp_direct || orte_static_ports) {
+             OPAL_OUTPUT_VERBOSE((2, orte_routed_base_output,
+                                  "%s routing to the HNP through my parent %s",
+                                  ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+Index: orte/orted/orted_main.c
+===================================================================
+--- orte/orted/orted_main.c	(revision 28183)
++++ orte/orted/orted_main.c	(working copy)
+@@ -171,10 +171,6 @@
+       NULL, OPAL_CMD_LINE_TYPE_STRING,
+       "URI for the parent if tree launch is enabled."},
+     
+-    { "orte", "use", "common_port", '\0', NULL, "use-common-port", 0,
+-      NULL, OPAL_CMD_LINE_TYPE_BOOL,
+-      "Use the same port as the HNP."},
+-    
+     { NULL, NULL, NULL, '\0', NULL, "tree-spawn", 0,
+       &orted_globals.tree_spawn, OPAL_CMD_LINE_TYPE_BOOL,
+       "Tree spawn is underway"},
+@@ -743,7 +739,7 @@
+         }
+ #endif
+ 
+-        if ((orte_static_ports || orte_use_common_port) && !orted_globals.tree_spawn) {
++        if (orte_static_ports  && !orted_globals.tree_spawn) {
+             /* use the rollup collective to send our data to the HNP
+              * so we minimize the HNP bottleneck
+              */
+Index: orte/runtime/orte_globals.c
+===================================================================
+--- orte/runtime/orte_globals.c	(revision 28183)
++++ orte/runtime/orte_globals.c	(working copy)
+@@ -75,7 +75,6 @@
+ bool orte_static_ports = false;
+ char *orte_oob_static_ports = NULL;
+ bool orte_standalone_operation = false;
+-bool orte_use_common_port = false;
+ 
+ bool orte_keep_fqdn_hostnames = false;
+ bool orte_have_fqdn_allocation = false;
+Index: orte/runtime/orte_globals.h
+===================================================================
+--- orte/runtime/orte_globals.h	(revision 28183)
++++ orte/runtime/orte_globals.h	(working copy)
+@@ -581,7 +581,6 @@
+ ORTE_DECLSPEC extern bool orte_static_ports;
+ ORTE_DECLSPEC extern char *orte_oob_static_ports;
+ ORTE_DECLSPEC extern bool orte_standalone_operation;
+-ORTE_DECLSPEC extern bool orte_use_common_port;
+ 
+ /* nodename flags */
+ ORTE_DECLSPEC extern bool orte_keep_fqdn_hostnames;
+Index: orte/runtime/orte_mca_params.c
+===================================================================
+--- orte/runtime/orte_mca_params.c	(revision 28183)
++++ orte/runtime/orte_mca_params.c	(working copy)
+@@ -552,15 +552,6 @@
+                                 "Maximum size of virtual machine - used to subdivide allocation",
+                                 false, false, -1, &orte_max_vm_size);
+ 
+-#if ORTE_ENABLE_STATIC_PORTS
+-    mca_base_param_reg_int_name("orte", "use_common_port",
+-                                "Daemons use same port as HNP",
+-                                false, false, (int)true, &value);
+-    orte_use_common_port = OPAL_INT_TO_BOOL(value);
+-#else
+-    orte_use_common_port = false;
+-#endif
+-
+ #endif /* ORTE_DISABLE_FULL_SUPPORT */
+     
+     return ORTE_SUCCESS;
+Index: orte/util/hostfile/hostfile.c
+===================================================================
+--- orte/util/hostfile/hostfile.c	(revision 28183)
++++ orte/util/hostfile/hostfile.c	(working copy)
+@@ -724,6 +724,8 @@
+                  * our local name, and yet still be intended to match,
+                  * we have to check for local interfaces
+                  */
++                opal_output(0, "HOSTFILE: CHECKING FILE NODE %s VS LIST NODE %s"
++                            node_from_file->name, node_from_list->name);
+                 if (0 == strcmp(node_from_file->name, node_from_list->name) ||
+                     (opal_ifislocal(node_from_list->name) &&
+                      opal_ifislocal(node_from_file->name))) {
+

@@ -1,0 +1,219 @@
+Could you send us the mpirun cmd line? I wonder if you are missing some options that could help. Also, you might:<br><br>(a) upgrade to 1.3.3 - it looks like you are using some kind of pre-release version<br><br>(b) add -mca mpi_show_mca_params env,file - this will cause rank=0 to output what mca params it sees, and where they came from<br>
+<br>(c) check that you built a non-debug version, and remembered to compile your application with a -O3 flag - i.e., &quot;mpicc -O3 ...&quot;. Remember, OMPI does not automatically add optimization flags to mpicc!<br><br>
+Thanks<br>Ralph<br><br><br><div class="gmail_quote">On Wed, Aug 5, 2009 at 7:15 AM, Torgny Faxen <span dir="ltr">&lt;<a href="mailto:faxen@nsc.liu.se">faxen@nsc.liu.se</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Pasha,<br>
+no collectives are being used.<br>
+<br>
+A simple grep in the code reveals the following MPI functions being used:<br>
+MPI_Init<br>
+MPI_wtime<br>
+MPI_COMM_RANK<br>
+MPI_COMM_SIZE<br>
+MPI_BUFFER_ATTACH<br>
+MPI_BSEND<br>
+MPI_PACK<br>
+MPI_UNPACK<br>
+MPI_PROBE<br>
+MPI_GET_COUNT<br>
+MPI_RECV<br>
+MPI_IPROBE<br>
+MPI_FINALIZE<br>
+<br>
+where MPI_IPROBE is the clear winner in terms of number of calls.<br><font color="#888888">
+<br>
+/Torgny</font><div><div></div><div class="h5"><br>
+<br>
+Pavel Shamis (Pasha) wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Do you know if the application use some collective operations ?<br>
+<br>
+Thanks<br>
+<br>
+Pasha<br>
+<br>
+Torgny Faxen wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Hello,<br>
+we are seeing a large difference in performance for some applications depending on what MPI is being used.<br>
+<br>
+Attached are performance numbers and oprofile output (first 30 lines) from one out of 14 nodes from one application run using OpenMPI, IntelMPI and Scali MPI respectively.<br>
+<br>
+Scali MPI is faster the other two MPI:s with a factor of 1.6 and 1.75:<br>
+<br>
+ScaliMPI: walltime for the whole application is 214 seconds<br>
+OpenMPI: walltime for the whole application is 376 seconds<br>
+Intel MPI: walltime for the whole application is 346 seconds.<br>
+<br>
+The application is running with the main send receive commands being:<br>
+MPI_Bsend<br>
+MPI_Iprobe followed by MPI_Recv (in case of there being a message). Quite often MPI_Iprobe is being called just to check whether there is a certain message pending.<br>
+<br>
+Any idea on tuning tips, performance analysis, code modifications to improve the OpenMPI performance? A lot of time is being spent in &quot;mca_btl_sm_component_progress&quot;, &quot;btl_openib_component_progress&quot; and other internal routines.<br>
+
+<br>
+The code is running on a cluster with 140 HP ProLiant DL160 G5 compute servers. Infiniband interconnect. Intel Xeon E5462 processors. The profiled application is using 144 cores on 18 nodes over Infiniband.<br>
+<br>
+Regards / Torgny<br>
+=====================================================================================================================0 <br>
+OpenMPI  1.3b2<br>
+=====================================================================================================================0 <br>
+<br>
+Walltime: 376 seconds<br>
+<br>
+CPU: CPU with timer interrupt, speed 0 MHz (estimated)<br>
+Profiling through timer interrupt<br>
+samples  %        image name               app name                 symbol name<br>
+668288   22.2113  mca_btl_sm.so            rco2.24pe                mca_btl_sm_component_progress<br>
+441828   14.6846  rco2.24pe                rco2.24pe                step_<br>
+335929   11.1650  libmlx4-rdmav2.so        rco2.24pe                (no symbols)<br>
+301446   10.0189  mca_btl_openib.so        rco2.24pe                btl_openib_component_progress<br>
+161033    5.3521  libopen-pal.so.0.0.0     rco2.24pe                opal_progress<br>
+157024    5.2189  <a href="http://libpthread-2.5.so" target="_blank">libpthread-2.5.so</a>        rco2.24pe                pthread_spin_lock<br>
+99526     3.3079  no-vmlinux               no-vmlinux               (no symbols)<br>
+93887     3.1204  mca_btl_sm.so            rco2.24pe                opal_using_threads<br>
+69979     2.3258  mca_pml_ob1.so           rco2.24pe                mca_pml_ob1_iprobe<br>
+58895     1.9574  mca_bml_r2.so            rco2.24pe                mca_bml_r2_progress<br>
+55095     1.8311  mca_pml_ob1.so           rco2.24pe                mca_pml_ob1_recv_request_match_wild<br>
+49286     1.6381  rco2.24pe                rco2.24pe                tracer_<br>
+41946     1.3941  libintlc.so.5            rco2.24pe                __intel_new_memcpy<br>
+40730     1.3537  rco2.24pe                rco2.24pe                scobi_<br>
+36586     1.2160  rco2.24pe                rco2.24pe                state_<br>
+20986     0.6975  rco2.24pe                rco2.24pe                diag_<br>
+19321     0.6422  libmpi.so.0.0.0          rco2.24pe                PMPI_Unpack<br>
+18552     0.6166  libmpi.so.0.0.0          rco2.24pe                PMPI_Iprobe<br>
+17323     0.5757  rco2.24pe                rco2.24pe                clinic_<br>
+16194     0.5382  rco2.24pe                rco2.24pe                k_epsi_<br>
+15330     0.5095  libmpi.so.0.0.0          rco2.24pe                PMPI_Comm_f2c<br>
+13778     0.4579  libmpi_f77.so.0.0.0      rco2.24pe                mpi_iprobe_f<br>
+13241     0.4401  rco2.24pe                rco2.24pe                s_recv_<br>
+12386     0.4117  rco2.24pe                rco2.24pe                growth_<br>
+11699     0.3888  rco2.24pe                rco2.24pe                testnrecv_<br>
+11268     0.3745  libmpi.so.0.0.0          rco2.24pe                mca_pml_base_recv_request_construct<br>
+10971     0.3646  libmpi.so.0.0.0          rco2.24pe                ompi_convertor_unpack<br>
+10034     0.3335  mca_pml_ob1.so           rco2.24pe                mca_pml_ob1_recv_request_match_specific<br>
+10003     0.3325  libimf.so                rco2.24pe                exp.L<br>
+9375      0.3116  rco2.24pe                rco2.24pe                subbasin_<br>
+8912      0.2962  libmpi_f77.so.0.0.0      rco2.24pe                mpi_unpack_f<br>
+<br>
+<br>
+<br>
+=====================================================================================================================0 <br>
+Intel MPI, version <a href="http://3.2.0.011/" target="_blank">3.2.0.011/</a><br>
+=====================================================================================================================0 <br>
+<br>
+Walltime: 346 seconds<br>
+<br>
+CPU: CPU with timer interrupt, speed 0 MHz (estimated)<br>
+Profiling through timer interrupt<br>
+samples  %        image name               app name                 symbol name<br>
+486712   17.7537  rco2                     rco2                     step_<br>
+431941   15.7558  no-vmlinux               no-vmlinux               (no symbols)<br>
+212425    7.7486  libmpi.so.3.2            rco2                     MPIDI_CH3U_Recvq_FU<br>
+188975    6.8932  libmpi.so.3.2            rco2                     MPIDI_CH3I_RDSSM_Progress<br>
+172855    6.3052  libmpi.so.3.2            rco2                     MPIDI_CH3I_read_progress<br>
+121472    4.4309  libmpi.so.3.2            rco2                     MPIDI_CH3I_SHM_read_progress<br>
+64492     2.3525  <a href="http://libc-2.5.so" target="_blank">libc-2.5.so</a>              rco2                     sched_yield<br>
+52372     1.9104  rco2                     rco2                     tracer_<br>
+48621     1.7735  libmpi.so.3.2            rco2                     .plt<br>
+45475     1.6588  libmpiif.so.3.2          rco2                     pmpi_iprobe__<br>
+44082     1.6080  libmpi.so.3.2            rco2                     MPID_Iprobe<br>
+42788     1.5608  libmpi.so.3.2            rco2                     MPIDI_CH3_Stop_recv<br>
+42754     1.5595  <a href="http://libpthread-2.5.so" target="_blank">libpthread-2.5.so</a>        rco2                     pthread_mutex_lock<br>
+42190     1.5390  libmpi.so.3.2            rco2                     PMPI_Iprobe<br>
+41577     1.5166  rco2                     rco2                     scobi_<br>
+40356     1.4721  libmpi.so.3.2            rco2                     MPIDI_CH3_Start_recv<br>
+38582     1.4073  libdaplcma.so.1.0.2      rco2                     (no symbols)<br>
+37545     1.3695  rco2                     rco2                     state_<br>
+35597     1.2985  <a href="http://libc-2.5.so" target="_blank">libc-2.5.so</a>              rco2                     free<br>
+34019     1.2409  <a href="http://libc-2.5.so" target="_blank">libc-2.5.so</a>              rco2                     malloc<br>
+31841     1.1615  rco2                     rco2                     s_recv_<br>
+30955     1.1291  libmpi.so.3.2            rco2                     __I_MPI___intel_new_memcpy<br>
+27876     1.0168  <a href="http://libc-2.5.so" target="_blank">libc-2.5.so</a>              rco2                     _int_malloc<br>
+26963     0.9835  rco2                     rco2                     testnrecv_<br>
+23005     0.8391  <a href="http://libpthread-2.5.so" target="_blank">libpthread-2.5.so</a>        rco2                     __pthread_mutex_unlock_usercnt<br>
+22290     0.8131  libmpi.so.3.2            rco2                     MPID_Segment_manipulate<br>
+22086     0.8056  libmpi.so.3.2            rco2                     MPIDI_CH3I_read_progress_expected<br>
+19146     0.6984  rco2                     rco2                     diag_<br>
+18250     0.6657  rco2                     rco2                     clinic_<br>
+=====================================================================================================================0 <br>
+Scali MPI, version 3.13.10-59413<br>
+=====================================================================================================================0 <br>
+<br>
+Walltime:<br>
+<br>
+CPU: CPU with timer interrupt, speed 0 MHz (estimated)<br>
+Profiling through timer interrupt<br>
+samples  %        image name               app name                 symbol name<br>
+484267   30.0664  rco2.24pe                rco2.24pe                step_<br>
+111949    6.9505  libmlx4-rdmav2.so        rco2.24pe                (no symbols)<br>
+73930     4.5900  libmpi.so                rco2.24pe                scafun_rq_handle_body<br>
+57846     3.5914  libmpi.so                rco2.24pe                invert_decode_header<br>
+55836     3.4667  <a href="http://libpthread-2.5.so" target="_blank">libpthread-2.5.so</a>        rco2.24pe                pthread_spin_lock<br>
+53703     3.3342  rco2.24pe                rco2.24pe                tracer_<br>
+40934     2.5414  rco2.24pe                rco2.24pe                scobi_<br>
+40244     2.4986  libmpi.so                rco2.24pe                scafun_request_probe_handler<br>
+37399     2.3220  rco2.24pe                rco2.24pe                state_<br>
+30455     1.8908  libmpi.so                rco2.24pe                invert_matchandprobe<br>
+29707     1.8444  no-vmlinux               no-vmlinux               (no symbols)<br>
+29147     1.8096  libmpi.so                rco2.24pe                FMPI_scafun_Iprobe<br>
+27969     1.7365  libmpi.so                rco2.24pe                decode_8_u_64<br>
+27475     1.7058  libmpi.so                rco2.24pe                scafun_rq_anysrc_fair_one<br>
+25966     1.6121  libmpi.so                rco2.24pe                scafun_uxq_probe<br>
+24380     1.5137  <a href="http://libc-2.5.so" target="_blank">libc-2.5.so</a>              rco2.24pe                memcpy<br>
+22615     1.4041  libmpi.so                rco2.24pe                .plt<br>
+21172     1.3145  rco2.24pe                rco2.24pe                diag_<br>
+20716     1.2862  <a href="http://libc-2.5.so" target="_blank">libc-2.5.so</a>              rco2.24pe                memset<br>
+18565     1.1526  libmpi.so                rco2.24pe                openib_wrapper_poll_cq<br>
+18192     1.1295  rco2.24pe                rco2.24pe                clinic_<br>
+17135     1.0638  libmpi.so                rco2.24pe                PMPI_Iprobe<br>
+16685     1.0359  rco2.24pe                rco2.24pe                k_epsi_<br>
+16236     1.0080  libmpi.so                rco2.24pe                PMPI_Unpack<br>
+15563     0.9662  libmpi.so                rco2.24pe                scafun_r_rq_append<br>
+14829     0.9207  libmpi.so                rco2.24pe                scafun_rq_test_finished<br>
+13349     0.8288  rco2.24pe                rco2.24pe                s_recv_<br>
+12490     0.7755  libmpi.so                rco2.24pe                flop_matchandprobe<br>
+12427     0.7715  libibverbs.so.1.0.0      rco2.24pe                (no symbols)<br>
+12272     0.7619  libmpi.so                rco2.24pe                scafun_rq_handle<br>
+12146     0.7541  rco2.24pe                rco2.24pe                growth_<br>
+10175     0.6317  libmpi.so                rco2.24pe                wrp2p_test_finished<br>
+9888      0.6139  libimf.so                rco2.24pe                exp.L<br>
+9179      0.5699  rco2.24pe                rco2.24pe                subbasin_<br>
+9082      0.5639  rco2.24pe                rco2.24pe                testnrecv_<br>
+8901      0.5526  libmpi.so                rco2.24pe                openib_wrapper_purge_requests<br>
+7425      0.4610  rco2.24pe                rco2.24pe                scobimain_<br>
+7378      0.4581  rco2.24pe                rco2.24pe                scobi_interface_<br>
+6530      0.4054  rco2.24pe                rco2.24pe                setvbc_<br>
+6471      0.4018  libfmpi.so               rco2.24pe                pmpi_iprobe<br>
+6341      0.3937  rco2.24pe                rco2.24pe                snap_<br>
+<br>
+<br>
+</blockquote>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+</blockquote>
+<br>
+<br></div></div><div class="im">
+-- <br>
+---------------------------------------------------------<br>
+  Torgny Faxén          <br>
+  National Supercomputer Center<br>
+  Linköping University  <br>
+  S-581 83 Linköping<br>
+  Sweden        <br>
+<br>
+  <a href="mailto:Email%3Afaxen@nsc.liu.se" target="_blank">Email:faxen@nsc.liu.se</a><br>
+  Telephone: +46 13 285798 (office) +46 13 282535  (fax)<br>
+  <a href="http://www.nsc.liu.se" target="_blank">http://www.nsc.liu.se</a><br>
+---------------------------------------------------------<br>
+<br>
+<br>
+_______________________________________________<br></div><div><div></div><div class="h5">
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br>
+

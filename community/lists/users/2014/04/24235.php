@@ -1,0 +1,570 @@
+<?
+$subject_val = "Re: [OMPI users] Where is the error? (MPI program in fortran)";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Thu Apr 17 14:01:15 2014" -->
+<!-- isoreceived="20140417180115" -->
+<!-- sent="Thu, 17 Apr 2014 13:01:15 -0500" -->
+<!-- isosent="20140417180115" -->
+<!-- name="Oscar Mojica" -->
+<!-- email="o_mojical_at_[hidden]" -->
+<!-- subject="Re: [OMPI users] Where is the error? (MPI program in fortran)" -->
+<!-- id="BLU177-W3419C50DDF240AC0D0EA0790520_at_phx.gbl" -->
+<!-- charset="iso-8859-1" -->
+<!-- inreplyto="BLU405-EAS366339BEE1D8867D890A54790530_at_phx.gbl" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI users] Where is the error? (MPI program in fortran)<br>
+<strong>From:</strong> Oscar Mojica (<em>o_mojical_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2014-04-17 14:01:15
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="24236.php">Jeff Squyres (jsquyres): "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<li><strong>Previous message:</strong> <a href="24234.php">Ralph Castain: "Re: [OMPI users] Conflicts between jobs running on the same node"</a>
+<li><strong>In reply to:</strong> <a href="24224.php">Oscar Mojica: "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="24236.php">Jeff Squyres (jsquyres): "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<li><strong>Reply:</strong> <a href="24236.php">Jeff Squyres (jsquyres): "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<li><strong>Reply:</strong> <a href="24237.php">Gus Correa: "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Hello guys
+<br>
+I used the command 
+<br>
+ulimit -s unlimited
+<br>
+and got 
+<br>
+stack size              (kbytes, -s) unlimited
+<br>
+but when I ran the program got the same error. So I used the gdb debugger, I compiled using 
+<br>
+mpif90 -g -o mpivfsa_versao2.f  exe
+<br>
+I ran the program and then I ran gdb with both the executable and the core file name as arguments and got the following
+<br>
+Program received signal SIGSEGV, Segmentation fault.0x00002aaaab59b54c in free () from /lib/x86_64-linux-gnu/libc.so.6(gdb) backtrace#0  0x00002aaaab59b54c in free () from /lib/x86_64-linux-gnu/libc.so.6#1  0x0000000000406801 in inv_grav3d_vfsa () at mpivfsa_versao2.f:131#2  0x0000000000406b88 in main (argc=1, argv=0x7fffffffe387) at mpivfsa_versao2.f:9#3  0x00002aaaab53976d in __libc_start_main () from /lib/x86_64-linux-gnu/libc.so.6#4  0x0000000000401399 in _start ()
+<br>
+These are the lines
+<br>
+9            use mpi131       deallocate(zv,xrec,yrec,xprm,yprm)
+<br>
+I think the problem is not memory, the problem is related to MPI
+<br>
+Which could be the error?
+<br>
+Oscar Fabian Mojica Ladino
+<br>
+Geologist M.S. in  Geophysics
+<br>
+<p><p><span class="quotelev1">&gt; From: o_mojical_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; Date: Wed, 16 Apr 2014 15:17:51 -0300
+</span><br>
+<span class="quotelev1">&gt; To: users_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; Subject: Re: [OMPI users] Where is the error? (MPI program in fortran)
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Gus
+</span><br>
+<span class="quotelev1">&gt; It is a single machine and i have installed Ubuntu 12.04 LTS. I left my computer in the college but  I will try to follow your advice when I can and tell you about it.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Thanks 
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Enviado desde mi iPad
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; El 16/04/2014, a las 14:17, &quot;Gus Correa&quot; &lt;gus_at_[hidden]&gt; escribi&#243;:
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; Hi Oscar
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; This is a long shot, but maybe worth trying.
+</span><br>
+<span class="quotelev2">&gt; &gt; I am assuming you're using Linux, or some form or Unix, right?
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; You may try to increase the stack size.
+</span><br>
+<span class="quotelev2">&gt; &gt; The default in Linux is often too small for large programs.
+</span><br>
+<span class="quotelev2">&gt; &gt; Sometimes this may cause a segmentation fault, even if the
+</span><br>
+<span class="quotelev2">&gt; &gt; program is correct.
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; You can check what you have with:
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; ulimit -a        (bash)
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; or
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; limit             (csh or tcsh)
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; Then set it to a larger number or perhaps to unlimited,
+</span><br>
+<span class="quotelev2">&gt; &gt; e.g.:
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; ulimit -s unlimited
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; or
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; limit stacksize unlimited
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; You didn't say anything about the computer(s) you are using.
+</span><br>
+<span class="quotelev2">&gt; &gt; Is this a single machine, a cluster, something else?
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; Anyway, resetting the statck size may depend a bit on what you
+</span><br>
+<span class="quotelev2">&gt; &gt; have in /etc/security/limits.conf,
+</span><br>
+<span class="quotelev2">&gt; &gt; and whether it allows you to increase the stack size.
+</span><br>
+<span class="quotelev2">&gt; &gt; If it is a single computer that you have root access, you may
+</span><br>
+<span class="quotelev2">&gt; &gt; do it yourself.
+</span><br>
+<span class="quotelev2">&gt; &gt; There are other limits worth increasing (number of open files,
+</span><br>
+<span class="quotelev2">&gt; &gt; max locked memory).
+</span><br>
+<span class="quotelev2">&gt; &gt; For instance, this could go in limits.conf:
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; *   -   memlock     -1
+</span><br>
+<span class="quotelev2">&gt; &gt; *   -   stack       -1
+</span><br>
+<span class="quotelev2">&gt; &gt; *   -   nofile      4096
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; See 'man limits.conf' for details.
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; If it is a cluster, and this should be set on all nodes,
+</span><br>
+<span class="quotelev2">&gt; &gt; and you may need to ask your system administrator to do it.
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; I hope this helps,
+</span><br>
+<span class="quotelev2">&gt; &gt; Gus Correa
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; On 04/16/2014 11:24 AM, Gus Correa wrote:
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; On 04/16/2014 08:30 AM, Oscar Mojica wrote:
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; How would be the command line to compile with the option -g ? What
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; debugger can I use?
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; Thanks
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; 
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; 
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; Replace any optimization flags (-O2, or similar) by -g.
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; Check if your compiler has the -traceback flag or similar
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; (man compiler-name).
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; 
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; The gdb debugger is normally available on Linux (or you can install it
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; with yum, apt-get, etc).  An alternative is ddd, with a GUI (can also be
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; installed from yum, etc).
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; If you use a commercial compiler you may have a debugger with a GUI.
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; 
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; Enviado desde mi iPad
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; 
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; El 15/04/2014, a las 18:20, &quot;Gus Correa&quot; &lt;gus_at_[hidden]&gt;
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; escribi&#243;:
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; Or just compiling with -g or -traceback (depending on the compiler) will
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; give you more information about the point of failure
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; in the error message.
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; On 04/15/2014 04:25 PM, Ralph Castain wrote:
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; Have you tried using a debugger to look at the resulting core file? It
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; will probably point you right at the problem. Most likely a case of
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; overrunning some array when #temps &gt; 5
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; On Tue, Apr 15, 2014 at 10:46 AM, Oscar Mojica &lt;o_mojical_at_[hidden]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; &lt;mailto:o_mojical_at_[hidden]&gt;&gt; wrote:
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    Hello everybody
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    I implemented a parallel simulated annealing algorithm in fortran.
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;      The algorithm is describes as follows
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    1. The MPI program initially generates P processes that have rank
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    0,1,...,P-1.
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    2. The MPI program generates a starting point and sends it  for all
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    processes set T=T0
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    3. At the current temperature T, each process begins to execute
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    iterative operations
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    4. At end of iterations, process with rank 0 is responsible for
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    collecting the solution obatined by
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    5. Each process at current temperature and broadcast the best
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    solution of them among all participating
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    process
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    6. Each process cools the temperatue and goes back to step 3, until
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    the maximum number of temperatures
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    is reach
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    I compiled with: mpif90 -o exe mpivfsa_version2.f
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    and run with: mpirun -np 4 ./exe in a single machine
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    So I have 4 processes, 1 iteration per temperature and for example
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    15 temperatures. When I run the program
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    with just 5 temperatures it works well, but when the number of
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    temperatures is higher than 5 it doesn't write the
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    ouput files and I get the following error message:
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] *** Process received signal ***
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] *** Process received signal ***
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] Signal: Segmentation fault (11)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] Signal code: Address not mapped (1)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] Failing at address: 0xad6af
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] *** Process received signal ***
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] Signal: Segmentation fault (11)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] Signal code: Address not mapped (1)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] Failing at address: 0xad6af
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] Signal: Segmentation fault (11)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] Signal code: Address not mapped (1)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] Failing at address: 0xad6af
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] [ 0]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    /lib/x86_64-linux-gnu/libc.so.6(+0x364a0) [0x7f49ee2224a0]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] [ 1]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    /lib/x86_64-linux-gnu/libc.so.6(cfree+0x1c) [0x7f49ee26f54c]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] [ 2] ./exe() [0x406742]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] [ 3] ./exe(main+0x34) [0x406ac9]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] [ 4]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xed)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; [0x7f49ee20d76d]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] [ 0]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    /lib/x86_64-linux-gnu/libc.so.6(+0x364a0) [0x7f6877fdc4a0]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] [ 1]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    /lib/x86_64-linux-gnu/libc.so.6(cfree+0x1c) [0x7f687802954c]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] [ 2] ./exe() [0x406742]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] [ 3] ./exe(main+0x34) [0x406ac9]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] [ 4]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xed)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; [0x7f6877fc776d]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] [ 5] ./exe() [0x401399]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06742] *** End of error message ***
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] [ 5] ./exe() [0x401399]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06740] *** End of error message ***
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] [ 0]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    /lib/x86_64-linux-gnu/libc.so.6(+0x364a0) [0x7fa6c4c6e4a0]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] [ 1]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    /lib/x86_64-linux-gnu/libc.so.6(cfree+0x1c) [0x7fa6c4cbb54c]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] [ 2] ./exe() [0x406742]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] [ 3] ./exe(main+0x34) [0x406ac9]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] [ 4]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xed)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; [0x7fa6c4c5976d]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] [ 5] ./exe() [0x401399]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    [oscar-Vostro-3550:06741] *** End of error message ***
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    mpirun noticed that process rank 0 with PID 6917 on node
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    oscar-Vostro-3550 exited on signal 11 (Segmentation fault).
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; --------------------------------------------------------------------------
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    2 total processes killed (some possibly by mpirun during cleanup)
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    If there is a segmentation fault in no case it must work .
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    I checked the program and didn't find the error. Why does the
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    program work with five temperatures?
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    Could someone help me to find the error and answer my question
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; please.
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    The program and the necessary files to run it  are attached
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    Thanks
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    _Oscar Fabian Mojica Ladino_
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    Geologist M.S. in  Geophysics
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    _______________________________________________
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    users mailing list
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    users_at_[hidden] &lt;mailto:users_at_[hidden]&gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt;    <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; _______________________________________________
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; users mailing list
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev2">&gt; &gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; 
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; users mailing list
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; &gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; _______________________________________________
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; users mailing list
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev4">&gt; &gt;&gt;&gt; 
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; _______________________________________________
+</span><br>
+<span class="quotelev2">&gt; &gt; users mailing list
+</span><br>
+<span class="quotelev2">&gt; &gt; users_at_[hidden]
+</span><br>
+<span class="quotelev2">&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+<span class="quotelev1">&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; users mailing list
+</span><br>
+<span class="quotelev1">&gt; users_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<br>
+<hr>
+<ul>
+<li>text/html attachment: <a href="http://www.open-mpi.org/community/lists/users/att-24235/attachment">attachment</a>
+</ul>
+<!-- attachment="attachment" -->
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="24236.php">Jeff Squyres (jsquyres): "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<li><strong>Previous message:</strong> <a href="24234.php">Ralph Castain: "Re: [OMPI users] Conflicts between jobs running on the same node"</a>
+<li><strong>In reply to:</strong> <a href="24224.php">Oscar Mojica: "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="24236.php">Jeff Squyres (jsquyres): "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<li><strong>Reply:</strong> <a href="24236.php">Jeff Squyres (jsquyres): "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<li><strong>Reply:</strong> <a href="24237.php">Gus Correa: "Re: [OMPI users] Where is the error? (MPI program in fortran)"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

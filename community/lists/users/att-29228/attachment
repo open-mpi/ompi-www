@@ -1,0 +1,126 @@
+<div dir="ltr">Hi Nathan,<div><br></div><div>Thanks for your answer. </div><div><br></div><div>The &quot;credits&quot; make sense for the purpose of flow control. However, the sender in my case will be blocked even for the first message. This doesn&#39;t seem to be the symptom of running out of credits. Is there any reason for this? Also, is there a mac parameter for the number of credits? </div><div><br></div><div>Best,</div><div>Michael</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Mon, May 16, 2016 at 6:35 PM, Nathan Hjelm <span dir="ltr">&lt;<a href="mailto:hjelmn@lanl.gov" target="_blank">hjelmn@lanl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+When using eager_rdma the sender will block once it runs out of<br>
+&quot;credits&quot;. If the receiver enters MPI for any reason the incoming<br>
+messages will be placed in the ob1 unexpected queue and the credits will<br>
+be returned to the sender. If you turn off eager_rdma you will probably<br>
+get different results. That said, the unexpected message path is<br>
+non-optimal and it would be best to ensure a matching receive is posted<br>
+before the send.<br>
+<br>
+Additionally, if you are using infiniband I recommend against adding a<br>
+per-peer queue pair to btl_openib_receive_queues. We have not seen any<br>
+performance benefit to using per-peer queue pairs and they do not<br>
+scale.<br>
+<br>
+-Nathan Hjelm<br>
+HPC-ENV, LANL<br>
+<div><div class="h5"><br>
+On Mon, May 16, 2016 at 12:21:41PM -0400, Xiaolong Cui wrote:<br>
+&gt;    Hi,<br>
+&gt;    I am using Open MPI 1.8.6. I guess my question is related to the flow<br>
+&gt;    control algorithm for small messages. The question is how to avoid the<br>
+&gt;    sender being blocked by the receiver when using openib module for small<br>
+&gt;    messages and using blocking send. I have looked through this<br>
+&gt;    FAQ(<a href="https://www.open-mpi.org/faq/?category=openfabrics#ofa-troubleshoot" rel="noreferrer" target="_blank">https://www.open-mpi.org/faq/?category=openfabrics#ofa-troubleshoot</a>)<br>
+&gt;    but didn&#39;t find the answer. My understanding of &quot;eager sending protocol&quot;<br>
+&gt;    is that if a message is &quot;small&quot;, it will be transported to the receiver<br>
+&gt;    immediately, even if the receiver is not ready. As a result, the sender<br>
+&gt;    won&#39;t be blocked until the receiver posts the receive operation.<br>
+&gt;    I am trying to observe such behavior with a simple program of two MPI<br>
+&gt;    ranks (attached). My confusion is that while I can see the behavior with<br>
+&gt;    &quot;vader&quot; module (shared memory) when running the two ranks on the same<br>
+&gt;    node,<br>
+&gt;    [output]<br>
+&gt;<br>
+&gt;    [0] size = 16, loop = 78, time = 0.00007<br>
+&gt;<br>
+&gt;    [1] size = 16, loop = 78, time = 3.42426<br>
+&gt;<br>
+&gt;    [/output]<br>
+&gt;    but I cannot see it when running them on two nodes using the &quot;openib&quot;<br>
+&gt;    module.<br>
+&gt;    [output]<br>
+&gt;<br>
+&gt;    [0] size = 16, loop = 78, time = 3.42627<br>
+&gt;<br>
+&gt;    [1] size = 16, loop = 78, time = 3.42426<br>
+&gt;<br>
+&gt;    [/output]<br>
+&gt;    So anyone knows the reason? My runtime configuration is also attached.<br>
+&gt;    Thanks!<br>
+&gt;    Sincerely,<br>
+&gt;    Michael<br>
+&gt;    --<br>
+&gt;    Xiaolong Cui (Michael)<br>
+&gt;    Department of Computer Science<br>
+&gt;    Dietrich School of Arts &amp; Science<br>
+&gt;    University of Pittsburgh<br>
+&gt;    Pittsburgh, PA 15260<br>
+<br>
+</div></div>&gt; btl = openib,vader,self<br>
+&gt; #btl_base_verbose = 100<br>
+&gt; btl_openib_use_eager_rdma = 1<br>
+&gt; btl_openib_eager_limit = 160000<br>
+&gt; btl_openib_rndv_eager_limit = 160000<br>
+&gt; btl_openib_max_send_size = 160000<br>
+&gt; btl_openib_receive_queues = P,128,256,192,64:S,2048,1024,1008,80:S,12288,1024,1008,80:S,160000,1024,512,512<br>
+<br>
+&gt; #include &quot;mpi.h&quot;<br>
+&gt; #include &lt;mpi-ext.h&gt;<br>
+&gt; #include &lt;stdio.h&gt;<br>
+&gt; #include &lt;stdlib.h&gt;<br>
+&gt;<br>
+&gt; int main(int argc, char *argv[])<br>
+&gt; {<br>
+&gt;    int size, rank, psize;<br>
+&gt;    int loops = 78;<br>
+&gt;    int length = 4;<br>
+&gt;    MPI_Init(&amp;argc, &amp;argv);<br>
+&gt;    MPI_Comm_size(MPI_COMM_WORLD, &amp;size);<br>
+&gt;    MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+&gt;    int *code = (int *)malloc(length * sizeof(int));<br>
+&gt;    MPI_Status status;<br>
+&gt;    long long i = 0;<br>
+&gt;    double time_s = MPI_Wtime();<br>
+&gt;<br>
+&gt;    if(rank % 2 == 1)<br>
+&gt;    {<br>
+&gt;        int i ;<br>
+&gt;        int j ;<br>
+&gt;        double a = 0.3, b = 0.5;<br>
+&gt;        for(i = 0; i &lt; 30000; i++)<br>
+&gt;            for(j = 0; j &lt; 30000; j++){<br>
+&gt;                a = a * 2;<br>
+&gt;                b = b + a;<br>
+&gt;            }<br>
+&gt;    }<br>
+&gt;<br>
+&gt;    for(i = 0; i &lt; loops; i++){<br>
+&gt;        if(rank % 2 == 0){<br>
+&gt;            MPI_Send(code, length, MPI_INT, rank + 1, 0, MPI_COMM_WORLD);<br>
+&gt;        }<br>
+&gt;        else if(rank % 2 == 1){<br>
+&gt;            MPI_Recv(code, length, MPI_INT, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);<br>
+&gt;        }<br>
+&gt;    }<br>
+&gt;    double time_e = MPI_Wtime();<br>
+&gt;    printf(&quot;[%d] size = %d, loop = %d, time = %.5f\n&quot;, rank, length * sizeof(int), loops, time_e - time_s);<br>
+&gt;<br>
+&gt;    MPI_Finalize();<br>
+&gt;    return 0;<br>
+&gt; }<br>
+&gt;<br>
+<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29224.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29224.php</a><br>
+<br>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29227.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29227.php</a><br></blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature"><div dir="ltr">Xiaolong Cui (Michael)<div>Department of Computer Science</div><div>Dietrich School of Arts &amp; Science</div><div>University of Pittsburgh</div><div>Pittsburgh, PA 15260</div></div></div>
+</div>
+

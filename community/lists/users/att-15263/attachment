@@ -1,0 +1,91 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Hello,<br>
+<br>
+What are the changes between openMPI 1.4.1 and 1.5.1 about MPI2 service
+of publishing name.<br>
+I have 2 programs which connect them via MPI_Publish_name and
+MPI_Lookup_name subroutines and ompi-server.<br>
+That's OK with 1.4.1 version , but I have a deadlock with 1.5.1 version
+inside the subroutine MPI_Publish_name and MPI_Lookup_name.<br>
+<br>
+best<br>
+Bernard<br>
+<br>
+That's my connection subroutine:<br>
+<br>
+<br>
+<div class="moz-signature">
+<pre><font color="blue">MPI_Comm remoteConnect(int myrank, int *srv, char *port_name, char* service)
+{
+  int clt=0;
+  MPI_Request request; /* requete pour communication non bloquante */
+  MPI_Comm gcom;
+  MPI_Status status; 
+  char   port_name_clt[MPI_MAX_PORT_NAME]; 
+
+  if( service == NULL ) service = defaultService;
+
+  /* only process of rank null can publish name */
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  /* A lookup for an unpublished service generate an error */
+  MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+  if( myrank == 0 ){
+    /* Try to be a server. If there service is already published, try to be a cient */
+    MPI_Open_port(MPI_INFO_NULL, port_name); 
+    printf("[%d] Publish name\n",myrank);
+    if ( MPI_Publish_name(service, MPI_INFO_NULL, port_name) == MPI_SUCCESS )  {
+      *srv = 1;
+      printf("[%d] service %s available at %s\n",myrank,service,port_name);
+    }
+    else if ( MPI_Lookup_name(service, MPI_INFO_NULL, port_name_clt) == MPI_SUCCESS ){
+      MPI_Close_port( port_name ); 
+      clt = 1;
+    }
+    else
+      /* Throw exception */
+      printf("[%d] Error\n",myrank);
+  }
+  else{
+    /* Waiting rank 0 publish name */
+    sleep(1);
+    printf("[%d] Lookup name\n",myrank);
+    if ( MPI_Lookup_name(service, MPI_INFO_NULL, port_name_clt) == MPI_SUCCESS ){
+      clt = 1;
+    }
+    else
+      /* Throw exception */
+      ;
+  }
+  MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
+  
+  MPI_Bcast(srv,1,MPI_INT,0,MPI_COMM_WORLD);
+
+  if ( *srv )
+    /* I am the Master */
+    MPI_Comm_accept( port_name, MPI_INFO_NULL, 0, MPI_COMM_WORLD, &amp;gcom );
+  else{
+    /*  Connect to service SERVER, get the inter-communicator server*/
+    MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+    if ( MPI_Comm_connect(port_name_clt, MPI_INFO_NULL, 0, MPI_COMM_WORLD, &amp;gcom )  == MPI_SUCCESS )
+      printf("[%d] I get the connection with %s at %s !\n",myrank, service, port_name_clt);
+    MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
+  }
+
+  if(myrank != 0) *srv = 0;
+
+  return gcom;
+
+}
+
+
+</font>
+</pre>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,97 @@
+iirc, MPI_Comm_spawn should be used to spawn MPI apps only.<div>and depending on your interconnect, fork might not be supported from an MPI app.</div><div><br></div><div>that being said, I am not sure MPI is the best way to go.</div><div>you might want to use the batch manager api to execute task on remote nodes, or third party tools such as clustershell. it is written in python, and an api is likely available.</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Thursday, October 8, 2015, simona bellavista &lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;afylot@gmail.com&#39;);" target="_blank">afylot@gmail.com</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><br><div class="gmail_extra"><br><div class="gmail_quote">2015-10-07 14:59 GMT+02:00 Lisandro Dalcin <span dir="ltr">&lt;<a>dalcinl@gmail.com</a>&gt;</span>:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div>On 7 October 2015 at 14:54, simona bellavista &lt;<a>afylot@gmail.com</a>&gt; wrote:<br>
+&gt; I have written a small code in python 2.7 for launching 4 independent<br>
+&gt; processes on the shell viasubprocess, using the library mpi4py. I am getting<br>
+&gt; ORTE_ERROR_LOG and I would like to understand where it is happening and why.<br>
+&gt;<br>
+&gt; This is my code:<br>
+&gt;<br>
+&gt; #!/usr/bin/python<br>
+&gt; import subprocess<br>
+&gt; import re<br>
+&gt; import sys<br>
+&gt; from mpi4py import MPI<br>
+&gt;<br>
+&gt; def main():<br>
+&gt;     root=&#39;base&#39;<br>
+&gt;     comm = MPI.COMM_WORLD<br>
+&gt;     if comm.rank == 0:<br>
+&gt;         job = [root+str(i) for i in range(4)]<br>
+&gt;     else:<br>
+&gt;         job = None<br>
+&gt;<br>
+&gt;     job = comm.scatter(job, root=0)<br>
+&gt;     cmd=&quot;../../montepython/montepython/MontePython.py -conf<br>
+&gt; ../config/default.conf -p ../config/XXXX.param -o ../chains/XXXX  -N 10000 &gt;<br>
+&gt; XXXX.log&quot;<br>
+&gt;<br>
+&gt;     cmd_job = re.sub(r&quot;XXXX&quot;, job, cmd)<br>
+&gt;     subprocess.check_call(cmd_job, shell=True)<br>
+&gt;     return<br>
+&gt;<br>
+&gt; if __name__ == &#39;__main__&#39;:<br>
+&gt;   main()<br>
+&gt;<br>
+&gt; I am running with the command:<br>
+&gt;<br>
+&gt; mpirun -np 4 ./run.py<br>
+&gt;<br>
+&gt; This is the error message that I get:<br>
+&gt;<br>
+&gt; [localhost:51087] [[51455,0],0] ORTE_ERROR_LOG: Not found in file<br>
+&gt; base/odls_base_default_fns.c at line 1762<br>
+&gt; [localhost:51087] [[51455,0],0] ORTE_ERROR_LOG: Not found in file<br>
+&gt; orted/orted_comm.c at line 916<br>
+&gt; [localhost:51087] [[51455,0],0] ORTE_ERROR_LOG: Not found in file<br>
+&gt; base/odls_base_default_fns.c at line 1762<br>
+&gt; [localhost:51087] [[51455,0],0] ORTE_ERROR_LOG: Not found in file<br>
+&gt; orted/orted_comm.c at line 916<br>
+&gt; --------------------------------------------------------------------------<br>
+&gt; A system call failed during shared memory initialization that should<br>
+&gt; not have.  It is likely that your MPI job will now either abort or<br>
+&gt; experience performance degradation.<br>
+&gt;<br>
+&gt;   Local host:  localhost<br>
+&gt;   System call: open(2)<br>
+&gt;   Error:       No such file or directory (errno 2)<br>
+&gt; --------------------------------------------------------------------------<br>
+&gt;<br>
+&gt;<br>
+&gt; I cannot understand where the error is happening. MontePython by itself<br>
+&gt; should not use mpibecause it should be serial.<br>
+&gt;<br>
+<br>
+</div></div>This is likely related to a bad interaction between the way Python&#39;s<br>
+subprocess is implemented and the MPI implementation.<br>
+<br>
+Anyway, you should not use mpi4py for such a simple trivial<br>
+parallelism, I recommend you to take a look at Python&#39;s<br>
+multiprocessing module.<br>
+<br>
+If for any reason you want to go the MPI way, you should use MPI<br>
+dynamic process management, e.g. MPI.COMM_SELF.Spawn(...).<br>
+<br>
+<br>
+--<br>
+Lisandro Dalcin<br>
+============<br>
+Research Scientist<br>
+Computer, Electrical and Mathematical Sciences &amp; Engineering (CEMSE)<br>
+Numerical Porous Media Center (NumPor)<br>
+King Abdullah University of Science and Technology (KAUST)<br>
+<a href="http://numpor.kaust.edu.sa/" rel="noreferrer" target="_blank">http://numpor.kaust.edu.sa/</a><br>
+<br>
+4700 King Abdullah University of Science and Technology<br>
+al-Khawarizmi Bldg (Bldg 1), Office # 4332<br>
+Thuwal 23955-6900, Kingdom of Saudi Arabia<br>
+<a href="http://www.kaust.edu.sa" rel="noreferrer" target="_blank">http://www.kaust.edu.sa</a><br>
+<br>
+Office Phone: <a href="tel:%2B966%2012%20808-0459" value="+966128080459" target="_blank">+966 12 808-0459</a><br>
+_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/10/27833.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/10/27833.php</a><br>
+</blockquote></div><br></div><div class="gmail_extra"><br></div><div class="gmail_extra">I cannot figure out how spawn would work with a string-command. I tried MPI.COMM_SELF.Spawn(cmd, args=None,maxproc=4) and it just hangs </div></div>
+</blockquote>
+</div>
+

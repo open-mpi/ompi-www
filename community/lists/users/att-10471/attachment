@@ -1,0 +1,158 @@
+Very interesting! I see the problem - we have never encountered the SLURM_TASKS_PER_NODE in that format, while the SLURM_JOB_CPUS_PER_NODE indicates that we have indeed been allocated two processors on each of the nodes! So when you just do mpirun without specifying the number of processes, we will launch 4 processes (2 on each node) since that is what SLURM told us we have been given.<br>
+<br>Interesting configuration you have there.<br><br>I can add some logic that tests for internal consistency between the two and compensates for the discrepancy. Can you get a slightly bigger allocation, one that covers several nodes? For example, &quot;salloc -n7&quot;? And then send the output again from &quot;printenv | grep SLURM&quot;?<br>
+<br>I need to see if your configuration use a regex to describe the SLURM_TASKS_PER_NODE, and what it looks like.<br><br>Thanks<br>Ralph<br><br><br><br><div class="gmail_quote">On Mon, Aug 24, 2009 at 1:55 PM,  <span dir="ltr">&lt;<a href="mailto:matthew.piehl@ndsu.edu">matthew.piehl@ndsu.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Hello,<br>
+<br>
+Hopefully the below information will be helpful.<br>
+<br>
+SLURM Version: 1.3.15<br>
+<br>
+node64-test ~&gt;salloc -n3<br>
+salloc: Granted job allocation 826<br>
+<br>
+node64-test ~&gt;srun hostname<br>
+node64-24.xxxx.xxxx.xxxx.xxxx<br>
+node64-25.xxxx.xxxx.xxxx.xxxx<br>
+node64-24.xxxx.xxxx.xxxx.xxxx<br>
+<br>
+node64-test ~&gt;printenv | grep SLURM<br>
+SLURM_NODELIST=node64-[24-25]<br>
+SLURM_NNODES=2<br>
+SLURM_JOBID=826<br>
+SLURM_TASKS_PER_NODE=2,1<br>
+SLURM_JOB_ID=826<br>
+SLURM_NPROCS=3<br>
+SLURM_JOB_NODELIST=node64-[24-25]<br>
+SLURM_JOB_CPUS_PER_NODE=2(x2)<br>
+SLURM_JOB_NUM_NODES=2<br>
+<br>
+node64-test ~&gt;mpirun --display-allocation hostname<br>
+<br>
+======================   ALLOCATED NODES   ======================<br>
+<br>
+ Data for node: Name: node64-test.xxxx.xxxx.xxxx.xxxx   Num slots: 0<br>
+Max slots: 0<br>
+ Data for node: Name: node64-24 Num slots: 2    Max slots: 0<br>
+ Data for node: Name: node64-25 Num slots: 2    Max slots: 0<br>
+<br>
+=================================================================<br>
+node64-24.xxxx.xxxx.xxxx.xxxx<br>
+node64-24.xxxx.xxxx.xxxx.xxxx<br>
+node64-25.xxxx.xxxx.xxxx.xxxx<br>
+node64-25.xxxx.xxxx.xxxx.xxxx<br>
+<br>
+<br>
+Thanks,<br>
+Matt<br>
+<div><div></div><div class="h5"><br>
+&gt; Haven&#39;t seen that before on any of our machines.<br>
+&gt;<br>
+&gt; Could you do &quot;printenv | grep SLURM&quot; after the salloc and send the<br>
+&gt; results?<br>
+&gt;<br>
+&gt; What version of SLURM is this?<br>
+&gt;<br>
+&gt; Please run &quot;mpirun --display-allocation hostname&quot; and send the results.<br>
+&gt;<br>
+&gt; Thanks<br>
+&gt; Ralph<br>
+&gt;<br>
+&gt; On Mon, Aug 24, 2009 at 11:30 AM, &lt;<a href="mailto:matthew.piehl@ndsu.edu">matthew.piehl@ndsu.edu</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; Hello,<br>
+&gt;&gt;<br>
+&gt;&gt; I&#39;ve seem to run into an interesting problem with openMPI. After<br>
+&gt;&gt; allocating 3 processors and confirming that the 3 processors are<br>
+&gt;&gt; allocated. mpirun on a simple mpitest program seems to run on 4<br>
+&gt;&gt; processors. We have 2 processors per node. I can repeat this case with<br>
+&gt;&gt; any<br>
+&gt;&gt; odd number of nodes, openMPI seems to take any remaining processors on<br>
+&gt;&gt; the<br>
+&gt;&gt; box. We are running openMPI v1.3.3. Here is an example of what happens:<br>
+&gt;&gt;<br>
+&gt;&gt; node64-test ~&gt;salloc -n3<br>
+&gt;&gt; salloc: Granted job allocation 825<br>
+&gt;&gt;<br>
+&gt;&gt; node64-test ~&gt;srun hostname<br>
+&gt;&gt; node64-28.xxxx.xxxx.xxxx.xxxx<br>
+&gt;&gt; node64-28.xxxx.xxxx.xxxx.xxxx<br>
+&gt;&gt; node64-29.xxxx.xxxx.xxxx.xxxx<br>
+&gt;&gt;<br>
+&gt;&gt; node64-test ~&gt;MX_RCACHE=0<br>
+&gt;&gt; LD_LIBRARY_PATH=&quot;/hurd/mpi/openmpi/lib:/usr/local/mx/lib&quot; mpirun<br>
+&gt;&gt; mpi_pgms/mpitest<br>
+&gt;&gt; MPI domain size: 4<br>
+&gt;&gt; I am rank 000 - node64-28.xxxx.xxxx.xxxx.xxxx<br>
+&gt;&gt; I am rank 003 - node64-29.xxxx.xxxx.xxxx.xxxx<br>
+&gt;&gt; I am rank 001 - node64-28.xxxx.xxxx.xxxx.xxxx<br>
+&gt;&gt; I am rank 002 - node64-29.xxxx.xxxx.xxxx.xxxx<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; For those who may be curious here is the program:<br>
+&gt;&gt;<br>
+&gt;&gt; #include &lt;stdio.h&gt;<br>
+&gt;&gt; #include &lt;stdlib.h&gt;<br>
+&gt;&gt; #include &lt;mpi.h&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; extern int main(int argc, char *argv[]);<br>
+&gt;&gt;<br>
+&gt;&gt; extern int main(int argc, char *argv[])<br>
+&gt;&gt;<br>
+&gt;&gt; {<br>
+&gt;&gt;        auto int rank,<br>
+&gt;&gt;                 size,<br>
+&gt;&gt;                 namelen;<br>
+&gt;&gt;<br>
+&gt;&gt;        MPI_Status status;<br>
+&gt;&gt;<br>
+&gt;&gt;        static char processor_name[MPI_MAX_PROCESSOR_NAME];<br>
+&gt;&gt;<br>
+&gt;&gt;        MPI_Init(&amp;argc, &amp;argv);<br>
+&gt;&gt;        MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+&gt;&gt;        MPI_Comm_size(MPI_COMM_WORLD, &amp;size);<br>
+&gt;&gt;<br>
+&gt;&gt;       if ( rank == 0 )<br>
+&gt;&gt;        {<br>
+&gt;&gt;                MPI_Get_processor_name(processor_name, &amp;namelen);<br>
+&gt;&gt;                fprintf(stdout,&quot;My name is: %s\n&quot;,processor_name);<br>
+&gt;&gt;                fprintf(stdout,&quot;Cluster size is: %d\n&quot;, size);<br>
+&gt;&gt;<br>
+&gt;&gt;        }<br>
+&gt;&gt;        else<br>
+&gt;&gt;        {<br>
+&gt;&gt;                MPI_Get_processor_name(processor_name, &amp;namelen);<br>
+&gt;&gt;                fprintf(stdout,&quot;My name is: %s\n&quot;,processor_name);<br>
+&gt;&gt;        }<br>
+&gt;&gt;<br>
+&gt;&gt;        MPI_Finalize();<br>
+&gt;&gt;        return(0);<br>
+&gt;&gt; }<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; I&#39;m curious if this is a bug in the way openMPI interprets SLURM<br>
+&gt;&gt; environment variables. If you have any ideas or need any more<br>
+&gt;&gt; information<br>
+&gt;&gt; let me know.<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks.<br>
+&gt;&gt; Matt<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br>
+

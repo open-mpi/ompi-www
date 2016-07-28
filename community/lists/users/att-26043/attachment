@@ -1,0 +1,197 @@
+<div dir="ltr"><div class="gmail_extra"><div class="gmail_quote">On Fri, Dec 19, 2014 at 8:58 AM, Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">George:<br>
+<br>
+(I&#39;m not a member of petsc-maint; I have no idea whether my mail will actually go through to that list)<br>
+<br>
+TL;DR: I do not think that George&#39;s change was correct. PETSC is relying on undefined behavior in the MPI standard and should probably update to use a different scheme.<br></blockquote><div><br></div>I will detail below why the change is correct or at least not worst than what we have today.</div><div class="gmail_quote"><br></div><div class="gmail_quote">Regarding your second point, while I do tend to agree that such issue is better addressed in the MPI Forum, the last attempt to fix this was certainly not a resounding success.</div><div class="gmail_quote"><br></div><div class="gmail_quote"><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex"><br>
+More detail:<br>
+<br>
+More specifically, George&#39;s change can lead to inconsistency/incorrectness in the presence of multiple threads simultaneously executing attribute actions on a single entity.<br></blockquote><div class="gmail_quote"><br></div>Indeed, there is a slight window of opportunity for inconsistencies in the recursive behavior. But the inconsistencies were already in the code, especially in the single threaded case. As we never received any complaints related to this topic I did not deemed interesting to address them with my last commit. Moreover, the specific behavior needed by PETSc is available in Open MPI when compiled without thread support, as the only thing that &quot;protects&quot; the attributes is that global mutex.<div><br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">For example, in ompi_attr_delete_all(), it gets the count of all attributes and then loops &lt;count&gt; times to delete each attribute.  But each attribute callback can now insert or delete attributes on that entity.  This can mean that the loop can either fail to delete an attribute (because some attribute callback already deleted it) or fail to delete *all* attributes (because some attribute callback added more).<br></blockquote><div><br></div><div>To be extremely precise the deletion part is always correct as it copies the values to be deleted into a temporary array before calling any callbacks (and before releasing the mutex), so we only remove what was in the object attribute hash when the function was called. Don&#39;t misunderstand we have an extremely good reason to do it this way, we need to call the callbacks in the order in which they were created (mandated by the MPI standard).</div><div> <br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">ompi_attr_copy_all() has similar problems -- in general, the hash that it is looping over can change underneath it.<br></blockquote><div><br></div><div><div>For the copy it is a little bit more tricky, as the calling order is not imposed. Our peculiar implementation of the hash table (with array) makes the code work, with a single (possible minor) exception when the hash table itself is grown between 2 calls. However, as stated before this issue was already present in the code in single threaded cases for years. Addressing it is another 2 line patch, but I leave this exercise to an interested reader.</div></div><div><br></div><div>   George.</div><div><br></div><div><br></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">This is, unfortunately, an undefined area of the MPI specification.  I do believe that our previous behavior was *correct* -- it just deadlocks with PETSC because PETSC is relying on undefined behavior.<br>
+<br>
+For those who care, Microsoft/Cisco proposed a new attribute system to the Forum a while ago that removes all these kinds of ambiguities (see <a href="http://meetings.mpi-forum.org/secretary/2013/09/slides/jsquyres-attributes-revamp.pdf" target="_blank">http://meetings.mpi-forum.org/secretary/2013/09/slides/jsquyres-attributes-revamp.pdf</a>).  However, we didn&#39;t get a huge amount of interest, and therefore lost our window of availability opportunity to be able to advance the proposal.  I&#39;d be more than happy to talk anyone through the proposal if they have interest/cycles in taking it over and advancing it with the Forum.<br>
+<br>
+Two additional points from the PDF listed above:<br>
+<br>
+- on slide 21, it was decided to no allow the recursive behavior (i.e., you can ignore the &quot;This is under debate&quot; bullet.<br>
+- the &quot;destroy&quot; callback was not judged to be useful; you can ignore slides 22 and 23.<br>
+<div><div class="h5"><br>
+<br>
+On Dec 17, 2014, at 11:16 PM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu">bosilca@icl.utk.edu</a>&gt; wrote:<br>
+<br>
+&gt; Ben,<br>
+&gt;<br>
+&gt; I can&#39;t find anything in the MPI standard suggesting that a recursive behavior of the attribute deletion is enforced/supported by the MPI standard. Thus, the current behavior of Open MPI (a single lock for all attributes), while maybe a little strict, is standard compliant (and thus correct). I guess this is one of these peculiar differences between different MPI libraries that makes other libraries (taking advantage of particular implementation of MPI functions) less portable.<br>
+&gt;<br>
+&gt; That being said, changing Open MPI to a less restrictive behavior is a 4 lines patch [1]. Unfortunately, this will not make your life easier, you will still have to cope with all the existing versions of Open MPI that do not support this recursive behavior.<br>
+&gt;<br>
+&gt; I leave the answer to the question of including this patch into the next release to our release managers.<br>
+&gt;<br>
+&gt;   George.<br>
+&gt;<br>
+&gt; [1] <a href="https://github.com/open-mpi/ompi/commit/4d55ae838d5eff2818707da7ba60ffd640144360" target="_blank">https://github.com/open-mpi/ompi/commit/4d55ae838d5eff2818707da7ba60ffd640144360</a><br>
+&gt;<br>
+&gt;<br>
+&gt; On Wed, Dec 17, 2014 at 10:11 PM, Howard Pritchard &lt;<a href="mailto:hppritcha@gmail.com">hppritcha@gmail.com</a>&gt; wrote:<br>
+&gt; Hi Ben,<br>
+&gt;<br>
+&gt; Would you mind checking if you still observe this deadlock condition if you use<br>
+&gt; the 1.8.4 rc4 candidate?<br>
+&gt;<br>
+&gt; openmpi-1.8.4rc4.tar.gz<br>
+&gt;<br>
+&gt; I realize the behavior will likely be the same, but this is just to double check.<br>
+&gt;<br>
+&gt; The Open MPI man page for MPI_Attr_get (hmm.. no MPI_Comm_attr_get man page,<br>
+&gt; needs to be fixed) says nothing about issues with recursion with respect to invoking<br>
+&gt; this function within an attribute delete callback, so I would treat this as a bug.<br>
+&gt;<br>
+&gt; Thanks for your patience,<br>
+&gt;<br>
+&gt; Howard<br>
+&gt;<br>
+&gt;<br>
+&gt; 2014-12-17 17:07 GMT-07:00 Ben Menadue &lt;<a href="mailto:ben.menadue@nci.org.au">ben.menadue@nci.org.au</a>&gt;:<br>
+&gt; Hi PETSc and OpenMPI teams,<br>
+&gt;<br>
+&gt; I&#39;m running into a deadlock in PETSc 3.4.5 with OpenMPI 1.8.3:<br>
+&gt;<br>
+&gt;  1. PetscCommDestroy calls MPI_Attr_delete<br>
+&gt;  2. MPI_Attr_delete acquires a lock<br>
+&gt;  3. MPI_Attr_delete calls Petsc_DelComm_Outer (through a callback)<br>
+&gt;  4. Petsc_DelComm_Outer calls MPI_Attr_get<br>
+&gt;  5. MPI_Attr_get wants to also acquire the lock from step 2.<br>
+&gt;<br>
+&gt; Looking at the OpenMPI source code, it looks like you can&#39;t call an<br>
+&gt; MPI_Attr_* function from inside the registered deletion callback. The<br>
+&gt; OpenMPI source code notes that all of the functions acquire a global lock,<br>
+&gt; which is where the problem is coming from - here are the comments and the<br>
+&gt; lock definition, in ompi/attribute/attribute.c of OpenMPI 1.8.3:<br>
+&gt;<br>
+&gt;     404 /*<br>
+&gt;     405  * We used to have multiple locks for semi-fine-grained locking.<br>
+&gt; But<br>
+&gt;     406  * the code got complex, and we had to spend time looking for subtle<br>
+&gt;     407  * bugs.  Craziness -- MPI attributes are *not* high performance, so<br>
+&gt;     408  * just use a One Big Lock approach: there is *no* concurrent<br>
+&gt; access.<br>
+&gt;     409  * If you have the lock, you can do whatever you want and no data<br>
+&gt; will<br>
+&gt;     410  * change/disapear from underneath you.<br>
+&gt;     411  */<br>
+&gt;     412 static opal_mutex_t attribute_lock;<br>
+&gt;<br>
+&gt; To get it to work, I had to modify the definition of this lock to use a<br>
+&gt; recursive mutex:<br>
+&gt;<br>
+&gt;     412 static opal_mutex_t attribute_lock = { .m_lock_pthread =<br>
+&gt; PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP };<br>
+&gt;<br>
+&gt; but this is non-portable.<br>
+&gt;<br>
+&gt; Is the behaviour expected from new versions OpenMPI? In which case a new<br>
+&gt; approach might be needed in PETSc. Otherwise, maybe a per-attribute lock is<br>
+&gt; needed in OpenMPI - but I&#39;m not sure whether the get in the callback is on<br>
+&gt; the same attribute as is being deleted.<br>
+&gt;<br>
+&gt; Thanks,<br>
+&gt; Ben<br>
+&gt;<br>
+&gt; #0  0x00007fd7d5de4264 in __lll_lock_wait () from /lib64/libpthread.so.0<br>
+&gt; #1  0x00007fd7d5ddf508 in _L_lock_854 () from /lib64/libpthread.so.0<br>
+&gt; #2  0x00007fd7d5ddf3d7 in pthread_mutex_lock () from /lib64/libpthread.so.0<br>
+&gt; #3  0x00007fd7d27d91bc in ompi_attr_get_c () from<br>
+&gt; /apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+&gt; #4  0x00007fd7d2803f03 in PMPI_Attr_get () from<br>
+&gt; /apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+&gt; #5  0x00007fd7d7716006 in Petsc_DelComm_Outer (comm=0x7fd7d2a83b30,<br>
+&gt; keyval=128, attr_val=0x7fff00a20f00, extra_state=0xffffffffffffffff) at<br>
+&gt; pinit.c:406<br>
+&gt; #6  0x00007fd7d27d8cad in ompi_attr_delete_impl () from<br>
+&gt; /apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+&gt; #7  0x00007fd7d27d8f2f in ompi_attr_delete () from<br>
+&gt; /apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+&gt; #8  0x00007fd7d2803dfc in PMPI_Attr_delete () from<br>
+&gt; /apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+&gt; #9  0x00007fd7d78bf5c5 in PetscCommDestroy (comm=0x7fd7d2a83b30) at<br>
+&gt; tagm.c:256<br>
+&gt; #10 0x00007fd7d7506f58 in PetscHeaderDestroy_Private (h=0x7fd7d2a83b30) at<br>
+&gt; inherit.c:114<br>
+&gt; #11 0x00007fd7d75038a0 in ISDestroy (is=0x7fd7d2a83b30) at index.c:225<br>
+&gt; #12 0x00007fd7d75029b7 in PCReset_ILU (pc=0x7fd7d2a83b30) at ilu.c:42<br>
+&gt; #13 0x00007fd7d77a9baa in PCReset (pc=0x7fd7d2a83b30) at precon.c:81<br>
+&gt; #14 0x00007fd7d77a99ae in PCDestroy (pc=0x7fd7d2a83b30) at precon.c:117<br>
+&gt; #15 0x00007fd7d7557c1a in KSPDestroy (ksp=0x7fd7d2a83b30) at itfunc.c:788<br>
+&gt; #16 0x00007fd7d91cdcca in linearSystemPETSc&lt;double&gt;::~linearSystemPETSc<br>
+&gt; (this=0x7fd7d2a83b30) at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Solver/li<br>
+&gt; nearSystemPETSc.hpp:73<br>
+&gt; #17 0x00007fd7d8ddb63b in GFaceCompound::parametrize (this=0x7fd7d2a83b30,<br>
+&gt; step=128, tom=10620672) at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Geo/GFace<br>
+&gt; Compound.cpp:1672<br>
+&gt; #18 0x00007fd7d8dda0fe in GFaceCompound::parametrize (this=0x7fd7d2a83b30)<br>
+&gt; at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Geo/GFace<br>
+&gt; Compound.cpp:916<br>
+&gt; #19 0x00007fd7d8f98b0e in checkMeshCompound (gf=0x7fd7d2a83b30, edges=...)<br>
+&gt; at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/mesh<br>
+&gt; GFace.cpp:2588<br>
+&gt; #20 0x00007fd7d8f95c7e in meshGenerator (gf=0xd13020, RECUR_ITER=0,<br>
+&gt; repairSelfIntersecting1dMesh=true, onlyInitialMesh=false, debug=false,<br>
+&gt; replacement_edges=0x0)<br>
+&gt;     at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/mesh<br>
+&gt; GFace.cpp:1075<br>
+&gt; #21 0x00007fd7d8f9a41e in meshGFace::operator() (this=0x7fd7d2a83b30,<br>
+&gt; gf=0x80, print=false) at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/mesh<br>
+&gt; GFace.cpp:2562<br>
+&gt; #22 0x00007fd7d8f8c327 in Mesh2D (m=0x7fd7d2a83b30) at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/Gene<br>
+&gt; rator.cpp:407<br>
+&gt; #23 0x00007fd7d8f8ad0b in GenerateMesh (m=0x7fd7d2a83b30, ask=128) at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/Gene<br>
+&gt; rator.cpp:641<br>
+&gt; #24 0x00007fd7d8e43126 in GModel::mesh (this=0x7fd7d2a83b30, dimension=128)<br>
+&gt; at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Geo/GMode<br>
+&gt; l.cpp:535<br>
+&gt; #25 0x00007fd7d8c1acd2 in GmshBatch () at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Common/Gm<br>
+&gt; sh.cpp:240<br>
+&gt; #26 0x000000000040187a in main (argc=-760726736, argv=0x80) at<br>
+&gt; /short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Common/Ma<br>
+&gt; in.cpp:27<br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26018.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26018.php</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26025.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26025.php</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div>&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26028.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26028.php</a><br>
+<span class=""><br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+</span><span class="">_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</span>Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26041.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26041.php</a><br>
+</blockquote></div><br></div></div>
+

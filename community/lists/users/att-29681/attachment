@@ -1,0 +1,128 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <p>How do you run the test ?</p>
+    <p>you should have the same number of clients in each mpirun
+      instance, the following simple shell starts the test as i think it
+      is supposed to</p>
+    <p>note the test itself is arguable since MPI_Comm_disconnect() is
+      never invoked</p>
+    <p>(and you will observe some related dpm_base_disconnect_init
+      errors)</p>
+    <p><br>
+    </p>
+    <p>#!/bin/sh<br>
+      <br>
+      clients=3<br>
+      <br>
+          screen -d -m sh -c "mpirun -np 1 ./singleton_client_server
+      $clients 1 2&gt;&amp;1 | tee /tmp/server.$clients"<br>
+      for i in $(seq $clients); do</p>
+    <p>    sleep 1<br>
+    </p>
+    <p>    screen -d -m sh -c "mpirun -np 1 ./singleton_client_server
+      $clients 0 2&gt;&amp;1 | tee /tmp/client.$clients.$i"<br>
+      done<br>
+    </p>
+    <p><br>
+    </p>
+    <p>Ralph,</p>
+    <p><br>
+    </p>
+    <p>this test fails with master.</p>
+    <p>when the "server" (second parameter is 1), MPI_Comm_accept()
+      fails with a timeout.</p>
+    <p>i ompi/dpm/dpm.c, there is a hard coded 60 seconds timeout</p>
+    <p>OPAL_PMIX_EXCHANGE(rc, &amp;info, &amp;pdat, 60);</p>
+    <p>but this is not the timeout that is triggered ...</p>
+    <p>the eviction_cbfunc timeout function is invoked, and it has been
+      set when opal_hotel_init() was invoked in
+      orte/orted/pmix/pmix_server.c</p>
+    <p><br>
+    </p>
+    <p>default timeout is 2 seconds, but in this case (user invokes
+      MPI_Comm_accept), i guess the timeout should be infinite or 60
+      seconds (hard coded value described above)<br>
+    </p>
+    <p>sadly, if i set a higher timeout value (mpirun --mca
+      orte_pmix_server_max_wait 180 ...), MPI_Comm_accept() does not
+      return when the client invokes MPI_Comm_connect()</p>
+    <p><br>
+    </p>
+    <p>could you please have a look at this ?</p>
+    <p><br>
+    </p>
+    <p>Cheers,</p>
+    <p><br>
+    </p>
+    <p>Gilles<br>
+    </p>
+    <br>
+    <div class="moz-cite-prefix">On 7/15/2016 9:20 PM, M. D. wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CAJDp2Qo1Xo4cvNWA9WyBurkh0iVoh5t6Lk5U01R8qLSL8vdszA@mail.gmail.com"
+      type="cite">
+      <div dir="ltr"><span style="font-size:12.8px">Hello,</span>
+        <div style="font-size:12.8px"><br>
+          <div>I have a problem with basic client - server application.
+            I tried to run C program from this website <a
+              moz-do-not-send="true"
+href="https://github.com/hpc/cce-mpi-openmpi-1.7.1/blob/master/orte/test/mpi/singleton_client_server.c"
+              target="_blank"><a class="moz-txt-link-freetext" href="https://github.com/hpc/cce-mpi-openmpi-1.7.1/blob/master/orte/test/mpi/singleton_client_server.c">https://github.com/hpc/cce-mpi-openmpi-1.7.1/blob/master/orte/test/mpi/singleton_client_server.c</a></a></div>
+          <div>I saw this program mentioned in many discussions in your
+            website, so I expected that it should work properly, but
+            after more testing I found out that there is probably an
+            error somewhere in connect/accept method. I have read many
+            discussions and threads on your website, but I have not
+            found similar problem that I am facing. It seems that nobody
+            had similar problem like me. When I run this app with one
+            server and more clients (3,4,5,6,...) sometimes the app
+            hangs. It hangs when second or next client wants to connect
+            to the server (it depends, sometimes third client hangs,
+            sometimes fourth, sometimes second, and so on). </div>
+          <div>So it means that app starts to hang where server waits
+            for accept and client waits for connect. And it is not
+            possible to continue, because this client cannot connect to
+            the server. It is strange, because I observed this behaviour
+            only in some cases... Sometimes it works without any
+            problems, sometimes it does not work. The behaviour is
+            unpredictable and not stable.</div>
+          <div><br>
+          </div>
+          <div>I have installed openmpi 1.10.2 on my Fedora 19. I have
+            the same problem with Java alternative of this application.
+            It hangs also sometimes... I need this app in Java, but
+            firstly it must work properly in C implementation. Because
+            of this strange behaviour I assume that there can be an
+            error maybe inside of openmpi implementation of
+            connect/accept methods. I tried it also with another version
+            of openmpi - 1.8.1. However, the problem did not disappear.</div>
+          <div><br>
+          </div>
+          <div>Could you help me, what can cause the problem? Maybe I
+            did not get something about openmpi (or connect/server) and
+            the problem is with me... I will appreciate any your help,
+            support, or interest about this topic.</div>
+          <div><br>
+          </div>
+          <div>Best regards,</div>
+          <div>Matus Dobrotka</div>
+        </div>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="https://www.open-mpi.org/mailman/listinfo.cgi/users">https://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/07/29673.php">http://www.open-mpi.org/community/lists/users/2016/07/29673.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

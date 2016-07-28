@@ -1,0 +1,61 @@
+Hello<font size="3">.</font> Thanks for your response. I&#39;m&nbsp; create a my module and component into the coll. But when I execute autogen.sh, it&#39;s return ../../libtool: line 847: X--tag=CC: command not found<br>../../libtool: line 880: libtool: ignoring unknown tag : command not found<br>
+../../libtool: line 847: X--mode=compile: command not found<br>&nbsp;I have a libtool v <a href="http://1.5.26.">1.5.26.</a> Can you get me a some guide about create configure.m4.<br><br><div class="gmail_quote">2008/12/2 Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span><br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">On Nov 25, 2008, at 10:29 AM, Максим Чусовлянов wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Hello! How i can integrated my collective communication algorithm in openMPI with MCA?<br>
+</blockquote>
+<br>
+Sorry for the delay in answering -- SC08 and the US holiday last week got in the way and I&#39;m way behind on answering the mails in my INBOX.<br>
+<br>
+Just to make sure we&#39;re talking about the same thing -- you have a new collective algorithm for one of the MPI collective functions, and you want to include that code in Open MPI so that it can be invoked by MPI_&lt;foo&gt; in MPI applications, right?<br>
+
+<br>
+If so, the right way to do this is to build a new Open MPI &quot;coll&quot; (collective) component containing the code for your new algorithm. &nbsp;Our coll components are basically a few housekeeping functions and a bunch of function pointers for the functions to call that are the back-ends to MPI collective functions (i.e., MPI_Bcast and friends).<br>
+
+<br>
+All the &quot;coll&quot; component code is under the ompi/mca/coll/ directory. &nbsp;The &quot;base&quot; directory is some &quot;glue&quot; code for the coll framework itself -- it&#39;s not a component. &nbsp;But all other directories are standalone components that have corresponding dynamic shared objects (DSOs) installed under $pkglibdir (typically $prefix/lib/openmpi).<br>
+
+<br>
+You can build a component inside or outside of the Open MPI tree. &nbsp;If you build outside of the Open MPI tree, you need to configure OMPI with --with-devel-headers, which will install all of OMPI&#39;s internal headers under $prefix. &nbsp;That way, you can -I these headers when you compile your component. &nbsp;Just install your DSO in $pkglibdir; if all goes well, &quot;ompi_info | grep coll&quot; should show your component.<br>
+
+<br>
+If you build inside of the Open MPI tree, you need to make your component dir under ompi/mca/coll/ and include a configure.params file (look at ompi/mca/coll/basic/configure.params for a simple example) and a Makefile.am (see ompi/mca/coll/basic/Makefile.am for an example). &nbsp;Then run the &quot;autogen.sh&quot; script that is at the top of the tree and then run configure. &nbsp;You should see your component listed in both the autogen.sh and configure output; configure should not that it plans to build that component. &nbsp;When you finish configure, build and install Open MPI. &nbsp;&quot;ompi_info | grep coll&quot; should show your component.<br>
+
+<br>
+But I&#39;m getting ahead of myself... &nbsp;Let&#39;s go back a few steps...<br>
+<br>
+When building inside the OMPI tree, if you need to check for various things to determine if you can build the component (i.e., some tests during configure, such as checking for various hardware support libraries), you can also add a configure.m4 file in your component&#39;s directory. &nbsp;This gets a little tricky if you&#39;re not familiar with Autoconf; let me know if you need some guidance here.<br>
+
+<br>
+Now you can add the source code to the component. &nbsp;We have 2 important abstractions that you need to know about:<br>
+<br>
+- component: there is only one component instance in an MPI process. &nbsp;It has global state.<br>
+- module: in the coll framework, there is one module instance for every communicator that uses this component. &nbsp;It has local state relevant to that specific communicator.<br>
+<br>
+Think of &quot;component&quot; as a C++ class, and &quot;module&quot; as a C++ object.<br>
+<br>
+Now read the comments in ompi/mca/coll/coll.h. &nbsp;This file contains the struct interfaces for both the coll component and module. &nbsp;We basically do everything by function pointer; the component returns a set of function pointers and each module returns a struct of function pointers. &nbsp;These function pointers are invoked by libmpi at various times for various functions; see coll.h for a description of each.<br>
+
+<br>
+During coll module initialization (i.e., when a new communicator has been created), there&#39;s a process called &quot;selection&quot; where OMPI determines which coll modules will be used on this communicator. &nbsp;Modules can include/exclude themselves from the selection process. &nbsp;For example, your algorithm may only be suitable for intracommunicators. &nbsp;So if the communicator in question that is being created is an intercommunicator, you probably want to exclude your module from selection. &nbsp;Or if your algorithm can only handle powers-of-two MPI processes, it should exclude itself if there is a non-power-of-two number of processes in the communicator. &nbsp;And so on.<br>
+
+<br>
+We designed coll modules in OMPI v1.3 to be &quot;mix-n-match&quot;-able such that in a single communicator, you can use the broadcast function from one module, but the gather function from a different module. &nbsp;Hence, multiple coll modules may be active on a single communicator. &nbsp;In your case, you&#39;ll need to make sure that your function has a higher priority than the &quot;tuned&quot; coll component (which is the default in many cases).<br>
+
+<br>
+I&#39;d suggest working in the Open MPI v1.3 tree, as we&#39;re going to release this version soon and all future work is being done here (vs. the v1.2 tree, which will eventually be deprecated).<br>
+<br>
+Hopefully this is enough information to get you going. &nbsp;Please feel free to ask more questions! &nbsp;But you might want to post followup questions to the devel list; these aren&#39;t really user-level questions.<br>
+<br>
+Good luck!<br>
+<br>
+-- <br>
+Jeff Squyres<br>
+Cisco Systems<br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote></div><br>

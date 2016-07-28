@@ -1,0 +1,158 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=windows-1252"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Andy - could you please try the current 1.8.5 nightly tarball and see if it helps? The error log indicates that it is failing to get the topology from some daemon, I’m assuming the one on the Phi?<div class=""><br class=""></div><div class="">You might also add —enable-debug to that configure line and then put -mca plm_base_verbose on the shmemrun cmd to get more help</div><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Apr 10, 2015, at 11:55 AM, Andy Riebs &lt;<a href="mailto:andy.riebs@hp.com" class="">andy.riebs@hp.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class="">
+  
+
+    <meta http-equiv="content-type" content="text/html; charset=windows-1252" class="">
+  
+  <div bgcolor="#FFFFFF" text="#000000" class="">
+    Summary: MPI jobs work fine, SHMEM jobs work just often enough to be
+    tantalizing, on an Intel Xeon Phi/MIC system.<br class="">
+    <br class="">
+    Longer version<br class="">
+    <br class="">
+    Thanks to the excellent write-up last June
+    (<a class="moz-txt-link-rfc2396E" href="https://www.open-mpi.org/community/lists/users/2014/06/24711.php">&lt;https://www.open-mpi.org/community/lists/users/2014/06/24711.php&gt;</a>),
+    I have been able to build a version of Open MPI for the Xeon Phi
+    coprocessor that runs MPI jobs on the Phi coprocessor with no
+    problem, but not SHMEM jobs.&nbsp; Just at the point where I was about to
+    document the problems I was having with SHMEM, my trivial SHMEM job
+    worked. And then failed when I tried to run it again, immediately
+    afterwards. I have a feeling I may be in uncharted&nbsp; territory here.<br class="">
+    <br class="">
+    Environment<br class="">
+    <ul class="">
+      <li class="">RHEL 6.5</li>
+      <li class="">Intel Composer XE 2015</li>
+      <li class="">Xeon Phi/MIC</li>
+    </ul>
+    ----------------<br class="">
+    <br class="">
+    <br class="">
+    Configuration<br class="">
+    <br class="">
+    $ export PATH=/usr/linux-k1om-4.7/bin/:$PATH<br class="">
+    $ source /opt/intel/15.0/composer_xe_2015/bin/compilervars.sh
+    intel64<br class="">
+    $ ./configure --prefix=/home/ariebs/mic/mpi \<br class="">
+    &nbsp;&nbsp; CC="icc -mmic" CXX="icpc -mmic" \<br class="">
+    &nbsp;&nbsp; --build=x86_64-unknown-linux-gnu --host=x86_64-k1om-linux \<br class="">
+    &nbsp;&nbsp;&nbsp; AR=x86_64-k1om-linux-ar RANLIB=x86_64-k1om-linux-ranlib \<br class="">
+    &nbsp;&nbsp;&nbsp; LD=x86_64-k1om-linux-ld \<br class="">
+    &nbsp;&nbsp;&nbsp; --enable-mpirun-prefix-by-default --disable-io-romio \<br class="">
+    &nbsp;&nbsp;&nbsp; --disable-vt --disable-mpi-fortran \<br class="">
+    &nbsp;&nbsp;&nbsp; --enable-mca-no-build=btl-usnic,btl-openib,common-verbs<br class="">
+    $ make<br class="">
+    $ make install<br class="">
+    <br class="">
+    ----------------<br class="">
+    <br class="">
+    Test program<br class="">
+    <br class="">
+    #include &lt;stdio.h&gt;<br class="">
+    #include &lt;stdlib.h&gt;<br class="">
+    #include &lt;shmem.h&gt;<br class="">
+    int main(int argc, char **argv)<br class="">
+    {<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; int me, num_pe;<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; shmem_init();<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; num_pe = num_pes();<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; me = my_pe();<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printf("Hello World from process %ld of %ld\n", me, num_pe);<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; exit(0);<br class="">
+    }<br class="">
+    <br class="">
+    ----------------<br class="">
+    <br class="">
+    Building the program<br class="">
+    <br class="">
+    export PATH=/home/ariebs/mic/mpi/bin:$PATH<br class="">
+    export PATH=/usr/linux-k1om-4.7/bin/:$PATH<br class="">
+    source /opt/intel/15.0/composer_xe_2015/bin/compilervars.sh intel64<br class="">
+    export
+LD_LIBRARY_PATH=/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic:$LD_LIBRARY_PATH<br class="">
+    <br class="">
+    icc -mmic -std=gnu99 -I/home/ariebs/mic/mpi/include -pthread \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -Wl,-rpath -Wl,/home/ariebs/mic/mpi/lib
+    -Wl,--enable-new-dtags \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -L/home/ariebs/mic/mpi/lib -loshmem -lmpi -lopen-rte
+    -lopen-pal \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -lm -ldl -lutil \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -Wl,-rpath
+    -Wl,/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -L/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -o mic.out&nbsp; shmem_hello.c<br class="">
+    <br class="">
+    ----------------<br class="">
+    <br class="">
+    Running the program<br class="">
+    <br class="">
+    (Note that the program had been consistently failing. Then, when I
+    logged back into the system to capture the results, it worked once,&nbsp;
+    and then immediately failed when I tried again, as shown below.
+    Logging in and out isn't sufficient to correct the problem. Overall,
+    I think I had 3 successful runs in 30-40 attempts.)<br class="">
+    <br class="">
+    $ shmemrun -H localhost -N 2 --mca sshmem mmap ./mic.out<br class="">
+    [atl1-01-mic0:189372] [[30936,0],0] ORTE_ERROR_LOG: Not found in
+    file base/plm_base_launch_support.c at line 426<br class="">
+    Hello World from process 0 of 2<br class="">
+    Hello World from process 1 of 2<br class="">
+    $ shmemrun -H localhost -N 2 --mca sshmem mmap ./mic.out<br class="">
+    [atl1-01-mic0:189381] [[30881,0],0] ORTE_ERROR_LOG: Not found in
+    file base/plm_base_launch_support.c at line 426<br class="">
+    [atl1-01-mic0:189383] Error: pshmem_init.c:61 - shmem_init() SHMEM
+    failed to initialize - aborting<br class="">
+--------------------------------------------------------------------------<br class="">
+    It looks like SHMEM_INIT failed for some reason; your parallel
+    process is<br class="">
+    likely to abort.&nbsp; There are many reasons that a parallel process can<br class="">
+    fail during SHMEM_INIT; some of which are due to configuration or
+    environment<br class="">
+    problems.&nbsp; This failure appears to be an internal failure; here's
+    some<br class="">
+    additional information (which may only be relevant to an Open SHMEM<br class="">
+    developer):<br class="">
+    <br class="">
+    &nbsp; mca_memheap_base_select() failed<br class="">
+    &nbsp; --&gt; Returned "Error" (-1) instead of "Success" (0)<br class="">
+--------------------------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+    SHMEM_ABORT was invoked on rank 0 (pid 189383, host=atl1-01-mic0)
+    with errorcode -1.<br class="">
+--------------------------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+    A SHMEM process is aborting at a time when it cannot guarantee that
+    all<br class="">
+    of its peer processes in the job will be killed properly.&nbsp; You
+    should<br class="">
+    double check that everything has shut down cleanly.<br class="">
+    <br class="">
+    Local host: atl1-01-mic0<br class="">
+    PID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 189383<br class="">
+--------------------------------------------------------------------------<br class="">
+    -------------------------------------------------------<br class="">
+    Primary job&nbsp; terminated normally, but 1 process returned<br class="">
+    a non-zero exit code.. Per user-direction, the job has been aborted.<br class="">
+    -------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+    shmemrun detected that one or more processes exited with non-zero
+    status, thus causing<br class="">
+    the job to be terminated. The first process to do so was:<br class="">
+    <br class="">
+    &nbsp; Process name: [[30881,1],0]<br class="">
+    &nbsp; Exit code:&nbsp;&nbsp;&nbsp; 255<br class="">
+--------------------------------------------------------------------------<br class="">
+    <br class="">
+    Any thoughts about where to go from here?<br class="">
+    <br class="">
+    Andy<br class="">
+    <br class="">
+    <pre class="moz-signature" cols="72">-- 
+Andy Riebs
+Hewlett-Packard Company
+High Performance Computing
++1 404 648 9024
+My opinions are not necessarily those of HP
+</pre>
+  </div>
+
+_______________________________________________<br class="">users mailing list<br class=""><a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br class="">Link to this post: http://www.open-mpi.org/community/lists/users/2015/04/26670.php</div></blockquote></div><br class=""></div></body></html>
