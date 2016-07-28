@@ -1,0 +1,45 @@
+<div dir="ltr"><div><div>Ok, so from what you say, on a &quot;execution system&quot; point view, the ring communication is well achieved (i.e respecting the good order with, in last position, rank0 which receives from rank 6) but the stdout doesn&#39;t reflect what really happened, does it ?<br>
+<br></div>Is there a way to make stdout respect the expected order ?<br><br></div>Thanks<br></div><div class="gmail_extra"><br><br><div class="gmail_quote">2014-03-16 0:42 GMT+01:00 Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span>:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">The explanation is simple: there is no rule about ordering of stdout. So even though your rank0 may receive its MPI message last, its stdout may well be printed before one generated on a remote node. Reason is that rank 0 may well be local to mpirun, and thus the stdout can be handled immediately. However, your rank6 may well be on a remote node, and that daemon has to forward the stdout to mpirun for printing.<div>
+<br></div><div>Like I said - no guarantee about ordering of stdout.</div><div><br></div><div><br><div><div><div class="h5"><div>On Mar 15, 2014, at 2:43 PM, christophe petit &lt;<a href="mailto:christophe.petit09@gmail.com" target="_blank">christophe.petit09@gmail.com</a>&gt; wrote:</div>
+<br></div></div><blockquote type="cite"><div><div class="h5"><div dir="ltr"><div><div><div><div><div><div><div>Hello,<br><br></div>I followed a simple MPI example to do a ring communication.<br><br></div>Here&#39;s the figure that illustrates this example with 7 processes :<br>
+<br><a href="http://i.imgur.com/Wrd6acv.png" target="_blank">http://i.imgur.com/Wrd6acv.png</a><br>
+<br></div>Here the code :<br><br>--------------------------------------------------------------------------------------------------------------------------<br> program ring<br><br> implicit none<br> include &#39;mpif.h&#39;<br>
+
+<br> integer, dimension( MPI_STATUS_SIZE ) :: status<br> integer, parameter                    :: tag=100<br> integer :: nb_procs, rank, value, &amp;<br>            num_proc_previous,num_proc_next,code<br>        <br> call MPI_INIT (code)<br>
+
+ call MPI_COMM_SIZE ( MPI_COMM_WORLD ,nb_procs,code)<br> call MPI_COMM_RANK ( MPI_COMM_WORLD ,rank,code)<br> <br> num_proc_next=mod(rank+1,nb_procs) <br> num_proc_previous=mod(nb_procs+rank-1,nb_procs)<br> <br> if (rank == 0) then<br>
+
+    call MPI_SEND (1000,1, MPI_INTEGER ,num_proc_next,tag, &amp;<br>                   MPI_COMM_WORLD ,code)<br>    call MPI_RECV (value,1, MPI_INTEGER ,num_proc_previous,tag, &amp;<br>                   MPI_COMM_WORLD ,status,code)<br>
+
+ else<br>    call MPI_RECV (value,1, MPI_INTEGER ,num_proc_previous,tag, &amp;<br>                   MPI_COMM_WORLD ,status,code)<br>    call MPI_SEND (rank+1000,1, MPI_INTEGER ,num_proc_next,tag, &amp;<br>                   MPI_COMM_WORLD ,code)<br>
+
+ end if<br> print *,&#39;Me, process &#39;,rank,&#39;, I have received &#39;,value,&#39; from process &#39;,num_proc_previous<br>                                         <br> call MPI_FINALIZE (code)<br>end program ring<br>
+
+<br>--------------------------------------------------------------------------------------------------------------------------<br><br></div>At the execution, I expect to always have :<br><br>Me, process            1 , I have received         1000  from process            0<br>
+
+ Me, process            2 , I have received         1001  from process            1<br> Me, process            3 , I have received         1002  from process            2<br> Me, process            4 , I have received         1003  from process            3<br>
+
+ Me, process            5 , I have received         1004  from process            4<br> Me, process            6 , I have received         1005  from process            5<br> Me, process            0 , I have received         1006  from process            6<br>
+
+<br></div>But sometimes, I have the reception of process 0 from process 6 which is not the last reception, like this :<br><br> Me, process            1 , I have received         1000  from process            0<br> Me, process            2 , I have received         1001  from process            1<br>
+
+ Me, process            3 , I have received         1002  from process            2<br> Me, process            4 , I have received         1003  from process            3<br> Me, process            5 , I have received         1004  from process            4<br>
+
+ Me, process            0 , I have received         1006  from process            6<br> Me, process            6 , I have received         1005  from process            5<br><br></div>where reception of process 0 from process 6 happens before the reception of process 6 from process 5<br>
+
+<br></div>or like on this result :<br><div><br><div> Me, process            1 , I have received         1000  from process            0<br> Me, process            2 , I have received         1001  from process            1<br>
+
+ Me, process            3 , I have received         1002  from process            2<br> Me, process            4 , I have received         1003  from process            3<br> Me, process            0 , I have received         1006  from process            6<br>
+
+ Me, process            5 , I have received         1004  from process            4<br> Me, process            6 , I have received         1005  from process            5<br><br></div><div>where process 0 receives between the reception of process 4 and 5.<br>
+
+<br></div><div>How can we explain this strange result ? I thought that standard use of MPI_SEND and MPI_RECV were blocking by default and,<br></div><div>with this result, it seems to be not blocking.<br><br></div><div>I tested this example on Debian 7.0 with open-mpi package.<br>
+
+</div><div><br></div><div>Thanks for your help<br></div><div><br><br></div></div></div></div></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+</div><br></div></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br></div>
+

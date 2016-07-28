@@ -1,0 +1,31 @@
+<div dir="ltr"><div><div><div>Hi,<br><br></div>I tried to augment the command line argument list by allocating my own list of strings and passing them to MPI_Init, yet I got a segmentation fault for both OpenMPI 1.6.3 and 1.7.2, while the code works fine with MPICH2. The code is:<br>
+
+<br>#include &quot;mpi.h&quot;<br>#include &quot;cuda_runtime.h&quot;<br>#include &lt;cstdlib&gt;<br>#include &lt;cstring&gt;<br>#include &lt;cmath&gt;<br><br>int main(int argc, char **argv)<br>{<br>    int device = 0;<br>
+
+    int skip = 0;<br>    bool skipmode = false;<br>    bool specified = false;<br>    for( int i = 0 ; i &lt; argc ; i++ )<br>    {<br>        if ( strcmp( argv[i], &quot;-device&quot; ) == 0 )<br>        {<br>            i++;<br>
+
+            if ( argv[i][0] == &#39;-&#39; )<br>            {<br>                skipmode = true;<br>                skip = fabs( atoi( argv[i] ) );<br>            }<br>            else<br>            {<br>                skipmode = false;<br>
+
+                device = atoi( argv[i] );<br>            }<br>            specified = true;<br>        }<br>    }<br><br>    if ( !specified || skipmode )<br>    {<br>        char* var;<br>        int dev_count, local_rank = 0;<br>
+
+        if ( (var = getenv(&quot;SLURM_LOCALID&quot;)) != NULL) local_rank = atoi(var);<br>        else if( (var = getenv(&quot;MV2_COMM_WORLD_LOCAL_RANK&quot;))  != NULL) local_rank = atoi(var);<br>        else if( (var = getenv(&quot;OMPI_COMM_WORLD_LOCAL_RANK&quot;)) != NULL) local_rank = atoi(var);<br>
+
+        cudaGetDeviceCount( &amp;dev_count );<br>        if ( skipmode )<br>        {<br>            device = 0;<br>            if ( device == skip ) local_rank++;<br>            while( local_rank-- &gt; 0 )<br>            {<br>
+
+                device = (++device) % dev_count;<br>                if ( device == skip ) local_rank++;<br>            }<br>        }<br>        else device = local_rank % dev_count;<br>    }<br><br>    // override command line arguments to make sure cudaengine get the correct one<br>
+
+    char **argv_new = new char*[ argc + 2 ];<br>    for( int i = 0 ; i &lt; argc ; i++ )<br>    {<br>        argv_new[i] = new char[ strlen( argv[i] ) + 1 ];<br>        strcpy( argv_new[i], argv[i] );<br>    }<br>    argv_new[ argc   ] = new char[ 32 ];<br>
+
+    argv_new[ argc+1 ] = new char[ 32 ];<br>    strcpy( argv_new[argc],   &quot;-device&quot; );<br>    sprintf( argv_new[argc+1], &quot;%d&quot;, device );<br>    argc += 2;<br>    argv = argv_new;<br><br>    cudaSetDevice( device );<br>
+
+<br>    MPI_Init(&amp;argc,&amp;argv);<br><br>    // do something...<br><br>    MPI_Finalize();<br><br>    cudaDeviceReset();<br>    for( int i = 0 ; i &lt; argc ; i++ ) delete [] argv[i];<br>    delete [] argv;<br>}<br>
+<br>
+When compiled using <i><b>nvcc -ccbin mpic++</b></i>, The error I got was:<br><br>[jueying:16317] *** Process received signal ***<br>[jueying:16317] Signal: Segmentation fault (11)<br>[jueying:16317] Signal code: Address not mapped (1)<br>
+
+[jueying:16317] Failing at address: 0x21<br>[jueying:16317] [ 0] /usr/lib64/libpthread.so.0() [0x39e5e0f000]<br>[jueying:16317] [ 1] /usr/lib64/libc.so.6() [0x39e5760551]<br>[jueying:16317] [ 2] /opt/openmpi/1.7.2/lib/libopen-pal.so.5(opal_argv_join+0x39) [0x7f460b993079]<br>
+
+[jueying:16317] [ 3] /opt/openmpi/1.7.2/lib/libmpi.so.1(ompi_mpi_init+0x347) [0x7f460c106a57]<br>[jueying:16317] [ 4] /opt/openmpi/1.7.2/lib/libmpi.so.1(MPI_Init+0x16b) [0x7f460c12523b]<br>[jueying:16317] [ 5] ./lmp_jueying() [0x40c035]<br>
+
+[jueying:16317] [ 6] /usr/lib64/libc.so.6(__libc_start_main+0xf5) [0x39e5621a05]<br>[jueying:16317] [ 7] ./lmp_jueying() [0x40dd21]<br>[jueying:16317] *** End of error message ***<br><br></div>Thanks for the help.<br><br>
+
+</div>Best regards,<br>Yu-Hang Tang<br></div>

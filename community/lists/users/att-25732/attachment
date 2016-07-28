@@ -1,0 +1,53 @@
+<div dir="ltr"><div><div>Just really quick off the top of my head, mmaping relies on the virtual memory subsystem, whereas IB RDMA operations rely on physical memory being pinned (unswappable.) For a large message transfer, the OpenIB BTL will register the user buffer, which will pin the pages and make them unswappable. If the data being transfered is small, you&#39;ll copy-in/out to internal bounce buffers and you shouldn&#39;t have issues. <br><br>1.If you try to just bcast a few kilobytes of data using this technique, do you run into issues? <br><br></div>2. How large is the data in the collective (input and output), is in_place used? I&#39;m guess it&#39;s large enough that the BTL tries to work with the user buffer.<br><br></div>Josh<br></div><div class="gmail_extra"><br><div class="gmail_quote">On Mon, Nov 10, 2014 at 9:29 AM, Emmanuel Thomé <span dir="ltr">&lt;<a href="mailto:emmanuel.thome@gmail.com" target="_blank">emmanuel.thome@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi,<br>
+<br>
+I&#39;m stumbling on a problem related to the openib btl in<br>
+openmpi-1.[78].*, and the (I think legitimate) use of file-backed<br>
+mmaped areas for receiving data through MPI collective calls.<br>
+<br>
+A test case is attached. I&#39;ve tried to make is reasonably small,<br>
+although I recognize that it&#39;s not extra thin. The test case is a<br>
+trimmed down version of what I witness in the context of a rather<br>
+large program, so there is no claim of relevance of the test case<br>
+itself. It&#39;s here just to trigger the desired misbehaviour. The test<br>
+case contains some detailed information on what is done, and the<br>
+experiments I did.<br>
+<br>
+In a nutshell, the problem is as follows.<br>
+<br>
+ - I do a computation, which involves MPI_Reduce_scatter and MPI_Allgather.<br>
+ - I save the result to a file (collective operation).<br>
+<br>
+*If* I save the file using something such as:<br>
+ fd = open(&quot;blah&quot;, ...<br>
+ area = mmap(..., fd, )<br>
+ MPI_Gather(..., area, ...)<br>
+*AND* the MPI_Reduce_scatter is done with an alternative<br>
+implementation (which I believe is correct)<br>
+*AND* communication is done through the openib btl,<br>
+<br>
+then the file which gets saved is inconsistent with what is obtained<br>
+with the normal MPI_Reduce_scatter (alghough memory areas do coincide<br>
+before the save).<br>
+<br>
+I tried to dig a bit in the openib internals, but all I&#39;ve been able<br>
+to witness was beyond my expertise (an RDMA read not transferring the<br>
+expected data, but I&#39;m too uncomfortable with this layer to say<br>
+anything I&#39;m sure about).<br>
+<br>
+Tests have been done with several openmpi versions including 1.8.3, on<br>
+a debian wheezy (7.5) + OFED 2.3 cluster.<br>
+<br>
+It would be great if someone could tell me if he is able to reproduce<br>
+the bug, or tell me whether something which is done in this test case<br>
+is illegal in any respect. I&#39;d be glad to provide further information<br>
+which could be of any help.<br>
+<br>
+Best regards,<br>
+<br>
+E. Thomé.<br>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/11/25730.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/11/25730.php</a><br></blockquote></div><br></div>
+

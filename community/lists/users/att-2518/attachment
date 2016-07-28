@@ -1,0 +1,52 @@
+Thanks for the help!!!! I renamed the nodes, and now slurm and openmpi seem to be playing nicely with each other. <br><br>Bob<br><br><div><span class="gmail_quote">On 1/19/07, <b class="gmail_sendername">Jeff Squyres</b> &lt;
+<a href="mailto:jsquyres@cisco.com" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">jsquyres@cisco.com</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+
+I think the SLURM code in Open MPI is making an assumption that is<br>failing in your case: we assume that your nodes will have a specific<br>naming convention:<br><br><a href="http://mycluster.example.com" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">
+mycluster.example.com
+</a> --&gt; head node<br><a href="http://mycluster01.example.com" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">mycluster01.example.com</a> --&gt; cluster node 1<br><a href="http://mycluster02.example.com" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">
+mycluster02.example.com</a> --&gt; cluster node 2<br>...etc.<br>
+<br>OMPI is therefore parsing the SLURM environment and not correctly<br>groking the &quot;master,wolf1&quot; string because, to be honest, I didn&#39;t<br>even know that SLURM supported that scenario.&nbsp;&nbsp;I.e., I thought SLURM
+<br>required the naming convention I listed above.&nbsp;&nbsp;In hindsight, that&#39;s<br>a pretty silly assumption, but to be fair, you&#39;re the first user that<br>ever came to us with this problem (i.e., we use pretty much the same
+<br>string parsing in LAM/MPI, which has had SLURM support for several<br>years).&nbsp;&nbsp;Oops!<br><br>We can fix this, but I don&#39;t know if it&#39;ll make the v1.2 cutoff or<br>not.&nbsp;&nbsp;:-\<br><br>Thanks for bringing this to our attention!
+<br><br><br><br>On Jan 19, 2007, at 1:50 PM, Robert Bicknell wrote:<br><br>&gt; Thanks for your response. The program that I have been using for<br>&gt; testing purposes is a simple hello:<br>&gt;<br>&gt;<br>&gt; #include &lt;
+stdio.h&gt;<br>&gt;<br>&gt; #include &lt;mpi.h&gt;<br>&gt;<br>&gt;<br>&gt; #include &lt;sys/time.h&gt;<br>&gt; #include &lt;sys/resource.h&gt;<br>&gt; #include &lt;unistd.h&gt;<br>&gt; #include &lt;stdio.h&gt;<br>&gt; main(int argc, char *argv)
+<br>&gt; {<br>&gt;&nbsp;&nbsp; char name[BUFSIZ];<br>&gt;&nbsp;&nbsp; int length;<br>&gt;&nbsp;&nbsp; int rank;<br>&gt;&nbsp;&nbsp; struct rlimit rlim;<br>&gt;&nbsp;&nbsp; FILE *output;<br>&gt;<br>&gt;&nbsp;&nbsp; MPI_Init(&amp;argc, &amp;argv);<br>&gt;&nbsp;&nbsp; MPI_Get_processor_name(name, &amp;length);
+<br>&gt;&nbsp;&nbsp; MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>&gt;&nbsp;&nbsp; rank = 0;<br>&gt;&nbsp;&nbsp; MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>&gt;<br>&gt; // while(1) {<br>&gt;&nbsp;&nbsp; printf(&quot;%s: hello world from rank %d\n&quot;, name, rank);
+<br>&gt;&nbsp;&nbsp; sleep(1);<br>&gt; // }<br>&gt;&nbsp;&nbsp; MPI_Finalize();<br>&gt; }<br>&gt;<br>&gt; If I run this program not in a slurm environment I get the following<br>&gt;<br>&gt; mpirun -np 4 -mca btl tcp,self -host wolf1,master ./hello
+<br>&gt;<br>&gt; master: hello world from rank 1<br>&gt; wolf1: hello world from rank 0<br>&gt; wolf1: hello world from rank 2<br>&gt; master: hello world from rank 3<br>&gt;<br>&gt; This is&nbsp;&nbsp;exactly what I expect. Now if I create a slurm environment
+<br>&gt; using the following:<br>&gt;<br>&gt; srun -n 4 -A<br>&gt;<br>&gt; The output of printenv|grep SLRUM gives me:<br>&gt;<br>&gt; SLURM_NODELIST=master,wolf1<br>&gt; SLURM_SRUN_COMM_PORT=58929<br>&gt; SLURM_MEM_BIND_TYPE=
+<br>&gt; SLURM_CPU_BIND_VERBOSE=quiet<br>&gt; SLURM_MEM_BIND_LIST=<br>&gt; SLURM_CPU_BIND_LIST=<br>&gt; SLURM_NNODES=2<br>&gt; SLURM_JOBID=66135<br>&gt; SLURM_TASKS_PER_NODE=2(x2)<br>&gt; SLURM_SRUN_COMM_HOST=master<br>&gt; SLURM_CPU_BIND_TYPE=
+<br>&gt; SLURM_MEM_BIND_VERBOSE=quiet<br>&gt; SLURM_NPROCS=4<br>&gt;<br>&gt; This seems to indicate that both master and wolf1 have been<br>&gt; allocated and that each node should run 2 tasks, which is correct<br>&gt; since both master and wolf1 are dual processor machines.
+<br>&gt;<br>&gt; Now if I run:<br>&gt;<br>&gt; mpirun -np 4 -mca btl tcp,self ./hello<br>&gt;<br>&gt; The output is:<br>&gt;<br>&gt; master: hello world from rank 1<br>&gt; master: hello world from rank 2<br>&gt; master: hello world from rank 3
+<br>&gt; master: hello world from rank 0<br>&gt;<br>&gt;<br>&gt; All four processes are running on master and none on wolf1.<br>&gt;<br>&gt; If I try the following and specify the hosts. I get the following<br>&gt; error message.
+<br>&gt;<br>&gt; mpirun -np 4 -host wolf1,master -mca btl tcp,self ./hello<br>&gt;<br>&gt; ----------------------------------------------------------------------<br>&gt; ----<br>&gt; Some of the requested hosts are not included in the current
+<br>&gt; allocation for the<br>&gt; application:<br>&gt;&nbsp;&nbsp; ./hello<br>&gt; The requested hosts were:<br>&gt;&nbsp;&nbsp; wolf1,master<br>&gt;<br>&gt; Verify that you have mapped the allocated resources properly using the<br>&gt; --host specification.
+<br>&gt; ----------------------------------------------------------------------<br>&gt; ----<br>&gt; [master:28022] [0,0,0] ORTE_ERROR_LOG: Out of resource in file<br>&gt; rmgr_urm.c at line 377<br>&gt; [master:28022] mpirun: spawn failed with errno=-2
+<br>&gt;<br>&gt;<br>&gt; I&#39;m at a loss to figure out how to get this working correctly. Any<br>&gt; help would be greatly appreciated.<br>&gt;<br>&gt; Bob<br>&gt;<br>&gt; On 1/19/07, Ralph Castain &lt;<a href="mailto:rhc@lanl.gov" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">
+
+rhc@lanl.gov</a>&gt; wrote: Open MPI and SLURM<br>&gt; should work together just fine right out-of-the-box. The<br>&gt; typical command progression is:<br>&gt;<br>&gt; srun -n x -A<br>&gt; mpirun -n y .....<br>&gt;<br>&gt;
+<br>&gt; If you are doing those commands and still see everything running on<br>&gt; the head<br>&gt; node, then two things could be happening:<br>&gt;<br>&gt; (a) you really aren&#39;t getting an allocation from slurm. Perhaps you
+<br>&gt; don&#39;t<br>&gt; have slurm setup correctly and aren&#39;t actually seeing the<br>&gt; allocation in your<br>&gt; environment. Do a &quot;printenv | grep SLURM&quot; and see if you find the<br>&gt; following<br>
+
+&gt; variables:<br>&gt; SLURM_NPROCS=8<br>&gt; SLURM_CPU_BIND_VERBOSE=quiet<br>&gt; SLURM_CPU_BIND_TYPE=<br>&gt; SLURM_CPU_BIND_LIST=<br>&gt; SLURM_MEM_BIND_VERBOSE=quiet<br>&gt; SLURM_MEM_BIND_TYPE=<br>&gt; SLURM_MEM_BIND_LIST=
+<br>&gt; SLURM_JOBID=47225<br>&gt; SLURM_NNODES=2<br>&gt; SLURM_NODELIST=odin[013-014]<br>&gt; SLURM_TASKS_PER_NODE=4(x2)<br>&gt; SLURM_SRUN_COMM_PORT=43206<br>&gt; SLURM_SRUN_COMM_HOST=odin<br>&gt;<br>&gt; Obviously, the values will be different, but we really need the
+<br>&gt; TASKS_PER_NODE and NODELIST ones to be there<br>&gt;<br>&gt; (b) the master node is being included in your nodelist and you aren&#39;t<br>&gt; running enough mpi processes to need more nodes (i.e., the number<br>
+
+&gt; of slots<br>&gt; on the master node is greater than or equal to the num procs you<br>&gt; requested).<br>&gt; You can force Open MPI to not run on your master node by including<br>&gt; &quot;--nolocal&quot; on your command line.
+<br>&gt;<br>&gt; Of course, if the master node is the only thing on the nodelist,<br>&gt; this will<br>&gt; cause mpirun to abort as there is nothing else for us to use.<br>&gt;<br>&gt; Hope that helps<br>&gt; Ralph<br>&gt;
+<br>&gt;<br>&gt; On 1/18/07 11:03 PM, &quot;Robert Bicknell&quot; &lt;<a href="mailto:robbicknell@gmail.com" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">robbicknell@gmail.com</a>&gt; wrote:<br>
+&gt;<br>&gt; &gt; I&#39;m trying to get slurm and openmpi to work together on a debian,
+<br>&gt; two<br>&gt; &gt; node cluster.&nbsp;&nbsp;Slurm and openmpi seem to work fine seperately,<br>&gt; but when<br>&gt; &gt; I try to run a mpi program in a slurm allocation, all the<br>&gt; processes get<br>&gt; &gt; run on the master node, and not distributed to the second node.
+<br>&gt; What am<br>&gt; &gt; I doing wrong?<br>&gt; &gt;<br>&gt; &gt; Bob<br>&gt; &gt; _______________________________________________<br>&gt; &gt; users mailing list<br>&gt; &gt; <a href="mailto:users@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">
+users@open-mpi.org
+</a><br>&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>&gt;<br>&gt;
+<br>&gt; _______________________________________________<br>&gt; users mailing list
+<br>&gt; <a href="mailto:users@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">users@open-mpi.org</a><br>&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">
+http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>&gt;<br>&gt; _______________________________________________
+<br>&gt; users mailing list<br>&gt; <a href="mailto:users@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">users@open-mpi.org</a><br>&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">
+http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br><br>--<br>Jeff Squyres<br>Server Virtualization Business Unit<br>Cisco Systems<br><br>_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">
+users@open-mpi.org</a>
+<br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br>
+
+

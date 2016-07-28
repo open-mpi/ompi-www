@@ -1,0 +1,100 @@
+<html dir="ltr">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<style id="owaParaStyle" type="text/css">P {margin-top:0;margin-bottom:0;}</style>
+</head>
+<body ocsi="0" fpstyle="1">
+<div style="direction: ltr;font-family: Tahoma;color: #000000;font-size: 10pt;">Hello,
+<br>
+<br>
+I am wondering whether or not the MPI_Accumulate subroutine implemented in OpenMPI v1.6.2&nbsp; is capable to operate on derived datatypes? I wrote a very simple test program for accumulating data from several process on master. The program works properly only with
+ predefined datatypes. In the case of&nbsp; <span></span>a derived datatype generated via MPI_Type_contiguous/MPI_Type_
+<div id=":5v"><wbr>vector subroutine<em>, </em>the results are incorrect:<br>
+<br>
+%mpicc accum.derived.c&nbsp; -o accum.predifined<br>
+%mpicc -D_DERIVED_ accum.derived.c&nbsp; -o accum.derived<br>
+<br>
+%mpirun -n 2 accum.predifined <br>
+tnum_acc[0] =&nbsp; 2.0 (expected: Nprocs =&nbsp; 2.0)<br>
+tnum_acc[1] =&nbsp; 2.0 (expected: Nprocs =&nbsp; 2.0)<br>
+<br>
+%mpirun -n 2 accum.derived<br>
+tnum_acc[0] =&nbsp; 1.0 (expected: Nprocs =&nbsp; 2.0)<br>
+tnum_acc[1] =&nbsp; 1.0 (expected: Nprocs =&nbsp; 2.0)<br>
+<br>
+<br>
+The point is that within mvapich2-1.8-r5668 and mpich2-1.5 the results are always correct, regardless of datatypes used.
+<br>
+<br>
+Any comments are highly appreciated!<br>
+<br>
+<br>
+With best regards,<br>
+Victor.<br>
+<br>
+The test program is listed below:<br>
+<br>
+/* Simple test for MPI_Accumulate &amp;&amp; derived datatypes */<br>
+#include &lt;stdio.h&gt;<br>
+#include &lt;stdlib.h&gt;<br>
+#include &lt;mpi.h&gt;<br>
+#include &lt;math.h&gt;<br>
+<br>
+#define NEL 10<br>
+#define NAC&nbsp; 2<br>
+<br>
+int main(int argc, char **argv) {<br>
+&nbsp;&nbsp;&nbsp; int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; i, j, rank, nranks;<br>
+&nbsp;&nbsp;&nbsp; double&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *win_buf, *src_buf;<br>
+&nbsp;&nbsp;&nbsp; MPI_Win&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; buf_win;<br>
+&nbsp;&nbsp;&nbsp; MPI_Aint&nbsp;&nbsp;&nbsp;&nbsp; nelp;<br>
+&nbsp;&nbsp;&nbsp; MPI_Datatype dtype;<br>
+&nbsp;&nbsp;&nbsp; <br>
+&nbsp;&nbsp;&nbsp; MPI_Init(&amp;argc, &amp;argv);<br>
+<br>
+&nbsp;&nbsp;&nbsp; MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+&nbsp;&nbsp;&nbsp; MPI_Comm_size(MPI_COMM_WORLD, &amp;nranks);<br>
+<br>
+&nbsp;&nbsp;&nbsp; nelp=(rank==0)?(NEL):0;<br>
+<br>
+&nbsp;&nbsp;&nbsp; win_buf=(double *) calloc(nelp,sizeof(double));<br>
+&nbsp;&nbsp;&nbsp; src_buf=(double *) calloc(NAC,sizeof(double));<br>
+<br>
+&nbsp;&nbsp;&nbsp; for(i=0;i&lt;NAC;i&#43;&#43;)&nbsp; src_buf[i]=1; <br>
+<br>
+&nbsp;&nbsp;&nbsp; MPI_Win_create(win_buf, nelp, sizeof(double), MPI_INFO_NULL, MPI_COMM_WORLD, &amp;buf_win);<br>
+/*&nbsp; <br>
+&nbsp;&nbsp;&nbsp; MPI_Type_vector(NAC,1,1,MPI_<wbr>DOUBLE,&amp;dtype);<br>
+*/<br>
+#ifdef _DERIVED_<br>
+&nbsp;&nbsp;&nbsp; MPI_Type_contiguous(NAC,MPI_<wbr>DOUBLE,&amp;dtype);<br>
+&nbsp;&nbsp;&nbsp; MPI_Type_commit(&amp;dtype);<br>
+#endif<br>
+<br>
+&nbsp;&nbsp;&nbsp; MPI_Win_lock(MPI_LOCK_<wbr>EXCLUSIVE, 0, 0, buf_win);<br>
+<br>
+#ifdef _DERIVED_&nbsp;&nbsp;&nbsp; <br>
+&nbsp;&nbsp;&nbsp; MPI_Accumulate(src_buf, 1, dtype, 0, 0, 1, dtype, MPI_SUM, buf_win); <br>
+#else&nbsp;&nbsp;&nbsp; <br>
+&nbsp;&nbsp;&nbsp; MPI_Accumulate(src_buf, NAC, MPI_DOUBLE, 0, 0, NAC, MPI_DOUBLE, MPI_SUM, buf_win);<br>
+#endif&nbsp;&nbsp;&nbsp; <br>
+<br>
+&nbsp;&nbsp;&nbsp; MPI_Win_unlock(0, buf_win);<br>
+&nbsp;&nbsp;&nbsp; MPI_Barrier(MPI_COMM_WORLD);<br>
+<br>
+&nbsp;&nbsp;&nbsp; if(rank==0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; for(j=0;j&lt;NAC;j&#43;&#43;) printf(&quot;tnum_acc[%d] =%5.1lf (expected: Nprocs =%5.1lf)\n&quot;,j,win_buf[j],(<wbr>double) nranks);<br>
+&nbsp;&nbsp;&nbsp; }<br>
+<br>
+<br>
+&nbsp;&nbsp;&nbsp; MPI_Win_free(&amp;buf_win);<br>
+&nbsp;&nbsp;&nbsp; MPI_Finalize();<br>
+<br>
+&nbsp;&nbsp;&nbsp; exit(0);<br>
+}<br>
+<br>
+</div>
+</div>
+</body>
+</html>
+

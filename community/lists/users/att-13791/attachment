@@ -1,0 +1,215 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=UTF-8" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+A clarification from your previous email, you had your code working
+with OMPI 1.4.1 but an older version of OFED?  Then you upgraded to
+OFED 1.4 and things stopped working?  Sounds like your current system
+is set up with OMPI 1.4.2 and OFED 1.5.  Anyways, I am a little
+confused as to when things might have actually broke.<br>
+<br>
+My first guess would be something may be wrong with the OFED setup. 
+Have checked the status of your ib devices with ibv_devinfo?  Have you
+ran any of the OFED rc tests like ibv_rc_pingpong?  <br>
+<br>
+If the above seems ok have you tried to run a simpler OMPI test like
+connectivity?  I would see if a simple np=2 run spanning across two
+nodes fails?<br>
+<br>
+What OS distribution and version you are running on?<br>
+<br>
+--td<br>
+Brian Smith wrote:
+<blockquote cite="mid:1280195332.12833.64.camel@plato.home" type="cite">
+  <pre wrap="">In case my previous e-mail is too vague for anyone to address, here's a
+backtrace from my application.  This version, compiled with Intel
+11.1.064 (OpenMPI 1.4.2 w/ gcc 4.4.2), hangs during MPI_Alltoall
+instead.  Running on 16 CPUs, Opteron 2427, Mellanox Technologies
+MT25418 w/ OFED 1.5
+
+strace on all ranks repeatedly shows:
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=10, events=POLLIN}, {fd=22,
+events=POLLIN}, {fd=23, events=POLLIN}], 7, 0) = 0 (Timeout)
+...
+
+gdb --pid=&lt;pid&gt;
+(gdb) bt
+#0  sm_fifo_read () at btl_sm.h:267
+#1  mca_btl_sm_component_progress () at btl_sm_component.c:391
+#2  0x00002b00085116ea in opal_progress () at
+runtime/opal_progress.c:207
+#3  0x00002b0007def215 in opal_condition_wait (count=2,
+requests=0x7fffd27802a0, statuses=0x7fffd2780270)
+    at ../opal/threads/condition.h:99
+#4  ompi_request_default_wait_all (count=2, requests=0x7fffd27802a0,
+statuses=0x7fffd2780270) at request/req_wait.c:262
+#5  0x00002b0007e805b7 in ompi_coll_tuned_sendrecv_actual
+(sendbuf=0x2aaac2c4c210, scount=28000, 
+    sdatatype=0x2b0008198ea0, dest=6, stag=-13, recvbuf=&lt;value optimized
+out&gt;, rcount=28000, rdatatype=0x2b0008198ea0, 
+    source=10, rtag=-13, comm=0x16ad7420, status=0x0) at
+coll_tuned_util.c:55
+#6  0x00002b0007e8705f in ompi_coll_tuned_sendrecv (sbuf=0x2aaac2b04010,
+scount=28000, sdtype=0x2b0008198ea0, 
+    rbuf=0x2aaac99a2010, rcount=28000, rdtype=0x2b0008198ea0,
+comm=0x16ad7420, module=0x16ad8450)
+    at coll_tuned_util.h:60
+#7  ompi_coll_tuned_alltoall_intra_pairwise (sbuf=0x2aaac2b04010,
+scount=28000, sdtype=0x2b0008198ea0, 
+    rbuf=0x2aaac99a2010, rcount=28000, rdtype=0x2b0008198ea0,
+comm=0x16ad7420, module=0x16ad8450)
+    at coll_tuned_alltoall.c:70
+#8  0x00002b0007e0a71f in PMPI_Alltoall (sendbuf=0x2aaac2b04010,
+sendcount=28000, sendtype=0x2b0008198ea0, 
+    recvbuf=0x2aaac99a2010, recvcount=28000, recvtype=0x2b0008198ea0,
+comm=0x16ad7420) at palltoall.c:84
+#9  0x00002b0007b8bc86 in mpi_alltoall_f (sendbuf=0x2aaac2b04010 "",
+sendcount=0x7fffd27806a0, 
+    sendtype=&lt;value optimized out&gt;, 
+    recvbuf=0x2aaac99a2010 "6%\177e\373\354\306&gt;\346\226z\262\347\350
+\260&gt;\032ya(\303\003\272\276\231\343\322\363zjþ\230\247i\232\307PԾ(\304
+\373\321D\261ľ\204֜Εh־H\266H\342l2\245\276\231C7]\003\250Ǿ`\277\231\272
+\265E\261&gt;j\213ѓ\370\002\263&gt;НØx.\254&gt;}\332-\313\371\326\320&gt;\346\245f
+\304\f\214\262\276\070\222zf#'\321&gt;\024\066̆\026\227ɾ.T\277\266}\366
+\270&gt;h|\323L\330\fƾ^z\214!q*\277\276pQ?O\346\067\270&gt;~\006\300",
+recvcount=0x7fffd27806a4, recvtype=0xb67490, 
+    comm=0x12d9ba0, ierr=0x7fffd27806a8) at palltoall_f.c:76
+#10 0x00000000004634cc in m_sumf_d_ ()
+#11 0x0000000000463072 in m_sum_z_ ()
+#12 0x00000000004c8a8b in mrg_grid_rc_ ()
+#13 0x00000000004ffc5e in rhosym_ ()
+#14 0x0000000000610dc6 in us_mp_set_charge_ ()
+#15 0x0000000000771c43 in elmin_ ()
+#16 0x0000000000453853 in MAIN__ ()
+#17 0x000000000042f15c in main ()
+
+On other processes:
+
+(gdb) bt
+#0  0x0000003692a0b725 in pthread_spin_lock ()
+from /lib64/libpthread.so.0
+#1  0x00002aaaaacdfa7b in ibv_cmd_create_qp ()
+from /usr/lib64/libmlx4-rdmav2.so
+#2  0x00002b9dc1db3ff8 in progress_one_device ()
+at /usr/include/infiniband/verbs.h:884
+#3  btl_openib_component_progress () at btl_openib_component.c:3451
+#4  0x00002b9dc24736ea in opal_progress () at
+runtime/opal_progress.c:207
+#5  0x00002b9dc1d51215 in opal_condition_wait (count=2,
+requests=0x7fffece3cc20, statuses=0x7fffece3cbf0)
+    at ../opal/threads/condition.h:99
+#6  ompi_request_default_wait_all (count=2, requests=0x7fffece3cc20,
+statuses=0x7fffece3cbf0) at request/req_wait.c:262
+#7  0x00002b9dc1de25b7 in ompi_coll_tuned_sendrecv_actual
+(sendbuf=0x2aaac2c4c210, scount=28000, 
+    sdatatype=0x2b9dc20faea0, dest=6, stag=-13, recvbuf=&lt;value optimized
+out&gt;, rcount=28000, rdatatype=0x2b9dc20faea0, 
+    source=10, rtag=-13, comm=0x1745b420, status=0x0) at
+coll_tuned_util.c:55
+#8  0x00002b9dc1de905f in ompi_coll_tuned_sendrecv (sbuf=0x2aaac2b04010,
+scount=28000, sdtype=0x2b9dc20faea0, 
+    rbuf=0x2aaac99a2010, rcount=28000, rdtype=0x2b9dc20faea0,
+comm=0x1745b420, module=0x1745c450)
+    at coll_tuned_util.h:60
+#9  ompi_coll_tuned_alltoall_intra_pairwise (sbuf=0x2aaac2b04010,
+scount=28000, sdtype=0x2b9dc20faea0, 
+    rbuf=0x2aaac99a2010, rcount=28000, rdtype=0x2b9dc20faea0,
+comm=0x1745b420, module=0x1745c450)
+    at coll_tuned_alltoall.c:70
+#10 0x00002b9dc1d6c71f in PMPI_Alltoall (sendbuf=0x2aaac2b04010,
+sendcount=28000, sendtype=0x2b9dc20faea0, 
+    recvbuf=0x2aaac99a2010, recvcount=28000, recvtype=0x2b9dc20faea0,
+comm=0x1745b420) at palltoall.c:84
+#11 0x00002b9dc1aedc86 in mpi_alltoall_f (sendbuf=0x2aaac2b04010 "",
+sendcount=0x7fffece3d020, 
+    sendtype=&lt;value optimized out&gt;, 
+    recvbuf=0x2aaac99a2010 "6%\177e\373\354\306&gt;\346\226z\262\347\350
+\260&gt;\032ya(\303\003\272\276\231\343\322\363zjþ\230\247i\232\307PԾ(\304
+\373\321D\261ľ\204֜Εh־H\266H\342l2\245\276\231C7]\003\250Ǿ`\277\231\272
+\265E\261&gt;j\213ѓ\370\002\263&gt;НØx.\254&gt;}\332-\313\371\326\320&gt;\346\245f
+\304\f\214\262\276\070\222zf#'\321&gt;\024\066̆\026\227ɾ.T\277\266}\366
+\270&gt;h|\323L\330\fƾ^z\214!q*\277\276pQ?O\346\067\270&gt;~\006\300",
+recvcount=0x7fffece3d024, recvtype=0xb67490, 
+    comm=0x12d9ba0, ierr=0x7fffece3d028) at palltoall_f.c:76
+#12 0x00000000004634cc in m_sumf_d_ ()
+#13 0x0000000000463072 in m_sum_z_ ()
+#14 0x00000000004c8a8b in mrg_grid_rc_ ()
+#15 0x00000000004ffc5e in rhosym_ ()
+#16 0x0000000000610dc6 in us_mp_set_charge_ ()
+#17 0x0000000000771c43 in elmin_ ()
+#18 0x0000000000453853 in MAIN__ ()
+#19 0x000000000042f15c in main ()
+
+
+I set up padb to collect a full report on the process and I've attached
+it to this message.  Let me know if I can provide anything further.
+
+Thanks,
+-Brian
+
+
+
+On Wed, 2010-07-21 at 10:07 -0400, Brian Smith wrote:
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">Hi, All,
+
+A couple of applications that I'm using -- VASP and Charmm -- end up
+"stuck" (for lack of a better word) during a waitall call after some
+non-blocking send/recv action.  This only happens when utilizing the
+openib btl.  I've followed a couple of bugs where this seemed to happen
+in some previous revisions and tried the work-arounds provided, but to
+no avail.  I'm going to try running against a previous version to see if
+its a regression of some sort, but this problem didn't seem to exist in
+1.4.1 until our systems were updated to OFED &gt;= 1.4.  Any suggestions
+besides the obvious, "well, down-grade from &gt;= 1.4"?  What additional
+info can I provide to help?
+
+Thanks,
+-Brian
+
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+  </pre>
+  <pre wrap=""><pre wrap="">
+<hr size="4" width="90%">
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></pre></pre>
+</blockquote>
+<br>
+<br>
+<div class="moz-signature">-- <br>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<title></title>
+<img moz-do-not-send="false"
+ src="cid:part1.03080402.05030203@oracle.com" alt="Oracle"><br>
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">Terry D. Dontje | Principal Software Engineer<br>
+<div class="moz-signature"><font color="#666666" face="Verdana" size="2">Developer
+Tools
+Engineering | +1.650.633.7054<br>
+</font>
+<font color="#ff0000" face="Verdana" size="2">Oracle
+</font><font color="#666666" face="Verdana" size="2"><b> - Performance
+Technologies</b></font><br>
+<font color="#666666" face="Verdana" size="2">
+95 Network Drive, Burlington, MA 01803<br>
+Email <a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+</font><br>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
+

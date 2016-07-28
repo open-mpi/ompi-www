@@ -1,0 +1,241 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+    On 11/16/2010 09:08 AM, Reuti wrote:
+    <blockquote
+      cite="mid:FD63572B-0523-4F08-9F74-52C9D8F517B1@staff.uni-marburg.de"
+      type="cite">
+      <pre wrap="">Hi,
+
+Am 16.11.2010 um 14:07 schrieb Ralph Castain:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Perhaps I'm missing it, but it seems to me that the real problem lies in the interaction between SGE and OMPI during OMPI's two-phase launch. The verbose output shows that SGE dutifully allocated the requested number of cores on each node. However, OMPI launches only one process on each node (the ORTE daemon), which SGE "binds" to a single core since that is what it was told to do.
+
+Since SGE never sees the local MPI procs spawned by ORTE, it can't assign bindings to them. The ORTE daemon senses its local binding (i.e., to a single core in the allocation), and subsequently binds all its local procs to that core.
+
+I believe all you need to do is tell SGE to:
+
+1. allocate a specified number of cores on each node to your job
+</pre>
+      </blockquote>
+      <pre wrap="">
+this is currently the bug in the "slot &lt;=&gt; core" relation in SGE, which has to be removed, updated or clarified. For now slot and core count are out of sync AFAICS.
+
+
+</pre>
+    </blockquote>
+    Technically this isn't a bug but a gap in the allocation rule.&nbsp; I
+    think the solution is a new allocation rule.<br>
+    <blockquote
+      cite="mid:FD63572B-0523-4F08-9F74-52C9D8F517B1@staff.uni-marburg.de"
+      type="cite">
+      <pre wrap=""></pre>
+      <blockquote type="cite">
+        <pre wrap="">2. have SGE bind procs it launches to -all- of those cores. I believe SGE does this automatically to constrain the procs to running on only those cores.
+</pre>
+      </blockquote>
+      <pre wrap="">
+This is another "bug/feature" in SGE: it's a matter of discussion, whether the shepherd should get exactly one core (in case you use more than one `qrsh`per node) for each call, or *all* cores assigned (which we need right now, as the processes in Open MPI will be forks of orte daemon). About such a situtation I filled an issue a long time ago and "limit_to_one_qrsh_per_host yes/no" in the PE definition would do (this setting should then also change the core allocation of the master process):
+
+<a class="moz-txt-link-freetext" href="http://gridengine.sunsource.net/issues/show_bug.cgi?id=1254">http://gridengine.sunsource.net/issues/show_bug.cgi?id=1254</a>
+</pre>
+    </blockquote>
+    Isn't it almost required to have the shepherd bind to all the cores
+    so that the orted inherits that binding?<br>
+    <blockquote
+      cite="mid:FD63572B-0523-4F08-9F74-52C9D8F517B1@staff.uni-marburg.de"
+      type="cite">
+      <pre wrap="">
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">3. tell OMPI to --bind-to-core.
+
+In other words, tell SGE to allocate a certain number of cores on each node, but to bind each proc to all of them (i.e., don't bind a proc to a specific core). I'm pretty sure that is a standard SGE option today (at least, I know it used to be). I don't believe any patch or devel work is required (to either SGE or OMPI).
+</pre>
+      </blockquote>
+      <pre wrap="">
+When you use a fixed allocation_rule and a matching -binding request it will work today. But any other case won't be distributed in the correct way.
+</pre>
+    </blockquote>
+    Ok, so what is the "correct" way and we sure it isn't distributed
+    correctly?<br>
+    <br>
+    In the original case of 7 nodes and processes if we do -binding pe
+    linear:2, and add the -bind-to-core to mpirun&nbsp; I'd actually expect 6
+    of the nodes processes bind to one core and the 7th node with 2
+    processes to have each of those processes bound to different cores
+    on the same machine.<br>
+    <br>
+    Can we get a full output of such a run with -report-bindings turned
+    on.&nbsp; I think we should find out that things actually are happening
+    correctly except for the fact that the 6 of the nodes have 2 cores
+    allocated but only one is being bound to by a process.<br>
+    <br>
+    --td<br>
+    <br>
+    <blockquote
+      cite="mid:FD63572B-0523-4F08-9F74-52C9D8F517B1@staff.uni-marburg.de"
+      type="cite">
+      <pre wrap="">
+-- Reuti
+
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">
+
+On Tue, Nov 16, 2010 at 4:07 AM, Reuti <a class="moz-txt-link-rfc2396E" href="mailto:reuti@staff.uni-marburg.de">&lt;reuti@staff.uni-marburg.de&gt;</a> wrote:
+Am 16.11.2010 um 10:26 schrieb Chris Jewell:
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Hi all,
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">On 11/15/2010 02:11 PM, Reuti wrote:
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">Just to give my understanding of the problem:
+</pre>
+              <blockquote type="cite">
+                <pre wrap="">
+</pre>
+                <blockquote type="cite">
+                  <blockquote type="cite">
+                    <pre wrap="">Sorry, I am still trying to grok all your email as what the problem you
+are trying to solve. So is the issue is trying to have two jobs having
+processes on the same node be able to bind there processes on different
+resources. Like core 1 for the first job and core 2 and 3 for the 2nd job?
+
+--td
+</pre>
+                  </blockquote>
+                </blockquote>
+              </blockquote>
+            </blockquote>
+            <pre wrap="">You can't get 2 slots on a machine, as it's limited by the core count to one here, so such a slot allocation shouldn't occur at all.
+</pre>
+          </blockquote>
+          <pre wrap="">
+So to clarify, the current -binding &lt;binding_strategy&gt;:&lt;binding_amount&gt; allocates binding_amount cores to each sge_shepherd process associated with a job_id.  There appears to be only one sge_shepherd process per job_id per execution node, so all child processes run on these allocated cores.  This is irrespective of the number of slots allocated to the node.
+
+I agree with Reuti that the binding_amount parameter should be a maximum number of bound cores per node, with the actual number determined by the number of slots allocated per node.  FWIW, an alternative approach might be to have another binding_type ('slot', say) that automatically allocated one core per slot.
+
+Of course, a complex situation might arise if a user submits a combined MPI/multithreaded job, but then I guess we're into the realm of setting allocation_rule.
+</pre>
+        </blockquote>
+        <pre wrap="">
+IIRC there was a discussion on the [GE users] list about it, to get an uniform distribution on all slave nodes for such jobs, as also e.g. $OMP_NUM_THREADS will be set to the same value for all slave nodes for hybrid jobs. Otherwise it would be necessary to adjust SGE to set this value in the "-builtin-" startup method automatically on all nodes to the local granted slots value. For now a fixed allocation rule of 1,2,4 or whatever must be used and you have to submit by reqeusting a wildcard PE to get any of these defined PEs for an even distribution and you don't care whether it's two times two slots, one time four slots, or four times one slot.
+
+In my understanding, any type of parallel job should always request and get the total number of slots equal to the cores it needs to execute. Independent whether these are threads, forks or any hybrid type of jobs. Otherwise any resource planing and reservation will most likely fail. Nevertheless, there might exist rare cases where you submit an exclusive serial job but create threads/forks in the end. But such a setup should be an exception, not the default.
+
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Is it going to be worth looking at creating a patch for this?
+</pre>
+        </blockquote>
+        <pre wrap="">
+Absolute.
+
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap=""> I don't know much of the internals of SGE -- would it be hard work to do?  I've not that much time to dedicate towards it, but I could put some effort in if necessary...
+</pre>
+        </blockquote>
+        <pre wrap="">
+I don't know about the exact coding for it, but when it's for now a plain "copy" of the binding list, then it should become a loop to create a list of cores from the original specification until all granted slots got a core allocated.
+
+-- Reuti
+
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">
+Chris
+
+
+--
+Dr Chris Jewell
+Department of Statistics
+University of Warwick
+Coventry
+CV4 7AL
+UK
+Tel: +44 (0)24 7615 0778
+
+
+
+
+
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+</pre>
+    </blockquote>
+    <br>
+    <br>
+    <div class="moz-signature">-- <br>
+      <meta http-equiv="content-type" content="text/html;
+        charset=ISO-8859-1">
+      <title></title>
+      <img src="cid:part1.01000808.05070702@oracle.com" alt="Oracle"><br>
+      Terry D. Dontje | Principal Software Engineer<br>
+      <font size="2" color="#666666" face="Verdana">Developer Tools
+        Engineering | +1.781.442.2631<br>
+      </font> <font size="2" color="#ff0000" face="Verdana">Oracle </font><font
+        size="2" color="#666666" face="Verdana"><b> - Performance
+          Technologies</b></font><br>
+      <font size="2" color="#666666" face="Verdana"> 95 Network Drive,
+        Burlington, MA 01803<br>
+        Email <a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+      </font>
+      <div class="moz-signature"><br>
+        <div class="moz-signature">
+          <div class="moz-signature">
+            <div class="moz-signature">
+              <div class="moz-signature">
+                <div class="moz-signature"> </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <br>
+        <br>
+      </div>
+    </div>
+  </body>
+</html>
+

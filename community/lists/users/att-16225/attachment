@@ -1,0 +1,14 @@
+Hello,<br><br>I am trying to better understand the semantics of passive synchronization in one-sided communication calls. Doesn&#39;t MPI_Win_unlock()<br>block to ensure that all the preceeding RMA calls in that epoch have been synced?<br>
+
+In that case, why is an undefined value returned when trying to load from a local window? (see below)<br><br>    MPI_Alloc_mem(128, MPI_INFO_NULL, &amp;ptr);<br>    MPI_Win_create(ptr, 128, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &amp;win);<br>
+
+<br>    // write to the target window of the head node<br>    if (rank == (size - 1)) {<br>        MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win);<br>        in = 10;<br>        MPI_Put(&amp;in, 1, MPI_INT, 0, 0, 1, MPI_INT, win);<br>
+
+        MPI_Win_unlock(0, win);<br>    } else {<br>        // busy wait<br>        start = MPI_Wtime();<br>        end = MPI_Wtime();<br>        while ((end - start) &lt; 1)<br>            end = MPI_Wtime();<br>    }<br>
+<br>
+    // read from the head node&#39;s window<br>    MPI_Win_lock(MPI_LOCK_EXCLUSIVE, 0, 0, win);<br>    MPI_Get(&amp;out, 1, MPI_INT, 0, 0, 1, MPI_INT, win);<br>    MPI_Win_unlock(0, win);<br><br>    MPI_Barrier(MPI_COMM_WORLD);<br>
+
+    printf(&quot;R%d: %d\n&quot;, rank, out);<br><br>The output of the above program with 1.5.3rc1 (and also with MPICH2 1.4rc2) is:<br>R2: 10<br>R1: 10<br>R0: 0<br><br>whereas I expect to see:<br>R2: 10<br>R1: 10<br>R0: 10<br>
+
+<br>Thanks,<br>Abhishek<br><br>
+

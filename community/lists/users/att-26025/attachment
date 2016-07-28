@@ -1,0 +1,121 @@
+<div dir="ltr">Hi Ben,<div><br></div><div>Would you mind checking if you still observe this deadlock condition if you use</div><div>the 1.8.4 rc4 candidate?</div><div><br></div><div><a href="http://www.open-mpi.org/software/ompi/v1.8/downloads/openmpi-1.8.4rc4.tar.gz" style="font-family:verdana,arial,helvetica;font-size:12px">openmpi-1.8.4rc4.tar.gz</a><br></div><div><br></div><div>I realize the behavior will likely be the same, but this is just to double check.</div><div><br></div><div>The Open MPI man page for MPI_Attr_get (hmm.. no MPI_Comm_attr_get man page,</div><div>needs to be fixed) says nothing about issues with recursion with respect to invoking</div><div>this function within an attribute delete callback, so I would treat this as a bug.</div><div><br></div><div>Thanks for your patience,</div><div><br></div><div>Howard</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-17 17:07 GMT-07:00 Ben Menadue <span dir="ltr">&lt;<a href="mailto:ben.menadue@nci.org.au" target="_blank">ben.menadue@nci.org.au</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi PETSc and OpenMPI teams,<br>
+<br>
+I&#39;m running into a deadlock in PETSc 3.4.5 with OpenMPI 1.8.3:<br>
+<br>
+ 1. PetscCommDestroy calls MPI_Attr_delete<br>
+ 2. MPI_Attr_delete acquires a lock<br>
+ 3. MPI_Attr_delete calls Petsc_DelComm_Outer (through a callback)<br>
+ 4. Petsc_DelComm_Outer calls MPI_Attr_get<br>
+ 5. MPI_Attr_get wants to also acquire the lock from step 2.<br>
+<br>
+Looking at the OpenMPI source code, it looks like you can&#39;t call an<br>
+MPI_Attr_* function from inside the registered deletion callback. The<br>
+OpenMPI source code notes that all of the functions acquire a global lock,<br>
+which is where the problem is coming from - here are the comments and the<br>
+lock definition, in ompi/attribute/attribute.c of OpenMPI 1.8.3:<br>
+<br>
+    404 /*<br>
+    405  * We used to have multiple locks for semi-fine-grained locking.<br>
+But<br>
+    406  * the code got complex, and we had to spend time looking for subtle<br>
+    407  * bugs.  Craziness -- MPI attributes are *not* high performance, so<br>
+    408  * just use a One Big Lock approach: there is *no* concurrent<br>
+access.<br>
+    409  * If you have the lock, you can do whatever you want and no data<br>
+will<br>
+    410  * change/disapear from underneath you.<br>
+    411  */<br>
+    412 static opal_mutex_t attribute_lock;<br>
+<br>
+To get it to work, I had to modify the definition of this lock to use a<br>
+recursive mutex:<br>
+<br>
+    412 static opal_mutex_t attribute_lock = { .m_lock_pthread =<br>
+PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP };<br>
+<br>
+but this is non-portable.<br>
+<br>
+Is the behaviour expected from new versions OpenMPI? In which case a new<br>
+approach might be needed in PETSc. Otherwise, maybe a per-attribute lock is<br>
+needed in OpenMPI - but I&#39;m not sure whether the get in the callback is on<br>
+the same attribute as is being deleted.<br>
+<br>
+Thanks,<br>
+Ben<br>
+<br>
+#0  0x00007fd7d5de4264 in __lll_lock_wait () from /lib64/libpthread.so.0<br>
+#1  0x00007fd7d5ddf508 in _L_lock_854 () from /lib64/libpthread.so.0<br>
+#2  0x00007fd7d5ddf3d7 in pthread_mutex_lock () from /lib64/libpthread.so.0<br>
+#3  0x00007fd7d27d91bc in ompi_attr_get_c () from<br>
+/apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+#4  0x00007fd7d2803f03 in PMPI_Attr_get () from<br>
+/apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+#5  0x00007fd7d7716006 in Petsc_DelComm_Outer (comm=0x7fd7d2a83b30,<br>
+keyval=128, attr_val=0x7fff00a20f00, extra_state=0xffffffffffffffff) at<br>
+pinit.c:406<br>
+#6  0x00007fd7d27d8cad in ompi_attr_delete_impl () from<br>
+/apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+#7  0x00007fd7d27d8f2f in ompi_attr_delete () from<br>
+/apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+#8  0x00007fd7d2803dfc in PMPI_Attr_delete () from<br>
+/apps/openmpi/1.8.3/lib/libmpi.so.1<br>
+#9  0x00007fd7d78bf5c5 in PetscCommDestroy (comm=0x7fd7d2a83b30) at<br>
+tagm.c:256<br>
+#10 0x00007fd7d7506f58 in PetscHeaderDestroy_Private (h=0x7fd7d2a83b30) at<br>
+inherit.c:114<br>
+#11 0x00007fd7d75038a0 in ISDestroy (is=0x7fd7d2a83b30) at index.c:225<br>
+#12 0x00007fd7d75029b7 in PCReset_ILU (pc=0x7fd7d2a83b30) at ilu.c:42<br>
+#13 0x00007fd7d77a9baa in PCReset (pc=0x7fd7d2a83b30) at precon.c:81<br>
+#14 0x00007fd7d77a99ae in PCDestroy (pc=0x7fd7d2a83b30) at precon.c:117<br>
+#15 0x00007fd7d7557c1a in KSPDestroy (ksp=0x7fd7d2a83b30) at itfunc.c:788<br>
+#16 0x00007fd7d91cdcca in linearSystemPETSc&lt;double&gt;::~linearSystemPETSc<br>
+(this=0x7fd7d2a83b30) at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Solver/li<br>
+nearSystemPETSc.hpp:73<br>
+#17 0x00007fd7d8ddb63b in GFaceCompound::parametrize (this=0x7fd7d2a83b30,<br>
+step=128, tom=10620672) at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Geo/GFace<br>
+Compound.cpp:1672<br>
+#18 0x00007fd7d8dda0fe in GFaceCompound::parametrize (this=0x7fd7d2a83b30)<br>
+at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Geo/GFace<br>
+Compound.cpp:916<br>
+#19 0x00007fd7d8f98b0e in checkMeshCompound (gf=0x7fd7d2a83b30, edges=...)<br>
+at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/mesh<br>
+GFace.cpp:2588<br>
+#20 0x00007fd7d8f95c7e in meshGenerator (gf=0xd13020, RECUR_ITER=0,<br>
+repairSelfIntersecting1dMesh=true, onlyInitialMesh=false, debug=false,<br>
+replacement_edges=0x0)<br>
+    at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/mesh<br>
+GFace.cpp:1075<br>
+#21 0x00007fd7d8f9a41e in meshGFace::operator() (this=0x7fd7d2a83b30,<br>
+gf=0x80, print=false) at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/mesh<br>
+GFace.cpp:2562<br>
+#22 0x00007fd7d8f8c327 in Mesh2D (m=0x7fd7d2a83b30) at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/Gene<br>
+rator.cpp:407<br>
+#23 0x00007fd7d8f8ad0b in GenerateMesh (m=0x7fd7d2a83b30, ask=128) at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Mesh/Gene<br>
+rator.cpp:641<br>
+#24 0x00007fd7d8e43126 in GModel::mesh (this=0x7fd7d2a83b30, dimension=128)<br>
+at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Geo/GMode<br>
+l.cpp:535<br>
+#25 0x00007fd7d8c1acd2 in GmshBatch () at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Common/Gm<br>
+sh.cpp:240<br>
+#26 0x000000000040187a in main (argc=-760726736, argv=0x80) at<br>
+/short/z00/bjm900/build/fluidity/intel15-ompi183/gmsh-2.8.5-source/Common/Ma<br>
+in.cpp:27<br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26018.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26018.php</a><br>
+</blockquote></div></div>
+

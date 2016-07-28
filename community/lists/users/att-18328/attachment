@@ -1,0 +1,51 @@
+Dear Jeff,<div><br></div><div>I have very interesting news. I recompiled OpenMPI 1.4.4 enabling the memchecker. </div><div><br></div><div>Now the warning on strcmp is disappeared also without buffers initializations using memset!</div>
+<div><br></div><div>So the warning is a false positive? My simple code is safe?</div><div><br></div><div>Thanks.<br><br><div class="gmail_quote">2012/1/28 Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span><br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im">On Jan 28, 2012, at 5:22 AM, Gabriele Fatigati wrote:<br>
+<br>
+&gt; I had the same idea so my simple code I have already done calloc and memset ..<br>
+&gt;<br>
+&gt; The same warning still appear using strncmp that should exclude uninitialized bytes on hostnam_recv_buf :(<br>
+<br>
+</div>Bummer.<br>
+<div class="im"><br>
+&gt; My apologize for being so insistent, but I would understand if there is some bug in MPI_Allgather, strcmp or Valgrind itself.<br>
+<br>
+</div>Understood.<br>
+<br>
+I still think that MPI_Allgather will exactly send the bytes starting at the buffer you specify, regardless of whether they include \0 or not.<br>
+<br>
+I was unable to replicate the valgrind warning on my systems.  A few more things to try:<br>
+<br>
+1. Are you using the latest version of Valgrind?<br>
+<br>
+2. (I should have asked this before - sorry!) Are you using InfiniBand to transmit the data across your network?  If so, Valgrind might not have visibility on the receive buffers being filled because IB, by its nature, uses OS bypass to fill in receive buffers.  Meaning: Valgrind won&#39;t &quot;see&quot; the receive buffers getting filled, and therefore will think that they are uninitialized.  If you re-run your experiment with TCP and/or shared memory (like I did), you won&#39;t see the Valgrind uninitialized warnings.<br>
+
+<br>
+To avoid these OS-bypass issues, you might try installing Open MPI with --with-valgrind=DIR (DIR = directory where Valgrind is installed -- we need valgrind.h, IIRC).  What this does is allow Open MPI to use Valgrind&#39;s external tools API to say &quot;don&#39;t worry Valgrind, the entire contents of this buffer are initialized&quot; in cases exactly like this.<br>
+
+<br>
+There is a performance cost to using Valgrind integration, though.  So don&#39;t make this your production copy of Open MPI.<br>
+<br>
+3. Do a for loop accessing each position of the buffer *before* you send it.  Not just up to the \0, but traverse the *entire length* of the buffer and do some meaningless action with each byte.  See if Valgrind complains.  If it doesn&#39;t, you know for certain that the entire source buffer is not the origin of the warning.<br>
+
+<br>
+4. Similarly, do a loop accessing each position of the received buffer.  You can have Valgrind attach a debugger when it runs into issues; with that, you can see exactly which position Valgrind thinks is uninitialized.  Compare the value that was sent to the value that was received and ensure that they are the same.<br>
+
+<br>
+Hope that helps!<br>
+<div class="HOEnZb"><div class="h5"><br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to:<br>
+<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Ing. Gabriele Fatigati<br><br>HPC specialist<br><br>SuperComputing Applications and Innovation Department<br><br>Via Magnanelli 6/3, Casalecchio di Reno (BO) Italy<br>
+<br><a href="http://www.cineca.it" target="_blank">www.cineca.it</a>                    Tel:   +39 051 6171722<br><br>g.fatigati [AT] <a href="http://cineca.it" target="_blank">cineca.it</a>           <br>
+</div>
+

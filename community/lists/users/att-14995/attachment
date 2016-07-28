@@ -1,0 +1,146 @@
+Hi,<div><br></div><div>First of all thanks for your insight !</div><div><br></div><div><b>Do you get a corefile?</b></div><div>I don&#39;t get a core file, but I get a file called _FIL001. It doesn&#39;t contain any debugging symbols. It&#39;s most likely a digested version of the input file given to the executable : <font class="Apple-style-span" face="&#39;courier new&#39;, monospace">./myexec &lt; inputfile</font>.</div>
+<div><br></div><div><b>there&#39;s no line numbers printed in the stack trace</b></div><div>I would love to see those, but even if I compile openmpi with <font class="Apple-style-span" face="&#39;courier new&#39;, monospace">-debug -mem-debug -mem-profile</font>, they don&#39;t show up. I recompiled my sources to be sure to properly link them to the newly debugged version of openmpi. I assumed I didn&#39;t need to compile my own sources with <font class="Apple-style-span" face="&#39;courier new&#39;, monospace">-g</font> option since it crashes in openmpi itself ? I didn&#39;t try to run mpiexec via gdb either, I guess it wont help since I already get the trace.</div>
+<div><br></div><div><b>the -fdefault-integer-8 options ought to be highly dangerous</b></div><div>Thanks for noting. Indeed I had some issues with this option. For instance I have to declare some arguments as <font class="Apple-style-span" face="&#39;courier new&#39;, monospace">INTEGER*4</font> like <font class="Apple-style-span" face="&#39;courier new&#39;, monospace">RANK</font>,<font class="Apple-style-span" face="&#39;courier new&#39;, monospace">SIZE</font>,<font class="Apple-style-span" face="&#39;courier new&#39;, monospace">IERR</font> in :</div>
+<div><font class="Apple-style-span" face="&#39;courier new&#39;, monospace">CALL MPI_COMM_RANK(MPI_COMM_WORLD,RANK,IERR)<meta http-equiv="content-type" content="text/html; charset=utf-8"></font></div><div><div><font class="Apple-style-span" face="&#39;courier new&#39;, monospace">CALL MPI_COMM_SIZE(MPI_COMM_WORLD,SIZE,IERR)</font></div>
+<div>In your example &quot;<font class="Apple-style-span" face="&#39;courier new&#39;, monospace">call MPI_Send(buf, count, MPI_INTEGER, dest, tag, MPI_COMM_WORLD, mpierr)</font>&quot; I checked that <font class="Apple-style-span" face="&#39;courier new&#39;, monospace">count</font> is never bigger than 2000 (as you mentioned it could flip to the negative). However I haven&#39;t declared it as <font class="Apple-style-span" face="&#39;courier new&#39;, monospace">INTEGER*4</font><font class="Apple-style-span" face="arial, helvetica, sans-serif"> and I think I should.</font></div>
+<div>When I said &quot;I had to raise the number of data strucutures to be sent&quot;, I meant that I had to call MPI_SEND many more times, not that buffers were bigger than before.</div></div><div><br></div><div><meta http-equiv="content-type" content="text/html; charset=utf-8">I&#39;ll get back to you with more info when I&#39;ll be able to fix my connexion problem to the cluster...</div>
+<div><br></div><div>Thanks,</div><div>Benjamin</div><div><br><div class="gmail_quote">2010/12/3 Martin Siegert <span dir="ltr">&lt;<a href="mailto:siegert@sfu.ca">siegert@sfu.ca</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+Hi All,<br>
+<br>
+just to expand on this guess ...<br>
+<div class="im"><br>
+On Thu, Dec 02, 2010 at 05:40:53PM -0500, Gus Correa wrote:<br>
+&gt; Hi All<br>
+&gt;<br>
+&gt; I wonder if configuring OpenMPI while<br>
+&gt; forcing the default types to non-default values<br>
+&gt; (-fdefault-integer-8 -fdefault-real-8) might have<br>
+&gt; something to do with the segmentation fault.<br>
+&gt; Would this be effective, i.e., actually make the<br>
+&gt; the sizes of MPI_INTEGER/MPI_INT and MPI_REAL/MPI_FLOAT bigger,<br>
+&gt; or just elusive?<br>
+<br>
+</div>I believe what happens is that this mostly affects the fortran<br>
+wrapper routines and the way Fortran variables are mapped to C:<br>
+<br>
+MPI_INTEGER -&gt; MPI_LONG<br>
+MPI_FLOAT   -&gt; MPI_DOUBLE<br>
+MPI_DOUBLE_PRECISION -&gt; MPI_DOUBLE<br>
+<br>
+In that respect I believe that the -fdefault-real-8 option is harmless,<br>
+i.e., it does the expected thing.<br>
+But the -fdefault-integer-8 options ought to be highly dangerous:<br>
+It works for integer variables that are used as &quot;buffer&quot; arguments<br>
+in MPI statements, but I would assume that this does not work for<br>
+&quot;count&quot; and similar arguments.<br>
+Example:<br>
+<br>
+integer, allocatable :: buf(*,*)<br>
+integer i, count, dest, tag, mpierr<br>
+<br>
+i = 32768<br>
+i2 = 2*i<br>
+allocate(buf(i,i2))<br>
+count = i*i2<br>
+buf = 1<br>
+call MPI_Send(buf, count, MPI_INTEGER, dest, tag, MPI_COMM_WORLD, mpierr)<br>
+<br>
+Now count is 2^31 which overflows a 32bit integer.<br>
+The MPI standard requires that count is a 32bit integer, correct?<br>
+Thus while buf gets the type MPI_LONG, count remains an int.<br>
+Is this interpretation correct? If it is, then you are calling<br>
+MPI_Send with a count argument of -2147483648.<br>
+Which could result in a segmentation fault.<br>
+<br>
+Cheers,<br>
+Martin<br>
+<font color="#888888"><br>
+--<br>
+Martin Siegert<br>
+Head, Research Computing<br>
+WestGrid/ComputeCanada Site Lead<br>
+IT Services                                phone: 778 782-4691<br>
+Simon Fraser University                    fax:   778 782-4242<br>
+Burnaby, British Columbia                  email: <a href="mailto:siegert@sfu.ca">siegert@sfu.ca</a><br>
+Canada  V5A 1S6<br>
+</font><div><div></div><div class="h5"><br>
+&gt; There were some recent discussions here about MPI<br>
+&gt; limiting counts to MPI_INTEGER.<br>
+&gt; Since Benjamin said he &quot;had to raise the number of data structures&quot;,<br>
+&gt; which eventually led to the the error,<br>
+&gt; I wonder if he is inadvertently flipping to negative integer<br>
+&gt; side of the 32-bit universe (i.e. &gt;= 2**31), as was reported here by<br>
+&gt; other list subscribers a few times.<br>
+&gt;<br>
+&gt; Anyway, segmentation fault can come from many different places,<br>
+&gt; this is just a guess.<br>
+&gt;<br>
+&gt; Gus Correa<br>
+&gt;<br>
+&gt; Jeff Squyres wrote:<br>
+&gt; &gt;Do you get a corefile?<br>
+&gt; &gt;<br>
+&gt; &gt;It looks like you&#39;re calling MPI_RECV in Fortran and then it segv&#39;s.  This is *likely* because you&#39;re either passing a bad parameter or your buffer isn&#39;t big enough.  Can you double check all your parameters?<br>
+
+&gt; &gt;<br>
+&gt; &gt;Unfortunately, there&#39;s no line numbers printed in the stack trace, so it&#39;s not possible to tell exactly where in the ob1 PML it&#39;s dying (i.e., so we can&#39;t see exactly what it&#39;s doing to cause the segv).<br>
+
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;On Dec 2, 2010, at 9:36 AM, Benjamin Toueg wrote:<br>
+&gt; &gt;<br>
+&gt; &gt;&gt;Hi,<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;I am using DRAGON, a neutronic simulation code in FORTRAN77 that has its own datastructures. I added a module to send these data structures thanks to MPI_SEND / MPI_RECEIVE, and everything worked perfectly for a while.<br>
+
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;Then I had to raise the number of data structures to be sent up to a point where my cluster has this bug :<br>
+&gt; &gt;&gt;*** Process received signal ***<br>
+&gt; &gt;&gt;Signal: Segmentation fault (11)<br>
+&gt; &gt;&gt;Signal code: Address not mapped (1)<br>
+&gt; &gt;&gt;Failing at address: 0x2c2579fc0<br>
+&gt; &gt;&gt;[ 0] /lib/libpthread.so.0 [0x7f52d2930410]<br>
+&gt; &gt;&gt;[ 1] /home/toueg/openmpi/lib/openmpi/mca_pml_ob1.so [0x7f52d153fe03]<br>
+&gt; &gt;&gt;[ 2] /home/toueg/openmpi/lib/libmpi.so.0(PMPI_Recv+0x2d2) [0x7f52d3504a1e]<br>
+&gt; &gt;&gt;[ 3] /home/toueg/openmpi/lib/libmpi_f77.so.0(pmpi_recv_+0x10e) [0x7f52d36cf9c6]<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;How can I make this error more explicit ?<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;I use the following configuration of openmpi-1.4.3 :<br>
+&gt; &gt;&gt;./configure --enable-debug --prefix=/home/toueg/openmpi CXX=g++ CC=gcc F77=gfortran FC=gfortran FLAGS=&quot;-m64 -fdefault-integer-8 -fdefault-real-8 -fdefault-double-8&quot; FCFLAGS=&quot;-m64 -fdefault-integer-8 -fdefault-real-8 -fdefault-double-8&quot; --disable-mpi-f90<br>
+
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;Here is the output of mpif77 -v :<br>
+&gt; &gt;&gt;mpif77 for 1.2.7 (release) of : 2005/11/04 11:54:51<br>
+&gt; &gt;&gt;Driving: f77 -L/usr/lib/mpich-mpd/lib -v -lmpich-p4mpd -lpthread -lrt -lfrtbegin -lg2c -lm -shared-libgcc<br>
+&gt; &gt;&gt;Lecture des spécification à partir de /usr/lib/gcc/x86_64-linux-gnu/3.4.6/specs<br>
+&gt; &gt;&gt;Configuré avec: ../src/configure -v --enable-languages=c,c++,f77,pascal --prefix=/usr --libexecdir=/usr/lib --with-gxx-include-dir=/usr/include/c++/3.4 --enable-shared --with-system-zlib --enable-nls --without-included-gettext --program-suffix=-3.4 --enable-__cxa_atexit --enable-clocale=gnu --enable-libstdcxx-debug x86_64-linux-gnu<br>
+
+&gt; &gt;&gt;Modèle de thread: posix<br>
+&gt; &gt;&gt;version gcc 3.4.6 (Debian 3.4.6-5)<br>
+&gt; &gt;&gt; /usr/lib/gcc/x86_64-linux-gnu/3.4.6/collect2 --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 /usr/lib/gcc/x86_64-linux-gnu/3.4.6/../../../../lib/crt1.o /usr/lib/gcc/x86_64-linux-gnu/3.4.6/../../../../lib/crti.o /usr/lib/gcc/x86_64-linux-gnu/3.4.6/crtbegin.o -L/usr/lib/mpich-mpd/lib -L/usr/lib/gcc/x86_64-linux-gnu/3.4.6 -L/usr/lib/gcc/x86_64-linux-gnu/3.4.6 -L/usr/lib/gcc/x86_64-linux-gnu/3.4.6/../../../../lib -L/usr/lib/gcc/x86_64-linux-gnu/3.4.6/../../.. -L/lib/../lib -L/usr/lib/../lib -lmpich-p4mpd -lpthread -lrt -lfrtbegin -lg2c -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-linux-gnu/3.4.6/crtend.o /usr/lib/gcc/x86_64-linux-gnu/3.4.6/../../../../lib/crtn.o<br>
+
+&gt; &gt;&gt;/usr/lib/gcc/x86_64-linux-gnu/3.4.6/../../../../lib/libfrtbegin.a(frtbegin.o): dans la fonction ▒ main ▒:<br>
+&gt; &gt;&gt;(.text+0x1e): référence indéfinie vers ▒ MAIN__ ▒<br>
+&gt; &gt;&gt;collect2: ld a retourné 1 code d&#39;état d&#39;exécution<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;Thanks,<br>
+&gt; &gt;&gt;Benjamin<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;_______________________________________________<br>
+&gt; &gt;&gt;users mailing list<br>
+&gt; &gt;&gt;<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt;&gt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></div></blockquote></div><br></div>
+

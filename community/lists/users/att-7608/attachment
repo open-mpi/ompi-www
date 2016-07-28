@@ -1,0 +1,36 @@
+please refer to following code, which sends data to root from multiple cour<br><br><div><br></div><div><span class="Apple-style-span" style="border-collapse: collapse; ">There is only one receive, so it receives only one message.&nbsp; When you specify the element count for the receive, you&#39;re only specifying the size of the buffer into which the message will be received.&nbsp; Only after the message has been received can you inquire how big the message actually was.<br>
+<br>Here is an example:<div class="Ih2E3d" style="color: rgb(80, 0, 80); "><br><br>% cat a.c<br>#include &lt;stdio.h&gt;<br>#include &lt;mpi.h&gt;<br><br>int main(int argc, char **argv) {<br></div>&nbsp; int np, me, peer, value;<div class="Ih2E3d" style="color: rgb(80, 0, 80); ">
+<br><br>&nbsp; MPI_Init(&amp;argc,&amp;argv);<br>&nbsp; MPI_Comm_size(MPI_COMM_WORLD,&amp;np);<br>&nbsp; MPI_Comm_rank(MPI_COMM_WORLD,&amp;me);<br><br></div>&nbsp; value = me * me + 1;<br>&nbsp; if ( me == 0 ) {<br>&nbsp;&nbsp;&nbsp; for ( peer = 0; peer &lt; np; peer++ ) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if ( peer != 0 ) MPI_Recv(&amp;value,1,MPI_INT,peer,343,MPI_COMM_WORLD,MPI_STATUS_IGNORE);<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printf(&quot;peer %d had value %d\n&quot;, peer, value);<br>&nbsp;&nbsp;&nbsp; }<br>&nbsp; }<br>&nbsp; else MPI_Send(&amp;value,1,MPI_INT,0,343,MPI_COMM_WORLD);<br>
+<br>&nbsp; MPI_Finalize();<br><br>&nbsp; return 0;<br>}<br>% mpirun -np 3 a.out<br>peer 0 had value 1<br>peer 1 had value 2<br>peer 2 had value 5<br>%<br><br>Alternatively,<div class="Ih2E3d" style="color: rgb(80, 0, 80); "><br><br>
+#include &lt;stdio.h&gt;<br>#include &lt;mpi.h&gt;<br><br></div>#define MAXNP 1024<div class="Ih2E3d" style="color: rgb(80, 0, 80); "><br>int main(int argc, char **argv) {<br></div>&nbsp; int np, me, peer, value, values[MAXNP];<div class="Ih2E3d" style="color: rgb(80, 0, 80); ">
+<br><br>&nbsp; MPI_Init(&amp;argc,&amp;argv);<br>&nbsp; MPI_Comm_size(MPI_COMM_WORLD,&amp;np);<br></div>&nbsp; if ( np &gt; MAXNP ) MPI_Abort(MPI_COMM_WORLD,-1);<div class="Ih2E3d" style="color: rgb(80, 0, 80); "><br>&nbsp; MPI_Comm_rank(MPI_COMM_WORLD,&amp;me);<br>
+</div>&nbsp; value = me * me + 1;<br><br>&nbsp; MPI_Gather(&amp;value, 1, MPI_INT,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; values, 1, MPI_INT, 0, MPI_COMM_WORLD);<br><br>&nbsp; if ( me == 0 )<br>&nbsp;&nbsp;&nbsp; for ( peer = 0; peer &lt; np; peer++ )<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; printf(&quot;peer %d had value %d\n&quot;, peer, values[peer]);<br>
+<br>&nbsp; MPI_Finalize();<br>&nbsp; return 0;<br>}<br>% mpirun -np 3 a.out<br>peer 0 had value 1<br>peer 1 had value 2<br>peer 2 had value 5<br>%</span><br><div class="gmail_quote">On Sun, Dec 28, 2008 at 7:45 PM, Jack Bryan <span dir="ltr">&lt;<a href="mailto:dtustudy68@hotmail.com" target="_blank">dtustudy68@hotmail.com</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+
+<div>
+HI, <br><br>I need to transfer data from multiple sources to one destination. <br>The requirement is:<br><br>(1) The sources and destination nodes may work asynchronously.<br>&nbsp;<br>(2) Each source node generates data package in their own paces.<br>
+
+&nbsp;&nbsp;&nbsp; And, there may be many packages to send. Whenever, a data package <br>&nbsp;&nbsp;&nbsp; is generated , it should be sent to the desination node at once.<br>&nbsp;&nbsp;&nbsp; And then, the source node continue to work on generating the next <br>
+&nbsp;&nbsp;&nbsp; package. <br>
+<br>(3) There is only one destination node , which must receive all data <br>&nbsp;&nbsp;&nbsp; package generated from the source nodes. <br>&nbsp;&nbsp;&nbsp; Because the source and destination nodes may work asynchronously,<br>&nbsp;&nbsp;&nbsp; the destination node should not wait for a specific source node until <br>
+
+&nbsp;&nbsp;&nbsp; the source node sends out its data. <br><br>&nbsp;&nbsp;&nbsp; The destination node should be able to receive data package <br>&nbsp;&nbsp;&nbsp; from anyone source node whenever the data package is available in a <br>&nbsp;&nbsp;&nbsp; source node. <br><br>My question is :<br>
+
+<br>What MPI function should be used to implement the protocol above ? <br><br>If I use MPI_Send/Recv, they are blocking function. The destination<br>node have to wait for one node until its data is available. <br><br>The communication overhead is too high. <br>
+
+<br>If I use MPI_Bsend, the destination node has to use MPI_Recv to , <br>a Blocking receive for a message .<br><br>This can make the destination node wait for only one source node and <br>actually other source nodes may have data avaiable. <br>
+
+<br><br>Any help or comment is appreciated !!!<br><br>thanks<br><br>Dec. 28 2008<br><div><br><br><hr>It&#39;s the same Hotmail&reg;. If by &quot;same&quot; you mean up to 70% faster. <a href="http://windowslive.com/online/hotmail?ocid=TXT_TAGLM_WL_hotmail_acq_broad1_122008" target="_blank">Get your account now.</a></div>
+
+</div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br>
+</div>
+

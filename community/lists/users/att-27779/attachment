@@ -1,0 +1,185 @@
+Marcin,<div><br></div><div>could you give a try at v1.10.1rc1 that was released today ?</div><div>it fixes a bug when hwloc was trying to bind outside the cpuset.</div><div><br></div><div>Ralph and all,</div><div><br></div><div>imho, there are several issues here</div><div>- if slurm allocates threads instead of core, then the --oversubscribe mpirun option could be mandatory</div><div>- with --oversubscribe --hetero-nodes, mpirun should not fail, and if it still fails with v1.10.1rc1, I will ask some more details in order to fix ompi</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Saturday, October 3, 2015, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Thanks Marcin. Looking at this, I’m guessing that Slurm may be treating HTs as “cores” - i.e., as independent cpus. Any chance that is true?<br>
+<br>
+I’m wondering because bind-to core will attempt to bind your proc to both HTs on the core. For some reason, we thought that 8.24 were HTs on the same core, which is why we tried to bind to that pair of HTs. We got an error because HT #24 was not allocated to us on node c6, but HT #8 was.<br>
+<br>
+<br>
+&gt; On Oct 3, 2015, at 2:43 AM, marcin.krotkiewski &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;marcin.krotkiewski@gmail.com&#39;)">marcin.krotkiewski@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Hi, Ralph,<br>
+&gt;<br>
+&gt; I submit my slurm job as follows<br>
+&gt;<br>
+&gt; salloc --ntasks=64 --mem-per-cpu=2G --time=1:0:0<br>
+&gt;<br>
+&gt; Effectively, the allocated CPU cores are spread amount many cluster nodes. SLURM uses cgroups to limit the CPU cores available for mpi processes running on a given cluster node. Compute nodes are 2-socket, 8-core E5-2670 systems with HyperThreading on<br>
+&gt;<br>
+&gt; node 0 cpus: 0 1 2 3 4 5 6 7 16 17 18 19 20 21 22 23<br>
+&gt; node 1 cpus: 8 9 10 11 12 13 14 15 24 25 26 27 28 29 30 31<br>
+&gt; node distances:<br>
+&gt; node   0   1<br>
+&gt;  0:  10  21<br>
+&gt;  1:  21  10<br>
+&gt;<br>
+&gt; I run MPI program with command<br>
+&gt;<br>
+&gt; mpirun  --report-bindings --bind-to core -np 64 ./affinity<br>
+&gt;<br>
+&gt; The program simply runs sched_getaffinity for each process and prints out the result.<br>
+&gt;<br>
+&gt; -----------<br>
+&gt; TEST RUN 1<br>
+&gt; -----------<br>
+&gt; For this particular job the problem is more severe: openmpi fails to run at all with error<br>
+&gt;<br>
+&gt; --------------------------------------------------------------------------<br>
+&gt; Open MPI tried to bind a new process, but something went wrong.  The<br>
+&gt; process was killed without launching the target application.  Your job<br>
+&gt; will now abort.<br>
+&gt;<br>
+&gt;  Local host:        c6-6<br>
+&gt;  Application name:  ./affinity<br>
+&gt;  Error message:     hwloc_set_cpubind returned &quot;Error&quot; for bitmap &quot;8,24&quot;<br>
+&gt;  Location:          odls_default_module.c:551<br>
+&gt; --------------------------------------------------------------------------<br>
+&gt;<br>
+&gt; This is SLURM environment variables:<br>
+&gt;<br>
+&gt; SLURM_JOBID=12712225<br>
+&gt; SLURM_JOB_CPUS_PER_NODE=&#39;3(x2),2,1(x3),2(x2),1,3(x3),5,1,4,1,3,2,3,7,1,5,6,1&#39;<br>
+&gt; SLURM_JOB_ID=12712225<br>
+&gt; SLURM_JOB_NODELIST=&#39;c6-[3,6-8,12,14,17,22-23],c8-[4,7,9,17,20,28],c15-[5,10,18,20,22-24,28],c16-11&#39;<br>
+&gt; SLURM_JOB_NUM_NODES=24<br>
+&gt; SLURM_JOB_PARTITION=normal<br>
+&gt; SLURM_MEM_PER_CPU=2048<br>
+&gt; SLURM_NNODES=24<br>
+&gt; SLURM_NODELIST=&#39;c6-[3,6-8,12,14,17,22-23],c8-[4,7,9,17,20,28],c15-[5,10,18,20,22-24,28],c16-11&#39;<br>
+&gt; SLURM_NODE_ALIASES=&#39;(null)&#39;<br>
+&gt; SLURM_NPROCS=64<br>
+&gt; SLURM_NTASKS=64<br>
+&gt; SLURM_SUBMIT_DIR=/cluster/home/marcink<br>
+&gt; SLURM_SUBMIT_HOST=login-0-2.local<br>
+&gt; SLURM_TASKS_PER_NODE=&#39;3(x2),2,1(x3),2(x2),1,3(x3),5,1,4,1,3,2,3,7,1,5,6,1&#39;<br>
+&gt;<br>
+&gt; There is also a lot of warnings like<br>
+&gt;<br>
+&gt; [compute-6-6.local:20158] MCW rank 4 is not bound (or bound to all available processors)<br>
+&gt;<br>
+&gt;<br>
+&gt; -----------<br>
+&gt; TEST RUN 2<br>
+&gt; -----------<br>
+&gt;<br>
+&gt; In another allocation I got a different error<br>
+&gt;<br>
+&gt; --------------------------------------------------------------------------<br>
+&gt; A request was made to bind to that would result in binding more<br>
+&gt; processes than cpus on a resource:<br>
+&gt;<br>
+&gt;   Bind to:     CORE<br>
+&gt;   Node:        c6-19<br>
+&gt;   #processes:  2<br>
+&gt;   #cpus:       1<br>
+&gt;<br>
+&gt; You can override this protection by adding the &quot;overload-allowed&quot;<br>
+&gt; option to your binding directive.<br>
+&gt; --------------------------------------------------------------------------<br>
+&gt;<br>
+&gt; and the allocation was the following<br>
+&gt;<br>
+&gt; SLURM_JOBID=12712250<br>
+&gt; SLURM_JOB_CPUS_PER_NODE=&#39;3(x2),2,1,15,1,3,16,2,1,3(x2),2,5,4&#39;<br>
+&gt; SLURM_JOB_ID=12712250<br>
+&gt; SLURM_JOB_NODELIST=&#39;c6-[3,6-8,12,14,17,19,22-23],c8-[4,7,9,17,28]&#39;<br>
+&gt; SLURM_JOB_NUM_NODES=15<br>
+&gt; SLURM_JOB_PARTITION=normal<br>
+&gt; SLURM_MEM_PER_CPU=2048<br>
+&gt; SLURM_NNODES=15<br>
+&gt; SLURM_NODELIST=&#39;c6-[3,6-8,12,14,17,19,22-23],c8-[4,7,9,17,28]&#39;<br>
+&gt; SLURM_NODE_ALIASES=&#39;(null)&#39;<br>
+&gt; SLURM_NPROCS=64<br>
+&gt; SLURM_NTASKS=64<br>
+&gt; SLURM_SUBMIT_DIR=/cluster/home/marcink<br>
+&gt; SLURM_SUBMIT_HOST=login-0-2.local<br>
+&gt; SLURM_TASKS_PER_NODE=&#39;3(x2),2,1,15,1,3,16,2,1,3(x2),2,5,4&#39;<br>
+&gt;<br>
+&gt;<br>
+&gt; If in this case I run on only 32 cores<br>
+&gt;<br>
+&gt; mpirun  --report-bindings --bind-to core -np 32 ./affinity<br>
+&gt;<br>
+&gt; the process starts, but I get the original binding problem:<br>
+&gt;<br>
+&gt; [compute-6-8.local:31414] MCW rank 8 is not bound (or bound to all available processors)<br>
+&gt;<br>
+&gt; Running with --hetero-nodes yields exactly the same results<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; Hope the above is useful. The problem with binding under SLURM with CPU cores spread over nodes seems to be very reproducible. It is actually very often that OpenMPI dies with some error like above. These tests were run with openmpi-1.8.8 and 1.10.0, both giving same results.<br>
+&gt;<br>
+&gt; One more suggestion. The warning message (MCW rank 8 is not bound...) is ONLY displayed when I use --report-bindings. It is never shown if I leave out this option, and although the binding is wrong the user is not notified. I think it would be better to show this warning in all cases binding fails.<br>
+&gt;<br>
+&gt; Let me know if you need more information. I can help to debug this - it is a rather crucial issue.<br>
+&gt;<br>
+&gt; Thanks!<br>
+&gt;<br>
+&gt; Marcin<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; On 10/02/2015 11:49 PM, Ralph Castain wrote:<br>
+&gt;&gt; Can you please send me the allocation request you made (so I can see what you specified on the cmd line), and the mpirun cmd line?<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks<br>
+&gt;&gt; Ralph<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; On Oct 2, 2015, at 8:25 AM, Marcin Krotkiewski &lt;<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;marcin.krotkiewski@gmail.com&#39;)">marcin.krotkiewski@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Hi,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I fail to make OpenMPI bind to cores correctly when running from within SLURM-allocated CPU resources spread over a range of compute nodes in an otherwise homogeneous cluster. I have found this thread<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2014/06/24682.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/06/24682.php</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; and did try to use what Ralph suggested there (--hetero-nodes), but it does not work (v. 1.10.0). When running with --report-bindings I get messages like<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; [compute-9-11.local:27571] MCW rank 10 is not bound (or bound to all available processors)<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; for all ranks outside of my first physical compute node. Moreover, everything works as expected if I ask SLURM to assign entire compute nodes. So it does look like Ralph&#39;s diagnose presented in that thread is correct, just the --hetero-nodes switch does not work for me.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I have written a short code that uses sched_getaffinity to print the effective bindings: all MPI ranks except of those on the first node are bound to all CPU cores allocated by SLURM.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Do I have to do something except of --hetero-nodes, or is this a problem that needs further investigation?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Thanks a lot!<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Marcin<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;users@open-mpi.org&#39;)">users@open-mpi.org</a><br>
+&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/10/27770.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/10/27770.php</a><br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;users@open-mpi.org&#39;)">users@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/10/27774.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/10/27774.php</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;users@open-mpi.org&#39;)">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/10/27776.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/10/27776.php</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="javascript:;" onclick="_e(event, &#39;cvml&#39;, &#39;users@open-mpi.org&#39;)">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/10/27778.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/10/27778.php</a></blockquote></div>
+

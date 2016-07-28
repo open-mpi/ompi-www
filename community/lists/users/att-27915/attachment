@@ -1,0 +1,108 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Eric,<br>
+    <br>
+    #1 MPI_Igather uses only one MPI_Request, and it is marked as
+    completed when all data has been received.<br>
+    so no, you cannot process data as it is received.<br>
+    (and btw, that would require extra subroutines to ask which piece of
+    data has already been received)<br>
+    <br>
+    #2 maybe not ...<br>
+    a tree based approach has O(log(n)) scaling<br>
+    (compared to O(n) scaling with your linear method.<br>
+    so at scale, MPI_Igather will hopefully scale better (and especially
+    if you are transmitting small messages)<br>
+    <br>
+    #3 difficult question ...<br>
+    first, keep in mind there is currently no progress thread in Open
+    MPI. that means messages can be received only when MPI_Wait* or
+    MPI_Test* is invoked. you might hope messages are received when
+    doing some computation (overlap of computation and communication)
+    but unfortunatly, that does not happen most of the time.<br>
+    <br>
+    linear gather does not scale well (see my previous comment) plus you
+    openmpi might malloc some space "under the hood" so MPI_Igather will
+    hopefully scale better.<br>
+    is there any hard reason why you are using non blocking collective ?<br>
+    if your application is known to be highly asynchronous and some
+    message might arrive (way) later than others, and computation is
+    quite expensive, then your approach might be a good fit.<br>
+    if your application is pretty synchronous, and cost of computation
+    that might overlap with communication is not significant, your
+    approach might have little benefits and poor scalability, so
+    MPI_Gather (not MPI_Igather since you might have no computation that
+    could overlap with communication) might be a better choice.<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <div class="moz-cite-prefix">On 10/22/2015 4:46 AM, Eric Chamberland
+      wrote:<br>
+    </div>
+    <blockquote cite="mid:5627EB91.7090100@giref.ulaval.ca" type="cite">Hi,
+      <br>
+      <br>
+      A long time ago (in 2002) we programmed here a non-blocking
+      MPI_Igather with equivalent calls to MPI_Isend/MPI_Irecv (see the
+      2 attached files).
+      <br>
+      <br>
+      A very convenient advantage of this version, is that I can do some
+      work on the root process as soon as it start receiving data... 
+      Then, it wait for the next communication to terminate and process
+      the received data.
+      <br>
+      <br>
+      Now, I am looking at MPI_Igather (and all non-blocking collective
+      MPI calls), and I am somewhat surprised (or ignorant) that I
+      cannot have the root rank receive some data, then process it, then
+      wait until the next "MPI_irecv" terminate...
+      <br>
+      <br>
+      In other words, a MPI_Igather generate only 1 MPI_Request but I
+      would like to have either "p" (with p = size of communicator)
+      MPI_Request generated or be able to call "p" times MPI_WaitAny
+      with the same MPI_Request...  Am I normal? :)
+      <br>
+      <br>
+      So my 3 questions are:
+      <br>
+      <br>
+      #1- Is there a way to use MPI_Igather with MPI_WaitAny (or
+      something else?) to process data as it is received?
+      <br>
+      <br>
+      #2- Big question: will our implementation with MPI_Isend/MPI_Irecv
+      scale to a large number of processes?  What are the possible
+      drawbacks of doing it like we did?
+      <br>
+      <br>
+      #3- Why should I replace our implementation by the native
+      MPI_Igather?
+      <br>
+      <br>
+      Thanks!
+      <br>
+      <br>
+      Eric
+      <br>
+      <br>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/10/27914.php">http://www.open-mpi.org/community/lists/users/2015/10/27914.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

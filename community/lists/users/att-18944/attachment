@@ -1,0 +1,151 @@
+Hi, <div><br></div><div>I am not quite sure what does that mean. Can you please explain more.</div><div><br></div><div>Thanks<br><br><div class="gmail_quote">On Wed, Apr 4, 2012 at 10:47 PM, Jeffrey Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Do you have multiple IP interfaces on a single machine on the same IP subnet, perchance?<br>
+<br>
+If so, don&#39;t do that.  :-)  Put each of your IP addresses in a different IP subnet.<br>
+<div><div class="h5"><br>
+<br>
+On Apr 3, 2012, at 10:30 PM, Rohan Deshpande wrote:<br>
+<br>
+&gt; Hi,<br>
+&gt;<br>
+&gt; I am running a MPI program using cluster and tcp communication.<br>
+&gt;<br>
+&gt; To run I am using:  mpirun --prefix /usr/local/ --mca btl tcp,self --hostfile slaves -np 6 scatter<br>
+&gt;<br>
+&gt;<br>
+&gt; I am getting following output:<br>
+&gt;<br>
+&gt; Process 0 on host host1 has elements 0 1 2 3<br>
+&gt; Process 1 on host host1 has elements 4 5 6 7<br>
+&gt; Process 2 on host host1 has elements 8 9 10 11<br>
+&gt; Process 3 on host host1 has elements 12 <a href="tel:13%2014%2015" value="+61131415">13 14 15</a><br>
+&gt; [slave1][[24708,1],5][btl_tcp_endpoint.c:486:mca_btl_tcp_endpoint_recv_connect_ack] received unexpected process identifier [[24708,1],4]<br>
+&gt;<br>
+&gt; When trying to communicate with slave1 i get received unexpected process identifier error.<br>
+&gt;<br>
+&gt; My PATH and LD_LIBRARY_PATH are correctly set in .bashrc file.<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; Source code -<br>
+&gt;<br>
+&gt;<br>
+&gt; #include &lt;stdlib.h&gt;<br>
+&gt; #include &lt;stdio.h&gt;<br>
+&gt; #include &quot;mpi.h&quot;<br>
+&gt; #define MAXPROC 8    /* Max number of procsses */<br>
+&gt; #define LENGTH 24    /* length of buffer */<br>
+&gt;<br>
+&gt; int main(int argc, char* argv[]) {<br>
+&gt;   int i, j, np, me;<br>
+&gt;   const int nametag  = 40;    /* Tag value for sending name */<br>
+&gt;   const int datatag  = 45;    /* Tag value for sending data */<br>
+&gt;   const int root = 0;         /* Root process in scatter */<br>
+&gt;   MPI_Status status;          /* Status object for receive */<br>
+&gt;<br>
+&gt;   char myname[MPI_MAX_PROCESSOR_NAME];       /* Local host name string */<br>
+&gt;   char hostname[MAXPROC][MPI_MAX_PROCESSOR_NAME];  /* Received host names */<br>
+&gt;   int namelen;<br>
+&gt;<br>
+&gt;   int x[LENGTH];        /* Send buffer */<br>
+&gt;   int y[LENGTH];        /* Receive buffer */<br>
+&gt;<br>
+&gt;   MPI_Init(&amp;argc, &amp;argv);                /* Initialize MPI */<br>
+&gt;   MPI_Comm_size(MPI_COMM_WORLD, &amp;np);    /* Get nr of processes */<br>
+&gt;   MPI_Comm_rank(MPI_COMM_WORLD, &amp;me);    /* Get own identifier */<br>
+&gt;<br>
+&gt;   MPI_Get_processor_name(myname, &amp;namelen);  /* Get host name */<br>
+&gt;   myname[namelen++] = (char)0;               /* Terminating null byte */<br>
+&gt;<br>
+&gt;   /* Check that we have an even number of processes and at most MAXPROC */<br>
+&gt;   if (np&gt;MAXPROC || np%2 != 0) {<br>
+&gt;     if (me == 0) {<br>
+&gt;       printf(&quot;You have to use an even number of processes (at most %d)\n&quot;, MAXPROC);<br>
+&gt;     }<br>
+&gt;     MPI_Finalize();<br>
+&gt;     exit(0);<br>
+&gt;   }<br>
+&gt;<br>
+&gt;   if (me == 0) {    /* Process 0 does this */<br>
+&gt;<br>
+&gt;     /* Initialize the array x with values 0 .. LENGTH-1 */<br>
+&gt;     for (i=0; i&lt;LENGTH; i++) {<br>
+&gt;       x[i] = i;<br>
+&gt;     }<br>
+&gt;<br>
+&gt;     printf(&quot;Process %d on host %s is distributing array x to all %d processes\n\n&quot;,<br>
+&gt;        me, myname, np);<br>
+&gt;<br>
+&gt;     /* Scatter the array x to all proceses, place it in y */<br>
+&gt;     MPI_Scatter(x, LENGTH/np, MPI_INT, y, LENGTH/np, MPI_INT, root,<br>
+&gt;         MPI_COMM_WORLD);<br>
+&gt;<br>
+&gt;     /* Print out own portion of the scattered array */<br>
+&gt;     printf(&quot;Process %d on host %s has elements&quot;, me, myname);<br>
+&gt;     for (i=0; i&lt;LENGTH/np; i++) {<br>
+&gt;       printf(&quot; %d&quot;, y[i]);<br>
+&gt;     }<br>
+&gt;     printf(&quot;\n&quot;);<br>
+&gt;<br>
+&gt;     /* Receive messages with hostname and the scattered data */<br>
+&gt;     /* from all other processes */<br>
+&gt;     for (i=1; i&lt;np; i++) {<br>
+&gt;       MPI_Recv (hostname[i], namelen, MPI_CHAR, i, nametag, MPI_COMM_WORLD,<br>
+&gt;         &amp;status);<br>
+&gt;       MPI_Recv (y, LENGTH/np, MPI_INT, i, datatag, MPI_COMM_WORLD, &amp;status);<br>
+&gt;       printf(&quot;Process %d on host %s has elements&quot;, i, hostname[i]);<br>
+&gt;       for (j=0; j&lt;LENGTH/np; j++) {<br>
+&gt;     printf(&quot; %d&quot;, y[j]);<br>
+&gt;       }<br>
+&gt;       printf(&quot;\n&quot;);<br>
+&gt;     }<br>
+&gt;<br>
+&gt;     printf(&quot;Ready\n&quot;);<br>
+&gt;<br>
+&gt;<br>
+&gt;   } else { /* all other processes do this */<br>
+&gt;<br>
+&gt;     /* Receive the scattered array from process 0, place it in array y */<br>
+&gt;     MPI_Scatter(x, LENGTH/np, MPI_INT, y, LENGTH/np, MPI_INT, root, \<br>
+&gt;         MPI_COMM_WORLD);<br>
+&gt;     /* Send own name back to process 0 */<br>
+&gt;     MPI_Send (myname, namelen, MPI_CHAR, 0, nametag, MPI_COMM_WORLD);<br>
+&gt;     /* Send the received array back to process 0 */<br>
+&gt;     MPI_Send (y, LENGTH/np, MPI_INT, 0, datatag, MPI_COMM_WORLD);<br>
+&gt;<br>
+&gt;   }<br>
+&gt;<br>
+&gt;   MPI_Finalize();<br>
+&gt;   exit(0);<br>
+&gt; }<br>
+&gt;<br>
+&gt; Any idea what could be wrong?<br>
+&gt;<br>
+&gt;<br>
+&gt; Thanks<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+</div></div>&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<span class="HOEnZb"><font color="#888888"><br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</font></span></blockquote></div><br><br clear="all"><div><br></div>-- <br><div><span style="font-size:13px;border-collapse:collapse"><font color="#000099" face="verdana, sans-serif"><br><font>Best Regards,</font></font></span></div>
+<div><span style="font-size:13px;border-collapse:collapse"><font face="verdana, sans-serif"><font color="#000099"><br>ROHAN DESHPANDE</font><font>  </font></font></span></div><div><span style="font-size:13px"><br><font color="#666666" face="georgia, serif"><br>
+</font></span></div><br>
+</div>
+

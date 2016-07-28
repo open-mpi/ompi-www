@@ -1,0 +1,155 @@
+Thanks for the response. The output I receive is:<br><br>mpirun -n 4 mpihello.exe<br><br>Master says, Flag: 1 MyID: 0<br>Master says, Flag2: 2 MyID: 0<br> Slave:            1<br> Slave:            2<br> Slave:            3<br>
+Master says, Flag: 1 MyID: 0<br>Slave says, Flag: 1 MyID: 0<br>Slave says, Flag: 1 MyID: 0<br>Master says, Flag2: 2 MyID: 0<br>Slave says, Flag2: 0 MyID: 0<br>Slave says, Flag2: 0 MyID: 0<br>Master says, Flag: 1 MyID: 0<br>
+Slave says, Flag: 1 MyID: 0<br>Master says, Flag2: 2 MyID: 0<br>Slave says, Flag2: 0 MyID: 0<br><br>So after the first mpi_rcv, the myid changes. This occurs on two Windows 7 64 bit machines. I compiled this on one machine, with the environment I described previously and the other I just have OpenMPI installed and ran the .exe using mpirun as shown above.<br>
+<br>And if I compile the same code with openMPI uninstalled, but using. Microsoft MPI, it works as you would expect.<br><br>-Amorgan<br><br><div class="gmail_quote">On Fri, Apr 6, 2012 at 9:25 AM, Jeffrey Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">The output from that program looks fine to me on Linux:<br>
+<br>
+[6:25] svbu-mpi:~/mpi % mpirun -np 4 hello<br>
+ Slave:            1<br>
+ Slave:            2<br>
+Slave says, Flag: 1 MyID: 2<br>
+Slave says, Flag2: 2 MyID: 2<br>
+ Slave:            3<br>
+Slave says, Flag: 1 MyID: 3<br>
+Slave says, Flag2: 2 MyID: 3<br>
+Master says, Flag: 1 MyID: 0<br>
+Master says, Flag2: 2 MyID: 0<br>
+Master says, Flag: 1 MyID: 0<br>
+Master says, Flag2: 2 MyID: 0<br>
+Master says, Flag: 1 MyID: 0<br>
+Master says, Flag2: 2 MyID: 0<br>
+Slave says, Flag: 1 MyID: 1<br>
+Slave says, Flag2: 2 MyID: 1<br>
+<br>
+Shiqing -- can you verify on Windows?<br>
+<div><div class="h5"><br>
+<br>
+On Apr 5, 2012, at 6:15 PM, Anton Morgan wrote:<br>
+<br>
+&gt; Some things to add. I installed Microsoft MPI and this issue did not occur and gave me the correct rank/myid numbers when running this program. So it seems something might be incorrect in Open MPI. I would still like to use Open MPI, so I would like to help and see a resolution to this.<br>
+
+&gt;<br>
+&gt; Also to add in the example Makefile. change pikaia to mpihello to make correctly.<br>
+&gt;<br>
+&gt; Thanks.<br>
+&gt;<br>
+&gt; On Thu, Apr 5, 2012 at 3:39 PM, Anton Morgan &lt;<a href="mailto:amorgan.cartech@gmail.com">amorgan.cartech@gmail.com</a>&gt; wrote:<br>
+&gt; My setup is kinda convoluted unfortunately so this also might be an issue, but just keep that in the back of your mind for now and assume that is not the problem. I am using Windows 7 64-bit, with cygwin and compiling using x86_64-w64-mingw32-gfortran and installed open MPI via OpenMPI_v1.5.5-1_win64.exe. I have compiled and ran some mpi test programs I made, but first time using the mpi_send and mpi_recv commands I ran into this error, or what seems to be an error to me.<br>
+
+&gt;<br>
+&gt; Back story: I am trying to run Parallel Pikaia, which is an open source Genetics Algorithm in Fortran that uses MPI. It should run out of the box fine, but it does run all processes properly. So I started to troubleshoot and found that after the first mpi_recv command on the slaves, the myid changes to 0, but right before the command it is the appropriate myid/rank. So I made a simple fortran code to test if it was Pikaia or MPI and it shows to be MPI.<br>
+
+&gt;<br>
+&gt; Fortran Code:<br>
+&gt; c ----------------------------------------------<br>
+&gt;<br>
+&gt;       program mpi_hello<br>
+&gt;<br>
+&gt;       implicit none<br>
+&gt;<br>
+&gt;       include &#39;mpif.h&#39;<br>
+&gt;<br>
+&gt;       integer ierr,myid,nproc,rc,flag,nrank,rank<br>
+&gt;       integer status(MPI_STATUS_SIZE), flag2<br>
+&gt;<br>
+&gt; c ----------------------------------------------<br>
+&gt; c     Initialize MPI<br>
+&gt; c ----------------------------------------------<br>
+&gt;       call mpi_init( ierr )<br>
+&gt;       call mpi_comm_rank( MPI_COMM_WORLD, myid, ierr )<br>
+&gt;       call mpi_comm_size( MPI_COMM_WORLD, nproc, ierr )<br>
+&gt;       nrank=nproc-1<br>
+&gt;<br>
+&gt; c ----------------------------------------------<br>
+&gt; c Master portion<br>
+&gt; c ----------------------------------------------<br>
+&gt;       if (myid.eq.0) then<br>
+&gt;          flag=1<br>
+&gt;          flag2=2<br>
+&gt; c send two integers to all slaves<br>
+&gt;          do rank=1,nrank<br>
+&gt;          call mpi_send( flag, 1, MPI_INTEGER, rank,<br>
+&gt;      +               1, MPI_COMM_WORLD, ierr )<br>
+&gt;          print 8, flag, myid<br>
+&gt;    8     format(&#39;Master says, Flag: &#39;,i0.1, &#39; MyID: &#39;, i0.1)<br>
+&gt;          call mpi_send( flag2, 1, MPI_INTEGER, rank,<br>
+&gt;      +               1, MPI_COMM_WORLD, ierr )<br>
+&gt;          print 10, flag2, myid<br>
+&gt;    10    format(&#39;Master says, Flag2: &#39;,i0.1, &#39; MyID: &#39;, i0.1)<br>
+&gt;          enddo<br>
+&gt; c ----------------------------------------------<br>
+&gt; c Slave portion<br>
+&gt; c ----------------------------------------------<br>
+&gt;       elseif (myid.ne.0) then<br>
+&gt; c to see ID before mpi_rcv<br>
+&gt;          print *, &#39;Slave: &#39;, myid<br>
+&gt;          call mpi_recv( flag, 1, MPI_INTEGER, 0,<br>
+&gt;      +               1, MPI_COMM_WORLD, status, ierr )<br>
+&gt; c check myid after recv which turns to 0 on my environment<br>
+&gt;          print 9, flag, myid<br>
+&gt;    9     format(&#39;Slave says, Flag: &#39;,i0.1, &#39; MyID: &#39;, i0.1)<br>
+&gt;          call mpi_recv( flag2, 1, MPI_INTEGER, 0,<br>
+&gt;      +               1, MPI_COMM_WORLD, status, ierr )<br>
+&gt;          print 11, flag2, myid<br>
+&gt;    11    format(&#39;Slave says, Flag2: &#39;,i0.1, &#39; MyID: &#39;, i0.1)<br>
+&gt;       endif<br>
+&gt;<br>
+&gt;       call mpi_finalize(rc)<br>
+&gt;       stop<br>
+&gt;       end<br>
+&gt; c ----------------------------------------------<br>
+&gt;<br>
+&gt; Simple makefile for my environment:<br>
+&gt; #<br>
+&gt; # MPI makefile<br>
+&gt; #<br>
+&gt; #INSTALL_DIR = ./<br>
+&gt; F77        = x86_64-w64-mingw32-gfortran<br>
+&gt; # Progra~2 because it is located in Program Files (x86)<br>
+&gt; LIB        = -L/cygdrive/c/Progra~2/OpenMPI_v1.5.5-x64/bin<br>
+&gt; INCLUDE    = -I/cygdrive/c/Progra~2/OpenMPI_v1.5.5-x64/include<br>
+&gt; FFLAGS    =<br>
+&gt; MAKE    = make<br>
+&gt; SHELL    = /bin/sh<br>
+&gt; #<br>
+&gt; ### End User configurable options ###<br>
+&gt;<br>
+&gt; SRC1    = mpihello<br>
+&gt; OBJS    = $(SRC1).o<br>
+&gt;<br>
+&gt; pikaia : $(OBJS)<br>
+&gt;     $(F77) $(FFLAGS) -o mpihello $(OBJS) $(LIB) -lmpi_f77<br>
+&gt; #    rm -f *.o<br>
+&gt;<br>
+&gt; $(SRC1).o : $(SRC1).f<br>
+&gt;     $(F77) $(FFLAGS) $(INCLUDE) -c $(SRC1).f<br>
+&gt;<br>
+&gt; So I am wondering if this is something that is an issue with the current build of openMPI , if I am missing something or if it&#39;s my convoluted environment. Attached is the source and makefile of what is above and then my built .exe and a libgcc_s_sjlj-1.dll to run the .exe.<br>
+
+&gt;<br>
+&gt; Thank you for the help<br>
+&gt;<br>
+&gt; --<br>
+&gt; AMorgan<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+<br>
+</div></div>&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<span class="HOEnZb"><font color="#888888"><br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</font></span></blockquote></div><br><br clear="all"><br>-- <br><b>AMorgan</b><br><br>
+

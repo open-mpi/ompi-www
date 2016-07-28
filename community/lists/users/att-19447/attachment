@@ -1,0 +1,36 @@
+<div>Hello,<br><br>I am not sure, if my code is correct according to Open MPI(v1.6). the
+ code is given as follows, I am doing MPI one-sided communication inside
+ a function - data_transfer. this function is being called inside a 
+fence epoch. inside data_transfer, I am allocating memory for 
+non-contiguous data, creating derived data type, using this datatype in 
+MPI_Accumulate, and after calling MPI_Accumulate, freeing the indexed 
+data type and also freeing the memory containing indices for indexed 
+data type. is it okay that I am freeing memory for derived datatype before the closing 
+fence?<br><br>I am getting segmentation fault with this code. if I comment out the MPI_Accumulate call, then no seg-fault occurs. <br><br><br></div><div><div>void data_transfer(void *data, int 
+*sources_disp, int *targets_disp, int *target, int size, int *blength, 
+int func, MPI_Op op, MPI_Win win, MPI_Datatype dtype){</div><div><br></div><div><span style="white-space:pre-wrap">	</span>int i,j, index;</div>
+<div><span style="white-space:pre-wrap">	</span>int tmp_target;</div><div><span style="white-space:pre-wrap">	</span>int *flag;</div><div><span style="white-space:pre-wrap">	</span>int *source_disp;</div>
+<div><span style="white-space:pre-wrap">	</span>int *target_disp;</div><div><span style="white-space:pre-wrap">	</span>MPI_Datatype source_type, target_type;</div><div><span style="white-space:pre-wrap">	</span></div>
+<div><span style="white-space:pre-wrap">	</span></div><div><span style="white-space:pre-wrap">	</span>MPI_Alloc_mem( size*sizeof(int), MPI_INFO_NULL, &amp;source_disp);</div><div><span style="white-space:pre-wrap">	</span>MPI_Alloc_mem( size*sizeof(int), MPI_INFO_NULL, &amp;target_disp);</div>
+
+<div><span style="white-space:pre-wrap">	</span>MPI_Alloc_mem( size*sizeof(int), MPI_INFO_NULL, &amp;flag );</div><div><br></div><div><span style="white-space:pre-wrap">	</span>memset(flag, 0, size*sizeof(int));</div>
+<div><br></div><div><span style="white-space:pre-wrap">	</span>for(i=0;i&lt;size;i++){</div><div><span style="white-space:pre-wrap">		</span>if(flag[i]==0){</div><div><span style="white-space:pre-wrap">			</span>tmp_target = target[i];</div>
+
+<div><span style="white-space:pre-wrap">	</span></div><div><span style="white-space:pre-wrap">			</span>index = 0;</div><div><span style="white-space:pre-wrap">			</span>for(j=i; j&lt;size; j++){</div>
+<div><span style="white-space:pre-wrap">				</span>if(flag[j]==0 &amp;&amp; tmp_target == target[j] ){</div><div><span style="white-space:pre-wrap">					</span>source_disp[index] = sources_disp[j];</div>
+<div><span style="white-space:pre-wrap">					</span>target_disp[index] = targets_disp[j];</div><div><span style="white-space:pre-wrap">					</span>//printf(&quot;src, target disp %d  %d\n&quot;, j, disp[j]);</div>
+<div><span style="white-space:pre-wrap">					</span>index++;</div><div><span style="white-space:pre-wrap">					</span>flag[j] = 1;</div><div><span style="white-space:pre-wrap">				</span> }</div>
+<div><span style="white-space:pre-wrap">			</span>}</div><div><br></div><div><span style="white-space:pre-wrap">			</span>MPI_Type_indexed(index, blength , source_disp, dtype, &amp;source_type);</div>
+<div><span style="white-space:pre-wrap">			</span>MPI_Type_commit(&amp;source_type);</div><div><span style="white-space:pre-wrap">			</span>MPI_Type_indexed(index, blength , target_disp, dtype, &amp;target_type);</div>
+<div><span style="white-space:pre-wrap">			</span>MPI_Type_commit(&amp;target_type);</div><div><span style="white-space:pre-wrap">			</span></div><div><span style="white-space:pre-wrap">			</span></div>
+<div><span style="white-space:pre-wrap">			</span>MPI_Accumulate( data, 1, source_type, tmp_target, 0, 1, target_type , op, win);</div><div><br></div><div><span style="white-space:pre-wrap">			</span>MPI_Type_free(&amp;source_type);</div>
+
+<div><span style="white-space:pre-wrap">			</span>MPI_Type_free(&amp;target_type);</div><div><span style="white-space:pre-wrap">		</span>}</div><div><span style="white-space:pre-wrap">	</span>}</div>
+<div><span style="white-space:pre-wrap">	</span>MPI_Free_mem(source_disp);</div><div><span style="white-space:pre-wrap">	</span>MPI_Free_mem(target_disp);</div><div><span style="white-space:pre-wrap">	</span>MPI_Free_mem(flag);</div>
+
+<div><br></div><div>}</div><div><br></div><div>void main(){</div><div><span style="white-space:pre-wrap">	</span>int i;</div><div><span style="white-space:pre-wrap">	</span>while(i&lt;N){</div>
+<div><span style="white-space:pre-wrap">			</span> MPI_Win_fence(MPI_MODE_NOPRECEDE, queue2_win);</div><div><span style="white-space:pre-wrap">			</span> </div><div><span style="white-space:pre-wrap">			</span> data_transfer();</div>
+
+<div><span style="white-space:pre-wrap">			</span> </div><div><span style="white-space:pre-wrap">			</span> MPI_Win_fence(MPI_MODE_NOSUCCEED, queue2_win);</div><div><span style="white-space:pre-wrap">	</span>}</div>
+<div>}<br><br>thanks,<br>Ziaul<br></div></div>
+

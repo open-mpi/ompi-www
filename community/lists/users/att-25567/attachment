@@ -1,0 +1,1930 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Siegmar,<br>
+      <br>
+      how did you configure openmpi ? which java version did you use ?<br>
+      <br>
+      i just found a regression and you currently have to explicitly add<br>
+      CFLAGS=-D_REENTRANT CPPFLAGS=-D_REENTRANT<br>
+      to your configure command line<br>
+      <br>
+      if you want to debug this issue (i cannot reproduce it on a
+      solaris 11 x86 virtual machine)<br>
+      you can apply the attached patch, and make sure you configure with
+      --enable-debug and run<br>
+      <br>
+      OMPI_ATTACH=1 mpiexec -n 1 java InitFinalizeMain<br>
+      <br>
+      then you will need to attach the *java* process with gdb, set the
+      _dbg local variable to zero and continue<br>
+      you should get a clean stack trace and hopefully we will be able
+      to help<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/10/24 0:03, Siegmar Gross wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:201410231503.s9NF3kaa015578@tyr.informatik.hs-fulda.de"
+      type="cite">
+      <pre wrap="">Hello Oscar,
+
+do you have time to look into my problem? Probably Takahiro has a
+point and gdb behaves differently on Solaris and Linux, so that
+the differing outputs have no meaning. I tried to debug my Java
+program, but without success so far, because I wasn't able to get
+into the Java program to set a breakpoint or to see the code. Have
+you succeeded to debug a mpiJava program? If so, how must I call
+gdb (I normally use "gdb mipexec" and then "run -np 1 java ...")?
+What can I do to get helpful information to track the error down?
+I have attached the error log file. Perhaps you can see if something
+is going wrong with the Java interface. Thank you very much for your
+help and any hints for the usage of gdb with mpiJava in advance.
+Please let me know if I can provide anything else.
+
+
+Kind regards
+
+Siegmar
+
+
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre wrap="">I think that it must have to do with MPI, because everything
+works fine on Linux and my Java program works fine with an older
+MPI version (openmpi-1.8.2a1r31804) as well.
+</pre>
+        </blockquote>
+        <pre wrap="">
+Yes. I also think it must have to do with MPI.
+But java process side, not mpiexec process side.
+
+When you run Java MPI program via mpiexec, a mpiexec process
+process launch a java process. When the java process (your
+Java program) calls a MPI method, native part (written in C/C++)
+of the MPI library is called. It runs in java process, not in
+mpiexec process. I suspect that part.
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">On Solaris things are different.
+</pre>
+        </blockquote>
+        <pre wrap="">
+Are you saying the following difference?
+After this line,
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">881             ORTE_ACTIVATE_JOB_STATE(jdata, ORTE_JOB_STATE_INIT);
+</pre>
+        </blockquote>
+        <pre wrap="">Linux shows
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">orte_job_state_to_str (state=1)
+    at ../../openmpi-dev-124-g91e9686/orte/util/error_strings.c:217
+217         switch(state) {
+</pre>
+        </blockquote>
+        <pre wrap="">but Solaris shows
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:122
+122         if (NULL == name) {
+</pre>
+        </blockquote>
+        <pre wrap="">
+Each macro is defined as:
+
+#define ORTE_ACTIVATE_JOB_STATE(j, s)                                   \
+    do {                                                                \
+        orte_job_t *shadow=(j);                                         \
+        opal_output_verbose(1, orte_state_base_framework.framework_output, \
+                            "%s ACTIVATE JOB %s STATE %s AT %s:%d",	\
+                            ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),         \
+                            (NULL == shadow) ? "NULL" :                 \
+                            ORTE_JOBID_PRINT(shadow-&gt;jobid),		\
+                            orte_job_state_to_str((s)),                 \
+                            __FILE__, __LINE__);			\
+        orte_state.activate_job_state(shadow, (s));                     \
+    } while(0);
+
+#define ORTE_NAME_PRINT(n) \
+    orte_util_print_name_args(n)
+
+#define ORTE_JOBID_PRINT(n) \
+    orte_util_print_jobids(n)
+
+I'm not sure, but I think the gdb on Solaris steps into
+orte_util_print_name_args, but gdb on Linux doesn't step into
+orte_util_print_name_args and orte_util_print_jobids for some
+reason, or orte_job_state_to_str is evaluated before them.
+
+So I think it's not an important difference.
+
+You showed the following lines.
+</pre>
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">orterun (argc=5, argv=0xffffffff7fffe0d8)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/tools/orterun/orterun.c:1084
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">1084        while (orte_event_base_active) {
+(gdb) 
+1085            opal_event_loop(orte_event_base, OPAL_EVLOOP_ONCE);
+(gdb) 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+        <pre wrap="">
+I'm not familiar with this code but I think this part (in mpiexec
+process) is only waiting the java process to terminate (normally
+or abnormally). So I think the problem is not in a mpiexec process
+but in a java process.
+
+Regards,
+Takahiro
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Hi Takahiro,
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">mpiexec and java run as distinct processes. Your JRE message
+says java process raises SEGV. So you should trace the java
+process, not the mpiexec process. And more, your JRE message
+says the crash happened outside the Java Virtual Machine in
+native code. So usual Java program debugger is useless.
+You should trace native code part of the java process.
+Unfortunately I don't know how to debug such one.
+</pre>
+          </blockquote>
+          <pre wrap="">
+I think that it must have to do with MPI, because everything
+works fine on Linux and my Java program works fine with an older
+MPI version (openmpi-1.8.2a1r31804) as well.
+
+linpc1 x 112 mpiexec -np 1 java InitFinalizeMain
+Hello!
+linpc1 x 113 
+
+Therefore I single stepped through the program on Linux as well
+and found a difference launching the process. On Linux I get the
+following sequence.
+
+Breakpoint 1, rsh_launch (jdata=0x614aa0)
+    at 
+</pre>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../../openmpi-dev-124-g91e9686/orte/mca/plm/rsh/plm_rsh_module.c:876
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre wrap="">876         if (ORTE_FLAG_TEST(jdata, ORTE_JOB_FLAG_RESTART)) {
+(gdb) s
+881             ORTE_ACTIVATE_JOB_STATE(jdata, ORTE_JOB_STATE_INIT);
+(gdb) s
+orte_job_state_to_str (state=1)
+    at ../../openmpi-dev-124-g91e9686/orte/util/error_strings.c:217
+217         switch(state) {
+(gdb) 
+221             return "PENDING INIT";
+(gdb) 
+317     }
+(gdb) 
+orte_util_print_jobids (job=4294967295)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:170
+170         ptr = get_print_name_buffer();
+(gdb) 
+
+
+
+On Solaris things are different.
+
+Breakpoint 1, rsh_launch (jdata=0x100125250)
+    at 
+</pre>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../../openmpi-dev-124-g91e9686/orte/mca/plm/rsh/plm_rsh_module.c:876
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <pre wrap="">876         if (ORTE_FLAG_TEST(jdata, ORTE_JOB_FLAG_RESTART)) {
+(gdb) s
+881             ORTE_ACTIVATE_JOB_STATE(jdata, ORTE_JOB_STATE_INIT);
+(gdb) s
+orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:122
+122         if (NULL == name) {
+(gdb) 
+142         job = orte_util_print_jobids(name-&gt;jobid);
+(gdb) 
+orte_util_print_jobids (job=2673410048)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:170
+170         ptr = get_print_name_buffer();
+(gdb) 
+
+
+
+Is this normal or is it the reason for the crash on Solaris?
+
+
+Kind regards
+
+Siegmar
+
+
+
+
+
+
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">The log file output by JRE may help you.
+</pre>
+            <blockquote type="cite">
+              <pre wrap=""># An error report file with more information is saved as:
+# 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">/home/fd1026/work/skripte/master/parallel/prog/mpi/java/hs_err_pid13080.log
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <pre wrap="">
+Regards,
+Takahiro
+
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">Hi,
+
+I installed openmpi-dev-124-g91e9686 on Solaris 10 Sparc with
+gcc-4.9.1 to track down the error with my small Java program.
+I started single stepping in orterun.c at line 1081 and
+continued until I got the segmentation fault. I get
+"jdata = 0x0" in version openmpi-1.8.2a1r31804, which is the
+last one which works with Java in my environment, while I get
+"jdata = 0x100125250" in this version. Unfortunately I don't
+know which files or variables are important to look at. Perhaps
+somebody can look at the following lines of code and tell me,
+which information I should provide to solve the problem. I know
+that Solaris isn't any longer on your list of supported systems,
+but perhaps we can get it working again, if you tell me what
+you need and I do the debugging.
+
+/usr/local/gdb-7.6.1_64_gcc/bin/gdb mpiexec
+GNU gdb (GDB) 7.6.1
+...
+(gdb) run -np 1 java InitFinalizeMain 
+Starting program: /usr/local/openmpi-1.9.0_64_gcc/bin/mpiexec \
+  -np 1 java InitFinalizeMain
+[Thread debugging using libthread_db enabled]
+[New Thread 1 (LWP 1)]
+[New LWP    2        ]
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0xffffffff7ea3c7f0, pid=13064, tid=2
+...
+[LWP    2         exited]
+[New Thread 2        ]
+[Switching to Thread 1 (LWP 1)]
+sol_thread_fetch_registers: td_ta_map_id2thr: no thread can be
+  found to satisfy query
+(gdb) thread 1
+[Switching to thread 1 (LWP    1        )]
+#0  0xffffffff7f6173d0 in rtld_db_dlactivity () from 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">/usr/lib/sparcv9/ld.so.1
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) b orterun.c:1081
+Breakpoint 1 at 0x1000070dc: file 
+../../../../openmpi-dev-124-g91e9686/orte/tools/orterun/orterun.c, line 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">1081.
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) r
+The program being debugged has been started already.
+Start it from the beginning? (y or n) y
+
+Starting program: /usr/local/openmpi-1.9.0_64_gcc/bin/mpiexec -np 1 java 
+InitFinalizeMain
+[Thread debugging using libthread_db enabled]
+[New Thread 1 (LWP 1)]
+[New LWP    2        ]
+[Switching to Thread 1 (LWP 1)]
+
+Breakpoint 1, orterun (argc=5, argv=0xffffffff7fffe0d8)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/tools/orterun/orterun.c:1081
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">1081        rc = orte_plm.spawn(jdata);
+(gdb) print jdata
+$1 = (orte_job_t *) 0x100125250
+(gdb) s
+rsh_launch (jdata=0x100125250)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../../openmpi-dev-124-g91e9686/orte/mca/plm/rsh/plm_rsh_module.c:876
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">876         if (ORTE_FLAG_TEST(jdata, ORTE_JOB_FLAG_RESTART)) {
+(gdb) s    
+881             ORTE_ACTIVATE_JOB_STATE(jdata, ORTE_JOB_STATE_INIT);
+(gdb) 
+orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:122
+122         if (NULL == name) {
+(gdb) 
+142         job = orte_util_print_jobids(name-&gt;jobid);
+(gdb) 
+orte_util_print_jobids (job=2502885376) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:170
+170         ptr = get_print_name_buffer();
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:92
+92          if (!fns_init) {
+(gdb) 
+101         ret = opal_tsd_getspecific(print_args_tsd_key, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(void**)&amp;ptr);
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_tsd_getspecific (key=1, valuep=0xffffffff7fffd990)
+    at ../../openmpi-dev-124-g91e9686/opal/threads/tsd.h:163
+163         *valuep = pthread_getspecific(key);
+(gdb) 
+164         return OPAL_SUCCESS;
+(gdb) 
+165     }
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:102
+102         if (OPAL_SUCCESS != ret) return NULL;
+(gdb) 
+104         if (NULL == ptr) {
+(gdb) 
+113         return (orte_print_args_buffers_t*) ptr;
+(gdb) 
+114     }
+(gdb) 
+orte_util_print_jobids (job=2502885376) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:172
+172         if (NULL == ptr) {
+(gdb) 
+178         if (ORTE_PRINT_NAME_ARG_NUM_BUFS == ptr-&gt;cntr) {
+(gdb) 
+182         if (ORTE_JOBID_INVALID == job) {
+(gdb) 
+184         } else if (ORTE_JOBID_WILDCARD == job) {
+(gdb) 
+187             tmp1 = ORTE_JOB_FAMILY((unsigned long)job);
+(gdb) 
+188             tmp2 = ORTE_LOCAL_JOBID((unsigned long)job);
+(gdb) 
+189             snprintf(ptr-&gt;buffers[ptr-&gt;cntr++], 
+(gdb) 
+193         return ptr-&gt;buffers[ptr-&gt;cntr-1];
+(gdb) 
+194     }
+(gdb) 
+orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:143
+143         vpid = orte_util_print_vpids(name-&gt;vpid);
+(gdb) 
+orte_util_print_vpids (vpid=0) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:260
+260         ptr = get_print_name_buffer();
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:92
+92          if (!fns_init) {
+(gdb) 
+101         ret = opal_tsd_getspecific(print_args_tsd_key, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(void**)&amp;ptr);
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_tsd_getspecific (key=1, valuep=0xffffffff7fffd9a0)
+    at ../../openmpi-dev-124-g91e9686/opal/threads/tsd.h:163
+163         *valuep = pthread_getspecific(key);
+(gdb) 
+164         return OPAL_SUCCESS;
+(gdb) 
+165     }
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:102
+102         if (OPAL_SUCCESS != ret) return NULL;
+(gdb) 
+104         if (NULL == ptr) {
+(gdb) 
+113         return (orte_print_args_buffers_t*) ptr;
+(gdb) 
+114     }
+(gdb) 
+orte_util_print_vpids (vpid=0) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:262
+262         if (NULL == ptr) {
+(gdb) 
+268         if (ORTE_PRINT_NAME_ARG_NUM_BUFS == ptr-&gt;cntr) {
+(gdb) 
+272         if (ORTE_VPID_INVALID == vpid) {
+(gdb) 
+274         } else if (ORTE_VPID_WILDCARD == vpid) {
+(gdb) 
+277             snprintf(ptr-&gt;buffers[ptr-&gt;cntr++], 
+(gdb) 
+281         return ptr-&gt;buffers[ptr-&gt;cntr-1];
+(gdb) 
+282     }
+(gdb) 
+orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:146
+146         ptr = get_print_name_buffer();
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:92
+92          if (!fns_init) {
+(gdb) 
+101         ret = opal_tsd_getspecific(print_args_tsd_key, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(void**)&amp;ptr);
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_tsd_getspecific (key=1, valuep=0xffffffff7fffda60)
+    at ../../openmpi-dev-124-g91e9686/opal/threads/tsd.h:163
+163         *valuep = pthread_getspecific(key);
+(gdb) 
+164         return OPAL_SUCCESS;
+(gdb) 
+165     }
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:102
+102         if (OPAL_SUCCESS != ret) return NULL;
+(gdb) 
+104         if (NULL == ptr) {
+(gdb) 
+113         return (orte_print_args_buffers_t*) ptr;
+(gdb) 
+114     }
+(gdb) 
+orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:148
+148         if (NULL == ptr) {
+(gdb) 
+154         if (ORTE_PRINT_NAME_ARG_NUM_BUFS == ptr-&gt;cntr) {
+(gdb) 
+158         snprintf(ptr-&gt;buffers[ptr-&gt;cntr++], 
+(gdb) 
+162         return ptr-&gt;buffers[ptr-&gt;cntr-1];
+(gdb) 
+163     }
+(gdb) 
+orte_util_print_jobids (job=4294967295) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:170
+170         ptr = get_print_name_buffer();
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:92
+92          if (!fns_init) {
+(gdb) 
+101         ret = opal_tsd_getspecific(print_args_tsd_key, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(void**)&amp;ptr);
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_tsd_getspecific (key=1, valuep=0xffffffff7fffda60)
+    at ../../openmpi-dev-124-g91e9686/opal/threads/tsd.h:163
+163         *valuep = pthread_getspecific(key);
+(gdb) 
+164         return OPAL_SUCCESS;
+(gdb) 
+165     }
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:102
+102         if (OPAL_SUCCESS != ret) return NULL;
+(gdb) 
+104         if (NULL == ptr) {
+(gdb) 
+113         return (orte_print_args_buffers_t*) ptr;
+(gdb) 
+114     }
+(gdb) 
+orte_util_print_jobids (job=4294967295) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:172
+172         if (NULL == ptr) {
+(gdb) 
+178         if (ORTE_PRINT_NAME_ARG_NUM_BUFS == ptr-&gt;cntr) {
+(gdb) 
+182         if (ORTE_JOBID_INVALID == job) {
+(gdb) 
+183             snprintf(ptr-&gt;buffers[ptr-&gt;cntr++], 
+ORTE_PRINT_NAME_ARGS_MAX_SIZE, "[INVALID]");
+(gdb) 
+193         return ptr-&gt;buffers[ptr-&gt;cntr-1];
+(gdb) 
+194     }
+(gdb) 
+orte_job_state_to_str (state=1) at 
+../../openmpi-dev-124-g91e9686/orte/util/error_strings.c:217
+217         switch(state) {
+(gdb) 
+221             return "PENDING INIT";
+(gdb) 
+317     }
+(gdb) 
+opal_output_verbose (level=1, output_id=0, 
+    format=0xffffffff7f14dd98 &lt;orte_job_states&gt; 
+"\336\257\276\355\336\257\276\355")
+    at ../../../openmpi-dev-124-g91e9686/opal/util/output.c:373
+373             va_start(arglist, format);
+(gdb) 
+369     {
+(gdb) 
+370         if (output_id &gt;= 0 &amp;&amp; output_id &lt; OPAL_OUTPUT_MAX_STREAMS &amp;&amp;
+(gdb) 
+377     }
+(gdb) 
+orte_state_base_activate_job_state (jdata=0x100125250, state=1)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/mca/state/base/state_base_fns.c:33
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">33          opal_list_item_t *itm, *any=NULL, *error=NULL;
+(gdb) 
+37          for (itm = opal_list_get_first(&amp;orte_job_states);
+(gdb) 
+opal_list_get_first (list=0xffffffff7f14dd98 &lt;orte_job_states&gt;)
+    at ../../../../openmpi-dev-124-g91e9686/opal/class/opal_list.h:320
+320         opal_list_item_t* item = 
+(opal_list_item_t*)list-&gt;opal_list_sentinel.opal_list_next;
+(gdb) 
+324         assert(1 == item-&gt;opal_list_item_refcount);
+(gdb) 
+325         assert( list == item-&gt;opal_list_item_belong_to );
+(gdb) 
+328         return item;
+(gdb) 
+329     }
+(gdb) 
+orte_state_base_activate_job_state (jdata=0x100125250, state=1)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/mca/state/base/state_base_fns.c:38
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">38               itm != opal_list_get_end(&amp;orte_job_states);
+(gdb) 
+opal_list_get_end (list=0xffffffff7f14dd98 &lt;orte_job_states&gt;)
+    at ../../../../openmpi-dev-124-g91e9686/opal/class/opal_list.h:399
+399         return &amp;(list-&gt;opal_list_sentinel);
+(gdb) 
+400     }
+(gdb) 
+orte_state_base_activate_job_state (jdata=0x100125250, state=1)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/mca/state/base/state_base_fns.c:37
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">37          for (itm = opal_list_get_first(&amp;orte_job_states);
+(gdb) 
+40              s = (orte_state_t*)itm;
+(gdb) 
+41              if (s-&gt;job_state == ORTE_JOB_STATE_ANY) {
+(gdb) 
+45              if (s-&gt;job_state == ORTE_JOB_STATE_ERROR) {
+(gdb) 
+48              if (s-&gt;job_state == state) {
+(gdb) 
+49                  OPAL_OUTPUT_VERBOSE((1, 
+orte_state_base_framework.framework_output,
+(gdb) 
+orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:122
+122         if (NULL == name) {
+(gdb) 
+142         job = orte_util_print_jobids(name-&gt;jobid);
+(gdb) 
+orte_util_print_jobids (job=2502885376) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:170
+170         ptr = get_print_name_buffer();
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:92
+92          if (!fns_init) {
+(gdb) 
+101         ret = opal_tsd_getspecific(print_args_tsd_key, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(void**)&amp;ptr);
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_tsd_getspecific (key=1, valuep=0xffffffff7fffd880)
+    at ../../openmpi-dev-124-g91e9686/opal/threads/tsd.h:163
+163         *valuep = pthread_getspecific(key);
+(gdb) 
+164         return OPAL_SUCCESS;
+(gdb) 
+165     }
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:102
+102         if (OPAL_SUCCESS != ret) return NULL;
+(gdb) 
+104         if (NULL == ptr) {
+(gdb) 
+113         return (orte_print_args_buffers_t*) ptr;
+(gdb) 
+114     }
+(gdb) 
+orte_util_print_jobids (job=2502885376) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:172
+172         if (NULL == ptr) {
+(gdb) 
+178         if (ORTE_PRINT_NAME_ARG_NUM_BUFS == ptr-&gt;cntr) {
+(gdb) 
+182         if (ORTE_JOBID_INVALID == job) {
+(gdb) 
+184         } else if (ORTE_JOBID_WILDCARD == job) {
+(gdb) 
+187             tmp1 = ORTE_JOB_FAMILY((unsigned long)job);
+(gdb) 
+188             tmp2 = ORTE_LOCAL_JOBID((unsigned long)job);
+(gdb) 
+189             snprintf(ptr-&gt;buffers[ptr-&gt;cntr++], 
+(gdb) 
+193         return ptr-&gt;buffers[ptr-&gt;cntr-1];
+(gdb) 
+194     }
+(gdb) 
+orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:143
+143         vpid = orte_util_print_vpids(name-&gt;vpid);
+(gdb) 
+orte_util_print_vpids (vpid=0) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:260
+260         ptr = get_print_name_buffer();
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:92
+92          if (!fns_init) {
+(gdb) 
+101         ret = opal_tsd_getspecific(print_args_tsd_key, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(void**)&amp;ptr);
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_tsd_getspecific (key=1, valuep=0xffffffff7fffd890)
+    at ../../openmpi-dev-124-g91e9686/opal/threads/tsd.h:163
+163         *valuep = pthread_getspecific(key);
+(gdb) 
+164         return OPAL_SUCCESS;
+(gdb) 
+165     }
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:102
+102         if (OPAL_SUCCESS != ret) return NULL;
+(gdb) 
+104         if (NULL == ptr) {
+(gdb) 
+113         return (orte_print_args_buffers_t*) ptr;
+(gdb) 
+114     }
+(gdb) 
+orte_util_print_vpids (vpid=0) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:262
+262         if (NULL == ptr) {
+(gdb) 
+268         if (ORTE_PRINT_NAME_ARG_NUM_BUFS == ptr-&gt;cntr) {
+(gdb) 
+272         if (ORTE_VPID_INVALID == vpid) {
+(gdb) 
+274         } else if (ORTE_VPID_WILDCARD == vpid) {
+(gdb) 
+277             snprintf(ptr-&gt;buffers[ptr-&gt;cntr++], 
+(gdb) 
+281         return ptr-&gt;buffers[ptr-&gt;cntr-1];
+(gdb) 
+282     }
+(gdb) 
+orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:146
+146         ptr = get_print_name_buffer();
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:92
+92          if (!fns_init) {
+(gdb) 
+101         ret = opal_tsd_getspecific(print_args_tsd_key, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(void**)&amp;ptr);
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_tsd_getspecific (key=1, valuep=0xffffffff7fffd950)
+    at ../../openmpi-dev-124-g91e9686/opal/threads/tsd.h:163
+163         *valuep = pthread_getspecific(key);
+(gdb) 
+164         return OPAL_SUCCESS;
+(gdb) 
+165     }
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:102
+102         if (OPAL_SUCCESS != ret) return NULL;
+(gdb) 
+104         if (NULL == ptr) {
+(gdb) 
+113         return (orte_print_args_buffers_t*) ptr;
+(gdb) 
+114     }
+(gdb) 
+orte_util_print_name_args (name=0x100118380 &lt;orte_process_info+104&gt;)
+    at ../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:148
+148         if (NULL == ptr) {
+(gdb) 
+154         if (ORTE_PRINT_NAME_ARG_NUM_BUFS == ptr-&gt;cntr) {
+(gdb) 
+158         snprintf(ptr-&gt;buffers[ptr-&gt;cntr++], 
+(gdb) 
+162         return ptr-&gt;buffers[ptr-&gt;cntr-1];
+(gdb) 
+163     }
+(gdb) 
+orte_util_print_jobids (job=4294967295) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:170
+170         ptr = get_print_name_buffer();
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:92
+92          if (!fns_init) {
+(gdb) 
+101         ret = opal_tsd_getspecific(print_args_tsd_key, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(void**)&amp;ptr);
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_tsd_getspecific (key=1, valuep=0xffffffff7fffd950)
+    at ../../openmpi-dev-124-g91e9686/opal/threads/tsd.h:163
+163         *valuep = pthread_getspecific(key);
+(gdb) 
+164         return OPAL_SUCCESS;
+(gdb) 
+165     }
+(gdb) 
+get_print_name_buffer () at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:102
+102         if (OPAL_SUCCESS != ret) return NULL;
+(gdb) 
+104         if (NULL == ptr) {
+(gdb) 
+113         return (orte_print_args_buffers_t*) ptr;
+(gdb) 
+114     }
+(gdb) 
+orte_util_print_jobids (job=4294967295) at 
+../../openmpi-dev-124-g91e9686/orte/util/name_fns.c:172
+172         if (NULL == ptr) {
+(gdb) 
+178         if (ORTE_PRINT_NAME_ARG_NUM_BUFS == ptr-&gt;cntr) {
+(gdb) 
+182         if (ORTE_JOBID_INVALID == job) {
+(gdb) 
+183             snprintf(ptr-&gt;buffers[ptr-&gt;cntr++], 
+ORTE_PRINT_NAME_ARGS_MAX_SIZE, "[INVALID]");
+(gdb) 
+193         return ptr-&gt;buffers[ptr-&gt;cntr-1];
+(gdb) 
+194     }
+(gdb) 
+orte_job_state_to_str (state=1) at 
+../../openmpi-dev-124-g91e9686/orte/util/error_strings.c:217
+217         switch(state) {
+(gdb) 
+221             return "PENDING INIT";
+(gdb) 
+317     }
+(gdb) 
+opal_output_verbose (level=1, output_id=-1, format=0x1 &lt;Address 0x1 out 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">of 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">bounds&gt;)
+    at ../../../openmpi-dev-124-g91e9686/opal/util/output.c:373
+373             va_start(arglist, format);
+(gdb) 
+369     {
+(gdb) 
+370         if (output_id &gt;= 0 &amp;&amp; output_id &lt; OPAL_OUTPUT_MAX_STREAMS &amp;&amp;
+(gdb) 
+377     }
+(gdb) 
+orte_state_base_activate_job_state (jdata=0x100125250, state=1)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/mca/state/base/state_base_fns.c:54
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">54                  if (NULL == s-&gt;cbfunc) {
+(gdb) 
+62                  caddy = OBJ_NEW(orte_state_caddy_t);
+(gdb) 
+opal_obj_new_debug (type=0xffffffff7f14c7d8 &lt;orte_state_caddy_t_class&gt;, 
+    file=0xffffffff7f034c08 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">"../../../../openmpi-dev-124-g91e9686/orte/mca/state/base/state_base_fns.c", 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">line=62) at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/opal/class/opal_object.h:249
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">249         opal_object_t* object = opal_obj_new(type);
+(gdb) 
+opal_obj_new (cls=0xffffffff7f14c7d8 &lt;orte_state_caddy_t_class&gt;)
+    at ../../../../openmpi-dev-124-g91e9686/opal/class/opal_object.h:465
+465         assert(cls-&gt;cls_sizeof &gt;= sizeof(opal_object_t));
+(gdb) 
+470         object = (opal_object_t *) malloc(cls-&gt;cls_sizeof);
+(gdb) 
+472         if (0 == cls-&gt;cls_initialized) {
+(gdb) 
+473             opal_class_initialize(cls);
+(gdb) 
+opal_class_initialize (cls=0xffffffff7f14c7d8 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">&lt;orte_state_caddy_t_class&gt;)
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">    at ../../openmpi-dev-124-g91e9686/opal/class/opal_object.c:79
+79          assert(cls);
+(gdb) 
+84          if (1 == cls-&gt;cls_initialized) {
+(gdb) 
+87          opal_atomic_lock(&amp;class_lock);
+(gdb) 
+opal_atomic_lock (lock=0xffffffff7ee89bf0 &lt;class_lock&gt;)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../openmpi-dev-124-g91e9686/opal/include/opal/sys/atomic_impl.h:397
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">397        while( !opal_atomic_cmpset_acq_32( &amp;(lock-&gt;u.lock),
+(gdb) 
+opal_atomic_cmpset_acq_32 (addr=0xffffffff7ee89bf0 &lt;class_lock&gt;, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">oldval=0, 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">newval=1)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../openmpi-dev-124-g91e9686/opal/include/opal/sys/sparcv9/atomic.h:107
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">107        rc = opal_atomic_cmpset_32(addr, oldval, newval);
+(gdb) 
+opal_atomic_cmpset_32 (addr=0xffffffff7ee89bf0 &lt;class_lock&gt;, oldval=0, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">newval=1)
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../openmpi-dev-124-g91e9686/opal/include/opal/sys/sparcv9/atomic.h:93
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">93         int32_t ret = newval;
+(gdb) 
+95         __asm__ __volatile__("casa [%1] " ASI_P ", %2, %0"
+(gdb) 
+98         return (ret == oldval);
+(gdb) 
+99      }
+(gdb) 
+opal_atomic_cmpset_acq_32 (addr=0xffffffff7ee89bf0 &lt;class_lock&gt;, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">oldval=0, 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">newval=1)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../openmpi-dev-124-g91e9686/opal/include/opal/sys/sparcv9/atomic.h:108
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">108        opal_atomic_rmb();
+(gdb) 
+opal_atomic_rmb () at 
+../../openmpi-dev-124-g91e9686/opal/include/opal/sys/sparcv9/atomic.h:63
+63          MEMBAR("#LoadLoad");
+(gdb) 
+64      }
+(gdb) 
+opal_atomic_cmpset_acq_32 (addr=0xffffffff7ee89bf0 &lt;class_lock&gt;, 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">oldval=0, 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">newval=1)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../openmpi-dev-124-g91e9686/opal/include/opal/sys/sparcv9/atomic.h:110
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">110        return rc;
+(gdb) 
+111     }
+(gdb) 
+opal_atomic_lock (lock=0xffffffff7ee89bf0 &lt;class_lock&gt;)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../openmpi-dev-124-g91e9686/opal/include/opal/sys/atomic_impl.h:403
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">403     }
+(gdb) 
+opal_class_initialize (cls=0xffffffff7f14c7d8 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">&lt;orte_state_caddy_t_class&gt;)
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">    at ../../openmpi-dev-124-g91e9686/opal/class/opal_object.c:93
+93          if (1 == cls-&gt;cls_initialized) {
+(gdb) 
+103         cls-&gt;cls_depth = 0;
+(gdb) 
+104         cls_construct_array_count = 0;
+(gdb) 
+105         cls_destruct_array_count  = 0;
+(gdb) 
+106         for (c = cls; c; c = c-&gt;cls_parent) {
+(gdb) 
+107             if( NULL != c-&gt;cls_construct ) {
+(gdb) 
+108                 cls_construct_array_count++;
+(gdb) 
+110             if( NULL != c-&gt;cls_destruct ) {
+(gdb) 
+111                 cls_destruct_array_count++;
+(gdb) 
+113             cls-&gt;cls_depth++;
+(gdb) 
+106         for (c = cls; c; c = c-&gt;cls_parent) {
+(gdb) 
+107             if( NULL != c-&gt;cls_construct ) {
+(gdb) 
+110             if( NULL != c-&gt;cls_destruct ) {
+(gdb) 
+113             cls-&gt;cls_depth++;
+(gdb) 
+106         for (c = cls; c; c = c-&gt;cls_parent) {
+(gdb) 
+122             (void 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(**)(opal_object_t*))malloc((cls_construct_array_count +
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+123                                                
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">cls_destruct_array_count + 2) 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">*
+(gdb) 
+122             (void 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">(**)(opal_object_t*))malloc((cls_construct_array_count +
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+121         cls-&gt;cls_construct_array = 
+(gdb) 
+125         if (NULL == cls-&gt;cls_construct_array) {
+(gdb) 
+130             cls-&gt;cls_construct_array + cls_construct_array_count + 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">1;
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+129         cls-&gt;cls_destruct_array =
+(gdb) 
+136         cls_construct_array = cls-&gt;cls_construct_array + 
+cls_construct_array_count;
+(gdb) 
+137         cls_destruct_array  = cls-&gt;cls_destruct_array;
+(gdb) 
+139         c = cls;
+(gdb) 
+140         *cls_construct_array = NULL;  /* end marker for the 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">constructors */
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+141         for (i = 0; i &lt; cls-&gt;cls_depth; i++) {
+(gdb) 
+142             if( NULL != c-&gt;cls_construct ) {
+(gdb) 
+143                 --cls_construct_array;
+(gdb) 
+144                 *cls_construct_array = c-&gt;cls_construct;
+(gdb) 
+146             if( NULL != c-&gt;cls_destruct ) {
+(gdb) 
+147                 *cls_destruct_array = c-&gt;cls_destruct;
+(gdb) 
+148                 cls_destruct_array++;
+(gdb) 
+150             c = c-&gt;cls_parent;
+(gdb) 
+141         for (i = 0; i &lt; cls-&gt;cls_depth; i++) {
+(gdb) 
+142             if( NULL != c-&gt;cls_construct ) {
+(gdb) 
+146             if( NULL != c-&gt;cls_destruct ) {
+(gdb) 
+150             c = c-&gt;cls_parent;
+(gdb) 
+141         for (i = 0; i &lt; cls-&gt;cls_depth; i++) {
+(gdb) 
+152         *cls_destruct_array = NULL;  /* end marker for the 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">destructors */
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+154         cls-&gt;cls_initialized = 1;
+(gdb) 
+155         save_class(cls);
+(gdb) 
+save_class (cls=0xffffffff7f14c7d8 &lt;orte_state_caddy_t_class&gt;)
+    at ../../openmpi-dev-124-g91e9686/opal/class/opal_object.c:188
+188         if (num_classes &gt;= max_classes) {
+(gdb) 
+189             expand_array();
+(gdb) 
+expand_array () at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../openmpi-dev-124-g91e9686/opal/class/opal_object.c:201
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">201         max_classes += increment;
+(gdb) 
+202         classes = (void**)realloc(classes, sizeof(opal_class_t*) * 
+max_classes);
+(gdb) 
+203         if (NULL == classes) {
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+208             classes[i] = NULL;
+(gdb) 
+207         for (i = num_classes; i &lt; max_classes; ++i) {
+(gdb) 
+210     }
+(gdb) 
+save_class (cls=0xffffffff7f14c7d8 &lt;orte_state_caddy_t_class&gt;)
+    at ../../openmpi-dev-124-g91e9686/opal/class/opal_object.c:192
+192         classes[num_classes] = cls-&gt;cls_construct_array;
+(gdb) 
+193         ++num_classes;
+(gdb) 
+194     }
+(gdb) 
+opal_class_initialize (cls=0xffffffff7f14c7d8 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">&lt;orte_state_caddy_t_class&gt;)
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">    at ../../openmpi-dev-124-g91e9686/opal/class/opal_object.c:159
+159         opal_atomic_unlock(&amp;class_lock);
+(gdb) 
+opal_atomic_unlock (lock=0xffffffff7ee89bf0 &lt;class_lock&gt;)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../openmpi-dev-124-g91e9686/opal/include/opal/sys/atomic_impl.h:409
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">409        opal_atomic_wmb();
+(gdb) 
+opal_atomic_wmb () at 
+../../openmpi-dev-124-g91e9686/opal/include/opal/sys/sparcv9/atomic.h:69
+69          MEMBAR("#StoreStore");
+(gdb) 
+70      }
+(gdb) 
+opal_atomic_unlock (lock=0xffffffff7ee89bf0 &lt;class_lock&gt;)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../openmpi-dev-124-g91e9686/opal/include/opal/sys/atomic_impl.h:410
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">410        lock-&gt;u.lock=OPAL_ATOMIC_UNLOCKED;
+(gdb) 
+411     }
+(gdb) 
+opal_class_initialize (cls=0xffffffff7f14c7d8 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">&lt;orte_state_caddy_t_class&gt;)
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">    at ../../openmpi-dev-124-g91e9686/opal/class/opal_object.c:160
+160     }
+(gdb) 
+opal_obj_new (cls=0xffffffff7f14c7d8 &lt;orte_state_caddy_t_class&gt;)
+    at ../../../../openmpi-dev-124-g91e9686/opal/class/opal_object.h:475
+475         if (NULL != object) {
+(gdb) 
+476             object-&gt;obj_class = cls;
+(gdb) 
+477             object-&gt;obj_reference_count = 1;
+(gdb) 
+478             opal_obj_run_constructors(object);
+(gdb) 
+opal_obj_run_constructors (object=0x1001bfcf0)
+    at ../../../../openmpi-dev-124-g91e9686/opal/class/opal_object.h:420
+420         assert(NULL != object-&gt;obj_class);
+(gdb) 
+422         cls_construct = object-&gt;obj_class-&gt;cls_construct_array;
+(gdb) 
+423         while( NULL != *cls_construct ) {
+(gdb) 
+424             (*cls_construct)(object);
+(gdb) 
+orte_state_caddy_construct (caddy=0x1001bfcf0)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/mca/state/base/state_base_frame.c:84
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">84          memset(&amp;caddy-&gt;ev, 0, sizeof(opal_event_t));
+(gdb) 
+85          caddy-&gt;jdata = NULL;
+(gdb) 
+86      }
+(gdb) 
+opal_obj_run_constructors (object=0x1001bfcf0)
+    at ../../../../openmpi-dev-124-g91e9686/opal/class/opal_object.h:425
+425             cls_construct++;
+(gdb) 
+423         while( NULL != *cls_construct ) {
+(gdb) 
+427     }
+(gdb) 
+opal_obj_new (cls=0xffffffff7f14c7d8 &lt;orte_state_caddy_t_class&gt;)
+    at ../../../../openmpi-dev-124-g91e9686/opal/class/opal_object.h:480
+480         return object;
+(gdb) 
+481     }
+(gdb) 
+opal_obj_new_debug (type=0xffffffff7f14c7d8 &lt;orte_state_caddy_t_class&gt;, 
+    file=0xffffffff7f034c08 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">"../../../../openmpi-dev-124-g91e9686/orte/mca/state/base/state_base_fns.c", 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">line=62) at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/opal/class/opal_object.h:250
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">250         object-&gt;obj_magic_id = OPAL_OBJ_MAGIC_ID;
+(gdb) 
+251         object-&gt;cls_init_file_name = file;
+(gdb) 
+252         object-&gt;cls_init_lineno = line;
+(gdb) 
+253         return object;
+(gdb) 
+254     }
+(gdb) 
+orte_state_base_activate_job_state (jdata=0x100125250, state=1)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/mca/state/base/state_base_fns.c:63
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">63                  if (NULL != jdata) {
+(gdb) 
+64                      caddy-&gt;jdata = jdata;
+(gdb) 
+65                      caddy-&gt;job_state = state;
+(gdb) 
+66                      OBJ_RETAIN(jdata);
+(gdb) 
+opal_obj_update (inc=1, object=0x100125250)
+    at ../../../../openmpi-dev-124-g91e9686/opal/class/opal_object.h:497
+497         return opal_atomic_add_32(&amp;(object-&gt;obj_reference_count), 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">inc);
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_atomic_add_32 (addr=0x100125260, delta=1)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/opal/include/opal/sys/atomic_impl.h:63
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">63            oldval = *addr;
+(gdb) 
+64         } while (0 == opal_atomic_cmpset_32(addr, oldval, oldval + 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">delta));
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(gdb) 
+opal_atomic_cmpset_32 (addr=0x100125260, oldval=1, newval=2)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/opal/include/opal/sys/sparcv9/atomic.h:93
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">93         int32_t ret = newval;
+(gdb) 
+95         __asm__ __volatile__("casa [%1] " ASI_P ", %2, %0"
+(gdb) 
+98         return (ret == oldval);
+(gdb) 
+99      }
+(gdb) 
+opal_atomic_add_32 (addr=0x100125260, delta=1)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/opal/include/opal/sys/atomic_impl.h:65
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">65         return (oldval + delta);
+(gdb) 
+66      }
+(gdb) 
+orte_state_base_activate_job_state (jdata=0x100125250, state=1)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/mca/state/base/state_base_fns.c:66
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">66                      OBJ_RETAIN(jdata);
+(gdb) 
+68                  opal_event_set(orte_event_base, &amp;caddy-&gt;ev, -1, 
+OPAL_EV_WRITE, s-&gt;cbfunc, caddy);
+(gdb) 
+69                  opal_event_set_priority(&amp;caddy-&gt;ev, s-&gt;priority);
+(gdb) 
+70                  opal_event_active(&amp;caddy-&gt;ev, OPAL_EV_WRITE, 1);
+(gdb) 
+71                  return;
+(gdb) 
+105     }
+(gdb) 
+rsh_launch (jdata=0x100125250)
+    at 
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../../openmpi-dev-124-g91e9686/orte/mca/plm/rsh/plm_rsh_module.c:883
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">883         return ORTE_SUCCESS;
+(gdb) 
+884     }
+(gdb) 
+orterun (argc=5, argv=0xffffffff7fffe0d8)
+    at 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">../../../../openmpi-dev-124-g91e9686/orte/tools/orterun/orterun.c:1084
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">1084        while (orte_event_base_active) {
+(gdb) 
+1085            opal_event_loop(orte_event_base, OPAL_EVLOOP_ONCE);
+(gdb) 
+1084        while (orte_event_base_active) {
+(gdb) 
+1085            opal_event_loop(orte_event_base, OPAL_EVLOOP_ONCE);
+(gdb) 
+1084        while (orte_event_base_active) {
+(gdb) 
+1085            opal_event_loop(orte_event_base, OPAL_EVLOOP_ONCE);
+(gdb) 
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  SIGSEGV (0xb) at pc=0xffffffff7ea3c7f0, pid=13080, tid=2
+#
+# JRE version: Java(TM) SE Runtime Environment (8.0-b132) (build 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">1.8.0-b132)
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap=""># Java VM: Java HotSpot(TM) 64-Bit Server VM (25.0-b70 mixed mode 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">solaris-sparc 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">compressed oops)
+# Problematic frame:
+# 1084      while (orte_event_base_active) {
+(gdb) 
+1085            opal_event_loop(orte_event_base, OPAL_EVLOOP_ONCE);
+(gdb) 
+C  [libc.so.1+0x3c7f0]  strlen+0x50
+#
+# Failed to write core dump. Core dumps have been disabled. To enable 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">core 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">dumping, try "ulimit -c unlimited" before starting Java again
+#
+# An error report file with more information is saved as:
+# 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">/home/fd1026/work/skripte/master/parallel/prog/mpi/java/hs_err_pid13080.log
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">#
+# If you would like to submit a bug report, please visit:
+#   <a class="moz-txt-link-freetext" href="http://bugreport.sun.com/bugreport/crash.jsp">http://bugreport.sun.com/bugreport/crash.jsp</a>
+# The crash happened outside the Java Virtual Machine in native code.
+# See problematic frame for where to report the bug.
+#
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">--------------------------------------------------------------------------
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">mpiexec noticed that process rank 0 with PID 0 on node tyr exited on 
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">signal 6 
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">(Abort).
+
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+      </blockquote>
+      <pre wrap="">--------------------------------------------------------------------------
+</pre>
+      <blockquote type="cite">
+        <blockquote type="cite">
+          <blockquote type="cite">
+            <blockquote type="cite">
+              <pre wrap="">1084        while (orte_event_base_active) {
+(gdb) 
+1089        orte_odls.kill_local_procs(NULL);
+(gdb) 
+
+
+Thank you very much for any help in advance.
+
+Kind regards
+
+Siegmar
+</pre>
+            </blockquote>
+          </blockquote>
+        </blockquote>
+        <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: 
+</pre>
+      </blockquote>
+      <pre wrap=""><a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2014/10/25559.php">http://www.open-mpi.org/community/lists/users/2014/10/25559.php</a>
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2014/10/25562.php">http://www.open-mpi.org/community/lists/users/2014/10/25562.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

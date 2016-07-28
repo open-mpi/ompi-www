@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=us-ascii" http-equiv="Content-Type">
+  <title></title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Brian,<br>
+<br>
+I notice in the OMPI_INFO output the following parameters that seem
+relevant to this problem:<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA btl: parameter "btl_self_free_list_num" (current
+value: "0")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA btl: parameter "btl_self_free_list_max" (current
+value: "-1")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA btl: parameter "btl_self_free_list_inc" (current
+value: "32")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA btl: parameter "btl_self_eager_limit" (current
+value: "131072")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA btl: parameter "btl_self_max_send_size" (current
+value: "262144")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA btl: parameter "btl_self_max_rdma_size" (current
+value: "2147483647")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA btl: parameter "btl_self_exclusivity" (current
+value: "65536")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA btl: parameter "btl_self_flags" (current value:
+"2")<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MCA btl: parameter "btl_self_priority" (current value:
+"0")<br>
+<br>
+Specifically the 'self_max_send_size=262144', which I assume is the
+maximum size (bytes?) message a processor can send to itself.&nbsp; None of
+the messages in my above tests approached this limit.&nbsp; However, I am
+puzzled by this, because the program below runs correctly for
+ridiculously large message sizes (as shown 200 Mbytes).<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp; program test<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; implicit none<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; include 'mpif.h'<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer imjm<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; parameter (imjm=200000000)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer&nbsp; itype , istrt , itau ,istat , msg , nstat<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer irank,nproc,iwin,i,n,ir<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer isizereal,iwinsize,itarget_disp<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer , dimension(:) , allocatable :: len <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; integer , dimension(:) , allocatable :: loff<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; real , dimension(:) , allocatable :: x&nbsp;&nbsp; <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; real , dimension(:) , allocatable :: ximjm&nbsp;&nbsp; <br>
+!<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_init(istat)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_comm_rank(mpi_comm_world,irank,istat)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_comm_size(mpi_comm_world,nproc,istat)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; allocate(len(nproc))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; allocate(loff(nproc))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; allocate(x(imjm/nproc))<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ir = irank + 1<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if(ir.eq.1)allocate(ximjm(imjm))<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; do 200 n = 1,nproc<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; len(n) = imjm/nproc<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; loff(n) = (n-1)*imjm/nproc<br>
+&nbsp; 200 continue<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_type_size(mpi_real,isizereal,istat)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; iwinsize = imjm*isizereal<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_win_create(ximjm,iwinsize,isizereal,mpi_info_null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mpi_comm_world,iwin,istat)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if(ir.eq.1)then<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; do 250 i = 1,imjm<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ximjm(i) = i<br>
+&nbsp; 250&nbsp;&nbsp; continue<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; endif<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; itarget_disp = loff(ir)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_win_fence(0,iwin,istat)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_get(x,len(ir),mpi_real,0,itarget_disp,len(ir),mpi_real,<br>
+&nbsp;&nbsp;&nbsp;&nbsp; &amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; iwin,istat)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; call mpi_win_fence(0,iwin,istat)<br>
+!<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; print('(A,i3,8f20.2)'),' x ',ir,x(1),x(len(ir))<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; stop<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; end<br>
+<br>
+Tom Rosmond<br>
+<br>
+<br>
+<br>
+<br>
+Brian Barrett wrote:
+<blockquote cite="mid1157554426.22686.24.camel@boxtop.lanl.gov"
+ type="cite">
+  <pre wrap="">On Mon, 2006-09-04 at 11:01 -0700, Tom Rosmond wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">Attached is some error output from my tests of 1-sided message
+passing, plus my info file.  Below are two copies of a simple fortran
+subroutine that mimics mpi_allgatherv using  mpi-get calls.  The top
+version fails, the bottom runs OK.  It seems clear from these
+examples, plus the 'self_send' phrases in the error output, that there
+is a problem internally with a processor sending data to itself.  I
+know that your 'mpi_get' implementation is simply a wrapper around
+'send/recv' calls, so clearly this shouldn't happen.  However, the
+problem does not happen in all cases; I tried to duplicate it in a
+simple stand-alone program with mpi_get calls and was unable to make
+it fail.  Go figure.
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+That is an odd failure and at first glance it does look like there is
+something wrong with our one-sided implementation.  I've filed a bug in
+our tracker about the issue and you should get updates on the ticket as
+we work on the issue.
+
+Thanks,
+
+Brian
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+
+  </pre>
+</blockquote>
+</body>
+</html>
+

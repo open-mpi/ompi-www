@@ -1,0 +1,332 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    if you are running with master, i recommend you<br>
+    mpirun --mca mpi_add_procs_cutoff 1024 ...<br>
+    <br>
+    in order to avoid the crash i just reported at
+    <a class="moz-txt-link-freetext" href="https://github.com/open-mpi/ompi/issues/1501">https://github.com/open-mpi/ompi/issues/1501</a><br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <div class="moz-cite-prefix">On 3/28/2016 4:44 PM, Gilles
+      Gouaillardet wrote:<br>
+    </div>
+    <blockquote cite="mid:56F8E0EE.5070503@rist.or.jp" type="cite">
+      <meta content="text/html; charset=windows-1252"
+        http-equiv="Content-Type">
+      at first, does it hang when running on only one node ?<br>
+      <br>
+      when the hang occur, you can collect stack traces<br>
+      (run pstack on mpitest)<br>
+      to see where it hangs.<br>
+      <br>
+      since you configure'd with --disable-dlopen, it means your btl has
+      been slurped into openmpi.<br>
+      that means some parts of it are executed, and it could be
+      responsible for the hang.<br>
+      <br>
+      note if you<br>
+      mpirun --mca btl self,sm -np 2 ...<br>
+      on two hosts, then it will never work since no btl can be used so
+      mpi tasks can communicate.<br>
+      <br>
+      it seems something is wrong on master, i will check from now<br>
+      <br>
+      do smallMPI and bigMPI implies on host is little endian and the
+      other is big endian ?<br>
+      if yes, then you need to configure with --enable-heterogeneous<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      <div class="moz-cite-prefix">On 3/28/2016 4:26 PM, dpchoudh .
+        wrote:<br>
+      </div>
+      <blockquote
+cite="mid:CAHXxYDjR=YWWArEz8CwgZ7nn8q9G7Fm9N0rwAGy8VPcbETNvfQ@mail.gmail.com"
+        type="cite">
+        <div dir="ltr">
+          <div>
+            <div>
+              <div>
+                <div>
+                  <div>Hello Gilles<br>
+                    <br>
+                  </div>
+                  Per your suggestion, installing libnl3-devel does
+                  fixes the mpicc issue, but there still seems to be
+                  another issue down the road: the generated executable
+                  seems to hang. I have tried sm, tcp and openib BTLs,
+                  all with the same result:<br>
+                  <br>
+                  [durga@smallMPI ~]$ mpirun -np 2 -H smallMPI,bigMPI
+                  -mca btl self,sm ./mpitest   &lt;--- Hangs<br>
+                  <br>
+                </div>
+                The source code for the simple test is as follows:<br>
+                <br>
+                #include &lt;mpi.h&gt;<br>
+                #include &lt;stdio.h&gt;<br>
+                #include &lt;unistd.h&gt;<br>
+                <br>
+                int main(int argc, char** argv)<br>
+                {<br>
+                    int world_size, world_rank, name_len;<br>
+                    char hostname[MPI_MAX_PROCESSOR_NAME];<br>
+                    MPI_Init(&amp;argc, &amp;argv);<br>
+                    MPI_Comm_size(MPI_COMM_WORLD, &amp;world_size);<br>
+                    MPI_Comm_rank(MPI_COMM_WORLD, &amp;world_rank);<br>
+                    MPI_Get_processor_name(hostname, &amp;name_len);<br>
+                    printf("Hello world from processor %s, rank %d out
+                of %d processors\n", hostname, world_rank, world_size);<br>
+                    MPI_Finalize();<br>
+                    return 0;<br>
+                }<br>
+                <br>
+                <br>
+              </div>
+              What do I do now?<br>
+              <br>
+            </div>
+            Thanks<br>
+          </div>
+          Durga<br>
+        </div>
+        <div class="gmail_extra"><br clear="all">
+          <div>
+            <div class="gmail_signature">
+              <div dir="ltr">
+                <div>We learn from history that we never learn from
+                  history.<br>
+                </div>
+              </div>
+            </div>
+          </div>
+          <br>
+          <div class="gmail_quote">On Mon, Mar 28, 2016 at 2:37 AM,
+            Gilles Gouaillardet <span dir="ltr">&lt;<a
+                moz-do-not-send="true" href="mailto:gilles@rist.or.jp"
+                target="_blank"><a class="moz-txt-link-abbreviated" href="mailto:gilles@rist.or.jp">gilles@rist.or.jp</a></a>&gt;</span> wrote:<br>
+            <blockquote class="gmail_quote" style="margin:0 0 0
+              .8ex;border-left:1px #ccc solid;padding-left:1ex">
+              <div bgcolor="#FFFFFF" text="#000000"> Does this happen
+                only with master ?<br>
+                <br>
+                what does<br>
+                ldd mpicc<br>
+                says ?<br>
+                does it require both libnl and libnl3 ?<br>
+                <br>
+                libnl3 is used by OpenMPI if libnl3-devel package is
+                installed,<br>
+                and this is not the case on your system<br>
+                <br>
+                a possible root cause is third party libs use libnl3,
+                and the reachable/netlink component<br>
+                tries to use libnl, in this case, installing
+                libnl3-devel should fix your issue<br>
+                /* you will need to re-configure after that */<br>
+                <br>
+                an other possible root cause is some third party libs
+                use libnl and other use libnl3,<br>
+                and in this case, i am afraid there is no simple
+                workaround.<br>
+                if installing libnl3-devel did not solve your issue, you
+                can give a try to<br>
+                <a moz-do-not-send="true"
+                  href="https://github.com/open-mpi/ompi/pull/1014"
+                  target="_blank">https://github.com/open-mpi/ompi/pull/1014</a><br>
+                at least, it will abort with an error message that
+                states which lib is using libnl and which is using
+                libnl3<br>
+                <br>
+                i am afraid the only option is to manually disable some
+                components, so only one flavor of lib nl is used.<br>
+                that can be achieved by adding a .opal_ignore empty file
+                in the dir of the components you want to disable.<br>
+                /* you will need to rerun <a moz-do-not-send="true"
+                  href="http://autogen.pl" target="_blank">autogen.pl</a>
+                after that */<br>
+                <br>
+                Cheers,<br>
+                <br>
+                Gilles<br>
+                <br>
+                <div>On 3/28/2016 3:16 PM, dpchoudh . wrote:<br>
+                </div>
+                <blockquote type="cite">
+                  <div dir="ltr">
+                    <div>
+                      <div>
+                        <div>
+                          <div>
+                            <div>
+                              <div>
+                                <div>Hello all<br>
+                                  <br>
+                                </div>
+                                The system in question is a CentOS 7
+                                box, that has been running OpenMPI, both
+                                the master branch and the 1.10.2 release
+                                happily until now.<br>
+                                <br>
+                              </div>
+                              Just now, in order to debug something, I
+                              recompiled with the following options:<br>
+                              <br>
+                              $ ./configure --enable-debug
+                              --enable-debug-symbols --disable-dlopen<br>
+                              <br>
+                            </div>
+                            The compilation and install was successful;
+                            however, mpicc now crashes like this:<br>
+                            <br>
+                            [durga@smallMPI ~]$ mpicc -Wall -Wextra -o
+                            mpitest mpitest.c<br>
+                            mpicc: route/tc.c:973: rtnl_tc_register:
+                            Assertion `0' failed.<br>
+                            Aborted (core dumped)<br>
+                            <br>
+                            <br>
+                          </div>
+                          Searching the mailing archive, I found two
+                          posts that describe similar situations:<br>
+                          <br>
+                          <a moz-do-not-send="true"
+                            href="https://www.open-mpi.org/community/lists/devel/2015/08/17812.php"
+                            rel="noreferrer" target="_blank">https://www.open-mpi.org/community/lists/devel/2015/08/17812.php</a><br>
+                          <a moz-do-not-send="true"
+                            href="http://www.open-mpi.org/community/lists/users/2015/11/28016.php"
+                            rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/11/28016.php</a><br>
+                          <br>
+                        </div>
+                        However, the solution proposed in these, to
+                        disable verbs, is not acceptable to me for the
+                        following reasons: I am trying to implement a
+                        new BTL by reverse engineering the openib BTL. I
+                        am using a Qlogic HCA for this purpose. (Please
+                        note that I cannot use PSM as I am writing code
+                        for a BTL)<br>
+                        <br>
+                      </div>
+                      As there any more acceptable solutions for this?
+                      Here are the list of nl libraries on my box:<br>
+                      <br>
+                      [durga@smallMPI ~]$ sudo yum list installed | grep
+                      libnl<br>
+                      libnl.x86_64                          
+                      1.1.4-3.el7                     @anaconda<br>
+                      libnl-devel.x86_64                    
+                      1.1.4-3.el7                     @anaconda<br>
+                      libnl3.x86_64                         
+                      3.2.21-10.el7                   @base    <br>
+                      libnl3-cli.x86_64                     
+                      3.2.21-10.el7                   @base    <br>
+                      <br>
+                    </div>
+                    and uninstalling libnl3 is not an option either: it
+                    seems yum  wants to uninstall around 100 odd other
+                    packages because of dependency which will
+                    essentially render the machine unusable.<br>
+                    <div>
+                      <div>
+                        <div>
+                          <div>
+                            <div><br>
+                            </div>
+                            <div> Please help!<br>
+                              <br>
+                            </div>
+                            <div>Thanks in advance<br>
+                            </div>
+                            <div>Durga<br>
+                            </div>
+                            <div>
+                              <div>
+                                <div>
+                                  <div>
+                                    <div>
+                                      <div>
+                                        <div>
+                                          <div>
+                                            <div><br clear="all">
+                                              <div>
+                                                <div>
+                                                  <div dir="ltr">
+                                                    <div>We learn from
+                                                      history that we
+                                                      never learn from
+                                                      history.<br>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <br>
+                  <fieldset></fieldset>
+                  <br>
+                  <pre>_______________________________________________
+users mailing list
+<a moz-do-not-send="true" href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" href="http://www.open-mpi.org/community/lists/users/2016/03/28855.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/03/28855.php</a></pre>
+                </blockquote>
+                <br>
+              </div>
+              <br>
+              _______________________________________________<br>
+              users mailing list<br>
+              <a moz-do-not-send="true" href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+              Subscription: <a moz-do-not-send="true"
+                href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+                rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+              Link to this post: <a moz-do-not-send="true"
+                href="http://www.open-mpi.org/community/lists/users/2016/03/28856.php"
+                rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/03/28856.php</a><br>
+            </blockquote>
+          </div>
+          <br>
+        </div>
+        <br>
+        <fieldset class="mimeAttachmentHeader"></fieldset>
+        <br>
+        <pre wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28859.php">http://www.open-mpi.org/community/lists/users/2016/03/28859.php</a></pre>
+      </blockquote>
+      <br>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28860.php">http://www.open-mpi.org/community/lists/users/2016/03/28860.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

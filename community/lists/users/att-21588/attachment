@@ -1,0 +1,150 @@
+<div>Following up on your TCP remark, I found that during the delay, netstat
+-tnp shows<br><br>tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1
+192.168.1.3:56343&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+192.168.1.3:47830&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+SYN_SENT&nbsp;&nbsp;&nbsp; 24191/mpi_hello<br>&nbsp;<br>and that while the vpn
+is connected, I am unable to ping 192.168.1.3 (the machine I am on).<br><br>On
+the other hand, on the laptop (where mpi runs fine with vpn connected), the
+ping-to-self works fine even when the vpn is connected.<br><br><br><br><br>On
+Fri, Mar 22, 2013 07:37 AM, <b>"David A. Boger" &lt;dab143@psu.edu&gt;</b>
+wrote:<br><blockquote id="quoted_response" style="padding-left: 3px;
+padding-right: 0px; margin-left: 3px; margin-right: 0px; border-left: 1px solid
+#000;"><span><span><div>
+<span><span>Thanks Ralph.&nbsp; I have a Mac OS X 10.6.8 laptop where I
+can run
+open-mpi 1.2.8 and open-mpi 1.6.4 with the vpn connected without any problem,
+even without having to exclude the vpn interface, so you're probably right --
+the existence of the vpn interface alone doesn't explain the problem.
+Nevertheless, disconnecting the vpn on my ubuntu box definitely resolves the
+problem, so I think it's tied in somehow.<br><br>Do you think the process is
+hanging looking for a specific TCP connection, or just any TCP
+connection?&nbsp; If it's a specific one, is there a way to find out which or
+to test using something outside of mpirun that would show the same
+delay?<br><br>Thanks again,<br>David</span></span><br><br>On Fri, Mar 22, 2013
+12:25 AM, <b>Ralph Castain &lt;rhc@open-mpi.org&gt;</b> wrote:<br><blockquote
+id="quoted_response" style="padding-left: 3px; padding-right: 0px; margin-left:
+3px; margin-right: 0px; border-left: 1px solid #000;">
+
+<pre>
+The process is hanging trying to open a TCP connection back to mpirun. I would
+have thought that excluding the vpn interface would help, but it could be that
+there is still some interference from the vpn software itself - as you probably
+know, vpn generally tries to restrict connections.
+
+I don't recall seeing this behavior with my laptop (which also runs with a
+Cisco vpn), but I'll check it again in the morning and let you know.
+
+
+On Mar 21, 2013, at 6:52 PM, David A. Boger &lt;dab143@psu.edu&gt; wrote:
+
+&gt;  I am having a problem on my linux desktop where mpi_init hangs for
+approximately 64 seconds if I have my vpn client connected but runs immediately
+if I disconnect the vpn. I've picked through the FAQ and Google but have failed
+to come up with a solution.
+&gt; 
+&gt; Some potentially relevant information: I am using Open MPI 1.4.3 under
+ubuntu 12.04.1 and Cisco AnyConnect VPN Client. (I have also downloaded
+openmpi 1.6.4 and built it from source but believe it behaves the same
+way.)
+&gt; 
+&gt; Some potentially irrelevant information: I believe SSH tunneling is
+disabled by the vpn.  While the vpn is connected, ifconfig shows an extra
+interface (cscotun0 with inet addr:10.248.17.27 that shows up in the
+contact.txt file:
+&gt; 
+&gt; wt217:~/wrk/mpi&gt; cat
+/tmp/openmpi-sessions-dab143@wt217_0/29142/contact.txt
+&gt; 1909850112.0;tcp://192.168.1.3:48237;tcp://10.248.17.27:48237
+&gt; 22001
+&gt; 
+&gt; The code is simply
+&gt; 
+&gt; #include &lt;stdio.h&gt;
+&gt; #include &lt;mpi.h&gt;
+&gt; 
+&gt; int main(int argc, char** argv)
+&gt; {
+&gt;     MPI_Init(&amp;argc, &amp;argv);
+&gt;     MPI_Finalize();
+&gt;     return 0;
+&gt; }
+&gt; 
+&gt; I compile it using "mpicc -g mpi_hello.c -o mpi_hello" and
+execute it using "mpirun -d -v ./mpi_hello". (The problem occurs
+whether or not I asked for more than one processor.) With verbosity on, I
+get the following output:
+&gt; 
+&gt; wt217:~/wrk/mpi&gt; mpirun -d -v ./mpi_hello
+&gt; [wt217:22015] procdir: /tmp/openmpi-sessions-dab143@wt217_0/29144/0/0
+&gt; [wt217:22015] jobdir: /tmp/openmpi-sessions-dab143@wt217_0/29144/0
+&gt; [wt217:22015] top: openmpi-sessions-dab143@wt217_0
+&gt; [wt217:22015] tmp: /tmp
+&gt; [wt217:22015] [[29144,0],0] node[0].name wt217 daemon 0 arch ffc91200
+&gt; [wt217:22015] Info: ! Setting up debugger process table for applications
+&gt;   MPIR_being_debugged = 0
+&gt;   MPIR_debug_state = 1
+&gt;   MPIR_partial_attach_ok = 1
+&gt;   MPIR_i_am_starter = 0
+&gt;   MPIR_proctable_size = 1
+&gt;   MPIR_proctable:
+&gt;     (i, host, exe, pid) = (0, wt217,
+/home/dab143/wrk/mpi/./mpi_hello, 22016)
+&gt; [wt217:22016] procdir: /tmp/openmpi-sessions-dab143@wt217_0/29144/1/0
+&gt; [wt217:22016] jobdir: /tmp/openmpi-sessions-dab143@wt217_0/29144/1
+&gt; [wt217:22016] top: openmpi-sessions-dab143@wt217_0
+&gt; [wt217:22016] tmp: /tmp
+&gt; &lt;hangs for approximately 64 seconds&gt;
+&gt; [wt217:22016] [[29144,1],0] node[0].name wt217 daemon 0 arch ffc91200
+&gt; [wt217:22016] sess_dir_finalize: proc session dir not empty - leaving
+&gt; [wt217:22015] sess_dir_finalize: proc session dir not empty - leaving
+&gt; [wt217:22015] sess_dir_finalize: job session dir not empty - leaving
+&gt; [wt217:22015] sess_dir_finalize: proc session dir not empty - leaving
+&gt; orterun: e! xiting with status 0
+&gt; 
+&gt; The code hangs for approximately 6! 4 second s after the line that reads
+"tmp: /tmp".
+&gt; 
+&gt; If I attach gdb to the process during this time, the stack trace
+(attached) shows that the pause is in __GI___poll in
+/sysdeps/unix/sysv/linux/poll.c:83.
+&gt; 
+&gt; If I add "-mca oob_tcp_if_exclude cscotun0", then the
+corresponding address for that vpn interface no longer shows up in contact.txt,
+but the problem remains. I also add "-mca btl ^cscotun0 -mca
+btl_tcp_if_exclude cscotun0" with no effect.
+&gt; 
+&gt; Any idea what is hanging this up or how I can get more information as to
+what is going on during the pause? I assume connecting the vpn has caused
+mpi_init to look for something that isn't available and that eventually times
+out, but I don't know what.
+&gt; 
+&gt; Output from ompi_info and the gdb stack trace is attached.
+&gt; 
+&gt; Thanks,
+&gt; David
+&gt; 
+&gt;
+&lt;stack.txt.bz2&gt;&lt;ompi_info.txt.bz2&gt;_______________________________________________
+&gt; users mailing list
+&gt; users@open-mpi.org
+&gt; http://www.open-mpi.org/mailman/listinfo.cgi/users
+
+
+_______________________________________________
+users mailing list
+users@open-mpi.org
+http://www.open-mpi.org/mailman/listinfo.cgi/users
+
+
+</pre>
+</blockquote>
+<br><br><br>
+</div></span></span>
+<pre>
+_______________________________________________
+users mailing list
+users@open-mpi.org
+http://www.open-mpi.org/mailman/listinfo.cgi/users
+</pre></blockquote><br><br><br></div>
+

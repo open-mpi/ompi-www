@@ -1,0 +1,49 @@
+First of all, the reason that I have created a CPU-friendly version of MPI_Barrier is that my program is asymmetric (so some of the nodes can easily have to wait for several hours) and that it is I/O bound. My program uses MPI mainly to synchronize I/O and to share some counters between the nodes, followed by a gather/scatter of the files. MPI_Barrier (or any of the other MPI calls) caused the four CPU&#39;s of my Quad Core to continuously run at 100% because of the aggressive polling, making the server almost unusable and also slowing my program down because there was less CPU time available for I/O and file synchronization. With this version of MPI_Barrier CPU usage averages out at about 25%. I only recently learned about the OMPI_MCA_mpi_yield_when_idle variable, I still have to test if that is an alternative to my workaround.<div>
+Meanwhile I seem to have found the cause of problem thanks to Ashley&#39;s excellent padb tool. Following Eugene&#39;s recommendation, I have added the MPI_Wait call: the same problem. Next I created a separate program that just calls my_barrier repeatedly with randomized 1-2 seconds intervals. Again the same problem (with 4 nodes), sometimes after a couple of iterations, sometimes after 500, 1000 or 2000 iterations. Next I followed Ashley&#39;s suggestion to use padb. I ran padb --all --mpi-queue and padb --all --message-queue while the program was running fine and after the problem occured. When the problem occurred padb said:<div>
+<div><br></div><div>Warning, remote process state differs across ranks</div><div>state : ranks</div><div>    R : [2-3]</div><div>    S : [0-1]</div><div><br></div><div>and</div><div><br></div><div><div>$ padb --all --stack-trace --tree</div>
+<div>Warning, remote process state differs across ranks</div><div>state : ranks</div><div>    R : [2-3]</div><div>    S : [0-1]</div><div>-----------------</div><div>[0-1] (2 processes)</div><div>-----------------</div><div>
+main() at ?:?</div><div>  barrier_util() at ?:?</div><div>    my_sleep() at ?:?</div><div>      __nanosleep_nocancel() at ?:?</div><div>-----------------</div><div>[2-3] (2 processes)</div><div>-----------------</div><div>
+??() at ?:?</div><div>  ??() at ?:?</div><div>    ??() at ?:?</div><div>      ??() at ?:?</div><div>        ??() at ?:?</div><div>          ompi_mpi_signed_char() at ?:?</div><div>            ompi_request_default_wait_all() at ?:?</div>
+<div>              opal_progress() at ?:?</div><div>                -----------------</div><div>                2 (1 processes)</div><div>                -----------------</div><div>                mca_pml_ob1_progress() at ?:?</div>
+<div><br></div><div>suggests that rather than OpenMPI being the problem, nanosleep is the culprit because the call to it seems to hang.</div><div><br></div><div>Thanks for all the help.</div><div><br></div><div>Gijsbert</div>
+</div></div><div><div><br></div><div class="gmail_quote">On Mon, Dec 14, 2009 at 8:22 PM, Ashley Pittman <span dir="ltr">&lt;<a href="mailto:ashley@pittman.co.uk">ashley@pittman.co.uk</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div class="im">On Sun, 2009-12-13 at 19:04 +0100, Gijsbert Wiesenekker wrote:<br>
+&gt; The following routine gives a problem after some (not reproducible)<br>
+&gt; time on Fedora Core 12. The routine is a CPU usage friendly version of<br>
+&gt; MPI_Barrier.<br>
+<br>
+</div>There are some proposals for Non-blocking collectives before the MPI<br>
+forum currently and I believe a working implementation which can be used<br>
+as a plug-in for OpenMPI, I would urge you to look at these rather than<br>
+try and implement your own.<br>
+<div class="im"><br>
+&gt; My question is: is there a problem with this routine that I overlooked<br>
+&gt; that somehow did not show up until now<br>
+<br>
+</div>Your code both does all-to-all communication and also uses probe, both<br>
+of these can easily be avoided when implementing Barrier.<br>
+<div class="im"><br>
+&gt; Is there a way to see which messages have been sent/received/are<br>
+&gt; pending?<br>
+<br>
+</div>Yes, there is a message queue interface allowing tools to peek inside<br>
+the MPI library and see these queues.  That I know of there are three<br>
+tools which use this, either TotalView, DDT or my own tool, padb.<br>
+TotalView and DDT are both full-featured graphical debuggers and<br>
+commercial products, padb is a open-source text based tool.<br>
+<br>
+Ashley,<br>
+<font color="#888888"><br>
+--<br>
+<br>
+Ashley Pittman, Bath, UK.<br>
+<br>
+Padb - A parallel job inspection tool for cluster computing<br>
+<a href="http://padb.pittman.org.uk" target="_blank">http://padb.pittman.org.uk</a><br>
+</font><div><div></div><div class="h5"><br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br></div></div>
+

@@ -1,0 +1,170 @@
+<div dir="ltr">Hi Aurelien,<div><br></div><div style>Excellent! Point 2) is exactly what I need - no data is actually sent and Irecv completes normally.</div><div style><br></div><div style>Thanks!</div><div style><br></div>
+<div style>Jacky</div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, May 1, 2013 at 6:29 PM, Aurélien Bouteiller <span dir="ltr">&lt;<a href="mailto:bouteill@icl.utk.edu" target="_blank">bouteill@icl.utk.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi Jacky,<br>
+<br>
+1. If you do not post a matching send, the wait(all) on the recv will stall forever.<br>
+2. You can match a recv(count, tag, src) with a send(0, tag, dst). The recv will complete, the status can be inspected to verify how many bytes have actually been received. It is illegal to send more than what count can hold at the receiver, but it is perfectly fine to send less.<br>
+
+<br>
+Hope it helps,<br>
+Aurelien<br>
+<br>
+<br>
+Le 1 mai 2013 à 18:05, Gus Correa &lt;<a href="mailto:gus@ldeo.columbia.edu">gus@ldeo.columbia.edu</a>&gt; a écrit :<br>
+<div><div class="h5"><br>
+&gt; Hi Thomas/Jacky<br>
+&gt;<br>
+&gt; Maybe using MPI_Probe (and maybe also MPI_Cancel)<br>
+&gt; to probe the message size,<br>
+&gt; and receive only those with size&gt;0?<br>
+&gt; Anyway, I&#39;m just code-guessing.<br>
+&gt;<br>
+&gt; I hope it helps,<br>
+&gt; Gus Correa<br>
+&gt;<br>
+&gt; On 05/01/2013 05:14 PM, Thomas Watson wrote:<br>
+&gt;&gt; Hi Gus,<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks for your suggestion!<br>
+&gt;&gt;<br>
+&gt;&gt; The problem of this two-phased data exchange is as follows. Each rank<br>
+&gt;&gt; can have data blocks that will be exchanged to potentially all other<br>
+&gt;&gt; ranks. So if a rank needs to tell all the other ranks about which blocks<br>
+&gt;&gt; to receive, it would require an all-to-all collective communication<br>
+&gt;&gt; during phase one (e.g., MPI_Gatherallv). Because such collective<br>
+&gt;&gt; communication is blocking in current stable OpenMPI (MPI-2), it would<br>
+&gt;&gt; have a negative impact on scalability of the application, especially<br>
+&gt;&gt; when we have a large number of MPI ranks. This negative impact would not<br>
+&gt;&gt; be compensated by the bandwidth saved :-)<br>
+&gt;&gt;<br>
+&gt;&gt; What I really need is something like this: Isend sets count to 0 if a<br>
+&gt;&gt; block is not dirty. On the receiving side, MPI_Waitall deallocates the<br>
+&gt;&gt; corresponding Irecv request immediately and sets the Irecv request<br>
+&gt;&gt; handle to MPI_REQUEST_NULL as if it were a normal Irecv. I am wondering<br>
+&gt;&gt; if someone could confirm this behavior with me? I could do an experiment<br>
+&gt;&gt; on this too...<br>
+&gt;&gt;<br>
+&gt;&gt; Regards,<br>
+&gt;&gt;<br>
+&gt;&gt; Jacky<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On Wed, May 1, 2013 at 3:46 PM, Gus Correa &lt;<a href="mailto:gus@ldeo.columbia.edu">gus@ldeo.columbia.edu</a><br>
+&gt;&gt; &lt;mailto:<a href="mailto:gus@ldeo.columbia.edu">gus@ldeo.columbia.edu</a>&gt;&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt;    Maybe start the data exchange by sending a (presumably short)<br>
+&gt;&gt;    list/array/index-function of the dirty/not-dirty blocks status<br>
+&gt;&gt;    (say, 0=not-dirty,1=dirty),<br>
+&gt;&gt;    then putting if conditionals before the Isend/Irecv so that only<br>
+&gt;&gt;    dirty blocks are exchanged?<br>
+&gt;&gt;<br>
+&gt;&gt;    I hope this helps,<br>
+&gt;&gt;    Gus Correa<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;    On 05/01/2013 01:28 PM, Thomas Watson wrote:<br>
+&gt;&gt;<br>
+&gt;&gt;        Hi,<br>
+&gt;&gt;<br>
+&gt;&gt;        I have a program where each MPI rank hosts a set of data blocks.<br>
+&gt;&gt;        After<br>
+&gt;&gt;        doing computation over *some of* its local data blocks, each MPI<br>
+&gt;&gt;        rank<br>
+&gt;&gt;        needs to exchange data with other ranks. Note that the<br>
+&gt;&gt;        computation may<br>
+&gt;&gt;        involve only a subset of the data blocks on a MPI rank. The data<br>
+&gt;&gt;        exchange is achieved at each MPI rank through Isend and Irecv<br>
+&gt;&gt;        and then<br>
+&gt;&gt;        Waitall to complete the requests. Each pair of Isend and Irecv<br>
+&gt;&gt;        exchanges<br>
+&gt;&gt;        a corresponding pair of data blocks at different ranks. Right<br>
+&gt;&gt;        now, we do<br>
+&gt;&gt;        Isend/Irecv for EVERY block!<br>
+&gt;&gt;<br>
+&gt;&gt;        The idea is that because the computation at a rank may only<br>
+&gt;&gt;        involves a<br>
+&gt;&gt;        subset of blocks, we could mark those blocks as dirty during the<br>
+&gt;&gt;        computation. And to reduce data exchange bandwidth, we could only<br>
+&gt;&gt;        exchanges those *dirty* pairs across ranks.<br>
+&gt;&gt;<br>
+&gt;&gt;        The problem is: if a rank does not compute on a block &#39;m&#39;, and if it<br>
+&gt;&gt;        does not call Isend for &#39;m&#39;, then the receiving rank must<br>
+&gt;&gt;        somehow know<br>
+&gt;&gt;        this and either a) does not call Irecv for &#39;m&#39; as well, or b)<br>
+&gt;&gt;        let Irecv<br>
+&gt;&gt;        for &#39;m&#39; fail gracefully.<br>
+&gt;&gt;<br>
+&gt;&gt;        My questions are:<br>
+&gt;&gt;        1. how Irecv will behave (actually how MPI_Waitall will behave)<br>
+&gt;&gt;        if the<br>
+&gt;&gt;        corresponding Isend is missing?<br>
+&gt;&gt;<br>
+&gt;&gt;        2. If we still post Isend for &#39;m&#39;, but because we really do not<br>
+&gt;&gt;        need to<br>
+&gt;&gt;        send any data for &#39;m&#39;, can I just set a &quot;flag&quot; in Isend so that<br>
+&gt;&gt;        MPI_Waitall on the receiving side will &quot;cancel&quot; the<br>
+&gt;&gt;        corresponding Irecv<br>
+&gt;&gt;        immediately? For example, I can set the count in Isend to 0, and<br>
+&gt;&gt;        on the<br>
+&gt;&gt;        receiving side, when MPI_Waitall see a message with empty<br>
+&gt;&gt;        payload, it<br>
+&gt;&gt;        reclaims the corresponding Irecv? In my code, the correspondence<br>
+&gt;&gt;        between<br>
+&gt;&gt;        a pair of Isend and Irecv is established by a matching TAG.<br>
+&gt;&gt;<br>
+&gt;&gt;        Thanks!<br>
+&gt;&gt;<br>
+&gt;&gt;        Jacky<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;        _________________________________________________<br>
+&gt;&gt;        users mailing list<br>
+&gt;&gt;        <a href="mailto:users@open-mpi.org">users@open-mpi.org</a> &lt;mailto:<a href="mailto:users@open-mpi.org">users@open-mpi.org</a>&gt;<br>
+&gt;&gt;        <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/users</a><br>
+&gt;&gt;        &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;    _________________________________________________<br>
+&gt;&gt;    users mailing list<br>
+&gt;&gt;    <a href="mailto:users@open-mpi.org">users@open-mpi.org</a> &lt;mailto:<a href="mailto:users@open-mpi.org">users@open-mpi.org</a>&gt;<br>
+&gt;&gt;    <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/users</a><br>
+&gt;&gt;    &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+</div></div>--<br>
+* Dr. Aurélien Bouteiller<br>
+* Researcher at Innovative Computing Laboratory<br>
+* University of Tennessee<br>
+* 1122 Volunteer Boulevard, suite 309b<br>
+* Knoxville, TN 37996<br>
+* <a href="tel:865%20974%209375" value="+18659749375">865 974 9375</a><br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br></div>
+

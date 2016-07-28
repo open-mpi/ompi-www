@@ -1,0 +1,73 @@
+<html><body>
+<p>No - it is not guaranteed. (it is highly probable though)<br>
+<br>
+The return from the MPI_Send only guarantees that the data is safely held somewhere other than the send buffer so you are free to modify the send buffer. The MPI standard does not say where the data is to be held. It only says that once the MPI_Test is successful, the data will have been delivered to the receive buffer.<br>
+<br>
+Consider this possible scenario:<br>
+<br>
+MPI_Send is for a small message<br>
+The data is sent toward the destination<br>
+To allow the MPI_Send to complete promptly ,lib MPI makes a temporary copy of the message<br>
+The MPI_Send returns once the copy is made<br>
+the message gets lost in the network<br>
+the MPI_Barrier does its communication without packet loss and completes<br>
+the call to MPI_Test returns false<br>
+the send side gets no ack for the lost message and eventually retransmits it from the saved temp<br>
+This time it gets through<br>
+A later MPI_Test succeeds<br>
+An ack eventually gets back to the sender and it throws away the temp copy of the message it was keeping in case a retransmit was needed<br>
+<br>
+I am not saying any particular MPI library would work this way but it is one kind of thing that a libmpi might do to give better performance while maintaining the strict rules of MPI semantic.  Since the MPI_Barrier does not make any guarantee about the destination status of sends done before it, this kind of optimization is legitimate.<br>
+<br>
+If you must know that the message is received once the barrier returns, you need to MPI_Wait the message before you call barrier.<br>
+<br>
+            Dick <br>
+<br>
+<br>
+Dick Treumann  -  MPI Team           <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 07/23/2009 05:02:51 PM:<br>
+<br>
+&gt; [image removed] </tt><br>
+<tt>&gt; <br>
+&gt; [OMPI users] Interaction of MPI_Send and MPI_Barrier</tt><br>
+<tt>&gt; <br>
+&gt; Shaun Jackman </tt><br>
+<tt>&gt; <br>
+&gt; to:</tt><br>
+<tt>&gt; <br>
+&gt; Open MPI</tt><br>
+<tt>&gt; <br>
+&gt; 07/23/2009 05:04 PM</tt><br>
+<tt>&gt; <br>
+&gt; Sent by:</tt><br>
+<tt>&gt; <br>
+&gt; users-bounces@open-mpi.org</tt><br>
+<tt>&gt; <br>
+&gt; Please respond to Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; Hi,<br>
+&gt; <br>
+&gt; Two processes run the following program:<br>
+&gt; <br>
+&gt; request = MPI_Irecv<br>
+&gt; MPI_Send (to the other process)<br>
+&gt; MPI_Barrier<br>
+&gt; flag = MPI_Test(request)<br>
+&gt; <br>
+&gt; Without the barrier, there's a race and MPI_Test may or may not return <br>
+&gt; true, indicating whether the message has been received. With the <br>
+&gt; barrier, is it guaranteed that the message will have been received, <br>
+&gt; and MPI_Test will return true?<br>
+&gt; <br>
+&gt; Cheers,<br>
+&gt; Shaun<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; </tt><tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt><tt><br>
+</tt></body></html>

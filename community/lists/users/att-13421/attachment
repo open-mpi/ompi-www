@@ -1,0 +1,31 @@
+<div class="gmail_quote"><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div bgcolor="#ffffff" text="#000000">You would break the MPI_Irecv and MPI_Isend calls up into two parts: 
+MPI_Send_init and MPI_Recv_init in the first part and MPI_Start[all] in
+the second part.  The first part needs to be moved out of the
+subroutine... at least outside of the loop in sub1() and maybe even
+outside the 10000-iteration loop in the main program.  (There would
+also be MPI_Request_free calls that would similarly have to be moved
+out.)  If the overheads are small compared to the other work you&#39;re
+doing per message, the savings would be small.  (And, I&#39;m guessing this
+is the case for you.)  Further, the code refactoring might not be
+simple.  So, persistent communications *might* not be a fruitful
+optimization strategy for you.  Just a warning.<br>
+</div>
+
+</blockquote></div><br><br>Well! If I follow this strategy then the picture should be as follows. Correct?? <br>Obviously the sub1 and sub2 exists outside separately. Following is just for understanding.<br><br><b style="color: rgb(204, 0, 0);"><br>
+</b><b style="color: rgb(51, 204, 0);">Main program starts------@@@@@@@@@@@@@@@@@@@@@@@.</b><br style="color: rgb(51, 204, 0);"><b style="color: rgb(51, 204, 0);"><br></b><b style="color: rgb(51, 204, 0);">CALL MPI_RECV_INIT for each neighboring process  <br>
+CALL MPI_SEND_INIT for each neighboring process</b><br><b style="color: rgb(51, 204, 0);">Loop Calling the subroutine1--------------------(10000 times in the main program).<br><br></b><b style="color: rgb(51, 204, 0);"> Call subroutine1</b><br style="color: rgb(51, 204, 0);">
+<b style="color: rgb(204, 0, 0);"><br></b><b style="color: rgb(204, 0, 0);">Subroutine1 starts===================================</b><br>
+<b style="color: rgb(204, 0, 0);">   Loop A starts here &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; (three passes)<br>   Call subroutine2<br><br>   Subroutine2 starts----------------------------<br>
+
+         <span style="color: rgb(255, 0, 0);">Pick local data from array U in separate arrays for each neighboring processor</span><br style="color: rgb(255, 0, 0);"><span style="color: rgb(255, 0, 0);">         CALL MPI_STARTALL</span><br style="color: rgb(255, 0, 0);">
+
+<span style="color: rgb(255, 0, 0);"></span><span style="color: rgb(255, 0, 0);">         -------perform work that could be done with local data</span><br style="color: rgb(255, 0, 0);">
+<span style="color: rgb(255, 0, 0);">         CALL MPI_WAITALL( )</span><br style="color: rgb(255, 0, 0);"><span style="color: rgb(255, 0, 0);">         -------perform work using the received data</span><br style="color: rgb(255, 0, 0);">
+
+   Subroutine</b><b style="color: rgb(204, 0, 0);">2</b><b style="color: rgb(204, 0, 0);"> ends</b><b style="color: rgb(204, 0, 0);">----------------------------</b><br><br><b style="color: rgb(204, 0, 0);"><span style="color: rgb(255, 0, 0);">         -------perform work to update array U</span></b><br>
+
+<b style="color: rgb(204, 0, 0);">   Loop A ends here &gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;</b><br><b style="color: rgb(204, 0, 0);">Subroutine1 ends====================================</b><br>
+<br><b style="color: rgb(51, 204, 0);">Loop Calling the subroutine1 ends------------(10000 times in the main program).</b><br style="color: rgb(51, 204, 0);"><br style="color: rgb(51, 204, 0);"><b style="color: rgb(51, 204, 0);">CALL MPI_Request_free( )</b><br style="color: rgb(51, 204, 0);">
+<br style="color: rgb(51, 204, 0);"><b style="color: rgb(51, 204, 0);">Main program ends------@@@@@@@@@@@@@@@@@@@@@@@.</b><br><br><br>But I think in the above case sending and receiving buffers would need to be create in GLOBAL Module , or need to be passed in the subroutine headers. In above there is one confusion. The sending buffer will be present in the argument list of the MPI_SEND_INIT() but it will get the values to be sent in the sub2? Is it possible/correct?<br>
+<br>The question is that, will above actually be communication efficient and over-lapping communication-computation.   <br><br>best regards,<br>AA<br>
+

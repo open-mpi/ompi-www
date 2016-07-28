@@ -1,0 +1,263 @@
+I&#39;m afraid not, even with the changes in the developer trunk. What happens is that the local and node ranks for each mpirun start over at 0 because the instances of mpirun don&#39;t know about each other. PSM uses the local rank as an index for determining endpoint. So running multiple mpiruns on the same nodes causes PSM to incorrectly map endpoints on top of each other.<br>
+<br>It would be possible to support the desired behavior by adding appropriate options to mpirun - essentially telling mpirun to &quot;assume N ranks already exist on each node&quot;. Clunky, but would work.<br><br><br><div class="gmail_quote">
+On Mon, Apr 2, 2012 at 9:20 AM, Gutierrez, Samuel K <span dir="ltr">&lt;<a href="mailto:samuel@lanl.gov">samuel@lanl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Sorry to hijack the thread, but I have a question regarding the failed PSM initialization.<br>
+<br>
+Some of our users oversubscribe a node with multiple mpiruns in order to run their regression tests.  Recently, a user reported the same &quot;Could not detect network connectivity&quot; error.<br>
+<br>
+My question:  is there a way to allow this type of behavior?  That is, oversubscribe a node with multiple mpiruns.  For example, say I have a node with 16 processing elements and I want to run 8 instances of &quot;mpirun -n 3 mpi_foo&quot; on a single node simultaneously and don&#39;t care about performance.<br>
+
+<br>
+Please note that oversubscription within one node and a **single** mpirun works as expected.  The error only shows up when another mpirun wants to join the party.<br>
+<br>
+Thanks,<br>
+<br>
+Lost in Los Alamos<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On Apr 2, 2012, at 9:40 AM, Ralph Castain wrote:<br>
+<br>
+&gt; I&#39;m not sure the 1.4 series can support that behavior. Each mpirun only knows about itself - it has no idea something else is going on.<br>
+&gt;<br>
+&gt; If you attempted to bind, all procs of same rank from each run would bind on the same CPU.<br>
+&gt;<br>
+&gt; All you can really do is use -host to tell the fourth run not to use the first node. Or use the devel trunk, which has more ability to separate runs.<br>
+&gt;<br>
+&gt; Sent from my iPad<br>
+&gt;<br>
+&gt; On Apr 2, 2012, at 6:53 AM, Rémi Palancher &lt;<a href="mailto:remi@rezib.org">remi@rezib.org</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; Hi there,<br>
+&gt;&gt;<br>
+&gt;&gt; I&#39;m encountering a problem when trying to run multiple mpirun in parallel inside<br>
+&gt;&gt; one SLURM allocation on multiple nodes using a QLogic interconnect network with<br>
+&gt;&gt; PSM.<br>
+&gt;&gt;<br>
+&gt;&gt; I&#39;m using Open MPI version 1.4.5 compiled with GCC 4.4.5 on Debian Lenny.<br>
+&gt;&gt;<br>
+&gt;&gt; My cluster is composed of 12 cores nodes.<br>
+&gt;&gt;<br>
+&gt;&gt; Here is how I&#39;m able to reproduce the problem:<br>
+&gt;&gt;<br>
+&gt;&gt; Allocate 20 CPU on 2 nodes :<br>
+&gt;&gt;<br>
+&gt;&gt; frontend $ salloc -N 2 -n 20<br>
+&gt;&gt; frontend $ srun hostname | sort | uniq -c<br>
+&gt;&gt;    12 cn1381<br>
+&gt;&gt;     8 cn1382<br>
+&gt;&gt;<br>
+&gt;&gt; My job allocates 12 CPU on node cn1381 and 8 CPU on cn1382.<br>
+&gt;&gt;<br>
+&gt;&gt; My test MPI program parse for each task the value of Cpus_allowed_list in file<br>
+&gt;&gt; /proc/$PID/status and print it.<br>
+&gt;&gt;<br>
+&gt;&gt; If I run it on all 20 allocated CPU, it works well:<br>
+&gt;&gt;<br>
+&gt;&gt; frontend $ mpirun get-allowed-cpu-ompi 1<br>
+&gt;&gt; Launch 1 Task 00 of 20 (cn1381): 0<br>
+&gt;&gt; Launch 1 Task 01 of 20 (cn1381): 1<br>
+&gt;&gt; Launch 1 Task 02 of 20 (cn1381): 2<br>
+&gt;&gt; Launch 1 Task 03 of 20 (cn1381): 3<br>
+&gt;&gt; Launch 1 Task 04 of 20 (cn1381): 4<br>
+&gt;&gt; Launch 1 Task 05 of 20 (cn1381): 7<br>
+&gt;&gt; Launch 1 Task 06 of 20 (cn1381): 5<br>
+&gt;&gt; Launch 1 Task 07 of 20 (cn1381): 9<br>
+&gt;&gt; Launch 1 Task 08 of 20 (cn1381): 8<br>
+&gt;&gt; Launch 1 Task 09 of 20 (cn1381): 10<br>
+&gt;&gt; Launch 1 Task 10 of 20 (cn1381): 6<br>
+&gt;&gt; Launch 1 Task 11 of 20 (cn1381): 11<br>
+&gt;&gt; Launch 1 Task 12 of 20 (cn1382): 4<br>
+&gt;&gt; Launch 1 Task 13 of 20 (cn1382): 5<br>
+&gt;&gt; Launch 1 Task 14 of 20 (cn1382): 6<br>
+&gt;&gt; Launch 1 Task 15 of 20 (cn1382): 7<br>
+&gt;&gt; Launch 1 Task 16 of 20 (cn1382): 8<br>
+&gt;&gt; Launch 1 Task 17 of 20 (cn1382): 10<br>
+&gt;&gt; Launch 1 Task 18 of 20 (cn1382): 9<br>
+&gt;&gt; Launch 1 Task 19 of 20 (cn1382): 11<br>
+&gt;&gt;<br>
+&gt;&gt; Here you can see that Slurm gave me CPU 0-11 on cn1381 and 4-11 on cn1382.<br>
+&gt;&gt;<br>
+&gt;&gt; Now I&#39;d like to run multiple MPI runs in parallel, 4 tasks each, inside my job.<br>
+&gt;&gt;<br>
+&gt;&gt; frontend $ cat params.txt<br>
+&gt;&gt; 1<br>
+&gt;&gt; 2<br>
+&gt;&gt; 3<br>
+&gt;&gt; 4<br>
+&gt;&gt; 5<br>
+&gt;&gt;<br>
+&gt;&gt; It works well when I launch 3 runs in parallel, where it only use the 12 CPU of<br>
+&gt;&gt; the first node (3 runs x 4 tasks = 12 CPU):<br>
+&gt;&gt;<br>
+&gt;&gt; frontend $ xargs -P 3 -n 1 mpirun -n 4 get-allowed-cpu-ompi &lt; params.txt<br>
+&gt;&gt; Launch 2 Task 00 of 04 (cn1381): 1<br>
+&gt;&gt; Launch 2 Task 01 of 04 (cn1381): 2<br>
+&gt;&gt; Launch 2 Task 02 of 04 (cn1381): 4<br>
+&gt;&gt; Launch 2 Task 03 of 04 (cn1381): 7<br>
+&gt;&gt; Launch 1 Task 00 of 04 (cn1381): 0<br>
+&gt;&gt; Launch 1 Task 01 of 04 (cn1381): 3<br>
+&gt;&gt; Launch 1 Task 02 of 04 (cn1381): 5<br>
+&gt;&gt; Launch 1 Task 03 of 04 (cn1381): 6<br>
+&gt;&gt; Launch 3 Task 00 of 04 (cn1381): 9<br>
+&gt;&gt; Launch 3 Task 01 of 04 (cn1381): 8<br>
+&gt;&gt; Launch 3 Task 02 of 04 (cn1381): 10<br>
+&gt;&gt; Launch 3 Task 03 of 04 (cn1381): 11<br>
+&gt;&gt; Launch 4 Task 00 of 04 (cn1381): 0<br>
+&gt;&gt; Launch 4 Task 01 of 04 (cn1381): 3<br>
+&gt;&gt; Launch 4 Task 02 of 04 (cn1381): 1<br>
+&gt;&gt; Launch 4 Task 03 of 04 (cn1381): 5<br>
+&gt;&gt; Launch 5 Task 00 of 04 (cn1381): 2<br>
+&gt;&gt; Launch 5 Task 01 of 04 (cn1381): 4<br>
+&gt;&gt; Launch 5 Task 02 of 04 (cn1381): 7<br>
+&gt;&gt; Launch 5 Task 03 of 04 (cn1381): 6<br>
+&gt;&gt;<br>
+&gt;&gt; But when I try to launch 4 runs or more in parallel, where it needs to use the<br>
+&gt;&gt; CPU of the other node as well, it fails:<br>
+&gt;&gt;<br>
+&gt;&gt; frontend $ $ xargs -P 4 -n 1 mpirun -n 4 get-allowed-cpu-ompi &lt; params.txt<br>
+&gt;&gt; cn1381.23245ipath_userinit: assign_context command failed: Network is down<br>
+&gt;&gt; cn1381.23245can&#39;t open /dev/ipath, network down (err=26)<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; PSM was unable to open an endpoint. Please make sure that the network link is<br>
+&gt;&gt; active on the node and the hardware is functioning.<br>
+&gt;&gt;<br>
+&gt;&gt; Error: Could not detect network connectivity<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; cn1381.23248ipath_userinit: assign_context command failed: Network is down<br>
+&gt;&gt; cn1381.23248can&#39;t open /dev/ipath, network down (err=26)<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; PSM was unable to open an endpoint. Please make sure that the network link is<br>
+&gt;&gt; active on the node and the hardware is functioning.<br>
+&gt;&gt;<br>
+&gt;&gt; Error: Could not detect network connectivity<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; cn1381.23247ipath_userinit: assign_context command failed: Network is down<br>
+&gt;&gt; cn1381.23247can&#39;t open /dev/ipath, network down (err=26)<br>
+&gt;&gt; cn1381.23249ipath_userinit: assign_context command failed: Network is down<br>
+&gt;&gt; cn1381.23249can&#39;t open /dev/ipath, network down (err=26)<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; It looks like MPI_INIT failed for some reason; your parallel process is<br>
+&gt;&gt; likely to abort.  There are many reasons that a parallel process can<br>
+&gt;&gt; fail during MPI_INIT; some of which are due to configuration or environment<br>
+&gt;&gt; problems.  This failure appears to be an internal failure; here&#39;s some<br>
+&gt;&gt; additional information (which may only be relevant to an Open MPI<br>
+&gt;&gt; developer):<br>
+&gt;&gt;<br>
+&gt;&gt; PML add procs failed<br>
+&gt;&gt; --&gt; Returned &quot;Error&quot; (-1) instead of &quot;Success&quot; (0)<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; *** The MPI_Init() function was called before MPI_INIT was invoked.<br>
+&gt;&gt; *** This is disallowed by the MPI standard.<br>
+&gt;&gt; *** Your MPI job will now abort.<br>
+&gt;&gt; *** The MPI_Init() function was called before MPI_INIT was invoked.<br>
+&gt;&gt; *** This is disallowed by the MPI standard.<br>
+&gt;&gt; *** Your MPI job will now abort.<br>
+&gt;&gt; *** The MPI_Init() function was called before MPI_INIT was invoked.<br>
+&gt;&gt; *** This is disallowed by the MPI standard.<br>
+&gt;&gt; *** Your MPI job will now abort.<br>
+&gt;&gt; [cn1381:23245] Abort before MPI_INIT completed successfully; not able to guarantee that all other processes were killed!<br>
+&gt;&gt; *** The MPI_Init() function was called before MPI_INIT was invoked.<br>
+&gt;&gt; *** This is disallowed by the MPI standard.<br>
+&gt;&gt; *** Your MPI job will now abort.<br>
+&gt;&gt; [cn1381:23247] Abort before MPI_INIT completed successfully; not able to guarantee that all other processes were killed!<br>
+&gt;&gt; [cn1381:23242] Abort before MPI_INIT completed successfully; not able to guarantee that all other processes were killed!<br>
+&gt;&gt; [cn1381:23243] Abort before MPI_INIT completed successfully; not able to guarantee that all other processes were killed!<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; mpirun has exited due to process rank 2 with PID 23245 on<br>
+&gt;&gt; node cn1381 exiting without calling &quot;finalize&quot;. This may<br>
+&gt;&gt; have caused other processes in the application to be<br>
+&gt;&gt; terminated by signals sent by mpirun (as reported here).<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; It looks like MPI_INIT failed for some reason; your parallel process is<br>
+&gt;&gt; likely to abort.  There are many reasons that a parallel process can<br>
+&gt;&gt; fail during MPI_INIT; some of which are due to configuration or environment<br>
+&gt;&gt; problems.  This failure appears to be an internal failure; here&#39;s some<br>
+&gt;&gt; additional information (which may only be relevant to an Open MPI<br>
+&gt;&gt; developer):<br>
+&gt;&gt;<br>
+&gt;&gt; PML add procs failed<br>
+&gt;&gt; --&gt; Returned &quot;Error&quot; (-1) instead of &quot;Success&quot; (0)<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; *** The MPI_Init() function was called before MPI_INIT was invoked.<br>
+&gt;&gt; *** This is disallowed by the MPI standard.<br>
+&gt;&gt; *** Your MPI job will now abort.<br>
+&gt;&gt; *** The MPI_Init() function was called before MPI_INIT was invoked.<br>
+&gt;&gt; *** This is disallowed by the MPI standard.<br>
+&gt;&gt; *** Your MPI job will now abort.<br>
+&gt;&gt; [cn1381:23246] Abort before MPI_INIT completed successfully; not able to guarantee that all other processes were killed!<br>
+&gt;&gt; *** The MPI_Init() function was called before MPI_INIT was invoked.<br>
+&gt;&gt; *** This is disallowed by the MPI standard.<br>
+&gt;&gt; *** Your MPI job will now abort.<br>
+&gt;&gt; [cn1381:23248] Abort before MPI_INIT completed successfully; not able to guarantee that all other processes were killed!<br>
+&gt;&gt; *** The MPI_Init() function was called before MPI_INIT was invoked.<br>
+&gt;&gt; *** This is disallowed by the MPI standard.<br>
+&gt;&gt; *** Your MPI job will now abort.<br>
+&gt;&gt; [cn1381:23249] Abort before MPI_INIT completed successfully; not able to guarantee that all other processes were killed!<br>
+&gt;&gt; [cn1381:23244] Abort before MPI_INIT completed successfully; not able to guarantee that all other processes were killed!<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; mpirun has exited due to process rank 2 with PID 23248 on<br>
+&gt;&gt; node cn1381 exiting without calling &quot;finalize&quot;. This may<br>
+&gt;&gt; have caused other processes in the application to be<br>
+&gt;&gt; terminated by signals sent by mpirun (as reported here).<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; [ivanoe1:24981] 3 more processes have sent help message help-mtl-psm.txt / unable to open endpoint<br>
+&gt;&gt; [ivanoe1:24981] Set MCA parameter &quot;orte_base_help_aggregate&quot; to 0 to see all help / error messages<br>
+&gt;&gt; [ivanoe1:24981] 3 more processes have sent help message help-mpi-runtime / mpi_init:startup:internal-failure<br>
+&gt;&gt; [ivanoe1:24983] 3 more processes have sent help message help-mtl-psm.txt / unable to open endpoint<br>
+&gt;&gt; [ivanoe1:24983] Set MCA parameter &quot;orte_base_help_aggregate&quot; to 0 to see all help / error messages<br>
+&gt;&gt; [ivanoe1:24983] 3 more processes have sent help message help-mpi-runtime / mpi_init:startup:internal-failure<br>
+&gt;&gt; Launch 3 Task 00 of 04 (cn1381): 0<br>
+&gt;&gt; Launch 3 Task 01 of 04 (cn1381): 1<br>
+&gt;&gt; Launch 3 Task 02 of 04 (cn1381): 2<br>
+&gt;&gt; Launch 3 Task 03 of 04 (cn1381): 3<br>
+&gt;&gt; Launch 1 Task 00 of 04 (cn1381): 4<br>
+&gt;&gt; Launch 1 Task 01 of 04 (cn1381): 5<br>
+&gt;&gt; Launch 1 Task 02 of 04 (cn1381): 6<br>
+&gt;&gt; Launch 1 Task 03 of 04 (cn1381): 8<br>
+&gt;&gt; Launch 5 Task 00 of 04 (cn1381): 7<br>
+&gt;&gt; Launch 5 Task 01 of 04 (cn1381): 9<br>
+&gt;&gt; Launch 5 Task 02 of 04 (cn1381): 10<br>
+&gt;&gt; Launch 5 Task 03 of 04 (cn1381): 11<br>
+&gt;&gt;<br>
+&gt;&gt; As far as I can understand, Open MPI tries to launch all runs on the same nodes<br>
+&gt;&gt; (cn1382 in my case) and it forgets about the other node. Am I right? How can I<br>
+&gt;&gt; avoid this behaviour?<br>
+&gt;&gt;<br>
+&gt;&gt; Here are the Open MPI variables set in my environment:<br>
+&gt;&gt; $ env | grep OMPI<br>
+&gt;&gt; OMPI_MCA_mtl=psm<br>
+&gt;&gt; OMPI_MCA_pml=cm<br>
+&gt;&gt;<br>
+&gt;&gt; You can find attached to this email the config.log and the output of the<br>
+&gt;&gt; following commands:<br>
+&gt;&gt; frontend $ ompi_info --all &gt; ompi_info_all.txt<br>
+&gt;&gt; frontend $ mpirun --bynode --npernode 1 --tag-output ompi_info -v ompi full \<br>
+&gt;&gt;          --parsable &gt; ompi_nodes.txt<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks in advance for any kind of help!<br>
+&gt;&gt;<br>
+&gt;&gt; Best regards,<br>
+&gt;&gt; --<br>
+&gt;&gt; Rémi Palancher<br>
+&gt;&gt; <a href="http://rezib.org" target="_blank">http://rezib.org</a><br>
+&gt;&gt; &lt;config.log.gz&gt;<br>
+&gt;&gt; &lt;ompi_info_all.txt.gz&gt;<br>
+&gt;&gt; &lt;ompi_nodes.txt&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br>
+

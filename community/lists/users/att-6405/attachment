@@ -1,0 +1,102 @@
+<HTML>
+<HEAD>
+<TITLE>[OMPI users] Memory allocation with PGI compiler</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>Dear OpenMPI developers,<BR>
+<BR>
+Some people (Michele Martone Rome University Tor Vergata) found a bug present in openmpi (1.2.5 and 1.2.6) compiled with PGI (7.1-4 and 7.2).<BR>
+<BR>
+This bug doesn&#8217;t involve fabric interconnection (infiniband or GE or other) because is regard just only a simple memory allocation.<BR>
+<BR>
+You can reproduce the bug with this simple code:<BR>
+<BR>
+#include &lt;stdio.h&gt;<BR>
+#include &lt;stdlib.h&gt;<BR>
+<BR>
+int main( int argc, char *argv[])<BR>
+{<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/*<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* &nbsp;memory allocations simulation for ~50M nonzeros:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* &nbsp;nd=180 md=350 mdy=420<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* &nbsp;if this program crashes, there is a compiler problem<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;memory allocations simulation for ~50M nonzeros: &nbsp;nd=180 md=350 mdy=420\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;if this program crashes, there check your compiler/environment configuration\n&quot;);<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;sizeof(int) &nbsp;&nbsp;&nbsp;%d\n&quot;,sizeof(int));<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;sizeof(int*) &nbsp;&nbsp;%d\n&quot;,sizeof(int*));<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;sizeof(size_t) %d\n&quot;,sizeof(size_t));<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if( sizeof(size_t)&lt;8 || sizeof(int*)&lt;8 )<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;please compile this program for a 64 bit environment!\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return -1;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int * p;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;allocation 1/4..\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;p = calloc(47109185,16);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if(!p)printf(&quot;..failed.\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;allocation 2/4..\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;p = calloc(47109185,4);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if(!p)printf(&quot;..failed.\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;allocation 3/4..\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;p = calloc(47109185,4);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if(!p)printf(&quot;..failed.\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;allocation 4/4..\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;p = calloc(622947588,16);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if(!p)printf(&quot;..failed.\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if(!p) return -1;<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;printf(&quot;allocations test passed (no crash)\n&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 0;<BR>
+}<BR>
+<BR>
+<BR>
+So we test:<BR>
+<BR>
+</SPAN></FONT><OL><LI><FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>the above code compiled with gcc4 and PGI (7.1-4 or 7.2) is ok 
+</SPAN></FONT><LI><FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>the above code compiled with openmpi (1.2.5 or 1.2.6) with gcc4 is ok 
+</SPAN></FONT><LI><FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>the above code compiled with openmpi (1.2.5 or 1.2.6) with PGI (7.1-4 or 7.2) the test doesn&#8217;t &nbsp;pass &nbsp;(Segmentation fault)<BR>
+</SPAN></FONT></OL><FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'><BR>
+Some output of ldd:<BR>
+<BR>
+</SPAN></FONT><FONT SIZE="2"><FONT FACE="Consolas, Courier New, Courier"><SPAN STYLE='font-size:10pt'>&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libmpi.so.0 =&gt; /opt/mpi/openmpi-1.2.5/pgi/lib/libmpi.so.0<BR>
+&gt; &gt; (0x0000002a95558000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libopen-rte.so.0 =&gt; /opt/mpi/openmpi-1.2.5/pgi/lib/libopen-rte.so.0<BR>
+&gt; &gt; (0x0000002a957b2000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libopen-pal.so.0 =&gt; /opt/mpi/openmpi-1.2.5/pgi/lib/libopen-pal.so.0<BR>
+&gt; &gt; (0x0000002a9599c000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libibverbs.so.1 =&gt; /usr/lib64/libibverbs.so.1 (0x0000003d7b600000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;librt.so.1 =&gt; /lib64/tls/librt.so.1 (0x0000003d80d00000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libnuma.so.1 =&gt; /usr/lib64/libnuma.so.1 (0x0000002a95b30000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libdl.so.2 =&gt; /lib64/libdl.so.2 (0x0000003d7bd00000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libnsl.so.1 =&gt; /lib64/libnsl.so.1 (0x0000003d81500000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libutil.so.1 =&gt; /lib64/libutil.so.1 (0x0000002a95c35000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libpthread.so.0 =&gt; /lib64/tls/libpthread.so.0 (0x0000003d7c100000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libm.so.6 =&gt; /lib64/tls/libm.so.6 (0x0000003d7bb00000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libc.so.6 =&gt; /lib64/tls/libc.so.6 (0x0000003d7b800000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;libpgc.so =&gt;<BR>
+&gt; &gt; /afs/efda-itm.eu/project/compilers/pgi/linux86-64/7.1-4/libso/libpgc.so<BR>
+&gt; &gt; (0x0000002a95d3a000)<BR>
+&gt; &gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/lib64/ld-linux-x86-64.so.2 (0x0000003d7b400000<BR>
+</SPAN></FONT></FONT><FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'><BR>
+I think it is a bug to wrap the calloc function.<BR>
+<BR>
+greetings <BR>
+<BR>
+Dr. Francesco Iannone<BR>
+Associazione EURATOM-ENEA sulla Fusione<BR>
+C.R. ENEA Frascati<BR>
+Via E. Fermi 45<BR>
+00044 Frascati (Roma) Italy<BR>
+phone 00-39-06-9400-5124<BR>
+fax 00-39-06-9400-5524<BR>
+<a href="mailto:francesco.iannone@frascati.enea.it">mailto:francesco.iannone@frascati.enea.it</a><BR>
+<a href="http://www.afs.enea.it/iannone">http://www.afs.enea.it/iannone</a><BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+

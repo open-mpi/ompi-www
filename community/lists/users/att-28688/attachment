@@ -1,0 +1,143 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Gary,<div class=""><br class=""></div><div class="">The current fine tuning of our TCP layer was done on a 1Gb network, and might result in the performance degradation you see. There is a relationship between the depth of the pipeline and the length of the packets, together with another set of MCA parameters that can have a drastic impact on performance.</div><div class=""><br class=""></div><div class="">You should start with “ompi_info —param btl tcp -l 9”.</div><div class=""><br class=""></div><div class="">From your performance graphs I can see that Intel MPI has an eager size of around 128k (while ours is at 32k). Try to address this by setting btl_tcp_eager_limit to 128k and also&nbsp;btl_tcp_rndv_eager_limit to the same value.</div><div class=""><br class=""></div><div class="">By default Open MPI assumes TCP kernel buffers of 128k. These values can be tuned at the kernel level (<a href="http://www.cyberciti.biz/faq/linux-tcp-tuning/" class="">http://www.cyberciti.biz/faq/linux-tcp-tuning/</a>) and/or you can let Open MPI know that it can use more (by setting the MCA parameters&nbsp;btl_tcp_sndbuf and&nbsp;btl_tcp_rcvbuf).</div><div class=""><br class=""></div><div class="">Then you can play with the size of the TCP endpoint caching (it should be set to a value where the memcpy is about the same cost as a syscall).&nbsp;btl_tcp_endpoint_cache is the MCA parameter you are looking for.</div><div class=""><br class=""></div><div class="">Another trick, in case the injection rate of a single fd is too slow you can ask Open MPI to use multiple channels by setting&nbsp;btl_tcp_links to something else than 1. On a PS4 I had to bump it up to 3-4 to get the best performance.</div><div class=""><br class=""></div><div class="">Other parameters to be tuned:</div><div class="">-&nbsp;btl_tcp_max_send_size</div><div class="">-&nbsp;btl_tcp_rdma_pipeline_send_length</div><div class=""><br class=""></div><div class="">I don’t have access to a 10Gb network to tune. If you manage to tune it, I would like to get the values for the different MCA parameters so that out TCP BTL behaves optimally by default.</div><div class=""><br class=""></div><div class="">&nbsp; Thanks,</div><div class="">&nbsp; &nbsp; George.</div><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Mar 10, 2016, at 11:45 , Jackson, Gary L. &lt;<a href="mailto:Gary.Jackson@jhuapl.edu" class="">Gary.Jackson@jhuapl.edu</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class="">
+
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii" class="">
+
+<div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; font-size: 14px; font-family: Calibri, sans-serif;" class="">
+<div class="">
+<div class="">I re-ran all experiments with 1.10.2 configured the way you specified. My results are here:</div>
+<div class=""><br class="">
+</div>
+<div class=""><a href="https://www.dropbox.com/s/4v4jaxe8sflgymj/collected.pdf?dl=0" class="">https://www.dropbox.com/s/4v4jaxe8sflgymj/collected.pdf?dl=0</a></div>
+<div class=""><br class="">
+</div>
+<div class="">Some remarks:</div>
+<ol class="">
+<li class="">OpenMPI had poor performance relative to raw TCP and IMPI across all MTUs.</li><li class="">Those issues appeared at larger message sizes.</li><li class="">Intel MPI and raw TCP were comparable across message sizes and MTUs.</li></ol>
+<div class="">
+<div class="">With respect to some other concerns:</div>
+<ol class="">
+<li class="">I verified that the MTU values I'm using are correct with tracepath.</li><li class="">I am using a placement group.</li></ol>
+<div class="">--&nbsp;</div>
+<div class="">Gary Jackson</div>
+</div>
+</div>
+<div class=""><br class="">
+</div>
+<span id="OLK_SRC_BODY_SECTION" class="">
+<div style="font-family: Calibri; font-size: 11pt; text-align: left; border-width: 1pt medium medium; border-style: solid none none; padding: 3pt 0in 0in; border-top-color: rgb(181, 196, 223);" class="">
+<span style="font-weight:bold" class="">From: </span>users &lt;<a href="mailto:users-bounces@open-mpi.org" class="">users-bounces@open-mpi.org</a>&gt; on behalf of Gilles Gouaillardet &lt;<a href="mailto:gilles@rist.or.jp" class="">gilles@rist.or.jp</a>&gt;<br class="">
+<span style="font-weight:bold" class="">Reply-To: </span>Open MPI Users &lt;<a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a>&gt;<br class="">
+<span style="font-weight:bold" class="">Date: </span>Tuesday, March 8, 2016 at 11:07 PM<br class="">
+<span style="font-weight:bold" class="">To: </span>Open MPI Users &lt;<a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a>&gt;<br class="">
+<span style="font-weight:bold" class="">Subject: </span>Re: [OMPI users] Poor performance on Amazon EC2 with TCP<br class="">
+</div>
+<div class=""><br class="">
+</div>
+<div class="">
+<div bgcolor="#FFFFFF" text="#000000" class="">Jackson,<br class="">
+<br class="">
+one more thing, how did you build openmpi ?<br class="">
+<br class="">
+if you built from git (and without VPATH), then --enable-debug is automatically set, and this is hurting performance.<br class="">
+if not already done, i recommend you download the latest openmpi tarball (1.10.2) and<br class="">
+./configure --with-platform=contrib/platform/optimized --prefix=...<br class="">
+last but not least, you can<br class="">
+mpirun --mca mpi_leave_pinned 1 &lt;your benchmark&gt;<br class="">
+(that being said, i am not sure this is useful with TCP networks ...)<br class="">
+<br class="">
+Cheers,<br class="">
+<br class="">
+Gilles<br class="">
+<br class="">
+<br class="">
+<br class="">
+<div class="moz-cite-prefix">On 3/9/2016 11:34 AM, Rayson Ho wrote:<br class="">
+</div>
+<blockquote cite="mid:CAHwLALP=F8NF3DUyGkMYLyFYtPOwiEVwX0m2BnV4L09DjEHbew@mail.gmail.com" type="cite" class="">
+<div dir="ltr" class="">If you are using instance types that support SR-IOV (aka. "enhanced networking" in AWS), then turn it on. We saw huge differences when SR-IOV is enabled
+<div class="">
+<div class="gmail_extra"><br class="">
+</div>
+<div class="gmail_extra"><a moz-do-not-send="true" href="http://blogs.scalablelogic.com/2013/12/enhanced-networking-in-aws-cloud.html" class="">http://blogs.scalablelogic.com/2013/12/enhanced-networking-in-aws-cloud.html</a><br class="">
+</div>
+<div class="gmail_extra"><a moz-do-not-send="true" href="http://blogs.scalablelogic.com/2014/01/enhanced-networking-in-aws-cloud-part-2.html" class="">http://blogs.scalablelogic.com/2014/01/enhanced-networking-in-aws-cloud-part-2.html</a><br class="">
+</div>
+<div class="gmail_extra"><br class="">
+</div>
+<div class="gmail_extra">Make sure you start your instances with a placement group -- otherwise, the instances can be data centers apart!<br class="">
+</div>
+<div class="gmail_extra"><br class="">
+</div>
+<div class="gmail_extra">And check that jumbo frames are enabled properly:</div>
+<div class="gmail_extra"><br class="">
+</div>
+<div class="gmail_extra"><a moz-do-not-send="true" href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/network_mtu.html" class="">http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/network_mtu.html</a></div>
+<div class="gmail_extra"><br class="">
+</div>
+<div class="gmail_extra">But still, it is interesting that Intel MPI is getting a 2X speedup with the same setup! Can you post the raw numbers so that we can take a deeper look??</div>
+<div class="gmail_extra"><br clear="all" class="">
+<div class="">
+<div class="gmail_signature">Rayson<br class="">
+<br class="">
+==================================================<br class="">
+Open Grid Scheduler - The Official Open Source Grid Engine<br class="">
+<a moz-do-not-send="true" href="http://gridscheduler.sourceforge.net/" target="_blank" class="">http://gridscheduler.sourceforge.net/</a><br class="">
+<a moz-do-not-send="true" href="http://gridscheduler.sourceforge.net/GridEngine/GridEngineCloud.html" target="_blank" class="">http://gridscheduler.sourceforge.net/GridEngine/GridEngineCloud.html</a></div>
+</div>
+<div class="gmail_extra"><br class="">
+</div>
+<div class="gmail_extra"><br class="">
+</div>
+<div class="gmail_extra"><br class="">
+</div>
+<br class="">
+<div class="gmail_quote">On Tue, Mar 8, 2016 at 9:08 AM, Jackson, Gary L. <span dir="ltr" class="">
+&lt;<a moz-do-not-send="true" href="mailto:Gary.Jackson@jhuapl.edu" target="_blank" class=""></a><a class="moz-txt-link-abbreviated" href="mailto:Gary.Jackson@jhuapl.edu">Gary.Jackson@jhuapl.edu</a>&gt;</span> wrote:<br class="">
+<blockquote class="gmail_quote" style="margin:0px 0px 0px
+0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+<div style="word-wrap: break-word; font-size: 14px; font-family: Calibri, sans-serif;" class="">
+<div class=""><br class="">
+</div>
+<div class="">I've built OpenMPI 1.10.1 on Amazon EC2. Using NetPIPE, I'm seeing about half the performance for MPI over TCP as I do with raw TCP. Before I start digging in to this more deeply, does anyone know what might cause that?</div>
+<div class=""><br class="">
+</div>
+<div class="">For what it's worth, I see the same issues with MPICH, but I do not see it with Intel MPI.</div>
+<span class=""><font color="#888888" class="">
+<div class=""><br class="">
+</div>
+<div class="">
+<div class="">--&nbsp;</div>
+<div class="">Gary Jackson</div>
+<div class=""><br class="">
+</div>
+</div>
+</font></span></div>
+<br class="">
+_______________________________________________<br class="">
+users mailing list<br class="">
+<a moz-do-not-send="true" href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">
+Subscription: <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank" class="">
+http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br class="">
+Link to this post: <a moz-do-not-send="true" href="http://www.open-mpi.org/community/lists/users/2016/03/28659.php" rel="noreferrer" target="_blank" class="">
+http://www.open-mpi.org/community/lists/users/2016/03/28659.php</a><br class="">
+</blockquote>
+</div>
+<br class="">
+</div>
+</div>
+</div>
+<br class="">
+<fieldset class="mimeAttachmentHeader"></fieldset> <br class="">
+<pre wrap="" class="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28665.php">http://www.open-mpi.org/community/lists/users/2016/03/28665.php</a></pre>
+</blockquote>
+<br class="">
+</div>
+</div>
+</span>
+</div>
+
+_______________________________________________<br class="">users mailing list<br class=""><a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br class="">Link to this post: http://www.open-mpi.org/community/lists/users/2016/03/28672.php</div></blockquote></div><br class=""></div></body></html>

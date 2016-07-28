@@ -1,0 +1,149 @@
+<html>
+<head>
+<style><!--
+.hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Verdana
+}
+--></style>
+</head>
+<body class='hmmessage'>
+Hi,&nbsp;<div><br></div><div>thanks for the program from Jody.&nbsp;</div><div><br></div><div>David indicated the question that I want to ask.&nbsp;</div><div><br></div><div>But, Jody's approach is ok when the MPI built-in&nbsp;buffer&nbsp;size is large enough to hold the&nbsp;</div><div>message such as&nbsp;<span class="Apple-style-span" style="font-size: 13.3333px; ">100kB in the buffer.&nbsp;</span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; "><br></span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; ">In asynchronous communication, when the sender posts a mpi_isend, the message is put in&nbsp;</span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; ">a buffer provided by the MPI.&nbsp;</span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; "><br></span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; ">At this point, the receiver may still not post its&nbsp;corresponding mpi_irecv. So, the buffer size is&nbsp;</span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; ">important here.&nbsp;</span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; "><br></span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; ">Without knowing the buffer size, I may get " truncate error " on Open MPI.&nbsp;</span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; "><br></span></div><div>How to know the&nbsp;<span class="Apple-style-span" style="font-size: 13.3333px; ">size of the&nbsp;</span><span class="Apple-style-span" style="font-size: 13.3333px; ">buffer&nbsp;</span><span class="Apple-style-span" style="font-size: 13.3333px; ">automatically created by Open MPI in the&nbsp;</span><span class="Apple-style-span" style="font-size: 13.3333px; ">background ?</span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; "><br></span></div><div><span class="Apple-style-span" style="font-size: 13.3333px; ">Any help is&nbsp;appreciated.&nbsp;</span></div><div><br>Jack,</div><div><br></div><div>July 10 2010</div><div><br><hr id="stopSpelling">From: solarbikedz@gmail.com<br>Date: Sat, 10 Jul 2010 16:46:12 -0700<br>To: users@open-mpi.org<br>Subject: Re: [OMPI users] OpenMPI how large its buffer size ?<br><br>I believe his question is regarding when under non-blocking send/recv, how does MPI know how much memory to allocate to receive the message, since the size is determined AFTER the irecv is posted.&nbsp; So if the send post isend, but the receiver hasn't post irecv, what would the MPI do with the message.<br>
+
+<br>I believe MPI would automatically create a buffer in the background to store the message.<br><br><div class="ecxgmail_quote">On Sat, Jul 10, 2010 at 1:55 PM, jody <span dir="ltr">&lt;<a href="mailto:jody.xha@gmail.com">jody.xha@gmail.com</a>&gt;</span> wrote:<br>
+
+<blockquote class="ecxgmail_quote" style="padding-left:1ex">Perhaps i misunderstand your question...<br>
+Generally, it is the user's job to provide the buffers both to send and receive.<br>
+If you call MPI_Recv, you must pass a buffer that is large enough to<br>
+hold the data sent by the<br>
+corresponding MPI_Send. I.e., if you know your sender will send<br>
+messages of 100kB,<br>
+then you must provide a buffer of size 100kB to the receiver.<br>
+If the message size is unknown at compile time, you may have to send<br>
+two messages:<br>
+first an integer which tells the receiver how large a buffer it has to<br>
+allocate, and then<br>
+the actual message (which then nicely fits into the freshly allocated buffer)<br>
+<br>
+#include &lt;stdio.h&gt;<br>
+#include &lt;stdlib.h&gt;<br>
+<br>
+#include &lt;time.h&gt;<br>
+<br>
+<br>
+#include "mpi.h"<br>
+<br>
+#define SENDER &nbsp; &nbsp; 1<br>
+#define RECEIVER &nbsp; 0<br>
+#define TAG_LEN &nbsp; 77<br>
+#define TAG_DATA &nbsp;78<br>
+#define MAX_MESSAGE 16<br>
+<br>
+int main(int argc, char *argv[]) {<br>
+<br>
+ &nbsp; &nbsp;int num_procs;<br>
+ &nbsp; &nbsp;int rank;<br>
+ &nbsp; &nbsp;int *send_buf;<br>
+ &nbsp; &nbsp;int *recv_buf;<br>
+ &nbsp; &nbsp;int send_message_size;<br>
+ &nbsp; &nbsp;int recv_message_size;<br>
+ &nbsp; &nbsp;MPI_Status st;<br>
+ &nbsp; &nbsp;int i;<br>
+<br>
+ &nbsp; &nbsp;/* initialize random numbers */<br>
+ &nbsp; &nbsp;srand(time(NULL));<br>
+ &nbsp; &nbsp;MPI_Init(&amp;argc, &amp;argv);<br>
+ &nbsp; &nbsp;MPI_Comm_size(MPI_COMM_WORLD, &amp;num_procs);<br>
+ &nbsp; &nbsp;MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+<br>
+ &nbsp; &nbsp;if (rank == RECEIVER) {<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* the receiver */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* wait for message length */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;MPI_Recv(&amp;recv_message_size, 1, MPI_INT, SENDER, TAG_LEN,<br>
+MPI_COMM_WORLD, &amp;st);<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* create a buffer of the required size */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;recv_buf = (int*) malloc(recv_message_size*sizeof(int));<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* get data */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;MPI_Recv(recv_buf, recv_message_size, MPI_INT, SENDER,<br>
+TAG_DATA, MPI_COMM_WORLD, &amp;st);<br>
+<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;printf("Receiver got %d integers:", recv_message_size);<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;for (i = 0; i &lt; recv_message_size; i++) {<br>
+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;printf(" %d", recv_buf[i]);<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;}<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;printf("\n");<br>
+<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* clean up */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;free(recv_buf);<br>
+<br>
+ &nbsp; &nbsp;} else if (rank == SENDER) {<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* the sender */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* random message size */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;send_message_size = (int)((1.0*MAX_MESSAGE*rand())/(1.0*RAND_MAX));<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* create a buffer of the required size */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;send_buf = (int*) malloc(send_message_size*sizeof(int));<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* create random message */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;for (i = 0; i &lt; send_message_size; i++) {<br>
+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;send_buf[i] = rand();<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;}<br>
+<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;printf("Sender has %d integers:", send_message_size);<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;for (i = 0; i &lt; send_message_size; i++) {<br>
+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;printf(" %d", send_buf[i]);<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;}<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;printf("\n");<br>
+<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* send message size to receiver */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;MPI_Send(&amp;send_message_size, &nbsp;1, MPI_INT, RECEIVER, TAG_LEN,<br>
+MPI_COMM_WORLD);<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* now send messagge */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;MPI_Send(send_buf, send_message_size, MPI_INT, RECEIVER,<br>
+TAG_DATA, MPI_COMM_WORLD);<br>
+<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;/* clean up */<br>
+ &nbsp; &nbsp; &nbsp; &nbsp;free(send_buf);<br>
+<br>
+ &nbsp; &nbsp;}<br>
+<br>
+ &nbsp; &nbsp;MPI_Finalize();<br>
+}<br>
+<br>
+I hope this helps<br>
+ &nbsp;Jody<br>
+<div><div></div><div class="h5"><br>
+<br>
+On Sat, Jul 10, 2010 at 7:12 AM, Jack Bryan &lt;<a href="mailto:dtustudy68@hotmail.com">dtustudy68@hotmail.com</a>&gt; wrote:<br>
+&gt; Dear All:<br>
+&gt; How to find the buffer size of OpenMPI ?<br>
+&gt; I need to transfer large data between nodes on a cluster with OpenMPI 1.3.4.<br>
+&gt; Many nodes need to send data to the same node .<br>
+&gt; Workers use mpi_isend, the receiver node use&nbsp;&nbsp;mpi_irecv.<br>
+&gt; because they are non-blocking, the messages are stored in buffers of<br>
+&gt; senders.<br>
+&gt; And then, the receiver collect messages from its buffer.<br>
+&gt; If the receiver's buffer is too small, there will be truncate error.<br>
+&gt; Any help is appreciated.<br>
+&gt; Jack<br>
+&gt; July 9 &nbsp;2010<br>
+&gt;<br>
+&gt; ________________________________<br>
+&gt; Hotmail is redefining busy with tools for the New Busy. Get more from your<br>
+&gt; inbox. See how.<br>
+</div></div>&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br><br clear="all"><br>-- <br>David Zhang<br>University of California, San Diego<br></div> 		 	   		  <br /><hr />Hotmail has tools for the New Busy. Search, chat and e-mail from your inbox. <a href='http://www.windowslive.com/campaign/thenewbusy?ocid=PID28326::T:WLMTAGL:ON:WL:en-US:WM_HMP:042010_1' target='_new'>Learn more.</a></body>
+</html>

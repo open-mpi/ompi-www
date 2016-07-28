@@ -1,0 +1,119 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I believe he wants two procs/socket, so you’d need ppr:2:socket:pe=7<div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Jan 6, 2016, at 12:14 PM, Nick Papior &lt;<a href="mailto:nickpapior@gmail.com" class="">nickpapior@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class="">I do not think KMP_AFFINITY should affect anything in OpenMPI, it is an MKL env setting? Or am I wrong?<div class=""><br class=""></div><div class="">Note that these are used in an environment where openmpi automatically gets the host-file. Hence they are not present.</div><div class="">With intel mkl and openmpi I got the best performance using these, rather long flags:</div><div class=""><br class=""></div><div class=""><div class="">export KMP_AFFINITY=verbose,compact,granularity=core<br class=""></div><div class="">export KMP_STACKSIZE=62M</div><div class="">export KMP_SETTINGS=1</div><div class=""><br class=""></div><div class="">def_flags="--bind-to core -x OMP_PROC_BIND=true --report-bindings"</div><div class="">def_flags="$def_flags -x&nbsp;KMP_AFFINITY=$KMP_AFFINITY"</div><div class=""><br class=""></div><div class=""># in your case 7:</div><div class="">ONP=7</div><div class="">flags="$def_flags -x MKL_NUM_THREADS=$ONP -x MKL_DYNAMIC=FALSE"<br class=""></div><div class="">flags="$flags -x OMP_NUM_THREADS=$ONP -x OMP_DYNAMIC=FALSE"</div><div class="">flags="$flags -x KMP_STACKSIZE=$KMP_STACKSIZE"</div><div class="">flags="$flags --map-by ppr:1:socket:pe=7"</div></div><div class=""><br class=""></div><div class="">then run your program:</div><div class=""><br class=""></div><div class="">mpirun $flags &lt;app&gt;&nbsp;</div><div class=""><br class=""></div><div class="">A lot of the option flags are duplicated (and strictly not needed), but I provide them for easy testing changes.</div><div class="">Surely this is application dependent, but for my case it was performing really well.&nbsp;</div><div class=""><br class=""></div></div><div class="gmail_extra"><br class=""><div class="gmail_quote">2016-01-06 20:48 GMT+01:00 Erik Schnetter <span dir="ltr" class="">&lt;<a href="mailto:schnetter@gmail.com" target="_blank" class="">schnetter@gmail.com</a>&gt;</span>:<br class=""><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Setting KMP_AFFINITY will probably override anything that OpenMPI<br class="">
+sets. Can you try without?<br class="">
+<br class="">
+-erik<br class="">
+<div class=""><div class="h5"><br class="">
+On Wed, Jan 6, 2016 at 2:46 PM, Matt Thompson &lt;<a href="mailto:fortran@gmail.com" class="">fortran@gmail.com</a>&gt; wrote:<br class="">
+&gt; Hello Open MPI Gurus,<br class="">
+&gt;<br class="">
+&gt; As I explore MPI-OpenMP hybrid codes, I'm trying to figure out how to do<br class="">
+&gt; things to get the same behavior in various stacks. For example, I have a<br class="">
+&gt; 28-core node (2 14-core Haswells), and I'd like to run 4 MPI processes and 7<br class="">
+&gt; OpenMP threads. Thus, I'd like the processes to be 2 processes per socket<br class="">
+&gt; with the OpenMP threads laid out on them. Using a "hybrid Hello World"<br class="">
+&gt; program, I can achieve this with Intel MPI (after a lot of testing):<br class="">
+&gt;<br class="">
+&gt; (1097) $ env OMP_NUM_THREADS=7 KMP_AFFINITY=compact mpirun -np 4<br class="">
+&gt; ./hello-hybrid.x | sort -g -k 18<br class="">
+&gt; srun.slurm: cluster configuration lacks support for cpu binding<br class="">
+&gt; Hello from thread 0 out of 7 from process 2 out of 4 on borgo035 on CPU 0<br class="">
+&gt; Hello from thread 1 out of 7 from process 2 out of 4 on borgo035 on CPU 1<br class="">
+&gt; Hello from thread 2 out of 7 from process 2 out of 4 on borgo035 on CPU 2<br class="">
+&gt; Hello from thread 3 out of 7 from process 2 out of 4 on borgo035 on CPU 3<br class="">
+&gt; Hello from thread 4 out of 7 from process 2 out of 4 on borgo035 on CPU 4<br class="">
+&gt; Hello from thread 5 out of 7 from process 2 out of 4 on borgo035 on CPU 5<br class="">
+&gt; Hello from thread 6 out of 7 from process 2 out of 4 on borgo035 on CPU 6<br class="">
+&gt; Hello from thread 0 out of 7 from process 3 out of 4 on borgo035 on CPU 7<br class="">
+&gt; Hello from thread 1 out of 7 from process 3 out of 4 on borgo035 on CPU 8<br class="">
+&gt; Hello from thread 2 out of 7 from process 3 out of 4 on borgo035 on CPU 9<br class="">
+&gt; Hello from thread 3 out of 7 from process 3 out of 4 on borgo035 on CPU 10<br class="">
+&gt; Hello from thread 4 out of 7 from process 3 out of 4 on borgo035 on CPU 11<br class="">
+&gt; Hello from thread 5 out of 7 from process 3 out of 4 on borgo035 on CPU 12<br class="">
+&gt; Hello from thread 6 out of 7 from process 3 out of 4 on borgo035 on CPU 13<br class="">
+&gt; Hello from thread 0 out of 7 from process 0 out of 4 on borgo035 on CPU 14<br class="">
+&gt; Hello from thread 1 out of 7 from process 0 out of 4 on borgo035 on CPU 15<br class="">
+&gt; Hello from thread 2 out of 7 from process 0 out of 4 on borgo035 on CPU 16<br class="">
+&gt; Hello from thread 3 out of 7 from process 0 out of 4 on borgo035 on CPU 17<br class="">
+&gt; Hello from thread 4 out of 7 from process 0 out of 4 on borgo035 on CPU 18<br class="">
+&gt; Hello from thread 5 out of 7 from process 0 out of 4 on borgo035 on CPU 19<br class="">
+&gt; Hello from thread 6 out of 7 from process 0 out of 4 on borgo035 on CPU 20<br class="">
+&gt; Hello from thread 0 out of 7 from process 1 out of 4 on borgo035 on CPU 21<br class="">
+&gt; Hello from thread 1 out of 7 from process 1 out of 4 on borgo035 on CPU 22<br class="">
+&gt; Hello from thread 2 out of 7 from process 1 out of 4 on borgo035 on CPU 23<br class="">
+&gt; Hello from thread 3 out of 7 from process 1 out of 4 on borgo035 on CPU 24<br class="">
+&gt; Hello from thread 4 out of 7 from process 1 out of 4 on borgo035 on CPU 25<br class="">
+&gt; Hello from thread 5 out of 7 from process 1 out of 4 on borgo035 on CPU 26<br class="">
+&gt; Hello from thread 6 out of 7 from process 1 out of 4 on borgo035 on CPU 27<br class="">
+&gt;<br class="">
+&gt; Other than the odd fact that Process #0 seemed to start on Socket #1 (this<br class="">
+&gt; might be an artifact of how I'm trying to detect the CPU I'm on), this looks<br class="">
+&gt; reasonable. 14 threads on each socket and each process is laying out its<br class="">
+&gt; threads in a nice orderly fashion.<br class="">
+&gt;<br class="">
+&gt; I'm trying to figure out how to do this with Open MPI (version 1.10.0) and<br class="">
+&gt; apparently I am just not quite good enough to figure it out. The closest<br class="">
+&gt; I've gotten is:<br class="">
+&gt;<br class="">
+&gt; (1155) $ env OMP_NUM_THREADS=7 KMP_AFFINITY=compact mpirun -np 4 -map-by<br class="">
+&gt; ppr:2:socket ./hello-hybrid.x | sort -g -k 18<br class="">
+&gt; Hello from thread 0 out of 7 from process 0 out of 4 on borgo035 on CPU 0<br class="">
+&gt; Hello from thread 0 out of 7 from process 1 out of 4 on borgo035 on CPU 0<br class="">
+&gt; Hello from thread 1 out of 7 from process 0 out of 4 on borgo035 on CPU 1<br class="">
+&gt; Hello from thread 1 out of 7 from process 1 out of 4 on borgo035 on CPU 1<br class="">
+&gt; Hello from thread 2 out of 7 from process 0 out of 4 on borgo035 on CPU 2<br class="">
+&gt; Hello from thread 2 out of 7 from process 1 out of 4 on borgo035 on CPU 2<br class="">
+&gt; Hello from thread 3 out of 7 from process 0 out of 4 on borgo035 on CPU 3<br class="">
+&gt; Hello from thread 3 out of 7 from process 1 out of 4 on borgo035 on CPU 3<br class="">
+&gt; Hello from thread 4 out of 7 from process 0 out of 4 on borgo035 on CPU 4<br class="">
+&gt; Hello from thread 4 out of 7 from process 1 out of 4 on borgo035 on CPU 4<br class="">
+&gt; Hello from thread 5 out of 7 from process 0 out of 4 on borgo035 on CPU 5<br class="">
+&gt; Hello from thread 5 out of 7 from process 1 out of 4 on borgo035 on CPU 5<br class="">
+&gt; Hello from thread 6 out of 7 from process 0 out of 4 on borgo035 on CPU 6<br class="">
+&gt; Hello from thread 6 out of 7 from process 1 out of 4 on borgo035 on CPU 6<br class="">
+&gt; Hello from thread 0 out of 7 from process 2 out of 4 on borgo035 on CPU 14<br class="">
+&gt; Hello from thread 0 out of 7 from process 3 out of 4 on borgo035 on CPU 14<br class="">
+&gt; Hello from thread 1 out of 7 from process 2 out of 4 on borgo035 on CPU 15<br class="">
+&gt; Hello from thread 1 out of 7 from process 3 out of 4 on borgo035 on CPU 15<br class="">
+&gt; Hello from thread 2 out of 7 from process 2 out of 4 on borgo035 on CPU 16<br class="">
+&gt; Hello from thread 2 out of 7 from process 3 out of 4 on borgo035 on CPU 16<br class="">
+&gt; Hello from thread 3 out of 7 from process 2 out of 4 on borgo035 on CPU 17<br class="">
+&gt; Hello from thread 3 out of 7 from process 3 out of 4 on borgo035 on CPU 17<br class="">
+&gt; Hello from thread 4 out of 7 from process 2 out of 4 on borgo035 on CPU 18<br class="">
+&gt; Hello from thread 4 out of 7 from process 3 out of 4 on borgo035 on CPU 18<br class="">
+&gt; Hello from thread 5 out of 7 from process 2 out of 4 on borgo035 on CPU 19<br class="">
+&gt; Hello from thread 5 out of 7 from process 3 out of 4 on borgo035 on CPU 19<br class="">
+&gt; Hello from thread 6 out of 7 from process 2 out of 4 on borgo035 on CPU 20<br class="">
+&gt; Hello from thread 6 out of 7 from process 3 out of 4 on borgo035 on CPU 20<br class="">
+&gt;<br class="">
+&gt; Obviously not right. Any ideas on how to help me learn? The man mpirun page<br class="">
+&gt; is a bit formidable in the pinning part, so maybe I've missed an obvious<br class="">
+&gt; answer.<br class="">
+&gt;<br class="">
+&gt; Matt<br class="">
+&gt; --<br class="">
+&gt; Matt Thompson<br class="">
+&gt;<br class="">
+&gt; Man Among Men<br class="">
+&gt; Fulcrum of History<br class="">
+&gt;<br class="">
+&gt;<br class="">
+</div></div>&gt; _______________________________________________<br class="">
+&gt; users mailing list<br class="">
+&gt; <a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br class="">
+&gt; Link to this post:<br class="">
+&gt; <a href="http://www.open-mpi.org/community/lists/users/2016/01/28217.php" rel="noreferrer" target="_blank" class="">http://www.open-mpi.org/community/lists/users/2016/01/28217.php</a><br class="">
+<span class="HOEnZb"><font color="#888888" class=""><br class="">
+<br class="">
+<br class="">
+--<br class="">
+Erik Schnetter &lt;<a href="mailto:schnetter@gmail.com" class="">schnetter@gmail.com</a>&gt;<br class="">
+<a href="http://www.perimeterinstitute.ca/personal/eschnetter/" rel="noreferrer" target="_blank" class="">http://www.perimeterinstitute.ca/personal/eschnetter/</a><br class="">
+_______________________________________________<br class="">
+users mailing list<br class="">
+<a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br class="">
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/01/28218.php" rel="noreferrer" target="_blank" class="">http://www.open-mpi.org/community/lists/users/2016/01/28218.php</a><br class="">
+</font></span></blockquote></div><br class=""><br clear="all" class=""><div class=""><br class=""></div>-- <br class=""><div class="gmail_signature"><div dir="ltr" class=""><div class="">Kind regards Nick</div></div></div>
+</div>
+_______________________________________________<br class="">users mailing list<br class=""><a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br class="">Link to this post: http://www.open-mpi.org/community/lists/users/2016/01/28219.php</div></blockquote></div><br class=""></div></body></html>

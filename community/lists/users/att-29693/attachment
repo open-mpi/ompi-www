@@ -1,0 +1,448 @@
+my bad for the confusion,<div><br></div><div>I misread you and miswrote my reply.</div><div><br></div><div>I will investigate this again.</div><div><br></div><div>strictly speaking, the clients can only start after the server first write the port info to a file.</div><div>if you start the client right after the server start, they might use incorrect/outdated info and cause all the test hang.</div><div><br></div><div>I will start reproducing the hang</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Tuesday, July 19, 2016, M. D. &lt;<a href="mailto:matus.dobrotka@gmail.com">matus.dobrotka@gmail.com</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">Yes I understand it, but I think, this is exactly that situation you are talking about. In my opinion, the test is doing exactly what you said - when a new player is willing to join, other players must invoke <span style="font-size:12.8px">MPI_Comm_accept(). All <b>other</b> players must invoke </span><span style="font-size:12.8px">MPI_Comm_accept(). Only the last client (in this case last player which wants to join) does not invoke MPI_Comm_accept(), because this client invokes only MPI_Comm_connect(). He is connecting to communicator, in which all other players are already involved and therefore this last client doesn&#39;t have to invoke MPI_Comm_accept().</span><div><span style="font-size:12.8px"><br></span></div><div><span style="font-size:12.8px">Am I still missing something in this my reflection?</span></div><div><span style="font-size:12.8px"><br></span></div><div><span style="font-size:12.8px">Matus</span></div></div><div class="gmail_extra"><br><div class="gmail_quote">2016-07-19 10:55 GMT+02:00 Gilles Gouaillardet <span dir="ltr">&lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;gilles@rist.or.jp&#39;);" target="_blank">gilles@rist.or.jp</a>&gt;</span>:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    <p>here is what the client is doing</p>
+    <p>    printf(&quot;CLIENT: after merging, new comm: size=%d rank=%d\n&quot;,
+      size, rank) ;<br>
+      <br>
+          for (i = rank ; i &lt; num_clients ; i++)<br>
+          {<br>
+            /* client performs a collective accept */<br>
+            CHK(MPI_Comm_accept(server_port_name, MPI_INFO_NULL, 0,
+      intracomm, &amp;intercomm)) ;<br>
+      <br>
+            printf(&quot;CLIENT: connected to server on port\n&quot;) ;<br>
+            [...]      <br>
+    </p>
+    <p>    }<br>
+    </p>
+    <p>2) has rank 1</p>
+    <p>/* and 3) has rank 2) */</p>
+    <p>so unless you run 2) with num_clients=2, MPI_Comm_accept() is
+      never called, hence my analysis of the crash/hang</p>
+    <p><br>
+    </p>
+    <p>I understand what you are trying to achieve, keep in mind
+      MPI_Comm_accept() is a collective call, so when a new player</p>
+    <p>is willing to join, other players must invoke MPI_Comm_accept().</p>
+    <p>and it is up to you to make sure that happens</p>
+    <p><br>
+    </p>
+    <p>Cheers,</p>
+    <p><br>
+    </p>
+    <p>Gilles<br>
+    </p><div><div>
+    <br>
+    <div>On 7/19/2016 5:48 PM, M. D. wrote:<br>
+    </div>
+    </div></div><blockquote type="cite"><div><div>
+      <div dir="ltr"><br>
+        <div class="gmail_extra"><br>
+          <div class="gmail_quote">2016-07-19 10:06 GMT+02:00 Gilles
+            Gouaillardet <span dir="ltr">&lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;gilles@rist.or.jp&#39;);" target="_blank">gilles@rist.or.jp</a>&gt;</span>:<br>
+            <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+              <div bgcolor="#FFFFFF" text="#000000">
+                <p>MPI_Comm_accept must be called by all the tasks of
+                  the local communicator.</p>
+              </div>
+            </blockquote>
+            <div>Yes, that&#39;s how I understand it. In the source code of
+              the test, all the tasks call  MPI_Comm_accept - server and
+              also relevant clients.</div>
+            <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+              <div bgcolor="#FFFFFF" text="#000000">
+                <p>so if you</p>
+                <p>1) mpirun -np 1 ./singleton_client_server 2 1</p>
+                <p>2) mpirun -np 1 ./singleton_client_server 2 0</p>
+                <p>3) mpirun -np 1 ./singleton_client_server 2 0</p>
+                <p>then 3) starts after 2) has exited, so on 1),
+                  intracomm is made of 1) and an exited task (2)</p>
+              </div>
+            </blockquote>
+            <div>This is not true in my opinion -  because of above
+              mentioned fact that MPI_Comm_accept is called by all the
+              tasks of the local communicator.</div>
+            <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+              <div bgcolor="#FFFFFF" text="#000000">
+                <p>/*</p>
+                <p> strictly speaking, there is a race condition, if 2)
+                  has exited, then MPI_Comm_accept will crash when 1)
+                  informs 2) that 3) has joined.</p>
+                <p>if 2) has not yet exited, then the test will hang
+                  because 2) does not invoke MPI_Comm_accept</p>
+                <p>*/</p>
+              </div>
+            </blockquote>
+            <div>Task 2) does not exit, because of blocking call of
+              MPI_Comm_accept. </div>
+            <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+              <div bgcolor="#FFFFFF" text="#000000">
+                <p> </p>
+              </div>
+            </blockquote>
+            <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+              <div bgcolor="#FFFFFF" text="#000000">
+                <p><br>
+                </p>
+                <p>there are different ways of seeing things :</p>
+                <p>1) this is an incorrect usage of the test, the number
+                  of clients should be the same everywhere</p>
+                <p>2) task 2) should not exit (because it did not call
+                  MPI_Comm_disconnect()) and the test should hang when</p>
+                <p>starting task 3) because task 2) does not call
+                  MPI_Comm_accept()</p>
+                <p><br>
+                </p>
+              </div>
+            </blockquote>
+            <div>ad 1) I am sorry, but maybe I do not understand what
+              you think - In my previous post I wrote that the number of
+              clients is the same in every mpirun instance.</div>
+            <div>ad 2) it is the same as above</div>
+            <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+              <div bgcolor="#FFFFFF" text="#000000">
+                <p> </p>
+                <p>i do not know how you want to spawn your tasks.</p>
+                <p>if 2) and 3) do not need to communicate with each
+                  other (they only communicate with 1)), then</p>
+                <p>you can simply MPI_Comm_accept(MPI_COMM_WORLD) in 1)</p>
+                <p>if 2 and 3) need to communicate with each other, it
+                  would be much easier to MPI_Comm_spawn or
+                  MPI_Comm_spawn_multiple only once in 1),</p>
+                <p>so there is only one inter communicator with all the
+                  tasks.</p>
+              </div>
+            </blockquote>
+            <div>My aim is that all the tasks need to communicate with
+              each other. I am implementing a distributed application -
+              game with more players communicating with each other via
+              MPI. It should work as follows - First player creates a
+              game and waits for other players to connect to this game.
+              On different computers (in the same network) the other
+              players can join this game. When they are connected, they
+              should be able to play this game together. </div>
+            <div>I hope, it is clear what my idea is. If it is not, just
+              ask me, please.</div>
+            <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+              <div bgcolor="#FFFFFF" text="#000000">
+                <p><br>
+                </p>
+                <p>The current test program is growing incrementally the
+                  intercomm, which does require extra steps for
+                  synchronization.</p>
+                <p><br>
+                </p>
+                <p>Cheers,</p>
+                <p><br>
+                </p>
+                <p>Gilles<br>
+                </p>
+              </div>
+            </blockquote>
+            <div>Cheers,</div>
+            <div><br>
+            </div>
+            <div>Matus </div>
+            <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+              <div bgcolor="#FFFFFF" text="#000000">
+                <p> </p>
+                <div>
+                  <div>
+                    <div>On 7/19/2016 4:37 PM, M. D. wrote:<br>
+                    </div>
+                  </div>
+                </div>
+                <blockquote type="cite">
+                  <div>
+                    <div>
+                      <div dir="ltr">Hi,
+                        <div>thank you for your interest in this topic.</div>
+                        <div><br>
+                        </div>
+                        <div>So, I normally run the test as follows:</div>
+                        <div>Firstly, I run &quot;server&quot; <span style="font-size:12.8px">(second parameter
+                            is 1)</span>:</div>
+                        <div><b>mpirun -np 1 ./singleton_client_server
+                            number_of_clients 1</b><br>
+                        </div>
+                        <div><b><br>
+                          </b></div>
+                        <div>Secondly, I run corresponding number of
+                          &quot;clients&quot; via following command:</div>
+                        <div><b>mpirun -np 1 ./singleton_client_server
+                            number_of_clients 0</b><br>
+                        </div>
+                        <div><b><br>
+                          </b></div>
+                        <div>So, for example with 3 clients I do:</div>
+                        <div>mpirun -np 1 ./singleton_client_server 3 1<br>
+                        </div>
+                        <div>mpirun -np 1 ./singleton_client_server 3 0<br>
+                        </div>
+                        <div>mpirun -np 1 ./singleton_client_server 3 0<br>
+                        </div>
+                        <div>mpirun -np 1 ./singleton_client_server 3 0<br>
+                        </div>
+                        <div><br>
+                        </div>
+                        <div>It means you are right - there should be <span style="font-size:12.8px">the same number of
+                            clients in each mpirun instance.</span></div>
+                        <div><span style="font-size:12.8px"><br>
+                          </span></div>
+                        <div><span style="font-size:12.8px">The test
+                            does not involve </span><span style="font-size:12.8px">MPI_Comm_disconnect(),
+                            but the problem in the test is in the
+                            earlier position, because some of clients
+                            (in the most cases actually the last client)
+                            cannot sometimes connect to the server and
+                            therefore all clients with server are
+                            hanging (waiting for the connections with
+                            the last client(s) ).</span></div>
+                        <div><span style="font-size:12.8px"><br>
+                          </span></div>
+                        <div><span style="font-size:12.8px">So, the
+                            bahaviour of accept/connect method is a bit
+                            confusing for me. </span></div>
+                        <div><span style="font-size:12.8px">If I
+                            understand you, according to your post - the
+                            problem is not in the timeout value, isn&#39;t
+                            it?</span></div>
+                        <div><span style="font-size:12.8px"><br>
+                          </span></div>
+                        <div><span style="font-size:12.8px">Cheers,</span></div>
+                        <div><span style="font-size:12.8px"><br>
+                          </span></div>
+                        <div><span style="font-size:12.8px">Matus</span></div>
+                      </div>
+                      <div class="gmail_extra"><br>
+                        <div class="gmail_quote">2016-07-19 6:28
+                          GMT+02:00 Gilles Gouaillardet <span dir="ltr">&lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;gilles@rist.or.jp&#39;);" target="_blank"></a><a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;gilles@rist.or.jp&#39;);" target="_blank">gilles@rist.or.jp</a>&gt;</span>:<br>
+                          <blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+                            <div bgcolor="#FFFFFF" text="#000000">
+                              <p>How do you run the test ?</p>
+                              <p>you should have the same number of
+                                clients in each mpirun instance, the
+                                following simple shell starts the test
+                                as i think it is supposed to</p>
+                              <p>note the test itself is arguable since
+                                MPI_Comm_disconnect() is never invoked</p>
+                              <p>(and you will observe some related
+                                dpm_base_disconnect_init errors)</p>
+                              <p><br>
+                              </p>
+                              <p>#!/bin/sh<br>
+                                <br>
+                                clients=3<br>
+                                <br>
+                                    screen -d -m sh -c &quot;mpirun -np 1
+                                ./singleton_client_server $clients 1
+                                2&gt;&amp;1 | tee /tmp/server.$clients&quot;<br>
+                                for i in $(seq $clients); do</p>
+                              <p>    sleep 1<br>
+                              </p>
+                              <p>    screen -d -m sh -c &quot;mpirun -np 1
+                                ./singleton_client_server $clients 0
+                                2&gt;&amp;1 | tee
+                                /tmp/client.$clients.$i&quot;<br>
+                                done<br>
+                              </p>
+                              <p><br>
+                              </p>
+                              <p>Ralph,</p>
+                              <p><br>
+                              </p>
+                              <p>this test fails with master.</p>
+                              <p>when the &quot;server&quot; (second parameter is
+                                1), MPI_Comm_accept() fails with a
+                                timeout.</p>
+                              <p>i ompi/dpm/dpm.c, there is a hard coded
+                                60 seconds timeout</p>
+                              <p>OPAL_PMIX_EXCHANGE(rc, &amp;info,
+                                &amp;pdat, 60);</p>
+                              <p>but this is not the timeout that is
+                                triggered ...</p>
+                              <p>the eviction_cbfunc timeout function is
+                                invoked, and it has been set when
+                                opal_hotel_init() was invoked in
+                                orte/orted/pmix/pmix_server.c</p>
+                              <p><br>
+                              </p>
+                              <p>default timeout is 2 seconds, but in
+                                this case (user invokes
+                                MPI_Comm_accept), i guess the timeout
+                                should be infinite or 60 seconds (hard
+                                coded value described above)<br>
+                              </p>
+                              <p>sadly, if i set a higher timeout value
+                                (mpirun --mca orte_pmix_server_max_wait
+                                180 ...), MPI_Comm_accept() does not
+                                return when the client invokes
+                                MPI_Comm_connect()</p>
+                              <p><br>
+                              </p>
+                              <p>could you please have a look at this ?</p>
+                              <p><br>
+                              </p>
+                              <p>Cheers,</p>
+                              <p><br>
+                              </p>
+                              <p>Gilles<br>
+                              </p>
+                              <div>
+                                <div> <br>
+                                  <div>On 7/15/2016 9:20 PM, M. D.
+                                    wrote:<br>
+                                  </div>
+                                </div>
+                              </div>
+                              <blockquote type="cite">
+                                <div>
+                                  <div>
+                                    <div dir="ltr"><span style="font-size:12.8px">Hello,</span>
+                                      <div style="font-size:12.8px"><br>
+                                        <div>I have a problem with basic
+                                          client - server application. I
+                                          tried to run C program from
+                                          this website <a href="https://github.com/hpc/cce-mpi-openmpi-1.7.1/blob/master/orte/test/mpi/singleton_client_server.c" target="_blank"></a><a href="https://github.com/hpc/cce-mpi-openmpi-1.7.1/blob/master/orte/test/mpi/singleton_client_server.c" target="_blank">https://github.com/hpc/cce-mpi-openmpi-1.7.1/blob/master/orte/test/mpi/singleton_client_server.c</a></div>
+                                        <div>I saw this program
+                                          mentioned in many discussions
+                                          in your website, so I expected
+                                          that it should work properly,
+                                          but after more testing I found
+                                          out that there is probably an
+                                          error somewhere in
+                                          connect/accept method. I have
+                                          read many discussions and
+                                          threads on your website, but I
+                                          have not found similar problem
+                                          that I am facing. It seems
+                                          that nobody had similar
+                                          problem like me. When I run
+                                          this app with one server and
+                                          more clients (3,4,5,6,...)
+                                          sometimes the app hangs. It
+                                          hangs when second or next
+                                          client wants to connect to the
+                                          server (it depends, sometimes
+                                          third client hangs, sometimes
+                                          fourth, sometimes second, and
+                                          so on). </div>
+                                        <div>So it means that app starts
+                                          to hang where server waits for
+                                          accept and client waits for
+                                          connect. And it is not
+                                          possible to continue, because
+                                          this client cannot connect to
+                                          the server. It is strange,
+                                          because I observed this
+                                          behaviour only in some
+                                          cases... Sometimes it works
+                                          without any problems,
+                                          sometimes it does not work.
+                                          The behaviour is unpredictable
+                                          and not stable.</div>
+                                        <div><br>
+                                        </div>
+                                        <div>I have installed openmpi
+                                          1.10.2 on my Fedora 19. I have
+                                          the same problem with Java
+                                          alternative of this
+                                          application. It hangs also
+                                          sometimes... I need this app
+                                          in Java, but firstly it must
+                                          work properly in C
+                                          implementation. Because of
+                                          this strange behaviour I
+                                          assume that there can be an
+                                          error maybe inside of openmpi
+                                          implementation of
+                                          connect/accept methods. I
+                                          tried it also with another
+                                          version of openmpi - 1.8.1.
+                                          However, the problem did not
+                                          disappear.</div>
+                                        <div><br>
+                                        </div>
+                                        <div>Could you help me, what can
+                                          cause the problem? Maybe I did
+                                          not get something about
+                                          openmpi (or connect/server)
+                                          and the problem is with me...
+                                          I will appreciate any your
+                                          help, support, or interest
+                                          about this topic.</div>
+                                        <div><br>
+                                        </div>
+                                        <div>Best regards,</div>
+                                        <div>Matus Dobrotka</div>
+                                      </div>
+                                    </div>
+                                    <br>
+                                    <fieldset></fieldset>
+                                    <br>
+                                  </div>
+                                </div>
+                                <pre>_______________________________________________
+users mailing list
+<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;users@open-mpi.org&#39;);" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/07/29673.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/07/29673.php</a></pre>
+                              </blockquote>
+                              <br>
+                            </div>
+                            <br>
+_______________________________________________<br>
+                            users mailing list<br>
+                            <a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;users@open-mpi.org&#39;);" target="_blank">users@open-mpi.org</a><br>
+                            Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                            Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/07/29681.php" rel="noreferrer" target="_blank"></a><a href="http://www.open-mpi.org/community/lists/users/2016/07/29681.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/07/29681.php</a><br>
+                          </blockquote>
+                        </div>
+                        <br>
+                      </div>
+                      <br>
+                      <fieldset></fieldset>
+                      <br>
+                    </div>
+                  </div>
+                  <pre><div><div>_______________________________________________
+users mailing list
+<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;users@open-mpi.org&#39;);" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/07/29687.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/07/29687.php</a></pre>
+                </blockquote>
+                <br>
+              </div>
+              <br>
+              _______________________________________________<br>
+              users mailing list<br>
+              <a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;users@open-mpi.org&#39;);" target="_blank">users@open-mpi.org</a><br>
+              Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+              Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/07/29688.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/07/29688.php</a><br>
+            </blockquote>
+          </div>
+          <br>
+        </div>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      </div></div><pre><div><div>_______________________________________________
+users mailing list
+<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;users@open-mpi.org&#39;);" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/07/29689.php" target="_blank">http://www.open-mpi.org/community/lists/users/2016/07/29689.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;users@open-mpi.org&#39;);" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/07/29690.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/07/29690.php</a><br></blockquote></div><br></div>
+</blockquote></div>
+

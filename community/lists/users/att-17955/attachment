@@ -1,0 +1,92 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-15"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Thanks all for your anwers. yes, I understand well that it is a non
+    contiguous memory access problem as the MPI_BCAST should wait for a
+    pointer on a valid memory  zone. But I'm surprised that with the MPI
+    module usage Fortran does not hide this discontinuity in a
+    contiguous temporary copy of the array. I've spent some time to
+    build openMPI with g++/gcc/ifort (to create the right mpi module)
+    and ran some additional tests:<br>
+    <br>
+    <br>
+    <pre class="moz-signature" cols="80">Default OpenMPI is openmpi-1.2.8-17.4.x86_64
+
+# module load openmpi
+# mpif90 ess.F90 &amp;&amp; mpirun -np 4 ./a.out
+           0           1           2           3           0           1           2           3           0           1           2           3           0           1           2           3
+# module unload openmpi
+The result is Ok but sometime it hangs (when I require are a lot of processes)
+
+With OpenMPI 1.4.4 and gfortran from gcc-fortran-4.5-19.1.x86_64
+
+# module load openmpi-1.4.4-gcc-gfortran
+# mpif90 ess.F90 &amp;&amp; mpirun -np 4 ./a.out
+           0          -1          -1          -1           0          -1          -1          -1           0          -1          -1          -1           0          -1          -1          -1
+# module unload openmpi-1.4.4-gcc-gfortran
+Node 0 only update the global array with it's subarray. (i only print node 0 result)
+
+
+With OpenMPI 1.4.4 and ifort 10.1.018 (yes, it's quite old, I have the latest one but it isn't installed!)
+
+# module load openmpi-1.4.4-gcc-intel
+# mpif90 ess.F90 &amp;&amp; mpirun -np 4 ./a.out
+ess.F90(15): (col. 5) remark: LOOP WAS VECTORIZED.
+           0          -1          -1          -1           0          -1
+          -1          -1           0          -1          -1          -1
+           0          -1          -1          -1
+
+# mpif90 -check arg_temp_created ess.F90 &amp;&amp; mpirun -np 4 ./a.out
+gives a lot of messages like:
+forrtl: warning (402): fort: (1): In call to MPI_BCAST1DI4, an array temporary was created for argument #1
+
+So a temporary array is created for each call. So where is the problem ?
+
+About the fortran compiler, I'm using similar behavior (non contiguous subarrays) in MPI_sendrecv calls and all is working fine: I ran some intensive tests from 1 to 128 processes on my quad-core workstation. This Fortran solution was easier than creating user defined data types.
+
+Can you reproduce this behavior with the test case ? What are your OpenMPI and Gfortran/ifort versions ?
+
+Thanks again
+
+Patrick
+
+The test code:
+</pre>
+    <small>PROGRAM bide</small><br>
+    <small> USE mpi</small><br>
+    <small>    IMPLICIT NONE</small><br>
+    <small>    INTEGER :: nbcpus</small><br>
+    <small>    INTEGER :: my_rank</small><br>
+    <small>    INTEGER :: ierr,i,buf</small><br>
+    <small>    INTEGER, ALLOCATABLE:: tab(:,:)</small><br>
+    <small> </small><br>
+    <small>     CALL MPI_INIT(ierr)</small><br>
+    <small>     CALL MPI_COMM_RANK(MPI_COMM_WORLD,my_rank,ierr)</small><br>
+    <small>     CALL MPI_COMM_SIZE(MPI_COMM_WORLD,nbcpus,ierr)</small><br>
+    <small> </small><br>
+    <small>     ALLOCATE (tab(0:nbcpus-1,4))</small><br>
+    <small> </small><br>
+    <small>     tab(:,:)=-1</small><br>
+    <small>     tab(my_rank,:)=my_rank</small><br>
+    <small>     DO i=0,nbcpus-1</small><br>
+    <small>        CALL
+      MPI_BCAST(tab(i,:),4,MPI_INTEGER,i,MPI_COMM_WORLD,ierr)</small><br>
+    <small>     ENDDO</small><br>
+    <small>     IF (my_rank .EQ. 0) print*,tab</small><br>
+    <small>     CALL MPI_FINALIZE(ierr)</small><br>
+    <small> </small><br>
+    <small> END PROGRAM bide</small><br>
+    <br>
+    -- ===============================================================
+    | Equipe M.O.S.T. | <a class="moz-txt-link-freetext" href="http://most.hmg.inpg.fr">http://most.hmg.inpg.fr</a> |
+    | Patrick BEGOU | ------------ |
+    | LEGI | <a class="moz-txt-link-freetext" href="mailto:Patrick.Begou@hmg.inpg.fr">mailto:Patrick.Begou@hmg.inpg.fr</a> |
+    | BP 53 X | Tel 04 76 82 51 35 |
+    | 38041 GRENOBLE CEDEX | Fax 04 76 82 52 71 |
+    ===============================================================
+  </body>
+</html>
+

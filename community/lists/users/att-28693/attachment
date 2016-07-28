@@ -1,0 +1,232 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Hi Gilles,<br>
+    <br>
+    <br>
+    <div class="moz-cite-prefix">Le 16-03-10 23:14, Gilles Gouaillardet
+      a écrit :<br>
+    </div>
+    <blockquote cite="mid:56E24629.1020203@rist.or.jp" type="cite">
+      <meta content="text/html; charset=windows-1252"
+        http-equiv="Content-Type">
+      Eric,<br>
+      <br>
+      my short answer is no.<br>
+      <br>
+      long answer is :<br>
+      <br>
+      - from MPI_Register_datarep()<br>
+      <br>
+         /* The io framework is only initialized lazily.  If it hasn't<br>
+             already been initialized, do so now (note that
+      MPI_FILE_OPEN<br>
+             and MPI_FILE_DELETE are the only two places that it will be<br>
+             initialized). */<br>
+      <br>
+      - from mca_io_base_register_datarep()<br>
+          /* Find the maximum additional number of bytes required by all
+      io<br>
+             components for requests and make that the request size */<br>
+      <br>
+          OPAL_LIST_FOREACH(cli,
+      &amp;ompi_io_base_framework.framework_components,
+      mca_base_component_list_item_t) {<br>
+      ...<br>
+      }<br>
+      <br>
+      in your case, since nor MPI_File_open nor MPI_File_delete is
+      invoked, the ompio component could be disabled.<br>
+      but that would mean the io component selection is also based on
+      the fact that MPI_Register_datarep() has<br>
+      been invoked or not before. i can foresee users complaining about
+      IO performance discrepancies just because<br>
+      of one line (e.g. MPI_Register_datarep invokation) in their code.<br>
+      <br>
+    </blockquote>
+    Ok, my situation is that I want a datarep only to have a compatible
+    32bits code (long int) working with files written from 64bits code
+    with "native" datarep...<br>
+    <br>
+    So I want to activate the datarep functionality only into 32 bits
+    compilation of the code... <br>
+    <br>
+    Now, I continued my tests with "--mca io ^ompio", but I hit another
+    wall:  when I try to use the datarep just to test it, I now have
+    this message:<br>
+    <br>
+    ERROR Returned by MPI: 51<br>
+    ERROR_string Returned by MPI: MPI_ERR_UNSUPPORTED_DATAREP: data
+    representation not supported<br>
+    <br>
+    which is pretty similar to MPICH output...<br>
+    <br>
+    So I am completely stuck into implementing a solution to read/write
+    "native" 64 bits datarep files from a 32 bits architecture...<br>
+    <br>
+    Isn't that into the MPI-2 standard?  Does it means that no MPI
+    implementation is standard compliant?  &gt;:)<br>
+    <br>
+    <blockquote cite="mid:56E24629.1020203@rist.or.jp" type="cite"> now
+      if MPI_File_open is invoked first, that means that
+      MPI_Register_datarep will fail or success based on the selected io
+      component (and iirc, that could be file(system) dependent within
+      the same application).<br>
+      <br>
+      i am open to suggestions, but so far, i do not see a better one
+      (other than implementing this in OMPIO)<br>
+      the patch for v1.10 can be downloaded at
+      <a moz-do-not-send="true" class="moz-txt-link-freetext"
+href="https://github.com/ggouaillardet/ompi-release/commit/1589278200d9fb363d61fa20fb39a4c2fa78c942.patch">https://github.com/ggouaillardet/ompi-release/commit/1589278200d9fb363d61fa20fb39a4c2fa78c942.patch</a><br>
+      application will not crash, but fail "nicely" on
+      MPI_Register_datarep<br>
+      <br>
+    </blockquote>
+    <br>
+    In reality I want a solution to read/write files with the same API
+    (MPI collective calls)... and produce files that are compatible
+    between 32bits vs 64 bits architecture relative to long int issue
+    and without any lost of precision or performance for "native" 64bits
+    architectures...<br>
+    <br>
+    I saw about 4 years ago the example into the "Using MPI-2" book
+    about datarep, and that let me though I could easily implement a
+    solution to read/write files in a compatible format between
+    architectures, even if I choose "native" datarep under a 64 bits
+    architecture that is the only one really used into clusters and by
+    our users until now...  I made the decision to code once, with all
+    collective I/O calls, knowing I would be able to convert int32 to
+    int64 when needed only...<br>
+    <br>
+    Now, I feel I made a bad choice, since no MPI implementation have
+    this working... or maybe there is a simple workaround?  Is there an
+    "external64" available?  Is there something written into the file
+    about the datarep?  If not, then "native" could still be as
+    performant as "external64" since no conversion shall be done, but
+    under 32bits architectures, there shall be some io performance
+    losts, since more conversions will occur....<br>
+    <br>
+    Thanks for helping me understand!<br>
+    <br>
+    Eric<br>
+    <br>
+    <blockquote cite="mid:56E24629.1020203@rist.or.jp" type="cite">
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      <div class="moz-cite-prefix">On 3/11/2016 12:11 PM, Éric
+        Chamberland wrote:<br>
+      </div>
+      <blockquote cite="mid:56E23765.5090508@giref.ulaval.ca"
+        type="cite">
+        <meta content="text/html; charset=windows-1252"
+          http-equiv="Content-Type">
+        Thanks Gilles!<br>
+        <br>
+        it works... I will continue my tests with that command line...<br>
+        <br>
+        Until OMPIO supports this, is there a way to put a call into the
+        code to disable ompio the same way --mca io ^ompio does?<br>
+        <br>
+        Thanks,<br>
+        <br>
+        Eric<br>
+        <br>
+        <div class="moz-cite-prefix">Le 16-03-10 20:13, Gilles
+          Gouaillardet a écrit :<br>
+        </div>
+        <blockquote cite="mid:56E21BCE.4030200@rist.or.jp" type="cite">
+          <meta content="text/html; charset=windows-1252"
+            http-equiv="Content-Type">
+          Eric,<br>
+          <br>
+          I will fix the crash (fwiw, it is already fixed in v2.x and
+          master)<br>
+          <br>
+          note this program cannot currently run "as is".<br>
+          by default, there are two frameworks for io : ROMIO and OMPIO.<br>
+          MPI_Register_datarep does try to register the datarep into all
+          frameworks,<br>
+          and successes only if datarep was successfully registered into
+          all frameworks.<br>
+          <br>
+          OMPIO does not currently support this<br>
+          (and the stub is missing in v1.10 so the app does not crash)<br>
+          <br>
+          your test is successful if you blacklist ompio :<br>
+          <br>
+          mpirun --mca io ^ompio ./int64<br>
+          or<br>
+          OMPI_MCA_io=^romio ./int64<br>
+          <br>
+          and you do not even need a patch for that :-)<br>
+          <div class="moz-cite-prefix"><br>
+            <br>
+            Cheers,<br>
+            <br>
+            Gilles<br>
+            <br>
+            On 3/11/2016 4:47 AM, Éric Chamberland wrote:<br>
+          </div>
+          <blockquote cite="mid:56E1CF5E.5060107@giref.ulaval.ca"
+            type="cite">Hi, <br>
+            <br>
+            I have a segfault while trying to use MPI_Register_datarep
+            with openmpi-1.10.2: <br>
+            <br>
+            mpic++ -g -o int64 int64.cc <br>
+            ./int64 <br>
+            [melkor:24426] *** Process received signal *** <br>
+            [melkor:24426] Signal: Segmentation fault (11) <br>
+            [melkor:24426] Signal code: Address not mapped (1) <br>
+            [melkor:24426] Failing at address: (nil) <br>
+            [melkor:24426] [ 0]
+            /lib64/libpthread.so.0(+0xf1f0)[0x7f66cfb731f0] <br>
+            [melkor:24426] *** End of error message *** <br>
+            Segmentation fault (core dumped) <br>
+            <br>
+            I have attached the beginning of a test program that use
+            this function. <br>
+            <br>
+            (and btw a totally different error occur with mpich: <a
+              moz-do-not-send="true" class="moz-txt-link-freetext"
+              href="http://lists.mpich.org/pipermail/discuss/2016-March/004586.html"><a class="moz-txt-link-freetext" href="http://lists.mpich.org/pipermail/discuss/2016-March/004586.html">http://lists.mpich.org/pipermail/discuss/2016-March/004586.html</a></a>)
+            <br>
+            <br>
+            Can someone help me? <br>
+            <br>
+            Thanks, <br>
+            <br>
+            Eric <br>
+            <br>
+            <br>
+            <fieldset class="mimeAttachmentHeader"></fieldset>
+            <br>
+            <pre wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28677.php">http://www.open-mpi.org/community/lists/users/2016/03/28677.php</a></pre>
+          </blockquote>
+          <br>
+        </blockquote>
+        <br>
+        <br>
+        <fieldset class="mimeAttachmentHeader"></fieldset>
+        <br>
+        <pre wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28680.php">http://www.open-mpi.org/community/lists/users/2016/03/28680.php</a></pre>
+      </blockquote>
+      <br>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

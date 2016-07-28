@@ -1,0 +1,123 @@
+<html dir="ltr">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<style id="owaParaStyle" type="text/css">P {margin-top:0;margin-bottom:0;}</style>
+</head>
+<body ocsi="0" fpstyle="1">
+<div style="direction: ltr;font-family: Tahoma;color: #000000;font-size: 10pt;">Our issues with OpenMPI 1.8.7 and Son-of-Gridengine turned out to be down to using the wrong Parallel Environment. Having a PE with control_slaves set to TRUE and start_proc_args
+ and stop_proc_args set to NONE cleared up all our issues, at least for my MPI test code.<br>
+<br>
+Qsort_args was left set to NONE, which directly contradicts the FAQ for running OpenMPI through Son-of-Gridengine so maybe the OpenMPI FAQ WRT SOGE should be revised. Qsort_args is an API that involves writing your own function in a dynamically shared object
+ that determines what nodes should be used to schedule a job.<br>
+<br>
+-Bill L.<br>
+<br>
+<div style="font-family: Times New Roman; color: #000000; font-size: 16px">
+<hr tabindex="-1">
+<div style="direction: ltr;" id="divRpF657494"><font color="#000000" face="Tahoma" size="2"><b>From:</b> users [users-bounces@open-mpi.org] on behalf of Gilles Gouaillardet [gilles.gouaillardet@gmail.com]<br>
+<b>Sent:</b> Wednesday, August 12, 2015 7:40 AM<br>
+<b>To:</b> Open MPI Users<br>
+<b>Subject:</b> Re: [OMPI users] Son of Grid Engine, Parallel Environments and OpenMPI 1.8.7<br>
+</font><br>
+</div>
+<div></div>
+<div>basically, without --hetero-nodes, ompi assumes all nodes have the same topology (fast startup)
+<div>with --hetero-nodes, ompi does not assume anything and request node topology (slower startup)</div>
+<div><br>
+</div>
+<div>I am nor sure if this is still 100% true on all versions.</div>
+<div>iirc, at least on master, a hwloc signature is checked and ompi transparently fall back to --heyero-nodes if needed</div>
+<div><br>
+</div>
+<div>bottom line, on a heterogeneous cluster, it is required or safer to use the --hetero-nodes option</div>
+<div><br>
+</div>
+<div><br>
+</div>
+<div>Cheers,</div>
+<div><br>
+</div>
+<div>Gilles<br>
+<br>
+On Wednesday, August 12, 2015, Dave Love &lt;<a href="mailto:d.love@liverpool.ac.uk" target="_blank">d.love@liverpool.ac.uk</a>&gt; wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex; border-left:1px #ccc solid; padding-left:1ex">
+&quot;Lane, William&quot; &lt;<a href="UrlBlockedError.aspx" target="_blank">William.Lane@cshs.org</a>&gt; writes:<br>
+<br>
+&gt; I can successfully run my OpenMPI 1.8.7 jobs outside of Son-of-Gridengine but not via qrsh. We're<br>
+&gt; using CentOS 6.3 and a heterogeneous cluster of hyperthreaded and non-hyperthreaded blades<br>
+&gt; and x3550 chassis. OpenMPI 1.8.7 has been built w/the debug switch as well.<br>
+<br>
+I think you want to explain exactly why you need this world of pain.&nbsp; It<br>
+seems unlikely that MPI programs will run efficiently in it.&nbsp; Our Intel<br>
+nodes mostly have hyperthreading on in BIOS -- or what passes for BIOS<br>
+on them -- but disabled at startup, and we only run MPI across identical<br>
+nodes in the heterogeneous system.<br>
+<br>
+&gt; Here's my latest errors:<br>
+&gt; qrsh -V -now yes -pe mpi 209 mpirun -np 209 -display-devel-map --prefix /hpc/apps/mpi/openmpi/1.8.7/ --mca btl ^sm --hetero-nodes --bind-to core /hpc/home/lanew/mpi/openmpi/ProcessColors3<br>
+<br>
+[What does --hetero-nodes do?&nbsp; It's undocumented as far as I can tell.]<br>
+<br>
+&gt; error: executing task of job 211298 failed: execution daemon on host &quot;csclprd3-0-4&quot; didn't accept task<br>
+&gt; error: executing task of job 211298 failed: execution daemon on host &quot;csclprd3-4-1&quot; didn't accept task<br>
+<br>
+So you need to find out why that was (probably lack of slots on the exec<br>
+host, which might be explained in the execd messages).<br>
+<br>
+&gt; [...]<br>
+<br>
+&gt; NOTE: the hosts that &quot;didn't accept task&quot; were different in two different runs but the errors were the same.<br>
+&gt;<br>
+&gt; Here's the definition of the mpi Parallel Environment on our Son-of-Gridengine cluster:<br>
+&gt;<br>
+&gt; pe_name&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; mpi<br>
+&gt; slots&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 9999<br>
+&gt; user_lists&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;NONE<br>
+&gt; xuser_lists&nbsp; &nbsp; &nbsp; &nbsp; NONE<br>
+&gt; start_proc_args&nbsp; &nbsp; /opt/sge/mpi/startmpi.sh $pe_hostfile<br>
+&gt; stop_proc_args&nbsp; &nbsp; &nbsp;/opt/sge/mpi/stopmpi.sh<br>
+<br>
+Why are those two not NONE?<br>
+<br>
+&gt; allocation_rule&nbsp; &nbsp; $fill_up<br>
+<br>
+As I said, that doesn't seem wise (unless you use -l exclusive).<br>
+<br>
+&gt; control_slaves&nbsp; &nbsp; &nbsp;FALSE<br>
+&gt; job_is_first_task&nbsp; TRUE<br>
+&gt; urgency_slots&nbsp; &nbsp; &nbsp; min<br>
+&gt; accounting_summary TRUE<br>
+&gt; qsort_args&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;NONE<br>
+&gt;<br>
+&gt; Qsort_args is set to NONE, but it's supposed to be set to TRUE right?<br>
+<br>
+No see sge_pe(5).&nbsp; (I think the text I supplied for the FAQ is accurate,<br>
+but reuti might confirm if he's reading this.)<br>
+<br>
+&gt; -Bill L.<br>
+&gt;<br>
+&gt; If I can run my OpenMPI 1.8.7 jobs outside of Son-of-Gridengine w/no issues it has to be Son-of-Gridengine that's<br>
+&gt; the issue right?<br>
+<br>
+I don't see any evidence of an SGE bug, if that's what you mean, but<br>
+clearly you have a problem if execds won't accept the jobs, and this<br>
+isn't the place to discuss it.&nbsp; I asked about SGE core binding, and it's<br>
+presumably also relevant how slots are defined on the compute nodes, but<br>
+I'd just say &quot;Don't do that&quot; without a pressing reason.<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="UrlBlockedError.aspx" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">
+http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/08/27436.php" target="_blank">
+http://www.open-mpi.org/community/lists/users/2015/08/27436.php</a><br>
+</blockquote>
+</div>
+</div>
+</div>
+</div>
+IMPORTANT WARNING: This message is intended for the use of the person or entity to which it is addressed and may contain information that is privileged and confidential, the disclosure of which is governed by applicable law. If the reader of this message is
+ not the intended recipient, or the employee or agent responsible for delivering it to the intended recipient, you are hereby notified that any dissemination, distribution or copying of this information is strictly prohibited. Thank you for your cooperation.
+</body>
+</html>
+

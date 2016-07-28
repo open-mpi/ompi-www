@@ -1,0 +1,56 @@
+<html><head><style type="text/css"><!-- DIV {margin:0px;} --></style></head><body><div style="font-family:times new roman,new york,times,serif;font-size:12pt"><div><br></div><div style="font-family: times new roman,new york,times,serif; font-size: 12pt;"><br><div style="font-family: times new roman,new york,times,serif; font-size: 12pt;"><font face="Tahoma" size="2"><hr size="1"><b><span style="font-weight: bold;">From:</span></b> Eugene Loh &lt;Eugene.Loh@sun.com&gt;<br><b><span style="font-weight: bold;">To:</span></b> Open MPI Users &lt;users@open-mpi.org&gt;<br><b><span style="font-weight: bold;">Sent:</span></b> Thursday, 6 November, 2008 18:08:26<br><b><span style="font-weight: bold;">Subject:</span></b> Re: [OMPI users] Progress of the asynchronous messages<br></font><br><title></title>
+
+
+  
+  
+
+vladimir marjanovic wrote:
+<blockquote type="cite">
+  
+  <div style="font-family: times new roman,new york,times,serif; font-size: 12pt;">
+  <div>I am new user of Open MPI, I've used MPICH before.<br>
+  <br>
+There is performance bug with the following scenario:<br>
+  <br>
+proc_B:&nbsp; MPI_Isend(...,proc_A,..,&amp;request)<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; do{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sleep(1);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp; &nbsp;&nbsp; MPI_Test(..,&amp;flag,&amp;request);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; count++<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }while(!flag);<br>
+  <br>
+proc_A: MPI_Recv(...,proc_B);<br>
+  <br>
+For message size 8MB,&nbsp; proc_B calls MPI_Test 88 times. It means that
+point to point communication costs 88 seconds.<br>
+Btw, bandwidth isn't the problem (interconnection network: InfiniBand)<br>
+  <br>
+Obviously, there is the problem with progress of the asynchronous
+messages.<br>
+  <br>
+How can I avoid this problem?<br>
+  </div>
+  </div>
+</blockquote>
+I'm no expert, but I think the problem is that the send is being
+"progressed" (advanced) only during MPI calls and MPI_Test doesn't
+progress/advance the message very aggressively.&nbsp; The message is
+probably being decomposed into chunks and MPI_Test will advance the
+message at most one chunk at a time.&nbsp; So:<br>
+<br>
+1) You could decrease the time between MPI_Test calls.<br>
+2) You could block (e.g., with MPI_Wait).<br>
+<br>
+It's a tough tradeoff to make.&nbsp; That's bad news... but do you want OMPI
+to be making the tough choices here for you?&nbsp; Let's say the sending
+process sends a chunk and it takes a little while for the receiver to
+process data and make room for you to send some more.&nbsp; During that
+waiting time, should the sender return control to the user application,
+or stay blocked inside of MPI_Test?<br>
+<br>
+Anyhow, I believe that's the issue here.<br><br>In order to overlap communication and computation I don't want to use MPI_Wait. For sure the message is being decomposed into chucks and the size of chuck is probably defined by environment variable. <br>Maybe do you know how can I control size of chuck?<br>Thanks<br><br>Vladimir<br>
+</div></div></div><br>
+
+
+
+      </body></html>

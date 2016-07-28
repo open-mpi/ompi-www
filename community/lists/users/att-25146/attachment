@@ -1,0 +1,93 @@
+<html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Hey all,<br>
+    <br>
+    to test the performance of my application I duplicated the call to
+    the function that will issue the computation on two GPUs 5 times.
+    During the 4th and 5th run of the algorithm, however, the algorithm
+    yields different results (9 instead of 20):<br>
+    <br>
+    # datatype: double<br>
+    # datapoints: 20000<br>
+    # max_iterations: 1000<br>
+    # conv_iterations: 1000<br>
+    # damping: 0.9<br>
+    # communicator.size: 2<br>
+    # time elapsed [s]; iterations executed; convergent since; clusters
+    identified<br>
+    121.* 1000 807 20<br>
+    121.* 1000 807 20<br>
+    121.* 1000 807 20<br>
+    121.* 1000 <b>820</b> <b>9</b><br>
+    121.* 1000 <b>820</b> <b>9</b><br>
+    <br>
+    For communication I use Open MPI 1.8 and/or Open MPI 1.8.1, both
+    compiled with cuda-awareness. The CUDA Toolkit version is 6.0.<br>
+    Both GPUs are under the control of one single CPU, so that CUDA IPC
+    can be used (because no QPI link has to be traversed). <br>
+    Running the application with "mpirun -np 2 --mca
+    btl_smcuda_cuda_ipc_verbose 100", shows that IPC is used. <br>
+    <br>
+    I tracked my problem down to an MPI_Allgather, which seems not to
+    work since the first GPU  identifies 9 clusters, the second GPU
+    identifies 11 clusters (makes 20 clusters total). Debugging the
+    application shows, that all clusters are identified correctly,
+    however, the exchange of the identified clusters seems not to work:
+    Each MPI process stores its identified clusters in an buffer, that
+    both processes exchange using MPI_Allgather:<br>
+    <br>
+    value_type* d_dec = thrust::raw_pointer_cast(&amp;dec[0]);<br>
+    MPI_Allgather(    MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,<br>
+                d_dec, columns, MPI_DOUBLE, communicator);<br>
+    <br>
+    I later discovered, that if I introduce a temporary host buffer,
+    that will receive the results of both GPUs, all results are computed
+    correctly:<br>
+    <br>
+    value_type* d_dec = thrust::raw_pointer_cast(&amp;dec[0]);<br>
+    thrust::host_vector&lt;value_type&gt; h_dec(dec.size());<br>
+    MPI_Allgather( d_dec+columns*comm.rank(), columns, MPI_DOUBLE,<br>
+                h_dec, columns, MPI_DOUBLE, communicator);<br>
+    dec = h_dec; //copy results back from host to device<br>
+    <br>
+    This lead me to the conclusion, that something with OMPIs CUDA IPC
+    seems to cause the problems (synchronisation and/or fail-silent
+    error) and indeed, disabling CUDA IPC :<br>
+    <br>
+    mpirun --mca btl_smcuda_use_cuda_ipc 0 --mca
+    btl_smcuda_use_cuda_ipc_same_gpu 0 -np 2 ./double_test
+    ../data/similarities20000.double.-300 ex.20000.double.2.gpus 1000
+    1000 0.9 <br>
+    <br>
+    will calculate correct results:<br>
+    <br>
+    # datatype: double<br>
+    # datapoints: 20000<br>
+    # max_iterations: 1000<br>
+    # conv_iterations: 1000<br>
+    # damping: 0.9<br>
+    # communicator.size: 2<br>
+    # time elapsed [s]; iterations executed; convergent since; clusters
+    identified<br>
+    121.* 1000 807 20<br>
+    121.* 1000 807 20<br>
+    121.* 1000 807 20<br>
+    121.* 1000 <b>807 20</b><br>
+    121.* 1000 <b>807 20</b><br>
+    <br>
+    Surprisingly, the wrong results _always_ occur during the 4th and
+    5th run. Is there a way to force synchronisation (I tried
+    MPI_Barrier() without success), has anybody discovered similar
+    problems?<br>
+    <br>
+    I posted some of the code to pastebin: <a class="moz-txt-link-freetext" href="http://pastebin.com/wCmc36k5">http://pastebin.com/wCmc36k5</a><br>
+    <br>
+    Thanks in advance,<br>
+    Christoph<br>
+  </body>
+</html>
+

@@ -1,0 +1,56 @@
+<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40"><head><meta http-equiv=Content-Type content="text/html; charset=utf-8"><meta name=Generator content="Microsoft Word 14 (filtered medium)"><style><!--
+/* Font Definitions */
+@font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+@font-face
+	{font-family:Tahoma;
+	panose-1:2 11 6 4 3 5 4 4 2 4;}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0in;
+	margin-bottom:.0001pt;
+	font-size:12.0pt;
+	font-family:"Times New Roman","serif";
+	color:black;}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+span.EmailStyle17
+	{mso-style-type:personal-reply;
+	font-family:"Calibri","sans-serif";
+	color:#1F497D;}
+.MsoChpDefault
+	{mso-style-type:export-only;
+	font-size:10.0pt;}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.0in 1.0in 1.0in;}
+div.WordSection1
+	{page:WordSection1;}
+--></style><!--[if gte mso 9]><xml>
+<o:shapedefaults v:ext="edit" spidmax="1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+<o:shapelayout v:ext="edit">
+<o:idmap v:ext="edit" data="1" />
+</o:shapelayout></xml><![endif]--></head><body bgcolor=white lang=EN-US link=blue vlink=purple><div class=WordSection1><p class=MsoNormal><span style='font-size:11.0pt;font-family:"Calibri","sans-serif";color:#1F497D'>Hi Christoph:<o:p></o:p></span></p><p class=MsoNormal><span style='font-size:11.0pt;font-family:"Calibri","sans-serif";color:#1F497D'>I will try and reproduce this issue and will let you know what I find.  There may be an issue with CUDA IPC support with certain traffic patterns.<o:p></o:p></span></p><p class=MsoNormal><span style='font-size:11.0pt;font-family:"Calibri","sans-serif";color:#1F497D'>Rolf<o:p></o:p></span></p><p class=MsoNormal><span style='font-size:11.0pt;font-family:"Calibri","sans-serif";color:#1F497D'><o:p>&nbsp;</o:p></span></p><div style='border:none;border-left:solid blue 1.5pt;padding:0in 0in 0in 4.0pt'><div><div style='border:none;border-top:solid #B5C4DF 1.0pt;padding:3.0pt 0in 0in 0in'><p class=MsoNormal><b><span style='font-size:10.0pt;font-family:"Tahoma","sans-serif";color:windowtext'>From:</span></b><span style='font-size:10.0pt;font-family:"Tahoma","sans-serif";color:windowtext'> users [mailto:users-bounces@open-mpi.org] <b>On Behalf Of </b>Christoph Winter<br><b>Sent:</b> Tuesday, August 26, 2014 2:46 AM<br><b>To:</b> users@open-mpi.org<br><b>Subject:</b> [OMPI users] OMPI CUDA IPC synchronisation/fail-silent problem<o:p></o:p></span></p></div></div><p class=MsoNormal><o:p>&nbsp;</o:p></p><p class=MsoNormal>Hey all,<br><br>to test the performance of my application I duplicated the call to the function that will issue the computation on two GPUs 5 times. During the 4th and 5th run of the algorithm, however, the algorithm yields different results (9 instead of 20):<br><br># datatype: double<br># datapoints: 20000<br># max_iterations: 1000<br># conv_iterations: 1000<br># damping: 0.9<br># communicator.size: 2<br># time elapsed [s]; iterations executed; convergent since; clusters identified<br>121.* 1000 807 20<br>121.* 1000 807 20<br>121.* 1000 807 20<br>121.* 1000 <b>820</b> <b>9</b><br>121.* 1000 <b>820</b> <b>9</b><br><br>For communication I use Open MPI 1.8 and/or Open MPI 1.8.1, both compiled with cuda-awareness. The CUDA Toolkit version is 6.0.<br>Both GPUs are under the control of one single CPU, so that CUDA IPC can be used (because no QPI link has to be traversed). <br>Running the application with &quot;mpirun -np 2 --mca btl_smcuda_cuda_ipc_verbose 100&quot;, shows that IPC is used. <br><br>I tracked my problem down to an MPI_Allgather, which seems not to work since the first GPU&nbsp; identifies 9 clusters, the second GPU identifies 11 clusters (makes 20 clusters total). Debugging the application shows, that all clusters are identified correctly, however, the exchange of the identified clusters seems not to work: Each MPI process stores its identified clusters in an buffer, that both processes exchange using MPI_Allgather:<br><br>value_type* d_dec = thrust::raw_pointer_cast(&amp;dec[0]);<br>MPI_Allgather(&nbsp;&nbsp;&nbsp; MPI_IN_PLACE, 0, MPI_DATATYPE_NULL,<br>&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; d_dec, columns, MPI_DOUBLE, communicator);<br><br>I later discovered, that if I introduce a temporary host buffer, that will receive the results of both GPUs, all results are computed correctly:<br><br>value_type* d_dec = thrust::raw_pointer_cast(&amp;dec[0]);<br>thrust::host_vector&lt;value_type&gt; h_dec(dec.size());<br>MPI_Allgather( d_dec+columns*comm.rank(), columns, MPI_DOUBLE,<br>&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; h_dec, columns, MPI_DOUBLE, communicator);<br>dec = h_dec; //copy results back from host to device<br><br>This lead me to the conclusion, that something with OMPIs CUDA IPC seems to cause the problems (synchronisation and/or fail-silent error) and indeed, disabling CUDA IPC :<br><br>mpirun --mca btl_smcuda_use_cuda_ipc 0 --mca btl_smcuda_use_cuda_ipc_same_gpu 0 -np 2 ./double_test ../data/similarities20000.double.-300 ex.20000.double.2.gpus 1000 1000 0.9 <br><br>will calculate correct results:<br><br># datatype: double<br># datapoints: 20000<br># max_iterations: 1000<br># conv_iterations: 1000<br># damping: 0.9<br># communicator.size: 2<br># time elapsed [s]; iterations executed; convergent since; clusters identified<br>121.* 1000 807 20<br>121.* 1000 807 20<br>121.* 1000 807 20<br>121.* 1000 <b>807 20</b><br>121.* 1000 <b>807 20</b><br><br>Surprisingly, the wrong results _always_ occur during the 4th and 5th run. Is there a way to force synchronisation (I tried MPI_Barrier() without success), has anybody discovered similar problems?<br><br>I posted some of the code to pastebin: <a href="http://pastebin.com/wCmc36k5">http://pastebin.com/wCmc36k5</a><br><br>Thanks in advance,<br>Christoph<o:p></o:p></p></div></div>
+<DIV>
+<HR>
+</DIV>
+<DIV>This email message is for the sole use of the intended recipient(s) and may 
+contain confidential information.&nbsp; Any unauthorized review, use, disclosure 
+or distribution is prohibited.&nbsp; If you are not the intended recipient, 
+please contact the sender by reply email and destroy all copies of the original 
+message. </DIV>
+<DIV>
+<HR>
+</DIV>
+</body></html>

@@ -1,0 +1,159 @@
+<div dir="ltr">I&#39;ve resolved the problem in a satisfactory way by circumventing one-sided entirely. I.e., this issue is finally closed:<br><br><a href="https://bitbucket.org/petsc/petsc-dev/issue/9/implement-petscsf-without-one-sided">https://bitbucket.org/petsc/petsc-dev/issue/9/implement-petscsf-without-one-sided</a><div>
+<br></div><div>Users can proceed anyway using the run-time option -acknowledge_ompi_onesided_bug, which will also be a convenient way to test an eventual fix (beyond the reduced test cases that have been sitting in your bug tracker for several years). (This is only relevant with -sf_type window; the default no longer uses one-sided.)<br>
+<div class="gmail_extra"><br></div><div class="gmail_extra">I would still like to encourage Open MPI to deliver an error message in this known broken case instead of silently stomping all over the user&#39;s memory.<br><br>
+<div class="gmail_quote">On Tue, Sep 11, 2012 at 2:23 PM, Jed Brown <span dir="ltr">&lt;<a href="mailto:jed@59a2.org" target="_blank">jed@59a2.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<b>Bump</b><div><br></div><div>There doesn&#39;t seem to have been any progress on this. Can you at least have an error message saying that Open MPI one-sided does not work with datatypes instead of silently causing wanton corruption and deadlock?<div>
+<div class="h5"><br>
+<br><div class="gmail_quote">On Thu, Dec 22, 2011 at 4:17 PM, Jed Brown <span dir="ltr">&lt;<a href="mailto:jed@59a2.org" target="_blank">jed@59a2.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+[Forgot the attachment.]<div><div><br><br><div class="gmail_quote">On Thu, Dec 22, 2011 at 15:16, Jed Brown <span dir="ltr">&lt;<a href="mailto:jed@59a2.org" target="_blank">jed@59a2.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I wrote a new communication layer that we are evaluating for use in mesh management and PDE solvers, but it is based on MPI-2 one-sided operations (and will eventually benefit from some of the MPI-3 one-sided proposals, especially MPI_Fetch_and_op() and dynamic windows). All the basic functionality works well with MPICH2, but I have run into some Open MPI bugs regarding one-sided operations with composite data types. This email provides a reduced test case for two such bugs. I see that there are also some existing serious-looking bug reports regarding one-sided operations, but they are getting pretty old now and haven&#39;t seen action in a while.<div>
+
+
+
+<div><br></div><div><div><a href="https://svn.open-mpi.org/trac/ompi/ticket/2656" target="_blank">https://svn.open-mpi.org/trac/ompi/ticket/2656</a></div><div><a href="https://svn.open-mpi.org/trac/ompi/ticket/1905" target="_blank">https://svn.open-mpi.org/trac/ompi/ticket/1905</a></div>
+
+
+
+</div><div><br></div><div>Is there a plan for resolving these in the near future?</div><div><br></div><div>Is anyone using Open MPI for serious work with one-sided operations?</div><div><br></div><div><br></div><div>Bugs I am reporting:</div>
+
+
+
+<div><br></div><div><b><font size="4">1.</font></b> If an MPI_Win is used with an MPI_Datatype, even if the MPI_Win operation has completed, I get an invalid free when MPI_Type_free() is called before MPI_Win_free(). Since MPI_Type_free() is only supposed to mark the datatype for deletion, the implementation should properly manage reference counting. If you run the attached code with</div>
+
+
+
+<div><br></div><div>$ mpiexec -n 2 ./a.out 1</div><div><br></div><div>(which only does part of the comm described for the second bug, below), you can see the invalid free on rank 1 with stack still in MPI_Win_fence()</div>
+
+
+
+<div><br></div><div><div>(gdb) bt</div><div>#0  0x00007ffff7288905 in raise () from /lib/libc.so.6</div><div>#1  0x00007ffff7289d7b in abort () from /lib/libc.so.6</div><div>#2  0x00007ffff72c147e in __libc_message () from /lib/libc.so.6</div>
+
+
+
+<div>#3  0x00007ffff72c7396 in malloc_printerr () from /lib/libc.so.6</div><div>#4  0x00007ffff72cb26c in free () from /lib/libc.so.6</div><div>#5  0x00007ffff7a5aaa8 in ompi_datatype_release_args (pData=0x845010) at ompi_datatype_args.c:414</div>
+
+
+
+<div>#6  0x00007ffff7a5b0ea in __ompi_datatype_release (datatype=0x845010) at ompi_datatype_create.c:47</div><div>#7  0x00007ffff218e772 in opal_obj_run_destructors (object=0x845010) at ../../../../opal/class/opal_object.h:448</div>
+
+
+
+<div>#8  ompi_osc_rdma_replyreq_free (replyreq=0x680a80) at osc_rdma_replyreq.h:136</div><div>#9  ompi_osc_rdma_replyreq_send_cb (btl=0x7ffff3680ce0, endpoint=&lt;optimized out&gt;, descriptor=0x837b00, status=&lt;optimized out&gt;) at osc_rdma_data_move.c:691</div>
+
+
+
+<div>#10 0x00007ffff347f38f in mca_btl_sm_component_progress () at btl_sm_component.c:645</div><div>#11 0x00007ffff7b1f80a in opal_progress () at runtime/opal_progress.c:207</div><div>#12 0x00007ffff21977c5 in opal_condition_wait (m=&lt;optimized out&gt;, c=0x842ee0) at ../../../../opal/threads/condition.h:99</div>
+
+
+
+<div>#13 ompi_osc_rdma_module_fence (assert=0, win=0x842270) at osc_rdma_sync.c:207</div><div>#14 0x00007ffff7a89db5 in PMPI_Win_fence (assert=0, win=0x842270) at pwin_fence.c:60</div><div>#15 0x00000000004010d8 in main (argc=2, argv=0x7fffffffd508) at win.c:60</div>
+
+
+
+</div><div><br></div><div>meanwhile, rank 0 has already freed the datatype and is waiting in MPI_Win_free().</div><div><div>(gdb) bt</div><div>#0  0x00007ffff7312107 in sched_yield () from /lib/libc.so.6</div><div>#1  0x00007ffff7b1f82b in opal_progress () at runtime/opal_progress.c:220</div>
+
+
+
+<div>#2  0x00007ffff7a53fe4 in opal_condition_wait (m=&lt;optimized out&gt;, c=&lt;optimized out&gt;) at ../opal/threads/condition.h:99</div><div>#3  ompi_request_default_wait_all (count=2, requests=0x7fffffffd210, statuses=0x7fffffffd1e0) at request/req_wait.c:263</div>
+
+
+
+<div>#4  0x00007ffff25b8d71 in ompi_coll_tuned_sendrecv_actual (sendbuf=0x0, scount=0, sdatatype=0x7ffff7dba840, dest=1, stag=-16, recvbuf=&lt;optimized out&gt;, rcount=0, rdatatype=0x7ffff7dba840, source=1, rtag=-16, comm=0x8431a0, status=0x0) at coll_tuned_util.c:54</div>
+
+
+
+<div>#5  0x00007ffff25c2de2 in ompi_coll_tuned_barrier_intra_two_procs (comm=&lt;optimized out&gt;, module=&lt;optimized out&gt;) at coll_tuned_barrier.c:256</div><div>#6  0x00007ffff25b92ab in ompi_coll_tuned_barrier_intra_dec_fixed (comm=0x8431a0, module=0x844980) at coll_tuned_decision_fixed.c:190</div>
+
+
+
+<div>#7  0x00007ffff2186248 in ompi_osc_rdma_module_free (win=0x842170) at osc_rdma.c:46</div><div>#8  0x00007ffff7a58a44 in ompi_win_free (win=0x842170) at win/win.c:150</div><div>#9  0x00007ffff7a8a0dd in PMPI_Win_free (win=0x7fffffffd408) at pwin_free.c:56</div>
+
+
+
+<div>#10 0x0000000000401195 in main (argc=2, argv=0x7fffffffd508) at win.c:69</div></div><div><br></div><div><br></div><div><b><font size="4">2.</font></b> This appears to be more fundamental and perhaps much harder to fix. The attached code sets up the following graph</div>
+
+
+
+<div><br></div><div>rank 0:</div><div>0 -&gt; (1,0)</div><div>1 -&gt; nothing</div><div>2 -&gt; (1,1)</div><div><br></div><div>rank 1:</div><div>0 -&gt; (0,0)</div><div>1 -&gt; (0,2)</div><div>2 -&gt; (0,1)</div><div><br>
+
+
+
+</div><div>We pull over this graph using two calls to MPI_Get(), each with composite data types defining what to pull into the first two slots, and what to put into the third slot. It is Valgrind-clean with MPICH2, and produces the following:</div>
+
+
+
+<div><br></div><div><div><font face="&#39;courier new&#39;, monospace">$ mpiexec.hydra -n 2 ./a.out 2</font></div><div><font face="&#39;courier new&#39;, monospace"><div>[0] provided [100,101,102]  got [200, -2,201]</div>
+
+
+
+<div>[1] provided [200,201,202]  got [100,102,101]</div></font></div><div><br></div></div><div>With Open MPI, I see</div><div><br></div><div>a.out: malloc.c:3096: sYSMALLOc: Assertion `(old_top == (((mbinptr) (((char *) &amp;((av)-&gt;bins[((1) - 1) * 2])) - __builtin_offsetof (struct malloc_chunk, fd)))) &amp;&amp; old_size == 0) || ((unsigned long) (old_size) &gt;= (unsigned long)((((__builtin_offsetof (struct malloc_chunk, fd_nextsize))+((2 * (sizeof(size_t))) - 1)) &amp; ~((2 * (sizeof(size_t))) - 1))) &amp;&amp; ((old_top)-&gt;size &amp; 0x1) &amp;&amp; ((unsigned long)old_end &amp; pagemask) == 0)&#39; failed.</div>
+
+
+
+<div><br></div><div>on both ranks, with rank 0 at</div><div><br></div><div><div><div>(gdb) bt</div><div>#0  0x00007ffff7288905 in raise () from /lib/libc.so.6</div><div>#1  0x00007ffff7289d7b in abort () from /lib/libc.so.6</div>
+
+
+
+<div>#2  0x00007ffff72c675d in __malloc_assert () from /lib/libc.so.6</div><div>#3  0x00007ffff72c96d3 in _int_malloc () from /lib/libc.so.6</div><div>#4  0x00007ffff72cad5d in malloc () from /lib/libc.so.6</div><div>#5  0x00007ffff7b46c46 in opal_free_list_grow (flist=0x7ffff239f150, num_elements=1) at class/opal_free_list.c:93</div>
+
+
+
+<div>#6  0x00007ffff2196152 in ompi_osc_rdma_replyreq_alloc (replyreq=0x7fffffffd0f8, origin_rank=1, module=0x842d10) at osc_rdma_replyreq.h:82</div><div>#7  ompi_osc_rdma_replyreq_alloc_init (module=0x842d10, origin=1, origin_request=..., target_displacement=0, target_count=1, datatype=0x8455b0, replyreq=0x7fffffffd0f8) at osc_rdma_replyreq.c:40</div>
+
+
+
+<div>#8  0x00007ffff218c051 in component_fragment_cb (btl=0x7ffff3680ce0, tag=&lt;optimized out&gt;, descriptor=&lt;optimized out&gt;, cbdata=&lt;optimized out&gt;) at osc_rdma_component.c:633</div><div>#9  0x00007ffff347f25f in mca_btl_sm_component_progress () at btl_sm_component.c:623</div>
+
+
+
+<div>#10 0x00007ffff7b1f80a in opal_progress () at runtime/opal_progress.c:207</div><div>#11 0x00007ffff21977c5 in opal_condition_wait (m=&lt;optimized out&gt;, c=0x842de0) at ../../../../opal/threads/condition.h:99</div>
+
+
+
+<div>#12 ompi_osc_rdma_module_fence (assert=0, win=0x842170) at osc_rdma_sync.c:207</div><div>#13 0x00007ffff7a89db5 in PMPI_Win_fence (assert=0, win=0x842170) at pwin_fence.c:60</div><div>#14 0x00000000004010d8 in main (argc=2, argv=0x7fffffffd508) at win.c:60</div>
+
+
+
+</div></div><div><br></div><div>and rank 1 at</div><div><br></div><div><div>(gdb) bt</div><div>#0  0x00007ffff7288905 in raise () from /lib/libc.so.6</div><div>#1  0x00007ffff7289d7b in abort () from /lib/libc.so.6</div>
+
+
+<div>
+#2  0x00007ffff72c675d in __malloc_assert () from /lib/libc.so.6</div><div>#3  0x00007ffff72c96d3 in _int_malloc () from /lib/libc.so.6</div><div>#4  0x00007ffff72cad5d in malloc () from /lib/libc.so.6</div><div>#5  0x00007ffff7a5b3ce in opal_obj_new (cls=0x7ffff7db2060) at ../../opal/class/opal_object.h:469</div>
+
+
+
+<div>#6  opal_obj_new_debug (line=71, file=0x7ffff7b60323 &quot;ompi_datatype_create.c&quot;, type=0x7ffff7db2060) at ../../opal/class/opal_object.h:251</div><div>#7  ompi_datatype_create (expectedSize=3) at ompi_datatype_create.c:71</div>
+
+
+
+<div>#8  0x00007ffff7a5b7e9 in ompi_datatype_create_indexed_block (count=1, bLength=1, pDisp=0x7fffee18a834, oldType=0x7ffff7db3640, newType=0x7fffffffd070) at ompi_datatype_create_indexed.c:124</div><div>#9  0x00007ffff7a5a349 in __ompi_datatype_create_from_args (type=9, d=0x844f40, a=0x7fffee18a828, i=0x7fffee18a82c) at ompi_datatype_args.c:691</div>
+
+
+
+<div>#10 __ompi_datatype_create_from_packed_description (packed_buffer=0x7fffffffd108, remote_processor=0x652b90) at ompi_datatype_args.c:626</div><div>#11 0x00007ffff7a5b045 in ompi_datatype_create_from_packed_description (packed_buffer=&lt;optimized out&gt;, remote_processor=&lt;optimized out&gt;) at ompi_datatype_args.c:779</div>
+
+
+
+<div>#12 0x00007ffff218bf60 in ompi_osc_base_datatype_create (payload=0x7fffffffd108, remote_proc=&lt;optimized out&gt;) at ../../../../ompi/mca/osc/base/osc_base_obj_convert.h:52</div><div>#13 component_fragment_cb (btl=0x7ffff3680ce0, tag=&lt;optimized out&gt;, descriptor=&lt;optimized out&gt;, cbdata=&lt;optimized out&gt;) at osc_rdma_component.c:624</div>
+
+
+
+<div>#14 0x00007ffff347f25f in mca_btl_sm_component_progress () at btl_sm_component.c:623</div><div>#15 0x00007ffff7b1f80a in opal_progress () at runtime/opal_progress.c:207</div><div>#16 0x00007ffff21977c5 in opal_condition_wait (m=&lt;optimized out&gt;, c=0x842ee0) at ../../../../opal/threads/condition.h:99</div>
+
+
+
+<div>#17 ompi_osc_rdma_module_fence (assert=0, win=0x842270) at osc_rdma_sync.c:207</div><div>#18 0x00007ffff7a89db5 in PMPI_Win_fence (assert=0, win=0x842270) at pwin_fence.c:60</div><div>#19 0x00000000004010d8 in main (argc=2, argv=0x7fffffffd508) at win.c:60</div>
+
+
+
+<div><br></div></div><div>This looks like memory corruption, but Open MPI internals are too noisy under valgrind for it to be obvious where to look. This is with Open MPI 1.5.4, but I observed the same thing with trunk. If I run with three processes, the graph is slightly different and only ranks 1 and 2 error (rank 0 hangs).</div>
+
+
+
+</div>
+</blockquote></div><br>
+</div></div></blockquote></div><br></div></div></div>
+</blockquote></div><br></div></div></div>
+

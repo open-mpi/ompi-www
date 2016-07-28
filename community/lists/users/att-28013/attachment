@@ -1,0 +1,124 @@
+Harald,<div><br></div><div>non blocking collectives were introduced in the v1.8 series</div><div><br></div><div>I will review all libnbc module, and other modules as well.</div><div><br></div><div>Jeff can/will explain why fortran bindings should be wrapped in fortran and not in C.</div><div>fwiw, I understand in some cases it can be convenient to have fortran bindings invoke the c wrappers. but this is not a 100% reliable solution.</div><div><br></div>Cheers,<div><br></div><div>Gilles<br><div><br>On Friday, November 6, 2015, Harald Servat &lt;<a href="mailto:harald.servat@bsc.es">harald.servat@bsc.es</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hello Gilles,<br>
+<br>
+  some comments interspersed<br>
+<br>
+On 11/06/2015 02:50 PM, Gilles Gouaillardet wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Harald,<br>
+<br>
+the answer is in ompi/mca/coll/libnbc/nbc_ibcast.c<br>
+<br>
+this has been revamped (but not 100%) in v2.x<br>
+(e.g. no more calls to MPI_Comm_{size,rank} but MPI_Type_size is still<br>
+being invoked)<br>
+</blockquote>
+<br>
+Ah! it is interesting to know this pointer, thanks. Looks like others such as igather and ireduce also have this issue :S<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I will review this.<br>
+basically, no MPI_* should be invoked internally (e.g. we should use the<br>
+internal ompi_* or the PMPI_* symbol.<br>
+<br>
+there is currently no plan for a v1.10.2 release, so you have to wait<br>
+for the v2.0.0)<br>
+</blockquote>
+<br>
+Is it possible to know when this behavior was introduced? Maybe since the first MPI3 implementation (was it OpenMPI 1.8?).<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+note you should wrap the C bindings (with a C library) and the Fortran<br>
+bindings (with a Fortran library).<br>
+currently, the fortran wrapper will likely invoke the C wrapper, but<br>
+that will no more be the case from v2.x<br>
+</blockquote>
+<br>
+Oh! That&#39;s a pity. We usually use the LD_PRELOAD technique to inject the instrumentation and since fortran wrapper invokes the C wrapper, we can instrument either fortran or C applications with a single instrumentation library. Other MPI implementations (I won&#39;t say names here) also have this C/Fortran &quot;separation&quot;, which requires us to generate two instrumentation libraries, one for C and another for Fortran apps.<br>
+<br>
+Thank you!<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Cheers,<br>
+<br>
+Gilles<br>
+<br>
+On Friday, November 6, 2015, Harald Servat &lt;<a>harald.servat@bsc.es</a><br>
+&lt;mailto:<a>harald.servat@bsc.es</a>&gt;&gt; wrote:<br>
+<br>
+    Dear all,<br>
+<br>
+       we develop an instrumentation package based on PMPI and we&#39;ve<br>
+    observed that PMPI_Ibarrier and PMPI_Ibcast invoke regular<br>
+    MPI_Comm_size and MPI_Comm_rank instead to the PMPI symbols (i.e.<br>
+    PMPI_Comm_size and PMPI_Comm_rank) in OpenMPI 1.10.0.<br>
+<br>
+       I have attached simple example that demonstrates it when using<br>
+    OpenMPI 1.10.0. The example creates a library (libinstrument) that<br>
+    hooks MPI_Comm_size, MPI_Comm_rank and MPI_Ibarrier. Then, there&#39;s a<br>
+    single MPI application that executes MPI_Ibarrier and waits for it.<br>
+    The result when combining this binary with the instrumentation<br>
+    library is the following:<br>
+<br>
+    # ~/aplic/openmpi/1.10.0/bin/mpirun -np 1 ./main<br>
+    entering MPI_Ibarrier<br>
+    entering MPI_Comm_rank<br>
+    leaving MPI_Comm_rank<br>
+    entering MPI_Comm_size<br>
+    leaving MPI_Comm_size<br>
+    leaving MPI_Ibarrier<br>
+<br>
+       which shows that MPI_Comm_rank and MPI_Comm_size are invoked<br>
+    within MPI_Ibarrier.<br>
+<br>
+       I looked into ompi/mpi/ibarrier.c and<br>
+    ./ompi/mpi/c/profile/pibarrier.c but it wasn&#39;t evident to me what<br>
+    might be wrong.<br>
+<br>
+       Can anyone check this? And if this could also occur to other MPI3<br>
+    immediate collectives (MPI_Ireduce, MPI_Iallreduce, MPI_Igather, ...).<br>
+<br>
+    Thank you!<br>
+<br>
+<br>
+<br>
+    WARNING / LEGAL TEXT: This message is intended only for the use of the<br>
+    individual or entity to which it is addressed and may contain<br>
+    information which is privileged, confidential, proprietary, or exempt<br>
+    from disclosure under applicable law. If you are not the intended<br>
+    recipient or the person responsible for delivering the message to the<br>
+    intended recipient, you are strictly prohibited from disclosing,<br>
+    distributing, copying, or in any way using this message. If you have<br>
+    received this communication in error, please notify the sender and<br>
+    destroy and delete any copies you may have received.<br>
+<br>
+    <a href="http://www.bsc.es/disclaimer" target="_blank">http://www.bsc.es/disclaimer</a><br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/11/28011.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/11/28011.php</a><br>
+<br>
+</blockquote>
+<br>
+WARNING / LEGAL TEXT: This message is intended only for the use of the<br>
+individual or entity to which it is addressed and may contain<br>
+information which is privileged, confidential, proprietary, or exempt<br>
+from disclosure under applicable law. If you are not the intended<br>
+recipient or the person responsible for delivering the message to the<br>
+intended recipient, you are strictly prohibited from disclosing,<br>
+distributing, copying, or in any way using this message. If you have<br>
+received this communication in error, please notify the sender and<br>
+destroy and delete any copies you may have received.<br>
+<br>
+<a href="http://www.bsc.es/disclaimer" target="_blank">http://www.bsc.es/disclaimer</a><br>
+_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/11/28012.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/11/28012.php</a><br>
+</blockquote></div></div>
+

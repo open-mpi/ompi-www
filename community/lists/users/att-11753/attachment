@@ -1,0 +1,164 @@
+I don&#39;t know how i dind&#39;t see that. :)<div>I guess i&#39;m still a noob in MPI.</div><div><br></div><div>Thanks for the help<br><br><div class="gmail_quote">On Wed, Jan 13, 2010 at 8:07 PM, David O. Gunter <span dir="ltr">&lt;<a href="mailto:dog@lanl.gov">dog@lanl.gov</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">I noticed you never checked the return code from your MPI_File_read<br>
+statement. аIf you had used your own mpi() function, it would state<br>
+something like this:<br>
+<br>
+MPI_FILE_READ(116): Cannot read from a file opened with amode MPI_MODE_WRONLY<br>
+<font color="#888888"><br>
+-david<br>
+</font><div><div></div><div class="h5"><br>
+<br>
+| Hi, i have this program, that write the rank of a process аon a file.<br>
+| Every<br>
+| processes write the rank on the same file. Whe i try to read that value,<br>
+| is<br>
+| always zero.<br>
+|<br>
+|<br>
+| #include &lt;stdio.h&gt; а/*IO stuff lives here*/<br>
+| #include &lt;stdlib.h&gt; /*exit lives here*/<br>
+| #include &lt;mpi.h&gt; а а/*MPI and MPI-IO live here*/<br>
+|<br>
+|<br>
+| //GLobal variables<br>
+| int rank;<br>
+|<br>
+| void mpi(int error_code){<br>
+|<br>
+| а if (error_code != MPI_SUCCESS) {<br>
+|<br>
+| а а char error_string[BUFSIZ];<br>
+| а а int length_of_error_string, error_class;<br>
+|<br>
+| а а MPI_Error_class(error_code, &amp;error_class);<br>
+| а а MPI_Error_string(error_class, error_string, &amp;length_of_error_string);<br>
+| а а fprintf(stderr, &quot;%3d: %s\n&quot;, rank, error_string);<br>
+| а а MPI_Error_string(error_code, error_string, &amp;length_of_error_string);<br>
+| а а fprintf(stderr, &quot;%3d: %s\n&quot;, rank, error_string);<br>
+| а // аsend_error = TRUE;<br>
+| а }<br>
+| }<br>
+|<br>
+| int main(int argc, char *argv[]){<br>
+|<br>
+| а int size;<br>
+|<br>
+| а MPI_File fh;<br>
+|<br>
+| а MPI_Init(&amp;argc, &amp;argv);<br>
+|<br>
+| а MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+| а MPI_Comm_size(MPI_COMM_WORLD, &amp;size);<br>
+|<br>
+| а MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN);<br>
+|<br>
+| /*<br>
+| а MPI_MODE_RDONLY --- read only,<br>
+| а MPI_MODE_RDWR --- reading and writing,<br>
+| а MPI_MODE_WRONLY --- write only,<br>
+| а MPI_MODE_CREATE --- create the file if it does not exist,<br>
+| а MPI_MODE_EXCL --- error if creating file that already exists,<br>
+| а MPI_MODE_DELETE_ON_CLOSE --- delete file on close,<br>
+| а MPI_MODE_UNIQUE_OPEN --- file will not be concurrently opened elsewhere,<br>
+| а MPI_MODE_SEQUENTIAL --- file will only be accessed sequentially,<br>
+| а MPI_MODE_APPEND --- set initial position of all file pointers to end of<br>
+| file.<br>
+| а*/<br>
+|<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+|<br>
+| //OPEN FILE<br>
+| // abertura do ficheiro<br>
+| а //printf(&quot;[%d] - A abrir ficheiro\n&quot;, rank);<br>
+| а mpi(MPI_File_open(MPI_COMM_WORLD, &quot;<a href="http://buffer.io" target="_blank">buffer.io</a>&quot;, MPI_MODE_CREATE |<br>
+| MPI_MODE_WRONLY, MPI_INFO_NULL, &amp;fh));<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+|<br>
+|<br>
+| //calcular quantidade de bytes a escrever no ficheiro<br>
+| а //MPI_Offset totalNumberOfIntegers<br>
+|<br>
+| //DEFINE OFFSET<br>
+| //definir o offset<br>
+| а MPI_Offset myOffset = (MPI_Offset)(rank * sizeof(int));<br>
+| а mpi(MPI_File_seek(fh, myOffset, MPI_SEEK_SET));<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+|<br>
+| //CHECK OFFSET<br>
+| // verificar a posiчуo no ficheiro<br>
+| а MPI_Offset myCurrentOffset;<br>
+|<br>
+| а MPI_File_get_position(fh, &amp;myCurrentOffset);<br>
+| а printf (&quot;[%d] - My current offset is %lld\n&quot;, rank, myCurrentOffset);<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+|<br>
+| //WRITE RANK IN THE FILE<br>
+| // escrita do ficheiro<br>
+| а MPI_Status mpiStatus;<br>
+| а int write=9;<br>
+|<br>
+| а mpi(MPI_File_write(fh, &amp;write, sizeof(int), MPI_BYTE, &amp;mpiStatus));<br>
+| а printf(&quot;[%d] - Escreveu no ficheiro o valor &#39;%d&#39;\n&quot;, rank, rank );<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+|<br>
+| //CALCULATE FILE SIZE<br>
+| //calcular quantidade de bytes a ler do ficheiro<br>
+| а int numberOfBytes;<br>
+| а MPI_Offset totalNumberOfBytes, numberOfBytesToRead;<br>
+|<br>
+| а MPI_File_get_size(fh, &amp;totalNumberOfBytes);<br>
+| а numberOfBytesToRead = totalNumberOfBytes / size;<br>
+| а numberOfBytes = (int) numberOfBytesToRead;<br>
+| а printf(&quot;[%d] - A preparar para ler %d bytes\n&quot;, rank, numberOfBytes);<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+|<br>
+| //RESET OFFSET<br>
+| //restaurar valor inicial do offset<br>
+| а myOffset = (MPI_Offset)(rank * sizeof(int));<br>
+| а mpi(MPI_File_seek(fh, myOffset, MPI_SEEK_SET));<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+|<br>
+| //CHECK OFFSET<br>
+| // verificar a posiчуo no ficheiro<br>
+| а MPI_File_get_position(fh, &amp;myCurrentOffset);<br>
+| а printf (&quot;[%d] - My current offset is %lld\n&quot;, rank, myCurrentOffset);<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+|<br>
+| //READ FILE<br>
+| //leitura do ficheiro<br>
+| а int readBuffer=0;<br>
+| а // MPI_Status mpiStatus;<br>
+| а MPI_File_read(fh, &amp;readBuffer, sizeof(int) , MPI_INT,<br>
+| MPI_STATUS_IGNORE);<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+| а printf(&quot;[%d] - Leu do ficheiro o valor &#39;%d&#39;\n&quot;, rank, readBuffer );<br>
+| а MPI_Barrier(MPI_COMM_WORLD);<br>
+|<br>
+| //CLOSE FILE<br>
+| // fecho do ficheiro<br>
+| а MPI_File_close(&amp;fh);<br>
+| а MPI_File_delete(&quot;<a href="http://buffer.io" target="_blank">buffer.io</a>&quot;, MPI_INFO_NULL );<br>
+|<br>
+| //end program<br>
+| а MPI_Finalize();<br>
+|<br>
+| а return(0);<br>
+|<br>
+| }<br>
+|<br>
+| --<br>
+| Cumprimentos<br>
+|<br>
+| Luэs Miranda<br>
+</div></div><div><div></div><div class="h5">| _______________________________________________<br>
+| users mailing list<br>
+| <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+| <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br><br clear="all"><br>-- <br>Cumprimentos<br><br>Luэs Miranda<br>
+</div>
+

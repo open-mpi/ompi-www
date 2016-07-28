@@ -1,0 +1,231 @@
+
+<br><font size=2 face="sans-serif">CC stands for any Collective Communication
+operation. Every CC occurs on some communicator.</font>
+<br>
+<br><font size=2 face="sans-serif">Every CC is issued (basically the thread
+the call is on enters the call) at some point in &nbsp;time. &nbsp;If two
+threads are issuing CC calls on the same communicator, the issue order
+can become ambiguous so making CC calls from different threads but on the
+same communicator is generally unsafe. There is debate about whether it
+can be made safe by forcing some kind of thread serialization but since
+the MPI standard does not discuss thread serialization, the best &nbsp;advise
+is to use a different communicator for each thread and be sure you have
+control of issue order.</font>
+<br>
+<br><font size=2 face="sans-serif">When CC &nbsp;calls appear in some static
+order in a block of code that has no branches, issue order is simple to
+recognize. &nbsp;An example like this can cause problems unless you are
+sure every process has the same condition:</font>
+<br>
+<br><font size=2 face="sans-serif">If (condition) {</font>
+<br><font size=2 face="sans-serif">&nbsp; MPI_Ibcast</font>
+<br><font size=2 face="sans-serif">&nbsp; MPI_Ireduce</font>
+<br><font size=2 face="sans-serif">} else {</font>
+<br><font size=2 face="sans-serif">&nbsp; MPI_Ireduce</font>
+<br><font size=2 face="sans-serif">&nbsp; MPI_Ibcast</font>
+<br><font size=2 face="sans-serif">}</font>
+<br>
+<br><font size=2 face="sans-serif">If some ranks take the if and some ranks
+take the else, there is an &quot;issue order&quot; problem. (I do not have
+any idea why someone would do this)</font>
+<br>
+<br><font size=2 face="sans-serif">&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; Dick </font>
+<br>
+<br><font size=2 face="sans-serif">Dick Treumann &nbsp;- &nbsp;MPI Team
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846 &nbsp; &nbsp; &nbsp; &nbsp; Fax (845) 433-8363<br>
+</font>
+<br>
+<br>
+<br>
+<table width=100%>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">From:</font>
+<td><font size=1 face="sans-serif">Gabriele Fatigati &lt;g.fatigati@cineca.it&gt;</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">To:</font>
+<td><font size=1 face="sans-serif">Open MPI Users &lt;users@open-mpi.org&gt;</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">Date:</font>
+<td><font size=1 face="sans-serif">09/23/2010 01:02 PM</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">Subject:</font>
+<td><font size=1 face="sans-serif">Re: [OMPI users] Question about Asynchronous
+collectives</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">Sent by:</font>
+<td><font size=1 face="sans-serif">users-bounces@open-mpi.org</font></table>
+<br>
+<hr noshade>
+<br>
+<br>
+<br><font size=3>Sorry Richard,</font>
+<br>
+<br><font size=3>what is&nbsp;CC issue order on the communicator?, in particular,
+&quot;CC&quot;, what does it mean?<br>
+</font>
+<br><font size=3>2010/9/23 Richard Treumann &lt;</font><a href=mailto:treumann@us.ibm.com><font size=3 color=blue><u>treumann@us.ibm.com</u></font></a><font size=3>&gt;</font>
+<br><font size=2 face="sans-serif"><br>
+request_1 and request_2 are just local variable names. </font><font size=3><br>
+</font><font size=2 face="sans-serif"><br>
+The only thing that determines matching order is CC issue order on the
+communicator. &nbsp;At each process, some CC is issued first and some CC
+is issued second. &nbsp;The first issued CC at each process will try to
+match the first issued CC at the other processes. &nbsp;By this rule,</font><font size=3>
+</font><font size=2 face="sans-serif"><br>
+rank 0: <br>
+MPI_Ibcast; MPI_Ibcast <br>
+Rank 1;</font><font size=3> </font><font size=2 face="sans-serif"><br>
+MPI_Ibcast; MPI_Ibcast <br>
+is well defined and</font><font size=3> <br>
+</font><font size=2 face="sans-serif"><br>
+rank 0: <br>
+MPI_Ibcast; MPI_Ireduce</font><font size=3> </font><font size=2 face="sans-serif"><br>
+Rank 1;</font><font size=3> </font><font size=2 face="sans-serif"><br>
+MPI_Ireducet; MPI_Ibcast <br>
+is incorrect.</font><font size=3> <br>
+</font><font size=2 face="sans-serif"><br>
+I do not agree with Jeff on this below. &nbsp; The Proc 1 case where the
+MPI_Waits are reversed simply requires the MPI implementation to make progress
+on both MPI_Ibcast operations in the first MPI_Wait. The second MPI_Wait
+call will simply find that the first MPI_Ibcast is already done. &nbsp;The
+second MPI_Wait call becomes, effectively, a query function.</font><font size=3>
+</font>
+<br><tt><font size=2><br>
+proc 0:<br>
+MPI_IBcast(MPI_COMM_WORLD, request_1) // first Bcast<br>
+MPI_IBcast(MPI_COMM_WORLD, request_2) // second Bcast<br>
+MPI_Wait(&amp;request_1, ...);<br>
+MPI_Wait(&amp;request_2, ...);<br>
+<br>
+proc 1:<br>
+MPI_IBcast(MPI_COMM_WORLD, request_2) // first Bcast<br>
+MPI_IBcast(MPI_COMM_WORLD, request_1) // second Bcast<br>
+MPI_Wait(&amp;request_1, ...);<br>
+MPI_Wait(&amp;request_2, ...);<br>
+<br>
+That may/will deadlock.</font></tt><font size=3> <br>
+<br>
+<br>
+<br>
+<br>
+</font>
+<br><font size=2 face="sans-serif">Dick Treumann &nbsp;- &nbsp;MPI Team
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846 &nbsp; &nbsp; &nbsp; &nbsp; Fax (845) 433-8363</font><font size=3><br>
+<br>
+<br>
+</font>
+<table width=100%>
+<tr valign=top>
+<td width=13%><font size=1 color=#5f5f5f face="sans-serif">From:</font><font size=3>
+</font>
+<td width=86%><font size=1 face="sans-serif">Jeff Squyres &lt;</font><a href=mailto:jsquyres@cisco.com target=_blank><font size=1 color=blue face="sans-serif"><u>jsquyres@cisco.com</u></font></a><font size=1 face="sans-serif">&gt;</font><font size=3>
+</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">To:</font><font size=3>
+</font>
+<td><font size=1 face="sans-serif">Open MPI Users &lt;</font><a href="mailto:users@open-mpi.org" target=_blank><font size=1 color=blue face="sans-serif"><u>users@open-mpi.org</u></font></a><font size=1 face="sans-serif">&gt;</font><font size=3>
+</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">Date:</font><font size=3>
+</font>
+<td><font size=1 face="sans-serif">09/23/2010 10:13 AM</font><font size=3>
+</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">Subject:</font><font size=3>
+</font>
+<td><font size=1 face="sans-serif">Re: [OMPI users] Question about Asynchronous
+collectives</font><font size=3> </font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">Sent by:</font><font size=3>
+</font>
+<td><a href="mailto:users-bounces@open-mpi.org" target=_blank><font size=1 color=blue face="sans-serif"><u>users-bounces@open-mpi.org</u></font></a></table>
+<br><font size=3><br>
+</font>
+<hr noshade>
+<br><font size=3><br>
+<br>
+</font><tt><font size=2><br>
+On Sep 23, 2010, at 10:00 AM, Gabriele Fatigati wrote:<br>
+<br>
+&gt; to be sure, if i have one processor who does:<br>
+&gt; <br>
+&gt; MPI_IBcast(MPI_COMM_WORLD, request_1) // first Bcast<br>
+&gt; MPI_IBcast(MPI_COMM_WORLD, request_2) // second Bcast<br>
+&gt; <br>
+&gt; it means that i can't have another process who does the follow:<br>
+&gt; <br>
+&gt; MPI_IBcast(MPI_COMM_WORLD, request_2) // firt Bcast for another process<br>
+&gt; MPI_IBcast(MPI_COMM_WORLD, request_1) // second Bcast for another
+process<br>
+&gt; <br>
+&gt; Because first Bcast of second process matches with first Bcast of
+first process, and it's wrong.<br>
+<br>
+If you did a &quot;waitall&quot; on both requests, it would probably work
+because MPI would just &quot;figure it out&quot;. &nbsp;But if you did
+something like:<br>
+<br>
+proc 0:<br>
+MPI_IBcast(MPI_COMM_WORLD, request_1) // first Bcast<br>
+MPI_IBcast(MPI_COMM_WORLD, request_2) // second Bcast<br>
+MPI_Wait(&amp;request_1, ...);<br>
+MPI_Wait(&amp;request_2, ...);<br>
+<br>
+proc 1:<br>
+MPI_IBcast(MPI_COMM_WORLD, request_2) // first Bcast<br>
+MPI_IBcast(MPI_COMM_WORLD, request_1) // second Bcast<br>
+MPI_Wait(&amp;request_1, ...);<br>
+MPI_Wait(&amp;request_2, ...);<br>
+<br>
+That may/will deadlock.<br>
+<br>
+-- <br>
+Jeff Squyres</font></tt><tt><font size=2 color=blue><u><br>
+</u></font></tt><a href=mailto:jsquyres@cisco.com target=_blank><tt><font size=2 color=blue><u>jsquyres@cisco.com</u></font></tt></a><tt><font size=2><br>
+For corporate legal information go to:</font></tt><font size=3 color=blue><u><br>
+</u></font><a href=http://www.cisco.com/web/about/doing_business/legal/cri/ target=_blank><tt><font size=2 color=blue><u>http://www.cisco.com/web/about/doing_business/legal/cri/</u></font></tt></a><tt><font size=2><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list</font></tt><tt><font size=2 color=blue><u><br>
+</u></font></tt><a href="mailto:users@open-mpi.org" target=_blank><tt><font size=2 color=blue><u>users@open-mpi.org</u></font></tt></a><font size=3 color=blue><u><br>
+</u></font><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target=_blank><tt><font size=2 color=blue><u>http://www.open-mpi.org/mailman/listinfo.cgi/users</u></font></tt></a><font size=3><br>
+<br>
+</font>
+<br><font size=3><br>
+_______________________________________________<br>
+users mailing list</font><font size=3 color=blue><u><br>
+</u></font><a href="mailto:users@open-mpi.org"><font size=3 color=blue><u>users@open-mpi.org</u></font></a><font size=3 color=blue><u><br>
+</u></font><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target=_blank><font size=3 color=blue><u>http://www.open-mpi.org/mailman/listinfo.cgi/users</u></font></a>
+<br><font size=3><br>
+<br>
+<br>
+-- <br>
+Ing. Gabriele Fatigati<br>
+<br>
+Parallel programmer<br>
+<br>
+CINECA Systems &amp; Tecnologies Department<br>
+<br>
+Supercomputing Group<br>
+<br>
+Via Magnanelli 6/3, Casalecchio di Reno (BO) Italy<br>
+</font><font size=3 color=blue><u><br>
+</u></font><a href=http://www.cineca.it/><font size=3 color=blue><u>www.cineca.it</u></font></a><font size=3>&nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Tel:&nbsp;&nbsp;
++39 051 6171722<br>
+<br>
+g.fatigati [AT] </font><a href=http://cineca.it/><font size=3 color=blue><u>cineca.it</u></font></a><font size=3>&nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp;&nbsp; </font><tt><font size=2>_______________________________________________<br>
+users mailing list<br>
+users@open-mpi.org<br>
+</font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users"><tt><font size=2>http://www.open-mpi.org/mailman/listinfo.cgi/users</font></tt></a>
+<br>
+<br>

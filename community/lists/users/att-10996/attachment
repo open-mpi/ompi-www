@@ -1,0 +1,24 @@
+Hello all,<br>        Firstly, My apologies for a duplicate post in LAM/MPI list I have the following simple MPI code. I was
+wondering if there was a workaround for sending a dynamically allocated
+2-D matrix? Currently I can send the matrix row-by-row, however, since
+rows are not contiguous I cannot send the entire matrix at once. I
+realize one option is to change the malloc to act as one contiguous
+block but can I keep the matrix definition as below and still send the
+entire matrix in one go?<br>
+<br>Code :- <br>#include &lt;stdio.h&gt;<br>#include &lt;stdlib.h&gt;<br>#include &lt;mpi.h&gt;<br>#include &lt;math.h&gt;<br><br>void alloc_matrix(double ***x, int r, int c)<br>{<br>   int i,j,n;<br><br>        if ( ( *x = (double **)malloc((r)*sizeof(**x)) ) == NULL ) {<br>
+
+                              <div id=":tp" class="ii gt">  printf(&quot;memory not allocd\n&quot;);                                exit(1);<br>        }<br><br>        for(n = 0; n &lt; r; n++) {<br>                if ( ( (*x)[n] = (double *)malloc(c * sizeof(***x))) == NULL) {<br>
+
+                printf(&quot;memory not allocd&quot;);<br>                exit(1);<br>                }<br>        }<br>}<br><br>void clean(double ***x, int r)<br>{<br> int n;<br>        for (n = 0; n &lt; r; n++)<br>        {<br>
+
+                free((*x)[n]);<br>                (*x)[n] = NULL;<br>        }<br>        free(**x);<br>        **x = NULL;<br>}<br><br>int main (int argc, char **argv) {<br><br>  int myrank,i, j;<br>  FILE *f;<br>  char name[20];<br>
+
+  MPI_Status status;<br>  double **a, **b;<br><br>  MPI_Init(&amp;argc, &amp;argv);  <br>  MPI_Comm_rank(MPI_COMM_WORLD, &amp;myrank); <br>  if( myrank == 0 )<br>  {<br>        alloc_matrix(&amp;a,3,3);<br>        for (i=0;i&lt;3;i++) {<br>
+
+                for (j=0; j&lt;3; j++)<br>                a[i][j]=i*0.01 + j*0.01;<br>                MPI_Send((a[i]), 3, MPI_DOUBLE, 1, 17, MPI_COMM_WORLD );<br>        }<br>  }<br>  else if( myrank == 1 )<br>  {   <br>
+    alloc_matrix(&amp;b,3,3);<br>
+        for (i=0;i&lt;3;i++){<br>                for (j=0; j&lt;3; j++)<br>                        b[i][j]=0;<br>                MPI_Recv((b[i]), 3 , MPI_DOUBLE, 0, 17, MPI_COMM_WORLD, &amp;status );<br>        }<br>  sprintf(name,&quot;proc.%d&quot;,myrank);<br>
+
+  f = fopen(name,&quot;w&quot;);<br>  if (myrank == 1)<br>  {<br>        for (i=0; i&lt;3; i++)<br>                for (j=0; j&lt;3; j++)<br>                {<br>                        fprintf(f,&quot;%f\n&quot;, b[i][j]);<br>
+
+                }<br>        clean(&amp;b,3);<br>   }<br>  else if( myrank == 0 ) {<br>        clean(&amp;a,3);<br>   }<br>  fclose(f);<br>  MPI_Finalize();<br>}</div>

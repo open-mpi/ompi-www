@@ -1,0 +1,45 @@
+Dear all,<div><br></div><div>I&#39;m trying to handle signals inside a MPI task farming model. Following is a pseudo-code of what i&#39;m trying to achieve:</div><div><br></div><div><pre style="background-image:initial;background-color:rgb(255,255,255)">
+<span style="color:rgb(128,0,0);font-weight:bold">volatile</span> <span style="color:rgb(96,48,0)">sig_atomic_t</span> unexpected_error_occurred <span style="color:rgb(128,128,48)">=</span> <span style="color:rgb(0,140,0)">0</span><span style="color:rgb(128,0,128)">;</span>
+
+<span style="color:rgb(128,0,0);font-weight:bold">void</span> my_handler<span style="color:rgb(128,128,48)">(</span> <span style="color:rgb(128,0,0);font-weight:bold">int</span> sig <span style="color:rgb(128,128,48)">)</span>
+<span style="color:rgb(128,0,128)">{</span>
+    unexpected_error_occurred <span style="color:rgb(128,128,48)">=</span> <span style="color:rgb(0,140,0)">1</span><span style="color:rgb(128,0,128)">;</span>
+<span style="color:rgb(128,0,128)">}</span>
+
+<span style="color:rgb(105,105,105)">//</span>
+<span style="color:rgb(105,105,105)">// somewhere in the code...</span>
+<span style="color:rgb(105,105,105)">//</span>
+
+<span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> my_handler<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+
+<span style="color:rgb(128,0,0);font-weight:bold">if</span> <span style="color:rgb(128,128,48)">(</span>root process<span style="color:rgb(128,128,48)">)</span> <span style="color:rgb(128,0,128)">{</span>
+
+    <span style="color:rgb(105,105,105)">// do stuff</span>
+
+    <span style="color:rgb(128,0,0);font-weight:bold">if</span> <span style="color:rgb(128,128,48)">(</span> unexpected_error_occurred <span style="color:rgb(128,128,48)">)</span> <span style="color:rgb(128,0,128)">{</span>
+
+        <span style="color:rgb(105,105,105)">// save something</span>
+
+        <span style="color:rgb(105,105,105)">// reraise the SIGTERM again, but now with the default handler</span>
+        <span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> SIG_DFL<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+        <span style="color:rgb(96,48,0)">raise</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+    <span style="color:rgb(128,0,128)">}</span>
+<span style="color:rgb(128,0,128)">}</span>
+<span style="color:rgb(128,0,0);font-weight:bold">else</span> <span style="color:rgb(128,0,128)">{</span> <span style="color:rgb(105,105,105)">// slave process</span>
+
+    <span style="color:rgb(105,105,105)">// do different stuff</span>
+
+    <span style="color:rgb(128,0,0);font-weight:bold">if</span> <span style="color:rgb(128,128,48)">(</span> unexpected_error_occurred <span style="color:rgb(128,128,48)">)</span> <span style="color:rgb(128,0,128)">{</span>
+
+        <span style="color:rgb(105,105,105)">// just propragate the signal to the root</span>
+        <span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> SIG_DFL<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+        <span style="color:rgb(96,48,0)">raise</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+    <span style="color:rgb(128,0,128)">}</span>
+<span style="color:rgb(128,0,128)">}</span>
+
+<span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> SIG_DFL<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>                       <span style="color:rgb(105,105,105)">// reassign default handler</span>
+
+<span style="color:rgb(105,105,105)">// continues the code...</span></pre></div><div><br></div><div>As can be seen, the signal handling is required for implementing a restart feature. All the problem resides in the assumption i made that all processes in the communicator will receive a SIGTERM as a side effect. Is it a valid assumption? How the actual MPI implementation deals with such scenarios?</div>
+<div><br></div><div>I also tried to replace all the raise() calls by MPI_Abort(), which according to the documentation (<a href="http://www.open-mpi.org/doc/v1.5/man3/MPI_Abort.3.php">http://www.open-mpi.org/doc/v1.5/man3/MPI_Abort.3.php</a>), sends a SIGTERM to all associated processes. The undesired behaviour persists: when killing a slave process, the save section in the root branch is not executed.</div>
+<div><br></div><div>Appreciate any help,</div><div>Júlio.</div>
+

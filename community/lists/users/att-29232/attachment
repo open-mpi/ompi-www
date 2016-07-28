@@ -1,0 +1,240 @@
+<div dir="ltr">Thanks a lot!<div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, May 17, 2016 at 11:49 AM, Nathan Hjelm <span dir="ltr">&lt;<a href="mailto:hjelmn@lanl.gov" target="_blank">hjelmn@lanl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+I don&#39;t know of any documentation on the connection manager other than<br>
+what is in the code and in my head. I rewrote a lot of the code in 2.x<br>
+so you might want to try out the latest 2.x tarball from<br>
+<a href="https://www.open-mpi.org/software/ompi/v2.x/" rel="noreferrer" target="_blank">https://www.open-mpi.org/software/ompi/v2.x/</a><br>
+<br>
+I know the per-peer queue pair will prevent totally asynchronous<br>
+connections even in 2.x but SRQ/XRC only should work.<br>
+<br>
+-Nathan<br>
+<div><div class="h5"><br>
+On Tue, May 17, 2016 at 11:31:01AM -0400, Xiaolong Cui wrote:<br>
+&gt;    I think it is the connection manager that blocks the first message. If I<br>
+&gt;    add a pair of send/recv at the very beginning, the problem is gone. But<br>
+&gt;    removing the per-peer queue pair does not help.<br>
+&gt;    Do you know any document that discusses the open mpi internals, especially<br>
+&gt;    related to this problem?<br>
+&gt;    On Tue, May 17, 2016 at 11:00 AM, Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt; wrote:<br>
+&gt;<br>
+&gt;      If it is blocking on the first message then it might be blocked by the<br>
+&gt;      connection manager. Removing the per-peer queue pair might help in that<br>
+&gt;      case.<br>
+&gt;<br>
+&gt;      -Nathan<br>
+&gt;      On Mon, May 16, 2016 at 10:11:29PM -0400, Xiaolong Cui wrote:<br>
+&gt;      &gt;    Hi Nathan,<br>
+&gt;      &gt;    Thanks for your answer.<br>
+&gt;      &gt;    The &quot;credits&quot; make sense for the purpose of flow control. However,<br>
+&gt;      the<br>
+&gt;      &gt;    sender in my case will be blocked even for the first message. This<br>
+&gt;      doesn&#39;t<br>
+&gt;      &gt;    seem to be the symptom of running out of credits. Is there any<br>
+&gt;      reason for<br>
+&gt;      &gt;    this? Also, is there a mac parameter for the number of credits?<br>
+&gt;      &gt;    Best,<br>
+&gt;      &gt;    Michael<br>
+&gt;      &gt;    On Mon, May 16, 2016 at 6:35 PM, Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+&gt;      wrote:<br>
+&gt;      &gt;<br>
+&gt;      &gt;      When using eager_rdma the sender will block once it runs out of<br>
+&gt;      &gt;      &quot;credits&quot;. If the receiver enters MPI for any reason the incoming<br>
+&gt;      &gt;      messages will be placed in the ob1 unexpected queue and the<br>
+&gt;      credits will<br>
+&gt;      &gt;      be returned to the sender. If you turn off eager_rdma you will<br>
+&gt;      probably<br>
+&gt;      &gt;      get different results. That said, the unexpected message path is<br>
+&gt;      &gt;      non-optimal and it would be best to ensure a matching receive is<br>
+&gt;      posted<br>
+&gt;      &gt;      before the send.<br>
+&gt;      &gt;<br>
+&gt;      &gt;      Additionally, if you are using infiniband I recommend against<br>
+&gt;      adding a<br>
+&gt;      &gt;      per-peer queue pair to btl_openib_receive_queues. We have not<br>
+&gt;      seen any<br>
+&gt;      &gt;      performance benefit to using per-peer queue pairs and they do not<br>
+&gt;      &gt;      scale.<br>
+&gt;      &gt;<br>
+&gt;      &gt;      -Nathan Hjelm<br>
+&gt;      &gt;      HPC-ENV, LANL<br>
+&gt;      &gt;      On Mon, May 16, 2016 at 12:21:41PM -0400, Xiaolong Cui wrote:<br>
+&gt;      &gt;      &gt;    Hi,<br>
+&gt;      &gt;      &gt;    I am using Open MPI 1.8.6. I guess my question is related to<br>
+&gt;      the<br>
+&gt;      &gt;      flow<br>
+&gt;      &gt;      &gt;    control algorithm for small messages. The question is how to<br>
+&gt;      avoid<br>
+&gt;      &gt;      the<br>
+&gt;      &gt;      &gt;    sender being blocked by the receiver when using openib<br>
+&gt;      module for<br>
+&gt;      &gt;      small<br>
+&gt;      &gt;      &gt;    messages and using blocking send. I have looked through this<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;<br>
+&gt;      FAQ(<a href="https://www.open-mpi.org/faq/?category=openfabrics#ofa-troubleshoot" rel="noreferrer" target="_blank">https://www.open-mpi.org/faq/?category=openfabrics#ofa-troubleshoot</a>)<br>
+&gt;      &gt;      &gt;    but didn&#39;t find the answer. My understanding of &quot;eager<br>
+&gt;      sending<br>
+&gt;      &gt;      protocol&quot;<br>
+&gt;      &gt;      &gt;    is that if a message is &quot;small&quot;, it will be transported to<br>
+&gt;      the<br>
+&gt;      &gt;      receiver<br>
+&gt;      &gt;      &gt;    immediately, even if the receiver is not ready. As a result,<br>
+&gt;      the<br>
+&gt;      &gt;      sender<br>
+&gt;      &gt;      &gt;    won&#39;t be blocked until the receiver posts the receive<br>
+&gt;      operation.<br>
+&gt;      &gt;      &gt;    I am trying to observe such behavior with a simple program<br>
+&gt;      of two<br>
+&gt;      &gt;      MPI<br>
+&gt;      &gt;      &gt;    ranks (attached). My confusion is that while I can see the<br>
+&gt;      behavior<br>
+&gt;      &gt;      with<br>
+&gt;      &gt;      &gt;    &quot;vader&quot; module (shared memory) when running the two ranks on<br>
+&gt;      the<br>
+&gt;      &gt;      same<br>
+&gt;      &gt;      &gt;    node,<br>
+&gt;      &gt;      &gt;    [output]<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt;    [0] size = 16, loop = 78, time = 0.00007<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt;    [1] size = 16, loop = 78, time = 3.42426<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt;    [/output]<br>
+&gt;      &gt;      &gt;    but I cannot see it when running them on two nodes using the<br>
+&gt;      &gt;      &quot;openib&quot;<br>
+&gt;      &gt;      &gt;    module.<br>
+&gt;      &gt;      &gt;    [output]<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt;    [0] size = 16, loop = 78, time = 3.42627<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt;    [1] size = 16, loop = 78, time = 3.42426<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt;    [/output]<br>
+&gt;      &gt;      &gt;    So anyone knows the reason? My runtime configuration is also<br>
+&gt;      &gt;      attached.<br>
+&gt;      &gt;      &gt;    Thanks!<br>
+&gt;      &gt;      &gt;    Sincerely,<br>
+&gt;      &gt;      &gt;    Michael<br>
+&gt;      &gt;      &gt;    --<br>
+&gt;      &gt;      &gt;    Xiaolong Cui (Michael)<br>
+&gt;      &gt;      &gt;    Department of Computer Science<br>
+&gt;      &gt;      &gt;    Dietrich School of Arts &amp; Science<br>
+&gt;      &gt;      &gt;    University of Pittsburgh<br>
+&gt;      &gt;      &gt;    Pittsburgh, PA 15260<br>
+&gt;      &gt;<br>
+&gt;      &gt;      &gt; btl = openib,vader,self<br>
+&gt;      &gt;      &gt; #btl_base_verbose = 100<br>
+&gt;      &gt;      &gt; btl_openib_use_eager_rdma = 1<br>
+&gt;      &gt;      &gt; btl_openib_eager_limit = 160000<br>
+&gt;      &gt;      &gt; btl_openib_rndv_eager_limit = 160000<br>
+&gt;      &gt;      &gt; btl_openib_max_send_size = 160000<br>
+&gt;      &gt;      &gt; btl_openib_receive_queues =<br>
+&gt;      &gt;<br>
+&gt;      P,128,256,192,64:S,2048,1024,1008,80:S,12288,1024,1008,80:S,160000,1024,512,512<br>
+&gt;      &gt;<br>
+&gt;      &gt;      &gt; #include &quot;mpi.h&quot;<br>
+&gt;      &gt;      &gt; #include &lt;mpi-ext.h&gt;<br>
+&gt;      &gt;      &gt; #include &lt;stdio.h&gt;<br>
+&gt;      &gt;      &gt; #include &lt;stdlib.h&gt;<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt; int main(int argc, char *argv[])<br>
+&gt;      &gt;      &gt; {<br>
+&gt;      &gt;      &gt;    int size, rank, psize;<br>
+&gt;      &gt;      &gt;    int loops = 78;<br>
+&gt;      &gt;      &gt;    int length = 4;<br>
+&gt;      &gt;      &gt;    MPI_Init(&amp;argc, &amp;argv);<br>
+&gt;      &gt;      &gt;    MPI_Comm_size(MPI_COMM_WORLD, &amp;size);<br>
+&gt;      &gt;      &gt;    MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+&gt;      &gt;      &gt;    int *code = (int *)malloc(length * sizeof(int));<br>
+&gt;      &gt;      &gt;    MPI_Status status;<br>
+&gt;      &gt;      &gt;    long long i = 0;<br>
+&gt;      &gt;      &gt;    double time_s = MPI_Wtime();<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt;    if(rank % 2 == 1)<br>
+&gt;      &gt;      &gt;    {<br>
+&gt;      &gt;      &gt;        int i ;<br>
+&gt;      &gt;      &gt;        int j ;<br>
+&gt;      &gt;      &gt;        double a = 0.3, b = 0.5;<br>
+&gt;      &gt;      &gt;        for(i = 0; i &lt; 30000; i++)<br>
+&gt;      &gt;      &gt;            for(j = 0; j &lt; 30000; j++){<br>
+&gt;      &gt;      &gt;                a = a * 2;<br>
+&gt;      &gt;      &gt;                b = b + a;<br>
+&gt;      &gt;      &gt;            }<br>
+&gt;      &gt;      &gt;    }<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt;    for(i = 0; i &lt; loops; i++){<br>
+&gt;      &gt;      &gt;        if(rank % 2 == 0){<br>
+&gt;      &gt;      &gt;            MPI_Send(code, length, MPI_INT, rank + 1, 0,<br>
+&gt;      &gt;      MPI_COMM_WORLD);<br>
+&gt;      &gt;      &gt;        }<br>
+&gt;      &gt;      &gt;        else if(rank % 2 == 1){<br>
+&gt;      &gt;      &gt;            MPI_Recv(code, length, MPI_INT, rank - 1, 0,<br>
+&gt;      &gt;      MPI_COMM_WORLD, MPI_STATUS_IGNORE);<br>
+&gt;      &gt;      &gt;        }<br>
+&gt;      &gt;      &gt;    }<br>
+&gt;      &gt;      &gt;    double time_e = MPI_Wtime();<br>
+&gt;      &gt;      &gt;    printf(&quot;[%d] size = %d, loop = %d, time = %.5f\n&quot;, rank,<br>
+&gt;      length *<br>
+&gt;      &gt;      sizeof(int), loops, time_e - time_s);<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;      &gt;    MPI_Finalize();<br>
+&gt;      &gt;      &gt;    return 0;<br>
+&gt;      &gt;      &gt; }<br>
+&gt;      &gt;      &gt;<br>
+&gt;      &gt;<br>
+&gt;      &gt;      &gt; _______________________________________________<br>
+&gt;      &gt;      &gt; users mailing list<br>
+&gt;      &gt;      &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;      &gt;      &gt; Subscription:<br>
+&gt;      <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;      &gt;      &gt; Link to this post:<br>
+&gt;      &gt;      <a href="http://www.open-mpi.org/community/lists/users/2016/05/29224.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29224.php</a><br>
+&gt;      &gt;<br>
+&gt;      &gt;      _______________________________________________<br>
+&gt;      &gt;      users mailing list<br>
+&gt;      &gt;      <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;      &gt;      Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;      &gt;      Link to this post:<br>
+&gt;      &gt;      <a href="http://www.open-mpi.org/community/lists/users/2016/05/29227.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29227.php</a><br>
+&gt;      &gt;<br>
+&gt;      &gt;    --<br>
+&gt;      &gt;    Xiaolong Cui (Michael)<br>
+&gt;      &gt;    Department of Computer Science<br>
+&gt;      &gt;    Dietrich School of Arts &amp; Science<br>
+&gt;      &gt;    University of Pittsburgh<br>
+&gt;      &gt;    Pittsburgh, PA 15260<br>
+&gt;<br>
+&gt;      &gt; _______________________________________________<br>
+&gt;      &gt; users mailing list<br>
+&gt;      &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;      &gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;      &gt; Link to this post:<br>
+&gt;      <a href="http://www.open-mpi.org/community/lists/users/2016/05/29228.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29228.php</a><br>
+&gt;<br>
+&gt;      _______________________________________________<br>
+&gt;      users mailing list<br>
+&gt;      <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;      Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;      Link to this post:<br>
+&gt;      <a href="http://www.open-mpi.org/community/lists/users/2016/05/29229.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29229.php</a><br>
+&gt;<br>
+&gt;    --<br>
+&gt;    Xiaolong Cui (Michael)<br>
+&gt;    Department of Computer Science<br>
+&gt;    Dietrich School of Arts &amp; Science<br>
+&gt;    University of Pittsburgh<br>
+&gt;    Pittsburgh, PA 15260<br>
+<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div>&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29230.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29230.php</a><br>
+<br>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29231.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29231.php</a><br></blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature"><div dir="ltr">Xiaolong Cui (Michael)<div>Department of Computer Science</div><div>Dietrich School of Arts &amp; Science</div><div>University of Pittsburgh</div><div>Pittsburgh, PA 15260</div></div></div>
+</div>
+

@@ -1,0 +1,119 @@
+Index: orte/mca/odls/base/odls_base_default_fns.c
+===================================================================
+--- orte/mca/odls/base/odls_base_default_fns.c	(revision 27212)
++++ orte/mca/odls/base/odls_base_default_fns.c	(working copy)
+@@ -2497,11 +2497,7 @@
+                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+                         ORTE_NAME_PRINT(proc), (long)buffer.bytes_used));
+     
+-    if (0 > (rc = orte_rml.send_buffer(proc, &buffer, ORTE_RML_TAG_SYNC, 0))) {
+-        ORTE_ERROR_LOG(rc);
+-        OBJ_DESTRUCT(&buffer);
+-        goto CLEANUP;
+-    }            
++    orte_rml.send_buffer(proc, &buffer, ORTE_RML_TAG_SYNC, 0);            
+     OBJ_DESTRUCT(&buffer);
+     
+     /* now check to see if everyone in this job has registered */
+Index: orte/mca/routed/binomial/routed_binomial.c
+===================================================================
+--- orte/mca/routed/binomial/routed_binomial.c	(revision 27212)
++++ orte/mca/routed/binomial/routed_binomial.c	(working copy)
+@@ -725,9 +725,9 @@
+     if (!orte_finalizing &&
+         NULL != lifeline &&
+         OPAL_EQUAL == orte_util_compare_name_fields(ORTE_NS_CMP_ALL, route, lifeline)) {
+-        opal_output(0, "%s routed:binomial: Connection to lifeline %s lost",
+-                    ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+-                    ORTE_NAME_PRINT(lifeline));
++        opal_output_verbose(10, "%s routed:binomial: Connection to lifeline %s lost",
++                            ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
++                            ORTE_NAME_PRINT(lifeline));
+         return ORTE_ERR_FATAL;
+     }
+ 
+Index: orte/orted/orted_main.c
+===================================================================
+--- orte/orted/orted_main.c	(revision 27212)
++++ orte/orted/orted_main.c	(working copy)
+@@ -71,6 +71,7 @@
+ 
+ #include "orte/mca/errmgr/errmgr.h"
+ #include "orte/mca/grpcomm/grpcomm.h"
++#include "orte/mca/rmaps/rmaps_types.h"
+ #include "orte/mca/rml/rml.h"
+ #include "orte/mca/rml/rml_types.h"
+ #include "orte/mca/odls/odls.h"
+@@ -547,7 +548,7 @@
+     if (orted_globals.uri_pipe > 0) {
+         orte_job_t *jdata;
+         orte_proc_t *proc;
+-        orte_node_t **nodes;
++        orte_node_t *node;
+         orte_app_context_t *app;
+         char *tmp, *nptr, *sysinfo;
+         int rc;
+@@ -576,8 +577,19 @@
+              */
+         }
+         
+-        nodes = (orte_node_t**)orte_node_pool->addr;
++        /* setup a map for the job - even though we won't
++         * actually map it, we need a map object so the
++         * nidmap (if the singleton should call comm_spawn)
++         * will be complete
++         */
++        jdata->map = OBJ_NEW(orte_job_map_t);
+         
++        node = (orte_node_t*)opal_pointer_array_get_item(orte_node_pool, 0);
++        /* add the node to the map */
++        OBJ_RETAIN(node);
++        opal_pointer_array_add(jdata->map->nodes, node);
++        jdata->map->num_nodes = 1;
++
+         /* setup a proc object for the singleton - since we
+          * -must- be the HNP, and therefore we stored our
+          * node on the global node pool, and since the singleton
+@@ -588,8 +600,11 @@
+         proc->name.vpid = 0;
+         proc->state = ORTE_PROC_STATE_RUNNING;
+         proc->app_idx = 0;
+-        proc->node = nodes[0]; /* hnp node must be there */
+-        OBJ_RETAIN(nodes[0]);  /* keep accounting straight */
++        proc->node = node;
++        proc->local_rank = 0;
++        proc->node_rank = 0;
++        OBJ_RETAIN(node);  /* keep accounting straight */
++        node->num_procs = 1;
+         opal_pointer_array_add(jdata->procs, proc);
+         jdata->num_procs = 1;
+         
+@@ -611,6 +626,27 @@
+ 
+         /* cleanup */
+         free(tmp);
++
++        /* since a singleton spawned us, we need to harvest
++         * any MCA params from the local environment so
++         * we can pass them along to any subsequent daemons
++         * we may start as the result of a comm_spawn
++         */
++        for (i=0; NULL != environ[i]; i++) {
++            if (0 == strncmp(environ[i], "OMPI_MCA", 8)) {
++                /* make a copy to manipulate */
++                sysinfo = strdup(environ[i]);
++                /* find the equal sign */
++                nptr = strchr(sysinfo, '=');
++                *nptr = '\0';
++                nptr++;
++                /* add the mca param to the orted cmd line */
++                opal_argv_append_nosize(&orted_cmd_line, "-mca");
++                opal_argv_append_nosize(&orted_cmd_line, &sysinfo[9]);
++                opal_argv_append_nosize(&orted_cmd_line, nptr);
++                free(sysinfo);
++            }
++        }
+     }
+ 
+     /* if we were given a pipe to monitor for singleton termination, set that up */
+
