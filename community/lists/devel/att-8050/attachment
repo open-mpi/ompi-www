@@ -1,0 +1,609 @@
+Jeff is correct - create an orte/odls/vxworks and do whatever you need for that platform to launch a local child process.<br><br>I believe you will also find calls to fork/exec in the orte/mca/ess/singleton area. You may want to add a configure.m4 to that component to tell it not to build for vxworks.<br>
+<br><br><div class="gmail_quote">2010/6/4 Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span><br><blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">
+Maybe gettimeofday() be replaced with opal_gettimeofday(), which could do the Right Thing on different platforms...?<br>
+<br>
+Also, for fork/exec, I think that should be mostly limited to orte/odls/default, right?  If so, perhaps the right thing to do is to clone that plugin and adapt it for you platform.<br>
+<div><div></div><div class="h5"><br>
+<br>
+On Jun 4, 2010, at 1:43 AM, 张晶 wrote:<br>
+<br>
+&gt; Hi Castain ,<br>
+&gt;<br>
+&gt; Your last mail to me is really helpful . I met most of the issues<br>
+&gt; listed and fixed them as the off-list solution or mine .<br>
+&gt; Also as the openmpi code changed there are some other issues (almost<br>
+&gt; the missing function ) that are not reported .For example , the<br>
+&gt; gettimeofday posix function is not implemented by vxworks library ,I<br>
+&gt; just wrote a small library for those function. Until now I have<br>
+&gt; successfully compiled  the  libopen-rte.a  and libopen-pal.a , but now<br>
+&gt; I stuck<br>
+&gt; at the problem of fork and exec ,which is not available in the<br>
+&gt; vxworks. It is not possible to implement the fork and exec by myself.I<br>
+&gt; have to read through the code using the fork ,then substitute them<br>
+&gt; with rtpspawn() . It is a challenging work.I really want to know how<br>
+&gt; Brian Barrett deals with the fork() and exec() .<br>
+&gt;<br>
+&gt; Thanks<br>
+&gt;<br>
+&gt; Jing<br>
+&gt;<br>
+&gt; 2010/3/18 Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;:<br>
+&gt; &gt; Hi Jing<br>
+&gt; &gt; Someone else took a look at this off-list a few years ago. It was mostly a<br>
+&gt; &gt; problem with the build system (some flags are different) and header file<br>
+&gt; &gt; names. I don&#39;t believe the port was ever completed though.<br>
+&gt; &gt; I have appended the results of that conversation - the last message<br>
+&gt; &gt; contained a list of the issues. You would need to update that to the trunk<br>
+&gt; &gt; of course as the code has changed considerably since that discussion took<br>
+&gt; &gt; place. Brian Barrett subsequently created a first-cut at fixing some of<br>
+&gt; &gt; these, but that appears to have been lost in the years since it was done -<br>
+&gt; &gt; and wouldn&#39;t really be current anyway.<br>
+&gt; &gt; I would be happy to assist as I can.<br>
+&gt; &gt; Ralph<br>
+&gt; &gt;<br>
+&gt; &gt; 1. configure issues with &quot;checking prefix for global symbol labels&quot;<br>
+&gt; &gt;<br>
+&gt; &gt; 1a. VxWorks assembler (CCAS=asppc) generates a.out by default (vs.<br>
+&gt; &gt;<br>
+&gt; &gt; conftest.o that we need subsequently)<br>
+&gt; &gt;<br>
+&gt; &gt; there is this fragment to determine the way to assemble conftest.s:<br>
+&gt; &gt;<br>
+&gt; &gt; if test &quot;$CC&quot; = &quot;$CCAS&quot; ; then<br>
+&gt; &gt;<br>
+&gt; &gt;    ompi_assemble=&quot;$CCAS $CCASFLAGS -c conftest.s &gt;conftest.out 2&gt;&amp;1&quot;<br>
+&gt; &gt;<br>
+&gt; &gt; else<br>
+&gt; &gt;<br>
+&gt; &gt;    ompi_assemble=&quot;$CCAS $CCASFLAGS conftest.s &gt;conftest.out 2&gt;&amp;1&quot;<br>
+&gt; &gt;<br>
+&gt; &gt; fi<br>
+&gt; &gt;<br>
+&gt; &gt; The subsequent link fails because conftest.o does not exist:<br>
+&gt; &gt;<br>
+&gt; &gt;   ompi_link=&quot;$CC $CFLAGS conftest_c.$OBJEXT conftest.$OBJEXT -o conftest &gt;<br>
+&gt; &gt; conftest.link 2&gt;&amp;1&quot;<br>
+&gt; &gt;<br>
+&gt; &gt; To work around the problem, I did not set CCAS. This gives me the first<br>
+&gt; &gt;<br>
+&gt; &gt; invocation that includes the -c argument to CC=ccppc, generating<br>
+&gt; &gt;<br>
+&gt; &gt; conftest.o output.<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; 1b. linker fails because LDFLAGS are not passed<br>
+&gt; &gt;<br>
+&gt; &gt; The same linker command line caused problems because $CFLAGS were passed<br>
+&gt; &gt;<br>
+&gt; &gt; to the linker<br>
+&gt; &gt;<br>
+&gt; &gt;   ompi_link=&quot;$CC $CFLAGS conftest_c.$OBJEXT conftest.$OBJEXT -o conftest &gt;<br>
+&gt; &gt; conftest.link 2&gt;&amp;1&quot;<br>
+&gt; &gt;<br>
+&gt; &gt; In my environment, I set CC/CFLAGS/LDFLAGS as follows:<br>
+&gt; &gt;<br>
+&gt; &gt; CC=ccppc<br>
+&gt; &gt;<br>
+&gt; &gt; CFLAGS=-ggdb3 -std=c99 -pedantic -mrtp -msoft-float -mstrict-align<br>
+&gt; &gt;<br>
+&gt; &gt; -mregnames -fno-builtin -fexceptions&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; LDFLAGS=-mrtp -msoft-float -Wl,--start-group -Wl,--end-group<br>
+&gt; &gt;<br>
+&gt; &gt; -L/amd/raptor/root/opt/WindRiver/vxworks-6.3/target/usr/lib/ppc/PPC32/sfcommon<br>
+&gt; &gt;<br>
+&gt; &gt; The linker flags are not passed because the ompi_link<br>
+&gt; &gt;<br>
+&gt; &gt; [xp-kcain1:build_vxworks]  ccppc -ggdb3 -std=c99 -pedantic -mrtp<br>
+&gt; &gt;<br>
+&gt; &gt; -msoft-float -mstrict-align -mregnames -fno-builtin -fexceptions -o<br>
+&gt; &gt;<br>
+&gt; &gt; hello hello.c<br>
+&gt; &gt;<br>
+&gt; &gt; /amd/raptor/root/opt/WindRiver/gnu/3.4.4-vxworks-6.3/x86-linux2/bin/../lib/gcc/powerpc-wrs-vxworks/3.4.4/../../../../powerpc-wrs-vxworks/bin/ld:<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; cannot find -lc_internal<br>
+&gt; &gt;<br>
+&gt; &gt; collect2: ld returned 1 exit status<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; 2. OPAL atomics asm.c:<br>
+&gt; &gt;<br>
+&gt; &gt; int versus int32_t (refer to email with Brian Barrett<br>
+&gt; &gt;<br>
+&gt; &gt; 3. OPAL event/event.c: sys/time.h and timercmp() macros not defined by<br>
+&gt; &gt;<br>
+&gt; &gt; VxWorks<br>
+&gt; &gt;<br>
+&gt; &gt; refer to workaround in event.c using #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; 4. OPAL event/event.c: pipe() syscall not found<br>
+&gt; &gt;<br>
+&gt; &gt; workaround:<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef HAVE_UNISTD_H<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;unistd.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;ioLib.h&gt;        /* for pipe() */<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 5. OPAL event/signal.c<br>
+&gt; &gt;<br>
+&gt; &gt; static sig_atomic_t opal_evsigcaught[NSIG];<br>
+&gt; &gt;<br>
+&gt; &gt; NSIG is not defined<br>
+&gt; &gt;<br>
+&gt; &gt; but _NSIGS is<br>
+&gt; &gt;<br>
+&gt; &gt; In Linux, NSIG is defined with -D__USE_MISC<br>
+&gt; &gt;<br>
+&gt; &gt; So I added this code fragment to signal.c:<br>
+&gt; &gt;<br>
+&gt; &gt; /* VxWorks signal.h defines _NSIGS, not NSIG */<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #define NSIG (_NSIGS+1)<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; 6. OPAL event/signal.c: no socketpair()<br>
+&gt; &gt;<br>
+&gt; &gt; workaround: use pipe():<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef HAVE_UNISTD_H<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;unistd.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;ioLib.h&gt;        /* for pipe() */<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; and later in void opal_evsignal_init(sigset_t *evsigmask)<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt;        if (pipe(ev_signal_pair) == -1)<br>
+&gt; &gt;<br>
+&gt; &gt;                event_err(1, &quot;%s: pipe&quot;, __func__);<br>
+&gt; &gt;<br>
+&gt; &gt; #else<br>
+&gt; &gt;<br>
+&gt; &gt;    if (socketpair(AF_UNIX, SOCK_STREAM, 0, ev_signal_pair) == -1)<br>
+&gt; &gt;<br>
+&gt; &gt;        event_err(1, &quot;%s: socketpair&quot;, __func__);<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 7. OPAL util/basename.c: #if HAVE_DIRNAME problem<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../opal/util/basename.c:23:5: warning: &quot;HAVE_DIRNAME&quot; is not defined<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../opal/util/basename.c: In function `opal_dirname&#39;:<br>
+&gt; &gt;<br>
+&gt; &gt; problem: HAVE_DIRNAME is not defined in opal_config.h so the #if<br>
+&gt; &gt;<br>
+&gt; &gt; HAVE_DIRNAME will fail at preprocessor/compile time<br>
+&gt; &gt;<br>
+&gt; &gt; workaround:<br>
+&gt; &gt;<br>
+&gt; &gt; change #if HAVE_DIRNAME to #if defined(HAVE_DIRNAME)<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; 8. OPAL util/basename.c: strncopy_s and _strdup<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../opal/util/basename.c: In function `opal_dirname&#39;:<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../opal/util/basename.c:153: error: implicit declaration of<br>
+&gt; &gt;<br>
+&gt; &gt; function `strncpy_s&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../opal/util/basename.c:160: error: implicit declaration of<br>
+&gt; &gt;<br>
+&gt; &gt; function `_strdup&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt;        strncpy( ret, filename, p - filename);<br>
+&gt; &gt;<br>
+&gt; &gt; #else<br>
+&gt; &gt;<br>
+&gt; &gt;                strncpy_s( ret, (p - filename + 1), filename, p - filename );<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt;    return strdup(&quot;.&quot;);<br>
+&gt; &gt;<br>
+&gt; &gt; #else<br>
+&gt; &gt;<br>
+&gt; &gt;    return _strdup(&quot;.&quot;);<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; 9. opal/util/if.c: socket() prototype not found in vxworks headers<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef HAVE_SYS_SOCKET_H<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;sys/socket.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;sockLib.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 10. opal/util/if.c: ioctl()<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef HAVE_SYS_IOCTL_H<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;sys/ioctl.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;ioLib.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 11. opal/util/os_path.c: MAXPATHLEN change to PATH_MAX<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt;    if (total_length &gt; PATH_MAX) {  /* path length is too long - reject<br>
+&gt; &gt;<br>
+&gt; &gt; it */<br>
+&gt; &gt;<br>
+&gt; &gt;        return(NULL);<br>
+&gt; &gt;<br>
+&gt; &gt; #else<br>
+&gt; &gt;<br>
+&gt; &gt;    if (total_length &gt; MAXPATHLEN) {  /* path length is too long -<br>
+&gt; &gt;<br>
+&gt; &gt; reject it */<br>
+&gt; &gt;<br>
+&gt; &gt;        return(NULL);<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; 12. opal/util/output.c: gethostname()<br>
+&gt; &gt;<br>
+&gt; &gt; include &lt;hostLib.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; 13. opal/util/output.c: MAXPATHLEN<br>
+&gt; &gt;<br>
+&gt; &gt; same fix as os_path.c above<br>
+&gt; &gt;<br>
+&gt; &gt; 14. opal/util/output.c: closelog/openlog/syslog<br>
+&gt; &gt;<br>
+&gt; &gt; manually turned off HAVE_SYSLOG_H in opal_config.h<br>
+&gt; &gt;<br>
+&gt; &gt; then got a patch from Jeff Squyres that avoids syslog<br>
+&gt; &gt;<br>
+&gt; &gt; 15. opal/util/opal_pty.c<br>
+&gt; &gt;<br>
+&gt; &gt; complains about mismatched prototype of opal_openpty() between this<br>
+&gt; &gt;<br>
+&gt; &gt; source file and opal_pty.h<br>
+&gt; &gt;<br>
+&gt; &gt; workaround: manually edit build_vxworks_ppc/opal/include/opal_config.h,<br>
+&gt; &gt;<br>
+&gt; &gt; use the following line (change 1 to 0):<br>
+&gt; &gt;<br>
+&gt; &gt; #define OMPI_ENABLE_PTY_SUPPORT 0<br>
+&gt; &gt;<br>
+&gt; &gt; 16. opal/util/stacktrace.c<br>
+&gt; &gt;<br>
+&gt; &gt; FPE_FLTINV not present in signal.h<br>
+&gt; &gt;<br>
+&gt; &gt; workaround: edit opal_config.h to turn off<br>
+&gt; &gt;<br>
+&gt; &gt; OMPI_WANT_PRETTY_PRINT_STACKTRACE (this can be explicitly configured out<br>
+&gt; &gt;<br>
+&gt; &gt; but I don&#39;t want to reconfigure because I hacked #15 above)<br>
+&gt; &gt;<br>
+&gt; &gt; 17. opal/mca/base/mca_base_open.c<br>
+&gt; &gt;<br>
+&gt; &gt; gethostname() -- same as opal/util/output.c, must include hostLib.h<br>
+&gt; &gt;<br>
+&gt; &gt; 18. opal_progress.c<br>
+&gt; &gt;<br>
+&gt; &gt; from opal/event/event.h (that I modified earlier)<br>
+&gt; &gt;<br>
+&gt; &gt; cannot find #include &lt;sys/_timeradd.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; It is in opal/event/compat/sys<br>
+&gt; &gt;<br>
+&gt; &gt; workaround: change event.h to include the definitions that are present<br>
+&gt; &gt;<br>
+&gt; &gt; in _timeradd.h instead of including it.<br>
+&gt; &gt;<br>
+&gt; &gt; 19. Link errors for opal_wrapper<br>
+&gt; &gt;<br>
+&gt; &gt; strcasecmp<br>
+&gt; &gt;<br>
+&gt; &gt; strncasecmp<br>
+&gt; &gt;<br>
+&gt; &gt; I rolled my own in mca_base_open.c (temporary fix, since we may come across<br>
+&gt; &gt; this problem elsewhere in the code).<br>
+&gt; &gt;<br>
+&gt; &gt; 20. dss_internal.h uses a type &#39;uint&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; Not sure if it&#39;s depending on something in the headers, or something it<br>
+&gt; &gt;<br>
+&gt; &gt; defined on its own.<br>
+&gt; &gt;<br>
+&gt; &gt; I changed it to be just like the header I found somewhere under Linux<br>
+&gt; &gt; /usr/include:<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; typedef unsigned int uint;<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 21. struct iovec definition needed<br>
+&gt; &gt;<br>
+&gt; &gt; orte/mca/iof/base/iof_base_fragment.h:45: warning: array type has<br>
+&gt; &gt;<br>
+&gt; &gt; incomplete element type<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;net/uio.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; not sure if this is right, or if I should include something like<br>
+&gt; &gt;<br>
+&gt; &gt; &lt;netBufLib.h&gt; or &lt;ioLib.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; 22. iof_base_setup.c<br>
+&gt; &gt;<br>
+&gt; &gt; struct termios not understood<br>
+&gt; &gt;<br>
+&gt; &gt; can only find termios.h header in &#39;diab&#39; area and I&#39;m not using that<br>
+&gt; &gt;<br>
+&gt; &gt; compiler.<br>
+&gt; &gt;<br>
+&gt; &gt; a variable usepty is set to 0 already when OMPI_ENABLE_PTY_SUPPORT is 0.<br>
+&gt; &gt;<br>
+&gt; &gt; So, why are we compiling this fragment of code at all? I hacked the file<br>
+&gt; &gt;<br>
+&gt; &gt; so that the struct termios code will not get compiled.<br>
+&gt; &gt;<br>
+&gt; &gt; 23. oob_base_send/recv.c, oob_base_send/recv_nb.c. struct iovec not known.<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;net/uio.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 24. orte/mca/rmgr/base/rmgr_base_check_context.c:58: error:<br>
+&gt; &gt;<br>
+&gt; &gt; `MAXHOSTNAMELEN&#39; undeclared (first use in this function)<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #define MAXHOSTNAMELEN 64<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 25. orte/mca/rmgr/base/rmgr_base_check_context.c:58:<br>
+&gt; &gt;<br>
+&gt; &gt; gethostname()<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;hostLib.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 26. orte/mca/iof/proxy/iof_proxy.h:135: warning: array type has<br>
+&gt; &gt;<br>
+&gt; &gt; incomplete element type<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/iof/proxy/iof_proxy.h:135: error: field<br>
+&gt; &gt;<br>
+&gt; &gt; `proxy_iov&#39; has incomplete type<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;net/uio.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 27. /orte/mca/iof/svc/iof_svc.h:147: warning: array type has incomplete<br>
+&gt; &gt;<br>
+&gt; &gt; element type<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/iof/svc/iof_svc.h:147: error: field `svc_iov&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; has incomplete type<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;net/uio.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; 28. ../../../../../orte/mca/oob/tcp/oob_tcp_msg.h:66: warning: array<br>
+&gt; &gt;<br>
+&gt; &gt; type has incomplete element type<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp_msg.h:66: error: field `msg_iov&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; has incomplete type<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp_msg.h: In function<br>
+&gt; &gt;<br>
+&gt; &gt; `mca_oob_tcp_msg_iov_alloc&#39;:<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp_msg.h:196: error: invalid<br>
+&gt; &gt;<br>
+&gt; &gt; application of `sizeof&#39; to incomplete type `iovec&#39;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; 29. ../../../../../orte/mca/oob/tcp/oob_tcp.c:344: error: implicit<br>
+&gt; &gt;<br>
+&gt; &gt; declaration of function `accept&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c: In function<br>
+&gt; &gt;<br>
+&gt; &gt; `mca_oob_tcp_create_listen&#39;:<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c:383: error: implicit<br>
+&gt; &gt;<br>
+&gt; &gt; declaration of function `socket&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c:399: error: implicit<br>
+&gt; &gt;<br>
+&gt; &gt; declaration of function `bind&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c:407: error: implicit<br>
+&gt; &gt;<br>
+&gt; &gt; declaration of function `getsockname&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c:415: error: implicit<br>
+&gt; &gt;<br>
+&gt; &gt; declaration of function `listen&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c: In function<br>
+&gt; &gt;<br>
+&gt; &gt; `mca_oob_tcp_listen_thread&#39;:<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c:459: error: implicit<br>
+&gt; &gt;<br>
+&gt; &gt; declaration of function `bzero&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c: In function<br>
+&gt; &gt;<br>
+&gt; &gt; `mca_oob_tcp_recv_probe&#39;:<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c:696: error: implicit<br>
+&gt; &gt;<br>
+&gt; &gt; declaration of function `send&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c: In function<br>
+&gt; &gt;<br>
+&gt; &gt; `mca_oob_tcp_recv_handler&#39;:<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c:795: error: implicit<br>
+&gt; &gt;<br>
+&gt; &gt; declaration of function `recv&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c: In function `mca_oob_tcp_init&#39;:<br>
+&gt; &gt;<br>
+&gt; &gt; ../../../../../orte/mca/oob/tcp/oob_tcp.c:1087: error: implicit<br>
+&gt; &gt;<br>
+&gt; &gt; declaration of function `usleep&#39;<br>
+&gt; &gt;<br>
+&gt; &gt; This gets rid of most (except bzero and usleep)<br>
+&gt; &gt;<br>
+&gt; &gt; #ifdef MCS_VXWORKS<br>
+&gt; &gt;<br>
+&gt; &gt; #include &lt;sockLib.h&gt;<br>
+&gt; &gt;<br>
+&gt; &gt; #endif<br>
+&gt; &gt;<br>
+&gt; &gt; Trying to reconfigure the package so CFLAGS will not include -pedantic.<br>
+&gt; &gt;<br>
+&gt; &gt; This is because $WIND_HOME/vxworks-6.3/target/h/string.h has protos for<br>
+&gt; &gt;<br>
+&gt; &gt; bzero, but only when #if _EXTENSION_WRS is true. So turn off<br>
+&gt; &gt;<br>
+&gt; &gt; -ansi/-pedantic gets this? In my dreams?<br>
+&gt; &gt;<br>
+&gt; &gt; On Mar 17, 2010, at 9:54 PM, 张晶 wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; Hello all,<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; In order to add some real-time feature to the OpenMPI for some research ,I<br>
+&gt; &gt; need a OpenMPI version running on VxWorks. But after going through the<br>
+&gt; &gt; Open-MPI website ,I can&#39;t found any indication that it supports VxWorks .<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Follow the thread posted by Ralph Castain ,<br>
+&gt; &gt; <a href="http://www.open-mpi.org/community/lists/users/2006/06/1371.php" target="_blank">http://www.open-mpi.org/community/lists/users/2006/06/1371.php</a> .<br>
+&gt; &gt; I read some paper about the OpenRTE ,like &quot;Creating a transparent,<br>
+&gt; &gt; distributed, and resilient computing environment: the OpenRTE project&quot; and<br>
+&gt; &gt; &quot;The Open Run-Time Environment (OpenRTE):A Transparent Multi-cluster<br>
+&gt; &gt; Environment for High-Performance Computing&quot;which is written by Ralph H.<br>
+&gt; &gt; Castain ・ Jeffrey M. Squyres and others .<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Now I have a basic understanding of the OpenRTE , however ,there is too few<br>
+&gt; &gt; document of the OpenRTE describing the implement of the OpenRTE . I don&#39;t<br>
+&gt; &gt; know<br>
+&gt; &gt; where and how to begin the migration . Any advice will be appreciated.<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Thanks<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Jing Zhang<br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; devel mailing list<br>
+&gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; devel mailing list<br>
+&gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; 张晶<br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+</div></div>--<br>
+<div><div></div><div class="h5">Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to:<br>
+<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+<br>
+</div></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br>
+

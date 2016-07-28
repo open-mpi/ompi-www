@@ -1,0 +1,684 @@
+---
+
+ opal/class/opal_object.c |  210 +++++++++++++++++++++++++++++++----------------
+ opal/class/opal_object.h |  201 ++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 324 insertions(+), 87 deletions(-)
+
+diff --quilt old/opal/class/opal_object.h new/opal/class/opal_object.h
+--- old/opal/class/opal_object.h
++++ new/opal/class/opal_object.h
+@@ -122,10 +122,17 @@
+ 
+ #if OMPI_HAVE_THREAD_SUPPORT
+ #include "opal/sys/atomic.h"
+ #endif  /* OMPI_HAVE_THREAD_SUPPORT */
+ 
++#ifdef USE_UMEM
++# include <umem.h>
++# ifndef UMEM_CACHE_NAMELEN
++#  define UMEM_CACHE_NAMELEN 31
++# endif
++#endif
++
+ #if OMPI_ENABLE_DEBUG
+ /* Any kind of unique ID should do the job */
+ #define OPAL_OBJ_MAGIC_ID ((0xdeafbeedULL << 32) + 0xdeafbeedULL)
+ #endif
+ 
+@@ -144,21 +151,36 @@ typedef void (*opal_destruct_t) (opal_ob
+  *
+  * There should be a single instance of this descriptor for each class
+  * definition.
+  */
+ struct opal_class_t {
+-    const char *cls_name;           /**< symbolic name for class */
+-    opal_class_t *cls_parent;       /**< parent class descriptor */
+-    opal_construct_t cls_construct; /**< class constructor */
+-    opal_destruct_t cls_destruct;   /**< class destructor */
+-    int cls_initialized;            /**< is class initialized */
+-    int cls_depth;                  /**< depth of class hierarchy tree */
++#ifdef USE_UMEM
++    umem_cache_t     *cls_cache;    /**< object cache */
++#endif
++    size_t           cls_sizeof;    /**< size of an object instance */
++    opal_construct_t *cls_cache_construct_array;
++                            /**< array of parent class cache constructors */
+     opal_construct_t *cls_construct_array;
+                                     /**< array of parent class constructors */
+-    opal_destruct_t *cls_destruct_array;
++    opal_destruct_t  *cls_destruct_array;
+                                     /**< array of parent class destructors */
+-    size_t cls_sizeof;              /**< size of an object instance */
++    opal_destruct_t  *cls_cache_destruct_array;
++                            /**< array of parent class cache destructors */
++    int cls_initialized;            /**< is class initialized */
++    int cls_depth;                  /**< depth of class hierarchy tree */
++    const char       *cls_name;     /**< symbolic name for class */
++    opal_class_t     *cls_parent;   /**< parent class descriptor */
++    opal_construct_t cls_construct; /**< class constructor */
++    opal_destruct_t  cls_destruct;  /**< class destructor */
++    opal_construct_t cls_cache_construct;
++                                    /**< class object cache constructor */
++    opal_destruct_t  cls_cache_destruct;
++                                    /**< class cache destructor */
++    opal_atomic_lock_t cls_init_lock;
++                                    /**< class init mutex */
++    opal_class_t    *cls_next, *cls_prev;
++                                    /**< linked list of all classes */
+ };
+ 
+ /**
+  * For static initializations of OBJects.
+  *
+@@ -198,30 +220,97 @@ struct opal_object_t {
+  * @param NAME          Name of class
+  * @return              Pointer to class descriptor
+  */
+ #define OBJ_CLASS(NAME)     (&(NAME ## _class))
+ 
+-
+ /**
+  * Static initializer for a class descriptor
+  *
+  * @param NAME          Name of class
+  * @param PARENT        Name of parent class
+  * @param CONSTRUCTOR   Pointer to constructor
+  * @param DESTRUCTOR    Pointer to destructor
+  *
+  * Put this in NAME.c
+  */
++#ifdef USE_UMEM
+ #define OBJ_CLASS_INSTANCE(NAME, PARENT, CONSTRUCTOR, DESTRUCTOR)       \
+     opal_class_t NAME ## _class = {                                     \
++        NULL,                                                           \
++        sizeof(NAME),                                                   \
++        NULL, NULL, NULL, NULL,                                         \
++        0, 0,                                                           \
++        # NAME,                                                         \
++        OBJ_CLASS(PARENT),                                              \
++        (opal_construct_t) CONSTRUCTOR,                                 \
++        (opal_destruct_t) DESTRUCTOR,                                   \
++        (opal_construct_t) NULL,                                        \
++        (opal_destruct_t) NULL,                                         \
++        { { OPAL_ATOMIC_UNLOCKED } },                                   \
++        OBJ_CLASS(NAME), OBJ_CLASS(NAME)                                \
++    }
++#else
++#define OBJ_CLASS_INSTANCE(NAME, PARENT, CONSTRUCTOR, DESTRUCTOR)       \
++    opal_class_t NAME ## _class = {                                     \
++        sizeof(NAME),                                                   \
++        NULL, NULL, NULL, NULL,                                         \
++        0, 0,                                                           \
++        # NAME,                                                         \
++        OBJ_CLASS(PARENT),                                              \
++        (opal_construct_t) CONSTRUCTOR,                                 \
++        (opal_destruct_t) DESTRUCTOR,                                   \
++        (opal_construct_t) NULL,                                        \
++        (opal_destruct_t) NULL,                                         \
++        { { OPAL_ATOMIC_UNLOCKED } },                                   \
++        OBJ_CLASS(NAME), OBJ_CLASS(NAME)                                \
++    }
++#endif
++
++/**
++ * Static initializer for a class descriptor with cache ctor/dtor
++ *
++ * @param NAME              Name of class
++ * @param PARENT            Name of parent class
++ * @param CONSTRUCTOR       Pointer to constructor
++ * @param DESTRUCTOR        Pointer to destructor
++ * @param CACHE_CONSTRUCTOR Pointer to cache constructor
++ * @param CACHE_DESTRUCTOR  Pointer to cache destructor
++ *
++ * Put this in NAME.c
++ */
++#ifdef USE_UMEM
++#define OBJ_CLASS_INSTANCE_CACHE(NAME, PARENT, CONSTRUCTOR, DESTRUCTOR, CACHE_CONSTRUCTOR, CACHE_DESTRUCTOR) \
++    opal_class_t NAME ## _class = {                                     \
++        NULL,                                                           \
++        sizeof(NAME),                                                   \
++        NULL, NULL, NULL, NULL,                                         \
++        0, 0,                                                           \
+         # NAME,                                                         \
+         OBJ_CLASS(PARENT),                                              \
+         (opal_construct_t) CONSTRUCTOR,                                 \
+         (opal_destruct_t) DESTRUCTOR,                                   \
+-        0, 0, NULL, NULL,                                               \
+-        sizeof(NAME)                                                    \
++        (opal_construct_t) CACHE_CONSTRUCTOR,                           \
++        (opal_destruct_t) CACHE_DESTRUCTOR,                             \
++        { { OPAL_ATOMIC_UNLOCKED } },                                   \
++        OBJ_CLASS(NAME), OBJ_CLASS(NAME)                                \
+     }
++#else
++#define OBJ_CLASS_INSTANCE_CACHE(NAME, PARENT, CONSTRUCTOR, DESTRUCTOR, CACHE_CONSTRUCTOR, CACHE_DESTRUCTOR) \
++    opal_class_t NAME ## _class = {                                     \
++        sizeof(NAME),                                                   \
++        NULL, NULL, NULL, NULL,                                         \
++        0, 0,                                                           \
++        # NAME,                                                         \
++        OBJ_CLASS(PARENT),                                              \
++        (opal_construct_t) CONSTRUCTOR,                                 \
++        (opal_destruct_t) DESTRUCTOR,                                   \
++        (opal_construct_t) CACHE_CONSTRUCTOR,                           \
++        (opal_destruct_t) CACHE_DESTRUCTOR,                             \
++        { { OPAL_ATOMIC_UNLOCKED } },                                   \
++        OBJ_CLASS(NAME), OBJ_CLASS(NAME)                                \
++    }
++#endif
+ 
+ 
+ /**
+  * Declaration for class descriptor
+  *
+@@ -308,28 +397,25 @@ static inline opal_object_t *opal_obj_ne
+     do {                                                                \
+         assert(NULL != ((opal_object_t *) (object))->obj_class);        \
+         assert(OPAL_OBJ_MAGIC_ID == ((opal_object_t *) (object))->obj_magic_id); \
+         if (0 == opal_obj_update((opal_object_t *) (object), -1)) {     \
+             OBJ_SET_MAGIC_ID((object), 0);                              \
+-            opal_obj_run_destructors((opal_object_t *) (object));       \
+-            OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
+-            free(object);                                               \
++            opal_object_release_internal((opal_object_t *) (object),    \
++                                         __FILE__, __LINE__);           \
+             object = NULL;                                              \
+         }                                                               \
+     } while (0)
+ #else
+ #define OBJ_RELEASE(object)                                             \
+     do {                                                                \
+         if (0 == opal_obj_update((opal_object_t *) (object), -1)) {     \
+-            opal_obj_run_destructors((opal_object_t *) (object));       \
+-            free(object);                                               \
++            opal_object_release_internal((opal_object_t *) (object));   \
+             object = NULL;                                              \
+         }                                                               \
+     } while (0)
+ #endif
+ 
+-
+ /**
+  * Construct (initialize) objects that are not dynamically allocated.
+  *
+  * @param object        Pointer to the object
+  * @param type          The object type
+@@ -346,10 +432,11 @@ do {                                    
+     if (0 == (type)->cls_initialized) {                             \
+         opal_class_initialize((type));                              \
+     }                                                               \
+     ((opal_object_t *) (object))->obj_class = (type);               \
+     ((opal_object_t *) (object))->obj_reference_count = 1;          \
++    opal_obj_run_cache_constructors((opal_object_t *) (object));    \
+     opal_obj_run_constructors((opal_object_t *) (object));          \
+     OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
+ } while (0)
+ 
+ 
+@@ -361,16 +448,18 @@ do {                                    
+ #if OMPI_ENABLE_DEBUG
+ #define OBJ_DESTRUCT(object)                                    \
+ do {                                                            \
+     assert(OPAL_OBJ_MAGIC_ID == ((opal_object_t *) (object))->obj_magic_id); \
+     OBJ_SET_MAGIC_ID((object), 0);                              \
++    opal_obj_run_cache_destructors((opal_object_t *) (object)); \
+     opal_obj_run_destructors((opal_object_t *) (object));       \
+     OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
+ } while (0)
+ #else
+ #define OBJ_DESTRUCT(object)                                    \
+ do {                                                            \
++    opal_obj_run_cache_destructors((opal_object_t *) (object)); \
+     opal_obj_run_destructors((opal_object_t *) (object));       \
+     OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
+ } while (0)
+ #endif
+ 
+@@ -400,10 +489,11 @@ OPAL_DECLSPEC void opal_class_initialize
+  * upon process termination.
+  */
+ OPAL_DECLSPEC int opal_class_finalize(void);
+ 
+ END_C_DECLS
++
+ /**
+  * Run the hierarchy of class constructors for this object, in a
+  * parent-first order.
+  *
+  * Do not use this function directly: use OBJ_CONSTRUCT() instead.
+@@ -449,10 +539,58 @@ static inline void opal_obj_run_destruct
+     }
+ }
+ 
+ 
+ /**
++ * Run the hierarchy of class cache constructors for this object, in a
++ * parent-first order.
++ *
++ * Do not use this function directly: use OBJ_CONSTRUCT() instead.
++ *
++ * WARNING: This implementation relies on a hardwired maximum depth of
++ * the inheritance tree!!!
++ *
++ * Hardwired for fairly shallow inheritance trees
++ * @param size          Pointer to the object.
++ */
++static inline void opal_obj_run_cache_constructors(opal_object_t * object)
++{
++    opal_construct_t* cls_cache_construct;
++
++    assert(NULL != object->obj_class);
++
++    cls_cache_construct = object->obj_class->cls_cache_construct_array;
++    while( NULL != *cls_cache_construct ) {
++        (*cls_cache_construct)(object);
++        cls_cache_construct++;
++    }
++}
++
++
++/**
++ * Run the hierarchy of class destructors for this object, in a
++ * parent-last order.
++ *
++ * Do not use this function directly: use OBJ_DESTRUCT() instead.
++ *
++ * @param size          Pointer to the object.
++ */
++static inline void opal_obj_run_cache_destructors(opal_object_t * object)
++{
++    opal_destruct_t* cls_cache_destruct;
++
++    assert(NULL != object->obj_class);
++
++    cls_cache_destruct = object->obj_class->cls_cache_destruct_array;
++    while( NULL != *cls_cache_destruct ) {
++        (*cls_cache_destruct)(object);
++        cls_cache_destruct++;
++    }
++}
++
++
++/**
+  * Create new object: dynamically allocate storage and run the class
+  * constructor.
+  *
+  * Do not use this function directly: use OBJ_NEW() instead.
+  *
+@@ -461,25 +599,50 @@ static inline void opal_obj_run_destruct
+  * @return              Pointer to the object 
+  */
+ static inline opal_object_t *opal_obj_new(opal_class_t * cls)
+ {
+     opal_object_t *object;
+-    assert(cls->cls_sizeof >= sizeof(opal_object_t));
+ 
+-    object = (opal_object_t *) malloc(cls->cls_sizeof);
+     if (0 == cls->cls_initialized) {
+         opal_class_initialize(cls);
+     }
++
++#ifdef USE_UMEM
++    object = (opal_object_t *) umem_cache_alloc(cls->cls_cache, UMEM_NOFAIL);
++#else
++    object = (opal_object_t *) malloc(cls->cls_sizeof);
++#endif
++
+     if (NULL != object) {
++#ifndef USE_UMEM
+         object->obj_class = cls;
+         object->obj_reference_count = 1;
++        opal_obj_run_cache_constructors(object);
++#endif
+         opal_obj_run_constructors(object);
+     }
+     return object;
+ }
+ 
+ 
++static inline void opal_object_release_internal(opal_object_t *object
++#if OMPI_ENABLE_DEBUG
++                                       , const char *file, int line
++#endif
++                                      )
++{
++    opal_obj_run_destructors(object);
++    OBJ_REMEMBER_FILE_AND_LINENO(object, file, line);
++
++#ifdef USE_UMEM
++    umem_cache_free(object->obj_class->cls_cache, object);
++#else
++    opal_obj_run_cache_destructors(object);
++    free(object);
++#endif
++}
++
+ /**
+  * Atomically update the object's reference count by some increment.
+  *
+  * This function should not be used directly: it is called via the
+  * macros OBJ_RETAIN and OBJ_RELEASE
+diff --quilt old/opal/class/opal_object.c new/opal/class/opal_object.c
+--- old/opal/class/opal_object.c
++++ new/opal/class/opal_object.c
+@@ -34,178 +34,252 @@
+  * Instantiation of class descriptor for the base class.  This is
+  * special, since be mark it as already initialized, with no parent
+  * and no constructor or destructor.
+  */
+ opal_class_t opal_object_t_class = {
++#ifdef USE_UMEM
++    NULL,                 /* object cache */
++#endif
++    sizeof(opal_object_t),/* size of the opal object */
++    NULL,                 /* array of cache constructors */
++    NULL,                 /* array of constructors */
++    NULL,                 /* array of destructors */
++    NULL,                 /* array of cache destructors */
++    1,                    /* initialized  -- this class is preinitialized */
++    0,                    /* class hierarchy depth */
+     "opal_object_t",      /* name */
+     NULL,                 /* parent class */
+     NULL,                 /* constructor */
+     NULL,                 /* destructor */
+-    1,                    /* initialized  -- this class is preinitialized */
+-    0,                    /* class hierarchy depth */
+-    NULL,                 /* array of constructors */
+-    NULL,                 /* array of destructors */
+-    sizeof(opal_object_t) /* size of the opal object */
++    NULL,                 /* cache constructor */
++    NULL,                 /* cache destructor */
++    { { OPAL_ATOMIC_UNLOCKED } }, /* init lock */
++    &opal_object_t_class,
++    &opal_object_t_class
+ };
+ 
+ /*
+  * Local variables
+  */
+ static opal_atomic_lock_t class_lock = { { OPAL_ATOMIC_UNLOCKED } };
+-static void** classes = NULL;
+-static int num_classes = 0;
+-static int max_classes = 0;
+-static const int increment = 10;
+ 
+ 
+ /*
+  * Local functions
+  */
+ static void save_class(opal_class_t *cls);
+-static void expand_array(void);
+ 
++#ifdef USE_UMEM
++
++static int
++run_cache_constructors_umem(void *buf, void *private, int flags)
++{
++    opal_object_t *object = (opal_object_t *)buf;
++    opal_class_t  *cls    = (opal_class_t  *)private;
++
++    object->obj_class = cls;
++    object->obj_reference_count = 1;
++
++    opal_obj_run_cache_constructors(object);
+ 
++    return 0;
++}
++
++static void
++run_cache_destructors_umem(void *buf, void *private)
++{
++    opal_object_t *object = (opal_object_t *)buf;
++    opal_class_t  *cls    = (opal_class_t  *)private;
++
++    assert(object->obj_class == cls);
++    assert(object->obj_reference_count == 0);
++
++    opal_obj_run_cache_destructors(object);
++
++    return;
++}
++
++#endif
++
+ /*
+  * Lazy initialization of class descriptor.
+  */
+ void opal_class_initialize(opal_class_t *cls)
+ {
+     opal_class_t *c;
+-    opal_construct_t* cls_construct_array;
+-    opal_destruct_t* cls_destruct_array;
++    opal_construct_t *cls_construct_array;
++    opal_destruct_t  *cls_destruct_array;
++    opal_construct_t *cls_cache_construct_array;
++    opal_destruct_t  *cls_cache_destruct_array;
+     int cls_construct_array_count;
+     int cls_destruct_array_count;
++    int cls_cache_construct_array_count;
++    int cls_cache_destruct_array_count;
+     int i;
+ 
+     assert(cls);
++    assert(cls->cls_sizeof >= sizeof(opal_object_t));
+ 
+     /* Check to see if any other thread got in here and initialized
+        this class before we got a chance to */
+ 
+     if (1 == cls->cls_initialized) {
+         return;
+     }
+-    opal_atomic_lock(&class_lock);
++    opal_atomic_lock(&cls->cls_init_lock);
+ 
+     /* If another thread initializing this same class came in at
+        roughly the same time, it may have gotten the lock and
+        initialized.  So check again. */
+ 
+     if (1 == cls->cls_initialized) {
+-        opal_atomic_unlock(&class_lock);
++        opal_atomic_unlock(&cls->cls_init_lock);
+         return;
+     }
+ 
+     /*
+      * First calculate depth of class hierarchy
+      * And the number of constructors and destructors
++     * And the number of cache constructors and cache destructors
+      */
+ 
+     cls->cls_depth = 0;
+-    cls_construct_array_count = 0;
+-    cls_destruct_array_count  = 0;
++    cls_construct_array_count       = 0;
++    cls_destruct_array_count        = 0;
++    cls_cache_construct_array_count = 0;
++    cls_cache_destruct_array_count  = 0;
+     for (c = cls; c; c = c->cls_parent) {
+-        if( NULL != c->cls_construct ) {
+-            cls_construct_array_count++;
+-        }
+-        if( NULL != c->cls_destruct ) {
+-            cls_destruct_array_count++;
+-        }
++        cls_construct_array_count       += !!(NULL != c->cls_construct);
++        cls_destruct_array_count        += !!(NULL != c->cls_destruct);
++        cls_cache_construct_array_count += !!(NULL != c->cls_cache_construct);
++        cls_cache_destruct_array_count  += !!(NULL != c->cls_cache_destruct);
+         cls->cls_depth++;
+     }
+ 
+     /*
+      * Allocate arrays for hierarchy of constructors and destructors
+      * plus for each a NULL-sentinel
+      */
+ 
+-    cls->cls_construct_array = 
+-        (void (**)(opal_object_t*))malloc((cls_construct_array_count +
+-                                           cls_destruct_array_count + 2) *
+-                                          sizeof(opal_construct_t) );
+-    if (NULL == cls->cls_construct_array) {
++    cls->cls_cache_construct_array =
++        (void (**)(opal_object_t*))malloc((cls_cache_construct_array_count +
++                                           cls_construct_array_count +
++                                           cls_destruct_array_count +
++                                           cls_cache_destruct_array_count + 4
++                                          ) * sizeof(opal_construct_t));
++    if (NULL == cls->cls_cache_construct_array) {
+         perror("Out of memory");
+         exit(-1);
+     }
++    cls->cls_construct_array =
++        cls->cls_cache_construct_array + cls_cache_construct_array_count + 1;
+     cls->cls_destruct_array =
+-        cls->cls_construct_array + cls_construct_array_count + 1;
++        cls->cls_cache_construct_array + cls_cache_construct_array_count +
++                                         cls_construct_array_count + 2;
++    cls->cls_cache_destruct_array =
++        cls->cls_cache_construct_array + cls_cache_construct_array_count +
++                                         cls_construct_array_count +
++                                         cls_destruct_array_count + 3;
+ 
+     /*
+-     * The constructor array is reversed, so start at the end
++     * The (cache) constructor array is reversed, so start at the end
+      */
+ 
+-    cls_construct_array = cls->cls_construct_array + cls_construct_array_count;
+-    cls_destruct_array  = cls->cls_destruct_array;
++    cls_cache_construct_array =
++        cls->cls_cache_construct_array + cls_cache_construct_array_count;
++    cls_construct_array       =
++        cls->cls_construct_array + cls_construct_array_count;
++    cls_destruct_array        = cls->cls_destruct_array;
++    cls_cache_destruct_array  = cls->cls_cache_destruct_array;
+ 
+     c = cls;
+-    *cls_construct_array = NULL;  /* end marker for the constructors */
++    *cls_cache_construct_array = NULL; /* end marker for the constructors */
++    *cls_construct_array = NULL;       /* end marker for the constructors */
+     for (i = 0; i < cls->cls_depth; i++) {
+         if( NULL != c->cls_construct ) {
+             --cls_construct_array;
+             *cls_construct_array = c->cls_construct;
+         }
+         if( NULL != c->cls_destruct ) {
+             *cls_destruct_array = c->cls_destruct;
+             cls_destruct_array++;
+         }
++        if( NULL != c->cls_cache_construct ) {
++            --cls_cache_construct_array;
++            *cls_cache_construct_array = c->cls_cache_construct;
++        }
++        if( NULL != c->cls_cache_destruct ) {
++            *cls_cache_destruct_array = c->cls_cache_destruct;
++            cls_cache_destruct_array++;
++        }
+         c = c->cls_parent;
+     }
+-    *cls_destruct_array = NULL;  /* end marker for the destructors */
++    *cls_destruct_array = NULL;       /* end marker for the destructors */
++    *cls_cache_destruct_array = NULL; /* end marker for the destructors */
++
++#ifdef USE_UMEM
++    cls->cls_cache = umem_cache_create(
++        (char *)cls->cls_name, cls->cls_sizeof, 0,
++        run_cache_constructors_umem,
++        run_cache_destructors_umem,
++        NULL, cls, NULL, 0
++    );
++    if (NULL == cls->cls_cache) {
++        perror("Out of memory");
++        exit(-1);
++    }
++#endif
+ 
+     cls->cls_initialized = 1;
++    opal_atomic_lock(&cls->cls_init_lock);
++
+     save_class(cls);
+ 
+     /* All done */
+-
+-    opal_atomic_unlock(&class_lock);
+ }
+ 
+ 
+ /*
+  * Note that this is finalize for *all* classes.
+  */
+ int opal_class_finalize(void)
+ {
+-    int i;
++    opal_class_t *cls, *cnext;
+ 
+-    if (NULL != classes) {
+-        for (i = 0; i < num_classes; ++i) {
+-            if (NULL != classes[i]) {
+-                free(classes[i]);
+-            }
+-        }
+-        free(classes);
+-        classes = NULL;
+-        num_classes = 0;
+-        max_classes = 0;
++    opal_atomic_lock(&class_lock);
++    for (cls = opal_object_t_class.cls_next, cnext = cls->cls_next;
++         cls != &opal_object_t_class;
++         cls = cnext, cnext = cls->cls_next) {
++
++        opal_atomic_lock(&cls->cls_init_lock);
++        free(cls->cls_construct_array);
++
++#ifdef USE_UMEM
++        umem_cache_destroy(cls->cls_cache);
++#endif
++
++        /*
++         * Remove class from class list, this is safe, because of the safe list
++         * traversal
++         */
++        cls->cls_prev->cls_next = cls->cls_next;
++        cls->cls_next->cls_prev = cls->cls_prev;
++        cls->cls_prev = cls->cls_next = NULL;
++        cls->cls_initialized = 0;
++        opal_atomic_unlock(&cls->cls_init_lock);
+     }
+ 
+     return OPAL_SUCCESS;
+ }
+ 
+ 
+ static void save_class(opal_class_t *cls)
+ {
+-    if (num_classes >= max_classes) {
+-        expand_array();
+-    }
++    opal_class_t *cnext, *cprev;
+ 
+-    classes[num_classes] = cls->cls_construct_array;
+-    ++num_classes;
+-}
+-
+-
+-static void expand_array(void)
+-{
+-    int i;
+-
+-    max_classes += increment;
+-    classes = (void**)realloc(classes, sizeof(void *) * max_classes);
+-    if (NULL == classes) {
+-        perror("class malloc failed");
+-        exit(-1);
+-    }
+-    for (i = num_classes; i < max_classes; ++i) {
+-        classes[i] = NULL;
+-    }
++    opal_atomic_lock(&class_lock);
++    cls->cls_next = cnext = &opal_object_t_class;
++    cls->cls_prev = cprev = opal_object_t_class.cls_prev;
++    cnext->cls_prev = cls;
++    cprev->cls_next = cls;
++    opal_atomic_unlock(&class_lock);
+ }
+-

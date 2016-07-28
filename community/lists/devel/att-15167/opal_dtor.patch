@@ -1,0 +1,105 @@
+diff --git a/opal/runtime/opal_finalize.c b/opal/runtime/opal_finalize.c
+index 318eba7..22b2e58 100644
+--- a/opal/runtime/opal_finalize.c
++++ b/opal/runtime/opal_finalize.c
+@@ -1,3 +1,4 @@
++/* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
+ /*
+  * Copyright (c) 2004-2010 The Trustees of Indiana University and Indiana
+  *                         University Research and Technology
+@@ -10,7 +11,7 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2008-2012 Cisco Systems, Inc.  All rights reserved.
+- * Copyright (c) 2010-2013 Los Alamos National Security, LLC.
++ * Copyright (c) 2010-2014 Los Alamos National Security, LLC.
+  *                         All rights reserved.
+  * Copyright (c) 2013-2014 Intel, Inc. All rights reserved
+  * $COPYRIGHT$
+@@ -57,6 +58,7 @@
+ 
+ extern int opal_initialized;
+ extern int opal_util_initialized;
++extern bool opal_init_util_called;
+ 
+ int
+ opal_finalize_util(void)
+@@ -65,9 +67,21 @@ opal_finalize_util(void)
+         if( opal_util_initialized < 0 ) {
+             return OPAL_ERROR;
+         }
+-        return OPAL_SUCCESS;
+     }
+ 
++    /* do not do anything more if the destuctor attribute is available */
++#if OPAL_HAVE_ATTRIBUTE_DESTRUCTOR
++    return OPAL_SUCCESS;
++}
++
++static void __attribute__((destructor)) opal_cleanup_resources (void) {
++    if (!opal_init_util_called) {
++        /* nothing to clean up */
++        return;
++    }
++#endif
++    opal_init_util_called = false;
++
+     /* close interfaces code. */
+     if (opal_if_base_framework.framework_refcnt > 1) {
+         /* opal if may have been opened many times -- FIXME */
+@@ -89,6 +103,11 @@ opal_finalize_util(void)
+ 
+     (void) mca_base_framework_close(&opal_installdirs_base_framework);
+ 
++#if OPAL_HAVE_ATTRIBUTE_DESTRUCTOR
++    /* there are issues with tearing down everything in opal_finalize_util. doing
++     * so will cause opal_init_util to segmentation fault if called after finalize.
++     * this cleanup is safe in a destructor function. */
++
+     /* finalize the memory allocator */
+     opal_malloc_finalize();
+ 
+@@ -108,8 +127,9 @@ opal_finalize_util(void)
+ 
+     /* finalize the class/object system */
+     opal_class_finalize();
+-
++#else
+     return OPAL_SUCCESS;
++#endif
+ }
+ 
+ 
+diff --git a/opal/runtime/opal_init.c b/opal/runtime/opal_init.c
+index 6567a9f..a48517b 100644
+--- a/opal/runtime/opal_init.c
++++ b/opal/runtime/opal_init.c
+@@ -71,6 +71,8 @@ const char opal_version_string[] = OPAL_IDENT_STRING;
+ 
+ int opal_initialized = 0;
+ int opal_util_initialized = 0;
++bool opal_init_util_called = false;
++
+ /* We have to put a guess in here in case hwloc is not available.  If
+    hwloc is available, this value will be overwritten when the
+    hwloc data is loaded. */
+@@ -247,13 +249,17 @@ opal_init_util(int* pargc, char*** pargv)
+     int ret;
+     char *error = NULL;
+ 
+-    if( ++opal_util_initialized != 1 ) {
++    ++opal_util_initialized;
++
++    if (opal_init_util_called) {
+         if( opal_util_initialized < 1 ) {
+             return OPAL_ERROR;
+         }
+         return OPAL_SUCCESS;
+     }
+ 
++    opal_init_util_called = true;
++
+     /* initialize the memory allocator */
+     opal_malloc_init();
+ 
+

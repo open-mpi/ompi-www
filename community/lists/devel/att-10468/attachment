@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+    Le 16/02/2012 14:16, <a class="moz-txt-link-abbreviated" href="mailto:nadia.derbey@bull.net">nadia.derbey@bull.net</a> a &eacute;crit&nbsp;:
+    <blockquote
+cite="mid:OF04892C1D.E4916560-ONC12579A6.00356ADA-C12579A6.004953AA@bull.net"
+      type="cite"><tt><font size="2">Hi Jeff,</font></tt>
+      <br>
+      <br>
+      <tt><font size="2">Sorry for the delay, but my victim with 2 ib
+          devices
+          had been stolen ;-)</font></tt>
+      <br>
+      <br>
+      <tt><font size="2">So, I ported the patch on the v1.5 branch and
+          finally
+          could test it.</font></tt>
+      <br>
+      <br>
+      <tt><font size="2">Actually, there is no
+          opal_hwloc_base_get_topology()
+          in v1.5 so I had to set</font></tt>
+      <br>
+      <tt><font size="2">the hwloc flags in ompi_mpi_init() and
+          orte_odls_base_open()
+          (i.e. the places</font></tt>
+      <br>
+      <tt><font size="2">where opal_hwloc_topology is initialized).</font></tt>
+      <br>
+      <br>
+      <tt><font size="2">With the new flag set,
+          hwloc_get_nbobjs_by_type(opal_hwloc_topology,
+          HWLOC_OBJ_CORE)</font></tt>
+      <br>
+      <tt><font size="2">is now seeing the actual number of cores on the
+          node
+          (instead of 1 when our</font></tt>
+      <br>
+      <tt><font size="2">cpuset is a singleton).</font></tt>
+      <br>
+      <br>
+      <tt><font size="2">Since opal_paffinity_base_get_processor_info()
+          calls
+          module_get_processor_info()</font></tt>
+      <br>
+      <tt><font size="2">(in hwloc/paffinity_hwloc_module.c), which in
+          turn
+          calls hwloc_get_nbobjs_by_type(),</font></tt>
+      <br>
+      <tt><font size="2">we are now getting the right number of cores in
+          get_ib_dev_distance().</font></tt>
+      <br>
+      <br>
+      <tt><font size="2">So we are looping over the exact number of
+          cores,
+          looking for a potential binding.</font></tt>
+      <br>
+      <br>
+      <tt><font size="2">So as a conclusion, there's no need for any
+          other
+          patch: the fix you committed</font></tt>
+      <br>
+      <tt><font size="2">was the only one needed to fix the issue.</font></tt>
+      <br>
+    </blockquote>
+    <br>
+    I didn't follow this entire thread in details, but I am feeling that
+    something is wrong here. The flag fixes your problem indeed, but I
+    think it may break binding too. It's basically making all
+    "unavailable resources" available. So the binding code may end up
+    trying to bind processes on cores that it can't actually use.<br>
+    <br>
+    If srun gives you the first cores of the machine, it works fine
+    because OMPI tries to use the first cores and those are available.
+    But did you ever try when srun gives the second socket only for
+    instance? Or whichever part of the machine that does not contain the
+    first cores ? I think OMPI will still try to bind on the first cores
+    if the flag is set, but those are not available for binding.<br>
+    <br>
+    Unless I am missing something, the proper fix would be to have two
+    instances of the topology. One with the entire machine (for people
+    that really want to consult all physical resources), and one for the
+    really available part of machine (mostly used for binding).<br>
+    <br>
+    Brice<br>
+    <br>
+  </body>
+</html>
+

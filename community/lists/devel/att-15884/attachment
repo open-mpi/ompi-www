@@ -1,0 +1,220 @@
+<div dir="ltr">Or copy the handshake protocol design of the TCP BTL...<div><br></div><div>  George.</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Fri, Sep 19, 2014 at 6:23 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">You know, I&#39;m almost beginning to dread opening my email in the morning for fear of seeing another &quot;race condition&quot; subject line! :-)<div><br></div><div>I think the correct answer here is that orted 3 should be entering &quot;retry&quot; when it sees the peer state change to &quot;closed&quot;, regardless of what happened in the send. I&#39;ll take a look at it, but since you have a reliable reproducer and I don&#39;t, please feel free to poke at it yourself</div><div><br></div><div><br><div><div><div class="h5"><div>On Sep 19, 2014, at 8:30 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@gmail.com" target="_blank">gilles.gouaillardet@gmail.com</a>&gt; wrote:</div><br></div></div><blockquote type="cite"><div><div class="h5"><div dir="ltr">Ralph,<div><br></div><div>let me detail the new race condition.</div><div><br></div><div>orted 2 and 3 are not connected to each other and send a message to each other</div><div><br></div><div>orted 2 and 3 call send_process (that set peer-&gt;state = MCA_OOB_TCP_PEER_CONNECTING)</div><div>they both end up calling mca_oob_tcp_peer_try_connect</div><div><br></div><div>now if orted 3 calls mca_oob_tcp_send_handler.</div><div>peer-&gt;state = MCA_OOB_TCP_CONNECT_ACK</div><div>peer-&gt;fd = 15 /* in my environment */</div><div><br></div><div>now orted 2 accept the connection from orted 3 (fd=17 in my environment)</div><div>and invokes recv_handler</div><div>that will call mca_oob_tcp_peer_recv_connect_ack</div><div>that will in turn call retry because peer-&gt;state is MCA_OOB_TCP_CONNECTING</div><div>retry will close fd 15 and 17</div><div><br></div><div>now orted 3 decides to handle fd 15 (depend on random() of libevent ...)</div><div>mca_oob_tcp_recv_handler will call mca_oob_tcp_peer_recv_connect_ack</div><div>that will call tcp_peer_recv_blocking</div><div>recv(15, ...) will return 0 /* orted 2 did not invoke mca_oob_tcp_send_handler yet)</div><div>then mca_oob_tcp_peer_close will set peer-&gt;state = MCA_OOB_TCP_CLOSED</div><div>and mca_oob_tcp_peer_recv_connect_ack will *not* invoke retry()</div><div><br></div><div>now orted 3 accepts the conection from orted 2 (fd=17 in my environment)</div><div>it will successfully read the connection request, and write its ack and set peer-&gt;state = MCA_OOB_TCP_CONNECTED</div><div><br></div><div>/* in my previous email, i was surprised the write did not fail.</div><div>on second thought, this is not so surprising : depending on the timing, orted 3 might not be aware that orted 2 closed the other end of the socket. bottom line, we cannot reliably expect write would fail in all cases */</div><div><br></div><div>the following write to fd=17 will fail and because the state is MCA_OOB_TCP_CONNECTED, the result is either a hang (the message from rml is never sent) or an abort of orted.</div><div><br></div><div><br></div><div>a possible fix is to ensure retry() is invoked on orted 3 by mca_oob_tcp_peer_recv_connect_ack when peer-&gt;state is MCA_OOB_TCP_CLOSED</div><div><br></div><div>an other possible fix is to add a new state to the sequence :</div><div>orted 3 move peer-&gt;state to MCA_OOB_TCP_CONNECTED when it receives a ack from orted 2 (and not when it sends its ack to orted 2)</div><div><br></div><div>or something i did not think of yet ...</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Fri, Sep 19, 2014 at 8:06 PM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Ralph,<br>
+<br>
+i found an other race condition.<br>
+in a very specific scenario, vpid3 is in the MCA_OOB_TCP_CLOSED state,<br>
+and processes data from the socket received from vpid 2<br>
+vpid3 is in the MCA_OOB_TCP_CLOSED state because vpid2 called retry()<br>
+and closed all its both sockets to vpid 3<br>
+<br>
+vpid3 read the ack data that was send to the socket (ok) and then ends<br>
+up calling tcp_peer_send_blocking<br>
+<br>
+Function<br>
+main (orted.c:62)<br>
+  orte_daemon (orted_main.c:828)<br>
+    opal_libevent2021_event_base_loop (event.c:1645)<br>
+      event_process_active (event.c:1437)<br>
+        event_process_active_single_queue (event.c:1367)<br>
+          recv_handler (oob_tcp.c:599)<br>
+            mca_oob_tcp_peer_accept (oob_tcp_connection.c:1071)<br>
+              tcp_peer_send_connect_ack (oob_tcp_connection.c:384)<br>
+                tcp_peer_send_blocking (oob_tcp_connection.c:525)<br>
+<br>
+<br>
+though the socket (fd 17) is my case has been closed by the peer, and is<br>
+hence reported in the CLOSE_WAIT state by lsof,<br>
+send(17, ...) is a success (!!!)<br>
+<br>
+i thought the root cause was we previously set the O_NONBLOCK flag to<br>
+this socket.<br>
+so i explicitly cleared this flag (that was not set anyway...), before<br>
+invoking mca_oob_tcp_peer_accept<br>
+but i got the very same behaviour :-(<br>
+<br>
+could you please advise :<br>
+- should the send fail because the socket is in the CLOSE_WAIT state ?<br>
+- if a success is not a bad behaviour, does this mean an other step<br>
+should be added to the oob/tcp &quot;handshake&quot; ?<br>
+- or could this mean that when the peer state was moved from<br>
+MCA_OOB_TCP_CONNECT_ACK to MCA_OOB_TCP_CLOSED,<br>
+retry() should have been invoked ?<br>
+<br>
+Cheers,<br>
+<br>
+Gilles<br>
+<div><div><br>
+On 2014/09/18 17:02, Ralph Castain wrote:<br>
+&gt; The patch looks fine to me - please go ahead and apply it. Thanks!<br>
+&gt;<br>
+&gt; On Sep 17, 2014, at 11:35 PM, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; Ralph,<br>
+&gt;&gt;<br>
+&gt;&gt; yes and no ...<br>
+&gt;&gt;<br>
+&gt;&gt; mpi hello world with four nodes can be used to reproduce the issue,<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; you can increase the likelyhood of producing the race condition by hacking<br>
+&gt;&gt; ./opal/mca/event/libevent2021/libevent/poll.c<br>
+&gt;&gt; and replace<br>
+&gt;&gt;        i = random() % nfds;<br>
+&gt;&gt; with<br>
+&gt;&gt;       if (nfds &lt; 2) {<br>
+&gt;&gt;           i = 0;<br>
+&gt;&gt;       } else {<br>
+&gt;&gt;           i = nfds - 2;<br>
+&gt;&gt;       }<br>
+&gt;&gt;<br>
+&gt;&gt; but since this is really a race condition, all i could do is show you<br>
+&gt;&gt; how to use a debugger in order to force it<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; here is what really happens :<br>
+&gt;&gt; - thanks to your patch, when vpid 2 cannot read the acknowledge, this is<br>
+&gt;&gt; no more a fatal error.<br>
+&gt;&gt; - that being said, the peer-&gt;recv_event is not removed from the libevent<br>
+&gt;&gt; - later, send_event will be added to the libevent<br>
+&gt;&gt; - and then peer-&gt;recv_event will be added to the libevent<br>
+&gt;&gt; /* this is clearly not supported, and the interesting behaviour is that<br>
+&gt;&gt; peer-&gt;send_event will be kicked out of libevent (!) */<br>
+&gt;&gt;<br>
+&gt;&gt; The attached patch fixes this race condition, could you please review it ?<br>
+&gt;&gt;<br>
+&gt;&gt; Cheers,<br>
+&gt;&gt;<br>
+&gt;&gt; Gilles<br>
+&gt;&gt;<br>
+&gt;&gt; On 2014/09/17 22:17, Ralph Castain wrote:<br>
+&gt;&gt;&gt; Do you have a reproducer you can share for testing this? I&#39;m unable to get it to happen on my machine, but maybe you have a test code that triggers it so I can continue debugging<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Ralph<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; On Sep 17, 2014, at 4:07 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Thanks Ralph,<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; this is much better but there is still a bug :<br>
+&gt;&gt;&gt;&gt; with the very same scenario i described earlier, vpid 2 does not send<br>
+&gt;&gt;&gt;&gt; its message to vpid 3 once the connection has been established.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; i tried to debug it but i have been pretty unsuccessful so far ..<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; vpid 2 calls tcp_peer_connected and execute the following snippet<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; if (NULL != peer-&gt;send_msg &amp;&amp; !peer-&gt;send_ev_active) {<br>
+&gt;&gt;&gt;&gt;       opal_event_add(&amp;peer-&gt;send_event, 0);<br>
+&gt;&gt;&gt;&gt;       peer-&gt;send_ev_active = true;<br>
+&gt;&gt;&gt;&gt;   }<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; but when evmap_io_active is invoked later, the following part :<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;   TAILQ_FOREACH(ev, &amp;ctx-&gt;events, ev_io_next) {<br>
+&gt;&gt;&gt;&gt;       if (ev-&gt;ev_events &amp; events)<br>
+&gt;&gt;&gt;&gt;           event_active_nolock(ev, ev-&gt;ev_events &amp; events, 1);<br>
+&gt;&gt;&gt;&gt;   }<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; finds only one ev (mca_oob_tcp_recv_handler and *no*<br>
+&gt;&gt;&gt;&gt; mca_oob_tcp_send_handler)<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; i will resume my investigations tomorrow<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Gilles<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; On 2014/09/17 4:01, Ralph Castain wrote:<br>
+&gt;&gt;&gt;&gt;&gt; Hi Gilles<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; I took a crack at solving this in r32744 - CMRd it for 1.8.3 and assigned it to you for review. Give it a try and let me know if I (hopefully) got it.<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; The approach we have used in the past is to have both sides close their connections, and then have the higher vpid retry while the lower one waits. The logic for that was still in place, but it looks like you are hitting a different code path, and I found another potential one as well. So I think I plugged the holes, but will wait to hear if you confirm.<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Thanks<br>
+&gt;&gt;&gt;&gt;&gt; Ralph<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; On Sep 16, 2014, at 6:27 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@gmail.com" target="_blank">gilles.gouaillardet@gmail.com</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Ralph,<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; here is the full description of a race condition in oob/tcp i very briefly mentionned in a previous post :<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; the race condition can occur when two not connected orted try to send a message to each other for the first time and at the same time.<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; that can occur when running mpi helloworld on 4 nodes with the grpcomm/rcd module.<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; here is a scenario in which the race condition occurs :<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; orted vpid 2 and 3 enter the allgather<br>
+&gt;&gt;&gt;&gt;&gt;&gt; /* they are not orte yet oob/tcp connected*/<br>
+&gt;&gt;&gt;&gt;&gt;&gt; and they call orte.send_buffer_nb each other.<br>
+&gt;&gt;&gt;&gt;&gt;&gt; from a libevent point of view, vpid 2 and 3 will call mca_oob_tcp_peer_try_connect<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; vpid 2 calls mca_oob_tcp_send_handler<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; vpid 3 calls connection_event_handler<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; depending on the value returned by random() in libevent, vpid 3 will<br>
+&gt;&gt;&gt;&gt;&gt;&gt; either call mca_oob_tcp_send_handler (likely) or recv_handler (unlikely)<br>
+&gt;&gt;&gt;&gt;&gt;&gt; if vpid 3 calls recv_handler, it will close the two sockets to vpid 2<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; then vpid 2 will call mca_oob_tcp_recv_handler<br>
+&gt;&gt;&gt;&gt;&gt;&gt; (peer-&gt;state is MCA_OOB_TCP_CONNECT_ACK)<br>
+&gt;&gt;&gt;&gt;&gt;&gt; that will invoke mca_oob_tcp_recv_connect_ack<br>
+&gt;&gt;&gt;&gt;&gt;&gt; tcp_peer_recv_blocking will fail<br>
+&gt;&gt;&gt;&gt;&gt;&gt; /* zero bytes are recv&#39;ed since vpid 3 previously closed the socket before writing a header */<br>
+&gt;&gt;&gt;&gt;&gt;&gt; and this is handled by mca_oob_tcp_recv_handler as a fatal error<br>
+&gt;&gt;&gt;&gt;&gt;&gt; /* ORTE_FORCED_TERMINATE(1) */<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; could you please have a look at it ?<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; if you are too busy, could you please advise where this scenario should be handled differently ?<br>
+&gt;&gt;&gt;&gt;&gt;&gt; - should vpid 3 keep one socket instead of closing both and retrying ?<br>
+&gt;&gt;&gt;&gt;&gt;&gt; - should vpid 2 handle the failure as a non fatal error ?<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Gilles<br>
+&gt;&gt;&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt;&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15836.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15836.php</a><br>
+&gt;&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15844.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15844.php</a><br>
+&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15854.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15854.php</a><br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15855.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15855.php</a><br>
+&gt;&gt; &lt;oob_tcp.patch&gt;_______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15862.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15862.php</a><br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15863.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15863.php</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15880.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15880.php</a><br>
+</blockquote></div><br></div>
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></div></div>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15882.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15882.php</a></blockquote></div><br></div></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15883.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15883.php</a><br></blockquote></div><br></div>
+

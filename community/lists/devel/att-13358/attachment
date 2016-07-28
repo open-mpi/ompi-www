@@ -1,0 +1,119 @@
+<div dir="ltr"><div>FWIW: ORTE already has a sensor framework in it that reads some of these things, so adding the coretemp etc is pretty trivial. These readings can be taken in the ORTE event thread on daemons, but we could allow procs to do so as well (if the app requests it), or can make it driven via the MPI_T function. If we use the event engine, we could have ORTE push those values into the internal database, and then provide an MPI_T access to retrieve them.<br>
+<br></div>I&#39;m working on the monitoring section over the next few weeks and can add the data collection part. If Jeff or someone can point me to the required MPI_T &quot;glue&quot;, I can add that too.<br></div><div class="gmail_extra">
+<br><br><div class="gmail_quote">On Wed, Dec 4, 2013 at 4:23 AM, Chris Samuel <span dir="ltr">&lt;<a href="mailto:samuel@unimelb.edu.au" target="_blank">samuel@unimelb.edu.au</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<div class="im">On Wed, 4 Dec 2013 11:39:29 AM Jeff Squyres wrote:<br>
+<br>
+&gt; On Dec 3, 2013, at 7:54 PM,<br>
+&gt; Christopher Samuel &lt;<a href="mailto:samuel@unimelb.edu.au">samuel@unimelb.edu.au</a>&gt; wrote:<br>
+&gt;<br>
+</div><div class="im">&gt; &gt; Would it make any sense to expose system/environmental/thermal<br>
+&gt; &gt; information to the application via MPI_T ?<br>
+&gt;<br>
+&gt; Hmm.  Interesting idea.<br>
+<br>
+</div>Phew. :-)<br>
+<div class="im"><br>
+&gt; Is the best way to grab such stuff via IPMI?<br>
+<br>
+</div>I don&#39;t think so, that means either having the process have permissions to<br>
+access /dev/ipmi* or needing to talk over the network to the adapter, neither<br>
+of which are likely to be desirable (or even possible, our iDataplex IMMs are<br>
+not accessible from the compute nodes).<br>
+<br>
+However, using the coretemp kernel module means you get access to at least<br>
+information about CPU temperatures on Intel systems:<br>
+<br>
+/sys/bus/platform/devices/coretemp.${A}/temp${B}_input<br>
+<br>
+which contains the core temperature in 100ths of a degree Celsius and are<br>
+world readable.  You also get access to the various thermal trip points and<br>
+alarms.<br>
+<br>
+The ${B} value is 1 for the CPU package (SandyBridge or later only), then<br>
+sequentially for the physical cores.  ${A} is 0 for the first socket, then<br>
+max($B of $A)+1 for the next socket, etc..<br>
+<br>
+So on the test login node of our 2010 era Nehalem iDataplex you get a file per<br>
+CPU core but nothing for the socket, viz:<br>
+<br>
+[root@merri-test ~]# ls /sys/bus/platform/devices/coretemp.*/*input*<br>
+/sys/bus/platform/devices/coretemp.0/temp2_input<br>
+/sys/bus/platform/devices/coretemp.0/temp3_input<br>
+/sys/bus/platform/devices/coretemp.0/temp4_input<br>
+/sys/bus/platform/devices/coretemp.0/temp5_input<br>
+/sys/bus/platform/devices/coretemp.4/temp2_input<br>
+/sys/bus/platform/devices/coretemp.4/temp3_input<br>
+/sys/bus/platform/devices/coretemp.4/temp4_input<br>
+/sys/bus/platform/devices/coretemp.4/temp5_input<br>
+<br>
+[root@merri-test ~]# cat /sys/bus/platform/devices/coretemp.*/*input*<br>
+52000<br>
+52000<br>
+52000<br>
+53000<br>
+59000<br>
+55000<br>
+58000<br>
+56000<br>
+<br>
+On the test login node of our SandyBridge iDataplex delivered mid year we get<br>
+the package as well:<br>
+<br>
+[root@barcoo-test ~]# ls /sys/bus/platform/devices/coretemp.*/*input*<br>
+/sys/bus/platform/devices/coretemp.0/temp1_input<br>
+/sys/bus/platform/devices/coretemp.0/temp2_input<br>
+/sys/bus/platform/devices/coretemp.0/temp3_input<br>
+/sys/bus/platform/devices/coretemp.0/temp4_input<br>
+/sys/bus/platform/devices/coretemp.0/temp5_input<br>
+/sys/bus/platform/devices/coretemp.0/temp6_input<br>
+/sys/bus/platform/devices/coretemp.0/temp7_input<br>
+/sys/bus/platform/devices/coretemp.6/temp1_input<br>
+/sys/bus/platform/devices/coretemp.6/temp2_input<br>
+/sys/bus/platform/devices/coretemp.6/temp3_input<br>
+/sys/bus/platform/devices/coretemp.6/temp4_input<br>
+/sys/bus/platform/devices/coretemp.6/temp5_input<br>
+/sys/bus/platform/devices/coretemp.6/temp6_input<br>
+/sys/bus/platform/devices/coretemp.6/temp7_input<br>
+<br>
+[root@barcoo-test ~]# cat /sys/bus/platform/devices/coretemp.*/*input*<br>
+44000<br>
+43000<br>
+44000<br>
+42000<br>
+43000<br>
+38000<br>
+44000<br>
+37000<br>
+33000<br>
+37000<br>
+32000<br>
+34000<br>
+36000<br>
+33000<br>
+<br>
+There&#39;s more information in $KERNEL_SOURCE/Documentation/hwmon/coretemp.<br>
+<br>
+Both those systems are running RHEL6, so it should be fairly well supported<br>
+*if* the sysadmin has loaded the modules.<br>
+<div class="im"><br>
+&gt; That might well be do-able, since there&#39;s no performance penalty for reading<br>
+&gt; such values until you actually read the values (i.e., we don&#39;t actively<br>
+&gt; monitor these values in OMPI&#39;s overall progression engine; they&#39;re only<br>
+&gt; read when the application invokes an MPI_T read function).<br>
+<br>
+</div>Indeed, these *shouldn&#39;t* hang trying to read them. ;-)<br>
+<br>
+cheers,<br>
+Chris<br>
+<div class="im HOEnZb">--<br>
+ Christopher Samuel        Senior Systems Administrator<br>
+ VLSCI - Victorian Life Sciences Computation Initiative<br>
+ Email: <a href="mailto:samuel@unimelb.edu.au">samuel@unimelb.edu.au</a> Phone: <a href="tel:%2B61%20%280%293%20903%2055545" value="+61390355545">+61 (0)3 903 55545</a><br>
+ <a href="http://www.vlsci.org.au/" target="_blank">http://www.vlsci.org.au/</a>      <a href="http://twitter.com/vlsci" target="_blank">http://twitter.com/vlsci</a><br>
+<br>
+</div><div class="HOEnZb"><div class="h5">_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br></div>
+

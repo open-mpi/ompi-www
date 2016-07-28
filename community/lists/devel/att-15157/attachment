@@ -1,0 +1,64 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=iso-8859-1"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">I wonder if we aren't using a howitzer to swat a gnat. It seems to me that this is loaded with potential problems, as Paul describes, and I shudder to think of how hard this is going to be when we consider all the compiler/environment combinations we support and the range of libraries our various pieces build against.<div><br></div><div>Wouldn't it be easier for us to spend a little time on each framework and set it up to better handle init/fini/init cycles? It seems to me that this is going to be far more involved than just cleaning up class object instantiations, and indeed in some cases is going to take careful teardown of 3rd party libraries we link against.</div><div><br></div><div>I know that will be more work than creating some simple "destructor", but I suspect it has far more likelihood for success and a much lower degree of risk.</div><div><br></div><div><br><div><div>On Jul 15, 2014, at 5:06 PM, Paul Hargrove &lt;<a href="mailto:phhargrove@lbl.gov">phhargrove@lbl.gov</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div dir="ltr"><div>The priority appears to have been added in gcc 4.3.</div><div>You'll note it is not described in&nbsp;<a href="https://gcc.gnu.org/onlinedocs/gcc-4.2.0/gcc/Function-Attributes.html">https://gcc.gnu.org/onlinedocs/gcc-4.2.0/gcc/Function-Attributes.html</a></div>
+<div><br></div><div>I also don't think the presence of the priority argument fixes anything...</div><div><br></div><div>An OpenMPI code author cannot change the "priority" of a ctor or dtor in a precompiled third-party library (libpmi comes to mind). &nbsp;Nor can one know what value the third part chose (in order to be higher or lower than theirs). &nbsp;You cannot even be assured the third-party didn't set priority to INT_MIN or INT_MAX (or whatever).</div>
+<div><br></div><div>That text also says nothing about dl_open() and dl_close() which must be considered in Open MPI.</div><div><br></div><div>Before assuming constructor/destructor attributes are going to save the world, wash your dog, and pick up the dry cleaning, one should probably verify some minimal level of support on non-gnu tool-chains including vendor compilers (PGI, XLC, etc) and system linkers (Darwin and Solaris).</div>
+<div><br></div><div>-Paul</div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Jul 15, 2014 at 4:52 PM, Joshua Ladd <span dir="ltr">&lt;<a href="mailto:jladd.mlnx@gmail.com" target="_blank">jladd.mlnx@gmail.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">According to <a href="http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html" target="_blank">http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html</a><br>
+<div><code><i><br>"constructor </i></code><i><code><br>
+&nbsp;destructor </code><var></var><code></code></i><code></code><i><code></code></i><br><dl><dt><code><i>&nbsp;constructor (</i></code><var>priority</var><i><code>)</code></i></dt><dt><i><code>&nbsp;destructor (</code><var>priority</var><code>)</code></i></dt>
+
+<dd><i><a name="1473c717d145a768_index-g_t_0040code_007bconstructor_007d-function-attribute-2881"></a><a name="1473c717d145a768_index-g_t_0040code_007bdestructor_007d-function-attribute-2882"></a>The <code>constructor</code> attribute causes the function to be called
+automatically before execution enters <code>main ()</code>.  Similarly, the
+<code>destructor</code> attribute causes the function to be called
+automatically after <code>main ()</code> completes or <code>exit ()</code> is
+called.  Functions with these attributes are useful for
+initializing data that is used implicitly during the execution of
+the program.
+
+     </i><p><i>You may provide an optional integer priority to control the order in
+which constructor and destructor functions are run.  A constructor
+with a smaller priority number runs before a constructor with a larger
+priority number; the opposite relationship holds for destructors.  So,
+if you have a constructor that allocates a resource and a destructor
+that deallocates the same resource, both functions typically have the
+same priority.  The priorities for constructor and destructor
+functions are the same as those specified for namespace-scope C++
+objects (see <a href="http://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Attributes.html#C_002b_002b-Attributes" target="_blank">C++ Attributes</a>).
+
+     </i></p><p><i>These attributes are not currently implemented for Objective-C."</i></p></dd></dl><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Jul 15, 2014 at 5:20 PM, Paul Hargrove <span dir="ltr">&lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, Jul 15, 2014 at 12:49 PM, Pritchard, Howard r <span dir="ltr">&lt;<a href="mailto:howardp@lanl.gov" target="_blank">howardp@lanl.gov</a>&gt;</span> wrote:<br>
+
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="overflow:hidden">I don't think there's anything wrong with using ctor/dtors in shared libraries,<br>
+
+
+
+but one does need to make sure that in these functions there's no assumptions<br>
+about ordering of them wrt to other ctors/dtors.</div></blockquote></div><div class="gmail_extra"><br></div></div></div><div class="gmail_extra">The ELF specification is clear that the order of execution of DT_INIT and DT_FINI entries is undefined.<br>
+
+
+</div><div class="gmail_extra">The .ctors and .dtors sections typically used by the GNU toolchain are, I believe, not part of any formal linker specification.</div><div class="gmail_extra">So, I agree w/ Howard that one must take care not to assume anything about order.</div>
+
+<span><font color="#888888">
+<div class="gmail_extra"><br></div><div class="gmail_extra">-Paul<br><br clear="all"><span class="HOEnZb"><font color="#888888"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+
+
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department &nbsp; &nbsp; Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory &nbsp; &nbsp; Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+
+</font>
+</font></span></div></font></span></div><span class="HOEnZb"><font color="#888888">
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15153.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15153.php</a><br></font></span></blockquote></div><br></div>
+
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15155.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15155.php</a><br></blockquote></div><br><br clear="all"><div>
+<br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>
+Computer and Data Sciences Department &nbsp; &nbsp; Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory &nbsp; &nbsp; Fax: +1-510-486-6900</div></font>
+</div>
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/devel<br>Link to this post: http://www.open-mpi.org/community/lists/devel/2014/07/15156.php</blockquote></div><br></div></body></html>

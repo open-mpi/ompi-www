@@ -1,0 +1,85 @@
+Index: pml_ob1.c
+===================================================================
+--- pml_ob1.c	(revision 23023)
++++ pml_ob1.c	(working copy)
+@@ -197,7 +197,7 @@
+ 
+     for( i = 0; i < comm->c_remote_group->grp_proc_count; i++ ) {
+         pml_comm->procs[i].ompi_proc = ompi_group_peer_lookup(comm->c_remote_group,i);
+-	OBJ_RETAIN(pml_comm->procs[i].ompi_proc);
++        OBJ_RETAIN(pml_comm->procs[i].ompi_proc);
+     }
+     /* Grab all related messages from the non_existing_communicator pending queue */
+     for( item = opal_list_get_first(&mca_pml_ob1.non_existing_communicator_pending);
+@@ -471,7 +471,7 @@
+  */
+ int mca_pml_ob1_send_fin( ompi_proc_t* proc,
+                           mca_bml_base_btl_t* bml_btl,
+-                          void *hdr_des,
++                          ompi_ptr_t hdr_des,
+                           uint8_t order,
+                           uint32_t status )
+ {
+@@ -493,7 +493,7 @@
+     hdr = (mca_pml_ob1_fin_hdr_t*)fin->des_src->seg_addr.pval;
+     hdr->hdr_common.hdr_flags = 0;
+     hdr->hdr_common.hdr_type = MCA_PML_OB1_HDR_TYPE_FIN;
+-    hdr->hdr_des.pval = hdr_des;
++    hdr->hdr_des = hdr_des;
+     hdr->hdr_fail = status;
+ 
+     ob1_hdr_hton(hdr, MCA_PML_OB1_HDR_TYPE_FIN, proc);
+@@ -559,7 +559,7 @@
+                 break;
+             case MCA_PML_OB1_HDR_TYPE_FIN:
+                 rc = mca_pml_ob1_send_fin(pckt->proc, send_dst,
+-                                          pckt->hdr.hdr_fin.hdr_des.pval,
++                                          pckt->hdr.hdr_fin.hdr_des,
+                                           pckt->order,
+                                           pckt->hdr.hdr_fin.hdr_fail);
+                 if( OPAL_UNLIKELY(OMPI_ERR_OUT_OF_RESOURCE == rc) ) {
+Index: pml_ob1_sendreq.c
+===================================================================
+--- pml_ob1_sendreq.c	(revision 23023)
++++ pml_ob1_sendreq.c	(working copy)
+@@ -1102,7 +1102,7 @@
+ 
+     mca_pml_ob1_send_fin(sendreq->req_send.req_base.req_proc, 
+                          bml_btl,
+-                         frag->rdma_hdr.hdr_rdma.hdr_des.pval,
++                         frag->rdma_hdr.hdr_rdma.hdr_des,
+                          des->order, 0);
+     
+     /* check for request completion */
+@@ -1147,7 +1147,7 @@
+ 
+             /* tell receiver to unregister memory */
+             mca_pml_ob1_send_fin(sendreq->req_send.req_base.req_proc,
+-                    bml_btl, frag->rdma_hdr.hdr_rdma.hdr_des.pval,
++                    bml_btl, frag->rdma_hdr.hdr_rdma.hdr_des,
+                     MCA_BTL_NO_ORDER, 1);
+ 
+             /* send fragment by copy in/out */
+Index: pml_ob1.h
+===================================================================
+--- pml_ob1.h	(revision 23023)
++++ pml_ob1.h	(working copy)
+@@ -212,7 +212,7 @@
+                                                                     \
+         MCA_PML_OB1_PCKT_PENDING_ALLOC(_pckt,_rc);                  \
+         _pckt->hdr.hdr_common.hdr_type = MCA_PML_OB1_HDR_TYPE_FIN;  \
+-        _pckt->hdr.hdr_fin.hdr_des.pval = (D);                      \
++        _pckt->hdr.hdr_fin.hdr_des = (D);                           \
+         _pckt->hdr.hdr_fin.hdr_fail = (S);                          \
+         _pckt->proc = (P);                                          \
+         _pckt->bml_btl = (B);                                       \
+@@ -225,7 +225,7 @@
+ 
+ 
+ int mca_pml_ob1_send_fin(ompi_proc_t* proc, mca_bml_base_btl_t* bml_btl, 
+-        void *hdr_des, uint8_t order, uint32_t status);
++        ompi_ptr_t hdr_des, uint8_t order, uint32_t status);
+ 
+ /* This function tries to resend FIN/ACK packets from pckt_pending queue.
+  * Packets are added to the queue when sending of FIN or ACK is failed due to
+

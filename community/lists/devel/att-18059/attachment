@@ -1,0 +1,111 @@
+<div dir="ltr">Actually, Edgar attached a simple reproducer to the first message in this thread.<div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Wed, Sep 16, 2015 at 7:27 PM, Howard Pritchard <span dir="ltr">&lt;<a href="mailto:hppritcha@gmail.com" target="_blank">hppritcha@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><p dir="ltr">Edgar</p>
+<p dir="ltr">Do you have a simple test we could run with jenkins ghprb that would catch this going forward?</p>
+<p dir="ltr">I could add it to some of the checks we run on your UH slave node.</p>
+<p dir="ltr">Howard</p>
+<p dir="ltr">----------</p>
+<p dir="ltr">sent from my smart phonr so no good type.</p>
+<p dir="ltr">Howard</p>
+<div class="gmail_quote">On Sep 16, 2015 12:36 PM, &quot;Nathan Hjelm&quot; &lt;<a href="mailto:hjelmn@lanl.gov" target="_blank">hjelmn@lanl.gov</a>&gt; wrote:<br type="attribution"><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+I see the problem. Before my changes ompi_comm_dup signalled that the<br>
+communicator was not an inter-communicator by setting remote_size to<br>
+0. The remote size is now from the remote group if one was supplied<br>
+(which is the case with intra-communicators) so ompi_comm_dup needs to<br>
+make sure NULL is passed for the remote_group when duplicating<br>
+intra-communicators.<br>
+<br>
+I opened a PR. Once jenkins finishes I will merge it onto master.<br>
+<br>
+-Nathan<br>
+<br>
+On Wed, Sep 16, 2015 at 10:43:45AM -0500, Edgar Gabriel wrote:<br>
+&gt; yes, I did fresh pull this morning, for me it deadlocks reliably for 2 and<br>
+&gt; more processes.<br>
+&gt;<br>
+&gt; Thanks<br>
+&gt; Edgar<br>
+&gt;<br>
+&gt; On 9/16/2015 10:42 AM, Nathan Hjelm wrote:<br>
+&gt; &gt;<br>
+&gt; &gt;The reproducer is working for me with master on OX 10.10. Some changes<br>
+&gt; &gt;to ompi_comm_set went in yesterday. Are you on the latest hash?<br>
+&gt; &gt;<br>
+&gt; &gt;-Nathan<br>
+&gt; &gt;<br>
+&gt; &gt;On Wed, Sep 16, 2015 at 08:49:59AM -0500, Edgar Gabriel wrote:<br>
+&gt; &gt;&gt;something is borked right now on master in the management of inter vs. intra<br>
+&gt; &gt;&gt;communicators. It looks like intra communicators are wrongly selecting the<br>
+&gt; &gt;&gt;inter coll module thinking that it is an inter communicator, and we have<br>
+&gt; &gt;&gt;hangs because of that. I attach a small replicator, where a bcast of a<br>
+&gt; &gt;&gt;duplicate of MPI_COMM_WORLD hangs, because the inter collective module is<br>
+&gt; &gt;&gt;being selected.<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;Thanks<br>
+&gt; &gt;&gt;Edgar<br>
+&gt; &gt;<br>
+&gt; &gt;&gt;#include &lt;stdio.h&gt;<br>
+&gt; &gt;&gt;#include &quot;mpi.h&quot;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;int main( int argc, char *argv[] )<br>
+&gt; &gt;&gt;{<br>
+&gt; &gt;&gt;   MPI_Comm comm1;<br>
+&gt; &gt;&gt;   int root=0;<br>
+&gt; &gt;&gt;   int rank2, size2, global_buf=1;<br>
+&gt; &gt;&gt;   int rank, size;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;   MPI_Init ( &amp;argc, &amp;argv );<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;   MPI_Comm_rank ( MPI_COMM_WORLD, &amp;rank );<br>
+&gt; &gt;&gt;   MPI_Comm_size ( MPI_COMM_WORLD, &amp;size );<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;/* Setting up a new communicator */<br>
+&gt; &gt;&gt;   MPI_Comm_dup ( MPI_COMM_WORLD, &amp;comm1 );<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;   MPI_Comm_size ( comm1, &amp;size2 );<br>
+&gt; &gt;&gt;   MPI_Comm_rank ( comm1, &amp;rank2 );<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;   MPI_Bcast ( &amp;global_buf, 1, MPI_INT, root, MPI_COMM_WORLD );<br>
+&gt; &gt;&gt;   if ( rank == root ) {<br>
+&gt; &gt;&gt;       printf(&quot;Bcast on MPI_COMM_WORLD finished\n&quot;);<br>
+&gt; &gt;&gt;   }<br>
+&gt; &gt;&gt;   MPI_Bcast ( &amp;global_buf, 1, MPI_INT, root, comm1 );<br>
+&gt; &gt;&gt;   if ( rank == root ) {<br>
+&gt; &gt;&gt;       printf(&quot;Bcast on duplicate of MPI_COMM_WORLD finished\n&quot;);<br>
+&gt; &gt;&gt;   }<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;   MPI_Comm_free ( &amp;comm1 );<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;   MPI_Finalize ();<br>
+&gt; &gt;&gt;   return ( 0 );<br>
+&gt; &gt;&gt;}<br>
+&gt; &gt;<br>
+&gt; &gt;&gt;_______________________________________________<br>
+&gt; &gt;&gt;devel mailing list<br>
+&gt; &gt;&gt;<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt; &gt;&gt;Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt;&gt;Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/09/18040.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/09/18040.php</a><br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt;_______________________________________________<br>
+&gt; &gt;devel mailing list<br>
+&gt; &gt;<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt; &gt;Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt;Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/09/18042.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/09/18042.php</a><br>
+&gt; &gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/09/18043.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/09/18043.php</a><br>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/09/18049.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/09/18049.php</a><br></blockquote></div>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/09/18057.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/09/18057.php</a><br></blockquote></div><br></div>
+

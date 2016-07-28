@@ -1,0 +1,106 @@
+#!/usr/bin/perl -w
+
+# Like hilite but in perl and standalone.
+# Takes a command and runs it saving the output to a valid html file
+# making stdout black and stderr red.
+
+use IO::Select;
+use IPC::Open3;
+use strict;
+
+my %colours = (
+    'red'   => "[0;31m",
+    'plain' => "[0m"
+);
+
+my $file_pre   = "";
+my $error_pre  = $colours{red};
+my $error_post = $colours{plain};
+my $file_post  = "";
+
+if ( $ARGV[0] eq "--html" ) {
+    shift @ARGV;
+
+    $file_pre   = "<pre>";
+    $error_pre  = "<font color=red>";
+    $error_post = "</font>";
+    $file_post  = "</pre>";
+}
+
+my $current = "out";
+
+sub change_to {
+    my $to = shift;
+
+    return if ( $to eq $current );
+
+    if ( $to eq "err" ) {
+        $current = "err";
+        print "$error_pre";
+        return;
+    }
+
+    $current = "out";
+    print "$error_post";
+}
+
+my @cmd  = @ARGV;
+my $pcmd = {
+    pid => -1,
+    in  => *DAVE,
+    out => *D_O,
+    err => *D_ERR,
+};
+
+$pcmd->{pid} = open3( *DAVE, *D_O, *D_ERR, @cmd )
+  or die "Unable to open3() pcmd: $!\n";
+
+my $s = IO::Select->new();
+close $pcmd->{in};
+
+$s->add( $pcmd->{err} );
+$s->add( $pcmd->{out} );
+print $file_pre;
+
+while ( $s->count() ) {
+    while ( my @ready = $s->can_read(1000) ) {
+        foreach my $handle (@ready) {
+            my $line;
+            my $read = sysread( $handle, $line, 4096 );
+            $line =~ s/\015//g;
+            if ( $handle eq $pcmd->{err} ) {
+                change_to("err");
+                print $line;
+
+            }
+            if ( $handle eq $pcmd->{out} ) {
+                change_to("out");
+                print $line;
+            }
+            if ( $read == 0 ) {
+                $s->remove($handle);
+                close($handle);
+            }
+        }
+    }
+}
+
+change_to("out");
+print $file_post;
+
+if ( $s->count() != 0 ) {
+    my $count = $s->count();
+    die "open handles ($count)";
+}
+
+waitpid( $pcmd->{pid}, 0 );
+my $status = $?;
+
+my %rc;
+
+$rc{rc}     = $status >> 8;
+$rc{core}   = ( $status & 128 ) >> 7;
+$rc{signal} = $status & 127;
+
+exit $rc{rc};
+

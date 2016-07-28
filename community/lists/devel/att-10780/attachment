@@ -1,0 +1,115 @@
+I took the best result from each version, that&#39;s why different algotithm numbers were chosen.<div><br></div><div>I&#39;ve studied the matter a bit further and here&#39;s what I got:</div><div>with openmpi 1.5.4 these are the average times:</div>
+<div>/opt/openmpi-1.5.4/intel12/bin/mpirun -x OMP_NUM_THREADS=1  -hostfile hosts_all2all_4 -npernode 32 --mca btl openib,sm,self -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_barrier_algorithm $i -np 128 openmpi-1.5.4/intel12/IMB-MPI1 -off_cache 16,64 -msglog 1:16 -npmin 128 barrier</div>
+<div>0 - 71.78</div><div>3 - 69.39</div><div>6 - 69.05</div><div><br></div><div>If I pin the processes with the following script:</div><div><div>#!/bin/bash</div><div><br></div><div>s=$(($OMPI_COMM_WORLD_NODE_RANK))</div>
+<div><br></div><div>numactl --physcpubind=$((s)) --localalloc openmpi-1.5.4/intel12/IMB-MPI1 -off_cache 16,64 -msglog 1:16 -npmin 128 barrier</div></div><div>then the results improve:</div><div>0 - 51.96</div><div>3 - 52.39</div>
+<div>6 - 28.64</div><div><br></div><div>On openmpi-1.5.5rc3 without any binding the results are awful (14964.15 is the best)</div><div>If I use the &#39;--bind-to-core&#39; flag then the results are almost the same as in 1.5.4 with binding script:</div>
+<div>0 - 52.85</div><div>3 - 52.69</div><div>6 - 23.34</div><div><br></div><div>So almost everything seems to work fine now. The only problem left is that algorithm number 5 hangs </div><div><br><div class="gmail_quote">2012/3/28 Jeffrey Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span><br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">FWIW:<br>
+<br>
+1. There were definitely some issues with binding to cores and process layouts on Opterons that should be fixed in the 1.5.5 that was finally released today.<br>
+<br>
+2. It is strange that the performance of barrier is so much different between 1.5.4 and 1.5.5.  Is there a reason you were choosing different algorithm numbers between the two?  (one of your command lines had &quot;coll_tuned_barrier_algorithm 1&quot;, the other had &quot;coll_tuned_barrier_algorithm 3&quot;).<br>
+
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On Mar 23, 2012, at 10:11 AM, Shamis, Pavel wrote:<br>
+<br>
+&gt; Pavel,<br>
+&gt;<br>
+&gt; Mvapich implements multicore optimized collectives, which perform substantially better than default algorithms.<br>
+&gt; FYI,  ORNL team works on new high performance collectives framework for OMPI. The framework provides significant boost in collectives performance.<br>
+&gt;<br>
+&gt; Regards,<br>
+&gt;<br>
+&gt; Pavel (Pasha) Shamis<br>
+&gt; ---<br>
+&gt; Application Performance Tools Group<br>
+&gt; Computer Science and Math Division<br>
+&gt; Oak Ridge National Laboratory<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; On Mar 23, 2012, at 9:17 AM, Pavel Mezentsev wrote:<br>
+&gt;<br>
+&gt; I&#39;ve been comparing 1.5.4 and 1.5.5rc3 with the same parameters that&#39;s why I didn&#39;t use --bind-to-core. I checked and the usage of --bind-to-core improved the result comparing to 1.5.4:<br>
+&gt; #repetitions  t_min[usec]  t_max[usec]  t_avg[usec]<br>
+&gt;         1000        84.96        85.08        85.02<br>
+&gt;<br>
+&gt; So I guess with 1.5.5 the processes move from core to core within node even though I use all cores, right? Then why 1.5.4 behaves differently?<br>
+&gt;<br>
+&gt; I need --bind-to-core in some cases and that&#39;s why I need 1.5.5rc3 instead of more stable 1.5.4. I know that I can use numactl explicitly but --bind-to-core is more convinient :)<br>
+&gt;<br>
+&gt; 2012/3/23 Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;&gt;<br>
+&gt; I don&#39;t see where you told OMPI to --bind-to-core. We don&#39;t automatically bind, so you have to explicitly tell us to do so.<br>
+&gt;<br>
+&gt; On Mar 23, 2012, at 6:20 AM, Pavel Mezentsev wrote:<br>
+&gt;<br>
+&gt;&gt; Hello<br>
+&gt;&gt;<br>
+&gt;&gt; I&#39;m doing some testing with IMB and dicovered a strange thing:<br>
+&gt;&gt;<br>
+&gt;&gt; Since I have a system with new AMD opteron 6276 processors I&#39;m using 1.5.5rc3 since it supports binding to cores.<br>
+&gt;&gt;<br>
+&gt;&gt; But when I run the barrier test form intel mpi benchmarks, the best I get is:<br>
+&gt;&gt; #repetitions  t_min[usec]  t_max[usec]  t_avg[usec]<br>
+&gt;&gt;          598     15159.56     15211.05     15184.70<br>
+&gt;&gt; (/opt/openmpi-1.5.5rc3/intel12/bin/mpirun -x OMP_NUM_THREADS=1  -hostfile hosts_all2all_2 -npernode 32 --mca btl openib,sm,self -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_barrier_algorithm 1 -np 256 openmpi-1.5.5rc3/intel12/IMB-MPI1 -off_cache 16,64 -msglog 1:16 -npmin 256 barrier)<br>
+
+&gt;&gt;<br>
+&gt;&gt; And with openmpi 1.5.4 the result is much better:<br>
+&gt;&gt; #repetitions  t_min[usec]  t_max[usec]  t_avg[usec]<br>
+&gt;&gt;         1000       113.23       113.33       113.28<br>
+&gt;&gt;<br>
+&gt;&gt; (/opt/openmpi-1.5.4/intel12/bin/mpirun -x OMP_NUM_THREADS=1  -hostfile hosts_all2all_2 -npernode 32 --mca btl openib,sm,self -mca coll_tuned_use_dynamic_rules 1 -mca coll_tuned_barrier_algorithm 3 -np 256 openmpi-1.5.4/intel12/IMB-MPI1 -off_cache 16,64 -msglog 1:16 -npmin 256 barrier)<br>
+
+&gt;&gt;<br>
+&gt;&gt; and still I couldn&#39;t come close to the result I got with mvapich:<br>
+&gt;&gt; #repetitions  t_min[usec]  t_max[usec]  t_avg[usec]<br>
+&gt;&gt;         1000        17.51        17.53        17.53<br>
+&gt;&gt;<br>
+&gt;&gt; (/opt/mvapich2-1.8/intel12/bin/mpiexec.hydra -env OMP_NUM_THREADS 1 -hostfile hosts_all2all_2 -np 256 mvapich2-1.8/intel12/IMB-MPI1 -mem 2 -off_cache 16,64 -msglog 1:16 -npmin 256 barrier)<br>
+&gt;&gt;<br>
+&gt;&gt; I dunno if this is a bug or me doing something not the way I should. So is there a way to improve my results?<br>
+&gt;&gt;<br>
+&gt;&gt; Best regards,<br>
+&gt;&gt; Pavel Mezentsev<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+</div></div><span class="HOEnZb"><font color="#888888">--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+</font></span><div class="HOEnZb"><div class="h5"><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br></div>
+

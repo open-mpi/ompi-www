@@ -1,0 +1,150 @@
+diff --git a/ompi/mca/btl/openib/btl_openib.c b/ompi/mca/btl/openib/btl_openib.c
+index 2330dc0..fadb2bd 100644
+--- a/ompi/mca/btl/openib/btl_openib.c
++++ b/ompi/mca/btl/openib/btl_openib.c
+@@ -377,16 +377,8 @@ mca_btl_base_descriptor_t* mca_btl_openib_alloc(
+     
+     if(size <= mca_btl_openib_component.eager_limit){ 
+         MCA_BTL_IB_FRAG_ALLOC_EAGER(btl, frag, rc);
+-        if(order == MCA_BTL_NO_ORDER) {
+-            order = BTL_OPENIB_HP_QP;
+-        } 
+     } else if(size <= mca_btl_openib_component.max_send_size) { 
+-        if(order == MCA_BTL_NO_ORDER) { 
+-            order = BTL_OPENIB_LP_QP; 
+-        } else if(order != BTL_OPENIB_LP_QP) { 
+-            return NULL;
+-        }
+-        
++        assert(order != BTL_OPENIB_HP_QP);
+         MCA_BTL_IB_FRAG_ALLOC_MAX(btl, frag, rc); 
+     }
+     
+@@ -502,6 +494,7 @@ mca_btl_base_descriptor_t* mca_btl_openib_prepare_src(
+             frag->base.des_dst = NULL;
+             frag->base.des_dst_cnt = 0;
+             frag->base.des_flags = 0;
++            frag->base.order = order;
+ 
+             frag->sg_entry.length = max_data;
+             frag->sg_entry.lkey = openib_reg->mr->lkey;
+@@ -511,12 +504,6 @@ mca_btl_base_descriptor_t* mca_btl_openib_prepare_src(
+             frag->segment.seg_addr.pval = iov.iov_base;
+             frag->segment.seg_key.key32[0] = (uint32_t)frag->sg_entry.lkey;
+             
+-            if(MCA_BTL_NO_ORDER == order) { 
+-                frag->base.order = BTL_OPENIB_LP_QP;
+-            } else { 
+-                frag->base.order = order;
+-            }
+-            
+             BTL_VERBOSE(("frag->sg_entry.lkey = %lu .addr = %llu "
+                         "frag->segment.seg_key.key32[0] = %lu",
+                         frag->sg_entry.lkey, frag->sg_entry.addr,
+@@ -529,21 +516,13 @@ mca_btl_base_descriptor_t* mca_btl_openib_prepare_src(
+     if(max_data + reserve <= btl->btl_eager_limit) {
+         /* the data is small enough to fit in the eager frag and
+          * memory is not prepinned */
+-        
+         MCA_BTL_IB_FRAG_ALLOC_EAGER(btl, frag, rc);
+-        if(MCA_BTL_NO_ORDER == order) { 
+-            order = BTL_OPENIB_LP_QP;
+-        }
+     }
+ 
+     if(NULL == frag) {
+         /* the data doesn't fit into eager frag or eager frag is
+          * not available */
+-        if(MCA_BTL_NO_ORDER == order) { 
+-            order = BTL_OPENIB_LP_QP;
+-        } else if(BTL_OPENIB_HP_QP == order){ 
+-            return NULL;
+-        } 
++        assert(order != BTL_OPENIB_HP_QP);
+         MCA_BTL_IB_FRAG_ALLOC_MAX(btl, frag, rc);
+ 
+         if(NULL == frag) {
+@@ -571,8 +550,6 @@ mca_btl_base_descriptor_t* mca_btl_openib_prepare_src(
+     frag->base.des_dst_cnt = 0;
+     frag->base.des_flags = 0;
+     
+-
+-    
+     return &frag->base;
+ }
+ 
+@@ -641,12 +618,7 @@ mca_btl_base_descriptor_t* mca_btl_openib_prepare_dst(
+     frag->base.des_src_cnt = 0;
+     frag->base.des_flags = 0;
+ 
+-    if(MCA_BTL_NO_ORDER == order) { 
+-        frag->base.order = BTL_OPENIB_LP_QP;
+-    } else { 
+-        frag->base.order = order;
+-    }
+-
++    frag->base.order = order;
+ 
+     BTL_VERBOSE(("frag->sg_entry.lkey = %lu .addr = %llu "
+                 "frag->segment.seg_key.key32[0] = %lu",
+@@ -856,6 +828,8 @@ int mca_btl_openib_put( mca_btl_base_module_t* btl,
+     mca_btl_openib_frag_t* frag = (mca_btl_openib_frag_t*) descriptor; 
+     mca_btl_openib_module_t* openib_btl = (mca_btl_openib_module_t*) btl;
+ 
++    assert(frag->base.order != BTL_OPENIB_HP_QP);
++
+     /* setup for queued requests */
+     frag->endpoint = endpoint;
+     frag->wr_desc.sr_desc.opcode = IBV_WR_RDMA_WRITE; 
+@@ -877,7 +851,8 @@ int mca_btl_openib_put( mca_btl_base_module_t* btl,
+         frag->wr_desc.sr_desc.wr.rdma.rkey = frag->base.des_dst->seg_key.key32[0]; 
+         frag->sg_entry.addr = (unsigned long) frag->base.des_src->seg_addr.pval; 
+         frag->sg_entry.length  = frag->base.des_src->seg_len; 
+-        
++        frag->base.order = BTL_OPENIB_LP_QP;
++
+         if(ibv_post_send(endpoint->lcl_qp[BTL_OPENIB_LP_QP], 
+                          &frag->wr_desc.sr_desc, 
+                          &bad_wr)){ 
+@@ -908,6 +883,9 @@ int mca_btl_openib_get( mca_btl_base_module_t* btl,
+     struct ibv_send_wr* bad_wr; 
+     mca_btl_openib_frag_t* frag = (mca_btl_openib_frag_t*) descriptor; 
+     mca_btl_openib_module_t* openib_btl = (mca_btl_openib_module_t*) btl;
++
++    assert(frag->base.order != BTL_OPENIB_HP_QP);
++
+     frag->endpoint = endpoint;
+     frag->wr_desc.sr_desc.opcode = IBV_WR_RDMA_READ; 
+ 
+@@ -937,7 +915,8 @@ int mca_btl_openib_get( mca_btl_base_module_t* btl,
+         frag->wr_desc.sr_desc.wr.rdma.rkey = frag->base.des_src->seg_key.key32[0]; 
+         frag->sg_entry.addr = (unsigned long) frag->base.des_dst->seg_addr.pval; 
+         frag->sg_entry.length  = frag->base.des_dst->seg_len; 
+-        
++        frag->base.order = BTL_OPENIB_LP_QP;
++
+         if(ibv_post_send(endpoint->lcl_qp[BTL_OPENIB_LP_QP], 
+                          &frag->wr_desc.sr_desc, 
+                          &bad_wr)){ 
+diff --git a/ompi/mca/btl/openib/btl_openib_endpoint.c b/ompi/mca/btl/openib/btl_openib_endpoint.c
+index 8902b4b..68b423d 100644
+--- a/ompi/mca/btl/openib/btl_openib_endpoint.c
++++ b/ompi/mca/btl/openib/btl_openib_endpoint.c
+@@ -177,10 +177,13 @@ static inline int mca_btl_openib_endpoint_post_send(mca_btl_openib_module_t* ope
+     int do_rdma = 0, prio;
+     
+     frag->sg_entry.addr = (unsigned long) frag->hdr;
+-    
+-    prio = frag->base.order; 
+-    /* (frag->base.des_flags & MCA_BTL_DES_FLAGS_PRIORITY) ? */
+-    /*         BTL_OPENIB_HP_QP : BTL_OPENIB_LP_QP; */
++  
++    /* if order is not specified choose QP based on a fragment priority */
++    if(frag->base.order == MCA_BTL_NO_ORDER)
++        frag->base.order = (frag->base.des_flags & MCA_BTL_DES_FLAGS_PRIORITY) ?
++            BTL_OPENIB_HP_QP : BTL_OPENIB_LP_QP;
++
++    prio = frag->base.order;
+ 
+     if(btl_openib_acquire_send_resources(openib_btl, endpoint, frag,
+                 prio, &do_rdma) == OMPI_ERR_OUT_OF_RESOURCE)

@@ -1,0 +1,229 @@
+<div dir="ltr"><div><div>Thank you very much, Gilles. That is exactly the information I was looking for.<br><br></div>Best regards<br></div>Durga<br></div><div class="gmail_extra"><br clear="all"><div><div class="gmail_signature"><div dir="ltr"><div>We learn from history that we never learn from history.<br></div></div></div></div>
+<br><div class="gmail_quote">On Fri, Apr 8, 2016 at 12:52 AM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    At init time, each task invoke btl_openib_component_init() which
+    invokes btl_openib_modex_send()<br>
+    basically, it collects infiniband info (port, subnet, lid, ...) and
+    &quot;push&quot; them to orted via the modex mechanism.<br>
+    <br>
+    When a communication is created, the remote information is retrieved
+    via the modex mechanism in mca_btl_openib_proc_get_locket()<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<div><div class="h5"><br>
+    <br>
+    <div>On 4/8/2016 1:30 PM, dpchoudh . wrote:<br>
+    </div>
+    </div></div><blockquote type="cite"><div><div class="h5">
+      <div dir="ltr">
+        <div>
+          <div>
+            <div>
+              <div>
+                <div>
+                  <div>
+                    <div>
+                      <div>Hi Gilles<br>
+                        <br>
+                      </div>
+                      Thanks for responding quickly; however, I am
+                      afraid I did not explain my question clearly
+                      enough; my apologies.<br>
+                      <br>
+                    </div>
+                    What I am trying to understand is this:<br>
+                    <br>
+                  </div>
+                  My cluster has (say) 7 nodes. I use IP-over-Ethernet
+                  for Orted (for job launch and control traffic); this
+                  is not used for MPI messaging. Let&#39;s say that the IP
+                  addresses are 192.168.1.2-192.168.1.9. They are all in
+                  the same IP subnet.<br>
+                  <br>
+                </div>
+                The MPI messaging is used using some other
+                interconnects, such as Infiniband. All 7 nodes are
+                connected to the same Infiniband switch and hence are in
+                the same (infiniband) subnet as well.<br>
+                <br>
+              </div>
+              In my host file, I mention (say) 4 IP addresses: 
+              192.168.3-192.168.1.7<br>
+              <br>
+            </div>
+            My question is, how does OpenMPI pick the 4 Infiniband
+            interfaces that matches the IP addresses? Put another way,
+            the ranks of each launched jobs are (I presume) setup by
+            orted by some mechanism. When I do an MPI_Send() to a given
+            rank, the message goes to the Infiniband interface with a
+            particular LID. How does this IP-to-Infiniband LID mapping
+            happen?<br>
+            <br>
+          </div>
+          Thanks<br>
+        </div>
+        Durga<br>
+      </div>
+      <div class="gmail_extra"><br clear="all">
+        <div>
+          <div>
+            <div dir="ltr">
+              <div>We learn from history that we never learn from
+                history.<br>
+              </div>
+            </div>
+          </div>
+        </div>
+        <br>
+        <div class="gmail_quote">On Fri, Apr 8, 2016 at 12:12 AM, Gilles
+          Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span>
+          wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+            <div bgcolor="#FFFFFF" text="#000000"> Hi,<br>
+              <br>
+              the hostnames (or their IPs) are only used to ssh orted.<br>
+              <br>
+              <br>
+              if you use only the tcp btl :<br>
+              <br>
+              TCP *MPI* communications (vs OOB management
+              communications) are handled by btl/tcp<br>
+              by default, all usable interfaces are used, then messages
+              are split (iirc, by ob1 pml) and then &quot;fragments&quot;<br>
+              are sent using all interfaces.<br>
+              <br>
+              each interface has a latency and bandwidth that is used to
+              split message into fragments.<br>
+              (assuming it is correctly configured, 90% of a large
+              message is sent over the 10GbE interface, and 10% is sent
+              over the GbE interface)<br>
+              <br>
+              if you can explicitly list/blacklist interface<br>
+              mpirun --mca btl_tcp_if_include ...<br>
+              or<br>
+              mpirun --mca btl_tcp_if_exclude ...<br>
+              <br>
+              (see ompi_info --all for the syntax)<br>
+              <br>
+              <br>
+              but if you use several btls (for example tcp and openib),
+              the btl(s) with the lower exclusivity are not used.<br>
+              (for example, a large message is *not* split and send
+              using native ib, IPoIB and GbE because the openib btl<br>
+              has a higher exclusivity than the tcp btl)<br>
+              <br>
+              <br>
+              did this answer your question ?<br>
+              <br>
+              Cheers,<br>
+              <br>
+              Gilles
+              <div>
+                <div><br>
+                  <br>
+                  <br>
+                  <div>On 4/8/2016 12:24 PM, dpchoudh . wrote:<br>
+                  </div>
+                </div>
+              </div>
+              <blockquote type="cite">
+                <div>
+                  <div>
+                    <div dir="ltr">
+                      <div>
+                        <div>
+                          <div>
+                            <div>
+                              <div>Hello all<br>
+                                <br>
+                              </div>
+                              (Newbie warning! Sorry :-(  )<br>
+                              <br>
+                            </div>
+                            Let&#39;s say my cluster has 7 nodes, connected
+                            via IP-over-Ethernet for control traffic and
+                            some kind of raw verbs (or anything else
+                            such as SRIO) interface for data transfer.
+                            Let&#39;s say my host file chooses 4 out of the
+                            7 nodes for an MPI job, based on the IP
+                            address, which are assigned to the Ethernet
+                            interfaces.<br>
+                            <br>
+                          </div>
+                          My question is: where in the code does this
+                          mapping between
+                          IP-to-whatever_interface_is_used_for_MPI_Send/Recv
+                          is determined, such as only those chosen nodes
+                          receive traffic over the verbs interface?<br>
+                          <br>
+                        </div>
+                        Thanks in advance<br>
+                      </div>
+                      Durga<br>
+                      <div>
+                        <div>
+                          <div>
+                            <div>
+                              <div>
+                                <div><br clear="all">
+                                  <div>
+                                    <div>
+                                      <div dir="ltr">
+                                        <div>We learn from history that
+                                          we never learn from history.<br>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <br>
+                    <fieldset></fieldset>
+                    <br>
+                  </div>
+                </div>
+                <pre>_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18746.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18746.php</a></pre>
+              </blockquote>
+              <br>
+            </div>
+            <br>
+            _______________________________________________<br>
+            devel mailing list<br>
+            <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+            Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+            Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18747.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18747.php</a><br>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      </div></div><pre><div><div class="h5">_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18748.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18748.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18749.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/04/18749.php</a><br></blockquote></div><br></div>
+

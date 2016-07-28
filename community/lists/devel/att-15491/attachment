@@ -1,0 +1,186 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Fixed in r32409 : %d and %s were
+      swapped in a MLERROR (printf like)<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/08/02 11:07, Gilles Gouaillardet wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CAAkFZ5tCM8Sv_5cdXeYjtp8Hk3dt9ZeXsxVOBeeJTSc0rUb02w@mail.gmail.com"
+      type="cite">
+      <pre wrap="">Paul,
+
+about the second point :
+mmap is called with the MAP_FIXED flag, before the fix, the
+required address was not aligned on a page size and hence
+mmap failed.
+the mmap failure was immediatly handled, but for some reasons
+i did not fully investigate yet, this failure was not correctly propagated,
+leading to a SIGSEGV later in lmngr_register (if i remember correctly)
+
+i will add this to my todo list : investigate why the error is not correctly
+propagated and handled.
+
+Cheers,
+
+Gilles
+
+On Sat, Aug 2, 2014 at 6:05 AM, Paul Hargrove <a class="moz-txt-link-rfc2396E" href="mailto:phhargrove@lbl.gov">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Regarding review of the coll/ml fix:
+
+While the fix Gilles worked out overnight proved sufficient on
+Solaris/SPARC, Linux/PPC64 and Linux/IA64, I had two concerns:
+
+1) As I already voiced on the list, I am concerned with the portability of
+_SC_PAGESIZE vs _SC_PAGE_SIZE (vs get_pagesize()).
+
+2) Though I have not tried to trace the code, the fact that fixing the
+alignment prevents a SEGV strongly suggests that there was a mmap (or
+something else sensitive to page size) call failing.  So, there should
+probably be a check added for failure of that call to produce a cleaner
+failure than SEGV.
+
+Just my USD 0.02.
+-Paul
+
+
+On Fri, Aug 1, 2014 at 6:39 AM, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Okay, I fixed those two and will release rc4 once the coll/ml fix has
+been reviewed. Thanks
+
+On Aug 1, 2014, at 2:46 AM, Mike Dubman <a class="moz-txt-link-rfc2396E" href="mailto:miked@dev.mellanox.co.il">&lt;miked@dev.mellanox.co.il&gt;</a> wrote:
+
+Also, latest commit into openib (origin/v1.8
+<a class="moz-txt-link-freetext" href="https://svn.open-mpi.org/trac/ompi/changeset/32391">https://svn.open-mpi.org/trac/ompi/changeset/32391</a>) broke something:
+
+*11:45:01* + timeout -s SIGSEGV 3m /scrap/jenkins/workspace/OMPI-vendor/label/hpctest/ompi_install1/bin/mpirun -np 8 -mca pml ob1 -mca btl self,openib /scrap/jenkins/workspace/OMPI-vendor/label/hpctest/ompi_install1/examples/hello_usempi*11:45:01* --------------------------------------------------------------------------*11:45:01* WARNING: There are more than one active ports on host 'hpctest', but the*11:45:01* default subnet GID prefix was detected on more than one of these*11:45:01* ports.  If these ports are connected to different physical IB*11:45:01* networks, this configuration will fail in Open MPI.  This version of*11:45:01* Open MPI requires that every physically separate IB subnet that is*11:45:01* used between connected MPI processes must have different subnet ID*11:45:01* values.*11:45:01* *11:45:01* Please see this FAQ entry for more details:*11:45:01* *11:45:01*   <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/faq/?category=openfabrics#ofa-defau
+ lt-subn
+et-gid*11:45:01*">http://www.open-mpi.org/faq/?category=openfabrics#ofa-default-subnet-gid*11:45:01*</a> *11:45:01* NOTE: You can turn off this warning by setting the MCA parameter*11:45:01*       btl_openib_warn_default_gid_prefix to 0.*11:45:01* --------------------------------------------------------------------------*11:45:01* --------------------------------------------------------------------------*11:45:01* WARNING: No queue pairs were defined in the btl_openib_receive_queues*11:45:01* MCA parameter.  At least one queue pair must be defined.  The*11:45:01* OpenFabrics (openib) BTL will therefore be deactivated for this run.*11:45:01* *11:45:01*   Local host: hpctest*11:45:01* --------------------------------------------------------------------------*11:45:01* --------------------------------------------------------------------------*11:45:01* At least one pair of MPI processes are unable to reach each other for*11:45:01* MPI communications.  This means that no Open MPI
+  device 
+has indicated*11:45:01* that it can be used to communicate between these processes.  This is*11:45:01* an error; Open MPI requires that all MPI processes be able to reach*11:45:01* each other.  This error can sometimes be the result of forgetting to*11:45:01* specify the "self" BTL.*11:45:01* *11:45:01*   Process 1 ([[55281,1],1]) is on host: hpctest*11:45:01*   Process 2 ([[55281,1],0]) is on host: hpctest*11:45:01*   BTLs attempted: self*11:45:01* *11:45:01* Your MPI job is now going to abort; sorry.*11:45:01* --------------------------------------------------------------------------*11:45:01* --------------------------------------------------------------------------*11:45:01* MPI_INIT has failed because at least one MPI process is unreachable*11:45:01* from another.  This *usually* means that an underlying communication*11:45:01* plugin -- such as a BTL or an MTL -- has either not loaded or not*11:45:01* allowed itself to be used.  Your MPI job will now abort.*11:45:01* *1
+ 1:45:01*
+ You may wish to try to narrow down the problem;*11:45:01* *11:45:01*  * Check the output of ompi_info to see which BTL/MTL plugins are*11:45:01*    available.*11:45:01*  * Run your application with MPI_THREAD_SINGLE.*11:45:01*  * Set the MCA parameter btl_base_verbose to 100 (or mtl_base_verbose,*11:45:01*    if using MTL-based communications) to see exactly which*11:45:01*    communication plugins were considered and/or discarded.*11:45:01* --------------------------------------------------------------------------*11:45:01* *** An error occurred in MPI_Init*11:45:01* *** on a NULL communicator*11:45:01* *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,*11:45:01* ***    and potentially your MPI job)*11:45:01* [hpctest:2761] Local abort before MPI_INIT completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!*11:45:01* *** An error occurred in MPI_Init*11:45:01* *** on a NULL communicat
+ or*11:45
+:01* *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,*11:45:01* ***    and potentially your MPI job)*11:45:01* [hpctest:2757] Local abort before MPI_INIT completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!*11:45:01* *** An error occurred in MPI_Init*11:45:01* *** on a NULL communicator*11:45:01* *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,*11:45:01* ***    and potentially your MPI job)*11:45:01* [hpctest:2751] Local abort before MPI_INIT completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!*11:45:01* *** An error occurred in MPI_Init*11:45:01* *** on a NULL communicator*11:45:01* *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,*11:45:01* ***    and potentially your MPI job)*11:45:01* [hpctest:2752] Local abort before MPI_INIT completed successfully; not able
+  to aggr
+egate error messages, and not able to guarantee that all other processes were killed!*11:45:01* *** An error occurred in MPI_Init*11:45:01* *** on a NULL communicator*11:45:01* *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,*11:45:01* ***    and potentially your MPI job)*11:45:01* [hpctest:2753] Local abort before MPI_INIT completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!*11:45:01* *** An error occurred in MPI_Init*11:45:01* *** on a NULL communicator*11:45:01* *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,*11:45:01* ***    and potentially your MPI job)*11:45:01* [hpctest:2755] Local abort before MPI_INIT completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!*11:45:01* *** An error occurred in MPI_Init*11:45:01* *** on a NULL communicator*11:45:01* *** MPI_ERRORS_ARE_FATAL (process
+ es in th
+is communicator will now abort,*11:45:01* ***    and potentially your MPI job)*11:45:01* [hpctest:2759] Local abort before MPI_INIT completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!*11:45:01* *** An error occurred in MPI_Init*11:45:01* *** on a NULL communicator*11:45:01* *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,*11:45:01* ***    and potentially your MPI job)*11:45:01* [hpctest:2763] Local abort before MPI_INIT completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!
+
+
+
+On Fri, Aug 1, 2014 at 11:00 AM, Paul Hargrove <a class="moz-txt-link-rfc2396E" href="mailto:phhargrove@lbl.gov">&lt;phhargrove@lbl.gov&gt;</a>
+wrote:
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">Note that the Solaris unresolved alloca problem George fixed in r32388
+is still present in 1.8.2rc3.
+I have manually confirmed that the same patch resolves the problem in
+1.8.2rc3.
+
+-Paul
+
+
+On Thu, Jul 31, 2014 at 9:44 PM, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">Usual place - this is a last-chance check, so please hit it. Main
+change from rc2 is the repairs to the Fortran binding config logic
+
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/software/ompi/v1.8/">http://www.open-mpi.org/software/ompi/v1.8/</a>
+
+Ralph
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15433.php">http://www.open-mpi.org/community/lists/devel/2014/08/15433.php</a>
+
+</pre>
+            </blockquote>
+            <pre wrap="">
+
+
+--
+Paul H. Hargrove                          <a class="moz-txt-link-abbreviated" href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>
+Future Technologies Group
+Computer and Data Sciences Department     Tel: +1-510-495-2352
+Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15440.php">http://www.open-mpi.org/community/lists/devel/2014/08/15440.php</a>
+
+</pre>
+          </blockquote>
+          <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15444.php">http://www.open-mpi.org/community/lists/devel/2014/08/15444.php</a>
+
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15449.php">http://www.open-mpi.org/community/lists/devel/2014/08/15449.php</a>
+
+</pre>
+        </blockquote>
+        <pre wrap="">
+
+
+--
+Paul H. Hargrove                          <a class="moz-txt-link-abbreviated" href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>
+Future Technologies Group
+Computer and Data Sciences Department     Tel: +1-510-495-2352
+Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15464.php">http://www.open-mpi.org/community/lists/devel/2014/08/15464.php</a>
+
+</pre>
+      </blockquote>
+      <pre wrap="">
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15467.php">http://www.open-mpi.org/community/lists/devel/2014/08/15467.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

@@ -1,0 +1,63 @@
+# Fixes to correctly identify PGI compiler versions 1 through 5
+mv openmpi-1.5rc5/config/libtool.m4{,.original}
+sed -e '5899s/\[\[1-5\]\]\*/\[\[1-5\]\].\*/g' \
+    openmpi-1.5rc5/config/libtool.m4.original \
+    >openmpi-1.5rc5/config/libtool.m4
+mv openmpi-1.5rc5/opal/libltdl/m4/libtool.m4{,.original}
+sed -e '5899s/\[\[1-5\]\]\*/\[\[1-5\]\].\*/g' \
+    openmpi-1.5rc5/opal/libltdl/m4/libtool.m4.original \
+    >openmpi-1.5rc5/opal/libltdl/m4/libtool.m4
+
+# Disable inline assembly for PGI C++, as is done for PGI C (26246), and
+# Fix PGI C compiler warning (11146, 19215): Pragma ignored - string
+# expected after #pragma ident
+mv openmpi-1.5rc5/configure{,.original}
+sed -e '26246{x;s/^.*$/    if test "$ompi_cv_cxx_compiler_vendor" = "portland group" ; then/;p;
+                s/^.*$/        # PGI seems to have some issues with our inline assembly./;p;
+                s/^.*$/        # Disable for now./;p;
+                s/^.*$/        asm_result="no (Portland Group)"/;p;
+                s/^.*$/    else/;G;}' \
+    -e '26369{x;s/^.*$/    fi/;G;}' \
+    -e '11146{s/#pragma ident/#define IDENT/;p;
+              s/^.*$/#pragma ident \$IDENT/;}' \
+    -e '19215{s/#pragma ident/#define IDENT/;p;
+              s/^.*$/#pragma ident \$IDENT/;}' \
+    openmpi-1.5rc5/configure.original \
+    >openmpi-1.5rc5/configure
+chmod +x openmpi-1.5rc5/configure
+
+# Fix PGI compiler warning: Array name used in logical expression
+mv openmpi-1.5rc5/opal/libltdl/ltdl.h{,.original}
+sed -e '44s/((s) && (s)\[0\])/(s!=NULL)/' \
+    openmpi-1.5rc5/opal/libltdl/ltdl.h.original \
+    >openmpi-1.5rc5/opal/libltdl/ltdl.h
+
+# Fix PGI compiler warning: Redefinition of symbol assert (364-370) and
+# Pointer value created from a nonlong integral type (444, 459, 3446, 3664, 3789)
+mv openmpi-1.5rc5/opal/mca/memory/ptmalloc2/hooks.c{,.original}
+sed -e '444s/: 0;/: NULL;/' \
+    -e '459s/: 0;/: NULL;/' \
+    openmpi-1.5rc5/opal/mca/memory/ptmalloc2/hooks.c.original \
+    >openmpi-1.5rc5/opal/mca/memory/ptmalloc2/hooks.c
+mv openmpi-1.5rc5/opal/mca/memory/ptmalloc2/malloc.c{,.original}
+sed -e '364,369d' \
+    -e '370{s/^.*$/#if MALLOC_DEBUG \&\& defined( NDEBUG )/;p;
+            s/^.*$/#error -DMALLOC_DEBUG is inconsistent with -DNDEBUG/;p;
+            s/^.*$/#endif/;p;
+            s/^.*$//;p;
+            s/^.*$/#include <assert.h>/;}' \
+    -e '3446s/: 0,/: NULL,/' \
+    -e '3664s/: 0,/: NULL,/' \
+    -e '3789s/: 0,/: NULL,/' \
+    openmpi-1.5rc5/opal/mca/memory/ptmalloc2/malloc.c.original \
+    >openmpi-1.5rc5/opal/mca/memory/ptmalloc2/malloc.c
+
+# Fix PGI compiler error: expected an identifier caused by misplaced #define that causes
+# syntax error later in <omp.h> (Note: -mp should be configured by configure/libtool)
+mv openmpi-1.5rc5/ompi/contrib/vt/vt/extlib/otf/tools/otfprofile/otfprofile.cpp{,.original}
+sed -e '16,17d' \
+    -e '19,22d' \
+    -e '26,28d' \
+    openmpi-1.5rc5/ompi/contrib/vt/vt/extlib/otf/tools/otfprofile/otfprofile.cpp.original \
+    >openmpi-1.5rc5/ompi/contrib/vt/vt/extlib/otf/tools/otfprofile/otfprofile.cpp
+

@@ -1,0 +1,186 @@
+diff --git a/opal/mca/common/pmi/common_pmi.c b/opal/mca/common/pmi/common_pmi.c
+--- a/opal/mca/common/pmi/common_pmi.c
++++ b/opal/mca/common/pmi/common_pmi.c
+@@ -25,6 +25,8 @@
+ #include "common_pmi.h"
+ 
+ static int mca_common_pmi_init_count = 0;
++static int mca_common_pmi_init_size = 0;
++static int mca_common_pmi_init_rank = 0;
+ 
+ bool mca_common_pmi_init (void) {
+     if (0 < mca_common_pmi_init_count++) {
+@@ -41,6 +43,8 @@
+         }
+ 
+         if (PMI_SUCCESS != PMI2_Init(&spawned, &size, &rank, &appnum)) {
++            mca_common_pmi_init_size = size;
++            mca_common_pmi_init_rank = rank;
+             mca_common_pmi_init_count--;
+             return false;
+         }
+@@ -107,3 +111,23 @@
+     }
+     return err_msg;
+ }
++
++
++bool mca_common_pmi_rank(int *rank) {
++#ifndef WANT_PMI2_SUPPORT
++    if (PMI_SUCCESS != (ret = PMI_Get_rank(&mca_common_pmi_rank)))
++        return false;
++#endif
++    *rank = mca_common_pmi_init_rank;
++    return true;
++}
++
++
++bool mca_common_pmi_size(int *size) {
++#ifndef WANT_PMI2_SUPPORT
++    if (PMI_SUCCESS != (ret = PMI_Get_universe_size(&mca_common_pmi_size)))
++        return false;
++#endif
++    *size = mca_common_pmi_init_size;
++    return true;
++}
+diff --git a/opal/mca/common/pmi/common_pmi.h b/opal/mca/common/pmi/common_pmi.h
+--- a/opal/mca/common/pmi/common_pmi.h
++++ b/opal/mca/common/pmi/common_pmi.h
+@@ -42,3 +42,6 @@
+ OPAL_DECLSPEC char* opal_errmgr_base_pmi_error(int pmi_err);
+ 
+ #endif
++
++bool mca_common_pmi_rank(int *rank);
++bool mca_common_pmi_size(int *size);
+diff --git a/orte/mca/ess/pmi/ess_pmi_module.c b/orte/mca/ess/pmi/ess_pmi_module.c
+--- a/orte/mca/ess/pmi/ess_pmi_module.c
++++ b/orte/mca/ess/pmi/ess_pmi_module.c
+@@ -38,6 +38,9 @@
+ #endif
+ 
+ #include <pmi.h>
++#ifdef WANT_PMI2_SUPPORT
++#include <pmi2.h>
++#endif
+ 
+ #include "opal/util/opal_environ.h"
+ #include "opal/util/output.h"
+@@ -126,7 +129,7 @@
+         }
+         ORTE_PROC_MY_NAME->jobid = jobid;
+         /* get our rank from PMI */
+-        if (PMI_SUCCESS != (ret = PMI_Get_rank(&i))) {
++        if (!(ret = mca_common_pmi_rank(&i))) {
+             OPAL_PMI_ERROR(ret, "PMI_Get_rank");
+             error = "could not get PMI rank";
+             goto error;
+@@ -134,7 +137,7 @@
+         ORTE_PROC_MY_NAME->vpid = i + 1;  /* compensate for orterun */
+ 
+         /* get the number of procs from PMI */
+-        if (PMI_SUCCESS != (ret = PMI_Get_universe_size(&i))) {
++        if (!(ret = mca_common_pmi_size(&i))) {
+             OPAL_PMI_ERROR(ret, "PMI_Get_universe_size");
+             error = "could not get PMI universe size";
+             goto error;
+@@ -148,6 +151,14 @@
+             goto error;
+         }
+     } else {  /* we are a direct-launched MPI process */
++#ifdef WANT_PMI2_SUPPORT
++        /* Get domain id */
++        pmi_id = malloc(PMI2_MAX_VALLEN);
++        if (PMI_SUCCESS != (ret = PMI2_Job_GetId(pmi_id, PMI2_MAX_VALLEN))) {
++            error = "PMI2_Job_GetId failed";
++            goto error;
++        }
++#else
+         /* get our PMI id length */
+         if (PMI_SUCCESS != (ret = PMI_Get_id_length_max(&pmi_maxlen))) {
+             error = "PMI_Get_id_length_max";
+@@ -159,6 +170,7 @@
+             error = "PMI_Get_kvs_domain_id";
+             goto error;
+         }
++#endif
+         /* PMI is very nice to us - the domain id is an integer followed
+          * by a '.', followed by essentially a stepid. The first integer
+          * defines an overall job number. The second integer is the number of
+@@ -180,20 +192,22 @@
+         ORTE_PROC_MY_NAME->jobid = ORTE_CONSTRUCT_LOCAL_JOBID(jobfam << 16, stepid);
+ 
+         /* get our rank */
+-        if (PMI_SUCCESS != (ret = PMI_Get_rank(&i))) {
++        if (!(ret = mca_common_pmi_rank(&i))) {
+             OPAL_PMI_ERROR(ret, "PMI_Get_rank");
+             error = "could not get PMI rank";
+             goto error;
+         }
+         ORTE_PROC_MY_NAME->vpid = i;
++        int rank = i;
+ 
+         /* get the number of procs from PMI */
+-        if (PMI_SUCCESS != (ret = PMI_Get_universe_size(&i))) {
++        if (!(ret = mca_common_pmi_size(&i))) {
+             OPAL_PMI_ERROR(ret, "PMI_Get_universe_size");
+             error = "could not get PMI universe size";
+             goto error;
+         }
+         orte_process_info.num_procs = i;
++        int size = i;
+         /* push into the environ for pickup in MPI layer for
+          * MPI-3 required info key
+          */
+@@ -245,6 +259,42 @@
+             goto error;
+         }
+ 
++#ifdef WANT_PMI2_SUPPORT
++        /* get our local proc info to find our local rank */
++        char *pmapping = malloc(PMI2_MAX_VALLEN);
++        int found, n, p, sid, nodes, procs, k;
++        ret = PMI2_Info_GetJobAttr("PMI_process_mapping", pmapping, PMI2_MAX_VALLEN, &found);
++        if (!found) {
++            error = "could not get PMI_process_mapping (PMI2_Info_GetJobAttr() failed)";
++            goto error;
++        }
++
++        i = 0; n = 0; procs = 0;
++        if ((p = strstr(pmapping, "(vector"))) {
++            while ((p = strstr(p+1, ",("))) {
++                if (3 == sscanf(p, ",(%d,%d,%d)", &sid, &nodes, &procs)) {
++                    for (k = 0; k < nodes; k++) {
++                        if ((rank >= n) && (rank < (n + procs))) break;
++                        n += procs;
++                    }
++                }
++            }
++        }
++        free(pmapping);
++
++        if ((procs > 0) && (n < size)) {
++            ranks = (int*)malloc(procs * sizeof(int));
++            for (i=0; i < procs; i++) {
++                ranks[i] = n + i;
++            }
++        }
++
++        if (ranks == NULL) {
++            error = "could not get PMI_process_mapping";
++            goto error;
++        }
++
++#else
+         /* get our local proc info to find our local rank */
+         if (PMI_SUCCESS != (ret = PMI_Get_clique_size(&i))) {
+             OPAL_PMI_ERROR(ret, "PMI_Get_clique_size");
+@@ -263,6 +313,7 @@
+             error = "could not get clique ranks";
+             goto error;
+         }
++#endif
+         /* The clique ranks are returned in rank order, so
+          * cycle thru the array and update the local/node
+          * rank info
+

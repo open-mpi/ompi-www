@@ -1,0 +1,31 @@
+<div>It seems like we have 2 bugs here.</div>
+<div>1. After commiting NUMA awareness we see seqf </div>
+<div>2. Before commiting NUMA r18656 we see application hangs.</div>
+<div>3. I checked both it with and without sendi, same results.</div>
+<div>4. It hangs most of the times, but sometimes large msg ( &gt;1M ) are working.</div>
+<div>&nbsp;</div>
+<div>&nbsp;</div>
+<div>I will keep investigating :)</div>
+<div>&nbsp;</div>
+<div>&nbsp;</div>
+<div>VER=TRUNK; //home/USERS/lenny/OMPI_ORTE_${VER}/bin/mpicc -o mpi_p_${VER} /opt/vltmpi/OPENIB/mpi/examples/mpi_p.c ; /home/USERS/lenny/OMPI_ORTE_${VER}/bin/mpirun -np 100 -hostfile hostfile_w&nbsp; ./mpi_p_${VER} -t bw -s 4000000<br>
+[witch17:09798] *** Process received signal ***<br>[witch17:09798] Signal: Segmentation fault (11)<br>[witch17:09798] Signal code: Address not mapped (1)<br>[witch17:09798] Failing at address: (nil)<br>[witch17:09798] [ 0] /lib64/libpthread.so.0 [0x2b1d13530c10]<br>
+[witch17:09798] [ 1] /home/USERS/lenny/OMPI_ORTE_TRUNK/lib/openmpi/mca_btl_sm.so [0x2b1d1557a68a]<br>[witch17:09798] [ 2] /home/USERS/lenny/OMPI_ORTE_TRUNK/lib/openmpi/mca_bml_r2.so [0x2b1d14e1b12f]<br>[witch17:09798] [ 3] /home/USERS/lenny/OMPI_ORTE_TRUNK/lib/libopen-pal.so.0(opal_progress+0x5a) [0x2b1d12f6a6da]<br>
+[witch17:09798] [ 4] /home/USERS/lenny/OMPI_ORTE_TRUNK/lib/libmpi.so.0 [0x2b1d12cafd28]<br>[witch17:09798] [ 5] /home/USERS/lenny/OMPI_ORTE_TRUNK/lib/libmpi.so.0(PMPI_Waitall+0x91) [0x2b1d12cd9d71]<br>[witch17:09798] [ 6] ./mpi_p_TRUNK(main+0xd32) [0x401ca2]<br>
+[witch17:09798] [ 7] /lib64/libc.so.6(__libc_start_main+0xf4) [0x2b1d13657154]<br>[witch17:09798] [ 8] ./mpi_p_TRUNK [0x400ea9]<br>[witch17:09798] *** End of error message ***<br>[witch1:24955] --------------------------------------------------------------------------<br>
+mpirun noticed that process rank 62 with PID 9798 on node witch17 exited on signal 11 (Segmentation fault).<br>--------------------------------------------------------------------------<br>witch1:/home/USERS/lenny/TESTS/NUMA #<br>
+witch1:/home/USERS/lenny/TESTS/NUMA #<br>witch1:/home/USERS/lenny/TESTS/NUMA #<br>witch1:/home/USERS/lenny/TESTS/NUMA # VER=18551; //home/USERS/lenny/OMPI_ORTE_${VER}/bin/mpicc -o mpi_p_${VER} /opt/vltmpi/OPENIB/mpi/examples/mpi_p.c ; /home/USERS/lenny/OMPI_ORTE_${VER}/bin/mpirun -np 100 -hostfile hostfile_w&nbsp; ./mpi_p_${VER} -t bw -s 4000000<br>
+BW (100) (size min max avg)&nbsp; 4000000&nbsp;&nbsp;&nbsp; 654.496755&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2121.899985&nbsp;&nbsp;&nbsp;&nbsp; 1156.171067<br>witch1:/home/USERS/lenny/TESTS/NUMA #&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </div>
+<div>&nbsp;</div>
+<div><br><br>&nbsp;</div>
+<div class="gmail_quote">On Tue, Jun 17, 2008 at 2:10 PM, George Bosilca &lt;<a href="mailto:bosilca@eecs.utk.edu">bosilca@eecs.utk.edu</a>&gt; wrote:<br>
+<blockquote class="gmail_quote" style="PADDING-LEFT: 1ex; MARGIN: 0px 0px 0px 0.8ex; BORDER-LEFT: #ccc 1px solid">Lenny,<br><br>I guess you&#39;re running the latest version. If not, please update, Galen and myself corrected some bugs last week. If you&#39;re using the latest (and greatest) then ... well I imagine there is at least one bug left.<br>
+<br>There is a quick test you can do. In the btl_sm.c in the module structure at the beginning of the file, please replace the sendi function by NULL. If this fix the problem, then at least we know that it&#39;s a sm send immediate problem.<br>
+<br>&nbsp;Thanks,<br><font color="#888888">&nbsp; &nbsp;george.</font> 
+<div>
+<div></div>
+<div class="Wj3C7c"><br><br>On Jun 17, 2008, at 7:54 AM, Lenny Verkhovsky wrote:<br><br>
+<blockquote class="gmail_quote" style="PADDING-LEFT: 1ex; MARGIN: 0px 0px 0px 0.8ex; BORDER-LEFT: #ccc 1px solid">Hi, George,<br><br>I have a problem running BW benchmark on 100 rank cluster after r18551.<br>The BW is mpi_p that runs mpi_bandwidth with 100K between all pairs.<br>
+<br><br>#mpirun -np 100 -hostfile hostfile_w &nbsp;./mpi_p_18549 -t bw -s 100000<br>BW (100) (size min max avg) &nbsp;100000 &nbsp; &nbsp; 576.734030 &nbsp; &nbsp; &nbsp;2001.882416 &nbsp; &nbsp; 1062.698408<br>#mpirun -np 100 -hostfile hostfile_w ./mpi_p_18551 -t bw -s 100000<br>
+mpirun: killing job...<br>( it hangs even after 10 hours ).<br><br><br>It doesn&#39;t happen if I run --bynode or btl openib,self only.<br><br><br>Lenny.<br></blockquote><br></div></div></blockquote></div><br>
+

@@ -1,0 +1,564 @@
+diff --git a/ompi/mca/btl/btl.h b/ompi/mca/btl/btl.h
+index ba09e4b..2b9321f 100644
+--- a/ompi/mca/btl/btl.h
++++ b/ompi/mca/btl/btl.h
+@@ -1,4 +1,4 @@
+-/* -*- Mode: C; c-basic-offset:4 ; -*- */
++/* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
+ /*
+  * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
+  *                         University Research and Technology
+@@ -10,7 +10,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2006-2013 Los Alamos National Security, LLC.  All rights
++ * Copyright (c) 2006-2014 Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
+  * Copyright (c) 2010      Oracle and/or its affiliates.  All rights reserved.
+  * Copyright (c) 2012-2013 NVIDIA Corporation.  All rights reserved.
+@@ -211,6 +211,14 @@ typedef uint8_t mca_btl_base_tag_t;
+  */
+ #define MCA_BTL_FLAGS_SIGNALED        0x4000
+ 
++/* btl can support atomic compare-and-swap */
++#define MCA_BTL_FLAGS_ATOMIC_CSWAP    0x8000
++
++/* btl can support atomic operations. the btl will indicate which operations
++ * are supported in the btl_atomic_flags field */
++#define MCA_BTL_FLAGS_ATOMIC_OPS      0x10000
++
++
+ /* Default exclusivity levels */
+ #define MCA_BTL_EXCLUSIVITY_HIGH     (64*1024) /* internal loopback */
+ #define MCA_BTL_EXCLUSIVITY_DEFAULT  1024      /* GM/IB/etc. */
+@@ -222,6 +230,34 @@ typedef uint8_t mca_btl_base_tag_t;
+ #define MCA_BTL_ERROR_FLAGS_ADD_CUDA_IPC 0x4
+ 
+ /**
++ * @short atomic operations that may be used with a btl that supports atomic
++ *        operations.
++ */
++enum mca_btl_base_atomic_op_t {
++    /** atomic signed addition */
++    MCA_BTL_BASE_ATOMIC_ADD,
++    /** atomic bit-wise and */
++    MCA_BTL_BASE_ATOMIC_AND,
++    /** atomic bit-wise or */
++    MCA_BTL_BASE_ATOMIC_OR,
++    /** atomic bit-wise exlusive or */
++    MCA_BTL_BASE_ATOMIC_XOR,
++    /** not a valid atomic operation */
++    MCA_BTL_BASE_ATOMIC_MAX,
++};
++
++typedef enum mca_btl_base_atomic_op_t mca_btl_base_atomic_op_t;
++
++/* atomic operations supported by the btl */
++enum mca_btl_base_atomic_flag_t {
++    MCA_BTL_ATOMIC_FLAG_ADD = 0x01,
++    MCA_BTL_ATOMIC_FLAG_AND = 0x02,
++    MCA_BTL_ATOMIC_FLAG_OR  = 0x04,
++    MCA_BTL_ATOMIC_FLAG_XOR = 0x08,
++    MCA_BTL_ATOMIC_FLAG_ALL = 0x0f,
++};
++
++/**
+  * Asynchronous callback function on completion of an operation.
+  * Completion Semantics: The descriptor can be reused or returned to the 
+  *  BTL via mca_btl_base_module_free_fn_t. The operation has been queued to
+@@ -661,6 +697,39 @@ typedef struct mca_btl_base_descriptor_t* (*mca_btl_base_module_prepare_fn_t)(
+     uint32_t flags
+ );
+ 
++
++/**
++ * Prepare a descriptor for put/get/atomics using the supplied
++ * pointer.
++ *
++ * The descriptor returned can be used in multiple concurrent operations 
++ * (send/put/get) unless the BTL has the MCA_BTL_FLAGS_RDMA_MATCHED flag set 
++ * in which case a corresponding prepare call must accompany the put/get call
++ * in addition, the address and length that is put/get must match the address 
++ * and length which is prepared.
++ *
++ * The order tag value ensures that operations on the 
++ * descriptor that is prepared will be ordered w.r.t. a previous
++ * operation on a particular descriptor. Ordering is only guaranteed if 
++ * the previous descriptor had its local completion callback function 
++ * called and the order tag of that descriptor is only valid upon the local 
++ * completion callback function.
++ *
++ * @param btl (IN)          BTL module
++ * @param base (IN)         Base address of tegion to prepare
++ * @param len (IN)          Length of region to prepare
++ * @param flags (IN)        BTL descriptor flags
++ *
++ * Note that the base and length may be adjusted to fit the alignment requirements
++ * of the underlying API. It is acceptable to modify the returned fragment to
++ * use a different base and length as long as the new base and length fall into
++ * the prepared region.
++ *
++ */
++
++typedef struct mca_btl_base_descriptor_t* (*mca_btl_base_module_prepare_rdma_fn_t)(
++    struct mca_btl_base_module_t* btl, void *base, size_t len, uint32_t flags);
++
+ /**
+  * Initiate an asynchronous send.
+  * Completion Semantics: the descriptor has been queued for a send operation
+@@ -796,6 +865,97 @@ typedef void (*mca_btl_base_module_dump_fn_t)(
+ );
+ 
+ /**
++ * @short perform a 64-bit atomic operation with put semantics
++ *
++ * @param[in] btl      BTL module
++ * @param[in] endpoint BTL endpoint
++ * @param[in] rem_ptr  Remote pointer value
++ * @param[in] rem_seg  Remote segment
++ * @param[in] operand  64-bit operand to the atomic operation
++ * @param[in] op       BTL atomic operation to execute
++ * @param[in] cbfunc   Function to call when the operation completes (may be NULL).
++ *
++ * When the operation completes the atomic operation will be visible in the target
++ * memory. The implementation may be either blocking or non-blocking. If the
++ * operation is complete this functions will return 1. Otherwise the provided callback
++ * will be called on completion.
++ */
++typedef int (*mca_btl_base_module_aop_fn_t) (struct mca_btl_base_module_t *btl,
++                                             struct mca_btl_base_endpoint_t *endpoint,
++                                             ompi_ptr_t rem_ptr,
++                                             struct mca_btl_base_segment_t *rem_seg,
++                                             int64_t operand,
++                                             mca_btl_base_atomic_op_t op,
++                                             mca_btl_base_completion_fn_t cbfunc,
++                                             void *cbdata);
++
++/**
++ * @short perform a 64-bit atomic operation with get semantics
++ *
++ * @param[in] btl        BTL module
++ * @param[in] endpoint   BTL endpoint
++ * @param[in] rem_ptr    Remote pointer value
++ * @param[in] rem_seg    Remote segment
++ * @param[in] result_ptr Location to store the result in
++ * @param[in] result_seg Local segment for the result
++ * @param[in] operand    64-bit operand to the atomic operation
++ * @param[in] op         BTL atomic operation to execute
++ * @param[in] cbfunc     Function to call when the operation completes (may be NULL).
++ *
++ * This function executes an atomic operation with get semantics. When the operation
++ * is complete the result of the operation is visible in the target memory and the
++ * previous value is visible in {result_ptr}. {result_ptr} must be a pointer within
++ * the descriptor {result_des} and {rem_ptr} must be a pointer within {rem_des}. The
++ * BTL may provide either blocking or non-blocking semantics. If the operation is
++ * complete upon return this function returns 1. Otherwise the provided callback
++ * will be called on completion.
++ */
++typedef int (*mca_btl_base_module_afop_fn_t) (struct mca_btl_base_module_t *btl,
++                                              struct mca_btl_base_endpoint_t *endpoint,
++                                              ompi_ptr_t rem_ptr,
++                                              struct mca_btl_base_segment_t *rem_seg,
++                                              ompi_ptr_t result_ptr,
++                                              struct mca_btl_base_segment_t *result_seg,
++                                              int64_t operand,
++                                              mca_btl_base_atomic_op_t op,
++                                              mca_btl_base_completion_fn_t cbfunc,
++                                              void *cbdata);
++
++/**
++ * @short perform a 64-bit compare-and-swap operation
++ *
++ * @param[in] btl              BTL module
++ * @param[in] endpoint         BTL endpoint
++ * @param[in] rem_ptr          Remote pointer value
++ * @param[in] rem_seg          Remote segment
++ * @param[in] result_ptr       Location to store the result in
++ * @param[in] result_seg       Local segment for the result
++ * @param[in] compare_operand  64-bit operand to compare with
++ * @param[in] swap_operand     64-but operand to swap in
++ * @param[in] cbfunc           Function to call when the operation completes (may
++ *                             be NULL).
++ *
++ * This function executes an atomic operation with get semantics. When the operation
++ * is complete the result of the operation is visible in the target memory and the
++ * previous value is visible in {result_ptr}. {result_ptr} must be a pointer within
++ * the descriptor {result_des} and {rem_ptr} must be a pointer within {rem_des}. The
++ * BTL may provide either blocking or non-blocking versions of this function. If the
++ * operation is complete upon return this functions returns 1. Otherwise the function
++ * returns OMPI_SUCCESS and the provided callback will be called on completion.
++ */
++typedef int (*mca_btl_base_module_acswap_fn_t) (struct mca_btl_base_module_t *btl,
++                                                struct mca_btl_base_endpoint_t *endpoint,
++                                                ompi_ptr_t rem_ptr,
++                                                struct mca_btl_base_segment_t *rem_seg,
++                                                ompi_ptr_t result_ptr,
++                                                struct mca_btl_base_segment_t *result_seg,
++                                                int64_t compare_operand,
++                                                int64_t swap_operand,
++                                                mca_btl_base_completion_fn_t cbfunc,
++                                                void *cbdata);
++
++
++/**
+  * Fault Tolerance Event Notification Function
+  * @param state Checkpoint Status
+  * @return OMPI_SUCCESS or failure status
+@@ -815,10 +975,12 @@ struct mca_btl_base_module_t {
+     size_t      btl_rdma_pipeline_send_length; /**< amount of bytes that should be send by pipeline protocol */
+     size_t      btl_rdma_pipeline_frag_size; /**< maximum rdma fragment size supported by the BTL */
+     size_t      btl_min_rdma_pipeline_size; /**< minimum packet size for pipeline protocol  */
++    size_t      btl_max_inline_size;  /**< maxium size recommended for the btl_sendi function */
+     uint32_t    btl_exclusivity;      /**< indicates this BTL should be used exclusively */
+     uint32_t    btl_latency;          /**< relative ranking of latency used to prioritize btls */
+     uint32_t    btl_bandwidth;        /**< bandwidth (Mbytes/sec) supported by each endpoint */
+     uint32_t    btl_flags;            /**< flags (put/get...) */
++    uint32_t    btl_atomic_flags;     /**< supported atomic operations */
+     size_t      btl_seg_size;         /**< size of a btl segment */
+ 
+     /* BTL function table */
+@@ -831,11 +993,16 @@ struct mca_btl_base_module_t {
+     mca_btl_base_module_free_fn_t           btl_free;
+     mca_btl_base_module_prepare_fn_t        btl_prepare_src;
+     mca_btl_base_module_prepare_fn_t        btl_prepare_dst;
++    mca_btl_base_module_prepare_rdma_fn_t   btl_prepare_rdma;
+     mca_btl_base_module_send_fn_t           btl_send;
+     mca_btl_base_module_sendi_fn_t          btl_sendi;
+     mca_btl_base_module_put_fn_t            btl_put;
+     mca_btl_base_module_get_fn_t            btl_get;
+-    mca_btl_base_module_dump_fn_t           btl_dump; 
++    mca_btl_base_module_dump_fn_t           btl_dump;
++
++    mca_btl_base_module_aop_fn_t            btl_aop;
++    mca_btl_base_module_afop_fn_t           btl_afop;
++    mca_btl_base_module_acswap_fn_t         btl_acswap;
+    
+     /** the mpool associated with this btl (optional) */ 
+     mca_mpool_base_module_t*             btl_mpool; 
+@@ -853,9 +1020,12 @@ typedef struct mca_btl_base_module_t mca_btl_base_module_t;
+ /*
+  * Macro for use in modules that are of type btl v2.0.1
+  */
+-#define MCA_BTL_BASE_VERSION_2_0_0 \
+-  MCA_BASE_VERSION_2_0_0, \
+-  "btl", 2, 0, 0
++#define MCA_BTL_BASE_VERSION_3_0_0              \
++    MCA_BASE_VERSION_2_0_0,                     \
++    .mca_type_name = "btl",                     \
++    .mca_type_major_version = 3,                \
++    .mca_type_minor_version = 0,                \
++    .mca_type_release_version = 0
+ 
+ END_C_DECLS
+ 
+diff --git a/ompi/mca/btl/portals4/btl_portals4_component.c b/ompi/mca/btl/portals4/btl_portals4_component.c
+index 4249655..feee7bc 100644
+--- a/ompi/mca/btl/portals4/btl_portals4_component.c
++++ b/ompi/mca/btl/portals4/btl_portals4_component.c
+@@ -43,7 +43,7 @@ mca_btl_portals4_component_t mca_btl_portals4_component = {
+       /* First, the mca_base_module_t struct containing meta
+          information about the module itself */
+       {
+-        MCA_BTL_BASE_VERSION_2_0_0,
++        MCA_BTL_BASE_VERSION_3_0_0,
+ 
+         "portals4", /* MCA module name */
+         OMPI_MAJOR_VERSION,  /* MCA module major version */
+diff --git a/ompi/mca/btl/scif/btl_scif_component.c b/ompi/mca/btl/scif/btl_scif_component.c
+index 559f822..92e9e81 100644
+--- a/ompi/mca/btl/scif/btl_scif_component.c
++++ b/ompi/mca/btl/scif/btl_scif_component.c
+@@ -32,7 +32,7 @@ mca_btl_scif_component_t mca_btl_scif_component = {
+            about the component itself */
+ 
+         .btl_version = {
+-            MCA_BTL_BASE_VERSION_2_0_0,
++            MCA_BTL_BASE_VERSION_3_0_0,
+ 
+             .mca_component_name = "scif",
+             .mca_component_major_version = OMPI_MAJOR_VERSION,
+diff --git a/ompi/mca/btl/self/btl_self_component.c b/ompi/mca/btl/self/btl_self_component.c
+index 3550184..d515f36 100644
+--- a/ompi/mca/btl/self/btl_self_component.c
++++ b/ompi/mca/btl/self/btl_self_component.c
+@@ -44,7 +44,7 @@ mca_btl_self_component_t mca_btl_self_component = {
+         /* First, the mca_base_component_t struct containing meta information
+           about the component itself */
+         {
+-            MCA_BTL_BASE_VERSION_2_0_0,
++            MCA_BTL_BASE_VERSION_3_0_0,
+ 
+             "self", /* MCA component name */
+             OMPI_MAJOR_VERSION,  /* MCA component major version */
+diff --git a/ompi/mca/btl/sm/btl_sm_component.c b/ompi/mca/btl/sm/btl_sm_component.c
+index 6c1652c..9733059 100644
+--- a/ompi/mca/btl/sm/btl_sm_component.c
++++ b/ompi/mca/btl/sm/btl_sm_component.c
+@@ -85,7 +85,7 @@ mca_btl_sm_component_t mca_btl_sm_component = {
+         /* First, the mca_base_component_t struct containing meta information
+           about the component itself */
+         {
+-            MCA_BTL_BASE_VERSION_2_0_0,
++            MCA_BTL_BASE_VERSION_3_0_0,
+ 
+             "sm", /* MCA component name */
+             OMPI_MAJOR_VERSION,  /* MCA component major version */
+diff --git a/ompi/mca/btl/smcuda/btl_smcuda_component.c b/ompi/mca/btl/smcuda/btl_smcuda_component.c
+index 9bf2508..155790d 100644
+--- a/ompi/mca/btl/smcuda/btl_smcuda_component.c
++++ b/ompi/mca/btl/smcuda/btl_smcuda_component.c
+@@ -88,7 +88,7 @@ mca_btl_smcuda_component_t mca_btl_smcuda_component = {
+         /* First, the mca_base_component_t struct containing meta information
+           about the component itself */
+         {
+-            MCA_BTL_BASE_VERSION_2_0_0,
++            MCA_BTL_BASE_VERSION_3_0_0,
+ 
+             "smcuda", /* MCA component name */
+             OMPI_MAJOR_VERSION,  /* MCA component major version */
+diff --git a/ompi/mca/btl/tcp/btl_tcp_component.c b/ompi/mca/btl/tcp/btl_tcp_component.c
+index 4934346..288acbb 100644
+--- a/ompi/mca/btl/tcp/btl_tcp_component.c
++++ b/ompi/mca/btl/tcp/btl_tcp_component.c
+@@ -90,7 +90,7 @@ mca_btl_tcp_component_t mca_btl_tcp_component = {
+            about the component itself */
+ 
+         {
+-            MCA_BTL_BASE_VERSION_2_0_0,
++            MCA_BTL_BASE_VERSION_3_0_0,
+ 
+             "tcp", /* MCA component name */
+             OMPI_MAJOR_VERSION,  /* MCA component major version */
+diff --git a/ompi/mca/btl/ugni/btl_ugni_component.c b/ompi/mca/btl/ugni/btl_ugni_component.c
+index 2464aeb..9e92c76 100644
+--- a/ompi/mca/btl/ugni/btl_ugni_component.c
++++ b/ompi/mca/btl/ugni/btl_ugni_component.c
+@@ -32,7 +32,7 @@ mca_btl_ugni_component_t mca_btl_ugni_component = {
+         /* First, the mca_base_component_t struct containing meta information
+            about the component itself */
+         .btl_version = {
+-            MCA_BTL_BASE_VERSION_2_0_0,
++            MCA_BTL_BASE_VERSION_3_0_0,
+ 
+             .mca_component_name = "ugni",
+             .mca_component_major_version = OMPI_MAJOR_VERSION,
+diff --git a/ompi/mca/btl/usnic/btl_usnic_component.c b/ompi/mca/btl/usnic/btl_usnic_component.c
+index 6ffc8f2..1341ec0 100644
+--- a/ompi/mca/btl/usnic/btl_usnic_component.c
++++ b/ompi/mca/btl/usnic/btl_usnic_component.c
+@@ -133,7 +133,7 @@ ompi_btl_usnic_component_t mca_btl_usnic_component = {
+         /* First, the mca_base_component_t struct containing meta information
+            about the component itself */
+         {
+-            MCA_BTL_BASE_VERSION_2_0_0,
++            MCA_BTL_BASE_VERSION_3_0_0,
+ 
+             "usnic", /* MCA component name */
+             OMPI_MAJOR_VERSION,  /* MCA component major version */
+diff --git a/ompi/mca/btl/vader/Makefile.am b/ompi/mca/btl/vader/Makefile.am
+index d47ca83..b799005 100644
+--- a/ompi/mca/btl/vader/Makefile.am
++++ b/ompi/mca/btl/vader/Makefile.am
+@@ -37,7 +37,8 @@ libmca_btl_vader_la_sources = \
+     btl_vader_get.c \
+     btl_vader_put.c \
+     btl_vader_xpmem.c \
+-    btl_vader_xpmem.h
++    btl_vader_xpmem.h \
++    btl_vader_atomic.c
+ 
+ # Make the output library in this directory, and name it either
+ # mca_<type>_<name>.la (for DSO builds) or libmca_<type>_<name>.la
+diff --git a/ompi/mca/btl/vader/btl_vader.h b/ompi/mca/btl/vader/btl_vader.h
+index 19a650e..f1df7ad 100644
+--- a/ompi/mca/btl/vader/btl_vader.h
++++ b/ompi/mca/btl/vader/btl_vader.h
+@@ -226,6 +226,36 @@ mca_btl_base_descriptor_t* mca_btl_vader_alloc (struct mca_btl_base_module_t* bt
+                                                 struct mca_btl_base_endpoint_t* endpoint,
+                                                 uint8_t order, size_t size, uint32_t flags);
+ 
++
++/**
++ * Execute an atomic operation
++ *
++ * @param[in] btl       BTL module
++ * @param[in] endpoint  BTL endpoint
++ * @param[in] rem_ptr   Remote pointer to perform the operation on
++ * @param[in] rem_seg   Remote segment rem_ptr belongs to
++ * @param[in] operand   Operation operand
++ * @param[in] op        Operation to execute
++ * @param[in] cbfunc    Callback function to call when complete (ignored)
++ * @param[in] cbdata    Callback function data (ignored)
++ *
++ * This function will always return 1 if the operation was successful so
++ * will never need to call the callback.
++ */
++int mca_btl_vader_aop (struct mca_btl_base_module_t *btl, struct mca_btl_base_endpoint_t *endpoint,
++                       ompi_ptr_t rem_ptr, mca_btl_base_segment_t *rem_seg, int64_t operand,
++                       mca_btl_base_atomic_op_t op, mca_btl_base_completion_fn_t cbfunc, void *cbdata);
++
++int mca_btl_vader_afop (struct mca_btl_base_module_t *btl, struct mca_btl_base_endpoint_t *endpoint,
++                        ompi_ptr_t rem_ptr, mca_btl_base_segment_t *rem_seg, ompi_ptr_t result_ptr,
++                        mca_btl_base_segment_t *result_seg, int64_t operand, mca_btl_base_atomic_op_t op,
++                        mca_btl_base_completion_fn_t cbfunc, void *cbdata);
++
++int mca_btl_vader_acswap (struct mca_btl_base_module_t *btl, struct mca_btl_base_endpoint_t *endpoint,
++                          ompi_ptr_t rem_ptr, mca_btl_base_segment_t *rem_seg, ompi_ptr_t result_ptr,
++                          mca_btl_base_segment_t *result_seg, int64_t compare_operand, int64_t swap_operand,
++                          mca_btl_base_completion_fn_t cbfunc, void *cbdata);
++
+ END_C_DECLS
+ 
+ #endif
+diff --git a/ompi/mca/btl/vader/btl_vader_atomic.c b/ompi/mca/btl/vader/btl_vader_atomic.c
+new file mode 100644
+index 0000000..af6f379
+--- /dev/null
++++ b/ompi/mca/btl/vader/btl_vader_atomic.c
+@@ -0,0 +1,105 @@
++/* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
++/*
++ * Copyright (c) 2010-2014 Los Alamos National Security, LLC.
++ *                         All rights reserved.
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++
++#include "btl_vader.h"
++#include "btl_vader_xpmem.h"
++
++#if OMPI_BTL_VADER_HAVE_XPMEM
++int mca_btl_vader_aop (struct mca_btl_base_module_t *btl, struct mca_btl_base_endpoint_t *endpoint,
++                       ompi_ptr_t rem_ptr, mca_btl_base_segment_t *rem_seg, int64_t operand,
++                       mca_btl_base_atomic_op_t op, mca_btl_base_completion_fn_t cbfunc, void *cbdata)
++{
++    int64_t dummy;
++    ompi_ptr_t dummy_ptr = {.lval = (uintptr_t) &dummy};
++
++    return mca_btl_vader_afop (btl, endpoint, rem_ptr, rem_seg, dummy_ptr, NULL, operand, op, NULL, NULL);
++}
++
++int mca_btl_vader_afop (struct mca_btl_base_module_t *btl, struct mca_btl_base_endpoint_t *endpoint,
++                        ompi_ptr_t rem_ptr, mca_btl_base_segment_t *rem_seg, ompi_ptr_t result_ptr,
++                        mca_btl_base_segment_t *result_seg, int64_t operand, mca_btl_base_atomic_op_t op,
++                        mca_btl_base_completion_fn_t cbfunc, void *cbdata)
++{
++    mca_mpool_base_registration_t *reg;
++    ptrdiff_t offset;
++    char *base_ptr;
++    int ret = 1;
++
++    offset = rem_ptr.lval - rem_seg->seg_addr.lval;
++
++    /* range check */
++    if (OPAL_UNLIKELY((size_t) offset > (rem_seg->seg_len - 8))) {
++        return OMPI_ERR_VALUE_OUT_OF_BOUNDS;
++    }
++
++    /* NTH: TODO -- implement more atomics if needed. Add is enough to
++     * correctly implement locks for RMA */
++    if (OPAL_UNLIKELY(MCA_BTL_BASE_ATOMIC_ADD != op)) {
++        return OMPI_ERR_NOT_SUPPORTED;
++    }
++
++    reg = vader_get_registation (endpoint, rem_seg->seg_addr.pval, rem_seg->seg_len, 0, (void **) &base_ptr);
++    if (OPAL_UNLIKELY(NULL == reg)) {
++        return OMPI_ERROR;
++    }
++
++    base_ptr += offset;
++
++    opal_atomic_mb ();
++
++    ((int64_t *) result_ptr.pval)[0] = opal_atomic_add_64 ((int64_t *) base_ptr, operand) - operand;
++
++    opal_atomic_mb ();
++
++    vader_return_registration (reg, endpoint);
++
++    /* ignore the callback as it is not needed for shared memory */
++
++    return ret;
++}
++
++int mca_btl_vader_acswap (struct mca_btl_base_module_t *btl, struct mca_btl_base_endpoint_t *endpoint,
++                          ompi_ptr_t rem_ptr, mca_btl_base_segment_t *rem_seg, ompi_ptr_t result_ptr,
++                          mca_btl_base_segment_t *result_seg, int64_t compare_operand, int64_t swap_operand,
++                          mca_btl_base_completion_fn_t cbfunc, void *cbdata)
++{
++    mca_mpool_base_registration_t *reg;
++    ptrdiff_t offset;
++    char *base_ptr;
++    int ret = 1;
++
++    offset = rem_ptr.lval - rem_seg->seg_addr.lval;
++
++    /* range check */
++    if (OPAL_UNLIKELY((size_t) offset > (rem_seg->seg_len - 8))) {
++        return OMPI_ERR_VALUE_OUT_OF_BOUNDS;
++    }
++
++    reg = vader_get_registation (endpoint, rem_seg->seg_addr.pval, rem_seg->seg_len, 0, (void **) &base_ptr);
++    if (OPAL_UNLIKELY(NULL == reg)) {
++        return OMPI_ERROR;
++    }
++
++    base_ptr += offset;
++
++    opal_atomic_mb ();
++
++    ((int64_t *) result_ptr.pval)[0] = opal_atomic_cmpset_64 ((int64_t *) base_ptr, compare_operand, swap_operand);
++
++    opal_atomic_mb ();
++
++    vader_return_registration (reg, endpoint);
++
++    /* ignore the callback as it is not needed for shared memory */
++
++    return ret;
++}
++#endif
+diff --git a/ompi/mca/btl/vader/btl_vader_component.c b/ompi/mca/btl/vader/btl_vader_component.c
+index 08794e0..ac9e44a 100644
+--- a/ompi/mca/btl/vader/btl_vader_component.c
++++ b/ompi/mca/btl/vader/btl_vader_component.c
+@@ -51,7 +51,7 @@ mca_btl_vader_component_t mca_btl_vader_component = {
+         /* First, the mca_base_component_t struct containing meta information
+            about the component itself */
+         .btl_version = {
+-            MCA_BTL_BASE_VERSION_2_0_0,
++            MCA_BTL_BASE_VERSION_3_0_0,
+ 
+             .mca_component_name = "vader",
+             .mca_component_major_version = OMPI_MAJOR_VERSION,
+@@ -166,6 +166,11 @@ static int mca_btl_vader_component_register (void)
+     mca_btl_vader.super.btl_flags     = MCA_BTL_FLAGS_SEND_INPLACE;
+ #endif
+ 
++#if OMPI_BTL_VADER_HAVE_XPMEM
++    mca_btl_vader.super.btl_flags    |= MCA_BTL_FLAGS_ATOMIC_CSWAP | MCA_BTL_FLAGS_ATOMIC_OPS;
++    mca_btl_vader.super.btl_atomic_flags = MCA_BTL_ATOMIC_FLAG_ADD;
++#endif
++
+     mca_btl_vader.super.btl_seg_size  = sizeof (mca_btl_base_segment_t);
+ #if OMPI_BTL_VADER_HAVE_XPMEM || OMPI_BTL_VADER_HAVE_CMA
+     mca_btl_vader.super.btl_bandwidth = 40000; /* Mbs */
+diff --git a/ompi/mca/btl/vader/btl_vader_module.c b/ompi/mca/btl/vader/btl_vader_module.c
+index b52b188..b355be0 100644
+--- a/ompi/mca/btl/vader/btl_vader_module.c
++++ b/ompi/mca/btl/vader/btl_vader_module.c
+@@ -89,6 +89,9 @@ mca_btl_vader_t mca_btl_vader = {
+ #endif
+ 
+         .btl_dump = mca_btl_base_dump,
++        .btl_aop = mca_btl_vader_aop,
++        .btl_afop = mca_btl_vader_afop,
++        .btl_acswap = mca_btl_vader_acswap,
+         .btl_register_error = vader_register_error_cb,
+         .btl_ft_event = vader_ft_event
+     }
+

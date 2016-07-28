@@ -1,0 +1,114 @@
+when bind-to-socket is asked for, do not unconditionally leave if we are running on a single socket node
+
+diff -r 0b851b2e7934 orte/mca/odls/default/help-odls-default.txt
+--- a/orte/mca/odls/default/help-odls-default.txt	Thu Mar 18 16:10:25 2010 +0100
++++ b/orte/mca/odls/default/help-odls-default.txt	Tue Apr 13 13:40:12 2010 +0200
+@@ -130,3 +130,13 @@ binding action:
+   Application name:  %s
+ 
+ Please revise the request and try again.
++#
++[odls-default:warn-not-bound-to-socket]
++A request to bind the processes to a socket was made, but the local host
++only contains a single socket.
++This will result in the processes being unbound.
++Continuing anyway.
++
++  Local host:        %s
++  Action requested:  %s
++  Application name:  %s
+diff -r 0b851b2e7934 orte/mca/odls/default/odls_default.h
+--- a/orte/mca/odls/default/odls_default.h	Thu Mar 18 16:10:25 2010 +0100
++++ b/orte/mca/odls/default/odls_default.h	Tue Apr 13 13:40:12 2010 +0200
+@@ -36,6 +36,7 @@ BEGIN_C_DECLS
+ int orte_odls_default_component_open(void);
+ int orte_odls_default_component_close(void);
+ int orte_odls_default_component_query(mca_base_module_t **module, int *priority);
++int orte_odls_default_component_register(void);
+ 
+ /*
+  * ODLS Default module
+@@ -46,6 +47,8 @@ ORTE_MODULE_DECLSPEC extern orte_odls_ba
+ /* dedicated debug output flag */
+ ORTE_MODULE_DECLSPEC extern bool orte_odls_default_report_bindings;
+ 
++ORTE_DECLSPEC extern bool orte_odls_default_warn_if_not_bound;
++
+ END_C_DECLS
+ 
+ #endif /* ORTE_ODLS_H */
+diff -r 0b851b2e7934 orte/mca/odls/default/odls_default_component.c
+--- a/orte/mca/odls/default/odls_default_component.c	Thu Mar 18 16:10:25 2010 +0100
++++ b/orte/mca/odls/default/odls_default_component.c	Tue Apr 13 13:40:12 2010 +0200
+@@ -31,12 +31,17 @@
+ #endif
+ #include <ctype.h>
+ 
++#include "opal/mca/mca.h"
++#include "opal/mca/base/base.h"
++#include "opal/mca/base/mca_base_param.h"
++
+ #include "orte/mca/odls/odls.h"
+ #include "orte/mca/odls/base/odls_private.h"
+ #include "orte/mca/odls/default/odls_default.h"
+ 
+ /* instantiate a module-global variable */
+ bool orte_odls_default_report_bindings;
++bool orte_odls_default_warn_if_not_bound;
+ 
+ /*
+  * Instantiate the public struct with all of our public information
+@@ -57,7 +62,8 @@ orte_odls_base_component_t mca_odls_defa
+         /* Component open and close functions */
+         orte_odls_default_component_open,
+         orte_odls_default_component_close,
+-        orte_odls_default_component_query
++        orte_odls_default_component_query,
++        orte_odls_default_component_register
+     },
+     {
+         /* The component is checkpoint ready */
+@@ -72,6 +78,17 @@ int orte_odls_default_component_open(voi
+     return ORTE_SUCCESS;
+ }
+ 
++int orte_odls_default_component_register(void)
++{
++    mca_base_param_reg_int(&mca_odls_default_component.version,
++                           "warn_if_not_bound",
++                           "If nonzero, issue a warning if the program asked "
++                           "for a binding that results in a no-op (ex: "
++                           "bind-to-socket on a single socket node)",
++                           false, false, 1,
++                           &orte_odls_default_warn_if_not_bound);
++    return ORTE_SUCCESS;
++}
+ 
+ int orte_odls_default_component_query(mca_base_module_t **module, int *priority)
+ {
+diff -r 0b851b2e7934 orte/mca/odls/default/odls_default_module.c
+--- a/orte/mca/odls/default/odls_default_module.c	Thu Mar 18 16:10:25 2010 +0100
++++ b/orte/mca/odls/default/odls_default_module.c	Tue Apr 13 13:40:12 2010 +0200
+@@ -750,9 +750,19 @@ static int odls_default_fork_local_proc(
+                 /* if we did not bind it anywhere, then that is an error */
+                 OPAL_PAFFINITY_PROCESS_IS_BOUND(mask, &bound);
+                 if (!bound) {
+-                    orte_show_help("help-odls-default.txt",
+-                                   "odls-default:could-not-bind-to-socket", true);
+-                    ORTE_ODLS_ERROR_OUT(ORTE_ERR_FATAL);
++                    if (orte_odls_globals.bound) {
++                        orte_show_help("help-odls-default.txt",
++                                       "odls-default:could-not-bind-to-socket", true);
++                        ORTE_ODLS_ERROR_OUT(ORTE_ERR_FATAL);
++                    } else {
++                        if (orte_odls_default_warn_if_not_bound) {
++                            orte_show_help("help-odls-default.txt",
++                                           "odls-default:warn-not-bound-to-socket",
++                                           true,
++                                           orte_process_info.nodename,
++                                           "bind-to-core", context->app);
++                        }
++                    }
+                 }
+                 if (orte_report_bindings) {
+                     opal_output(0, "%s odls:default:fork binding child %s to socket %d cpus %04lx",

@@ -1,0 +1,64 @@
+Environment:
+
+Open MPI version : openmpi-1.5.3
+108 Node cluster. All machines are 2-way SMPs with AMD Opteron 6128 (Magny Core) processors with 8 cores per socket (16 cores per node)
+CentOS 5 Linux x86_64
+Infiniband interconnect
+
+
+Error scenario:
+
+
+1. Run a MPI application with checkpoint-restart enabled
+       mpirun -n 144 -am ft-enable-cr ~/mpiexample
+
+   Using pbs, I allocated 9 hosts with 16 slots each.
+   
+
+2. Checkpoint the mpi task using
+	ompi-checkpoint <pid of mpirun>
+
+   This gives a snapshot reference, example - ompi_global_snapshot_31745.ckpt
+
+3. Restart using the above checkpoint as
+ 
+   ompi-restart ompi_global_snapshot_31745.ckpt
+
+
+Output:
+
+Running ompi-restart gives error,
+	
+[compute-0-70:01035] *** Process received signal ***
+[compute-0-70:01035] Signal: Segmentation fault (11)
+[compute-0-70:01035] Signal code: Invalid permissions (2)
+[compute-0-70:01035] Failing at address: 0x2b54efecd0d0
+[compute-0-70:01035] [ 0] /lib64/libpthread.so.0 [0x327de0eb10]
+[compute-0-70:01035] [ 1] /usr/mpi/gcc/openmpi-1.5.1/lib64/libopen-rte.so.1(orte_odls_base_default_construct_child_list+0x64b) [0x2b54edbc0b4b]
+[compute-0-70:01035] [ 2] /usr/mpi/gcc/openmpi-1.5.1/lib64/openmpi/mca_odls_default.so [0x2b54ef6a4b6f]
+[compute-0-70:01035] [ 3] /usr/mpi/gcc/openmpi-1.5.1/lib64/libopen-rte.so.1 [0x2b54edbafb44]
+[compute-0-70:01035] [ 4] /usr/mpi/gcc/openmpi-1.5.1/lib64/libopen-rte.so.1(orte_daemon_cmd_processor+0x495) [0x2b54edbb2075]
+[compute-0-70:01035] [ 5] /usr/mpi/gcc/openmpi-1.5.1/lib64/libopen-rte.so.1 [0x2b54edbeb93e]
+[compute-0-70:01035] [ 6] /usr/mpi/gcc/openmpi-1.5.1/lib64/libopen-rte.so.1(orte_daemon+0xb3f) [0x2b54edbadeaf]
+[compute-0-70:01035] [ 7] orted [0x400899]
+[compute-0-70:01035] [ 8] /lib64/libc.so.6(__libc_start_main+0xf4) [0x327d61d994]
+[compute-0-70:01035] [ 9] orted [0x400789]
+[compute-0-70:01035] *** End of error message ***
+
+
+Changes required in code :
+
+The reason for the error is that variables of type int8_t or uint8_t are used to hold unique integer ids assigned to each process which is being restarted(total 144 processes in above case). This causes the variables to overflow, and when used as array indexes lead to invalid memory.	reference. uint8_t variables are wrapped back to 0 when number of processes > 256
+
+Following are the places which need to be changed, all them them are 
+
+1. Member idx of struct orte_app_context_t may be assigned to values exceeding range of idx(int8_t). This requires increasing the size of member idx of the structure defined in orte/runtime/orte_globals.h
+Example can be found in file orte/tools/orterun/orterun.c:parse_local() where member idx of struct variable app (declared as orte_app_context_t *app) may overflow. 
+
+2. Similar change is required in member app_idx of struct orte_proc_t defined in orte/runtime/orte_globals.h
+
+3. Few local variables used in orte/mca/odls/base/odls_base_default_fns.c. They hold the values from the member variables mentioned in the above lines.
+
+
+I have implemented and tested the changes in the code. I have increased the size of variables from int8_t/uint8_t to int16_t/uint16_t. Ideally it would be desirable to have a special typedef for these kind of variables. But I am not sure which is the right place to include it.
+I have generated 2 patch files corresponding to the 2 files which need to be changed. I request the community to review them and incorporate them in the code in an appropriate way.

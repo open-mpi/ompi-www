@@ -1,0 +1,92 @@
+Actually I will be interested in this discussion.<br><br><div><span class="gmail_quote">On 9/5/08, <b class="gmail_sendername">Jeff Squyres</b> &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:</span><blockquote class="gmail_quote" style="margin:0;margin-left:0.8ex;border-left:1px #ccc solid;padding-left:1ex">
+For the mailing list...<br>
+<br>
+Note that we moved this conversation to a higher bandwidth (telephone). &nbsp;If others are interested, please let us know.<div><span class="e" id="q_11c339a225be2b8c_1"><br>
+<br>
+<br>
+On Sep 3, 2008, at 1:21 AM, Eugene Loh wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Jeff Squyres wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I think even first-touch will make *the whole page* be local to the &nbsp;process that touches it.<br>
+</blockquote>
+<br>
+Right.<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+So if you have each process take N bytes &nbsp;(where N &lt;&lt; page_size), then the 0th process will make that whole page &nbsp;be local; it may be remote for others.<br>
+</blockquote>
+<br>
+I think I&#39;m not making myself clear. &nbsp;Read on...<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+*) You wouldn&#39;t need to control memory allocations with a lock &nbsp;(except for multithreaded apps). &nbsp;I haven&#39;t looked at this too &nbsp;closely yet, but the 3*n*n memory allocations in shared memory &nbsp;during MPI_Init are currently serialized, which sounds disturbing &nbsp;when n is 100 to 500 local processes.<br>
+
+</blockquote>
+<br>
+If I&#39;m understanding your proposal right, you&#39;re saying that each &nbsp;process would create its own shared memory space, right? &nbsp;Then any &nbsp;other process that wants to send to that process would mmap/shmattach/ whatever to the receiver&#39;s shared memory space. &nbsp;Right?<br>
+
+</blockquote>
+<br>
+I don&#39;t think it&#39;s necessary to have each process have its own segment. &nbsp;The OS manages the shared area on a per-page basis anyhow. &nbsp;All that&#39;s necessary is that there is an agreement up front about which pages will be local to which process. &nbsp;E.g., if there are P processes/processors and the shared area has M pages per process, then there will be P*M pages altogether. &nbsp;We&#39;ll say that the first M pages are local to process 0, then next m to process 1, etc. &nbsp;That is, process 0 will first-touch the first M pages, process 1 will first-touch the next M pages, etc. &nbsp;If an allocation needs to be local to process i, then process i will allocate it from its pages. &nbsp;Since only process i can allocate from these pages, it does not need any lock protection to keep other processes from allocating at the same time. &nbsp;And, since these pages have the proper locality, then small allocations can all share common pages (instead of having a separate page for each 12-byte or 64-byte allocation).<br>
+
+<br>
+Clearer? &nbsp;One shared memory region, partitioned equally among all processes. &nbsp;Each process first-touches its own pages to get the right locality. &nbsp;Each allocation made by the process to whom it should be local. &nbsp;Benefits include no multi-process locks and no need for page alignment of tiny allocations.<br>
+
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+The total amount of shared memory will likely not go down, because the &nbsp;OS will still likely allocate on a per-page basis, right?<br>
+</blockquote>
+<br>
+Total amount would go down significantly. &nbsp;Today, if you want to allocate 64 bytes on a page boundary, you allocate 64+pagesize, a 100x overhead. &nbsp;With what I&#39;m (evidently not so clearly) proposing is that we establish a policy about what memory will be local to whom. &nbsp;With that policy, we simply allocate our 64 bytes in the appropriate region. &nbsp;This eliminates the need for page alignment (page is already in the right place, shared by many allocations all of whom want to be there). &nbsp;You could still want cacheline alignment... that&#39;s fine.<br>
+
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+But per &nbsp;your 2nd point, would the resources required for each process to mmap/ shmattach/whatever 511 other process&#39; shared memory spaces be &nbsp;prohibitive?<br>
+</blockquote>
+<br>
+No need to have more shared memory segments. &nbsp;Just need a policy to say how your global space is partitioned.<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Graham, Richard L. wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I have not looked at the code in a long time, so not sure how many &nbsp;things have changed ... &nbsp;In general what you are suggesting is &nbsp;reasonable. &nbsp;However, especially on large machines you also need to &nbsp;worry about memory locality, so should allocate from memory pools &nbsp;that are appropriately located. &nbsp;I expect that memory allocated on &nbsp;a per-socket basis would do.<br>
+
+</blockquote>
+<br>
+Is this what &quot;maffinity&quot; and &quot;memory nodes&quot; are about? &nbsp;If so, I &nbsp;would think memory locality should be handled there rather than in &nbsp;page alignment of individual 12-byte and 64-byte allocations.<br>
+</blockquote>
+<br>
+maffinity was a first stab at memory affinity and is currently (and &nbsp;has been for a long, long time) no frills and didn&#39;t have a lot of &nbsp;thought put into it.<br>
+<br>
+I see the &quot;node id&quot; and &quot;bind&quot; functions in there; I think Gleb must &nbsp;have added them somewhere along the way. &nbsp;I&#39;m not sure how much &nbsp;thought was put into making those be truly generic functions (I see &nbsp;them implemented in libnuma, which AFAIK is Linux-specific). &nbsp;Does &nbsp;Solaris have memory affinity function calls?<br>
+
+</blockquote>
+<br>
+Yes, I believe so, though perhaps I don&#39;t understand your question.<br>
+<br>
+Things like mbind() and numa_setlocal_memory() are, I assume, Linux calls for placing some memory close to a process. &nbsp;I think the Solaris madvise() call does this: &nbsp;give a memory range and say something about how that memory should be placed -- e.g., the memory should be placed local to the next thread to touch that memory. &nbsp;Anyhow, I think the default policy is &quot;first touch&quot;, so one could always do that.<br>
+
+<br>
+I&#39;m not an expert on this stuff, but I just wanted to reassure you that Solaris supports NUMA programming. &nbsp;There are interfaces for discovering the NUMA topology of a machine (there is a hierarchy of &quot;locality groups&quot;, each containing CPUs and memory), for discovering in which locality group you are, for advising the VM system where you want memory placed, and for querying where certain memory is. &nbsp;I could do more homework on these matters if it&#39;d be helpful.<br>
+
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote>
+<br>
+<br></span></div><span class="sg">
+-- <br>
+Jeff Squyres<br>
+Cisco Systems</span><div><span class="e" id="q_11c339a225be2b8c_3"><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</span></div></blockquote></div><br>
+

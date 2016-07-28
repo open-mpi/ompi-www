@@ -1,0 +1,292 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Ralph,<br>
+    <br>
+    here is some more detailed information.<br>
+    <br>
+    <br>
+    from orte_ess_base_app_finalize()<br>
+    first orte_rml_base_close() is invoked(via
+    mca_base_framework_close(&amp;orte_rml_base_framework);<br>
+    and it does<br>
+        while (NULL != (item =
+    opal_list_remove_first(&amp;orte_rml_base.posted_recvs))) {<br>
+            OBJ_RELEASE(item);<br>
+        }<br>
+    then, opal_stop_progress_thread() is invoked<br>
+    <br>
+    that means that when orte_rml_base_close is invoked, the progress
+    thread is up and running,<br>
+    and can potentially invoke orte_rml_base_post_recv that does<br>
+    <br>
+        if (req-&gt;cancel) {<br>
+            OPAL_LIST_FOREACH(recv, &amp;orte_rml_base.posted_recvs,
+    orte_rml_posted_recv_t) {<br>
+                if (OPAL_EQUAL == orte_util_compare_name_fields(mask,
+    &amp;post-&gt;peer, &amp;recv-&gt;peer) &amp;&amp;<br>
+                    post-&gt;tag == recv-&gt;tag) {<br>
+                    opal_output_verbose(5,
+    orte_rml_base_framework.framework_output,<br>
+                                        "%s canceling recv %d for peer
+    %s",<br>
+                                       
+    ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),<br>
+                                        post-&gt;tag,
+    ORTE_NAME_PRINT(&amp;recv-&gt;peer));<br>
+                    /* got a match - remove it */<br>
+                   
+    opal_list_remove_item(&amp;orte_rml_base.posted_recvs,
+    &amp;recv-&gt;super);<br>
+                    OBJ_RELEASE(recv);<br>
+                    break;<br>
+                }<br>
+            }<br>
+            OBJ_RELEASE(req);<br>
+            return;<br>
+        }<br>
+    <br>
+    /* this is where the assert fails */<br>
+    <br>
+    since there is no lock, there is room for a race condition.<br>
+    <br>
+    <br>
+    before all that happen, and in orte_ess_base_app_finalize(), <br>
+    mca_base_framework_close(&amp;orte_grpcomm_base_framework) invokes
+    finalize from grpcomm_rcd.c<br>
+    that does<br>
+    orte_rml.recv_cancel(ORTE_NAME_WILDCARD, ORTE_RML_TAG_ALLGATHER_RCD)
+    that is<br>
+    orte_rml_oob_recv_cancel that ends up doing opal_event_set(...,
+    orte_rml_base_post_recv)<br>
+    <br>
+    <br>
+    my first and naive attempt was to stop the opal_async progress
+    thread before closing the rml_base framework:<br>
+    diff --git a/orte/mca/ess/base/ess_base_std_app.c
+    b/orte/mca/ess/base/ess_base_std_app.c<br>
+    index d3bc6e6..4e09b47 100644<br>
+    --- a/orte/mca/ess/base/ess_base_std_app.c<br>
+    +++ b/orte/mca/ess/base/ess_base_std_app.c<br>
+    @@ -353,18 +353,18 @@ int orte_ess_base_app_finalize(void)<br>
+         (void) mca_base_framework_close(&amp;orte_dfs_base_framework);<br>
+         (void)
+    mca_base_framework_close(&amp;orte_routed_base_framework);<br>
+     <br>
+    -    (void) mca_base_framework_close(&amp;orte_rml_base_framework);<br>
+    -    (void) mca_base_framework_close(&amp;orte_oob_base_framework);<br>
+    -    (void)
+    mca_base_framework_close(&amp;orte_state_base_framework);<br>
+    -<br>
+    -    orte_session_dir_finalize(ORTE_PROC_MY_NAME);<br>
+    -<br>
+         /* release the event base */<br>
+         if (progress_thread_running) {<br>
+             opal_stop_progress_thread("opal_async", true);<br>
+             progress_thread_running = false;<br>
+         }<br>
+     <br>
+    +    (void) mca_base_framework_close(&amp;orte_rml_base_framework);<br>
+    +    (void) mca_base_framework_close(&amp;orte_oob_base_framework);<br>
+    +    (void)
+    mca_base_framework_close(&amp;orte_state_base_framework);<br>
+    +<br>
+    +    orte_session_dir_finalize(ORTE_PROC_MY_NAME);<br>
+    +<br>
+         return ORTE_SUCCESS;<br>
+     }<br>
+    <br>
+    that did not work : the opal_async progress thread is also used by
+    pmix, so at this stage,<br>
+    invoking opal_stop_progress_thread only decrements the refcount
+    (e.g. no pthread_join() )<br>
+    <br>
+    my second and dumb attempt was to finalize pmix before ess_base_app,
+    and that did not work<br>
+    (crash)<br>
+    <br>
+    i ran out of idea on how to fix this issue, but i found a simple
+    workaround :<br>
+    adding a short sleep (10 ms) in orte_rml_base_close() seems enough
+    to avoid the race condition.<br>
+    <br>
+    diff --git a/orte/mca/rml/base/rml_base_frame.c
+    b/orte/mca/rml/base/rml_base_frame.c<br>
+    index 54dc454..050154c 100644<br>
+    --- a/orte/mca/rml/base/rml_base_frame.c<br>
+    +++ b/orte/mca/rml/base/rml_base_frame.c<br>
+    @@ -17,6 +17,7 @@<br>
+     <br>
+     #include "orte_config.h"<br>
+     <br>
+    +#include &lt;sys/poll.h&gt;<br>
+     #include &lt;string.h&gt;<br>
+     <br>
+     #include "opal/dss/dss.h"<br>
+    @@ -78,6 +79,7 @@ static int orte_rml_base_close(void)<br>
+     {<br>
+         opal_list_item_t *item;<br>
+     <br>
+    +    poll(NULL,0,10);<br>
+         while (NULL != (item =
+    opal_list_remove_first(&amp;orte_rml_base.posted_recvs))) {<br>
+             OBJ_RELEASE(item);<br>
+         }<br>
+    <br>
+    incidentally, i found two OPAL_LIST_FOREACH "loops" in which
+    opal_list_remove_item is invoked.<br>
+    per a comment in opal_list.h, this is unsafe and
+    OPAL_LIST_FOREACH_SAFE should be used :<br>
+    <br>
+     diff --git a/orte/mca/rml/base/rml_base_msg_handlers.c
+    b/orte/mca/rml/base/rml_base_msg_handlers.c<br>
+    index 758bf91..22c7601 100644<br>
+    --- a/orte/mca/rml/base/rml_base_msg_handlers.c<br>
+    +++ b/orte/mca/rml/base/rml_base_msg_handlers.c<br>
+    @@ -12,7 +12,9 @@<br>
+      *                         All rights reserved.<br>
+      * Copyright (c) 2007-2013 Los Alamos National Security, LLC.  All
+    rights<br>
+      *                         reserved.<br>
+    - * Copyright (c) 2015 Intel, Inc. All rights reserved.<br>
+    + * Copyright (c) 2015      Intel, Inc. All rights reserved.<br>
+    + * Copyright (c) 2015      Research Organization for Information
+    Science<br>
+    + *                         and Technology (RIST). All rights
+    reserved.<br>
+      * $COPYRIGHT$<br>
+      *<br>
+      * Additional copyrights may follow<br>
+    @@ -55,7 +57,7 @@ static void msg_match_recv(orte_rml_posted_recv_t
+    *rcv, bool get_all);<br>
+     void orte_rml_base_post_recv(int sd, short args, void *cbdata)<br>
+     {<br>
+         orte_rml_recv_request_t *req =
+    (orte_rml_recv_request_t*)cbdata;<br>
+    -    orte_rml_posted_recv_t *post, *recv;<br>
+    +    orte_rml_posted_recv_t *post, *recv, *next;<br>
+         orte_ns_cmp_bitmask_t mask = ORTE_NS_CMP_ALL |
+    ORTE_NS_CMP_WILD;<br>
+     <br>
+         opal_output_verbose(5,
+    orte_rml_base_framework.framework_output,<br>
+    @@ -75,7 +77,7 @@ void orte_rml_base_post_recv(int sd, short args,
+    void *cbdata)<br>
+          * and remove it from our list<br>
+          */<br>
+         if (req-&gt;cancel) {<br>
+    -        OPAL_LIST_FOREACH(recv, &amp;orte_rml_base.posted_recvs,
+    orte_rml_posted_recv_t) {<br>
+    +        OPAL_LIST_FOREACH_SAFE(recv, next,
+    &amp;orte_rml_base.posted_recvs, orte_rml_posted_recv_t) {<br>
+                 if (OPAL_EQUAL == orte_util_compare_name_fields(mask,
+    &amp;post-&gt;peer, &amp;recv-&gt;peer) &amp;&amp;<br>
+                     post-&gt;tag == recv-&gt;tag) {<br>
+                     opal_output_verbose(5,
+    orte_rml_base_framework.framework_output,<br>
+    @@ -120,12 +122,12 @@ void orte_rml_base_post_recv(int sd, short
+    args, void *cbdata)<br>
+     <br>
+     void orte_rml_base_complete_recv_msg (orte_rml_recv_t **recv_msg)<br>
+     {<br>
+    -    orte_rml_posted_recv_t *post;<br>
+    +    orte_rml_posted_recv_t *post, *next;<br>
+         orte_ns_cmp_bitmask_t mask = ORTE_NS_CMP_ALL |
+    ORTE_NS_CMP_WILD;<br>
+         opal_buffer_t buf;<br>
+         orte_rml_recv_t *msg = *recv_msg;<br>
+         /* see if we have a waiting recv for this message */<br>
+    -    OPAL_LIST_FOREACH(post, &amp;orte_rml_base.posted_recvs,
+    orte_rml_posted_recv_t) {<br>
+    +    OPAL_LIST_FOREACH_SAFE(post, next,
+    &amp;orte_rml_base.posted_recvs, orte_rml_posted_recv_t) {<br>
+             /* since names could include wildcards, must use<br>
+              * the more generalized comparison function<br>
+              */<br>
+    <br>
+    i hope this helps,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <div class="moz-cite-prefix">On 7/17/2015 11:04 PM, Ralph Castain
+      wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:B4C85838-13E4-4F9A-B292-53BA2F2A1A46@open-mpi.org"
+      type="cite">
+      <meta http-equiv="Content-Type" content="text/html;
+        charset=windows-1252">
+      It’s probably a race condition caused by uniting the ORTE and OPAL
+      async threads, though I can’t confirm that yet.
+      <div class=""><br class="">
+        <div>
+          <blockquote type="cite" class="">
+            <div class="">On Jul 17, 2015, at 3:11 AM, Gilles
+              Gouaillardet &lt;<a moz-do-not-send="true"
+                href="mailto:gilles.gouaillardet@gmail.com" class="">gilles.gouaillardet@gmail.com</a>&gt;
+              wrote:</div>
+            <br class="Apple-interchange-newline">
+            <div class="">Folks,
+              <div class=""><br class="">
+              </div>
+              <div class="">I noticed several errors such as <a
+                  moz-do-not-send="true"
+                  href="http://mtt.open-mpi.org/index.php?do_redir=2244"
+                  class="">http://mtt.open-mpi.org/index.php?do_redir=2244</a></div>
+              <div class="">that did not make any sense to me (at first
+                glance)</div>
+              <div class=""><br class="">
+              </div>
+              <div class="">I was able to attach one process when the
+                issue occurs.</div>
+              <div class="">the sigsegv occurs in thread 2, while thread
+                1 is invoking ompi_rte_finalize.</div>
+              <div class=""><br class="">
+              </div>
+              <div class="">All I can think is a scenario in which the
+                progress thread (aka thread 2) is still dealing with
+                some memory that was just freed/unmapped/corrupted by
+                the main thread.</div>
+              <div class=""><br class="">
+              </div>
+              <div class="">I empirically noticed the error is more
+                likely to occur when there are many tasks on one node</div>
+              <div class="">e.g. mpirun --oversubscribe -np 32 a.out</div>
+              <div class=""><br class="">
+              </div>
+              <div class="">Cheers,</div>
+              <div class=""><br class="">
+              </div>
+              <div class="">Gilles<br class="">
+                <br class="">
+              </div>
+              _______________________________________________<br
+                class="">
+              devel mailing list<br class="">
+              <a moz-do-not-send="true" href="mailto:devel@open-mpi.org"
+                class="">devel@open-mpi.org</a><br class="">
+              Subscription:
+              <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br
+                class="">
+              Link to this post:
+              <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/07/17652.php">http://www.open-mpi.org/community/lists/devel/2015/07/17652.php</a></div>
+          </blockquote>
+        </div>
+        <br class="">
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/07/17655.php">http://www.open-mpi.org/community/lists/devel/2015/07/17655.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

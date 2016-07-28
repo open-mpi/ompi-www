@@ -1,0 +1,413 @@
+<?
+$subject_val = "Re: [OMPI devel] === CREATE FAILURE ===";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Thu Dec  6 21:44:04 2007" -->
+<!-- isoreceived="20071207024404" -->
+<!-- sent="Thu, 6 Dec 2007 21:44:00 -0500" -->
+<!-- isosent="20071207024400" -->
+<!-- name="Tim Mattox" -->
+<!-- email="timattox_at_[hidden]" -->
+<!-- subject="Re: [OMPI devel] === CREATE FAILURE ===" -->
+<!-- id="ea86ce220712061843v68a104ct989d3279450e08fb_at_mail.gmail.com" -->
+<!-- charset="ISO-8859-1" -->
+<!-- inreplyto="DC28CE52-B40A-4398-9268-C17C21D293C0_at_eecs.utk.edu" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI devel] === CREATE FAILURE ===<br>
+<strong>From:</strong> Tim Mattox (<em>timattox_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2007-12-06 21:44:00
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="2763.php">Aurelien Bouteiller: "Re: [OMPI devel] === CREATE FAILURE ==="</a>
+<li><strong>Previous message:</strong> <a href="2761.php">Tim Mattox: "Re: [OMPI devel] [devel-core] Open MPI v1.2.5rc1 has been posted"</a>
+<li><strong>In reply to:</strong> <a href="2760.php">George Bosilca: "Re: [OMPI devel] === CREATE FAILURE ==="</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="2763.php">Aurelien Bouteiller: "Re: [OMPI devel] === CREATE FAILURE ==="</a>
+<li><strong>Reply:</strong> <a href="2763.php">Aurelien Bouteiller: "Re: [OMPI devel] === CREATE FAILURE ==="</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Thanks George.  I've started a new trunk tarball creation.
+<br>
+It should finish before MTT runs start tonight.  I hope.
+<br>
+<p>On Dec 6, 2007 9:29 PM, George Bosilca &lt;bosilca_at_[hidden]&gt; wrote:
+<br>
+<span class="quotelev1">&gt; Fixed by r16884.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt;    george.
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; On Dec 7, 2007, at 12:46 PM, MPI Team wrote:
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; ERROR: Command returned a non-zero exist status
+</span><br>
+<span class="quotelev2">&gt; &gt;       make -j 4 distcheck
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; Start time: Thu Dec  6 21:00:25 EST 2007
+</span><br>
+<span class="quotelev2">&gt; &gt; End time:   Thu Dec  6 21:16:34 EST 2007
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; =
+</span><br>
+<span class="quotelev2">&gt; &gt; ======================================================================
+</span><br>
+<span class="quotelev2">&gt; &gt; [... previous lines snipped ...]
+</span><br>
+<span class="quotelev2">&gt; &gt; /bin/sh ../libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I.
+</span><br>
+<span class="quotelev2">&gt; &gt; -I../opal/include -I../orte/include -I../ompi/include -I../opal/mca/
+</span><br>
+<span class="quotelev2">&gt; &gt; paffinity/linux/plpa/src/libplpa -I../../ompi   -I../.. -I.. -I../../
+</span><br>
+<span class="quotelev2">&gt; &gt; opal/include -I../../orte/include -I../../ompi/include    -O3 -
+</span><br>
+<span class="quotelev2">&gt; &gt; DNDEBUG -finline-functions -fno-strict-aliasing -pthread -MT proc/
+</span><br>
+<span class="quotelev2">&gt; &gt; proc.lo -MD -MP -MF $depbase.Tpo -c -o proc/proc.lo ../../ompi/proc/
+</span><br>
+<span class="quotelev2">&gt; &gt; proc.c &amp;&amp;\
+</span><br>
+<span class="quotelev2">&gt; &gt; mv -f $depbase.Tpo $depbase.Plo
+</span><br>
+<span class="quotelev2">&gt; &gt; libtool: compile:  gcc -DHAVE_CONFIG_H -I. -I../opal/include -I../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../ompi/include -I../opal/mca/paffinity/linux/plpa/
+</span><br>
+<span class="quotelev2">&gt; &gt; src/libplpa -I../../ompi -I../.. -I.. -I../../opal/include -I../../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../../ompi/include -O3 -DNDEBUG -finline-functions -
+</span><br>
+<span class="quotelev2">&gt; &gt; fno-strict-aliasing -pthread -MT op/op_predefined.lo -MD -MP -MF
+</span><br>
+<span class="quotelev2">&gt; &gt; op/.deps/op_predefined.Tpo -c ../../ompi/op/op_predefined.c  -fPIC -
+</span><br>
+<span class="quotelev2">&gt; &gt; DPIC -o op/.libs/op_predefined.o
+</span><br>
+<span class="quotelev2">&gt; &gt; libtool: compile:  gcc -DHAVE_CONFIG_H -I. -I../opal/include -I../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../ompi/include -I../opal/mca/paffinity/linux/plpa/
+</span><br>
+<span class="quotelev2">&gt; &gt; src/libplpa -I../../ompi -I../.. -I.. -I../../opal/include -I../../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../../ompi/include -O3 -DNDEBUG -finline-functions -
+</span><br>
+<span class="quotelev2">&gt; &gt; fno-strict-aliasing -pthread -MT proc/proc.lo -MD -MP -MF proc/.deps/
+</span><br>
+<span class="quotelev2">&gt; &gt; proc.Tpo -c ../../ompi/proc/proc.c  -fPIC -DPIC -o proc/.libs/proc.o
+</span><br>
+<span class="quotelev2">&gt; &gt; depbase=`echo request/grequest.lo | sed 's|[^/]*$|.deps/&amp;|;s|\.lo
+</span><br>
+<span class="quotelev2">&gt; &gt; $||'`;\
+</span><br>
+<span class="quotelev2">&gt; &gt; /bin/sh ../libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I.
+</span><br>
+<span class="quotelev2">&gt; &gt; -I../opal/include -I../orte/include -I../ompi/include -I../opal/mca/
+</span><br>
+<span class="quotelev2">&gt; &gt; paffinity/linux/plpa/src/libplpa -I../../ompi   -I../.. -I.. -I../../
+</span><br>
+<span class="quotelev2">&gt; &gt; opal/include -I../../orte/include -I../../ompi/include    -O3 -
+</span><br>
+<span class="quotelev2">&gt; &gt; DNDEBUG -finline-functions -fno-strict-aliasing -pthread -MT request/
+</span><br>
+<span class="quotelev2">&gt; &gt; grequest.lo -MD -MP -MF $depbase.Tpo -c -o request/grequest.lo ../../
+</span><br>
+<span class="quotelev2">&gt; &gt; ompi/request/grequest.c &amp;&amp;\
+</span><br>
+<span class="quotelev2">&gt; &gt; mv -f $depbase.Tpo $depbase.Plo
+</span><br>
+<span class="quotelev2">&gt; &gt; depbase=`echo request/request.lo | sed 's|[^/]*$|.deps/&amp;|;s|\.lo
+</span><br>
+<span class="quotelev2">&gt; &gt; $||'`;\
+</span><br>
+<span class="quotelev2">&gt; &gt; /bin/sh ../libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I.
+</span><br>
+<span class="quotelev2">&gt; &gt; -I../opal/include -I../orte/include -I../ompi/include -I../opal/mca/
+</span><br>
+<span class="quotelev2">&gt; &gt; paffinity/linux/plpa/src/libplpa -I../../ompi   -I../.. -I.. -I../../
+</span><br>
+<span class="quotelev2">&gt; &gt; opal/include -I../../orte/include -I../../ompi/include    -O3 -
+</span><br>
+<span class="quotelev2">&gt; &gt; DNDEBUG -finline-functions -fno-strict-aliasing -pthread -MT request/
+</span><br>
+<span class="quotelev2">&gt; &gt; request.lo -MD -MP -MF $depbase.Tpo -c -o request/request.lo ../../
+</span><br>
+<span class="quotelev2">&gt; &gt; ompi/request/request.c &amp;&amp;\
+</span><br>
+<span class="quotelev2">&gt; &gt; mv -f $depbase.Tpo $depbase.Plo
+</span><br>
+<span class="quotelev2">&gt; &gt; libtool: compile:  gcc -DHAVE_CONFIG_H -I. -I../opal/include -I../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../ompi/include -I../opal/mca/paffinity/linux/plpa/
+</span><br>
+<span class="quotelev2">&gt; &gt; src/libplpa -I../../ompi -I../.. -I.. -I../../opal/include -I../../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../../ompi/include -O3 -DNDEBUG -finline-functions -
+</span><br>
+<span class="quotelev2">&gt; &gt; fno-strict-aliasing -pthread -MT request/grequest.lo -MD -MP -MF
+</span><br>
+<span class="quotelev2">&gt; &gt; request/.deps/grequest.Tpo -c ../../ompi/request/grequest.c  -fPIC -
+</span><br>
+<span class="quotelev2">&gt; &gt; DPIC -o request/.libs/grequest.o
+</span><br>
+<span class="quotelev2">&gt; &gt; libtool: compile:  gcc -DHAVE_CONFIG_H -I. -I../opal/include -I../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../ompi/include -I../opal/mca/paffinity/linux/plpa/
+</span><br>
+<span class="quotelev2">&gt; &gt; src/libplpa -I../../ompi -I../.. -I.. -I../../opal/include -I../../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../../ompi/include -O3 -DNDEBUG -finline-functions -
+</span><br>
+<span class="quotelev2">&gt; &gt; fno-strict-aliasing -pthread -MT request/request.lo -MD -MP -MF
+</span><br>
+<span class="quotelev2">&gt; &gt; request/.deps/request.Tpo -c ../../ompi/request/request.c  -fPIC -
+</span><br>
+<span class="quotelev2">&gt; &gt; DPIC -o request/.libs/request.o
+</span><br>
+<span class="quotelev2">&gt; &gt; depbase=`echo request/req_test.lo | sed 's|[^/]*$|.deps/&amp;|;s|\.lo
+</span><br>
+<span class="quotelev2">&gt; &gt; $||'`;\
+</span><br>
+<span class="quotelev2">&gt; &gt; /bin/sh ../libtool --tag=CC   --mode=compile gcc -DHAVE_CONFIG_H -I.
+</span><br>
+<span class="quotelev2">&gt; &gt; -I../opal/include -I../orte/include -I../ompi/include -I../opal/mca/
+</span><br>
+<span class="quotelev2">&gt; &gt; paffinity/linux/plpa/src/libplpa -I../../ompi   -I../.. -I.. -I../../
+</span><br>
+<span class="quotelev2">&gt; &gt; opal/include -I../../orte/include -I../../ompi/include    -O3 -
+</span><br>
+<span class="quotelev2">&gt; &gt; DNDEBUG -finline-functions -fno-strict-aliasing -pthread -MT request/
+</span><br>
+<span class="quotelev2">&gt; &gt; req_test.lo -MD -MP -MF $depbase.Tpo -c -o request/req_test.lo ../../
+</span><br>
+<span class="quotelev2">&gt; &gt; ompi/request/req_test.c &amp;&amp;\
+</span><br>
+<span class="quotelev2">&gt; &gt; mv -f $depbase.Tpo $depbase.Plo
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:24:42: ompi/request/request_default.h:
+</span><br>
+<span class="quotelev2">&gt; &gt; No such file or directory
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:36: error: `ompi_request_default_test'
+</span><br>
+<span class="quotelev2">&gt; &gt; undeclared here (not in a function)
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:36: error: initializer element is not
+</span><br>
+<span class="quotelev2">&gt; &gt; constant
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:36: error: (near initialization for
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_functions.req_test')
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:37: error:
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_default_test_any' undeclared here (not in a function)
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:37: error: initializer element is not
+</span><br>
+<span class="quotelev2">&gt; &gt; constant
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:37: error: (near initialization for
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_functions.req_test_any')
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:38: error:
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_default_test_all' undeclared here (not in a function)
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:38: error: initializer element is not
+</span><br>
+<span class="quotelev2">&gt; &gt; constant
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:38: error: (near initialization for
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_functions.req_test_all')
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:39: error:
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_default_test_some' undeclared here (not in a function)
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:39: error: initializer element is not
+</span><br>
+<span class="quotelev2">&gt; &gt; constant
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:39: error: (near initialization for
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_functions.req_test_some')
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:40: error: `ompi_request_default_wait'
+</span><br>
+<span class="quotelev2">&gt; &gt; undeclared here (not in a function)
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:40: error: initializer element is not
+</span><br>
+<span class="quotelev2">&gt; &gt; constant
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:40: error: (near initialization for
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_functions.req_wait')
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:41: error:
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_default_wait_any' undeclared here (not in a function)
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:41: error: initializer element is not
+</span><br>
+<span class="quotelev2">&gt; &gt; constant
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:41: error: (near initialization for
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_functions.req_wait_any')
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:42: error:
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_default_wait_all' undeclared here (not in a function)
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:42: error: initializer element is not
+</span><br>
+<span class="quotelev2">&gt; &gt; constant
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:42: error: (near initialization for
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_functions.req_wait_all')
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:44: error:
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_default_wait_some' undeclared here (not in a function)
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:44: error: initializer element is not
+</span><br>
+<span class="quotelev2">&gt; &gt; constant
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/request.c:44: error: (near initialization for
+</span><br>
+<span class="quotelev2">&gt; &gt; `ompi_request_functions.req_wait_some')
+</span><br>
+<span class="quotelev2">&gt; &gt; make[3]: *** [request/request.lo] Error 1
+</span><br>
+<span class="quotelev2">&gt; &gt; make[3]: *** Waiting for unfinished jobs....
+</span><br>
+<span class="quotelev2">&gt; &gt; libtool: compile:  gcc -DHAVE_CONFIG_H -I. -I../opal/include -I../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../ompi/include -I../opal/mca/paffinity/linux/plpa/
+</span><br>
+<span class="quotelev2">&gt; &gt; src/libplpa -I../../ompi -I../.. -I.. -I../../opal/include -I../../
+</span><br>
+<span class="quotelev2">&gt; &gt; orte/include -I../../ompi/include -O3 -DNDEBUG -finline-functions -
+</span><br>
+<span class="quotelev2">&gt; &gt; fno-strict-aliasing -pthread -MT request/req_test.lo -MD -MP -MF
+</span><br>
+<span class="quotelev2">&gt; &gt; request/.deps/req_test.Tpo -c ../../ompi/request/req_test.c  -fPIC -
+</span><br>
+<span class="quotelev2">&gt; &gt; DPIC -o request/.libs/req_test.o
+</span><br>
+<span class="quotelev2">&gt; &gt; ../../ompi/request/req_test.c:23:42: ompi/request/request_default.h:
+</span><br>
+<span class="quotelev2">&gt; &gt; No such file or directory
+</span><br>
+<span class="quotelev2">&gt; &gt; make[3]: *** [request/req_test.lo] Error 1
+</span><br>
+<span class="quotelev2">&gt; &gt; make[2]: *** [all-recursive] Error 1
+</span><br>
+<span class="quotelev2">&gt; &gt; make[2]: Leaving directory `/home/mpiteam/openmpi/nightly-tarball-
+</span><br>
+<span class="quotelev2">&gt; &gt; build-root/trunk/create-r16872/ompi/openmpi-1.3a1r16872/_build/ompi'
+</span><br>
+<span class="quotelev2">&gt; &gt; make[1]: *** [all-recursive] Error 1
+</span><br>
+<span class="quotelev2">&gt; &gt; make[1]: Leaving directory `/home/mpiteam/openmpi/nightly-tarball-
+</span><br>
+<span class="quotelev2">&gt; &gt; build-root/trunk/create-r16872/ompi/openmpi-1.3a1r16872/_build'
+</span><br>
+<span class="quotelev2">&gt; &gt; make: *** [distcheck] Error 2
+</span><br>
+<span class="quotelev2">&gt; &gt; =
+</span><br>
+<span class="quotelev2">&gt; &gt; ======================================================================
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; Your friendly daemon,
+</span><br>
+<span class="quotelev2">&gt; &gt; Cyrador
+</span><br>
+<span class="quotelev2">&gt; &gt; _______________________________________________
+</span><br>
+<span class="quotelev2">&gt; &gt; testing mailing list
+</span><br>
+<span class="quotelev2">&gt; &gt; testing_at_[hidden]
+</span><br>
+<span class="quotelev2">&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/testing">http://www.open-mpi.org/mailman/listinfo.cgi/testing</a>
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<span class="quotelev1">&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; devel mailing list
+</span><br>
+<span class="quotelev1">&gt; devel_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</span><br>
+<span class="quotelev1">&gt;
+</span><br>
+<p><p><p><pre>
+-- 
+Tim Mattox, Ph.D. - <a href="http://homepage.mac.com/tmattox/">http://homepage.mac.com/tmattox/</a>
+ tmattox_at_[hidden] || timattox_at_[hidden]
+    I'm a bright... <a href="http://www.the-brights.net/">http://www.the-brights.net/</a>
+</pre>
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="2763.php">Aurelien Bouteiller: "Re: [OMPI devel] === CREATE FAILURE ==="</a>
+<li><strong>Previous message:</strong> <a href="2761.php">Tim Mattox: "Re: [OMPI devel] [devel-core] Open MPI v1.2.5rc1 has been posted"</a>
+<li><strong>In reply to:</strong> <a href="2760.php">George Bosilca: "Re: [OMPI devel] === CREATE FAILURE ==="</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="2763.php">Aurelien Bouteiller: "Re: [OMPI devel] === CREATE FAILURE ==="</a>
+<li><strong>Reply:</strong> <a href="2763.php">Aurelien Bouteiller: "Re: [OMPI devel] === CREATE FAILURE ==="</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

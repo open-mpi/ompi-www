@@ -1,0 +1,84 @@
+<div dir="ltr">So when a process is restarted with CRIU, does it resume execution after the criu_dump() or somewhere else?<div><br></div><div>In a continue/leave-running mode after checkpoint the MPI library does not need to do quite a much work since we can depend on some things not changing (such as the machine name, orted pid, ...).</div>
+<div><br></div><div>In a restart mode then the entire library has to be updated - much more expensive than the continue mode.</div><div><br></div><div>The CRS components that we have supported emerge from their checkpointing function (criu_dump in your case) knowing if they are in the continue or restart mode. So that CRS function sets the flag according so the rest of the library can do the right thing afterwards.<br>
+</div><div><br></div><div>The restart function is called by the opal_restart tool to restart the process from an image. Some checkpointers have a library call to restart a process others used external tools to do so. So that interface just let&#39;s the checkpointer decide, given a snapshot image, how it should restart that process. The restarted process is assumed to wake up in the opal_crs_*_checkpoint function, not opal_crs_*_restart. So the restart function name can be a bit misleading.</div>
+<div><br></div><div>Does that help?</div><div><br></div><div>-- Josh</div><div><br></div><div><br></div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Feb 18, 2014 at 4:08 AM, Adrian Reber <span dir="ltr">&lt;<a href="mailto:adrian@lisas.de" target="_blank">adrian@lisas.de</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">I think I do not understand your question. So far I have only implemented the<br>
+checkpoint part and not the restart part.<br>
+<br>
+Using criu_dump() the process can  be left in three different<br>
+states. Without any special handling the process is dumped and then<br>
+killed. I can also tell criu to leave the process stopped (--leave-stopped)<br>
+or running (--leave-running). I decided to default to --leave-running so<br>
+that after the checkpoint has been performed the process continues<br>
+running where it stopped.<br>
+<br>
+What would be the difference between &#39;being restarted versus continuing<br>
+after checkpointing&#39;? Right now only &#39;continuing after checkpoint&#39; is<br>
+implemented. I do not understand how process &#39;is being restarted&#39; fits<br>
+in the checkpoint function.<br>
+<br>
+In opal_crs_criu_checkpoint() I am using criu_dump() to<br>
+checkpoint the process and the plan is to use criu_restore() in<br>
+opal_crs_criu_restart() (which I have not yet implemented).<br>
+<div class="HOEnZb"><div class="h5"><br>
+On Mon, Feb 17, 2014 at 03:45:49PM -0600, Josh Hursey wrote:<br>
+&gt; It look fine except that the restart state is not flagged. When a process<br>
+&gt; is restarted does it resume execution inside the criu_dump() function? If<br>
+&gt; so, is there a way to tell from its return code (or some other mechanism)<br>
+&gt; that it is being restarted versus continuing after checkpointing?<br>
+&gt;<br>
+&gt;<br>
+&gt; On Mon, Feb 17, 2014 at 2:00 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+&gt;<br>
+&gt; &gt; Great - looks fine to me!!<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; On Feb 17, 2014, at 11:39 AM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; I have prepared a patch I would like to commit which adds to code to<br>
+&gt; &gt; &gt; actually checkpoint a process. Thanks for the pointers about the string<br>
+&gt; &gt; &gt; variables I tried to do implement it correctly.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; CRIU currently has problems with the new OOB usock but I will contact<br>
+&gt; &gt; &gt; the CRIU developers about this error. Using tcp, checkpointing works.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; CRIU also has problems with --np &gt; 1, but I am sure this can also be<br>
+&gt; &gt; &gt; resolved.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; The patch is at:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; <a href="https://lisas.de/git/?p=open-mpi.git;a=commitdiff;h=89c9c27c87598706e8f798f84fe9520ee5884492" target="_blank">https://lisas.de/git/?p=open-mpi.git;a=commitdiff;h=89c9c27c87598706e8f798f84fe9520ee5884492</a><br>
+
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;               Adrian<br>
+&gt; &gt; &gt; _______________________________________________<br>
+&gt; &gt; &gt; devel mailing list<br>
+&gt; &gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; devel mailing list<br>
+&gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; &gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Joshua Hursey<br>
+&gt; Assistant Professor of Computer Science<br>
+&gt; University of Wisconsin-La Crosse<br>
+&gt; <a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a><br>
+<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Joshua Hursey<br>Assistant Professor of Computer Science<br>University of Wisconsin-La Crosse<br><a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a>
+</div>
+

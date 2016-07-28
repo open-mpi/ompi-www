@@ -1,0 +1,55 @@
+#include <mpi.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdint.h>
+
+int main(int argc, char *argv[])
+{
+	int ret;
+	int size;
+	int rank;
+	int name_len;
+	char name[MPI_MAX_PROCESSOR_NAME];
+	int len;
+	int sender = 0;
+	int receiver = 1;
+
+	uint8_t *val;
+	MPI_Status stat;
+
+	MPI_Init(&argc, &argv);
+	MPI_Get_processor_name(name, &name_len);
+	MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	printf("*** processor %s, comm size is %d, my rank is %d, pid %u ***\n", name, size, rank, getpid());
+	if (argc != 2) {
+		printf("Usage: %s message_length\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+	if (rank == 0) {
+		len = atoi(argv[1]);
+	}
+	MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	val = malloc(len);
+	if (NULL == val) {
+		puts("Memory allocation failed");
+		exit(EXIT_FAILURE);
+	}
+	if (size == 2) {
+		if (rank == sender) {
+			MPI_Send(val, len, MPI_BYTE, receiver, 0, MPI_COMM_WORLD);
+		} else {
+			int count = 0;
+			MPI_Recv(val, len, MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &stat);
+			MPI_Get_count(&stat, MPI_BYTE, &count);
+			MPI_Get_elements(&stat, MPI_BYTE, &count);
+			printf("Received %d bytes\n", count);
+		}
+	}
+	free(val);
+
+	ret = MPI_Finalize();
+	return EXIT_SUCCESS;
+}

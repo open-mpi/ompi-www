@@ -1,0 +1,322 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Folks,<br>
+      <br>
+      i commited 248acbbc3ba06c2bef04f840e07816f71f864959 in order to
+      fix a hang in coll/ml<br>
+      when using srun (both pmi1 and pmi2)<br>
+      <br>
+      could you please git it a try ?<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/10/22 23:03, Joshua Ladd wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CAG4F6z-kLZ9A-ii0JZ5Prq+c2UOup_msBB74_dr=Wg0-_qxwQA@mail.gmail.com"
+      type="cite">
+      <pre wrap="">Privet, Artem
+
+ML is the collective component that is invoking the calls into BCOL. The
+triplet basesmuma,basesmuma,ptpcoll, for example, means I want three levels
+of hierarchy - socket level, UMA level, and then network level. I am
+guessing (only a guess after a quick glance) that maybe srun is not binding
+processes which could result in the socket subgrouping code to fail (it
+should gracefully declare nothing to subgroup, but this is where the bug
+could be.) It will always come to the conclusion that processes are bound
+to the host, so the two level command line should work. Also, you need to
+look at the variable OMPI_MCA_sbgp_base_string (this defines the subgouping
+rules, and the BCOLs are the collective primitives mapped onto a particular
+communication substrate e.g. shared memory, CORE-Direct, vanilla
+point-to-point.)
+
+Can you try with:
+srun -N .. --cpu_bind=cores ...
+and see if this resolves the issue? Also, are you running on a
+hyperthreaded machine?
+
+Another experiment to try:
+I'm assuming this will hang?
+export OMPI_MCA_bcol_base_string=basesmuma,basesmuma,ptpcoll   (this says
+map shared memory collective primitives to both the group of processes
+export OMPI_MCA_sbgp_base_string=basesmsocket,basesmuma,p2p
+
+I would guess this will work
+export OMPI_MCA_bcol_base_string=basesmuma,ptpcoll   (This says only form a
+single shared memory subgroup consisting of processes on host and then a
+single point-to-point subgroup consisting of all host leaders)
+export OMPI_MCA_sbgp_base_string=basesmuma,p2p
+
+I'm speculating that this will hang because of something
+export OMPI_MCA_bcol_base_string=basesmuma,ptpcoll  (This says form groups
+consisting of all procs on the same socket and then take a local leader
+from each of these groups and form a point-to-point group)
+export OMPI_MCA_sbgp_base_string=basesmsocket,p2p
+
+In any case, Elena's suggestion to add -mca coll ^ml will silence all of
+this.
+
+Josh
+
+
+
+On Fri, Oct 17, 2014 at 11:46 AM, Artem Polyakov <a class="moz-txt-link-rfc2396E" href="mailto:artpol84@gmail.com">&lt;artpol84@gmail.com&gt;</a> wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Hey, Lena :).
+
+2014-10-17 22:07 GMT+07:00 Elena Elkina <a class="moz-txt-link-rfc2396E" href="mailto:elena.elkina@itseez.com">&lt;elena.elkina@itseez.com&gt;</a>:
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Hi Artem,
+
+Actually some time ago there was a known issue with coll ml. I used to
+run my command lines with -mca coll ^ml to avoid these problems, so I don't
+know if it was fixed or not. It looks like you have the same problem.
+
+</pre>
+        </blockquote>
+        <pre wrap="">
+but mine is with bcol, not coll framework. And as you can see modules
+itself doesn't brake the program. Only some of their combinations. Also I
+am curious why basesmuma module listed twice.
+
+
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Best regards,
+Elena
+
+On Fri, Oct 17, 2014 at 7:01 PM, Artem Polyakov <a class="moz-txt-link-rfc2396E" href="mailto:artpol84@gmail.com">&lt;artpol84@gmail.com&gt;</a>
+wrote:
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">Gilles,
+
+I checked your patch and it doesn't solve the problem I observe. I think
+the reason is somewhere else.
+
+2014-10-17 19:13 GMT+07:00 Gilles Gouaillardet &lt;
+<a class="moz-txt-link-abbreviated" href="mailto:gilles.gouaillardet@gmail.com">gilles.gouaillardet@gmail.com</a>&gt;:
+
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">Artem,
+
+There is a known issue #235 with modex and i made PR #238 with a
+tentative fix.
+
+Could you please give it a try and reports if it solves your problem ?
+
+Cheers
+
+Gilles
+
+
+Artem Polyakov <a class="moz-txt-link-rfc2396E" href="mailto:artpol84@gmail.com">&lt;artpol84@gmail.com&gt;</a> wrote:
+Hello, I have troubles with latest trunk if I use PMI1.
+
+For example, if I use 2 nodes the application hangs. See backtraces
+from both nodes below. From them I can see that second (non launching) node
+hangs in bcol component selection. Here is the default setting of
+bcol_base_string parameter:
+bcol_base_string="basesmuma,basesmuma,iboffload,ptpcoll,ugni"
+according to ompi_info. I don't know if it is correct that basesmuma is
+duplicated or not.
+
+Experiments with this parameter showed that it directly influences the
+bug:
+export OMPI_MCA_bcol_base_string="" #  [SEGFAULT]
+export OMPI_MCA_bcol_base_string="ptpcoll" #  [OK]
+export OMPI_MCA_bcol_base_string="basesmuma,ptpcoll" #  [OK]
+export OMPI_MCA_bcol_base_string="basesmuma,ptpcoll,iboffload" #  [OK]
+export OMPI_MCA_bcol_base_string="basesmuma,ptpcoll,iboffload,ugni" #
+ [OK]
+export
+OMPI_MCA_bcol_base_string="basesmuma,basesmuma,ptpcoll,iboffload,ugni" #
+ [HANG]
+export
+OMPI_MCA_bcol_base_string="basesmuma,basesmuma,iboffload,ptpcoll" # [HANG]
+export OMPI_MCA_bcol_base_string="basesmuma,basesmuma,iboffload" # [OK]
+export OMPI_MCA_bcol_base_string="basesmuma,basesmuma,iboffload,ugni" #
+[OK]
+export OMPI_MCA_bcol_base_string="basesmuma,basesmuma,ptpcoll" #  [HANG]
+export OMPI_MCA_bcol_base_string="ptpcoll,basesmuma" #  [OK]
+export OMPI_MCA_bcol_base_string="ptpcoll,basesmuma,basesmuma" #  [HANG]
+
+I can provide other information if nessesary.
+
+cn1:
+(gdb) bt
+0  0x00007fdebd30ac6d in poll () from /lib/x86_64-linux-gnu/libc.so.6
+1  0x00007fdebcca64e0 in poll_dispatch (base=0x1d466b0,
+tv=0x7fff71aab880) at poll.c:165
+2  0x00007fdebcc9b041 in opal_libevent2021_event_base_loop
+(base=0x1d466b0, flags=2) at event.c:1631
+3  0x00007fdebcc35891 in opal_progress () at runtime/opal_progress.c:169
+4  0x00007fdeb32f78cb in opal_condition_wait (c=0x7fdebdb51bc0
+&lt;ompi_request_cond&gt;, m=0x7fdebdb51cc0 &lt;ompi_request_lock&gt;) at
+../../../../opal/threads/condition.h:78
+5  0x00007fdeb32f79b8 in ompi_request_wait_completion
+(req=0x7fff71aab920) at ../../../../ompi/request/request.h:381
+6  0x00007fdeb32f84b8 in mca_pml_ob1_recv (addr=0x7fff71aabd80,
+count=1, datatype=0x6026c0 &lt;ompi_mpi_int&gt;, src=1, tag=0, comm=0x6020a0
+&lt;ompi_mpi_comm_world&gt;,
+    status=0x7fff71aabd90) at pml_ob1_irecv.c:109
+7  0x00007fdebd88f54d in PMPI_Recv (buf=0x7fff71aabd80, count=1,
+type=0x6026c0 &lt;ompi_mpi_int&gt;, source=1, tag=0, comm=0x6020a0
+&lt;ompi_mpi_comm_world&gt;,
+    status=0x7fff71aabd90) at precv.c:78
+8  0x0000000000400c44 in main (argc=1, argv=0x7fff71aabe98) at
+hellompi.c:33
+
+cn2:
+(gdb) bt
+0  0x00007fa65aa78c6d in poll () from /lib/x86_64-linux-gnu/libc.so.6
+1  0x00007fa65a4144e0 in poll_dispatch (base=0x20e96b0,
+tv=0x7fff46f44a80) at poll.c:165
+2  0x00007fa65a409041 in opal_libevent2021_event_base_loop
+(base=0x20e96b0, flags=2) at event.c:1631
+3  0x00007fa65a3a3891 in opal_progress () at runtime/opal_progress.c:169
+4  0x00007fa65afbbc25 in opal_condition_wait (c=0x7fa65b2bfbc0
+&lt;ompi_request_cond&gt;, m=0x7fa65b2bfcc0 &lt;ompi_request_lock&gt;) at
+../opal/threads/condition.h:78
+5  0x00007fa65afbc1b5 in ompi_request_default_wait_all (count=2,
+requests=0x7fff46f44c70, statuses=0x0) at request/req_wait.c:287
+6  0x00007fa65afc7906 in comm_allgather_pml (src_buf=0x7fff46f44da0,
+dest_buf=0x233dac0, count=288, dtype=0x7fa65b29fee0 &lt;ompi_mpi_char&gt;,
+my_rank_in_group=1,
+    n_peers=2, ranks_in_comm=0x210a760, comm=0x6020a0
+&lt;ompi_mpi_comm_world&gt;) at patterns/comm/allgather.c:250
+7  0x00007fa64f14ba08 in bcol_basesmuma_smcm_allgather_connection
+(sm_bcol_module=0x7fa64e64d010, module=0x232c800,
+    peer_list=0x7fa64f3513e8 &lt;mca_bcol_basesmuma_component+456&gt;,
+back_files=0x7fa64eae2690, comm=0x6020a0 &lt;ompi_mpi_comm_world&gt;, input=...,
+    base_fname=0x7fa64f14ca8c "sm_ctl_mem_", map_all=false) at
+bcol_basesmuma_smcm.c:205
+8  0x00007fa64f146525 in base_bcol_basesmuma_setup_ctl
+(sm_bcol_module=0x7fa64e64d010, cs=0x7fa64f351220
+&lt;mca_bcol_basesmuma_component&gt;) at bcol_basesmuma_setup.c:344
+9  0x00007fa64f146cbb in base_bcol_basesmuma_setup_library_buffers
+(sm_bcol_module=0x7fa64e64d010, cs=0x7fa64f351220
+&lt;mca_bcol_basesmuma_component&gt;)
+    at bcol_basesmuma_setup.c:550
+10 0x00007fa64f1418d0 in mca_bcol_basesmuma_comm_query
+(module=0x232c800, num_modules=0x232e570) at bcol_basesmuma_module.c:532
+11 0x00007fa64fd9e5f2 in mca_coll_ml_tree_hierarchy_discovery
+(ml_module=0x232fbe0, topo=0x232fd98, n_hierarchies=3,
+exclude_sbgp_name=0x0, include_sbgp_name=0x0)
+    at coll_ml_module.c:1964
+12 0x00007fa64fd9f3a3 in mca_coll_ml_fulltree_hierarchy_discovery
+(ml_module=0x232fbe0, n_hierarchies=3) at coll_ml_module.c:2211
+13 0x00007fa64fd9cbe4 in ml_discover_hierarchy (ml_module=0x232fbe0) at
+coll_ml_module.c:1518
+14 0x00007fa64fda164f in mca_coll_ml_comm_query (comm=0x6020a0
+&lt;ompi_mpi_comm_world&gt;, priority=0x7fff46f45358) at coll_ml_module.c:2970
+15 0x00007fa65b02f6aa in query_2_0_0 (component=0x7fa64fffe4e0
+&lt;mca_coll_ml_component&gt;, comm=0x6020a0 &lt;ompi_mpi_comm_world&gt;,
+priority=0x7fff46f45358,
+    module=0x7fff46f45390) at base/coll_base_comm_select.c:374
+16 0x00007fa65b02f66e in query (component=0x7fa64fffe4e0
+&lt;mca_coll_ml_component&gt;, comm=0x6020a0 &lt;ompi_mpi_comm_world&gt;,
+priority=0x7fff46f45358, module=0x7fff46f45390)
+    at base/coll_base_comm_select.c:357
+17 0x00007fa65b02f581 in check_one_component (comm=0x6020a0
+&lt;ompi_mpi_comm_world&gt;, component=0x7fa64fffe4e0 &lt;mca_coll_ml_component&gt;,
+module=0x7fff46f45390)
+    at base/coll_base_comm_select.c:319
+18 0x00007fa65b02f3c7 in check_components (components=0x7fa65b2a9530
+&lt;ompi_coll_base_framework+80&gt;, comm=0x6020a0 &lt;ompi_mpi_comm_world&gt;)
+    at base/coll_base_comm_select.c:283
+19 0x00007fa65b027d45 in mca_coll_base_comm_select (comm=0x6020a0
+&lt;ompi_mpi_comm_world&gt;) at base/coll_base_comm_select.c:119
+20 0x00007fa65afbdb2c in ompi_mpi_init (argc=1, argv=0x7fff46f45a78,
+requested=0, provided=0x7fff46f4590c) at runtime/ompi_mpi_init.c:858
+21 0x00007fa65aff20ef in PMPI_Init (argc=0x7fff46f4594c,
+argv=0x7fff46f45940) at pinit.c:84
+22 0x0000000000400b66 in main (argc=1, argv=0x7fff46f45a78) at
+hellompi.c:11
+
+
+
+--
+&#1057; &#1059;&#1074;&#1072;&#1078;&#1077;&#1085;&#1080;&#1077;&#1084;, &#1055;&#1086;&#1083;&#1103;&#1082;&#1086;&#1074; &#1040;&#1088;&#1090;&#1077;&#1084; &#1070;&#1088;&#1100;&#1077;&#1074;&#1080;&#1095;
+Best regards, Artem Y. Polyakov
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/10/16055.php">http://www.open-mpi.org/community/lists/devel/2014/10/16055.php</a>
+
+</pre>
+            </blockquote>
+            <pre wrap="">
+
+
+--
+&#1057; &#1059;&#1074;&#1072;&#1078;&#1077;&#1085;&#1080;&#1077;&#1084;, &#1055;&#1086;&#1083;&#1103;&#1082;&#1086;&#1074; &#1040;&#1088;&#1090;&#1077;&#1084; &#1070;&#1088;&#1100;&#1077;&#1074;&#1080;&#1095;
+Best regards, Artem Y. Polyakov
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/10/16067.php">http://www.open-mpi.org/community/lists/devel/2014/10/16067.php</a>
+
+</pre>
+          </blockquote>
+          <pre wrap="">
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/10/16068.php">http://www.open-mpi.org/community/lists/devel/2014/10/16068.php</a>
+
+</pre>
+        </blockquote>
+        <pre wrap="">
+
+
+--
+&#1057; &#1059;&#1074;&#1072;&#1078;&#1077;&#1085;&#1080;&#1077;&#1084;, &#1055;&#1086;&#1083;&#1103;&#1082;&#1086;&#1074; &#1040;&#1088;&#1090;&#1077;&#1084; &#1070;&#1088;&#1100;&#1077;&#1074;&#1080;&#1095;
+Best regards, Artem Y. Polyakov
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/10/16069.php">http://www.open-mpi.org/community/lists/devel/2014/10/16069.php</a>
+
+</pre>
+      </blockquote>
+      <pre wrap="">
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/10/16078.php">http://www.open-mpi.org/community/lists/devel/2014/10/16078.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

@@ -1,0 +1,399 @@
+<div dir="ltr">I am open to any suggestions to make the code better, especially if the way it&#39;s coded now is wrong.<div><br></div><div>I believe what the MPI_TYPE_INDEXED is trying to do is this...</div><div><br></div><div>I have a domain of for example 8 hexahedral elements (2x2x2 cell domain) that has 27 unique connectivity nodes (3x3x3 nodes)</div><div>In this portion of the code it is trying to write the hexa cell labeling and its connectivity via nodes. and these elements can be spread across nprocs.</div><div><br></div><div>The potion of the binary file that is being written should have this format</div><div>[id_e1 id_e2 ... id_ne]</div><blockquote style="margin:0px 0px 0px 40px;border:none;padding:0px"><div><span style="background-color:rgb(255,255,0)">This block of the file has nelems=12 4-byte binary integers.</span> </div></blockquote><div>n1_e1 n2_e1 ... n8_e1 </div><div>n1_e2 n2_e2 ... n8_e2</div><div> .
+. </div><div>n1_e12 n2_e12 ... n8_e12</div><div><blockquote style="margin:0px 0px 0px 40px;border:none;padding:0px"><div><span style="background-color:rgb(255,255,0)">This block of the file has 8.nelems=12 4-byte binary integers.</span></div><div><span style="background-color:rgb(255,255,0)"><br></span></div></blockquote>It is not an irregular shape. since I know that I have an array hexa_ that has [id_e1 id_e2 id_e3 id_e4] on rank 3 and [id_e5 id_e6 id_e7 id_e8] on rank 1... etc. and for the most part every processor has the same number of elements. (that is unless I am running on an odd number of processors)</div><div><blockquote style="margin:0 0 0 40px;border:none;padding:0px"><div>note: i am using random ranks because I am not sure if rank 0 gets the first ids.</div></blockquote></div><div><br></div><div>If MPI_Type_contiguous would work better I am open to switching to that.</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, Mar 22, 2016 at 11:06 PM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    Dominik,<br>
+    <br>
+    with MPI_Type_indexed, array_of_displacements is an int[]<br>
+    so yes, there is a risk of overflow<br>
+    <br>
+    on the other hand, MPI_Type_create_hindexed, array_of_displacements
+    is an MPI_Aint[]<br>
+    <br>
+    note<br>
+     array_of_displacements<br>
+                     Displacement  for  each  block,  in  multiples  of 
+    oldtype extent for MPI_Type_indexed and bytes for
+    MPI_Type_create_hindexed (array of integer for MPI_TYPE_INDEXED,
+    array of MPI_Aint for<br>
+                     MPI_TYPE_CREATE_HINDEXED).<br>
+    <br>
+    <br>
+    i do not fully understand what you are trying to achieve ...<span class=""><br>
+    <br>
+    <span style="background-color:rgb(255,255,0)"><span>MPI_TYPE_INDEXED(
+
+        1024^3,  blocklength=(/8 8 8 8 8 ..... 8 8 /), map=(/0, 8, 16,
+        24, ..... , 8589934592/), MPI_INTEGER, file_view_hexa_conn,
+        ierr)<br>
+        <br>
+      </span></span>
+    </span><div>at first glance, this is equivalent to<br>
+      MPI_Type_contiguous(1024^3, MPI_INTEGER, file_view_hexa_conn,
+      ierr)<br>
+      <br>
+      so unless your data has a non regular shape, i recomment you use
+      other MPI primitives to create your datatype.<br>
+      This should be much more efficient, and less prone to integer
+      overflow<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<div><div class="h5"><br>
+      On 3/23/2016 2:50 PM, Dominic Kedelty wrote:<br>
+    </div></div></div>
+    <blockquote type="cite"><div><div class="h5">
+      <div dir="ltr">
+        <div>
+          <div>
+            <div>
+              <div>
+                <div>
+                  <div>
+                    <div>
+                      <div>Hi Gilles,<br>
+                        <br>
+                      </div>
+                      I believe I have found the problem. Initially I
+                      thought it may have been an mpi issue since it was
+                      internally within an mpi function. However, now I
+                      am sure that the problem has to do with an
+                      overflow of 4-byte signed integers.<br>
+                      <br>
+                    </div>
+                    I am dealing with computational domains that have a
+                    little more than a billion cells (1024^3 cells).
+                    However, I am still within the limits of the 4 byte
+                    integer. The area where I am running into the
+                    problem is here I have shortened the code,<br>
+                    <br>
+                  </div>
+                   ! Fileviews<br>
+                </div>
+                <div>integer :: fileview_hexa<br>
+                </div>
+                integer :: fileview_hexa_conn<br>
+              </div>
+              <br>
+            </div>
+            integer, dimension(:), allocatable :: blocklength<br>
+            integer, dimension(:), allocatable :: map<br>
+          </div>
+          <div>integer(KIND=8) :: size<br>
+          </div>
+          <div>integer(KIND=MPI_OFFSET_KIND) :: disp   ! MPI_OFFSET_KIND
+            seems to be 8-bytes<br>
+          </div>
+          <div><br>
+          </div>
+          allocate(map(ncells_hexa_),blocklength(ncells_hexa_))<br>
+          map = hexa_-1<br>
+          <div style="margin-left:40px"><span style="background-color:rgb(255,255,0)"><span>hexa_
+                is a 4-byte array of integers that label local hexa
+                elements at a given rank. The max this number can be is
+                in my current code (1024^3). and min is 1. </span></span><br>
+          </div>
+          blocklength = 1<br>
+          call
+MPI_TYPE_INDEXED(ncells_hexa_,blocklength,map,MPI_REAL_SP,fileview_hexa,ierr)<br>
+          <div style="margin-left:40px"><span style="background-color:rgb(255,255,0)"><span>MPI_REAL_SP
+                is used for 4-byte scalar data types that are going to
+                be written to the file. (i.e. temperature scalar stored
+                at a given hexa cell) </span></span><br>
+          </div>
+          call MPI_TYPE_COMMIT(fileview_hexa,ierr)<br>
+          map = map * 8<br>
+          <div style="margin-left:40px"><span style="background-color:rgb(255,255,0)"><span>here
+                is where problems arise. The map is being multiplied by
+                8 because the hexa cell node connectivity needs to be
+                written. The node numbering that is being written to the
+                file needs to be 4-bytes, and the max node numbering is
+                able to be held within the 4-byte signed integer. But
+                since I have to map 8*1024^3 displacements to be written
+                map needs to be integer(kind=8).</span></span><br>
+          </div>
+          blocklength = 8<br>
+          call
+MPI_TYPE_INDEXED(ncells_hexa_,blocklength,map,MPI_INTEGER,fileview_hexa_conn,ierr)<br>
+          <div style="margin-left:40px"><span style="background-color:rgb(255,255,0)"><span>MPI_TYPE_INDEXED(
+                1024^3,  blocklength=(/8 8 8 8 8 ..... 8 8 /), map=(/0,
+                8, 16, 24, ..... , 8589934592/), MPI_INTEGER,
+                file_view_hexa_conn, ierr)<br>
+              </span></span></div>
+          <div style="margin-left:40px"><span style="background-color:rgb(255,255,0)"><span>Would
+                this be a correct way to declare the newdatatype
+                file_view_hexa_conn. in this call blocklength would be a
+                4-byte integer array and map would be an 8-byte integer
+                array. To be clear, in the code currently has both map
+                and blocklength as 4-bytes integer arrays.  </span></span><span></span></div>
+          call MPI_TYPE_COMMIT(fileview_hexa_conn,ierr)<br>
+          deallocate(map,blocklength)<br>
+          <br>
+          ....<br>
+          <br>
+        </div>
+        disp = disp+84<br>
+        <div>
+          <div>
+            <div>call
+MPI_FILE_SET_VIEW(iunit,disp,MPI_INTEGER,fileview_hexa,&quot;native&quot;,MPI_INFO_NULL,ierr)<br>
+              call
+              MPI_FILE_WRITE_ALL(iunit,hexa_,ncells_hexa_,MPI_INTEGER,status,ierr)<br>
+              <div style="margin-left:40px"><span style="background-color:rgb(255,255,0)"><span>I
+                    believe this could be wrong as well but the
+                    fileview_hexa is being used to write the 4-byte
+                    integer hexa labeling, but as you said MPI_REAL_SP =
+                    MPI_INTEGER = 4-byte may be fine. It has not given
+                    any problems thus far. </span></span><br>
+              </div>
+              disp = disp+4*ncells_hexa<br>
+              call
+MPI_FILE_SET_VIEW(iunit,disp,MPI_INTEGER,fileview_hexa_conn,&quot;native&quot;,MPI_INFO_NULL,ierr)<br>
+              size = 8*ncells_hexa_<br>
+              call
+              MPI_FILE_WRITE_ALL(iunit,conn_hexa,size,MPI_INTEGER,status,ierr)<br>
+              <br>
+              <br>
+            </div>
+            <div>Hopefully that is enough information about the issue.
+              Now my questions. <br>
+              <ol>
+                <li>Does this implementation look correct.</li>
+                <li>What kind should fileview_hexa and
+                  fileview_hexa_conn be?</li>
+                <li>Is it okay that map and blocklength are different
+                  integer kinds?</li>
+                <li>What does the blocklength parameter specify exactly.
+                  I played with this some and changing the blocklength
+                  did not seem to change anything</li>
+              </ol>
+              <p>Thanks for the help. <br>
+              </p>
+              <p>-Dominic Kedelty<br>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="gmail_extra"><br>
+        <div class="gmail_quote">On Wed, Mar 16, 2016 at 12:02 AM,
+          Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank"></a><a href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span> wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+            <div bgcolor="#FFFFFF" text="#000000"> Dominic,<br>
+              <br>
+              at first, you might try to add<br>
+              call MPI_Barrier(comm,ierr)<br>
+              between<br>
+              <br>
+                if (file_is_there .and. irank.eq.iroot) call
+              MPI_FILE_DELETE(file,MPI_INFO_NULL,ierr)<br>
+              <br>
+              and<br>
+              <br>
+                call
+MPI_FILE_OPEN(comm,file,IOR(MPI_MODE_WRONLY,MPI_MODE_CREATE),MPI_INFO_NULL,iunit,ierr)<br>
+              <br>
+              /* there might me a race condition, i am not sure about
+              that */<br>
+              <br>
+              <br>
+              fwiw, the<span><br>
+                <p><span>STOP A configuration file is required<br>
+                  </span></p>
+              </span>
+              <p><span>error message is not coming from OpenMPI.<br>
+                  it might be indirectly triggered by an ompio
+                  bug/limitation, or even a bug in your application.<br>
+                </span></p>
+              did you get your application work with an other flavor of
+              OpenMPI ?<br>
+              e.g. are you reporting an OpenMPI bug ?<br>
+              or are you asking some help with your application (the bug
+              could either be in your code or in OpenMPI, and you do not
+              know for sure)<br>
+              <br>
+              i am a bit surprised you are using the same fileview_node
+              type with both MPI_INTEGER and MPI_REAL_SP, but since they
+              should be the same size, that might not be an issue.<br>
+              <br>
+              the subroutine depends on too many external parameters<br>
+              (nnodes_, fileview_node, ncells_hexa, ncells_hexa_,
+              unstr2str, ...)<br>
+              so writing a simple reproducer might not be trivial.<br>
+              <br>
+              i recommend you first write a self contained program that
+              can be evidenced to reproduce the issue,<br>
+              and then i will investigate that. for that, you might want
+              to dump the array sizes and the description of
+              fileview_node in your application, and then hard code them
+              into your self contained program.<br>
+              also how many nodes/tasks are you running and what
+              filesystem are you running on ?<br>
+              <br>
+              Cheers,<br>
+              <br>
+              Gilles
+              <div>
+                <div><br>
+                  <br>
+                  <div>On 3/16/2016 3:05 PM, Dominic Kedelty wrote:<br>
+                  </div>
+                </div>
+              </div>
+              <blockquote type="cite">
+                <div>
+                  <div>
+                    <div dir="ltr">Gilles,
+                      <div><br>
+                      </div>
+                      <div>I do not have the latest mpich available. I
+                        tested using openmpi version 1.8.7 as well as
+                        mvapich2 version 1.9. both produced similar
+                        errors. I tried the mca flag that you had
+                        provided and it is telling me that a
+                        configuration file is needed.</div>
+                      <div><br>
+                      </div>
+                      <div>all processes return:</div>
+                      <div>
+                        <p><span>STOP A configuration file is required</span></p>
+                        <p>I am attaching the subroutine of the code
+                          that I believe is where the problem is
+                          occuring.</p>
+                        <p><br>
+                        </p>
+                      </div>
+                    </div>
+                    <div class="gmail_extra"><br>
+                      <div class="gmail_quote">On Mon, Mar 14, 2016 at
+                        6:25 PM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@gmail.com" target="_blank"></a><a href="mailto:gilles.gouaillardet@gmail.com" target="_blank">gilles.gouaillardet@gmail.com</a>&gt;</span>
+                        wrote:<br>
+                        <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Dominic,
+                          <div><br>
+                          </div>
+                          <div>this is a ROMIO error message, and ROMIO
+                            is from MPICH project.</div>
+                          <div>at first, I recommend you try the same
+                            test with the latest mpich, in order to
+                            check</div>
+                          <div>whether the bug is indeed from romio, and
+                            has been fixed in the latest release.</div>
+                          <div>(ompi is a few version behind the latest
+                            romio)</div>
+                          <div><br>
+                          </div>
+                          <div>would you be able to post a trimmed
+                            version of your application that evidences
+                            the test ?</div>
+                          <div>that will be helpful to understand what
+                            is going on.</div>
+                          <div><br>
+                          </div>
+                          <div>you might also want to give a try to</div>
+                          <div>mpirun --mca io ompio ...</div>
+                          <div>and see whether this helps. </div>
+                          <div>that being said, I think ompio is not
+                            considered as production ready on the v1.10
+                            series of ompi</div>
+                          <div><br>
+                          </div>
+                          <div>Cheers,</div>
+                          <div><br>
+                          </div>
+                          <div>Gilles
+                            <div>
+                              <div><br>
+                                <div><br>
+                                  On Tuesday, March 15, 2016, Dominic
+                                  Kedelty &lt;<a href="mailto:dkedelty@asu.edu" target="_blank">dkedelty@asu.edu</a>&gt;
+
+                                  wrote:<br>
+                                  <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+                                    <div dir="ltr">
+                                      <div>I am getting the following
+                                        error using openmpi and I am
+                                        wondering if anyone would have
+                                        clue as to why it is happening.
+                                        It is an error coming from
+                                        openmpi.<br>
+                                        <br>
+                                        Error in
+                                        ADIOI_Calc_aggregator():
+                                        rank_index(40) &gt;=
+                                        fd-&gt;hints-&gt;cb_nodes (40)
+                                        fd_size=213909504 off=8617247540<br>
+                                        Error in
+                                        ADIOI_Calc_aggregator():
+                                        rank_index(40) &gt;=
+                                        fd-&gt;hints-&gt;cb_nodes (40)
+                                        fd_size=213909504 off=8617247540<br>
+                                        application called
+                                        MPI_Abort(MPI_COMM_WORLD, 1) -
+                                        process 157<br>
+                                        application called
+                                        MPI_Abort(MPI_COMM_WORLD, 1) -
+                                        process 477<br>
+                                        <br>
+                                      </div>
+                                      <div>Any help would be
+                                        appreciated. Thanks.<br>
+                                      </div>
+                                    </div>
+                                  </blockquote>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <br>
+_______________________________________________<br>
+                          devel mailing list<br>
+                          <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+                          Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+                          Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18697.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18697.php</a><br>
+                        </blockquote>
+                      </div>
+                      <br>
+                    </div>
+                    <br>
+                    <fieldset></fieldset>
+                    <br>
+                  </div>
+                </div>
+                <pre><div><div>_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18700.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18700.php</a></pre>
+              </blockquote>
+              <br>
+            </div>
+            <br>
+            _______________________________________________<br>
+            devel mailing list<br>
+            <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+            Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+            Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18701.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18701.php</a><br>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      </div></div><pre><div><div class="h5">_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18719.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18719.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18720.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18720.php</a><br></blockquote></div><br></div>
+

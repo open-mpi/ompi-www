@@ -1,0 +1,63 @@
+<div dir="ltr"><div>I agree with George that zeroing memory only in the debug builds could hide bugs, and thus would want to see the debug and non-debug builds have the same behavior (both malloc or both calloc).&nbsp; So, I also agree this looks initially like a hard choice.</div><div><br></div>What about using malloc() in non-debug builds and having a MCA param control malloc-vs-calloc in a debug build (with malloc being the default)?&nbsp; The param name could be something with &quot;valgrind&quot; in it to allow it to control any other &quot;paranoid code&quot; that may be introduced just to silence valgrind warnings.<div><br></div><div>-Paul</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Fri, Oct 3, 2014 at 3:02 PM, George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@icl.utk.edu" target="_blank">bosilca@icl.utk.edu</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">It&rsquo;s a tough call. This proposal will create significant differences between the debug and fast builds. As the entire objects will be set to zero this might reduce bugs in the debug build, bugs that will be horribly difficult to track in any non-debug builds. Moreover, if the structures are carefully accessed in our code, adding such a disruptive initialization just to prevent valgrind from reporting false-positive about uninitialized reads in memcpy is too costly as a solution (I am also conscient that it will be almost impossible to write a valgrind suppression rule for the specific case you mention).<br>
+<br>
+Some parts of the code have (or at least had) some level of cleanness for the gaps in the structures. The solution was to minimally zero-fy the gaps, maintaining the same behavior between debug and non-debug builds. However, in order to do this one need to know the layout of the structure, so this is not a completely generic solution&hellip;<br>
+<br>
+&nbsp; George.<br>
+<br>
+<br>
+On Oct 3, 2014, at 16:54 , Jeff Squyres (jsquyres) &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+<br>
+&gt; WHAT: change the malloc() to calloc() in opal_obj_new() (perhaps only in debug builds?)<br>
+&gt;<br>
+&gt; WHY: Drastically reduces valgrind output<br>
+&gt;<br>
+&gt; WHERE: see <a href="https://github.com/open-mpi/ompi/blob/master/opal/class/opal_object.h#L462-L467" target="_blank">https://github.com/open-mpi/ompi/blob/master/opal/class/opal_object.h#L462-L467</a><br>
+&gt;<br>
+&gt; TIMEOUT: teleconf, Tue, Oct 14 (there&#39;s no rush)<br>
+&gt;<br>
+&gt; MORE DETAIL:<br>
+&gt;<br>
+&gt; I was debugging some code today and came across a bunch of places where we write structs down various IPC mechanisms, and the structs contain holes.&nbsp; In most places, the performance doesn&#39;t matter / the readability of struct members is more important, so we haven&#39;t re-ordered the structs to remove holes.&nbsp; But consequently, those holes end up uninitialized, and therefore memcpy()ing or write()ing instances of these structs causes valgrind to emit warnings.<br>
+&gt;<br>
+&gt; The patch below eliminates most (all?) of these valgrind warnings -- in debug builds, it changes the malloc() inside OBJ_NEW to a calloc().<br>
+&gt;<br>
+&gt; Upon a little more thought, however, I wonder if we use OBJ_NEW in any fast code paths (other than in bulk, such as when we need to grow a free list).&nbsp; Specifically: would it be terrible to *always* calloc -- not just for debug builds?<br>
+&gt;<br>
+&gt; -----<br>
+&gt; diff --git a/opal/class/opal_object.h b/opal/class/opal_object.h<br>
+&gt; index 7012bac..585f13e 100644<br>
+&gt; --- a/opal/class/opal_object.h<br>
+&gt; +++ b/opal/class/opal_object.h<br>
+&gt; @@ -464,7 +464,11 @@ static inline opal_object_t *opal_obj_new(opal_class_t * cl<br>
+&gt;&nbsp; &nbsp; &nbsp;opal_object_t *object;<br>
+&gt;&nbsp; &nbsp; &nbsp;assert(cls-&gt;cls_sizeof &gt;= sizeof(opal_object_t));<br>
+&gt;<br>
+&gt; +#if OPAL_ENABLE_DEBUG<br>
+&gt; +&nbsp; &nbsp; object = (opal_object_t *) calloc(1, cls-&gt;cls_sizeof);<br>
+&gt; +#else<br>
+&gt;&nbsp; &nbsp; &nbsp;object = (opal_object_t *) malloc(cls-&gt;cls_sizeof);<br>
+&gt; +#endif<br>
+&gt;&nbsp; &nbsp; &nbsp;if (0 == cls-&gt;cls_initialized) {<br>
+&gt;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;opal_class_initialize(cls);<br>
+&gt;&nbsp; &nbsp; &nbsp;}<br>
+&gt; -----<br>
+&gt;<br>
+&gt; --<br>
+&gt; Jeff Squyres<br>
+&gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/10/16001.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/10/16001.php</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/10/16004.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/10/16004.php</a><br>
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>Computer and Data Sciences Department &nbsp; &nbsp; Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory &nbsp; &nbsp; Fax: +1-510-486-6900</div></font>
+</div>
+

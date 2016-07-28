@@ -1,0 +1,453 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Sorry, I was out snowshoeing today - and about 3 miles out, I suddenly realized the problem :-/<div><br></div><div>Terry is correct - we don't initialize the plm framework in application processes. However, there is a default proxy module for that framework so that applications can call comm_spawn. Unfortunately, I never filled in the rest of the module function pointers because (a) there was no known reason for apps to be using them (as Jeff points out), and (b) there is no MPI call that interfaces to them.</div><div><br></div><div>I can (and will) make it work over the next day or two - there is no reason why this can't be done. It just wasn't implemented due to lack of reason to do so.</div><div><br></div><div>Sorry for the confusion - old man brain fizzing out again.</div><div><br><div><div>On Mar 17, 2010, at 8:29 AM, Leonardo Fialho wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Yes, I know the difference :)<div><br></div><div>I'm trying to call orte_plm.signal_job from a PML component.&nbsp;I think PLM stays resident after launching but it doesn't only for mpirun and orted, you're right.</div><div><br></div><div><div><div>On Mar 17, 2010, at 3:15 PM, Terry Dontje wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">
+<div text="#000000" bgcolor="#ffffff">
+On 03/17/2010 10:10 AM, Leonardo Fialho wrote:
+<blockquote cite="mid:42E8D4F3-ACA5-44E9-BFD9-DE0AB507D0B8@caos.uab.es" type="cite">Wow... orte_plm.signal_job points to zero. Is it correct
+from the PML point of view?</blockquote>
+It might be because plm's are really only used at launch time not in
+MPI processes.&nbsp; Note plm != pml.<br>
+<br>
+--td<br>
+<blockquote cite="mid:42E8D4F3-ACA5-44E9-BFD9-DE0AB507D0B8@caos.uab.es" type="cite">
+  <div><br>
+  </div>
+  <div>Leonardo</div>
+  <div><br>
+  <div>
+  <div>On Mar 17, 2010, at 2:52 PM, Leonardo Fialho wrote:</div>
+  <br class="Apple-interchange-newline">
+  <blockquote type="cite">
+    <div style="word-wrap: break-word;">
+    <div>
+    <div>To clarify a little bit more: I'm calling orte_plm.signal_job
+from a PML component, I know that ORTE is bellow OMPI, but I think that
+this function could not be available, or something like this. I can't
+figure out where is this snprintf too, in my code there is only</div>
+    <div><br>
+    </div>
+    <div>
+    <div style="margin: 0px; font-family: Menlo; font-style: normal; font-variant: normal; font-weight: normal; font-size: 11px; line-height: normal; font-size-adjust: none; font-stretch: normal; -x-system-font: none; color: rgb(229, 0, 0);"><span style="color: rgb(0, 0, 0);">&nbsp;&nbsp; &nbsp;opal_output(</span><span style="color: rgb(39, 0, 220);">0</span><span style="color: rgb(0, 0, 0);">, </span>"receiver: sending SIGUSR1
+&lt;%d&gt; to RADIC Event Logger &lt;%s&gt;"<span style="color: rgb(0, 0, 0);">,</span></div>
+    <div style="margin: 0px; font-family: Menlo; font-style: normal; font-variant: normal; font-weight: normal; font-size: 11px; line-height: normal; font-size-adjust: none; font-stretch: normal; -x-system-font: none; color: rgb(229, 0, 0);"><span style="color: rgb(0, 0, 0);">&nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;SIGUSR1,
+ORTE_NAME_PRINT(&amp;el_proc));</span></div>
+    <div style="margin: 0px; font-family: Menlo; font-style: normal; font-variant: normal; font-weight: normal; font-size: 11px; line-height: normal; font-size-adjust: none; font-stretch: normal; -x-system-font: none;">&nbsp;
+&nbsp; orte_plm.signal_job(el_proc.jobid, SIGUSR1);</div>
+    <div><font class="Apple-style-span" size="3" face="Menlo"><span class="Apple-style-span" style="font-size: 11px;"><br>
+    </span></font></div>
+    </div>
+    <div>
+    <div>And the first output/printf works fine.&nbsp;Well... I used gdb to
+run the program, I can see this:</div>
+    </div>
+    <div>
+    <div>
+    <div><br>
+    </div>
+    <div>
+    <div>
+    <div>Program received signal EXC_BAD_ACCESS, Could not access
+memory.</div>
+    <div>Reason: KERN_INVALID_ADDRESS at address: 0x0000000000000000</div>
+    <div>0x0000000000000000 in ?? ()</div>
+    <div>(gdb) backtrace</div>
+    <div>#0 &nbsp;0x0000000000000000 in ?? ()</div>
+    <div>#1 &nbsp;0x000000010065c319 in vprotocol_receiver_eventlog_connect
+(el_comm=0x10065d178) at
+../../../../../../../../ompi/mca/pml/v/mca/vprotocol/receiver/vprotocol_receiver_eventlog.c:67</div>
+    <div>#2 &nbsp;0x000000010065ba9a in mca_vprotocol_receiver_send
+(buf=0x100500000, count=262144, datatype=0x100263d60, dst=1, tag=1,
+sendmode=MCA_PML_BASE_SEND_STANDARD, comm=0x1002760c0) at
+../../../../../../../../ompi/mca/pml/v/mca/vprotocol/receiver/vprotocol_receiver_send.c:46</div>
+    <div>#3 &nbsp;0x0000000100077d44 in MPI_Send ()</div>
+    <div>#4 &nbsp;0x0000000100000a97 in main (argc=3, argv=0x7fff5fbff0c8)
+at ping.c:45</div>
+    <div><br>
+    </div>
+    </div>
+    <div>The line 67 of&nbsp;vprotocol_receiver_eventlog.c is the
+orte_plm_signal_job call. After that zeros and interrogations... the
+signal_job function is already available? I really don't understand
+what means all those zeros.</div>
+    <div><br>
+    </div>
+    <div>Leonardo</div>
+    <div><br>
+    </div>
+    </div>
+    </div>
+    <div>On Mar 17, 2010, at 2:06 PM, Ralph Castain wrote:</div>
+    <br class="Apple-interchange-newline">
+    <blockquote type="cite">
+      <div style="word-wrap: break-word;">Thanks for clarifying - guess
+I won't chew just yet. :-)
+      <div><br>
+      </div>
+      <div>I still don't see in your trace where it is failing in
+signal_job. I didn't see the message indicating it was sending the
+signal cmd out in your prior debug output, and there isn't a printf in
+that code loop other than the debug output. Can you attach to the
+process and get more info?</div>
+      <div><br>
+      <div>
+      <div>On Mar 17, 2010, at 6:50 AM, Leonardo Fialho wrote:</div>
+      <br class="Apple-interchange-newline">
+      <blockquote type="cite">
+        <div style="word-wrap: break-word;">Ralph don't swallow your
+message yet... Both jobs are not running over the same mpirun. There
+are two instances of mpirun in which one runs with "-report-uri
+../contact.txt" and the other receives its contact info using
+"-ompi-server <a class="moz-txt-link-freetext" href="file://../contact.txt">file:../contact.txt</a>". And yes, both processes are running
+with plm_base_verbose activated. When a deactivate the plm_base_verbose
+the error is practically the same:
+        <div><br>
+        </div>
+        <div>
+        <div>[aopclf:54106] receiver: sending SIGUSR1 &lt;30&gt; to
+RADIC Event Logger &lt;[[47640,1],0]&gt;</div>
+        <div>[aopclf:54106] *** Process received signal ***</div>
+        <div>[aopclf:54106] Signal: Segmentation fault (11)</div>
+        <div>[aopclf:54106] Signal code: Address not mapped (1)</div>
+        <div>[aopclf:54106] Failing at address: 0x0</div>
+        <div>[aopclf:54106] [ 0] 2 &nbsp; libSystem.B.dylib &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; 0x00007fff83a6eeaa _sigtramp + 26</div>
+        <div>[aopclf:54106] [ 1] 3 &nbsp; libSystem.B.dylib &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; 0x00007fff83a210b7 snprintf + 496</div>
+        <div>[aopclf:54106] [ 2] 4 &nbsp; mca_vprotocol_receiver.so &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; 0x000000010065ba0a mca_vprotocol_receiver_send + 177</div>
+        <div>[aopclf:54106] [ 3] 5 &nbsp; libmpi.0.dylib &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp;0x0000000100077d44 MPI_Send + 734</div>
+        <div>[aopclf:54106] [ 4] 6 &nbsp; ping &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp;0x0000000100000a97 main + 431</div>
+        <div>[aopclf:54106] [ 5] 7 &nbsp; ping &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp;0x00000001000008e0 start + 52</div>
+        <div>[aopclf:54106] *** End of error message ***</div>
+        <div><br>
+        </div>
+        <div>Leonardo</div>
+        </div>
+        <div><br>
+        <div>
+        <div>On Mar 17, 2010, at 5:43 AM, Ralph Castain wrote:</div>
+        <br class="Apple-interchange-newline">
+        <blockquote type="cite">
+          <div style="word-wrap: break-word;">I'm going to have to eat
+my last message. It slipped past me that your other job was started via
+comm_spawn. Since both "jobs" are running under the same mpirun, there
+shouldn't be a problem sending a signal between them.
+          <div><br>
+          </div>
+          <div>I don't know why this would be crashing. Are you sure it
+is &nbsp;crashing in signal_job? Your trace indicates it is crashing in a
+print statement, yet there is no print statement in signal_job. Or did
+you run this with plm_base_verbose set so that the verbose prints are
+trying to run (could be we have a bug in one of them)?</div>
+          <div><br>
+          </div>
+          <div>
+          <div>
+          <div>On Mar 16, 2010, at 6:59 PM, Leonardo Fialho wrote:</div>
+          <br class="Apple-interchange-newline">
+          <blockquote type="cite">
+            <div style="word-wrap: break-word;">Well, thank you anyway
+:)
+            <div><br>
+            </div>
+            <div>
+            <div>
+            <div>On Mar 17, 2010, at 1:54 AM, Ralph Castain wrote:</div>
+            <br class="Apple-interchange-newline">
+            <blockquote type="cite">
+              <div style="word-wrap: break-word;">Yeah, that probably
+won't work. The current code isn't intended to cross jobs like that -
+I'm sure nobody ever tested it for that idea, and I'm pretty sure it
+won't support it.
+              <div><br>
+              </div>
+              <div>I don't currently know any way to do what you are
+trying to do. We could extend the signal code to handle it, I would
+think...but I'm not sure how soon that might happen.</div>
+              <div><br>
+              </div>
+              <div><br>
+              <div>
+              <div>On Mar 16, 2010, at 6:47 PM, Leonardo Fialho wrote:</div>
+              <br class="Apple-interchange-newline">
+              <blockquote type="cite">
+                <div style="word-wrap: break-word;">Yes... but
+something wrong is going on... maybe the problem is that the jobid is
+different than the process' jobid, I don't know.
+                <div><br>
+                </div>
+                <div>I'm trying to send a signal to other process
+running under a another job. The other process jump into an
+accept_connect to the MPI comm. So i did a code like this (I removed
+verification code and comments, this is just a summary for a happy
+execution):</div>
+                <div><br>
+                </div>
+                <div>
+                <div style="margin: 0px; font-family: Menlo; font-style: normal; font-variant: normal; font-weight: normal; font-size: 11px; line-height: normal; font-size-adjust: none; font-stretch: normal; -x-system-font: none;">ompi_dpm.parse_port(port,
+&amp;hnp_uri, &amp;rml_uri, &amp;el_tag);</div>
+                <div style="margin: 0px; font-family: Menlo; font-style: normal; font-variant: normal; font-weight: normal; font-size: 11px; line-height: normal; font-size-adjust: none; font-stretch: normal; -x-system-font: none;">orte_rml_base_parse_uris(rml_uri,
+&amp;el_proc, <span style="color: rgb(205, 0, 163);">NULL</span>);</div>
+                <div style="margin: 0px; font-family: Menlo; font-style: normal; font-variant: normal; font-weight: normal; font-size: 11px; line-height: normal; font-size-adjust: none; font-stretch: normal; -x-system-font: none;">ompi_dpm.route_to_port(hnp_uri,
+&amp;el_proc);</div>
+                <div style="margin: 0px; font-family: Menlo; font-style: normal; font-variant: normal; font-weight: normal; font-size: 11px; line-height: normal; font-size-adjust: none; font-stretch: normal; -x-system-font: none;">orte_plm.signal_job(el_proc.jobid,
+SIGUSR1);</div>
+                <div style="margin: 0px; font-family: Menlo; font-style: normal; font-variant: normal; font-weight: normal; font-size: 11px; line-height: normal; font-size-adjust: none; font-stretch: normal; -x-system-font: none;">ompi_dpm.connect_accept(MPI_COMM_SELF,
+                <span style="color: rgb(39, 0, 220);">0</span>, port,
+true, el_comm);</div>
+                <div style="margin: 0px; font-family: Menlo; font-style: normal; font-variant: normal; font-weight: normal; font-size: 11px; line-height: normal; font-size-adjust: none; font-stretch: normal; -x-system-font: none;"><br>
+                </div>
+                </div>
+                <div>el_proc is defined as orte_process_name_t, not a
+pointer to this. And signal.h has been included for SIGUSR1's sake. But
+when the code enter in signal_job function it crashes. I'm trying to
+debug it just now... the crash is the following:</div>
+                <div><br>
+                </div>
+                <div>
+                <div>[Fialho-2.local:51377] receiver: looking for:
+radic_eventlog[0]</div>
+                <div>[Fialho-2.local:51377] receiver: found port
+&lt;784793600.0;tcp://192.168.1.200:54071+784793601.0;tcp://192.168.1.200:54072:300&gt;</div>
+                <div>[Fialho-2.local:51377] receiver: HNP URI
+&lt;784793600.0;tcp://192.168.1.200:54071&gt;, RML URI
+&lt;784793601.0;tcp://192.168.1.200:54072&gt;, TAG &lt;300&gt;</div>
+                <div>[Fialho-2.local:51377] receiver: sending SIGUSR1
+&lt;30&gt; to RADIC Event Logger &lt;[[11975,1],0]&gt;</div>
+                <div>[Fialho-2:51377] *** Process received signal ***</div>
+                <div>[Fialho-2:51377] Signal: Segmentation fault (11)</div>
+                <div>[Fialho-2:51377] Signal code: Address not mapped
+(1)</div>
+                <div>[Fialho-2:51377] Failing at address: 0x0</div>
+                <div>[Fialho-2:51377] [ 0] 2 &nbsp; libSystem.B.dylib &nbsp; &nbsp; &nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 0x00007fff83a6eeaa _sigtramp + 26</div>
+                <div>[Fialho-2:51377] [ 1] 3 &nbsp; libSystem.B.dylib &nbsp; &nbsp; &nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 0x00007fff83a210b7 snprintf + 496</div>
+                <div>[Fialho-2:51377] [ 2] 4 &nbsp;
+mca_vprotocol_receiver.so &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 0x000000010065ba0a
+mca_vprotocol_receiver_send + 177</div>
+                <div>[Fialho-2:51377] [ 3] 5 &nbsp; libmpi.0.dylib &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;0x0000000100077d44 MPI_Send + 734</div>
+                <div>[Fialho-2:51377] [ 4] 6 &nbsp; ping &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;0x0000000100000a97 main + 431</div>
+                <div>[Fialho-2:51377] [ 5] 7 &nbsp; ping &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;0x00000001000008e0 start + 52</div>
+                <div>[Fialho-2:51377] [ 6] 8 &nbsp; ??? &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 0x0000000000000003 0x0 + 3</div>
+                <div>[Fialho-2:51377] *** End of error message ***</div>
+                <div><br>
+                </div>
+                <div>With exception to the signal_job the code works, I
+have tested it forcing an accept on the other process, and avoiding the
+signal_job. But I want to send the signal to wake-up the other side and
+to be able to manage multiple connect/accept.</div>
+                <div><br>
+                </div>
+                <div>Thanks,</div>
+                <div>Leonardo</div>
+                <div><br>
+                </div>
+                <div>
+                <div>On Mar 17, 2010, at 1:33 AM, Ralph Castain wrote:</div>
+                <br class="Apple-interchange-newline">
+                <blockquote type="cite">
+                  <div style="word-wrap: break-word;">Sure! So long as
+you add the include, you are okay as the ORTE layer is "below" the OMPI
+one.
+                  <div><br>
+                  <div>
+                  <div>On Mar 16, 2010, at 6:29 PM, Leonardo Fialho
+wrote:</div>
+                  <br class="Apple-interchange-newline">
+                  <blockquote type="cite">
+                    <div style="word-wrap: break-word;">Thanks Ralph,
+the last question... it orte_plm.signal_job exposed/available to be
+called by a PML component? Yes, I have the orte/mca/plm/plm.h include
+line.<br>
+                    <div>
+                    <div><br>
+                    </div>
+                    <div>Leonardo</div>
+                    <div><br>
+                    </div>
+                    <div>On Mar 16, 2010, at 11:59 PM, Ralph Castain
+wrote:</div>
+                    <br class="Apple-interchange-newline">
+                    <blockquote type="cite">
+                      <div style="word-wrap: break-word;">It's just the
+orte_process_name_t jobid field. So if you have an orte_process_name_t
+*pname, then it would just be
+                      <div><br>
+                      </div>
+                      <div>orte_plm.signal_job(pname-&gt;jobid, sig)</div>
+                      <div><br>
+                      </div>
+                      <div><br>
+                      <div>
+                      <div>On Mar 16, 2010, at 3:23 PM, Leonardo Fialho
+wrote:</div>
+                      <br class="Apple-interchange-newline">
+                      <blockquote type="cite">
+                        <div style="word-wrap: break-word;">Hum.... and
+to signal a job probably the function is&nbsp;<span class="Apple-style-span" style="font-family: Menlo; font-size: 11px;">orte_plm.signal_job(jobid,
+signal);&nbsp;<span class="Apple-style-span" style="font-family: Helvetica; font-size: medium;">right?</span></span>
+                        <div><br>
+                        </div>
+                        <div><span class="Apple-style-span" style="font-family: Menlo; font-size: 11px;"><span class="Apple-style-span" style="font-family: Helvetica; font-size: medium;"></span></span>Now
+my dummy question is how to obtain the jobid part from an
+orte_proc_name_t variable? Is there any magical function in the
+names_fns.h?</div>
+                        <div><br>
+                        </div>
+                        <div>Thanks,<br>
+                        <div>
+                        <div>Leonardo</div>
+                        <div><br>
+                        </div>
+                        <div>On Mar 16, 2010, at 10:12 PM, Ralph
+Castain wrote:</div>
+                        <br class="Apple-interchange-newline">
+                        <blockquote type="cite">
+                          <div>Afraid not - you can signal a job, but
+not a specific process. We used to have such an API, but nobody ever
+used it. Easy to restore if someone has a need.<br>
+                          <br>
+On Mar 16, 2010, at 2:45 PM, Leonardo Fialho wrote:<br>
+                          <br>
+                          <blockquote type="cite">Hi,<br>
+                          </blockquote>
+                          <blockquote type="cite"><br>
+                          </blockquote>
+                          <blockquote type="cite">Is there any function
+in Open MPI's frameworks to send a signal to other ORTE proc?<br>
+                          </blockquote>
+                          <blockquote type="cite"><br>
+                          </blockquote>
+                          <blockquote type="cite">For example, the ORTE
+process [[1234,1],1] want to &nbsp;send a signal to process [[1234,1,4]
+locate in other node. I'm looking for this kind of functions but I just
+found functions to send signal to all procs in a node.<br>
+                          </blockquote>
+                          <blockquote type="cite"><br>
+                          </blockquote>
+                          <blockquote type="cite">Thanks,<br>
+                          </blockquote>
+                          <blockquote type="cite">Leonardo<br>
+                          </blockquote>
+                          <blockquote type="cite">_______________________________________________<br>
+                          </blockquote>
+                          <blockquote type="cite">devel mailing list<br>
+                          </blockquote>
+                          <blockquote type="cite"><a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+                          </blockquote>
+                          <blockquote type="cite"><a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+                          </blockquote>
+                          <br>
+                          <br>
+_______________________________________________<br>
+devel mailing list<br>
+                          <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+                          <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+                          </div>
+                        </blockquote>
+                        </div>
+                        <br>
+                        </div>
+                        </div>
+_______________________________________________<br>
+devel mailing list<br>
+                        <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+                        <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+                      </div>
+                      <br>
+                      </div>
+                      </div>
+_______________________________________________<br>
+devel mailing list<br>
+                      <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+                      <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+                    </div>
+                    <br>
+                    </div>
+_______________________________________________<br>
+devel mailing list<br>
+                    <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+                    <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+                  </div>
+                  <br>
+                  </div>
+                  </div>
+_______________________________________________<br>
+devel mailing list<br>
+                  <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+                  <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+                </div>
+                <br>
+                </div>
+                </div>
+_______________________________________________<br>
+devel mailing list<br>
+                <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+                <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+              </div>
+              <br>
+              </div>
+              </div>
+_______________________________________________<br>
+devel mailing list<br>
+              <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+              <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+            </div>
+            <br>
+            </div>
+            </div>
+_______________________________________________<br>
+devel mailing list<br>
+            <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+            <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+          </div>
+          <br>
+          </div>
+          </div>
+_______________________________________________<br>
+devel mailing list<br>
+          <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+          <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+        </div>
+        <br>
+        </div>
+        </div>
+_______________________________________________<br>
+devel mailing list<br>
+        <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+        <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+      </div>
+      <br>
+      </div>
+      </div>
+_______________________________________________<br>
+devel mailing list<br>
+      <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+      <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+    </div>
+    <br>
+    </div>
+    </div>
+_______________________________________________<br>
+devel mailing list<br>
+    <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+  </div>
+  <br>
+  </div>
+  <pre wrap=""><fieldset class="mimeAttachmentHeader"></fieldset>
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></pre>
+</blockquote>
+<br>
+</div>
+
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote></div><br></div></div>_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/devel</blockquote></div><br></div></body></html>

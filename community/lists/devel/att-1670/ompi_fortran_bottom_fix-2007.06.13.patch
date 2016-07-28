@@ -1,0 +1,931 @@
+Index: constants.h
+===================================================================
+--- constants.h	(Revision 15017)
++++ constants.h	(Arbeitskopie)
+@@ -89,7 +89,7 @@
+ 
+ /* Note that the rationale for the types of each of these variables is
+    discussed in ompi/include/mpif-common.h.  Do not change the types
+-   without also changing ompi/mpi/runtime/ompi_mpi_init.c and
++   without also changing ompi/runtime/ompi_mpi_init.c and
+    ompi/include/mpif-common.h. */
+ 
+ DECL(int, MPI_FORTRAN_BOTTOM, mpi_fortran_bottom,
+@@ -215,7 +215,7 @@
+ #endif /* weak / specific symbol type */
+ 
+ /* Convert between Fortran and C MPI_BOTTOM */
+-#define OMPI_ADDR(addr)  (OMPI_IS_FORTRAN_BOTTOM(addr) ? MPI_BOTTOM : (addr))
+-#define OMPI_IN_PLACE(addr)  (OMPI_IS_FORTRAN_IN_PLACE(addr) ? MPI_IN_PLACE : (addr))
++#define OMPI_F2C_BOTTOM(addr)    (OMPI_IS_FORTRAN_BOTTOM(addr) ? MPI_BOTTOM : (addr))
++#define OMPI_F2C_IN_PLACE(addr)  (OMPI_IS_FORTRAN_IN_PLACE(addr) ? MPI_IN_PLACE : (addr))
+ 
+ #endif /* OMPI_F77_CONSTANTS_H */
+Index: accumulate_f.c
+===================================================================
+--- accumulate_f.c	(Revision 15017)
++++ accumulate_f.c	(Arbeitskopie)
+@@ -70,7 +70,7 @@
+     MPI_Win c_win = MPI_Win_f2c(*win);
+     MPI_Op c_op = MPI_Op_f2c(*op);
+ 
+-    *ierr = OMPI_INT_2_FINT(MPI_Accumulate(OMPI_ADDR(origin_addr), 
++    *ierr = OMPI_INT_2_FINT(MPI_Accumulate(OMPI_F2C_BOTTOM(origin_addr), 
+ 					   OMPI_FINT_2_INT(*origin_count),
+ 					   c_origin_datatype, 
+ 					   OMPI_FINT_2_INT(*target_rank),
+Index: allgather_f.c
+===================================================================
+--- allgather_f.c	(Revision 15017)
++++ allgather_f.c	(Arbeitskopie)
+@@ -69,9 +69,9 @@
+     c_sendtype = MPI_Type_f2c(*sendtype);
+     c_recvtype = MPI_Type_f2c(*recvtype);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Allgather(sendbuf,
+ 					  OMPI_FINT_2_INT(*sendcount),
+Index: allgatherv_f.c
+===================================================================
+--- allgatherv_f.c	(Revision 15017)
++++ allgatherv_f.c	(Arbeitskopie)
+@@ -76,9 +76,9 @@
+     OMPI_ARRAY_FINT_2_INT(recvcounts, size);
+     OMPI_ARRAY_FINT_2_INT(displs, size);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Allgatherv(sendbuf,
+ 					   OMPI_FINT_2_INT(*sendcount),
+Index: allreduce_f.c
+===================================================================
+--- allreduce_f.c	(Revision 15017)
++++ allreduce_f.c	(Arbeitskopie)
+@@ -70,9 +70,9 @@
+     c_type = MPI_Type_f2c(*datatype);
+     c_op = MPI_Op_f2c(*op);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Allreduce(sendbuf, recvbuf,
+ 					  OMPI_FINT_2_INT(*count),
+Index: alltoall_f.c
+===================================================================
+--- alltoall_f.c	(Revision 15017)
++++ alltoall_f.c	(Arbeitskopie)
+@@ -19,6 +19,7 @@
+ #include "ompi_config.h"
+ 
+ #include "ompi/mpi/f77/bindings.h"
++#include "ompi/mpi/f77/constants.h"
+ 
+ #if OMPI_HAVE_WEAK_SYMBOLS && OMPI_PROFILE_LAYER
+ #pragma weak PMPI_ALLTOALL = mpi_alltoall_f
+@@ -68,10 +69,14 @@
+     c_sendtype = MPI_Type_f2c(*sendtype);
+     c_recvtype = MPI_Type_f2c(*recvtype);
+ 
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
++
+     *ierr = OMPI_INT_2_FINT(MPI_Alltoall(sendbuf,
+-					  OMPI_FINT_2_INT(*sendcount),
+-					  c_sendtype, 
+-					  recvbuf, 
+-					  OMPI_FINT_2_INT(*recvcount),
+-					  c_recvtype, c_comm));
++                                         OMPI_FINT_2_INT(*sendcount),
++                                         c_sendtype, 
++                                         recvbuf, 
++                                         OMPI_FINT_2_INT(*recvcount),
++                                         c_recvtype, c_comm));
+ }
+Index: alltoallv_f.c
+===================================================================
+--- alltoallv_f.c	(Revision 15017)
++++ alltoallv_f.c	(Arbeitskopie)
+@@ -19,6 +19,7 @@
+ #include "ompi_config.h"
+ 
+ #include "ompi/mpi/f77/bindings.h"
++#include "ompi/mpi/f77/constants.h"
+ 
+ #if OMPI_HAVE_WEAK_SYMBOLS && OMPI_PROFILE_LAYER
+ #pragma weak PMPI_ALLTOALLV = mpi_alltoallv_f
+@@ -80,6 +81,9 @@
+     OMPI_ARRAY_FINT_2_INT(recvcounts, size);
+     OMPI_ARRAY_FINT_2_INT(rdispls, size);
+ 
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Alltoallv(sendbuf, 
+ 					  OMPI_ARRAY_NAME_CONVERT(sendcounts),
+Index: alltoallw_f.c
+===================================================================
+--- alltoallw_f.c	(Revision 15017)
++++ alltoallw_f.c	(Arbeitskopie)
+@@ -19,6 +19,7 @@
+ #include "ompi_config.h"
+ 
+ #include "ompi/mpi/f77/bindings.h"
++#include "ompi/mpi/f77/constants.h"
+ 
+ #if OMPI_HAVE_WEAK_SYMBOLS && OMPI_PROFILE_LAYER
+ #pragma weak PMPI_ALLTOALLW = mpi_alltoallw_f
+@@ -88,6 +89,10 @@
+         --size;
+     }
+ 
++    /* Alltoallw does not support MPI_IN_PLACE */
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
++
+     *ierr = OMPI_INT_2_FINT(MPI_Alltoallw(sendbuf, 
+ 					  OMPI_ARRAY_NAME_CONVERT(sendcounts),
+ 					  OMPI_ARRAY_NAME_CONVERT(sdispls),
+Index: bcast_f.c
+===================================================================
+--- bcast_f.c	(Revision 15017)
++++ bcast_f.c	(Arbeitskopie)
+@@ -19,6 +19,7 @@
+ #include "ompi_config.h"
+ 
+ #include "ompi/mpi/f77/bindings.h"
++#include "ompi/mpi/f77/constants.h"
+ 
+ #if OMPI_HAVE_WEAK_SYMBOLS && OMPI_PROFILE_LAYER
+ #pragma weak PMPI_BCAST = mpi_bcast_f
+@@ -66,7 +67,7 @@
+     c_comm = MPI_Comm_f2c(*comm);
+     c_type = MPI_Type_f2c(*datatype);
+ 
+-    *ierr = OMPI_INT_2_FINT(MPI_Bcast(buffer, 
++    *ierr = OMPI_INT_2_FINT(MPI_Bcast(OMPI_F2C_BOTTOM(buffer), 
+ 				      OMPI_FINT_2_INT(*count), 
+ 				      c_type,
+ 				      OMPI_FINT_2_INT(*root),
+Index: bsend_f.c
+===================================================================
+--- bsend_f.c	(Revision 15017)
++++ bsend_f.c	(Arbeitskopie)
+@@ -65,7 +65,7 @@
+ 
+     c_comm = MPI_Comm_f2c (*comm);
+   
+-    *ierr = OMPI_INT_2_FINT(MPI_Bsend(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++    *ierr = OMPI_INT_2_FINT(MPI_Bsend(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+ 				      c_type, OMPI_FINT_2_INT(*dest),
+ 				      OMPI_FINT_2_INT(*tag), c_comm));
+ }
+Index: bsend_init_f.c
+===================================================================
+--- bsend_init_f.c	(Revision 15017)
++++ bsend_init_f.c	(Arbeitskopie)
+@@ -66,7 +66,7 @@
+ 
+     c_comm = MPI_Comm_f2c (*comm);
+ 
+-    *ierr = OMPI_INT_2_FINT(MPI_Bsend_init(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++    *ierr = OMPI_INT_2_FINT(MPI_Bsend_init(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+ 					   c_type,
+ 					   OMPI_FINT_2_INT(*dest),
+ 					   OMPI_FINT_2_INT(*tag), 
+Index: exscan_f.c
+===================================================================
+--- exscan_f.c	(Revision 15017)
++++ exscan_f.c	(Arbeitskopie)
+@@ -19,6 +19,7 @@
+ #include "ompi_config.h"
+ 
+ #include "ompi/mpi/f77/bindings.h"
++#include "ompi/mpi/f77/constants.h"
+ 
+ #if OMPI_HAVE_WEAK_SYMBOLS && OMPI_PROFILE_LAYER
+ #pragma weak PMPI_EXSCAN = mpi_exscan_f
+@@ -69,6 +70,10 @@
+     c_type = MPI_Type_f2c(*datatype);
+     c_op = MPI_Op_f2c(*op);
+ 
++    /* MPI_IN_PLACE is not supported */
++    sendbuf = OMPI_F2C_BOTTOM (sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM (recvbuf);
++
+     *ierr = OMPI_INT_2_FINT(MPI_Exscan(sendbuf, recvbuf, 
+ 				       OMPI_FINT_2_INT(*count),
+ 				       c_type, c_op, c_comm));
+Index: file_iread_at_f.c
+===================================================================
+--- file_iread_at_f.c	(Revision 15017)
++++ file_iread_at_f.c	(Arbeitskopie)
+@@ -67,7 +67,7 @@
+    MPI_Request c_request;
+ 
+    *ierr = OMPI_INT_2_FINT(MPI_File_iread_at(c_fh, (MPI_Offset) *offset,
+-                                             OMPI_ADDR(buf),
++                                             OMPI_F2C_BOTTOM(buf),
+                                              OMPI_FINT_2_INT(*count),
+                                              c_type, 
+                                              &c_request));
+Index: file_iread_f.c
+===================================================================
+--- file_iread_f.c	(Revision 15017)
++++ file_iread_f.c	(Arbeitskopie)
+@@ -65,7 +65,7 @@
+    MPI_Datatype c_type = MPI_Type_f2c(*datatype);
+    MPI_Request c_request;
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_File_iread(c_fh, OMPI_ADDR(buf),
++   *ierr = OMPI_INT_2_FINT(MPI_File_iread(c_fh, OMPI_F2C_BOTTOM(buf),
+                                           OMPI_FINT_2_INT(*count),
+                                           c_type, &c_request));
+    
+Index: file_iread_shared_f.c
+===================================================================
+--- file_iread_shared_f.c	(Revision 15017)
++++ file_iread_shared_f.c	(Arbeitskopie)
+@@ -67,7 +67,7 @@
+    MPI_Request c_request;
+    
+    *ierr = OMPI_INT_2_FINT(MPI_File_iread_shared(c_fh,
+-                                                 OMPI_ADDR(buf),
++                                                 OMPI_F2C_BOTTOM(buf),
+                                                  OMPI_FINT_2_INT(*count),
+                                                  c_type,
+                                                  &c_request));
+Index: file_iwrite_at_f.c
+===================================================================
+--- file_iwrite_at_f.c	(Revision 15017)
++++ file_iwrite_at_f.c	(Arbeitskopie)
+@@ -67,7 +67,7 @@
+    MPI_Request c_request;
+    
+    *ierr = OMPI_INT_2_FINT(MPI_File_iwrite_at(c_fh, (MPI_Offset) *offset,
+-                                              OMPI_ADDR(buf),
++                                              OMPI_F2C_BOTTOM(buf),
+                                               OMPI_FINT_2_INT(*count),
+                                               c_type, &c_request));
+    if (MPI_SUCCESS == OMPI_FINT_2_INT(*ierr)) {
+Index: file_iwrite_f.c
+===================================================================
+--- file_iwrite_f.c	(Revision 15017)
++++ file_iwrite_f.c	(Arbeitskopie)
+@@ -64,7 +64,7 @@
+    MPI_Datatype c_type = MPI_Type_f2c(*datatype);
+    MPI_Request c_request;
+    
+-   *ierr = OMPI_INT_2_FINT(MPI_File_iwrite(c_fh, OMPI_ADDR(buf),
++   *ierr = OMPI_INT_2_FINT(MPI_File_iwrite(c_fh, OMPI_F2C_BOTTOM(buf),
+ 					   OMPI_FINT_2_INT(*count),
+ 					   c_type, &c_request));
+    
+Index: file_iwrite_shared_f.c
+===================================================================
+--- file_iwrite_shared_f.c	(Revision 15017)
++++ file_iwrite_shared_f.c	(Arbeitskopie)
+@@ -67,7 +67,7 @@
+    MPI_Request c_request;
+    
+    *ierr = OMPI_INT_2_FINT(MPI_File_iwrite_shared(c_fh,
+-                                                  OMPI_ADDR(buf),
++                                                  OMPI_F2C_BOTTOM(buf),
+                                                   OMPI_FINT_2_INT(*count),
+                                                   c_type,
+                                                   &c_request));
+Index: file_read_all_begin_f.c
+===================================================================
+--- file_read_all_begin_f.c	(Revision 15017)
++++ file_read_all_begin_f.c	(Arbeitskopie)
+@@ -65,7 +65,7 @@
+    MPI_File c_fh = MPI_File_f2c(*fh);
+    MPI_Datatype c_type = MPI_Type_f2c(*datatype);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_File_read_all_begin(c_fh, OMPI_ADDR(buf),
++   *ierr = OMPI_INT_2_FINT(MPI_File_read_all_begin(c_fh, OMPI_F2C_BOTTOM(buf),
+                                                    OMPI_FINT_2_INT(*count),
+                                                    c_type));
+ }
+Index: file_read_all_f.c
+===================================================================
+--- file_read_all_f.c	(Revision 15017)
++++ file_read_all_f.c	(Arbeitskopie)
+@@ -85,7 +85,7 @@
+ #endif
+    }
+     
+-   *ierr = OMPI_INT_2_FINT(MPI_File_read_all(c_fh, OMPI_ADDR(buf),
++   *ierr = OMPI_INT_2_FINT(MPI_File_read_all(c_fh, OMPI_F2C_BOTTOM(buf),
+                                              OMPI_FINT_2_INT(*count),
+                                              c_type, c_status));
+    
+Index: file_read_at_all_begin_f.c
+===================================================================
+--- file_read_at_all_begin_f.c	(Revision 15017)
++++ file_read_at_all_begin_f.c	(Arbeitskopie)
+@@ -67,7 +67,7 @@
+ 
+    *ierr = OMPI_FINT_2_INT(MPI_File_read_at_all_begin(c_fh, 
+                                                       (MPI_Offset) *offset,
+-                                                      OMPI_ADDR(buf),
++                                                      OMPI_F2C_BOTTOM(buf),
+                                                       OMPI_FINT_2_INT(*count),
+                                                       c_type));
+ }
+Index: file_read_at_all_f.c
+===================================================================
+--- file_read_at_all_f.c	(Revision 15017)
++++ file_read_at_all_f.c	(Arbeitskopie)
+@@ -90,7 +90,7 @@
+ 
+    *ierr = OMPI_FINT_2_INT(MPI_File_read_at_all(c_fh, 
+                                                 (MPI_Offset) *offset,
+-                                                OMPI_ADDR(buf),
++                                                OMPI_F2C_BOTTOM(buf),
+                                                 OMPI_FINT_2_INT(*count),
+                                                 c_type,
+                                                 c_status));
+Index: file_read_f.c
+===================================================================
+--- file_read_f.c	(Revision 15017)
++++ file_read_f.c	(Arbeitskopie)
+@@ -86,7 +86,7 @@
+ #endif
+    }
+     
+-   *ierr = OMPI_INT_2_FINT(MPI_File_read(c_fh, OMPI_ADDR(buf),
++   *ierr = OMPI_INT_2_FINT(MPI_File_read(c_fh, OMPI_F2C_BOTTOM(buf),
+                                          OMPI_FINT_2_INT(*count),
+                                          c_type, c_status));
+ 
+Index: file_read_ordered_begin_f.c
+===================================================================
+--- file_read_ordered_begin_f.c	(Revision 15017)
++++ file_read_ordered_begin_f.c	(Arbeitskopie)
+@@ -64,7 +64,7 @@
+    MPI_File c_fh = MPI_File_f2c(*fh);
+    MPI_Datatype c_type = MPI_Type_f2c(*datatype);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_File_read_ordered_begin(c_fh, OMPI_ADDR(buf), 
++   *ierr = OMPI_INT_2_FINT(MPI_File_read_ordered_begin(c_fh, OMPI_F2C_BOTTOM(buf), 
+                                                        OMPI_FINT_2_INT(*count),
+                                                        c_type));
+ }
+Index: file_read_ordered_f.c
+===================================================================
+--- file_read_ordered_f.c	(Revision 15017)
++++ file_read_ordered_f.c	(Arbeitskopie)
+@@ -87,7 +87,7 @@
+    }
+ 
+    *ierr = OMPI_FINT_2_INT(MPI_File_read_ordered(c_fh, 
+-                                                 OMPI_ADDR(buf),
++                                                 OMPI_F2C_BOTTOM(buf),
+ 						 OMPI_FINT_2_INT(*count),
+ 						 c_type,
+ 						 c_status));
+Index: file_read_shared_f.c
+===================================================================
+--- file_read_shared_f.c	(Revision 15017)
++++ file_read_shared_f.c	(Arbeitskopie)
+@@ -87,7 +87,7 @@
+    }
+ 
+    *ierr = OMPI_FINT_2_INT(MPI_File_read_shared(c_fh, 
+-                                                OMPI_ADDR(buf), 
++                                                OMPI_F2C_BOTTOM(buf), 
+                                                 OMPI_FINT_2_INT(*count),
+                                                 c_type,
+                                                 c_status));
+Index: file_write_all_begin_f.c
+===================================================================
+--- file_write_all_begin_f.c	(Revision 15017)
++++ file_write_all_begin_f.c	(Arbeitskopie)
+@@ -65,7 +65,7 @@
+    MPI_File c_fh = MPI_File_f2c(*fh);
+    MPI_Datatype c_type = MPI_Type_f2c(*datatype);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_File_write_all_begin(c_fh, OMPI_ADDR(buf), 
++   *ierr = OMPI_INT_2_FINT(MPI_File_write_all_begin(c_fh, OMPI_F2C_BOTTOM(buf), 
+ 						    OMPI_FINT_2_INT(*count),
+ 						    c_type));
+ }
+Index: file_write_all_f.c
+===================================================================
+--- file_write_all_f.c	(Revision 15017)
++++ file_write_all_f.c	(Arbeitskopie)
+@@ -85,7 +85,7 @@
+ #endif
+    }
+     
+-   *ierr = OMPI_INT_2_FINT(MPI_File_write_all(c_fh, OMPI_ADDR(buf),
++   *ierr = OMPI_INT_2_FINT(MPI_File_write_all(c_fh, OMPI_F2C_BOTTOM(buf),
+ 					      OMPI_FINT_2_INT(*count),
+ 					      c_type, c_status));
+ 
+Index: file_write_at_all_begin_f.c
+===================================================================
+--- file_write_at_all_begin_f.c	(Revision 15017)
++++ file_write_at_all_begin_f.c	(Arbeitskopie)
+@@ -67,7 +67,7 @@
+ 
+    *ierr = OMPI_FINT_2_INT(MPI_File_write_at_all_begin(c_fh, 
+ 						       (MPI_Offset) *offset,
+-						       OMPI_ADDR(buf), 
++						       OMPI_F2C_BOTTOM(buf), 
+ 						       OMPI_FINT_2_INT(*count),
+ 						       c_type));
+ }
+Index: file_write_at_all_f.c
+===================================================================
+--- file_write_at_all_f.c	(Revision 15017)
++++ file_write_at_all_f.c	(Arbeitskopie)
+@@ -89,7 +89,7 @@
+ 
+    *ierr = OMPI_FINT_2_INT(MPI_File_write_at_all(c_fh, 
+ 						 (MPI_Offset) *offset,
+-						 OMPI_ADDR(buf), 
++						 OMPI_F2C_BOTTOM(buf), 
+ 						 OMPI_FINT_2_INT(*count),
+ 						 c_type,
+ 						 c_status));
+Index: file_write_at_f.c
+===================================================================
+--- file_write_at_f.c	(Revision 15017)
++++ file_write_at_f.c	(Arbeitskopie)
+@@ -87,7 +87,7 @@
+ 
+    *ierr = OMPI_FINT_2_INT(MPI_File_write_at(c_fh, 
+                                              (MPI_Offset) *offset,
+-                                             OMPI_ADDR(buf), 
++                                             OMPI_F2C_BOTTOM(buf), 
+                                              OMPI_FINT_2_INT(*count),
+                                              c_type, c_status));
+     
+Index: file_write_f.c
+===================================================================
+--- file_write_f.c	(Revision 15017)
++++ file_write_f.c	(Arbeitskopie)
+@@ -85,7 +85,7 @@
+ #endif
+    }
+     
+-   *ierr = OMPI_INT_2_FINT(MPI_File_write(c_fh, OMPI_ADDR(buf),
++   *ierr = OMPI_INT_2_FINT(MPI_File_write(c_fh, OMPI_F2C_BOTTOM(buf),
+                                           OMPI_FINT_2_INT(*count),
+                                           c_type, c_status));
+    
+Index: file_write_ordered_begin_f.c
+===================================================================
+--- file_write_ordered_begin_f.c	(Revision 15017)
++++ file_write_ordered_begin_f.c	(Arbeitskopie)
+@@ -65,7 +65,7 @@
+    MPI_File c_fh = MPI_File_f2c(*fh);
+    MPI_Datatype c_type = MPI_Type_f2c(*datatype);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_File_write_ordered_begin(c_fh, OMPI_ADDR(buf), 
++   *ierr = OMPI_INT_2_FINT(MPI_File_write_ordered_begin(c_fh, OMPI_F2C_BOTTOM(buf), 
+                                                         OMPI_FINT_2_INT(*count),
+                                                         c_type));
+ }
+Index: file_write_ordered_f.c
+===================================================================
+--- file_write_ordered_f.c	(Revision 15017)
++++ file_write_ordered_f.c	(Arbeitskopie)
+@@ -87,7 +87,7 @@
+    }
+ 
+    *ierr = OMPI_FINT_2_INT(MPI_File_write_ordered(c_fh, 
+-                                                  OMPI_ADDR(buf), 
++                                                  OMPI_F2C_BOTTOM(buf), 
+                                                   OMPI_FINT_2_INT(*count),
+                                                   c_type,
+                                                   c_status));
+Index: file_write_shared_f.c
+===================================================================
+--- file_write_shared_f.c	(Revision 15017)
++++ file_write_shared_f.c	(Arbeitskopie)
+@@ -87,7 +87,7 @@
+    }
+ 
+    *ierr = OMPI_FINT_2_INT(MPI_File_write_shared(c_fh, 
+-                                                 OMPI_ADDR(buf), 
++                                                 OMPI_F2C_BOTTOM(buf), 
+                                                  OMPI_FINT_2_INT(*count),
+                                                  c_type,
+                                                  c_status));
+Index: gather_f.c
+===================================================================
+--- gather_f.c	(Revision 15017)
++++ gather_f.c	(Arbeitskopie)
+@@ -69,9 +69,9 @@
+     c_sendtype = MPI_Type_f2c(*sendtype);
+     c_recvtype = MPI_Type_f2c(*recvtype);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Gather(sendbuf, OMPI_FINT_2_INT(*sendcount),
+ 				       c_sendtype, recvbuf, 
+Index: gatherv_f.c
+===================================================================
+--- gatherv_f.c	(Revision 15017)
++++ gatherv_f.c	(Arbeitskopie)
+@@ -77,9 +77,9 @@
+     OMPI_ARRAY_FINT_2_INT(recvcounts, size);
+     OMPI_ARRAY_FINT_2_INT(displs, size);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Gatherv(sendbuf, OMPI_FINT_2_INT(*sendcount),
+ 					c_sendtype, recvbuf,
+Index: get_f.c
+===================================================================
+--- get_f.c	(Revision 15017)
++++ get_f.c	(Arbeitskopie)
+@@ -68,7 +68,7 @@
+     MPI_Datatype c_target_datatype = MPI_Type_f2c(*target_datatype);
+     MPI_Win c_win = MPI_Win_f2c(*win);
+ 
+-    *ierr = OMPI_INT_2_FINT(MPI_Get(OMPI_ADDR(origin_addr), 
++    *ierr = OMPI_INT_2_FINT(MPI_Get(OMPI_F2C_BOTTOM(origin_addr), 
+ 				    OMPI_FINT_2_INT(*origin_count),
+ 				    c_origin_datatype,
+ 				    OMPI_FINT_2_INT(*target_rank),
+Index: ibsend_f.c
+===================================================================
+--- ibsend_f.c	(Revision 15017)
++++ ibsend_f.c	(Arbeitskopie)
+@@ -68,7 +68,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Ibsend(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Ibsend(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                       c_type, OMPI_FINT_2_INT(*dest),
+                                       OMPI_FINT_2_INT(*tag),
+                                       c_comm, &c_req));
+Index: irecv_f.c
+===================================================================
+--- irecv_f.c	(Revision 15017)
++++ irecv_f.c	(Arbeitskopie)
+@@ -68,7 +68,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Irecv(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Irecv(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                      c_type, OMPI_FINT_2_INT(*source),
+                                      OMPI_FINT_2_INT(*tag), c_comm, &c_req));
+ 
+Index: irsend_f.c
+===================================================================
+--- irsend_f.c	(Revision 15017)
++++ irsend_f.c	(Arbeitskopie)
+@@ -66,7 +66,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Irsend(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Irsend(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                       c_type, OMPI_FINT_2_INT(*dest),
+                                       OMPI_FINT_2_INT(*tag), c_comm,
+                                       &c_req));
+Index: isend_f.c
+===================================================================
+--- isend_f.c	(Revision 15017)
++++ isend_f.c	(Arbeitskopie)
+@@ -66,7 +66,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Isend(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Isend(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                      c_type, OMPI_FINT_2_INT(*dest),
+                                      OMPI_FINT_2_INT(*tag),
+                                      c_comm, &c_req));
+Index: issend_f.c
+===================================================================
+--- issend_f.c	(Revision 15017)
++++ issend_f.c	(Arbeitskopie)
+@@ -66,7 +66,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Issend(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Issend(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                       c_type, OMPI_FINT_2_INT(*dest),
+                                       OMPI_FINT_2_INT(*tag),
+                                       c_comm, &c_req));
+Index: pack_external_f.c
+===================================================================
+--- pack_external_f.c	(Revision 15017)
++++ pack_external_f.c	(Arbeitskopie)
+@@ -65,7 +65,7 @@
+ {
+    MPI_Datatype type = MPI_Type_f2c(*datatype);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Pack_external(datarep, OMPI_ADDR(inbuf),
++   *ierr = OMPI_INT_2_FINT(MPI_Pack_external(datarep, OMPI_F2C_BOTTOM(inbuf),
+                                              OMPI_FINT_2_INT(*incount),
+                                              type, outbuf,
+                                              *outsize,
+Index: pack_f.c
+===================================================================
+--- pack_f.c	(Revision 15017)
++++ pack_f.c	(Arbeitskopie)
+@@ -70,7 +70,7 @@
+    c_type = MPI_Type_f2c(*datatype);
+    OMPI_SINGLE_FINT_2_INT(position);
+    
+-   *ierr = OMPI_INT_2_FINT(MPI_Pack(OMPI_ADDR(inbuf), OMPI_FINT_2_INT(*incount),
++   *ierr = OMPI_INT_2_FINT(MPI_Pack(OMPI_F2C_BOTTOM(inbuf), OMPI_FINT_2_INT(*incount),
+                                     c_type, outbuf,
+                                     OMPI_FINT_2_INT(*outsize),
+                                     OMPI_SINGLE_NAME_CONVERT(position),
+Index: put_f.c
+===================================================================
+--- put_f.c	(Revision 15017)
++++ put_f.c	(Arbeitskopie)
+@@ -68,7 +68,7 @@
+    MPI_Datatype c_target_datatype = MPI_Type_f2c(*target_datatype);
+    MPI_Win c_win = MPI_Win_f2c(*win);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Put(OMPI_ADDR(origin_addr),
++   *ierr = OMPI_INT_2_FINT(MPI_Put(OMPI_F2C_BOTTOM(origin_addr),
+                                    OMPI_FINT_2_INT(*origin_count),
+                                    c_origin_datatype,
+                                    OMPI_FINT_2_INT(*target_rank),
+Index: recv_f.c
+===================================================================
+--- recv_f.c	(Revision 15017)
++++ recv_f.c	(Arbeitskopie)
+@@ -87,7 +87,7 @@
+    }
+ 
+    /* Call the C function */
+-   *ierr = OMPI_INT_2_FINT(MPI_Recv(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Recv(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                     c_type, OMPI_FINT_2_INT(*source), 
+                                     OMPI_FINT_2_INT(*tag), c_comm,
+                                     c_status));
+Index: recv_init_f.c
+===================================================================
+--- recv_init_f.c	(Revision 15017)
++++ recv_init_f.c	(Arbeitskopie)
+@@ -68,7 +68,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Recv_init(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Recv_init(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                          c_type, OMPI_FINT_2_INT(*source),
+                                          OMPI_INT_2_FINT(*tag), c_comm,
+                                          &c_req));
+Index: reduce_f.c
+===================================================================
+--- reduce_f.c	(Revision 15017)
++++ reduce_f.c	(Arbeitskopie)
+@@ -70,9 +70,9 @@
+     c_op = MPI_Op_f2c(*op);
+     c_comm = MPI_Comm_f2c(*comm);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Reduce(sendbuf, recvbuf,
+ 				       OMPI_FINT_2_INT(*count),
+Index: reduce_scatter_f.c
+===================================================================
+--- reduce_scatter_f.c	(Revision 15017)
++++ reduce_scatter_f.c	(Arbeitskopie)
+@@ -75,9 +75,9 @@
+     MPI_Comm_size(c_comm, &size);
+     OMPI_ARRAY_FINT_2_INT(recvcounts, size);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+     
+     *ierr = OMPI_INT_2_FINT(MPI_Reduce_scatter(sendbuf, recvbuf,
+ 				       OMPI_ARRAY_NAME_CONVERT(recvcounts),
+Index: rsend_f.c
+===================================================================
+--- rsend_f.c	(Revision 15017)
++++ rsend_f.c	(Arbeitskopie)
+@@ -66,7 +66,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Rsend(OMPI_ADDR(ibuf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Rsend(OMPI_F2C_BOTTOM(ibuf), OMPI_FINT_2_INT(*count),
+                                      c_type, OMPI_FINT_2_INT(*dest),
+                                      OMPI_FINT_2_INT(*tag), c_comm));
+ }
+Index: rsend_init_f.c
+===================================================================
+--- rsend_init_f.c	(Revision 15017)
++++ rsend_init_f.c	(Arbeitskopie)
+@@ -69,7 +69,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Rsend_init(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Rsend_init(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                           c_type, OMPI_FINT_2_INT(*dest),
+                                           OMPI_FINT_2_INT(*tag),
+                                           c_comm, &c_req));
+Index: scan_f.c
+===================================================================
+--- scan_f.c	(Revision 15017)
++++ scan_f.c	(Arbeitskopie)
+@@ -70,9 +70,9 @@
+     c_op = MPI_Op_f2c(*op);
+     c_comm = MPI_Comm_f2c(*comm);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Scan(sendbuf, recvbuf,
+ 				     OMPI_FINT_2_INT(*count),
+Index: scatter_f.c
+===================================================================
+--- scatter_f.c	(Revision 15017)
++++ scatter_f.c	(Arbeitskopie)
+@@ -69,9 +69,9 @@
+     c_sendtype = MPI_Type_f2c(*sendtype);
+     c_recvtype = MPI_Type_f2c(*recvtype);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Scatter(sendbuf,OMPI_FINT_2_INT(*sendcount),
+ 					c_sendtype, recvbuf, 
+Index: scatterv_f.c
+===================================================================
+--- scatterv_f.c	(Revision 15017)
++++ scatterv_f.c	(Arbeitskopie)
+@@ -78,9 +78,9 @@
+     OMPI_ARRAY_FINT_2_INT(sendcounts, size);
+     OMPI_ARRAY_FINT_2_INT(displs, size);
+ 
+-    if (OMPI_IS_FORTRAN_IN_PLACE(sendbuf)) {
+-        sendbuf = MPI_IN_PLACE;
+-    }
++    sendbuf = OMPI_F2C_IN_PLACE(sendbuf);
++    sendbuf = OMPI_F2C_BOTTOM(sendbuf);
++    recvbuf = OMPI_F2C_BOTTOM(recvbuf);
+ 
+     *ierr = OMPI_INT_2_FINT(MPI_Scatterv(sendbuf, 
+ 					 OMPI_ARRAY_NAME_CONVERT(sendcounts),
+Index: send_f.c
+===================================================================
+--- send_f.c	(Revision 15017)
++++ send_f.c	(Arbeitskopie)
+@@ -64,7 +64,7 @@
+     MPI_Comm c_comm = MPI_Comm_f2c(*comm);
+     MPI_Datatype c_type = MPI_Type_f2c(*datatype);
+ 
+-    *ierr = OMPI_INT_2_FINT(MPI_Send(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count), 
++    *ierr = OMPI_INT_2_FINT(MPI_Send(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count), 
+                                      c_type, OMPI_FINT_2_INT(*dest), 
+                                      OMPI_FINT_2_INT(*tag), c_comm));
+ }
+Index: send_init_f.c
+===================================================================
+--- send_init_f.c	(Revision 15017)
++++ send_init_f.c	(Arbeitskopie)
+@@ -68,7 +68,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Send_init(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Send_init(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                          c_type, OMPI_FINT_2_INT(*dest),
+                                          OMPI_FINT_2_INT(*tag), 
+                                          c_comm, &c_req));
+Index: sendrecv_f.c
+===================================================================
+--- sendrecv_f.c	(Revision 15017)
++++ sendrecv_f.c	(Arbeitskopie)
+@@ -71,11 +71,11 @@
+    
+    c_comm = MPI_Comm_f2c (*comm);
+    
+-   *ierr = OMPI_INT_2_FINT(MPI_Sendrecv(OMPI_ADDR(sendbuf), OMPI_FINT_2_INT(*sendcount),
++   *ierr = OMPI_INT_2_FINT(MPI_Sendrecv(OMPI_F2C_BOTTOM(sendbuf), OMPI_FINT_2_INT(*sendcount),
+                                         c_sendtype,
+                                         OMPI_FINT_2_INT(*dest),
+                                         OMPI_FINT_2_INT(*sendtag),
+-                                        OMPI_ADDR(recvbuf), *recvcount,
++                                        OMPI_F2C_BOTTOM(recvbuf), *recvcount,
+                                         c_recvtype, OMPI_FINT_2_INT(*source),
+                                         OMPI_FINT_2_INT(*recvtag),
+                                         c_comm, &c_status));
+Index: sendrecv_replace_f.c
+===================================================================
+--- sendrecv_replace_f.c	(Revision 15017)
++++ sendrecv_replace_f.c	(Arbeitskopie)
+@@ -69,7 +69,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+    
+-   *ierr = OMPI_INT_2_FINT(MPI_Sendrecv_replace(OMPI_ADDR(buf),
++   *ierr = OMPI_INT_2_FINT(MPI_Sendrecv_replace(OMPI_F2C_BOTTOM(buf),
+                                                 OMPI_FINT_2_INT(*count),
+                                                 c_type, 
+                                                 OMPI_FINT_2_INT(*dest), 
+Index: ssend_f.c
+===================================================================
+--- ssend_f.c	(Revision 15017)
++++ ssend_f.c	(Arbeitskopie)
+@@ -67,7 +67,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Ssend(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Ssend(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                      c_type, OMPI_FINT_2_INT(*dest),
+                                      OMPI_FINT_2_INT(*tag), c_comm));
+ }
+Index: ssend_init_f.c
+===================================================================
+--- ssend_init_f.c	(Revision 15017)
++++ ssend_init_f.c	(Arbeitskopie)
+@@ -68,7 +68,7 @@
+ 
+    c_comm = MPI_Comm_f2c (*comm);
+ 
+-   *ierr = OMPI_INT_2_FINT(MPI_Ssend_init(OMPI_ADDR(buf), OMPI_FINT_2_INT(*count),
++   *ierr = OMPI_INT_2_FINT(MPI_Ssend_init(OMPI_F2C_BOTTOM(buf), OMPI_FINT_2_INT(*count),
+                                           c_type, OMPI_FINT_2_INT(*dest),
+                                           OMPI_FINT_2_INT(*tag),
+                                           c_comm, &c_req));
+Index: unpack_external_f.c
+===================================================================
+--- unpack_external_f.c	(Revision 15017)
++++ unpack_external_f.c	(Arbeitskopie)
+@@ -69,7 +69,7 @@
+    *ierr = OMPI_INT_2_FINT(MPI_Unpack_external(datarep, inbuf, 
+                                                *insize, 
+                                                position,
+-                                               OMPI_ADDR(outbuf),
++                                               OMPI_F2C_BOTTOM(outbuf),
+                                                OMPI_FINT_2_INT(*outcount),
+                                                c_type));
+ }
+Index: unpack_f.c
+===================================================================
+--- unpack_f.c	(Revision 15017)
++++ unpack_f.c	(Arbeitskopie)
+@@ -72,7 +72,7 @@
+ 
+    *ierr = OMPI_INT_2_FINT(MPI_Unpack(inbuf, OMPI_FINT_2_INT(*insize),
+                                       OMPI_SINGLE_NAME_CONVERT(position),
+-                                      OMPI_ADDR(outbuf), OMPI_FINT_2_INT(*outcount),
++                                      OMPI_F2C_BOTTOM(outbuf), OMPI_FINT_2_INT(*outcount),
+                                       c_type, c_comm));
+    if (MPI_SUCCESS == OMPI_FINT_2_INT(*ierr)) {
+         OMPI_SINGLE_INT_2_FINT(position);
+

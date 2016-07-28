@@ -1,0 +1,245 @@
+Index: opal/mca/backtrace/backtrace.h
+===================================================================
+--- opal/mca/backtrace/backtrace.h	(revision 29841)
++++ opal/mca/backtrace/backtrace.h	(working copy)
+@@ -34,11 +34,12 @@
+ 
+ 
+ /*
+- * print back trace to FILE file
++ * Print back trace to FILE file with a prefix for each line.
++ * First strip lines are not printed.
+  *
+  * \note some attempts made to be signal safe.
+  */
+-OPAL_DECLSPEC void opal_backtrace_print(FILE *file);
++OPAL_DECLSPEC int opal_backtrace_print(FILE *file, char *prefix, int strip);
+ 
+ /*
+  * Return back trace in buffer.  buffer will be allocated by the
+Index: opal/mca/backtrace/execinfo/backtrace_execinfo.c
+===================================================================
+--- opal/mca/backtrace/execinfo/backtrace_execinfo.c	(revision 29841)
++++ opal/mca/backtrace/execinfo/backtrace_execinfo.c	(working copy)
+@@ -20,6 +20,10 @@
+ #include "opal_config.h"
+ 
+ #include <stdio.h>
++#include <string.h>
++#ifdef HAVE_UNISTD_H
++#include <unistd.h>
++#endif
+ #ifdef HAVE_EXECINFO_H
+ #include <execinfo.h>
+ #endif
+@@ -27,23 +31,31 @@
+ #include "opal/constants.h"
+ #include "opal/mca/backtrace/backtrace.h"
+ 
+-void
+-opal_backtrace_print(FILE *file)
++int
++opal_backtrace_print(FILE *file, char *prefix, int strip)
+ {
+-    int i;
++    int i, fd, len;
+     int trace_size;
+     void * trace[32];
+-    char ** messages = (char **)NULL;
++    char buf[6];
+ 
++    fd = fileno (file);
++    if (-1 == fd) {
++        return OPAL_ERR_BAD_PARAM;
++    }
++
+     trace_size = backtrace (trace, 32);
+-    messages = backtrace_symbols (trace, trace_size);
+ 
+-    for (i = 0; i < trace_size; i++) {
+-        fprintf(file, "[%d] func:%s\n", i, messages[i]);
+-        fflush(file);
++    for (i = strip; i < trace_size; i++) {
++        if (NULL != prefix) {
++            write (fd, prefix, strlen (prefix));
++        }
++        len = snprintf (buf, sizeof(buf), "[%2d] ", i - strip);
++        write (fd, buf, len);
++        backtrace_symbols_fd (&trace[i], 1, fd);
+     }
+ 
+-    free(messages);
++    return OPAL_SUCCESS;
+ }
+ 
+ 
+Index: opal/mca/backtrace/printstack/backtrace_printstack.c
+===================================================================
+--- opal/mca/backtrace/printstack/backtrace_printstack.c	(revision 29841)
++++ opal/mca/backtrace/printstack/backtrace_printstack.c	(working copy)
+@@ -24,10 +24,12 @@
+ #include "opal/constants.h"
+ #include "opal/mca/backtrace/backtrace.h"
+ 
+-void
+-opal_backtrace_print(FILE *file)
++int
++opal_backtrace_print(FILE *file, char *prefix, int strip)
+ {
+     printstack(fileno(file));
++
++    return OPAL_SUCCESS;
+ }
+ 
+ 
+Index: opal/mca/backtrace/none/backtrace_none.c
+===================================================================
+--- opal/mca/backtrace/none/backtrace_none.c	(revision 29841)
++++ opal/mca/backtrace/none/backtrace_none.c	(working copy)
+@@ -23,9 +23,10 @@
+ #include "opal/constants.h"
+ #include "opal/mca/backtrace/backtrace.h"
+ 
+-void
+-opal_backtrace_print(FILE *file)
++int
++opal_backtrace_print(FILE *file, char *prefix, int strip)
+ {
++    return OPAL_ERR_NOT_IMPLEMENTED;
+ }
+ 
+ 
+Index: opal/util/stacktrace.c
+===================================================================
+--- opal/util/stacktrace.c	(revision 29841)
++++ opal/util/stacktrace.c	(working copy)
+@@ -53,12 +53,10 @@
+ /**
+  * This function is being called as a signal-handler in response
+  * to a user-specified signal (e.g. SIGFPE or SIGSEGV).
+- * For Linux/Glibc, it then uses backtrace and backtrace_symbols
+- * to figure the current stack and then prints that out to stdout.
++ * For Linux/Glibc, it then uses backtrace and backtrace_symbols_fd
++ * to figure the current stack and print that out to stderr.
+  * Where available, the BSD libexecinfo is used to provide Linux/Glibc
+- * compatible backtrace and backtrace_symbols functions.
+- * Yes, printf and malloc are not signal-safe per se, but should be 
+- * on Linux?
++ * compatible backtrace and backtrace_symbols_fd functions.
+  *
+  *  @param signo with the signal number raised 
+  *  @param info with information regarding the reason/send of the signal
+@@ -72,9 +70,8 @@
+     char print_buffer[1024];
+     char * tmp = print_buffer;
+     int size = sizeof (print_buffer);
+-    int ret, traces_size;
++    int ret;
+     char *si_code_str = "";
+-    char **traces;
+ 
+     /* write out the footer information */
+     memset (print_buffer, 0, sizeof (print_buffer));
+@@ -82,18 +79,8 @@
+                    HOSTFORMAT "*** Process received signal ***\n",
+                    stacktrace_hostname, getpid());
+     write(fileno(stderr), print_buffer, ret);
+-    fflush(stderr);
+ 
+ 
+-    /*
+-     * Yes, we are doing printf inside a signal-handler.
+-     * However, backtrace itself calls malloc (which may not be signal-safe,
+-     * under linux, printf and malloc are)
+-     *
+-     * We could use backtrace_symbols_fd and write directly into an
+-     * filedescriptor, however, without formatting -- also this fd 
+-     * should be opened in a sensible way...
+-     */
+     memset (print_buffer, 0, sizeof (print_buffer));
+ 
+ #ifdef HAVE_STRSIGNAL
+@@ -342,28 +329,14 @@
+ 
+     /* write out the signal information generated above */
+     write(fileno(stderr), print_buffer, sizeof(print_buffer)-size);
+-    fflush(stderr);
+ 
+     /* print out the stack trace */
+-    ret = opal_backtrace_buffer(&traces, &traces_size);
+-    if (OPAL_SUCCESS == ret) {
+-        int i;
+-        /* since we have the opportunity, strip off the bottom two
+-           function calls, which will be this function and
+-           opal_backtrace_buffer(). */
+-        for (i = 2 ; i < traces_size ; ++i) {
+-            ret = snprintf(print_buffer, sizeof(print_buffer),
+-                           HOSTFORMAT "[%2d] %s\n",
+-                           stacktrace_hostname, getpid(), i - 2, traces[i]);
+-            if (ret > 0) {
+-                write(fileno(stderr), print_buffer, ret);
+-            } else {
+-                write(fileno(stderr), unable_to_print_msg, 
+-                      strlen(unable_to_print_msg));
+-            }
+-        }
+-    } else {
+-        opal_backtrace_print(stderr);
++    snprintf(print_buffer, sizeof(print_buffer), HOSTFORMAT,
++             stacktrace_hostname, getpid());
++    print_buffer[sizeof(print_buffer) - 1] = '\0';
++    ret = opal_backtrace_print(stderr, print_buffer, 2);
++    if (OPAL_SUCCESS != ret) {
++        write(fileno(stderr), unable_to_print_msg, strlen(unable_to_print_msg));
+     }
+ 
+     /* write out the footer information */
+@@ -376,7 +349,6 @@
+     } else {
+         write(fileno(stderr), unable_to_print_msg, strlen(unable_to_print_msg));
+     }
+-    fflush(stderr);
+ }
+ 
+ #endif /* OPAL_WANT_PRETTY_PRINT_STACKTRACE */
+@@ -393,12 +365,12 @@
+         int i;
+         /* since we have the opportunity, strip off the bottom two
+            function calls, which will be this function and
+-           opa_backtrace_buffer(). */
++           opal_backtrace_buffer(). */
+         for (i = 2; i < traces_size; ++i) {
+             opal_output(stream, "%s", traces[i]);
+         }
+     } else {
+-        opal_backtrace_print(stderr);
++        opal_backtrace_print(stderr, NULL, 2);
+     }
+ }
+ 
+Index: ompi/runtime/ompi_mpi_abort.c
+===================================================================
+--- ompi/runtime/ompi_mpi_abort.c	(revision 29841)
++++ ompi/runtime/ompi_mpi_abort.c	(working copy)
+@@ -87,7 +87,7 @@
+             /* This will print an message if it's unable to print the
+                backtrace, so we don't need an additional "else" clause
+                if opal_backtrace_print() is not supported. */
+-            opal_backtrace_print(stderr);
++            opal_backtrace_print(stderr, NULL, 1);
+         }
+     }
+ 
+Index: orte/mca/oob/tcp/oob_tcp_common.c
+===================================================================
+--- orte/mca/oob/tcp/oob_tcp_common.c	(revision 29841)
++++ orte/mca/oob/tcp/oob_tcp_common.c	(working copy)
+@@ -79,7 +79,7 @@
+     int optval;
+     optval = 1;
+     if(setsockopt(sd, IPPROTO_TCP, TCP_NODELAY, (char *)&optval, sizeof(optval)) < 0) {
+-        opal_backtrace_print(stderr);
++        opal_backtrace_print(stderr, NULL, 1);
+         opal_output(0, "[%s:%d] setsockopt(TCP_NODELAY) failed: %s (%d)", 
+                     __FILE__, __LINE__, 
+                     strerror(opal_socket_errno),

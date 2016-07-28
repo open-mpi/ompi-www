@@ -1,0 +1,83 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <div class="moz-cite-prefix">Thanks Jeff.&nbsp; I tested the patch just
+      now using Open MPI SVN trunk revision 27784.&nbsp; I was able to
+      instrument an application without any trouble at all, and the
+      patch looks great.<br>
+      <br>
+      I definitely understand the memory registration cache pain.&nbsp; I've
+      dabbled in network abstractions for file systems in the past, and
+      it's disappointing but not terribly surprising that this is still
+      the state of affairs :)&nbsp; <br>
+      <br>
+      Thanks for addressing this so quickly.&nbsp; This will definitely make
+      life easier for some Darshan and Open MPI users in the future.<br>
+      <br>
+      -Phil<br>
+      <br>
+      On 01/09/2013 04:24 PM, Jeff Squyres (jsquyres) wrote:<br>
+    </div>
+    <blockquote
+cite="mid:EF66BBEB19BADC41AC8CCF5F684F07FC380AFD7F@xmb-rcd-x01.cisco.com"
+      type="cite">
+      <pre wrap="">Greetings Phil.  Good analysis.
+
+You can thank OFED for this horribleness, BTW.  :-)  Since OFED hardware requires memory registration, and since that registration is expensive, MPI implementations cache registered memory to alleviate the re-registration costs for repeated memory usage.  But MPI doesn't allocate user buffers, so MPI doesn't get notified when users free their buffers, meaning that MPI's internal cache gets out of sync with reality.  Hence, MPI implementations are forced to do horrid workaround like you found to find out when applications free buffers that may be cached.  Ugh.  Go knock your local OFED developer and tell them to give us a notification mechanism so that we don't have to do these horrid workarounds.  :-)
+
+Regardless, I think your suggestion is fine (replace stat with access).
+
+Can you confirm that the attached patch works for you?
+
+
+On Jan 9, 2013, at 10:49 AM, Phil Carns <a class="moz-txt-link-rfc2396E" href="mailto:carns@mcs.anl.gov">&lt;carns@mcs.anl.gov&gt;</a>
+ wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Hi,
+
+I am a developer on the Darshan project (<a class="moz-txt-link-freetext" href="http://www.mcs.anl.gov/darshan">http://www.mcs.anl.gov/darshan</a>), which provides a set of lightweight wrappers to characterize the I/O access patterns of MPI applications.  Darshan can operate on static or dynamic executables.  As you might expect, it uses the LD_PRELOAD mechanism to intercept I/O calls like open(), read(), write() and stat() on dynamic executables.
+
+We recently received an unusual bug report (courtesy of Myriam Botalla) when Darshan is used in LD_PRELOAD mode with Open MPI 1.6.3, however. When Darshan intercepts a function call via LD_PRELOAD, it must use dlsym() to locate the "real" underlying function to invoke.  dlsym() in turn uses the calloc() function internally.  In most cases this is fine, but Open MPI actually makes its first stat() call within the malloc initialization hook (opal_memory_linux_malloc_init_hook()) before the malloc() and its related functions have been configured.  Darshan therefore (indirectly) triggers a segfault because it intercepts those stat() calls but can't find the real stat() function without using malloc.
+
+There is some more detailed information about this issue, including a stack trace, in this mailing list thread:
+
+<a class="moz-txt-link-freetext" href="http://lists.mcs.anl.gov/pipermail/darshan-users/2013-January/000131.html">http://lists.mcs.anl.gov/pipermail/darshan-users/2013-January/000131.html</a>
+
+Looking a little more closely at the opal_memory_linux_malloc_init_hook() function, it looks like the struct stat output argument from stat() is being ignored in all cases.  Open MPI is just checking the stat() return code to determine if the files in question exist or not.  Taking that into account, would it be possible to make a minor change in Open MPI to replace these instances:
+
+   stat("some_filename", &amp;st)
+
+with:
+
+   access("some_filename", F_OK)
+
+in the opal_memory_linux_malloc_init_hook() function?  There is a slight technical advantage to the change in that access() is lighter weight than stat() on some systems (and it might arguably make the intent  of the calls a little clearer), but of course my main motivation here is to have Open MPI use a function that is less likely to be intercepted by I/O tracing tools before a malloc implementation has been initialized.  Technically it is possible to work around this in Darshan itself by checking the arguments passed in to stat() and using a workaround path for this case, but this isn't a very safe solution in the long run.
+
+Thanks in advance for your time and consideration,
+-Phil
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

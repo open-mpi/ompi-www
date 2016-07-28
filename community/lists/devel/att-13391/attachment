@@ -1,0 +1,53 @@
+<div dir="ltr"><div>Per my other email, I would suggest #ifdef comments instead of nonblocking replacements for the blocking calls. After that modification, I think this patch is fine. As was mentioned previously, we will need to go back (after things compile) and figure out a new model for this behavior.</div>
+<div><br></div><div>For the existing calls to recv_buffer_nb, converting those to the versions without return codes is completely fine and correct. So leave those changes in there. It is just when you move from recv_buffer to recv_buffer_nb that I would leave some kind of marker for yourself and preserve the prior code.</div>
+<div><br></div><div>After that modification, I think it is ready to be committed.</div><div><br></div><div>Thanks!</div><div>Josh</div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, Dec 4, 2013 at 9:46 AM, Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im">On Nov 25, 2013, at 9:59 AM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+
+<br>
+&gt; @@ -5616,16 +5597,8 @@ static int do_send_msg_detail(ompi_crcp_bkmrk_pml_peer_ref_t *peer_ref,<br>
+&gt;     /*<br>
+&gt;      * Recv the ACK msg<br>
+&gt;      */<br>
+&gt; -    if ( 0 &gt; (ret = ompi_rte_recv_buffer(&amp;peer_ref-&gt;proc_name, buffer,<br>
+&gt; -                                         OMPI_CRCP_COORD_BOOKMARK_TAG, 0) ) ) {<br>
+&gt; -        opal_output(mca_crcp_bkmrk_component.super.output_handle,<br>
+&gt; -                    &quot;crcp:bkmrk: do_send_msg_detail: %s --&gt; %s Failed to receive ACK buffer from peer. Return %d\n&quot;,<br>
+&gt; -                    OMPI_NAME_PRINT(OMPI_PROC_MY_NAME),<br>
+&gt; -                    OMPI_NAME_PRINT(&amp;(peer_ref-&gt;proc_name)),<br>
+&gt; -                    ret);<br>
+&gt; -        exit_status = ret;<br>
+&gt; -        goto cleanup;<br>
+&gt; -    }<br>
+&gt; +    ompi_rte_recv_buffer_nb(&amp;peer_ref-&gt;proc_name, OMPI_CRCP_COORD_BOOKMARK_TAG, 0,<br>
+&gt; +                            orte_rml_recv_callback, NULL);<br>
+&gt;<br>
+&gt;     UNPACK_BUFFER(buffer, recv_response, 1, OPAL_UINT32,<br>
+&gt;                   &quot;crcp:bkmrk: send_msg_details: Failed to unpack the ACK from peer buffer.&quot;);<br>
+<br>
+</div>I see a bunch of hunks like this that I do not think are correct.<br>
+<br>
+They&#39;re replacing orte_rte_recv_buffer() with orte_rte_recv_buffer_nb(), which, by definition, may not actually complete the receive.  Hence, the receive buffer may not be filled by the time orte_rte_recv_buffer_nb() returns, and therefore you can&#39;t proceed with the FT processing.  E.g., the UNPACK_BUFFER() statement here may well be undefined because the buffer isn&#39;t full yet.<br>
+
+<br>
+I&#39;m not sure what this means in terms of overall FT processing -- the fact that UNPACK_BUFFER is erroneous may be fairly obvious, but the other FT processing that occurs below UNPACK_BUFFER, and, indeed, by the caller of this function, may not be able to proceed until this receive completes, either.<br>
+
+<br>
+Ditto for all the other hunks like this.<br>
+<br>
+If I&#39;m not mistaken, the actual receive will occur in a progress thread, so the cbfunc supplied to orte_rte_recv_buffer_nb() will need to do something in a thread safe manner -- I&#39;m not sure if it will need to transfer control back up to the main thread, or if the FT processing in question is safe to occur in the ORTE progress thread (it would be *much* better if it could occur on the ORTE progress thread so that we can get asynchronous progress of this stuff).<br>
+
+<br>
+If I&#39;m correct, then all of those hunks will need to be adapted.  I.e., these aren&#39;t just compile errors to be fixed -- they&#39;ll also require architectural changes, too.<br>
+<span class="HOEnZb"><font color="#888888"><br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+</font></span><div class="HOEnZb"><div class="h5"><br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Joshua Hursey<br>Assistant Professor of Computer Science<br>University of Wisconsin-La Crosse<br><a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a>
+</div>
+

@@ -1,0 +1,82 @@
+While that is a good way of minimizing the impact of the counter, you still have to do an &quot;if-then&quot; to check if the counter exceeds the threshold. This &quot;if-then&quot; also has to get executed every time, and generally consumes more than a few cycles.<br>
+<br>To be clear: it isn&#39;t the output that is the concern. The output only occurs as an exception case, essentially equivalent to dealing with an error, so it can be &quot;slow&quot;. The concern is with the impact of testing to see if the output needs to be generated as this testing occurs every time we transit the code.<br>
+<br>I think Jeff and I are probably closer to agreement on design than it might seem, and may be close to what you might also have had in mind. Basically, I was thinking of a macro like this:<br><br>ORTE_NOTIFIER_VERBOSE(api, counter, threshold,...)<br>
+<br>#if WANT_NOTIFIER_VERBOSE<br>opal_atomic_increment(counter);<br>if (counter &gt; threshold) {<br>    orte_notifier.api(.....)<br>}<br>#endif<br><br>You would set the specific thresholds for each situation via MCA params, so this could be tuned to fit specific needs. Those who don&#39;t want the penalty can just build normally - those who want this level of information can enable it.<br>
+<br>We can then see just how much penalty is involved in real world situations. My guess is that it won&#39;t be that big, but it&#39;s hard to know without seeing how frequently we actually insert this code.<br><br>Hope that makes sense<br>
+Ralph<br><br><br><div class="gmail_quote">On Wed, May 27, 2009 at 1:25 AM, Sylvain Jeaugey <span dir="ltr">&lt;<a href="mailto:sylvain.jeaugey@bull.net">sylvain.jeaugey@bull.net</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+About performance, I may miss something, but our first goal was to track already slow pathes.<br>
+<br>
+We imagined that it could be possible to add at the beginning (or end) of this &quot;bad path&quot; just one line that would basically do an atomic inc. So, in terms of CPU cycles, something like 1 for the inc and maybe 1 jump before. Are a couple of cycles really an issue in slow pathes (which take at least hundreds of cycles), or do you fear out-of-cache memory accesses - or something else ?<br>
+
+<br>
+As for outputs, they indeed are slow (and can slow down considerably an application if not synchronized), but aggregation on the head node should solve our problems. And if not, we can also disable outputs at runtime.<br>
+
+<br>
+So, in my opinion, no application should notice a difference (unless you tune the framework to output every warning).<br><font color="#888888">
+<br>
+Sylvain</font><div><div></div><div class="h5"><br>
+<br>
+On Tue, 26 May 2009, Jeff Squyres wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Nadia --<br>
+<br>
+Sorry I didn&#39;t get to jump in on the other thread earlier.<br>
+<br>
+We have made considerable changes to the notifier framework in a branch to better support &quot;SOS&quot; functionality:<br>
+<br>
+  <a href="https://www.open-mpi.org/hg/auth/hgwebdir.cgi/jsquyres/opal-sos" target="_blank">https://www.open-mpi.org/hg/auth/hgwebdir.cgi/jsquyres/opal-sos</a><br>
+<br>
+Cisco and Indiana U. have been working on this branch for a while.  A description of the SOS stuff is here:<br>
+<br>
+  <a href="https://svn.open-mpi.org/trac/ompi/wiki/ErrorMessages" target="_blank">https://svn.open-mpi.org/trac/ompi/wiki/ErrorMessages</a><br>
+<br>
+As for setting up an external web server with hg, don&#39;t bother -- just get an account at <a href="http://bitbucket.org" target="_blank">bitbucket.org</a>.  They&#39;re free and allow you to host hg repositories there.  I&#39;ve used bitbucket to collaborate on code before it hits OMPI&#39;s SVN trunk with both internal and external OMPI developers.<br>
+
+<br>
+We can certainly move the opal-sos repo to bitbucket (or branch again off opal-sos to bitbucket -- whatever makes more sense) to facilitate collaborating with you.<br>
+<br>
+Back on topic...<br>
+<br>
+I&#39;d actually suggest a combination of what has been discussed in the other thread.  The notifier can be the mechanism that actually sends the output message, but it doesn&#39;t have to be the mechanism that tracks the stats and decides when to output a message.  That can be separate logic, and therefore be more fine-grained (and potentially even specific to the MPI layer).<br>
+
+<br>
+The Big Question will how to do this with zero performance impact when it is not being used. This has always been the difficult issue when trying to implement any kind of monitoring inside the core OMPI performance-sensitive paths.  Even adding individual branches has met with resistance (in performance-critical code paths)...<br>
+
+<br>
+<br>
+<br>
+On May 26, 2009, at 10:59 AM, Nadia Derbey wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Hi,<br>
+<br>
+While having a look at the notifier framework under orte, I noticed that<br>
+the way it is written, the init routine for the selected module cannot<br>
+be called.<br>
+<br>
+Attached is a small patch that fixes this issue.<br>
+<br>
+Regards,<br>
+Nadia<br>
+<br>
+&lt;orte_notifier_fix_select.patch&gt;&lt;ATT14046023.txt&gt;<br>
+</blockquote>
+<br>
+<br>
+-- <br>
+Jeff Squyres<br>
+Cisco Systems<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+</blockquote>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br>
+

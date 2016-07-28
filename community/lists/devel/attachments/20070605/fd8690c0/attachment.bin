@@ -1,0 +1,329 @@
+diff --git a/ompi/mca/pml/ob1/pml_ob1_rdma.c b/ompi/mca/pml/ob1/pml_ob1_rdma.c
+index c8eec33..d134908 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_rdma.c
++++ b/ompi/mca/pml/ob1/pml_ob1_rdma.c
+@@ -30,6 +30,44 @@
+ #include "pml_ob1.h"
+ #include "pml_ob1_rdma.h"
+ 
++/* Use this registration if no registration needed for a BTL instead of NULL.
++ * This will help other code to distinguish case when memory is not registered
++ * from case when registration is not needed */
++static mca_mpool_base_registration_t pml_ob1_dummy_reg;
++
++/* Calculate what percentage of a message to send through each BTL according to
++ * relative weight */
++static inline void calc_weighted_length(mca_pml_ob1_rdma_btl_t *rdma_btls,
++        int num_btls, size_t size, double weight_total)
++{
++    int i;
++    size_t length_left = size;
++
++    /* shortcut for common case for only one BTL */
++    if(num_btls == 1) {
++        rdma_btls[0].length = size;
++        return;
++    }
++
++    for(i = 0; i < num_btls; i++) {
++        mca_bml_base_btl_t* bml_btl = rdma_btls[i].bml_btl;
++        size_t length = 0;
++        if(length_left != 0) {
++            length = (length_left > bml_btl->btl_eager_limit)?
++                ((size_t)(size * (bml_btl->btl_weight / weight_total))) :
++                length_left;
++
++            if(length > length_left)
++                length = length_left;
++            length_left -= length;
++        }
++        rdma_btls[i].length = length;
++    }
++
++    /* account for rounding errors */
++    rdma_btls[0].length += length_left;
++}
++
+ /*
+  * Check to see if memory is registered or can be registered. Build a 
+  * set of registrations on the request.
+@@ -42,6 +80,7 @@ size_t mca_pml_ob1_rdma_btls(
+     mca_pml_ob1_rdma_btl_t* rdma_btls)
+ {
+     size_t num_btls = mca_bml_base_btl_array_get_size(&bml_endpoint->btl_rdma);
++    double weight_total = 0;
+     size_t num_btls_used = 0;
+     size_t n;
+ 
+@@ -59,10 +98,7 @@ size_t mca_pml_ob1_rdma_btls(
+         mca_mpool_base_registration_t* reg = NULL;
+         mca_mpool_base_module_t *btl_mpool = bml_btl->btl_mpool;
+ 
+-        /* btl is rdma capable and registration is not required */
+-        if(NULL == btl_mpool) {
+-            reg = NULL;
+-        } else {
++        if(NULL != btl_mpool) {
+             if(!mca_pml_ob1.leave_pinned) {
+                 /* look through existing registrations */
+                 btl_mpool->mpool_find(btl_mpool, base, size, &reg);
+@@ -73,14 +109,51 @@ size_t mca_pml_ob1_rdma_btls(
+ 
+             if(NULL == reg)
+                 bml_btl = NULL; /* skip it */
++        } else {
++            /* if registration is not required use dummy registration */
++            reg = &pml_ob1_dummy_reg;
+         }
+ 
+         if(bml_btl != NULL) {
+             rdma_btls[num_btls_used].bml_btl = bml_btl;
+             rdma_btls[num_btls_used].btl_reg = reg;
++            weight_total += bml_btl->btl_weight;
+             num_btls_used++;
+         }
+     }
++
++    /* if we don't use leave_pinned and all BTLs that already have this memory
++     * registered amount to less then half of available bandwidth - fall back to
++     * pipeline protocol */
++    if(0 == num_btls_used || (!mca_pml_ob1.leave_pinned && weight_total < 0.5))
++        return 0;
++
++    calc_weighted_length(rdma_btls, num_btls_used, size, weight_total);
++
+     bml_endpoint->btl_rdma_index = (bml_endpoint->btl_rdma_index + 1) % num_btls;
+     return num_btls_used;
+ }
++
++size_t mca_pml_ob1_rdma_pipeline_btls(
++    mca_bml_base_endpoint_t* bml_endpoint,
++    size_t size,
++    mca_pml_ob1_rdma_btl_t* rdma_btls)
++{
++    int i, num_btls = mca_bml_base_btl_array_get_size(&bml_endpoint->btl_rdma);
++    double weight_total = 0;
++
++    for(i = 0; i < num_btls && i < MCA_PML_OB1_MAX_RDMA_PER_REQUEST; i++) {
++        rdma_btls[i].bml_btl =
++            mca_bml_base_btl_array_get_next(&bml_endpoint->btl_rdma);
++        if(rdma_btls[i].bml_btl->btl_mpool != NULL)
++            rdma_btls[i].btl_reg = NULL;
++        else
++            rdma_btls[i].btl_reg = &pml_ob1_dummy_reg;
++
++        weight_total += rdma_btls[i].bml_btl->btl_weight;
++    }
++
++    calc_weighted_length(rdma_btls, i, size, weight_total);
++
++    return i;
++}
+diff --git a/ompi/mca/pml/ob1/pml_ob1_rdma.h b/ompi/mca/pml/ob1/pml_ob1_rdma.h
+index d2c983c..e135123 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_rdma.h
++++ b/ompi/mca/pml/ob1/pml_ob1_rdma.h
+@@ -31,6 +31,7 @@ struct mca_bml_base_endpoint_t;
+ struct mca_pml_ob1_rdma_btl_t {
+     struct mca_bml_base_btl_t* bml_btl; 
+     struct mca_mpool_base_registration_t* btl_reg;
++    size_t length;
+ };
+ typedef struct mca_pml_ob1_rdma_btl_t mca_pml_ob1_rdma_btl_t;
+ 
+@@ -46,5 +47,10 @@ typedef struct mca_pml_ob1_rdma_btl_t mca_pml_ob1_rdma_btl_t;
+ size_t mca_pml_ob1_rdma_btls(struct mca_bml_base_endpoint_t* endpoint,
+     unsigned char* base, size_t size, struct mca_pml_ob1_rdma_btl_t* btls);
+ 
++/* Choose RDMA BTLs to use for sending of a request by pipeline protocol.
++ * Calculate number of bytes to send through each BTL according to available
++ * bandwidth */
++size_t mca_pml_ob1_rdma_pipeline_btls(struct mca_bml_base_endpoint_t* endpoint,
++                size_t size, mca_pml_ob1_rdma_btl_t* rdma_btls);
+ #endif
+ 
+diff --git a/ompi/mca/pml/ob1/pml_ob1_recvreq.c b/ompi/mca/pml/ob1/pml_ob1_recvreq.c
+index 9cf5661..b211b56 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_recvreq.c
++++ b/ompi/mca/pml/ob1/pml_ob1_recvreq.c
+@@ -240,13 +240,15 @@ static int mca_pml_ob1_recv_request_ack(
+     /* by default copy everything */
+     recvreq->req_send_offset = bytes_received;
+     if(hdr->hdr_msg_length > bytes_received) {
++        size_t rdma_num = mca_bml_base_btl_array_get_size(&bml_endpoint->btl_rdma);
+         /*
+          * lookup request buffer to determine if memory is already
+          * registered. 
+          */
+ 
+         if(ompi_convertor_need_buffers(&recvreq->req_recv.req_convertor) == 0 &&
+-           hdr->hdr_match.hdr_common.hdr_flags & MCA_PML_OB1_HDR_FLAGS_CONTIG) {
++           hdr->hdr_match.hdr_common.hdr_flags & MCA_PML_OB1_HDR_FLAGS_CONTIG &&
++           rdma_num != 0) {
+             unsigned char *base;
+             ompi_convertor_get_current_pointer( &recvreq->req_recv.req_convertor, (void**)&(base) );
+             
+@@ -261,18 +263,25 @@ static int mca_pml_ob1_recv_request_ack(
+ 
+                 recvreq->req_send_offset = hdr->hdr_msg_length;
+                 /* are rdma devices available for long rdma protocol */
+-            } else if (bml_endpoint->btl_send_limit < hdr->hdr_msg_length &&
+-                    bml_endpoint->btl_rdma_offset < hdr->hdr_msg_length &&
+-                    mca_bml_base_btl_array_get_size(&bml_endpoint->btl_rdma)) {
++            } else {
++                if(bml_endpoint->btl_send_limit < hdr->hdr_msg_length &&
++                        bml_endpoint->btl_rdma_offset < hdr->hdr_msg_length) {
+                 
+-                /* use convertor to figure out the rdma offset for this request */
+-                recvreq->req_send_offset = hdr->hdr_msg_length - 
+-                    bml_endpoint->btl_rdma_offset;
+-                if(recvreq->req_send_offset < bytes_received) {
+-                    recvreq->req_send_offset = bytes_received;
++                    /* use converter to figure out the rdma offset for this
++                     * request */
++                    recvreq->req_send_offset = hdr->hdr_msg_length -
++                        bml_endpoint->btl_rdma_offset;
++                    if(recvreq->req_send_offset < bytes_received)
++                        recvreq->req_send_offset = bytes_received;
++                    ompi_convertor_set_position(
++                            &recvreq->req_recv.req_convertor,
++                            &recvreq->req_send_offset);
++
++                    recvreq->req_rdma_cnt =
++                        mca_pml_ob1_rdma_pipeline_btls(bml_endpoint,
++                                recvreq->req_send_offset - bytes_received,
++                                recvreq->req_rdma);
+                 }
+-                ompi_convertor_set_position( &recvreq->req_recv.req_convertor,
+-                                             &recvreq->req_send_offset );
+             }
+         }
+         /* nothing to send by copy in/out - no need to ack */
+@@ -591,14 +600,8 @@ void mca_pml_ob1_recv_request_matched_probe(
+ int mca_pml_ob1_recv_request_schedule_exclusive( mca_pml_ob1_recv_request_t* recvreq )
+ {
+     ompi_proc_t* proc = recvreq->req_recv.req_base.req_proc;
+-    mca_bml_base_endpoint_t* bml_endpoint = (mca_bml_base_endpoint_t*) proc->proc_bml; 
+     mca_bml_base_btl_t* bml_btl; 
+-    int num_btl_avail =
+-        mca_bml_base_btl_array_get_size(&bml_endpoint->btl_rdma);
+-    int num_tries = num_btl_avail;
+-
+-    if(recvreq->req_rdma_cnt)
+-        num_tries = recvreq->req_rdma_cnt;
++    int num_tries = recvreq->req_rdma_cnt;
+ 
+     do {
+         size_t bytes_remaining = recvreq->req_send_offset -
+@@ -614,8 +617,8 @@ int mca_pml_ob1_recv_request_schedule_exclusive( mca_pml_ob1_recv_request_t* rec
+             mca_btl_base_descriptor_t* dst;
+             mca_btl_base_descriptor_t* ctl;
+             mca_mpool_base_registration_t * reg = NULL;
+-            int rc;
+-               
++            int rc, rdma_idx;
++
+             if(prev_bytes_remaining == bytes_remaining) {
+                 if( ++num_fail == num_tries ) {
+                     OPAL_THREAD_LOCK(&mca_pml_ob1.lock);
+@@ -635,47 +638,18 @@ int mca_pml_ob1_recv_request_schedule_exclusive( mca_pml_ob1_recv_request_t* rec
+             ompi_convertor_set_position(&recvreq->req_recv.req_convertor,
+                                         &recvreq->req_rdma_offset);
+ 
+-            if(recvreq->req_rdma_cnt) {
+-                /*
+-                 * Select the next btl out of the list w/ preregistered
+-                 * memory.
+-                 */
+-                 bml_btl = recvreq->req_rdma[recvreq->req_rdma_idx].bml_btl;
+-                 num_btl_avail = recvreq->req_rdma_cnt - recvreq->req_rdma_idx;
+-                 reg = recvreq->req_rdma[recvreq->req_rdma_idx].btl_reg;
+-
+-                 if(++recvreq->req_rdma_idx >= recvreq->req_rdma_cnt)
++            do {
++                rdma_idx = recvreq->req_rdma_idx;
++                bml_btl = recvreq->req_rdma[rdma_idx].bml_btl;
++                reg = recvreq->req_rdma[rdma_idx].btl_reg;
++                size = recvreq->req_rdma[rdma_idx].length;
++                if(++recvreq->req_rdma_idx >= recvreq->req_rdma_cnt)
+                     recvreq->req_rdma_idx = 0;
+-            } else {
+-                /*
+-                 * Otherwise, schedule round-robin across the
+-                 * available RDMA nics dynamically registering/deregister
+-                 * as required.
+-                 */
+-                bml_btl =
+-                    mca_bml_base_btl_array_get_next(&bml_endpoint->btl_rdma);
+-            }
++            } while(!size);
+ 
+-            /*
+-             * If more than one NIC is available - try to use both for
+-             * anything larger than the eager limit
+-             */
+-            if( num_btl_avail == 1 ||
+-                bytes_remaining < bml_btl->btl_eager_limit ) {
+-                size = bytes_remaining;
+-            } else {
+-                /* 
+-                 * otherwise attempt to give the BTL a percentage of
+-                 * the message based on a weighting factor. for
+-                 * simplicity calculate this as a percentage of the
+-                 * overall message length (regardless of amount
+-                 * previously assigned)
+-                 */
+-                size = (size_t)(bml_btl->btl_weight * bytes_remaining);
+-            }
+             /* makes sure that we don't exceed BTL max rdma size
+              * if memory is not pinned already */
+-            if(0 == recvreq->req_rdma_cnt &&
++            if(NULL == reg &&
+                     bml_btl->btl_rdma_pipeline_frag_size != 0 &&
+                     size > bml_btl->btl_rdma_pipeline_frag_size) {
+                 size = bml_btl->btl_rdma_pipeline_frag_size;
+@@ -683,8 +657,8 @@ int mca_pml_ob1_recv_request_schedule_exclusive( mca_pml_ob1_recv_request_t* rec
+ 
+             /* prepare a descriptor for RDMA */
+             mca_bml_base_prepare_dst(bml_btl, reg, 
+-                                     &recvreq->req_recv.req_convertor, MCA_BTL_NO_ORDER, 
+-                                     0, &size, &dst);
++                                     &recvreq->req_recv.req_convertor,
++                                     MCA_BTL_NO_ORDER, 0, &size, &dst);
+             if(dst == NULL) {
+                 continue;
+             }
+@@ -750,6 +724,7 @@ int mca_pml_ob1_recv_request_schedule_exclusive( mca_pml_ob1_recv_request_t* rec
+                 /* update request state */
+                 recvreq->req_rdma_offset += size;
+                 OPAL_THREAD_ADD_SIZE_T(&recvreq->req_pipeline_depth,1);
++                recvreq->req_rdma[rdma_idx].length -= size;
+                 bytes_remaining -= size;
+             } else {
+                 mca_bml_base_free(bml_btl,ctl);
+diff --git a/ompi/mca/pml/ob1/pml_ob1_recvreq.h b/ompi/mca/pml/ob1/pml_ob1_recvreq.h
+index 0928e02..14d1574 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_recvreq.h
++++ b/ompi/mca/pml/ob1/pml_ob1_recvreq.h
+@@ -135,7 +135,7 @@ do {
+                                                                                 \
+     for( r = 0; r < recvreq->req_rdma_cnt; r++ ) {                              \
+         mca_mpool_base_registration_t* btl_reg = recvreq->req_rdma[r].btl_reg;  \
+-        if( NULL != btl_reg ) {                                                 \
++        if( NULL != btl_reg  && btl_reg->mpool != NULL) {                       \
+             btl_reg->mpool->mpool_deregister( btl_reg->mpool, btl_reg );           \
+         }                                                                       \
+     }                                                                           \
+diff --git a/ompi/mca/pml/ob1/pml_ob1_sendreq.h b/ompi/mca/pml/ob1/pml_ob1_sendreq.h
+index 75b7afc..16553df 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_sendreq.h
++++ b/ompi/mca/pml/ob1/pml_ob1_sendreq.h
+@@ -122,7 +122,7 @@ static inline void mca_pml_ob1_free_rdma_resources(mca_pml_ob1_send_request_t* s
+     /* return mpool resources */
+     for(r = 0; r < sendreq->req_rdma_cnt; r++) {
+         mca_mpool_base_registration_t* reg = sendreq->req_rdma[r].btl_reg;
+-        if( NULL != reg ) {
++        if( NULL != reg && reg->mpool != NULL ) {
+             reg->mpool->mpool_deregister(reg->mpool, reg);
+         }
+     }

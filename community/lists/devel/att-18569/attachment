@@ -1,0 +1,1261 @@
+<div dir="ltr">There was a typo in this patch. I saw it in the trunk but I missed the pending PR. Please move 7c574a35309 as well<div><br></div><div>  George.</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Sun, Feb 7, 2016 at 8:01 AM,  <span dir="ltr">&lt;<a href="mailto:gitdub@crest.iu.edu" target="_blank">gitdub@crest.iu.edu</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">This is an automated email from the git hooks/post-receive script. It was<br>
+generated because a ref change was pushed to the repository containing<br>
+the project &quot;open-mpi/ompi-release&quot;.<br>
+<br>
+The branch, v2.x has been updated<br>
+       via  efeac60a18a06d4224394dbce41c4486b28ca194 (commit)<br>
+       via  0e8f2675bf13dd6aa34cbf4492f92a5cddcaaf6f (commit)<br>
+       via  245147390edeb9cd9fab1d08610f83841588989b (commit)<br>
+       via  98532dda3d642f845498a40e7e1c660f13ab67aa (commit)<br>
+       via  b1cb049a9d9a486c6e08bd2966b0033e30df7055 (commit)<br>
+      from  1280d534de59030c4311fb55df455d0739362e9f (commit)<br>
+<br>
+Those revisions listed above that are new to this repository have<br>
+not appeared on any other notification email; so we list those<br>
+revisions in full, below.<br>
+<br>
+- Log -----------------------------------------------------------------<br>
+<a href="https://github.com/open-mpi/ompi-release/commit/efeac60a18a06d4224394dbce41c4486b28ca194" rel="noreferrer" target="_blank">https://github.com/open-mpi/ompi-release/commit/efeac60a18a06d4224394dbce41c4486b28ca194</a><br>
+<br>
+commit efeac60a18a06d4224394dbce41c4486b28ca194<br>
+Merge: 1280d53 0e8f267<br>
+Author: Jeff Squyres &lt;<a href="mailto:jsquyres@users.noreply.github.com">jsquyres@users.noreply.github.com</a>&gt;<br>
+Date:   Sun Feb 7 08:01:26 2016 -0500<br>
+<br>
+    Merge pull request #947 from hjelmn/v2.x_osc_pt2pt_fixes<br>
+<br>
+    v2.x osc/pt2pt fixes<br>
+<br>
+<br>
+<br>
+<a href="https://github.com/open-mpi/ompi-release/commit/0e8f2675bf13dd6aa34cbf4492f92a5cddcaaf6f" rel="noreferrer" target="_blank">https://github.com/open-mpi/ompi-release/commit/0e8f2675bf13dd6aa34cbf4492f92a5cddcaaf6f</a><br>
+<br>
+commit 0e8f2675bf13dd6aa34cbf4492f92a5cddcaaf6f<br>
+Author: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+Date:   Thu Feb 4 16:59:39 2016 -0700<br>
+<br>
+    osc/pt2pt: bug fixes<br>
+<br>
+    This commit fixes several bugs identified by @ggouaillardet and MTT:<br>
+<br>
+     - Fix SEGV in long send completion caused by missing update to the<br>
+       request callback data.<br>
+<br>
+     - Add an MPI_Barrier to the fence short-cut. This fixes potential<br>
+       semantic issues where messages may be received before fence is<br>
+       reached.<br>
+<br>
+     - Ensure fragments are flushed when using request-based RMA. This<br>
+       allows MPI_Test/MPI_Wait/etc to work as expected.<br>
+<br>
+     - Restore the tag space back to 16-bits. It was intended that the<br>
+       space be expanded to 32-bits but the required change to the<br>
+       fragment headers was not committed. The tag space may be expanded<br>
+       in a later commit.<br>
+<br>
+    Signed-off-by: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+<br>
+    (cherry picked from commit open-mpi/ompi@5b9c82a9648b06364b695e199711e1c26a3afeeb)<br>
+<br>
+    Signed-off-by: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt.h b/ompi/mca/osc/pt2pt/osc_pt2pt.h<br>
+index 409011d..68ca022 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt.h<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt.h<br>
+@@ -631,8 +631,8 @@ static inline void osc_pt2pt_add_pending (ompi_osc_pt2pt_pending_t *pending)<br>
+                             opal_list_append (&amp;mca_osc_pt2pt_component.pending_operations, &amp;pending-&gt;super));<br>
+ }<br>
+<br>
+-#define OSC_PT2PT_FRAG_TAG   0x80000<br>
+-#define OSC_PT2PT_FRAG_MASK  0x7ffff<br>
++#define OSC_PT2PT_FRAG_TAG   0x10000<br>
++#define OSC_PT2PT_FRAG_MASK  0x0ffff<br>
+<br>
+ /**<br>
+  * get_tag:<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_active_target.c b/ompi/mca/osc/pt2pt/osc_pt2pt_active_target.c<br>
+index 58d6b40..0b3c2e0 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_active_target.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_active_target.c<br>
+@@ -147,6 +147,7 @@ int ompi_osc_pt2pt_fence(int assert, ompi_win_t *win)<br>
+<br>
+     /* short-circuit the noprecede case */<br>
+     if (0 != (assert &amp; MPI_MODE_NOPRECEDE)) {<br>
++        module-&gt;comm-&gt;c_coll.coll_barrier (module-&gt;comm,  module-&gt;comm-&gt;c_coll.coll_barrier);<br>
+         OPAL_OUTPUT_VERBOSE((50, ompi_osc_base_framework.framework_output,<br>
+                              &quot;osc pt2pt: fence end (short circuit)&quot;));<br>
+         return ret;<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c b/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c<br>
+index a1dcfd7..1205767 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c<br>
+@@ -58,6 +58,9 @@ static int ompi_osc_pt2pt_req_comm_complete (ompi_request_t *request)<br>
+                          &quot;ompi_osc_pt2pt_req_comm_complete called tag = %d&quot;,<br>
+                          request-&gt;req_status.MPI_TAG));<br>
+<br>
++    /* update the cbdata for ompi_osc_pt2pt_comm_complete */<br>
++    request-&gt;req_complete_cb_data = pt2pt_request-&gt;module;<br>
++<br>
+     if (0 == OPAL_THREAD_ADD32(&amp;pt2pt_request-&gt;outstanding_requests, -1)) {<br>
+         ompi_osc_pt2pt_request_complete (pt2pt_request, request-&gt;req_status.MPI_ERROR);<br>
+     }<br>
+@@ -218,8 +221,8 @@ static inline int ompi_osc_pt2pt_gacc_self (ompi_osc_pt2pt_sync_t *pt2pt_sync, c<br>
+         ((unsigned long) target_disp * module-&gt;disp_unit);<br>
+     int ret;<br>
+<br>
+-    /* if we are in active target mode wait until all post messages arrive */<br>
+-    ompi_osc_pt2pt_sync_wait (pt2pt_sync);<br>
++    OPAL_OUTPUT_VERBOSE((MCA_BASE_VERBOSE_TRACE, ompi_osc_base_framework.framework_output, &quot;ompi_osc_pt2pt_gacc_self: starting local &quot;<br>
++                         &quot;get accumulate&quot;));<br>
+<br>
+     ompi_osc_pt2pt_accumulate_lock (module);<br>
+<br>
+@@ -250,6 +253,9 @@ static inline int ompi_osc_pt2pt_gacc_self (ompi_osc_pt2pt_sync_t *pt2pt_sync, c<br>
+<br>
+     ompi_osc_pt2pt_accumulate_unlock (module);<br>
+<br>
++    OPAL_OUTPUT_VERBOSE((MCA_BASE_VERBOSE_TRACE, ompi_osc_base_framework.framework_output, &quot;ompi_osc_pt2pt_gacc_self: local get &quot;<br>
++                         &quot;accumulate complete&quot;));<br>
++<br>
+     if (request) {<br>
+         /* NTH: is it ok to use an ompi error code here? */<br>
+         ompi_osc_pt2pt_request_complete (request, ret);<br>
+@@ -310,14 +316,14 @@ static inline int ompi_osc_pt2pt_put_w_req (const void *origin_addr, int origin_<br>
+     payload_len = origin_dt-&gt;super.size * origin_count;<br>
+     frag_len = sizeof(ompi_osc_pt2pt_header_put_t) + ddt_len + payload_len;<br>
+<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false, true);<br>
+     if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+         frag_len = sizeof(ompi_osc_pt2pt_header_put_t) + ddt_len;<br>
+-        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true);<br>
++        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true, false);<br>
+         if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+             /* allocate space for the header plus space to store ddt_len */<br>
+             frag_len = sizeof(ompi_osc_pt2pt_header_put_t) + 8;<br>
+-            ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true);<br>
++            ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true, false);<br>
+             if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+                 return OMPI_ERR_OUT_OF_RESOURCE;<br>
+             }<br>
+@@ -469,14 +475,14 @@ ompi_osc_pt2pt_accumulate_w_req (const void *origin_addr, int origin_count,<br>
+     payload_len = origin_dt-&gt;super.size * origin_count;<br>
+<br>
+     frag_len = sizeof(*header) + ddt_len + payload_len;<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false, true);<br>
+     if (OMPI_SUCCESS != ret) {<br>
+         frag_len = sizeof(*header) + ddt_len;<br>
+-        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true);<br>
++        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true, !request);<br>
+         if (OMPI_SUCCESS != ret) {<br>
+             /* allocate space for the header plus space to store ddt_len */<br>
+             frag_len = sizeof(*header) + 8;<br>
+-            ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true);<br>
++            ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true, !request);<br>
+             if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+                 return OMPI_ERR_OUT_OF_RESOURCE;<br>
+             }<br>
+@@ -488,7 +494,7 @@ ompi_osc_pt2pt_accumulate_w_req (const void *origin_addr, int origin_count,<br>
+         tag = get_rtag (module);<br>
+     }<br>
+<br>
+-    if (is_long_msg || is_long_datatype) {<br>
++    if (is_long_msg) {<br>
+         /* wait for synchronization before posting a long message */<br>
+         ompi_osc_pt2pt_sync_wait (pt2pt_sync);<br>
+     }<br>
+@@ -631,7 +637,7 @@ int ompi_osc_pt2pt_compare_and_swap (const void *origin_addr, const void *compar<br>
+     }<br>
+<br>
+     frag_len = sizeof(ompi_osc_pt2pt_header_cswap_t) + ddt_len + payload_len;<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false, false);<br>
+     if (OMPI_SUCCESS != ret) {<br>
+         return OMPI_ERR_OUT_OF_RESOURCE;<br>
+     }<br>
+@@ -663,9 +669,7 @@ int ompi_osc_pt2pt_compare_and_swap (const void *origin_addr, const void *compar<br>
+         return ret;<br>
+     }<br>
+<br>
+-    ret = ompi_osc_pt2pt_frag_finish(module, frag);<br>
+-<br>
+-    return ret;<br>
++    return ompi_osc_pt2pt_frag_finish (module, frag);<br>
+ }<br>
+<br>
+<br>
+@@ -779,11 +783,11 @@ static inline int ompi_osc_pt2pt_rget_internal (void *origin_addr, int origin_co<br>
+     ddt_len = ompi_datatype_pack_description_length(target_dt);<br>
+<br>
+     frag_len = sizeof(ompi_osc_pt2pt_header_get_t) + ddt_len;<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false, release_req);<br>
+     if (OMPI_SUCCESS != ret) {<br>
+         /* allocate space for the header plus space to store ddt_len */<br>
+         frag_len = sizeof(ompi_osc_pt2pt_header_put_t) + 8;<br>
+-        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
++        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false, release_req);<br>
+         if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+             return OMPI_ERR_OUT_OF_RESOURCE;<br>
+         }<br>
+@@ -961,6 +965,11 @@ int ompi_osc_pt2pt_rget_accumulate_internal (const void *origin_addr, int origin<br>
+         return OMPI_SUCCESS;<br>
+     }<br>
+<br>
++    if (!release_req) {<br>
++        /* wait for epoch to begin before starting operation */<br>
++        ompi_osc_pt2pt_sync_wait (pt2pt_sync);<br>
++    }<br>
++<br>
+     /* optimize the self case. TODO: optimize the local case */<br>
+     if (ompi_comm_rank (module-&gt;comm) == target_rank) {<br>
+         *request = &amp;pt2pt_request-&gt;super;<br>
+@@ -987,14 +996,14 @@ int ompi_osc_pt2pt_rget_accumulate_internal (const void *origin_addr, int origin<br>
+     }<br>
+<br>
+     frag_len = sizeof(*header) + ddt_len + payload_len;<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr, false);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr, false, release_req);<br>
+     if (OMPI_SUCCESS != ret) {<br>
+         frag_len = sizeof(*header) + ddt_len;<br>
+-        ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr, true);<br>
++        ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr, true, release_req);<br>
+         if (OMPI_SUCCESS != ret) {<br>
+             /* allocate space for the header plus space to store ddt_len */<br>
+             frag_len = sizeof(*header) + 8;<br>
+-            ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr, true);<br>
++            ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr, true, release_req);<br>
+             if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+                 return OMPI_ERR_OUT_OF_RESOURCE;<br>
+             }<br>
+@@ -1014,11 +1023,6 @@ int ompi_osc_pt2pt_rget_accumulate_internal (const void *origin_addr, int origin<br>
+     /* increment the number of outgoing fragments */<br>
+     ompi_osc_signal_outgoing (module, target_rank, pt2pt_request-&gt;outstanding_requests);<br>
+<br>
+-    if (!release_req) {<br>
+-        /* wait for epoch to begin before starting operation */<br>
+-        ompi_osc_pt2pt_sync_wait (pt2pt_sync);<br>
+-    }<br>
+-<br>
+     header = (ompi_osc_pt2pt_header_acc_t *) ptr;<br>
+     header-&gt;base.flags = 0;<br>
+     header-&gt;len = frag_len;<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_data_move.c b/ompi/mca/osc/pt2pt/osc_pt2pt_data_move.c<br>
+index 09bd285..681e73a 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_data_move.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_data_move.c<br>
+@@ -213,7 +213,7 @@ int ompi_osc_pt2pt_control_send (ompi_osc_pt2pt_module_t *module, int target,<br>
+     char *ptr;<br>
+     int ret;<br>
+<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, len, &amp;frag, &amp;ptr, false);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, len, &amp;frag, &amp;ptr, false, true);<br>
+     if (OPAL_LIKELY(OMPI_SUCCESS == ret)) {<br>
+         memcpy (ptr, data, len);<br>
+<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_frag.h b/ompi/mca/osc/pt2pt/osc_pt2pt_frag.h<br>
+index f55e6cb..da51b7d 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_frag.h<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_frag.h<br>
+@@ -57,16 +57,62 @@ static inline int ompi_osc_pt2pt_frag_finish (ompi_osc_pt2pt_module_t *module,<br>
+     return OMPI_SUCCESS;<br>
+ }<br>
+<br>
++static inline ompi_osc_pt2pt_frag_t *ompi_osc_pt2pt_frag_alloc_non_buffered (ompi_osc_pt2pt_module_t *module,<br>
++                                                                             ompi_osc_pt2pt_peer_t *peer,<br>
++                                                                             size_t request_len)<br>
++{<br>
++    ompi_osc_pt2pt_frag_t *curr;<br>
++<br>
++    /* to ensure ordering flush the buffer on the peer */<br>
++    curr = peer-&gt;active_frag;<br>
++    if (NULL != curr &amp;&amp; opal_atomic_cmpset (&amp;peer-&gt;active_frag, curr, NULL)) {<br>
++        /* If there&#39;s something pending, the pending finish will<br>
++           start the buffer.  Otherwise, we need to start it now. */<br>
++        int ret = ompi_osc_pt2pt_frag_finish (module, curr);<br>
++        if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
++            return NULL;<br>
++        }<br>
++    }<br>
++<br>
++    curr = (ompi_osc_pt2pt_frag_t *) opal_free_list_get (&amp;mca_osc_pt2pt_component.frags);<br>
++    if (OPAL_UNLIKELY(NULL == curr)) {<br>
++        return NULL;<br>
++    }<br>
++<br>
++    curr-&gt;target = peer-&gt;rank;<br>
++<br>
++    curr-&gt;header = (ompi_osc_pt2pt_frag_header_t*) curr-&gt;buffer;<br>
++    curr-&gt;top = (char*) (curr-&gt;header + 1);<br>
++    curr-&gt;remain_len = mca_osc_pt2pt_component.buffer_size;<br>
++    curr-&gt;module = module;<br>
++    curr-&gt;pending = 1;<br>
++<br>
++    curr-&gt;header-&gt;base.type = OMPI_OSC_PT2PT_HDR_TYPE_FRAG;<br>
++    curr-&gt;header-&gt;base.flags = OMPI_OSC_PT2PT_HDR_FLAG_VALID;<br>
++    if (module-&gt;passive_target_access_epoch) {<br>
++        curr-&gt;header-&gt;base.flags |= OMPI_OSC_PT2PT_HDR_FLAG_PASSIVE_TARGET;<br>
++    }<br>
++    curr-&gt;header-&gt;source = ompi_comm_rank(module-&gt;comm);<br>
++    curr-&gt;header-&gt;num_ops = 1;<br>
++<br>
++    return curr;<br>
++}<br>
++<br>
+ /*<br>
+- * Note: module lock must be held during this operation<br>
++ * Note: this function takes the module lock<br>
++ *<br>
++ * buffered sends will cache the fragment on the peer object associated with the<br>
++ * target. unbuffered-sends will cause the target fragment to be flushed and<br>
++ * will not be cached on the peer. this causes the fragment to be flushed as<br>
++ * soon as it is sent. this allows request-based rma fragments to be completed<br>
++ * so MPI_Test/MPI_Wait/etc will work as expected.<br>
+  */<br>
+ static inline int ompi_osc_pt2pt_frag_alloc (ompi_osc_pt2pt_module_t *module, int target,<br>
+                                              size_t request_len, ompi_osc_pt2pt_frag_t **buffer,<br>
+-                                             char **ptr, bool long_send)<br>
++                                             char **ptr, bool long_send, bool buffered)<br>
+ {<br>
+     ompi_osc_pt2pt_peer_t *peer = ompi_osc_pt2pt_peer_lookup (module, target);<br>
+     ompi_osc_pt2pt_frag_t *curr;<br>
+-    int ret;<br>
+<br>
+     /* osc pt2pt headers can have 64-bit values. these will need to be aligned<br>
+      * on an 8-byte boundary on some architectures so we up align the allocation<br>
+@@ -77,51 +123,34 @@ static inline int ompi_osc_pt2pt_frag_alloc (ompi_osc_pt2pt_module_t *module, in<br>
+         return OMPI_ERR_OUT_OF_RESOURCE;<br>
+     }<br>
+<br>
++    OPAL_OUTPUT_VERBOSE((MCA_BASE_VERBOSE_TRACE, ompi_osc_base_framework.framework_output,<br>
++                         &quot;attempting to allocate buffer for %lu bytes to target %d. long send: %d, &quot;<br>
++                         &quot;buffered: %d&quot;, (unsigned long) request_len, target, long_send, buffered));<br>
++<br>
+     OPAL_THREAD_LOCK(&amp;module-&gt;lock);<br>
+-    curr = peer-&gt;active_frag;<br>
+-    if (NULL == curr || curr-&gt;remain_len &lt; request_len || (long_send &amp;&amp; curr-&gt;pending_long_sends == 32)) {<br>
+-        if (NULL != curr &amp;&amp; opal_atomic_cmpset (&amp;peer-&gt;active_frag, curr, NULL)) {<br>
+-            /* If there&#39;s something pending, the pending finish will<br>
+-               start the buffer.  Otherwise, we need to start it now. */<br>
+-            ret = ompi_osc_pt2pt_frag_finish (module, curr);<br>
+-            if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
++    if (buffered) {<br>
++        curr = peer-&gt;active_frag;<br>
++        if (NULL == curr || curr-&gt;remain_len &lt; request_len || (long_send &amp;&amp; curr-&gt;pending_long_sends == 32)) {<br>
++            curr = ompi_osc_pt2pt_frag_alloc_non_buffered (module, peer, request_len);<br>
++            if (OPAL_UNLIKELY(NULL == curr)) {<br>
+                 OPAL_THREAD_UNLOCK(&amp;module-&gt;lock);<br>
+-                return ret;<br>
++                return OMPI_ERR_OUT_OF_RESOURCE;<br>
+             }<br>
+-        }<br>
+-<br>
+-        curr = (ompi_osc_pt2pt_frag_t *) opal_free_list_get (&amp;mca_osc_pt2pt_component.frags);<br>
+-        if (OPAL_UNLIKELY(NULL == curr)) {<br>
+-            return OMPI_ERR_OUT_OF_RESOURCE;<br>
+-        }<br>
+-<br>
+-        curr-&gt;target = target;<br>
+<br>
+-        curr-&gt;header = (ompi_osc_pt2pt_frag_header_t*) curr-&gt;buffer;<br>
+-        curr-&gt;top = (char*) (curr-&gt;header + 1);<br>
+-        curr-&gt;remain_len = mca_osc_pt2pt_component.buffer_size;<br>
+-        curr-&gt;module = module;<br>
+-        curr-&gt;pending = 2;<br>
+-        curr-&gt;pending_long_sends = long_send;<br>
+-<br>
+-        curr-&gt;header-&gt;base.type = OMPI_OSC_PT2PT_HDR_TYPE_FRAG;<br>
+-        curr-&gt;header-&gt;base.flags = OMPI_OSC_PT2PT_HDR_FLAG_VALID;<br>
+-        if (module-&gt;passive_target_access_epoch) {<br>
+-            curr-&gt;header-&gt;base.flags |= OMPI_OSC_PT2PT_HDR_FLAG_PASSIVE_TARGET;<br>
++            curr-&gt;pending_long_sends = long_send;<br>
++            peer-&gt;active_frag = curr;<br>
++        } else {<br>
++            OPAL_THREAD_ADD32(&amp;curr-&gt;header-&gt;num_ops, 1);<br>
++            curr-&gt;pending_long_sends += long_send;<br>
+         }<br>
+-        curr-&gt;header-&gt;source = ompi_comm_rank(module-&gt;comm);<br>
+-        curr-&gt;header-&gt;num_ops = 1;<br>
+<br>
+-        if (curr-&gt;remain_len &lt; request_len) {<br>
++        OPAL_THREAD_ADD32(&amp;curr-&gt;pending, 1);<br>
++    } else {<br>
++        curr = ompi_osc_pt2pt_frag_alloc_non_buffered (module, peer, request_len);<br>
++        if (OPAL_UNLIKELY(NULL == curr)) {<br>
+             OPAL_THREAD_UNLOCK(&amp;module-&gt;lock);<br>
+-            return OMPI_ERR_TEMP_OUT_OF_RESOURCE;<br>
++            return OMPI_ERR_OUT_OF_RESOURCE;<br>
+         }<br>
+-<br>
+-        peer-&gt;active_frag = curr;<br>
+-    } else {<br>
+-        OPAL_THREAD_ADD32(&amp;curr-&gt;pending, 1);<br>
+-        OPAL_THREAD_ADD32(&amp;curr-&gt;header-&gt;num_ops, 1);<br>
+-        curr-&gt;pending_long_sends += long_send;<br>
+     }<br>
+<br>
+     *ptr = curr-&gt;top;<br>
+<br>
+<br>
+<a href="https://github.com/open-mpi/ompi-release/commit/245147390edeb9cd9fab1d08610f83841588989b" rel="noreferrer" target="_blank">https://github.com/open-mpi/ompi-release/commit/245147390edeb9cd9fab1d08610f83841588989b</a><br>
+<br>
+commit 245147390edeb9cd9fab1d08610f83841588989b<br>
+Author: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+Date:   Tue Feb 2 12:44:17 2016 -0700<br>
+<br>
+    osc/pt2pt: eager sends are always active if MPI_MODE_NOCHECK is used<br>
+<br>
+    This commit fixes open-mpi/ompi#1299.<br>
+<br>
+    Signed-off-by: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+<br>
+    (cherry picked from open-mpi/ompi@519fffb65e7a9502b0e5edeb72b1ad2d802daed4)<br>
+<br>
+    Signed-off-by: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_passive_target.c b/ompi/mca/osc/pt2pt/osc_pt2pt_passive_target.c<br>
+index 0ddc4cf..099aa56 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_passive_target.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_passive_target.c<br>
+@@ -8,7 +8,7 @@<br>
+  *                         University of Stuttgart.  All rights reserved.<br>
+  * Copyright (c) 2004-2005 The Regents of the University of California.<br>
+  *                         All rights reserved.<br>
+- * Copyright (c) 2007-2015 Los Alamos National Security, LLC.  All rights<br>
++ * Copyright (c) 2007-2016 Los Alamos National Security, LLC.  All rights<br>
+  *                         reserved.<br>
+  * Copyright (c) 2010      IBM Corporation.  All rights reserved.<br>
+  * Copyright (c) 2012-2013 Sandia National Laboratories.  All rights reserved.<br>
+@@ -244,6 +244,8 @@ static int ompi_osc_pt2pt_lock_internal_execute (ompi_osc_pt2pt_module_t *module<br>
+             }<br>
+<br>
+         }<br>
++    } else {<br>
++        lock-&gt;eager_send_active = true;<br>
+     }<br>
+<br>
+     return OMPI_SUCCESS;<br>
+<br>
+<br>
+<a href="https://github.com/open-mpi/ompi-release/commit/98532dda3d642f845498a40e7e1c660f13ab67aa" rel="noreferrer" target="_blank">https://github.com/open-mpi/ompi-release/commit/98532dda3d642f845498a40e7e1c660f13ab67aa</a><br>
+<br>
+commit 98532dda3d642f845498a40e7e1c660f13ab67aa<br>
+Author: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+Date:   Tue Feb 2 12:22:21 2016 -0700<br>
+<br>
+    osc/pt2pt: various threading fixes<br>
+<br>
+    This commit fixes several bugs identified by a new multi-threaded RMA<br>
+    benchmarking suite. The following bugs have been identified and fixed:<br>
+<br>
+     - The code that signaled the actual start of an access epoch changed<br>
+       the eager_send_active flag on a synchronization object without<br>
+       holding the object&#39;s lock. This could cause another thread waiting<br>
+       on eager sends to block indefinitely because the entirety of<br>
+       ompi_osc_pt2pt_sync_expected could exectute between the check of<br>
+       eager_send_active and the conditon wait of<br>
+       ompi_osc_pt2pt_sync_wait.<br>
+<br>
+     - The bookkeeping of fragments could get screwed up when performing<br>
+       long put/accumulate operations from different threads. This was<br>
+       caused by the fragment flush code at the end of both put and<br>
+       accumulate. This code was put in place to avoid sending a large<br>
+       number of unexpected messages to a peer. To fix the bookkeeping<br>
+       issue we now 1) wait for eager sends to be active before stating<br>
+       any large isend&#39;s, and 2) keep track of the number of large isends<br>
+       associated with a fragment. If the number of large isends reaches<br>
+       32 the active fragment is flushed.<br>
+<br>
+     - Use atomics to update the large receive/send tag counters. This<br>
+       prevents duplicate tags from being used. The tag space has also<br>
+       been updated to use the entire 16-bits of the tag space.<br>
+<br>
+    These changes should also fix open-mpi/ompi#1299.<br>
+<br>
+    Signed-off-by: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+<br>
+    (cherry picked from open-mpi/ompi@d7264aa61394ffa278cc9ea08bc7b4704fb680e1)<br>
+<br>
+    Signed-off-by: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt.h b/ompi/mca/osc/pt2pt/osc_pt2pt.h<br>
+index 1f3c204..409011d 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt.h<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt.h<br>
+@@ -8,7 +8,7 @@<br>
+  *                         University of Stuttgart.  All rights reserved.<br>
+  * Copyright (c) 2004-2005 The Regents of the University of California.<br>
+  *                         All rights reserved.<br>
+- * Copyright (c) 2007-2015 Los Alamos National Security, LLC.  All rights<br>
++ * Copyright (c) 2007-2016 Los Alamos National Security, LLC.  All rights<br>
+  *                         reserved.<br>
+  * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.<br>
+  * Copyright (c) 2012-2013 Sandia National Laboratories.  All rights reserved.<br>
+@@ -149,20 +149,20 @@ struct ompi_osc_pt2pt_module_t {<br>
+     uint32_t *epoch_outgoing_frag_count;<br>
+<br>
+     /** cyclic counter for a unique tage for long messages. */<br>
+-    unsigned int tag_counter;<br>
+-    unsigned int rtag_counter;<br>
++    uint32_t tag_counter;<br>
++    uint32_t rtag_counter;<br>
+<br>
+     /* Number of outgoing fragments that have completed since the<br>
+        begining of time */<br>
+-    uint32_t outgoing_frag_count;<br>
++    volatile uint32_t outgoing_frag_count;<br>
+     /* Next outgoing fragment count at which we want a signal on cond */<br>
+-    uint32_t outgoing_frag_signal_count;<br>
++    volatile uint32_t outgoing_frag_signal_count;<br>
+<br>
+     /* Number of incoming fragments that have completed since the<br>
+        begining of time */<br>
+-    uint32_t active_incoming_frag_count;<br>
++    volatile uint32_t active_incoming_frag_count;<br>
+     /* Next incoming buffer count at which we want a signal on cond */<br>
+-    uint32_t active_incoming_frag_signal_count;<br>
++    volatile uint32_t active_incoming_frag_signal_count;<br>
+<br>
+     /** Number of targets locked/being locked */<br>
+     unsigned int passive_target_access_epoch;<br>
+@@ -409,14 +409,6 @@ int ompi_osc_pt2pt_component_irecv(ompi_osc_pt2pt_module_t *module,<br>
+                                   int tag,<br>
+                                   struct ompi_communicator_t *comm);<br>
+<br>
+-int ompi_osc_pt2pt_component_isend(ompi_osc_pt2pt_module_t *module,<br>
+-                                  const void *buf,<br>
+-                                  size_t count,<br>
+-                                  struct ompi_datatype_t *datatype,<br>
+-                                  int dest,<br>
+-                                  int tag,<br>
+-                                  struct ompi_communicator_t *comm);<br>
+-<br>
+ /**<br>
+  * ompi_osc_pt2pt_progress_pending_acc:<br>
+  *<br>
+@@ -639,8 +631,8 @@ static inline void osc_pt2pt_add_pending (ompi_osc_pt2pt_pending_t *pending)<br>
+                             opal_list_append (&amp;mca_osc_pt2pt_component.pending_operations, &amp;pending-&gt;super));<br>
+ }<br>
+<br>
+-#define OSC_PT2PT_FRAG_TAG   0x10000<br>
+-#define OSC_PT2PT_FRAG_MASK  0x0ffff<br>
++#define OSC_PT2PT_FRAG_TAG   0x80000<br>
++#define OSC_PT2PT_FRAG_MASK  0x7ffff<br>
+<br>
+ /**<br>
+  * get_tag:<br>
+@@ -658,11 +650,8 @@ static inline int get_tag(ompi_osc_pt2pt_module_t *module)<br>
+     /* the LSB of the tag is used be the receiver to determine if the<br>
+        message is a passive or active target (ie, where to mark<br>
+        completion). */<br>
+-    int tmp = module-&gt;tag_counter + !!(module-&gt;passive_target_access_epoch);<br>
+-<br>
+-    module-&gt;tag_counter = (module-&gt;tag_counter + 4) &amp; OSC_PT2PT_FRAG_MASK;<br>
+-<br>
+-    return tmp;<br>
++    int32_t tmp = OPAL_THREAD_ADD32((volatile int32_t *) &amp;module-&gt;tag_counter, 4);<br>
++    return (tmp &amp; OSC_PT2PT_FRAG_MASK) | !!(module-&gt;passive_target_access_epoch);<br>
+ }<br>
+<br>
+ static inline int get_rtag(ompi_osc_pt2pt_module_t *module)<br>
+@@ -670,11 +659,8 @@ static inline int get_rtag(ompi_osc_pt2pt_module_t *module)<br>
+     /* the LSB of the tag is used be the receiver to determine if the<br>
+        message is a passive or active target (ie, where to mark<br>
+        completion). */<br>
+-    int tmp = module-&gt;rtag_counter + !!(module-&gt;passive_target_access_epoch);<br>
+-<br>
+-    module-&gt;rtag_counter = (module-&gt;rtag_counter + 4) &amp; OSC_PT2PT_FRAG_MASK;<br>
+-<br>
+-    return tmp;<br>
++    int32_t tmp = OPAL_THREAD_ADD32((volatile int32_t *) &amp;module-&gt;rtag_counter, 4);<br>
++    return (tmp &amp; OSC_PT2PT_FRAG_MASK) | !!(module-&gt;passive_target_access_epoch);<br>
+ }<br>
+ /**<br>
+  * ompi_osc_pt2pt_accumulate_lock:<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_active_target.c b/ompi/mca/osc/pt2pt/osc_pt2pt_active_target.c<br>
+index e169add..58d6b40 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_active_target.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_active_target.c<br>
+@@ -8,7 +8,7 @@<br>
+  *                         University of Stuttgart.  All rights reserved.<br>
+  * Copyright (c) 2004-2005 The Regents of the University of California.<br>
+  *                         All rights reserved.<br>
+- * Copyright (c) 2007-2015 Los Alamos National Security, LLC.  All rights<br>
++ * Copyright (c) 2007-2016 Los Alamos National Security, LLC.  All rights<br>
+  *                         reserved.<br>
+  * Copyright (c) 2010      IBM Corporation.  All rights reserved.<br>
+  * Copyright (c) 2012-2013 Sandia National Laboratories.  All rights reserved.<br>
+@@ -211,7 +211,7 @@ int ompi_osc_pt2pt_start (ompi_group_t *group, int assert, ompi_win_t *win)<br>
+     ompi_osc_pt2pt_module_t *module = GET_MODULE(win);<br>
+     ompi_osc_pt2pt_sync_t *sync = &amp;module-&gt;all_sync;<br>
+<br>
+-    OPAL_THREAD_LOCK(&amp;sync-&gt;lock);<br>
++    OPAL_THREAD_LOCK(&amp;module-&gt;lock);<br>
+<br>
+     /* check if we are already in an access epoch */<br>
+     if (ompi_osc_pt2pt_access_epoch_active (module)) {<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c b/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c<br>
+index b22f783..a1dcfd7 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c<br>
+@@ -8,7 +8,7 @@<br>
+  *                         University of Stuttgart.  All rights reserved.<br>
+  * Copyright (c) 2004-2005 The Regents of the University of California.<br>
+  *                         All rights reserved.<br>
+- * Copyright (c) 2007-2015 Los Alamos National Security, LLC.  All rights<br>
++ * Copyright (c) 2007-2016 Los Alamos National Security, LLC.  All rights<br>
+  *                         reserved.<br>
+  * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.<br>
+  * Copyright (c) 2012-2013 Sandia National Laboratories.  All rights reserved.<br>
+@@ -34,27 +34,55 @@<br>
+ #include &lt;stdio.h&gt;<br>
+<br>
+ /* progress an OSC request */<br>
++static int ompi_osc_pt2pt_comm_complete (ompi_request_t *request)<br>
++{<br>
++    ompi_osc_pt2pt_module_t *module =<br>
++        (ompi_osc_pt2pt_module_t*) request-&gt;req_complete_cb_data;<br>
++<br>
++    OPAL_OUTPUT_VERBOSE((10, ompi_osc_base_framework.framework_output,<br>
++                         &quot;isend_completion_cb called&quot;));<br>
++<br>
++    mark_outgoing_completion(module);<br>
++<br>
++    /* put this request on the garbage colletion list */<br>
++    osc_pt2pt_gc_add_request (module, request);<br>
++<br>
++    return OMPI_SUCCESS;<br>
++}<br>
++<br>
+ static int ompi_osc_pt2pt_req_comm_complete (ompi_request_t *request)<br>
+ {<br>
+     ompi_osc_pt2pt_request_t *pt2pt_request = (ompi_osc_pt2pt_request_t *) request-&gt;req_complete_cb_data;<br>
+-    ompi_osc_pt2pt_module_t *module = pt2pt_request-&gt;module;<br>
+<br>
+     OPAL_OUTPUT_VERBOSE((10, ompi_osc_base_framework.framework_output,<br>
+                          &quot;ompi_osc_pt2pt_req_comm_complete called tag = %d&quot;,<br>
+                          request-&gt;req_status.MPI_TAG));<br>
+<br>
+-    mark_outgoing_completion (module);<br>
+-<br>
+     if (0 == OPAL_THREAD_ADD32(&amp;pt2pt_request-&gt;outstanding_requests, -1)) {<br>
+         ompi_osc_pt2pt_request_complete (pt2pt_request, request-&gt;req_status.MPI_ERROR);<br>
+     }<br>
+<br>
+-    /* put this request on the garbage colletion list */<br>
+-    osc_pt2pt_gc_add_request (module, request);<br>
++    return ompi_osc_pt2pt_comm_complete (request);<br>
++}<br>
+<br>
+-    return OMPI_SUCCESS;<br>
++static inline int ompi_osc_pt2pt_data_isend (ompi_osc_pt2pt_module_t *module, const void *buf,<br>
++                                             size_t count, ompi_datatype_t *datatype, int dest,<br>
++                                             int tag, ompi_osc_pt2pt_request_t *request)<br>
++{<br>
++    /* increment the outgoing send count */<br>
++    ompi_osc_signal_outgoing (module, dest, 1);<br>
++<br>
++    if (NULL != request) {<br>
++        ++request-&gt;outstanding_requests;<br>
++        return ompi_osc_pt2pt_isend_w_cb (buf, count, datatype, dest, tag, module-&gt;comm,<br>
++                                          ompi_osc_pt2pt_req_comm_complete, request);<br>
++    }<br>
++<br>
++    return ompi_osc_pt2pt_isend_w_cb (buf, count, datatype, dest, tag, module-&gt;comm,<br>
++                                      ompi_osc_pt2pt_comm_complete, module);<br>
+ }<br>
+<br>
++<br>
+ static int ompi_osc_pt2pt_dt_send_complete (ompi_request_t *request)<br>
+ {<br>
+     ompi_datatype_t *datatype = (ompi_datatype_t *) request-&gt;req_complete_cb_data;<br>
+@@ -282,14 +310,14 @@ static inline int ompi_osc_pt2pt_put_w_req (const void *origin_addr, int origin_<br>
+     payload_len = origin_dt-&gt;super.size * origin_count;<br>
+     frag_len = sizeof(ompi_osc_pt2pt_header_put_t) + ddt_len + payload_len;<br>
+<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
+     if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+         frag_len = sizeof(ompi_osc_pt2pt_header_put_t) + ddt_len;<br>
+-        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr);<br>
++        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true);<br>
+         if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+             /* allocate space for the header plus space to store ddt_len */<br>
+             frag_len = sizeof(ompi_osc_pt2pt_header_put_t) + 8;<br>
+-            ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr);<br>
++            ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true);<br>
+             if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+                 return OMPI_ERR_OUT_OF_RESOURCE;<br>
+             }<br>
+@@ -301,9 +329,8 @@ static inline int ompi_osc_pt2pt_put_w_req (const void *origin_addr, int origin_<br>
+         tag = get_tag(module);<br>
+     }<br>
+<br>
+-    /* flush will be called at the end of this function. make sure all post messages have<br>
+-     * arrived. */<br>
+-    if ((is_long_msg || request) &amp;&amp; OMPI_OSC_PT2PT_SYNC_TYPE_PSCW == pt2pt_sync-&gt;type) {<br>
++    if (is_long_msg) {<br>
++        /* wait for eager sends to be active before starting a long put */<br>
+         ompi_osc_pt2pt_sync_wait (pt2pt_sync);<br>
+     }<br>
+<br>
+@@ -361,18 +388,8 @@ static inline int ompi_osc_pt2pt_put_w_req (const void *origin_addr, int origin_<br>
+             header-&gt;tag = tag;<br>
+             osc_pt2pt_hton(header, proc);<br>
+<br>
+-            /* increase the outgoing signal count */<br>
+-            ompi_osc_signal_outgoing (module, target, 1);<br>
+-<br>
+-            if (request) {<br>
+-                request-&gt;outstanding_requests = 1;<br>
+-                ret = ompi_osc_pt2pt_isend_w_cb (origin_addr, origin_count, origin_dt,<br>
+-                                                target, tag, module-&gt;comm, ompi_osc_pt2pt_req_comm_complete,<br>
+-                                                request);<br>
+-            } else {<br>
+-                ret = ompi_osc_pt2pt_component_isend (module,origin_addr, origin_count, origin_dt, target, tag,<br>
+-                                                     module-&gt;comm);<br>
+-            }<br>
++            ret = ompi_osc_pt2pt_data_isend (module,origin_addr, origin_count, origin_dt, target, tag,<br>
++                                             request);<br>
+         }<br>
+     } while (0);<br>
+<br>
+@@ -380,14 +397,7 @@ static inline int ompi_osc_pt2pt_put_w_req (const void *origin_addr, int origin_<br>
+         header-&gt;base.flags |= OMPI_OSC_PT2PT_HDR_FLAG_VALID;<br>
+     }<br>
+<br>
+-    ret = ompi_osc_pt2pt_frag_finish(module, frag);<br>
+-<br>
+-    if (request || is_long_msg) {<br>
+-        /* need to flush now in case the caller decides to wait on the request */<br>
+-        ompi_osc_pt2pt_frag_flush_target (module, target);<br>
+-    }<br>
+-<br>
+-    return ret;<br>
++    return ompi_osc_pt2pt_frag_finish(module, frag);<br>
+ }<br>
+<br>
+ int<br>
+@@ -459,14 +469,14 @@ ompi_osc_pt2pt_accumulate_w_req (const void *origin_addr, int origin_count,<br>
+     payload_len = origin_dt-&gt;super.size * origin_count;<br>
+<br>
+     frag_len = sizeof(*header) + ddt_len + payload_len;<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
+     if (OMPI_SUCCESS != ret) {<br>
+         frag_len = sizeof(*header) + ddt_len;<br>
+-        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr);<br>
++        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true);<br>
+         if (OMPI_SUCCESS != ret) {<br>
+             /* allocate space for the header plus space to store ddt_len */<br>
+             frag_len = sizeof(*header) + 8;<br>
+-            ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr);<br>
++            ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, true);<br>
+             if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+                 return OMPI_ERR_OUT_OF_RESOURCE;<br>
+             }<br>
+@@ -478,9 +488,8 @@ ompi_osc_pt2pt_accumulate_w_req (const void *origin_addr, int origin_count,<br>
+         tag = get_rtag (module);<br>
+     }<br>
+<br>
+-    /* flush will be called at the end of this function. make sure all post messages have<br>
+-     * arrived. */<br>
+-    if ((is_long_msg || request) &amp;&amp; OMPI_OSC_PT2PT_SYNC_TYPE_PSCW == pt2pt_sync-&gt;type) {<br>
++    if (is_long_msg || is_long_datatype) {<br>
++        /* wait for synchronization before posting a long message */<br>
+         ompi_osc_pt2pt_sync_wait (pt2pt_sync);<br>
+     }<br>
+<br>
+@@ -538,18 +547,8 @@ ompi_osc_pt2pt_accumulate_w_req (const void *origin_addr, int origin_count,<br>
+             OPAL_OUTPUT_VERBOSE((25, ompi_osc_base_framework.framework_output,<br>
+                                  &quot;acc: starting long accumulate with tag %d&quot;, tag));<br>
+<br>
+-            /* increment the outgoing send count */<br>
+-            ompi_osc_signal_outgoing (module, target, 1);<br>
+-<br>
+-            if (request) {<br>
+-                request-&gt;outstanding_requests = 1;<br>
+-                ret = ompi_osc_pt2pt_isend_w_cb (origin_addr, origin_count, origin_dt,<br>
+-                                                target, tag, module-&gt;comm, ompi_osc_pt2pt_req_comm_complete,<br>
+-                                                request);<br>
+-            } else {<br>
+-                ret = ompi_osc_pt2pt_component_isend (module, origin_addr, origin_count, origin_dt, target, tag,<br>
+-                                                     module-&gt;comm);<br>
+-            }<br>
++            ret = ompi_osc_pt2pt_data_isend (module, origin_addr, origin_count, origin_dt, target, tag,<br>
++                                             request);<br>
+         }<br>
+     } while (0);<br>
+<br>
+@@ -561,14 +560,7 @@ ompi_osc_pt2pt_accumulate_w_req (const void *origin_addr, int origin_count,<br>
+         header-&gt;base.flags |= OMPI_OSC_PT2PT_HDR_FLAG_VALID;<br>
+     }<br>
+<br>
+-    ret = ompi_osc_pt2pt_frag_finish(module, frag);<br>
+-<br>
+-    if (is_long_msg || request) {<br>
+-        /* need to flush now in case the caller decides to wait on the request */<br>
+-        ompi_osc_pt2pt_frag_flush_target (module, target);<br>
+-    }<br>
+-<br>
+-    return ret;<br>
++    return ompi_osc_pt2pt_frag_finish(module, frag);<br>
+ }<br>
+<br>
+ int<br>
+@@ -639,7 +631,7 @@ int ompi_osc_pt2pt_compare_and_swap (const void *origin_addr, const void *compar<br>
+     }<br>
+<br>
+     frag_len = sizeof(ompi_osc_pt2pt_header_cswap_t) + ddt_len + payload_len;<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
+     if (OMPI_SUCCESS != ret) {<br>
+         return OMPI_ERR_OUT_OF_RESOURCE;<br>
+     }<br>
+@@ -787,11 +779,11 @@ static inline int ompi_osc_pt2pt_rget_internal (void *origin_addr, int origin_co<br>
+     ddt_len = ompi_datatype_pack_description_length(target_dt);<br>
+<br>
+     frag_len = sizeof(ompi_osc_pt2pt_header_get_t) + ddt_len;<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
+     if (OMPI_SUCCESS != ret) {<br>
+         /* allocate space for the header plus space to store ddt_len */<br>
+         frag_len = sizeof(ompi_osc_pt2pt_header_put_t) + 8;<br>
+-        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr);<br>
++        ret = ompi_osc_pt2pt_frag_alloc(module, target, frag_len, &amp;frag, &amp;ptr, false);<br>
+         if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+             return OMPI_ERR_OUT_OF_RESOURCE;<br>
+         }<br>
+@@ -804,9 +796,8 @@ static inline int ompi_osc_pt2pt_rget_internal (void *origin_addr, int origin_co<br>
+     /* for bookkeeping the get is &quot;outgoing&quot; */<br>
+     ompi_osc_signal_outgoing (module, target, 1);<br>
+<br>
+-    /* flush will be called at the end of this function. make sure all post messages have<br>
+-     * arrived. */<br>
+-    if (!release_req &amp;&amp; OMPI_OSC_PT2PT_SYNC_TYPE_PSCW == pt2pt_sync-&gt;type) {<br>
++    if (!release_req) {<br>
++        /* wait for epoch to begin before starting rget operation */<br>
+         ompi_osc_pt2pt_sync_wait (pt2pt_sync);<br>
+     }<br>
+<br>
+@@ -857,14 +848,7 @@ static inline int ompi_osc_pt2pt_rget_internal (void *origin_addr, int origin_co<br>
+         *request = &amp;pt2pt_request-&gt;super;<br>
+     }<br>
+<br>
+-    ret = ompi_osc_pt2pt_frag_finish(module, frag);<br>
+-<br>
+-    if (!release_req) {<br>
+-        /* need to flush now in case the caller decides to wait on the request */<br>
+-        ompi_osc_pt2pt_frag_flush_target (module, target);<br>
+-    }<br>
+-<br>
+-    return ret;<br>
++    return ompi_osc_pt2pt_frag_finish(module, frag);<br>
+ }<br>
+<br>
+ int ompi_osc_pt2pt_rget (void *origin_addr, int origin_count, struct ompi_datatype_t *origin_dt,<br>
+@@ -1003,14 +987,14 @@ int ompi_osc_pt2pt_rget_accumulate_internal (const void *origin_addr, int origin<br>
+     }<br>
+<br>
+     frag_len = sizeof(*header) + ddt_len + payload_len;<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr, false);<br>
+     if (OMPI_SUCCESS != ret) {<br>
+         frag_len = sizeof(*header) + ddt_len;<br>
+-        ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr);<br>
++        ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr, true);<br>
+         if (OMPI_SUCCESS != ret) {<br>
+             /* allocate space for the header plus space to store ddt_len */<br>
+             frag_len = sizeof(*header) + 8;<br>
+-            ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr);<br>
++            ret = ompi_osc_pt2pt_frag_alloc(module, target_rank, frag_len, &amp;frag, &amp;ptr, true);<br>
+             if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+                 return OMPI_ERR_OUT_OF_RESOURCE;<br>
+             }<br>
+@@ -1030,9 +1014,8 @@ int ompi_osc_pt2pt_rget_accumulate_internal (const void *origin_addr, int origin<br>
+     /* increment the number of outgoing fragments */<br>
+     ompi_osc_signal_outgoing (module, target_rank, pt2pt_request-&gt;outstanding_requests);<br>
+<br>
+-    /* flush will be called at the end of this function. make sure all post messages have<br>
+-     * arrived. */<br>
+-    if (!release_req &amp;&amp; OMPI_OSC_PT2PT_SYNC_TYPE_PSCW == pt2pt_sync-&gt;type) {<br>
++    if (!release_req) {<br>
++        /* wait for epoch to begin before starting operation */<br>
+         ompi_osc_pt2pt_sync_wait (pt2pt_sync);<br>
+     }<br>
+<br>
+@@ -1100,14 +1083,7 @@ int ompi_osc_pt2pt_rget_accumulate_internal (const void *origin_addr, int origin<br>
+         *request = (ompi_request_t *) pt2pt_request;<br>
+     }<br>
+<br>
+-    ret = ompi_osc_pt2pt_frag_finish(module, frag);<br>
+-<br>
+-    if (!release_req) {<br>
+-        /* need to flush now in case the caller decides to wait on the request */<br>
+-        ompi_osc_pt2pt_frag_flush_target (module, target_rank);<br>
+-    }<br>
+-<br>
+-    return ret;<br>
++    return ompi_osc_pt2pt_frag_finish(module, frag);<br>
+ }<br>
+<br>
+ int ompi_osc_pt2pt_get_accumulate(const void *origin_addr, int origin_count,<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_data_move.c b/ompi/mca/osc/pt2pt/osc_pt2pt_data_move.c<br>
+index 6883d79..09bd285 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_data_move.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_data_move.c<br>
+@@ -8,7 +8,7 @@<br>
+  *                         University of Stuttgart.  All rights reserved.<br>
+  * Copyright (c) 2004-2005 The Regents of the University of California.<br>
+  *                         All rights reserved.<br>
+- * Copyright (c) 2007-2015 Los Alamos National Security, LLC.  All rights<br>
++ * Copyright (c) 2007-2016 Los Alamos National Security, LLC.  All rights<br>
+  *                         reserved.<br>
+  * Copyright (c) 2009-2011 Oracle and/or its affiliates.  All rights reserved.<br>
+  * Copyright (c) 2012-2013 Sandia National Laboratories.  All rights reserved.<br>
+@@ -213,7 +213,7 @@ int ompi_osc_pt2pt_control_send (ompi_osc_pt2pt_module_t *module, int target,<br>
+     char *ptr;<br>
+     int ret;<br>
+<br>
+-    ret = ompi_osc_pt2pt_frag_alloc(module, target, len, &amp;frag, &amp;ptr);<br>
++    ret = ompi_osc_pt2pt_frag_alloc(module, target, len, &amp;frag, &amp;ptr, false);<br>
+     if (OPAL_LIKELY(OMPI_SUCCESS == ret)) {<br>
+         memcpy (ptr, data, len);<br>
+<br>
+@@ -1682,33 +1682,6 @@ int ompi_osc_pt2pt_component_irecv (ompi_osc_pt2pt_module_t *module, void *buf,<br>
+                                      osc_pt2pt_incoming_req_complete, module);<br>
+ }<br>
+<br>
+-<br>
+-static int<br>
+-isend_completion_cb(ompi_request_t *request)<br>
+-{<br>
+-    ompi_osc_pt2pt_module_t *module =<br>
+-        (ompi_osc_pt2pt_module_t*) request-&gt;req_complete_cb_data;<br>
+-<br>
+-    OPAL_OUTPUT_VERBOSE((10, ompi_osc_base_framework.framework_output,<br>
+-                         &quot;isend_completion_cb called&quot;));<br>
+-<br>
+-    mark_outgoing_completion(module);<br>
+-<br>
+-    /* put this request on the garbage colletion list */<br>
+-    osc_pt2pt_gc_add_request (module, request);<br>
+-<br>
+-    return OMPI_SUCCESS;<br>
+-}<br>
+-<br>
+-<br>
+-int ompi_osc_pt2pt_component_isend (ompi_osc_pt2pt_module_t *module, const void *buf,<br>
+-                                    size_t count, struct ompi_datatype_t *datatype,<br>
+-                                    int dest, int tag, struct ompi_communicator_t *comm)<br>
+-{<br>
+-    return ompi_osc_pt2pt_isend_w_cb (buf, count, datatype, dest, tag, comm,<br>
+-                                     isend_completion_cb, module);<br>
+-}<br>
+-<br>
+ int ompi_osc_pt2pt_isend_w_cb (const void *ptr, int count, ompi_datatype_t *datatype, int target, int tag,<br>
+                               ompi_communicator_t *comm, ompi_request_complete_fn_t cb, void *ctx)<br>
+ {<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_frag.h b/ompi/mca/osc/pt2pt/osc_pt2pt_frag.h<br>
+index 515ce82..f55e6cb 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_frag.h<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_frag.h<br>
+@@ -1,7 +1,7 @@<br>
+ /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */<br>
+ /*<br>
+  * Copyright (c) 2012      Sandia National Laboratories.  All rights reserved.<br>
+- * Copyright (c) 2014-2015 Los Alamos National Security, LLC. All rights<br>
++ * Copyright (c) 2014-2016 Los Alamos National Security, LLC. All rights<br>
+  *                         reserved.<br>
+  * $COPYRIGHT$<br>
+  *<br>
+@@ -33,7 +33,8 @@ struct ompi_osc_pt2pt_frag_t {<br>
+     char *top;<br>
+<br>
+     /* Number of operations which have started writing into the frag, but not yet completed doing so */<br>
+-    int32_t pending;<br>
++    volatile int32_t pending;<br>
++    int32_t pending_long_sends;<br>
+     ompi_osc_pt2pt_frag_header_t *header;<br>
+     ompi_osc_pt2pt_module_t *module;<br>
+ };<br>
+@@ -44,12 +45,24 @@ extern int ompi_osc_pt2pt_frag_start(ompi_osc_pt2pt_module_t *module, ompi_osc_p<br>
+ extern int ompi_osc_pt2pt_frag_flush_target(ompi_osc_pt2pt_module_t *module, int target);<br>
+ extern int ompi_osc_pt2pt_frag_flush_all(ompi_osc_pt2pt_module_t *module);<br>
+<br>
++static inline int ompi_osc_pt2pt_frag_finish (ompi_osc_pt2pt_module_t *module,<br>
++                                              ompi_osc_pt2pt_frag_t* buffer)<br>
++{<br>
++    opal_atomic_wmb ();<br>
++    if (0 == OPAL_THREAD_ADD32(&amp;buffer-&gt;pending, -1)) {<br>
++        opal_atomic_mb ();<br>
++        return ompi_osc_pt2pt_frag_start(module, buffer);<br>
++    }<br>
++<br>
++    return OMPI_SUCCESS;<br>
++}<br>
++<br>
+ /*<br>
+  * Note: module lock must be held during this operation<br>
+  */<br>
+ static inline int ompi_osc_pt2pt_frag_alloc (ompi_osc_pt2pt_module_t *module, int target,<br>
+                                              size_t request_len, ompi_osc_pt2pt_frag_t **buffer,<br>
+-                                             char **ptr)<br>
++                                             char **ptr, bool long_send)<br>
+ {<br>
+     ompi_osc_pt2pt_peer_t *peer = ompi_osc_pt2pt_peer_lookup (module, target);<br>
+     ompi_osc_pt2pt_frag_t *curr;<br>
+@@ -66,29 +79,21 @@ static inline int ompi_osc_pt2pt_frag_alloc (ompi_osc_pt2pt_module_t *module, in<br>
+<br>
+     OPAL_THREAD_LOCK(&amp;module-&gt;lock);<br>
+     curr = peer-&gt;active_frag;<br>
+-    if (NULL == curr || curr-&gt;remain_len &lt; request_len) {<br>
+-        opal_free_list_item_t *item = NULL;<br>
+-<br>
+-        if (NULL != curr) {<br>
+-            curr-&gt;remain_len = 0;<br>
+-            peer-&gt;active_frag = NULL;<br>
+-            opal_atomic_mb ();<br>
+-<br>
++    if (NULL == curr || curr-&gt;remain_len &lt; request_len || (long_send &amp;&amp; curr-&gt;pending_long_sends == 32)) {<br>
++        if (NULL != curr &amp;&amp; opal_atomic_cmpset (&amp;peer-&gt;active_frag, curr, NULL)) {<br>
+             /* If there&#39;s something pending, the pending finish will<br>
+                start the buffer.  Otherwise, we need to start it now. */<br>
+-            if (0 == OPAL_THREAD_ADD32(&amp;curr-&gt;pending, -1)) {<br>
+-                ret = ompi_osc_pt2pt_frag_start(module, curr);<br>
+-                if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
+-                    return ret;<br>
+-                }<br>
++            ret = ompi_osc_pt2pt_frag_finish (module, curr);<br>
++            if (OPAL_UNLIKELY(OMPI_SUCCESS != ret)) {<br>
++                OPAL_THREAD_UNLOCK(&amp;module-&gt;lock);<br>
++                return ret;<br>
+             }<br>
+         }<br>
+<br>
+-        item = opal_free_list_get (&amp;mca_osc_pt2pt_component.frags);<br>
+-        if (OPAL_UNLIKELY(NULL == item)) {<br>
++        curr = (ompi_osc_pt2pt_frag_t *) opal_free_list_get (&amp;mca_osc_pt2pt_component.frags);<br>
++        if (OPAL_UNLIKELY(NULL == curr)) {<br>
+             return OMPI_ERR_OUT_OF_RESOURCE;<br>
+         }<br>
+-        curr = peer-&gt;active_frag = (ompi_osc_pt2pt_frag_t*) item;<br>
+<br>
+         curr-&gt;target = target;<br>
+<br>
+@@ -96,7 +101,8 @@ static inline int ompi_osc_pt2pt_frag_alloc (ompi_osc_pt2pt_module_t *module, in<br>
+         curr-&gt;top = (char*) (curr-&gt;header + 1);<br>
+         curr-&gt;remain_len = mca_osc_pt2pt_component.buffer_size;<br>
+         curr-&gt;module = module;<br>
+-        curr-&gt;pending = 1;<br>
++        curr-&gt;pending = 2;<br>
++        curr-&gt;pending_long_sends = long_send;<br>
+<br>
+         curr-&gt;header-&gt;base.type = OMPI_OSC_PT2PT_HDR_TYPE_FRAG;<br>
+         curr-&gt;header-&gt;base.flags = OMPI_OSC_PT2PT_HDR_FLAG_VALID;<br>
+@@ -104,12 +110,18 @@ static inline int ompi_osc_pt2pt_frag_alloc (ompi_osc_pt2pt_module_t *module, in<br>
+             curr-&gt;header-&gt;base.flags |= OMPI_OSC_PT2PT_HDR_FLAG_PASSIVE_TARGET;<br>
+         }<br>
+         curr-&gt;header-&gt;source = ompi_comm_rank(module-&gt;comm);<br>
+-        curr-&gt;header-&gt;num_ops = 0;<br>
++        curr-&gt;header-&gt;num_ops = 1;<br>
+<br>
+         if (curr-&gt;remain_len &lt; request_len) {<br>
+             OPAL_THREAD_UNLOCK(&amp;module-&gt;lock);<br>
+             return OMPI_ERR_TEMP_OUT_OF_RESOURCE;<br>
+         }<br>
++<br>
++        peer-&gt;active_frag = curr;<br>
++    } else {<br>
++        OPAL_THREAD_ADD32(&amp;curr-&gt;pending, 1);<br>
++        OPAL_THREAD_ADD32(&amp;curr-&gt;header-&gt;num_ops, 1);<br>
++        curr-&gt;pending_long_sends += long_send;<br>
+     }<br>
+<br>
+     *ptr = curr-&gt;top;<br>
+@@ -117,24 +129,8 @@ static inline int ompi_osc_pt2pt_frag_alloc (ompi_osc_pt2pt_module_t *module, in<br>
+<br>
+     curr-&gt;top += request_len;<br>
+     curr-&gt;remain_len -= request_len;<br>
+-    OPAL_THREAD_UNLOCK(&amp;module-&gt;lock);<br>
+<br>
+-    OPAL_THREAD_ADD32(&amp;curr-&gt;pending, 1);<br>
+-    OPAL_THREAD_ADD32(&amp;curr-&gt;header-&gt;num_ops, 1);<br>
+-<br>
+-    return OMPI_SUCCESS;<br>
+-}<br>
+-<br>
+-<br>
+-/*<br>
+- * Note: module lock must be held for this operation<br>
+- */<br>
+-static inline int ompi_osc_pt2pt_frag_finish(ompi_osc_pt2pt_module_t *module,<br>
+-                                            ompi_osc_pt2pt_frag_t* buffer)<br>
+-{<br>
+-    if (0 == OPAL_THREAD_ADD32(&amp;buffer-&gt;pending, -1)) {<br>
+-        return ompi_osc_pt2pt_frag_start(module, buffer);<br>
+-    }<br>
++    OPAL_THREAD_UNLOCK(&amp;module-&gt;lock);<br>
+<br>
+     return OMPI_SUCCESS;<br>
+ }<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_request.c b/ompi/mca/osc/pt2pt/osc_pt2pt_request.c<br>
+index eddccf5..6741036 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_request.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_request.c<br>
+@@ -51,6 +51,7 @@ request_construct(ompi_osc_pt2pt_request_t *request)<br>
+     request-&gt;super.req_status._cancelled = 0;<br>
+     request-&gt;super.req_free = request_free;<br>
+     request-&gt;super.req_cancel = request_cancel;<br>
++    request-&gt;outstanding_requests = 0;<br>
+ }<br>
+<br>
+ OBJ_CLASS_INSTANCE(ompi_osc_pt2pt_request_t,<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_request.h b/ompi/mca/osc/pt2pt/osc_pt2pt_request.h<br>
+index 07b9d53..dee5c86 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_request.h<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_request.h<br>
+@@ -1,7 +1,7 @@<br>
+ /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */<br>
+ /*<br>
+  * Copyright (c) 2012      Sandia National Laboratories.  All rights reserved.<br>
+- * Copyright (c) 2014-2015 Los Alamos National Security, LLC. All rights<br>
++ * Copyright (c) 2014-2016 Los Alamos National Security, LLC. All rights<br>
+  *                         reserved.<br>
+  * Copyright (c) 2015      Research Organization for Information Science<br>
+  *                         and Technology (RIST). All rights reserved.<br>
+@@ -57,6 +57,7 @@ OBJ_CLASS_DECLARATION(ompi_osc_pt2pt_request_t);<br>
+ #define OMPI_OSC_PT2PT_REQUEST_RETURN(req)                              \<br>
+     do {                                                                \<br>
+         OMPI_REQUEST_FINI(&amp;(req)-&gt;super);                               \<br>
++        (req)-&gt;outstanding_requests = 0;                                \<br>
+         opal_free_list_return (&amp;mca_osc_pt2pt_component.requests,       \<br>
+                                  (opal_free_list_item_t *) (req));      \<br>
+     } while (0)<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_sync.h b/ompi/mca/osc/pt2pt/osc_pt2pt_sync.h<br>
+index eee2964..f4e4adc 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_sync.h<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_sync.h<br>
+@@ -1,6 +1,6 @@<br>
+ /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */<br>
+ /*<br>
+- * Copyright (c) 2015      Los Alamos National Security, LLC.  All rights<br>
++ * Copyright (c) 2015-2016 Los Alamos National Security, LLC.  All rights<br>
+  *                         reserved.<br>
+  * $COPYRIGHT$<br>
+  *<br>
+@@ -163,8 +163,10 @@ static inline void ompi_osc_pt2pt_sync_expected (ompi_osc_pt2pt_sync_t *sync)<br>
+ {<br>
+     int32_t new_value = OPAL_THREAD_ADD32 (&amp;sync-&gt;sync_expected, -1);<br>
+     if (0 == new_value) {<br>
++        OPAL_THREAD_LOCK(&amp;sync-&gt;lock);<br>
+         sync-&gt;eager_send_active = true;<br>
+         opal_condition_broadcast (&amp;sync-&gt;cond);<br>
++        OPAL_THREAD_UNLOCK(&amp;sync-&gt;lock);<br>
+     }<br>
+ }<br>
+<br>
+<br>
+<br>
+<a href="https://github.com/open-mpi/ompi-release/commit/b1cb049a9d9a486c6e08bd2966b0033e30df7055" rel="noreferrer" target="_blank">https://github.com/open-mpi/ompi-release/commit/b1cb049a9d9a486c6e08bd2966b0033e30df7055</a><br>
+<br>
+commit b1cb049a9d9a486c6e08bd2966b0033e30df7055<br>
+Author: Gilles Gouaillardet &lt;<a href="mailto:gilles@rist.or.jp">gilles@rist.or.jp</a>&gt;<br>
+Date:   Tue Jan 5 16:57:37 2016 +0900<br>
+<br>
+    osc/pt2pt: use two distinct &quot;namespaces&quot; for tags<br>
+<br>
+    (cherry picked from open-mpi/ompi@06ecdb6aa7ee688f51de2b3ca05e9f0605a90099)<br>
+<br>
+    Signed-off-by: Nathan Hjelm &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt.h b/ompi/mca/osc/pt2pt/osc_pt2pt.h<br>
+index 51b14b7..1f3c204 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt.h<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt.h<br>
+@@ -150,6 +150,7 @@ struct ompi_osc_pt2pt_module_t {<br>
+<br>
+     /** cyclic counter for a unique tage for long messages. */<br>
+     unsigned int tag_counter;<br>
++    unsigned int rtag_counter;<br>
+<br>
+     /* Number of outgoing fragments that have completed since the<br>
+        begining of time */<br>
+@@ -659,11 +660,22 @@ static inline int get_tag(ompi_osc_pt2pt_module_t *module)<br>
+        completion). */<br>
+     int tmp = module-&gt;tag_counter + !!(module-&gt;passive_target_access_epoch);<br>
+<br>
+-    module-&gt;tag_counter = (module-&gt;tag_counter + 2) &amp; OSC_PT2PT_FRAG_MASK;<br>
++    module-&gt;tag_counter = (module-&gt;tag_counter + 4) &amp; OSC_PT2PT_FRAG_MASK;<br>
+<br>
+     return tmp;<br>
+ }<br>
+<br>
++static inline int get_rtag(ompi_osc_pt2pt_module_t *module)<br>
++{<br>
++    /* the LSB of the tag is used be the receiver to determine if the<br>
++       message is a passive or active target (ie, where to mark<br>
++       completion). */<br>
++    int tmp = module-&gt;rtag_counter + !!(module-&gt;passive_target_access_epoch);<br>
++<br>
++    module-&gt;rtag_counter = (module-&gt;rtag_counter + 4) &amp; OSC_PT2PT_FRAG_MASK;<br>
++<br>
++    return tmp;<br>
++}<br>
+ /**<br>
+  * ompi_osc_pt2pt_accumulate_lock:<br>
+  *<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c b/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c<br>
+index 5bb3a07..b22f783 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_comm.c<br>
+@@ -475,7 +475,7 @@ ompi_osc_pt2pt_accumulate_w_req (const void *origin_addr, int origin_count,<br>
+          }<br>
+<br>
+         is_long_msg = true;<br>
+-        tag = get_tag (module);<br>
++        tag = get_rtag (module);<br>
+     }<br>
+<br>
+     /* flush will be called at the end of this function. make sure all post messages have<br>
+diff --git a/ompi/mca/osc/pt2pt/osc_pt2pt_component.c b/ompi/mca/osc/pt2pt/osc_pt2pt_component.c<br>
+index 6a8f53e..41bbe18 100644<br>
+--- a/ompi/mca/osc/pt2pt/osc_pt2pt_component.c<br>
++++ b/ompi/mca/osc/pt2pt/osc_pt2pt_component.c<br>
+@@ -290,6 +290,7 @@ component_select(struct ompi_win_t *win, void **base, size_t size, int disp_unit<br>
+     /* fill in the function pointer part */<br>
+     memcpy(module, &amp;ompi_osc_pt2pt_module_template,<br>
+            sizeof(ompi_osc_base_module_t));<br>
++    module-&gt;rtag_counter = 2;<br>
+<br>
+     /* initialize the objects, so that always free in cleanup */<br>
+     OBJ_CONSTRUCT(&amp;module-&gt;lock, opal_mutex_t);<br>
+<br>
+<br>
+-----------------------------------------------------------------------<br>
+<br>
+Summary of changes:<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt.h                |  36 +++---<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt_active_target.c  |   5 +-<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt_comm.c           | 170 ++++++++++++--------------<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt_component.c      |   1 +<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt_data_move.c      |  31 +----<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt_frag.h           | 147 +++++++++++++---------<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt_passive_target.c |   4 +-<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt_request.c        |   1 +<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt_request.h        |   3 +-<br>
+ ompi/mca/osc/pt2pt/osc_pt2pt_sync.h           |   4 +-<br>
+ 10 files changed, 193 insertions(+), 209 deletions(-)<br>
+<br>
+<br>
+hooks/post-receive<br>
+<span class="HOEnZb"><font color="#888888">--<br>
+open-mpi/ompi-release<br>
+_______________________________________________<br>
+ompi-commits mailing list<br>
+<a href="mailto:ompi-commits@open-mpi.org">ompi-commits@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/ompi-commits" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/ompi-commits</a><br>
+</font></span></blockquote></div><br></div>
+

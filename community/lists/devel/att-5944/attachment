@@ -1,0 +1,205 @@
+<br><br><div class="gmail_quote">---------- Forwarded message ----------<br>From: <b class="gmail_sendername">Brian Blank</b> <span dir="ltr">&lt;<a href="mailto:brianblank@gmail.com">brianblank@gmail.com</a>&gt;</span><br>
+Date: Fri, May 1, 2009 at 11:54 AM<br>Subject: Re: [OMPI devel] Fwd: Purify found bugs inside open-mpi library<br>To: Terry Dontje &lt;<a href="mailto:Terry.Dontje@sun.com">Terry.Dontje@sun.com</a>&gt;<br><br><br>Hi Terry,<br>
+<br>I did a memset() prior to the call to processor_info(), and the UMR went away.  I further tested by setting pinfo.pi_state to -1 prior to the call to processor_info(), and processor_info() always sets pinfo.pi_state to 2.  Therefore, I am starting to suspect this is a bug in purify.  Maybe purify is having issues detecting that this variable was updated by system code.  I&#39;m going to forward a sample program to the IBM purify team to have them investigate further.<br>
+
+<br>I also attached a copy of mpi_purify.txt that contains all the purify findings.  Therefore a handful of UMR errors that occur through different call stacks.  Also, there are 2 file descriptors left open &amp; a lot of memory that leaked despite me calling MPI_Finalize().<br>
+
+<br>Let me know if you need me to try something else or to produce any additional output.<br><br>Thanks again,<br><font color="#888888">Brian</font><div><div></div><div class="h5"><br><br><div class="gmail_quote">On Thu, Apr 30, 2009 at 10:11 AM, Terry Dontje <span dir="ltr">&lt;<a href="mailto:Terry.Dontje@sun.com" target="_blank">Terry.Dontje@sun.com</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">So I&#39;ve been kibitzing with Jeff on the below.  If you do a memset of pinfo prior to the line you show below does the UMR go away.  I believe it will not and that you probably will need to do something like pinfo.pi_state = 0.  Can you try this out for me? <br>
+
+
+Thanks,<br><font color="#888888">
+<br>
+--td</font><div><div></div><div><br>
+<br>
+Brian Blank wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Hi Jeff,<br>
+<br>
+That definetly worked for me.  Thanks so much for you help.<br>
+<br>
+Purify did find some other UMR (unitialize memory read) errors though, but they don&#39;t seem to be negativley impacting my application right now.  Nonetheless, I&#39;ll post them later today in case anyone is interested in them.<br>
+
+
+<br>
+Just to give you a sample of what it see&#39;s now, one of the UMR errors seems a little odd ... paffinity_solaris_module.c line 180.<br>
+if (P_ONLINE == pinfo.pi_state || P_NOINTR == pinfo.pi_state) {<br>
+<br>
+I&#39;ll post the rest of the UMR errors later today.<br>
+<br>
+Thanks again,<br>
+Brian<br>
+<br>
+On Apr 29, 2009, at 4:06 PM, Jeff Squyres &lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt; wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Actually, I think your program is erroneous -- it looks like you&#39;re using number of bytes for the sizes[] array when it really should be using number of elements.  Specifically, it should be:<br>
+<br>
+   sizes[0] = (int) sizeof(tstruct.one);<br>
+   sizes[1] = 1;<br>
+   sizes[2] = 1;<br>
+   sizes[3] = 1;<br>
+<br>
+Since MPI knows the sizes of datatypes, you specify counts of datatypes -- not numbers of bytes.<br>
+<br>
+That seemed to make your program work for me; double check and ensure that it works for you.<br>
+<br>
+<br>
+On Apr 29, 2009, at 1:21 PM, Brian Blank wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+To Whom This May Concern:<br>
+<br>
+I originally sent this to the users list, but realizing now that this might be more appropriate for the developer&#39;s list as it is dealing with issues internal to the openmpi library (sorry for the dual distribution).  Please start with second email first.<br>
+
+
+<br>
+Thanks,<br>
+Brian Blank<br>
+<br>
+---------- Forwarded message ----------<br>
+From: Brian Blank &lt;<a href="mailto:brianblank@gmail.com" target="_blank">brianblank@gmail.com</a>&gt;<br>
+Date: Wed, Apr 29, 2009 at 1:09 PM<br>
+Subject: Re: Purify found bugs inside open-mpi library<br>
+To: <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<br>
+<br>
+To Whom This May Concern:<br>
+<br>
+I&#39;ve been trying to dig a little deeper into this problem and found some additional information.<br>
+<br>
+First, the stack trace for the ABR and ABW were different. The ABR problem occurred in datatype_pack.h while the ABW problem occurred in datatype_unpack.h.  The problem appears to be the same still.  Both errors are occurring during a call to MEMCPY_CSUM().<br>
+
+
+<br>
+I also found there are two different variables playing into this bug.  There is _copy_blength and _copy_count.  At the top of the function, both of these variables are set to 2 bytes for MPI_SHORT, 4 bytes for MPI_LONG, and 8 bytes for MPI_DOUBLE.  Then, these variables are multiplied together to get the size of the memcpy().  Unfortunetly, the correct size are either of these variables before they are squared.  There sometimes appears to be an optimization where if two variables are next to each other, they are sometimes converted into a MPI_BYTE where the size is also incorrectly taking these squared values into consideration.<br>
+
+
+<br>
+I wrote a small test program to illustrate the problem and attached it to this email.  First, I configured openmpi 1.3.2 with the following options:<br>
+<br>
+./configure --prefix=/myworkingdirectory/openmpi-1.3.2.local --disable-mpi-f77 --disable-mpi-f90 --enable-debug --enable-mem-debug --enable-mem-profile<br>
+<br>
+I then modified datatype_pack.h &amp; datatype_unpack.h located in openmpi-1.3.2/ompi/datatype directory in order to produce additional debugging output.  The new versions are attached to this email.<br>
+<br>
+Then, I executed &quot;make all install&quot;<br>
+<br>
+Then, I write the attached test.c program.  You can find the output below.  The problems appear in red.<br>
+<br>
+0: sizes     &#39;3&#39;  &#39;4&#39;  &#39;8&#39;  &#39;2&#39;<br>
+0: offsets   &#39;0&#39;  &#39;4&#39;  &#39;8&#39;  &#39;16&#39;<br>
+0: addresses &#39;134510640&#39; &#39;134510644&#39; &#39;134510648&#39; &#39;134510656&#39;<br>
+0: name=&#39;MPI_CHAR&#39;  _copy_blength=&#39;3&#39;  orig_copy_blength=&#39;1&#39;  _copy_count=&#39;3&#39;  _source=&#39;134510640&#39;<br>
+0: name=&#39;MPI_LONG&#39;  _copy_blength=&#39;16&#39;  orig_copy_blength=&#39;4&#39;  _copy_count=&#39;4&#39;  _source=&#39;134510644&#39;<br>
+0: name=&#39;MPI_DOUBLE&#39;  _copy_blength=&#39;64&#39;  orig_copy_blength=&#39;8&#39;  _copy_count=&#39;8&#39;  _source=&#39;134510648&#39;<br>
+0: name=&#39;MPI_SHORT&#39;  _copy_blength=&#39;4&#39;  orig_copy_blength=&#39;2&#39;  _copy_count=&#39;2&#39;  _source=&#39;134510656&#39;<br>
+0: one=&#39;22&#39;  two=&#39;222&#39;  three=&#39;33.300000&#39;  four=&#39;44&#39;<br>
+1: sizes     &#39;3&#39;  &#39;4&#39;  &#39;8&#39;  &#39;2&#39;<br>
+1: offsets   &#39;0&#39;  &#39;4&#39;  &#39;8&#39;  &#39;16&#39;<br>
+1: addresses &#39;134510640&#39; &#39;134510644&#39; &#39;134510648&#39; &#39;134510656&#39;<br>
+1: name=&#39;MPI_CHAR&#39;  _copy_blength=&#39;3&#39;  orig_copy_blength=&#39;1&#39;  _copy_count=&#39;3&#39;  _destination=&#39;134510640&#39;<br>
+1: name=&#39;MPI_LONG&#39;  _copy_blength=&#39;16&#39;  orig_copy_blength=&#39;4&#39;  _copy_count=&#39;4&#39;  _destination=&#39;134510644&#39;<br>
+1: name=&#39;MPI_DOUBLE&#39;  _copy_blength=&#39;64&#39;  orig_copy_blength=&#39;8&#39;  _copy_count=&#39;8&#39;  _destination=&#39;134510648&#39;<br>
+1: name=&#39;MPI_SHORT&#39;  _copy_blength=&#39;4&#39;  orig_copy_blength=&#39;2&#39;  _copy_count=&#39;2&#39;  _destination=&#39;134510656&#39;<br>
+1: one=&#39;22&#39;  two=&#39;222&#39;  three=&#39;33.300000&#39;  four=&#39;44&#39;<br>
+<br>
+You can see from the output that the MPI_Send &amp; MPI_Recv functions are reading or writing too much data from my structure, causing an overflow condition to occur.  I believe this is causing my application to crash.<br>
+
+
+<br>
+Any help on this problem would be appreciated.  If there is anything else that you need from me, just let me know.<br>
+<br>
+Thanks,<br>
+Brian<br>
+<br>
+<br>
+<br>
+<br>
+On Tue, Apr 28, 2009 at 9:58 PM, Brian Blank &lt;<a href="mailto:brianblank@gmail.com" target="_blank">brianblank@gmail.com</a>&gt; wrote:<br>
+To Whom This May Concern:<br>
+<br>
+I am having problems with an OpenMPI application I am writing on the Solaris/Intel AMD64 platform.  I am using OpenMPI 1.3.2 which I compiled myself using the Solaris C/C++ compiler.<br>
+<br>
+My application was crashing (signal 11) inside a call to malloc() which my code was running.  I thought it might be a memory overflow error that was causing this, so I fired up Purify.  Purify found several problems inside the the OpenMPI library.  I think one of the errors is serious and might be causing the problems I was looking for.<br>
+
+
+<br>
+The serious error is an Array Bounds Write (ABW) which occurred 824 times through 312 calls to MPI_Recv().  This error means that something inside the OpenMPI library is writing to memory where it shouldn&#39;t be writing to.  Here is the stack trace at the time of this error:<br>
+
+
+<br>
+Stack Trace 1 (Occurred 596 times)<br>
+<br>
+memcpy    rtlib.o<br>
+unpack_predefined_data    [datatype_unpack.h:41]<br>
+MEMCPY_CSUM( _destination, *(SOURCE), _copy_blength, (CONVERTOR) );<br>
+ompi_generic_simple_unpack [datatype_unpack.c:419]<br>
+ompi_convertor_unpack [convertor.c:314]<br>
+mca_pml_ob1_recv_frag_callback_match [pml_ob1_recvfrag.c:218]<br>
+mca_btl_sm_component_progress [btl_sm_component.c:427]<br>
+opal_progress [opal_progress.c:207]<br>
+opal_condition_wait [condition.h:99]<br>
+&lt;Writing 64 bytes to 0x821f738 in heap (16 bytes at 0x821f768 illegal).&gt;<br>
+&lt;Address 0x821f738 is 616 bytes into a malloc&#39;d block at 0x821f4d0 of 664 bytes.&gt;<br>
+<br>
+Stack Trace 2 (Occurred 228 times)<br>
+<br>
+memcpy    rtlib.o<br>
+unpack_predefined_data    [datatype_unpack.h:41]<br>
+MEMCPY_CSUM( _destination, *(SOURCE), _copy_blength, (CONVERTOR) );<br>
+ompi_generic_simple_unpack [datatype_unpack.c:419]<br>
+ompi_convertor_unpack [convertor.c:314]<br>
+mca_pml_ob1_recv_request_progress_match [pml_ob1_recvreq.c:624]<br>
+mca_pml_ob1_Recv_req_start [pml_ob1_recvreq.c:1008]<br>
+mca_pml_ob1_recv [pml_ob1_irecv.c:103]<br>
+MPI_Recv [precv.c:75]<br>
+&lt;Writing 64 bytes to 0x821f738 in heap (16 bytes at 0x821f768 illegal).&gt;<br>
+&lt;Address 0x821f738 is 616 bytes into a malloc&#39;d block at 0x821f4d0 of 664 bytes.&gt;<br>
+<br>
+<br>
+I&#39;m not that familiar with the under workings of the openmpi library, but I tried to debug it anyway.  I noticed that it was copying a lot of extra bytes for MPI_LONG and MPI_DOUBLE types.  On my system, MPI_LONG should have been 4 bytes, but was copying 16 bytes.  Also, MPI_DOUBLE should have been 8 bytes, but was copying 64 bytes.  It seems the _copy_blength variable was being set to high, but I&#39;m not sure why.  The above error also shows 64 bytes being read, where my debugging shows a 64 byte copy for all MPI_DOUBLE types, which I feel should have been 8 bytes.  Therefore, I really believe _copy_blength is being set to high.<br>
+
+
+<br>
+<br>
+Interestingly enough, the call to MPI_Isend() was generating an ABR (Array Bounds Read) error in the exact same line of code.  The ABR error sometimes can be fatal if the bytes being read is not a legal address, but the ABW error is usually a much more fatal error because it is definitely writing into memory that is probably used for something else.  I&#39;m sure that if we fix the ABW error, the ABR error should fix itself too as it&#39;s the same line of code.<br>
+
+
+<br>
+Purify also found 14 UMR (Uninitialized memory read) errors inside the OpenMPI library.  Sometimes this can be really bad if there are any decisions being made as a result of reading this memory location.  But for now, let&#39;s solve the serious error I reported above first, then I will send you the UMR errors next.<br>
+
+
+<br>
+Any help you can provide would be greatly appreciated.<br>
+<br>
+Thanks,<br>
+Brian<br>
+<br>
+<br>
+<br>
+&lt;datatype_pack.h&gt;&lt;datatype_unpack.h&gt;&lt;test.c&gt;_______________________________________________ <br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote>
+<br>
+<br>
+-- <br>
+Jeff Squyres<br>
+Cisco Systems<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote>
+<br>
+</div></div></blockquote></div><br>
+</div></div></div><br>
+

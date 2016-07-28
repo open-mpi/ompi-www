@@ -1,0 +1,206 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Dave,<br>
+<br>
+Your proposed patch does not work when the call to MPI_File_open() is
+done on MPI_COMM_SELF.<br>
+For example, with the romio test program "simple.c", I got the fatal
+error:<br>
+<br>
+mpirun -np 1 ./simple -fname /tmp//TEST<br>
+Fatal error in MPI_Attr_put: Invalid keyval, error stack:<br>
+MPI_Attr_put(131): MPI_Attr_put(comm=0x84000000, keyval=603979776,
+attr_value=0x2279fa0) failed<br>
+MPI_Attr_put(89).: Attribute key was MPI_KEYVAL_INVALID<br>
+APPLICATION TERMINATED WITH THE EXIT STRING: Hangup (signal 1)<br>
+<br>
+Pascal<br>
+<br>
+Dave Goodell a &eacute;crit&nbsp;:
+<blockquote cite="mid:92A210EA-916E-4E22-8D0A-85C6DF0641D5@mcs.anl.gov"
+ type="cite">
+  <pre wrap="">Try this (untested) patch instead:
+
+  </pre>
+  <pre wrap="">
+<hr size="4" width="90%">
+
+
+-Dave
+
+On Jan 7, 2011, at 3:50 AM CST, Rob Latham wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">Hi Pascal.  I'm really happy that you have been working with the
+OpenMPI folks to re-sync romio.  I meant to ask you how that work was
+progressing, so thanks for the email!
+
+I need copy Dave Goodell on this conversation because he helped me
+understand the keyval issues when we last worked on this two years
+ago.  
+
+Dave, some background.  We added some code in ROMIO to address ticket
+222:
+<a class="moz-txt-link-freetext" href="http://trac.mcs.anl.gov/projects/mpich2/ticket/222">http://trac.mcs.anl.gov/projects/mpich2/ticket/222</a>
+
+But that code apparently makes OpenMPI unhappy.  I think when we
+talked about this I remember it came down to a, shall we say,
+different interpretation of the standard between MPICH2 and OpenMPI.
+
+In case it's not clear from the nesting of messages, here's Pascal's
+extraction of the ROMIO keyval code:
+
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2011/01/8837.php">http://www.open-mpi.org/community/lists/devel/2011/01/8837.php</a>
+
+and here's the OpenMPI developer's response:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2011/01/8838.php">http://www.open-mpi.org/community/lists/devel/2011/01/8838.php</a>
+
+I think this is related to a discussion I had a couple years ago:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2009/03/8409.php">http://www.open-mpi.org/community/lists/users/2009/03/8409.php</a>
+
+So, to eventually answer your question yes I do have some remarks, but
+I have no answers.  It's been a couple of years since I added those
+frees...
+
+==rob
+
+On Fri, Jan 07, 2011 at 09:47:17AM +0100, Pascal Deveze wrote:
+    </pre>
+    <blockquote type="cite">
+      <pre wrap="">Hi Rob,
+
+As you perhaps remember, I was porting ROMIO on OpenMPI.
+The job is quite finished, I only have a problem with the
+allocation/dealocation of Keyval (cb_config_list_keyval in
+adio/common/cb_config_list.c).
+As the alogorithm runs on MPICH2, I asked for help on the
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> mailing list.
+I just received the following answer from George Bosilca.
+
+The solution I found to run ROMIO with OpenMPI is to delete the line:
+   MPI_Keyval_free(&amp;keyval);
+in the function ADIOI_cb_delete_name_array
+(romio/adio/common/cb_config_list.c).
+
+Do you have any remarks about that ?
+
+Regards,
+
+Pascal
+
+-------- Message original --------
+Sujet: 	Re: [OMPI devel] Problem with attributes attached to communicators
+Date: 	Thu, 6 Jan 2011 13:15:14 -0500
+De: 	George Bosilca <a class="moz-txt-link-rfc2396E" href="mailto:bosilca@eecs.utk.edu">&lt;bosilca@eecs.utk.edu&gt;</a>
+R&eacute;pondre &agrave;: 	Open MPI Developers <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;devel@open-mpi.org&gt;</a>
+Pour: 	Open MPI Developers <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;devel@open-mpi.org&gt;</a>
+R&eacute;f&eacute;rences: 	<a class="moz-txt-link-rfc2396E" href="mailto:4D25DAF9.3070400@bull.net">&lt;4D25DAF9.3070400@bull.net&gt;</a>
+
+
+
+MPI_Comm_create_keyval and MPI_Comm_free_keyval are the functions you should use in order to be MPI 2.2 compliant.
+
+Based on my understanding of the MPI standard, your application is incorrect, and therefore the MPICH behavior is incorrect. The delete function is not there for you to delete the keyval (!) but to delete the attribute. Here is what the MPI standard states about this:
+
+      </pre>
+      <blockquote type="cite">
+        <pre wrap="">Note that it is not erroneous to free an attribute key that is in use, because the actual free does not transpire until after all references (in other communicators on the process) to the key have been freed. These references need to be explictly freed by the program, either via calls to MPI_COMM_DELETE_ATTR that free one attribute instance, or by calls to MPI_COMM_FREE that free all attribute instances associated with the freed communicator.
+        </pre>
+      </blockquote>
+      <pre wrap="">george.
+
+On Jan 6, 2011, at 10:08 , Pascal Deveze wrote:
+
+      </pre>
+      <blockquote type="cite">
+        <pre wrap="">I have a problem to finish the porting of ROMIO into Open MPI. It is related to the routines MPI_Comm_dup together with MPI_Keyval_create, MPI_Keyval_free, MPI_Attr_get and MPI_Attr_put.
+
+Here is a simple program that reproduces my problem:
+
+===========================================
+#include &lt;stdio.h&gt;
+#include "mpi.h"
+
+int copy_fct(MPI_Comm comm, int keyval, void *extra, void *attr_in, void **attr_out, int *flag) {
+return MPI_SUCCESS;
+}
+
+int delete_fct(MPI_Comm comm, int keyval, void *attr_val, void *extra) {
+MPI_Keyval_free(&amp;keyval);
+return MPI_SUCCESS;
+}
+
+int main(int argc, char **argv) {
+int i, found, attribute_val=100, keyval = MPI_KEYVAL_INVALID;
+MPI_Comm dupcomm;
+
+MPI_Init(&amp;argc,&amp;argv);
+
+for (i=0; i&lt;100;i++) {
+    /* This simulates the MPI_File_open() */
+    if (keyval == MPI_KEYVAL_INVALID) {
+            MPI_Keyval_create((MPI_Copy_function *) copy_fct, (MPI_Delete_function *) delete_fct, &amp;keyval, NULL);
+            MPI_Attr_put(MPI_COMM_WORLD, keyval, &amp;attribute_val);
+            MPI_Comm_dup(MPI_COMM_WORLD, &amp;dupcomm);
+    }
+    else {
+            MPI_Comm_dup(MPI_COMM_WORLD, &amp;dupcomm);
+            MPI_Attr_get(MPI_COMM_WORLD, keyval, (void *) &amp;attribute_val, &amp;found);
+    }
+    /* This simulates the MPI_File_close() */
+    MPI_Comm_free(&amp;dupcomm);
+}
+MPI_Finalize();
+===============================================
+I run it on only one process and get the error:
+*** An error occurred in MPI_Attr_get
+*** on communicator MPI_COMM_WORLD
+*** MPI_ERR_OTHER: known error not in list
+*** MPI_ERRORS_ARE_FATAL (your MPI job will now abort)
+
+I think this error is displayed because  keyval does not exist any more.
+
+This programm runs well on MPICH2 (ROMIO is comming with MPICH2).
+This programm runs well when delete_fct() does not call MPI_Keyval_free
+This programm runs well when I call MPI_Keyval_create with "MPI_NULL_COPY_FN" instead of "(MPI_Copy_function *) copy_fct" (this is quite strange : copy_fct does nothing !).
+
+I suspect that there could be a bug in OpenMPI: In ompi/attribute/attribute.c two functions are calling OBJ_RELEASE: ompi_attr_delete and ompi_attr_free_keyval. So, the
+reference count is decremented twice.
+
+Pascal
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+        </pre>
+      </blockquote>
+      <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+
+
+
+
+      </pre>
+    </blockquote>
+    <pre wrap="">-- 
+Rob Latham
+Mathematics and Computer Science Division
+Argonne National Lab, IL USA
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+  </pre>
+</blockquote>
+</body>
+</html>
+

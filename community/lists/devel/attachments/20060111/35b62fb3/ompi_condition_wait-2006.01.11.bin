@@ -1,0 +1,170 @@
+Index: ompi/class/ompi_free_list.h
+===================================================================
+--- ompi/class/ompi_free_list.h	(Revision 8667)
++++ ompi/class/ompi_free_list.h	(Arbeitskopie)
+@@ -126,22 +126,23 @@
+  */
+  
+ 
+-#define OMPI_FREE_LIST_WAIT(fl, item, rc)                                  \
+-{                                                                          \
+-    OPAL_THREAD_LOCK(&((fl)->fl_lock));                                    \
+-    item = opal_list_remove_first(&((fl)->super));                         \
+-    while(NULL == item) {                                                  \
+-        if((fl)->fl_max_to_alloc <= (fl)->fl_num_allocated) {              \
+-            (fl)->fl_num_waiting++;                                        \
+-            opal_condition_wait(&((fl)->fl_condition), &((fl)->fl_lock));  \
+-            (fl)->fl_num_waiting--;                                        \
+-        } else {                                                           \
+-            ompi_free_list_grow((fl), (fl)->fl_num_per_alloc);             \
+-        }                                                                  \
+-        item = opal_list_remove_first(&((fl)->super));                     \
+-    }                                                                      \
+-    OPAL_THREAD_UNLOCK(&((fl)->fl_lock));                                  \
+-    rc = (NULL == item) ?  OMPI_ERR_OUT_OF_RESOURCE : OMPI_SUCCESS;        \
++#define OMPI_FREE_LIST_WAIT(fl, item, rc)                                       \
++{                                                                               \
++    OPAL_THREAD_LOCK(&((fl)->fl_lock));                                         \
++    item = opal_list_remove_first(&((fl)->super));                              \
++    while(NULL == item) {                                                       \
++        if((fl)->fl_max_to_alloc <= (fl)->fl_num_allocated) {                   \
++            (fl)->fl_num_waiting++;                                             \
++            while ((fl)->fl_max_to_alloc <= (fl)->fl_num_allocated)             \
++                opal_condition_wait(&((fl)->fl_condition), &((fl)->fl_lock));   \
++            (fl)->fl_num_waiting--;                                             \
++        } else {                                                                \
++            ompi_free_list_grow((fl), (fl)->fl_num_per_alloc);                  \
++        }                                                                       \
++        item = opal_list_remove_first(&((fl)->super));                          \
++    }                                                                           \
++    OPAL_THREAD_UNLOCK(&((fl)->fl_lock));                                       \
++    rc = (NULL == item) ?  OMPI_ERR_OUT_OF_RESOURCE : OMPI_SUCCESS;             \
+ } 
+ 
+ 
+Index: opal/class/opal_free_list.h
+===================================================================
+--- opal/class/opal_free_list.h	(Revision 8667)
++++ opal/class/opal_free_list.h	(Arbeitskopie)
+@@ -122,22 +122,23 @@
+  */
+  
+ 
+-#define OPAL_FREE_LIST_WAIT(fl, item, rc)                                  \
+-{                                                                          \
+-    OPAL_THREAD_LOCK(&((fl)->fl_lock));                                    \
+-    item = opal_list_remove_first(&((fl)->super));                         \
+-    while(NULL == item) {                                                  \
+-        if((fl)->fl_max_to_alloc <= (fl)->fl_num_allocated) {              \
+-            (fl)->fl_num_waiting++;                                        \
+-            opal_condition_wait(&((fl)->fl_condition), &((fl)->fl_lock));  \
+-            (fl)->fl_num_waiting--;                                        \
+-        } else {                                                           \
+-            opal_free_list_grow((fl), (fl)->fl_num_per_alloc);             \
+-        }                                                                  \
+-        item = opal_list_remove_first(&((fl)->super));                     \
+-    }                                                                      \
+-    OPAL_THREAD_UNLOCK(&((fl)->fl_lock));                                  \
+-    rc = (NULL == item) ?  OMPI_ERR_OUT_OF_RESOURCE : OMPI_SUCCESS;        \
++#define OPAL_FREE_LIST_WAIT(fl, item, rc)                                       \
++{                                                                               \
++    OPAL_THREAD_LOCK(&((fl)->fl_lock));                                         \
++    item = opal_list_remove_first(&((fl)->super));                              \
++    while(NULL == item) {                                                       \
++        if((fl)->fl_max_to_alloc <= (fl)->fl_num_allocated) {                   \
++            (fl)->fl_num_waiting++;                                             \
++            while ((fl)->fl_max_to_alloc <= (fl)->fl_num_allocated)             \
++                opal_condition_wait(&((fl)->fl_condition), &((fl)->fl_lock));   \
++            (fl)->fl_num_waiting--;                                             \
++        } else {                                                                \
++            opal_free_list_grow((fl), (fl)->fl_num_per_alloc);                  \
++        }                                                                       \
++        item = opal_list_remove_first(&((fl)->super));                          \
++    }                                                                           \
++    OPAL_THREAD_UNLOCK(&((fl)->fl_lock));                                       \
++    rc = (NULL == item) ?  OMPI_ERR_OUT_OF_RESOURCE : OMPI_SUCCESS;             \
+ } 
+ 
+ 
+Index: ompi/request/req_wait.c
+===================================================================
+--- ompi/request/req_wait.c	(Revision 8667)
++++ ompi/request/req_wait.c	(Arbeitskopie)
+@@ -66,7 +66,10 @@
+     /* give up and sleep until completion */
+     OPAL_THREAD_LOCK(&ompi_request_lock);
+     ompi_request_waiting++;
+-    do {
++    /*
++     * We will break out of while{} as soon as all requests have completed.
++     */
++    while (1) {
+         rptr = requests;
+         num_requests_null_inactive = 0;
+         for (i = 0; i < count; i++, rptr++) {
+@@ -87,10 +90,10 @@
+         }
+         if(num_requests_null_inactive == count)
+             break;
+-        if (completed < 0) {
++        while (completed < 0) {
+             opal_condition_wait(&ompi_request_cond, &ompi_request_lock);
+         }
+-    } while (completed < 0);
++    }
+     ompi_request_waiting--;
+     OPAL_THREAD_UNLOCK(&ompi_request_lock);
+ 
+Index: orte/mca/gpr/proxy/gpr_proxy_compound_cmd.c
+===================================================================
+--- orte/mca/gpr/proxy/gpr_proxy_compound_cmd.c	(Revision 8667)
++++ orte/mca/gpr/proxy/gpr_proxy_compound_cmd.c	(Arbeitskopie)
+@@ -51,9 +51,12 @@
+     OPAL_THREAD_LOCK(&orte_gpr_proxy_globals.wait_for_compound_mutex);
+ 
+     if (orte_gpr_proxy_globals.compound_cmd_mode) {
+-	   orte_gpr_proxy_globals.compound_cmd_waiting++;
+-	   opal_condition_wait(&orte_gpr_proxy_globals.compound_cmd_condition, &orte_gpr_proxy_globals.wait_for_compound_mutex);
+-	   orte_gpr_proxy_globals.compound_cmd_waiting--;
++        orte_gpr_proxy_globals.compound_cmd_waiting++;
++        while (orte_gpr_proxy_globals.compound_cmd_mode) {
++            opal_condition_wait(&orte_gpr_proxy_globals.compound_cmd_condition,
++                                &orte_gpr_proxy_globals.wait_for_compound_mutex);
++        }
++        orte_gpr_proxy_globals.compound_cmd_waiting--;
+     }
+ 
+     orte_gpr_proxy_globals.compound_cmd_mode = true;
+Index: orte/mca/iof/base/iof_base_flush.c
+===================================================================
+--- orte/mca/iof/base/iof_base_flush.c	(Revision 8667)
++++ orte/mca/iof/base/iof_base_flush.c	(Arbeitskopie)
+@@ -105,7 +105,10 @@
+         }
+         if(pending != 0) {
+             if(opal_event_progress_thread() == false) {
+-                opal_condition_wait(&orte_iof_base.iof_condition, &orte_iof_base.iof_lock);
++                while (opal_event_progress_thread() == false) {
++                    opal_condition_wait(&orte_iof_base.iof_condition,
++                                        &orte_iof_base.iof_lock);
++                }
+             } else {
+                 OPAL_THREAD_UNLOCK(&orte_iof_base.iof_lock);
+                 opal_event_loop(OPAL_EVLOOP_ONCE);
+Index: orte/mca/pls/rsh/pls_rsh_module.c
+===================================================================
+--- orte/mca/pls/rsh/pls_rsh_module.c	(Revision 8667)
++++ orte/mca/pls/rsh/pls_rsh_module.c	(Arbeitskopie)
+@@ -889,9 +889,10 @@
+                 rsh_daemon_info_t *daemon_info;
+ 
+                 OPAL_THREAD_LOCK(&mca_pls_rsh_component.lock);
+-                if (mca_pls_rsh_component.num_children++ >=
++                while (mca_pls_rsh_component.num_children++ >=
+                     mca_pls_rsh_component.num_concurrent) {
+-                    opal_condition_wait(&mca_pls_rsh_component.cond, &mca_pls_rsh_component.lock);
++                    opal_condition_wait(&mca_pls_rsh_component.cond,
++                                        &mca_pls_rsh_component.lock);
+                 }
+                 OPAL_THREAD_UNLOCK(&mca_pls_rsh_component.lock);
+ 

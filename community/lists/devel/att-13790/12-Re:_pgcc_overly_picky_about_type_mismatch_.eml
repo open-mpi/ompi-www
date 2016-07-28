@@ -1,0 +1,201 @@
+Message-ID: <5BAD199D-E861-4B55-AD63-C0DF12ED0575@usgs.gov>
+From: Larry Baker <baker@usgs.gov>
+To: PGI Technical Support <trs@pgroup.com>
+In-Reply-To: <4C51B23E.6040205@pgroup.com>
+Content-Type: text/plain; charset="WINDOWS-1252"; format=flowed; delsp=yes
+X-Smtp-Server: gscamnlh01.wr.usgs.gov
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0 (Apple Message framework v936)
+Subject: Re: pgcc overly picky about type mismatch?
+Date: Tue, 17 Aug 2010 14:49:28 -0700
+References: <07842FE0-A7CD-43F9-B1DD-DA3D12AC2837@usgs.gov> <4C4F80DB.2070004@pgroup.com> <CDF3D271-B935-43D5-94E9-0EB4A762DD6D@usgs.gov> <4C51B23E.6040205@pgroup.com>
+
+Dave,
+
+I have encountered more warnings that I think are spurious in =20
+conditional expressions.  They all seem to be related to type =20
+conversions, like TPR 17139.  I'll let you decide whether to report =20
+these separately, or add them to TPR 17139.
+
+Before that, I wanted to add to TPR 17139 a discovery I made while =20
+looking into these other warnings.  In the 1990 ISO C standard, =20
+section 6.3.15, Conditional operator, there are examples of operand =20
+types and the common type of the result of the conditional operator.  =20=
+
+One example is practically identical to the case I described, with int =20=
+
+instead of char:
+
+> Given the declarations
+>
+>    const int *c_ip;
+>    int *ip;
+>
+> the third column in the following table is the common type that is =20
+> the result of a conditional expression in which the first two =20
+> columns are the second and third operands (in either order):
+>
+>    ip    c_ip  const int *
+
+These warnings appear when compiling openmpi-1.4.2 from =
+http://www.open-mpi.org=20
+.
+
+=95 Array name used in logical expression
+
+OpenMPI defines a macro LT_STRLEN() that guards against calling =20
+strlen() with a null string.  pgcc issues a warning for instances of =20
+LT_STRLEN() with a character array as the argument.  For example:
+
+> /* LT_STRLEN can be used safely on NULL pointers.  */
+> #define LT_STRLEN(s)    (((s) && (s)[0]) ? strlen (s) : 0)
+>
+> int main () {
+>    char text[] =3D "junk";
+>    return LT_STRLEN( text );
+> }
+>
+> [baker@hydra ~]$ pgcc -c junk.c
+> PGC-W-0089-Array name used in logical expression (junk.c: 6)
+> PGC/x86-64 Linux 10.3-0: compilation completed with warnings
+
+Whether or not this warning is issued is inconsistent: it does not =20
+occur when the character array is a dummy argument:
+
+> /* LT_STRLEN can be used safely on NULL pointers.  */
+> #define LT_STRLEN(s)    (((s) && (s)[0]) ? strlen (s) : 0)
+>
+> int junk( char text[] ) {
+>    return LT_STRLEN( text );
+> }
+
+I simplified the LT_STRLEN() macro to use a simpler form:
+
+> /* LT_STRLEN can be used safely on NULL pointers.  */
+> #define LT_STRLEN(s)    ((s) ? strlen (s) : 0)
+
+pgcc issues the same warning.
+
+I assume the warning is because section 6.3.15 Conditional operator, =20
+requires a scalar type for the first operand:
+
+> Constraints
+>
+>    Each of the operands shall have a scalar type.
+
+However, section 6.2 Conversions, 6.2.2 Other operands, 6.2.2.1 L =20
+values and function designators, covers this situation:
+
+> Except ..., an lvalue that has type "array of type" is converted to =20=
+
+> an expression that has type "pointer to type" that points to the =20
+> initial element of the array object and is not an lvalue.
+
+According to section 6.1.2.5 Types, that is sufficient to convert an =20
+array name to a scalar type:
+
+> Arithmetic types and pointer types are collectively called scalar =20
+> types.
+
+I think this warning is spurious.
+
+=95 Pointer value created from a nonlong integral type
+
+OpenMPI uses 0 instead of NULL in conditional expressions with pointer =20=
+
+type, usually as the third operand.  For example, I modified one of =20
+their functions to simplify the code:
+
+> #include <stdlib.h>
+>
+> void* malloc_starter(size_t sz, const void *caller) {
+>   void* victim;
+>   victim =3D malloc(sz);
+>   return victim ? victim : 0;
+> }
+>
+> [baker@hydra ~]$ pgcc -c junk.c
+> PGC-W-0095-Type cast required for this conversion (junk.c: 6)
+> PGC-W-0155-Pointer value created from a nonlong integral type  =20
+> (junk.c: 6)
+> PGC/x86-64 Linux 10.3-0: compilation completed with warnings
+
+Section 6.3.15 Conditional operator, Semantics, says:
+
+> If both the second and third operands are pointers or one is a null =20=
+
+> pointer constant and the other is a pointer, the result type is a =20
+> pointer to a type qualified with all the type qualifiers of the =20
+> types pointer-to by both operands.  Furthermore, ...; if one operand =20=
+
+> is a null pointer constant, the result has the type of the other =20
+> operand; ...
+
+Section 6.2.2.3 Pointers, defines literal 0 as the null pointer =20
+constant:
+
+> An integral constant expression with the value 0, or such an =20
+> expression cast to type void *, is called a null pointer constant.
+
+According to the 1990 ISO C standard, no type cast is required; in =20
+this context, 0 is not an int (nonlong integral type), it is a pointer =20=
+
+value -- specifically, it is the null pointer constant.
+
+I think this warning is wrong.
+
+Thanks,
+
+Larry Baker
+US Geological Survey
+650-329-5608
+baker@usgs.gov
+
+On Jul 29, 2010, at 9:54 AM, PGI Technical Support wrote:
+
+> Larry Baker wrote:
+>> Dave,
+>>
+>> The more I thought about this issue, it seems to me the C 1990 =20
+>> section 6.3.15 applies:
+>>
+>>>> =95 6.3.15 Conditional operator, says if the second and third =20
+>>>> operands are pointers ..., the result type is a pointer to a type =20=
+
+>>>> qualified with all the type qualifiers of the types pointed-to by =20=
+
+>>>> both operands.
+>>
+>> Thus, ( cond ? (char *) : (const char *) ) should have the result =20
+>> type (const char *).  Both (char *) and (const char *) are =20
+>> compatible as rvalues with (const char *), similar to passing =20
+>> either a (char *) or a (const char *) to a (const char *) function =20=
+
+>> argument.  pgcc should not be complaining.  Do you agree?
+>>
+>> Larry Baker
+>> US Geological Survey
+>> 650-329-5608
+>> baker@usgs.gov <mailto:baker@usgs.gov>
+>>
+> Larry,
+>
+> I created TPR 17139, and put your arguments in the report.
+> Engineering has not responded yet, but there is every possibility
+> you are correct.
+>
+> The language standards are are complicated, so I let
+> engineering tell me if a problem like this is a user bug or a =20
+> compiler defect.
+>
+> regards,
+> dave
+>
+>
+> --=20
+> Dave Borer	Customer Service Manager, The Portland Group
+> email		dave.borer@st.com
+> phone		(503)-431-7113
+>
+
+

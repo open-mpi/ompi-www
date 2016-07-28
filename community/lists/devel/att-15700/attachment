@@ -1,0 +1,437 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Thanks Ralph !<br>
+      <br>
+      i confirm my all test cases pass now :-)<br>
+      <br>
+      FYI, i commited r32592 in order to fix a parsing bug on 32bits
+      platform (hence the mtt failures on trunk on x86)<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      <br>
+      On 2014/08/23 4:59, Ralph Castain wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:BEF789B7-88F7-4284-B3F3-EA6A8C3C7032@open-mpi.org"
+      type="cite">
+      <pre wrap="">I think these are fixed now - at least, your test cases all pass for me
+
+
+On Aug 22, 2014, at 9:12 AM, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">
+On Aug 22, 2014, at 9:06 AM, Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@gmail.com">&lt;gilles.gouaillardet@gmail.com&gt;</a> wrote:
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Ralph,
+
+Will do on Monday
+
+About the first test, in my case echo $? returns 0
+</pre>
+        </blockquote>
+        <pre wrap="">
+My "showcode" is just an alias for the echo
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">I noticed this confusing message in your output :
+mpirun noticed that process rank 0 with PID 24382 on node bend002 exited on signal 0 (Unknown signal 0).
+</pre>
+        </blockquote>
+        <pre wrap="">
+I'll take a look at why that happened
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">
+About the second test, please note my test program return 3;
+whereas your mpi_no_op.c return 0;
+</pre>
+        </blockquote>
+        <pre wrap="">
+I didn't see that little cuteness - sigh
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">
+Cheers,
+
+Gilles
+
+Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> wrote:
+You might want to try again with current head of trunk as something seems off in what you are seeing - more below
+
+
+On Aug 22, 2014, at 3:12 AM, Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;gilles.gouaillardet@iferc.org&gt;</a> wrote:
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">Ralph,
+
+i tried again after the merge and found the same behaviour, though the
+internals are very different.
+
+i run without any batch manager
+
+from node0:
+mpirun -np 1 --mca btl tcp,self -host node1 ./abort
+
+exit with exit code zero :-(
+</pre>
+          </blockquote>
+          <pre wrap="">
+Hmmm...it works fine for me, without your patch:
+
+07:35:41  $ mpirun -n 1 -mca btl tcp,self -host bend002 ./abort
+Hello, World, I am 0 of 1
+--------------------------------------------------------------------------
+MPI_ABORT was invoked on rank 0 in communicator MPI_COMM_WORLD 
+with errorcode 2.
+
+NOTE: invoking MPI_ABORT causes Open MPI to kill all MPI processes.
+You may or may not see output from other processes, depending on
+exactly when Open MPI kills them.
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+mpirun noticed that process rank 0 with PID 24382 on node bend002 exited on signal 0 (Unknown signal 0).
+--------------------------------------------------------------------------
+07:35:56  $ showcode
+130
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">
+short story : i applied pmix.2.patch and that fixed my problem
+could you please review this ?
+
+long story :
+i initially applied pmix.1.patch and it solved my problem
+then i ran
+mpirun -np 1 --mca btl openib,self -host node1 ./abort
+and i came back to square one : exit code is zero
+so i used the debugger and was unable to reproduce the issue
+(one more race condition, yeah !)
+finally, i wrote pmix.2.patch, fixed my issue and realized that
+pmix.1.patch was no more needed.
+currently, and assuming pmix.2.patch is correct, i cannot tell wether
+pmix.1.patch is needed or not
+since this part of the code is no more executed.
+
+i also found one hang with the following trivial program within one node :
+
+int main (int argc, char *argv[]) {
+    MPI_Init(&amp;argc, &amp;argv);
+   MPI_Finalize();
+   return 3;
+}
+
+from node0 :
+$ mpirun -np 1 ./test
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code.. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+
+AND THE PROGRAM HANGS
+</pre>
+          </blockquote>
+          <pre wrap="">
+This also works fine for me:
+
+07:37:27  $ mpirun -n 1 ./mpi_no_op
+07:37:36  $ cat mpi_no_op.c
+/* -*- C -*-
+ *
+ * $HEADER$
+ *
+ * The most basic of MPI applications
+ */
+
+#include &lt;stdio.h&gt;
+#include "mpi.h"
+
+int main(int argc, char* argv[])
+{
+    MPI_Init(&amp;argc, &amp;argv);
+
+    MPI_Finalize();
+    return 0;
+}
+
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">
+*but*
+$ mpirun -np 1 -host node1 ./test
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code.. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpirun detected that one or more processes exited with non-zero status,
+thus causing
+the job to be terminated. The first process to do so was:
+
+ Process name: [[22080,1],0]
+ Exit code:    3
+--------------------------------------------------------------------------
+
+return with exit code 3.
+</pre>
+          </blockquote>
+          <pre wrap="">
+Likewise here - works just fine for me
+
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">
+then i found a strange behaviour with helloworld if only the self btl is
+used :
+$ mpirun -np 1 --mca btl self ./hw
+[helios91:23319] OPAL dss:unpack: got type 12 when expecting type 3
+[helios91:23319] [[22303,0],0] ORTE_ERROR_LOG: Pack data mismatch in
+file ../../../src/ompi-trunk/orte/orted/pmix/pmix_server_sendrecv.c at
+line 722
+
+the program returns with exit code zero, but display an error message.
+
+Cheers,
+
+Gilles
+
+On 2014/08/21 6:21, Ralph Castain wrote:
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">I'm aware of the problem, but it will be fixed when the PMIx branch is merged later this week.
+
+On Aug 19, 2014, at 10:00 PM, Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;gilles.gouaillardet@iferc.org&gt;</a> wrote:
+
+</pre>
+              <blockquote type="cite">
+                <pre wrap="">Folks,
+
+let's look at the following trivial test program :
+
+#include &lt;mpi.h&gt;
+#include &lt;stdio.h&gt;
+
+int main (int argc, char * argv[]) {
+  int rank, size;
+  MPI_Init(&amp;argc, &amp;argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &amp;size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);
+  printf ("I am %d/%d and i abort\n", rank, size);
+  MPI_Abort(MPI_COMM_WORLD, 2);
+  printf ("%d/%d aborted !\n", rank, size);
+  return 3;
+}
+
+and let's run mpirun (trunk) on node0 and ask the mpi task to run on
+task 1 :
+with two tasks or more :
+
+node0 $ mpirun --mca btl tcp,self -host node1 -np 2 ./abort
+--------------------------------------------------------------------------
+MPI_ABORT was invoked on rank 0 in communicator MPI_COMM_WORLD
+with errorcode 2.
+
+NOTE: invoking MPI_ABORT causes Open MPI to kill all MPI processes.
+You may or may not see output from other processes, depending on
+exactly when Open MPI kills them.
+--------------------------------------------------------------------------
+I am 1/2 and i abort
+I am 0/2 and i abort
+[node0:00740] 1 more process has sent help message help-mpi-api.txt /
+mpi-abort
+[node0:00740] Set MCA parameter "orte_base_help_aggregate" to 0 to see
+all help / error messages
+
+node0 $ echo $?
+0
+
+the exit status of mpirun is zero
+/* this is why the MPI_Errhandler_fatal_c test fails in mtt */
+
+now if we run only one task :
+
+node0 $ mpirun --mca btl tcp,self -host node1 -np 1 ./abort
+I am 0/1 and i abort
+--------------------------------------------------------------------------
+MPI_ABORT was invoked on rank 0 in communicator MPI_COMM_WORLD
+with errorcode 2.
+
+NOTE: invoking MPI_ABORT causes Open MPI to kill all MPI processes.
+You may or may not see output from other processes, depending on
+exactly when Open MPI kills them.
+--------------------------------------------------------------------------
+--------------------------------------------------------------------------
+mpirun has exited due to process rank 0 with PID 15884 on
+node node1 exiting improperly. There are three reasons this could occur:
+
+1. this process did not call "init" before exiting, but others in
+the job did. This can cause a job to hang indefinitely while it waits
+for all processes to call "init". By rule, if one process calls "init",
+then ALL processes must call "init" prior to termination.
+
+2. this process called "init", but exited without calling "finalize".
+By rule, all processes that call "init" MUST call "finalize" prior to
+exiting or it will be considered an "abnormal termination"
+
+3. this process called "MPI_Abort" or "orte_abort" and the mca parameter
+orte_create_session_dirs is set to false. In this case, the run-time cannot
+detect that the abort call was an abnormal termination. Hence, the only
+error message you will receive is this one.
+
+This may have caused other processes in the application to be
+terminated by signals sent by mpirun (as reported here).
+
+You can avoid this message by specifying -quiet on the mpirun command line.
+
+--------------------------------------------------------------------------
+node0 $ echo $?
+1
+
+the program displayed a misleading error message and mpirun exited with
+error code 1
+/* i would have expected 2, or 3 in the worst case scenario */
+
+
+i digged it a bit and found a kind of race condition in orted (running
+on node 1)
+basically, when the process dies, it writes stuff in the openmpi session
+directory and exits.
+exiting send a SIGCHLD to orted and close the socket/pipe connected to
+orted.
+on orted, the loss of connection is generally processed before the
+SIGCHLD by libevent,
+and as a consequence, the exit code is not correctly set (e.g. it is
+left to zero).
+i did not see any kind of communication between the mpi task and orted
+(except writing a file in the openmpi session directory) as i would have
+expected
+/* but this was just my initial guess, the truth is i do not know what
+is supposed to happen */
+
+i wrote the attached abort.patch patch to basically get it working.
+i highly suspect this is not the right thing to do so i did not commit it.
+
+it works fine with two tasks or more.
+with only one task, mpirun display a misleading error message but the
+exit status is ok.
+
+could someone (Ralph ?) have a look at this ?
+
+Cheers,
+
+Gilles
+
+
+node0 $ mpirun --mca btl tcp,self -host node1 -np 2 ./abort
+I am 1/2 and i abort
+I am 0/2 and i abort
+--------------------------------------------------------------------------
+MPI_ABORT was invoked on rank 0 in communicator MPI_COMM_WORLD
+with errorcode 2.
+
+NOTE: invoking MPI_ABORT causes Open MPI to kill all MPI processes.
+You may or may not see output from other processes, depending on
+exactly when Open MPI kills them.
+--------------------------------------------------------------------------
+[node0:00920] 1 more process has sent help message help-mpi-api.txt /
+mpi-abort
+[node0:00920] Set MCA parameter "orte_base_help_aggregate" to 0 to see
+all help / error messages
+node0 $ echo $?
+2
+
+
+
+node0 $ mpirun --mca btl tcp,self -host node1 -np 1 ./abort
+I am 0/1 and i abort
+--------------------------------------------------------------------------
+MPI_ABORT was invoked on rank 0 in communicator MPI_COMM_WORLD
+with errorcode 2.
+
+NOTE: invoking MPI_ABORT causes Open MPI to kill all MPI processes.
+You may or may not see output from other processes, depending on
+exactly when Open MPI kills them.
+--------------------------------------------------------------------------
+-------------------------------------------------------
+Primary job  terminated normally, but 1 process returned
+a non-zero exit code.. Per user-direction, the job has been aborted.
+-------------------------------------------------------
+--------------------------------------------------------------------------
+mpirun detected that one or more processes exited with non-zero status,
+thus causing
+the job to be terminated. The first process to do so was:
+
+Process name: [[7955,1],0]
+Exit code:    2
+--------------------------------------------------------------------------
+node0 $ echo $?
+2
+
+
+
+&lt;abort.patch&gt;_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15666.php">http://www.open-mpi.org/community/lists/devel/2014/08/15666.php</a>
+</pre>
+              </blockquote>
+              <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15672.php">http://www.open-mpi.org/community/lists/devel/2014/08/15672.php</a>
+</pre>
+            </blockquote>
+            <pre wrap="">
+&lt;pmix.1.patch&gt;&lt;pmix.2.patch&gt;_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15689.php">http://www.open-mpi.org/community/lists/devel/2014/08/15689.php</a>
+</pre>
+          </blockquote>
+          <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15692.php">http://www.open-mpi.org/community/lists/devel/2014/08/15692.php</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15697.php">http://www.open-mpi.org/community/lists/devel/2014/08/15697.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

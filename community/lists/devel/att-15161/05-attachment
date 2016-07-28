@@ -1,0 +1,93 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;"><div></div><div><br><div><div>On Jul 15, 2014, at 6:10 PM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><meta http-equiv="Content-Type" content="text/html charset=us-ascii"><div style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;">I'm unsure where Intel's compilers sit on that list.<div><br></div><div>When you say it works except for reinit, are you saying that the only issue here is that MPI_T_Finalize is calling opal_finalize_util solely because of the valgrind cleanup? And if it didn't do that, we would leak but would otherwise be just fine?</div><div><br></div><div>Just checking my understanding. Looking at the code, that would certainly appear to be true due to the reference counter in there, which would prevent us from eventually cleaning up because the counter wouldn't reach zero. However, couldn't we resolve that by (a) having MPI_T_Init set a global flag indicating it was called, and then (b) in opal_finalize, check the flag and add another call to opal_finalize_util if the flag is set?</div><div><br></div><div>Seems like all we really need to do is ensure that the init/finalize calls match, and that is far easier to ensure than doing the rest of this stuff.</div><div><br></div><div><br><div><div>On Jul 15, 2014, at 5:48 PM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu">bosilca@icl.utk.edu</a>&gt; wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div dir="ltr">Enforcing the portability of this sounds like a huge [almost impossible] mess, without a clean portable solution (more about this below). However, few things should be considered:<div>- Except for reinit, Open MPI works without it! If we provide such a capability it will be more a convenience capability to keep valgrind happy, than a necessity</div>
+<div>- in case the constructor/destructor functionality is available we explicitly control the ordering in which the shared libraries are opened/closed as we control the dl_open/dl_close for most of the shared libraries.</div>
+<div><br></div><div><div>&nbsp; George.</div><div><br></div><div>PS: Other cases about shared libraries constructor/destructor.</div><div><br></div><div>The easy ones.<div>Mac OS X: <a href="https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html">https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html</a></div>
+<div><br><div>Solaris:&nbsp;<a href="http://docs.oracle.com/cd/E18659_01/html/821-1383/bkamq.html">http://docs.oracle.com/cd/E18659_01/html/821-1383/bkamq.html</a></div><div><br></div><div>And the others<br><div><br></div><div>
+PGI:&nbsp;<a href="http://www.pgroup.com/userforum/viewtopic.php?t=697&amp;sid=4efce7bfb4e914e42f48f219fc7e6a7e">http://www.pgroup.com/userforum/viewtopic.php?t=697&amp;sid=4efce7bfb4e914e42f48f219fc7e6a7e</a></div><div><br></div>
+<div>XLC: beg for forgiveness (there is a -binitifini function but it must be specified at link time)</div><div><br></div><div><br></div><div><br></div><div><br></div></div></div></div></div></div><div class="gmail_extra">
+<br><br><div class="gmail_quote">On Tue, Jul 15, 2014 at 8:06 PM, Paul Hargrove <span dir="ltr">&lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<div dir="ltr"><div>The priority appears to have been added in gcc 4.3.</div><div>You'll note it is not described in&nbsp;<a href="https://gcc.gnu.org/onlinedocs/gcc-4.2.0/gcc/Function-Attributes.html" target="_blank">https://gcc.gnu.org/onlinedocs/gcc-4.2.0/gcc/Function-Attributes.html</a></div>
+
+<div><br></div><div>I also don't think the presence of the priority argument fixes anything...</div><div><br></div><div>An OpenMPI code author cannot change the "priority" of a ctor or dtor in a precompiled third-party library (libpmi comes to mind). &nbsp;Nor can one know what value the third part chose (in order to be higher or lower than theirs). &nbsp;You cannot even be assured the third-party didn't set priority to INT_MIN or INT_MAX (or whatever).</div>
+
+<div><br></div><div>That text also says nothing about dl_open() and dl_close() which must be considered in Open MPI.</div><div><br></div><div>Before assuming constructor/destructor attributes are going to save the world, wash your dog, and pick up the dry cleaning, one should probably verify some minimal level of support on non-gnu tool-chains including vendor compilers (PGI, XLC, etc) and system linkers (Darwin and Solaris).</div>
+
+<div><br></div><div>-Paul</div></div><div class="gmail_extra"><br><br><div class="gmail_quote"><div><div class="h5">On Tue, Jul 15, 2014 at 4:52 PM, Joshua Ladd <span dir="ltr">&lt;<a href="mailto:jladd.mlnx@gmail.com" target="_blank">jladd.mlnx@gmail.com</a>&gt;</span> wrote:<br>
+
+</div></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div class="h5"><div dir="ltr">According to <a href="http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html" target="_blank">http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html</a><br>
+
+<div><code><i><br>"constructor </i></code><i><code><br>
+&nbsp;destructor </code><var></var><code></code></i><code></code><i><code></code></i><br><dl><dt><code><i>&nbsp;constructor (</i></code><var>priority</var><i><code>)</code></i></dt><dt><i><code>&nbsp;destructor (</code><var>priority</var><code>)</code></i></dt>
+
+
+<dd><i><a name="1473c7e2ebf741dc_1473c717d145a768_index-g_t_0040code_007bconstructor_007d-function-attribute-2881"></a><a name="1473c7e2ebf741dc_1473c717d145a768_index-g_t_0040code_007bdestructor_007d-function-attribute-2882"></a>The <code>constructor</code> attribute causes the function to be called
+automatically before execution enters <code>main ()</code>.  Similarly, the
+<code>destructor</code> attribute causes the function to be called
+automatically after <code>main ()</code> completes or <code>exit ()</code> is
+called.  Functions with these attributes are useful for
+initializing data that is used implicitly during the execution of
+the program.
+
+     </i><p><i>You may provide an optional integer priority to control the order in
+which constructor and destructor functions are run.  A constructor
+with a smaller priority number runs before a constructor with a larger
+priority number; the opposite relationship holds for destructors.  So,
+if you have a constructor that allocates a resource and a destructor
+that deallocates the same resource, both functions typically have the
+same priority.  The priorities for constructor and destructor
+functions are the same as those specified for namespace-scope C++
+objects (see <a href="http://gcc.gnu.org/onlinedocs/gcc/C_002b_002b-Attributes.html#C_002b_002b-Attributes" target="_blank">C++ Attributes</a>).
+
+     </i></p><p><i>These attributes are not currently implemented for Objective-C."</i></p></dd></dl><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Jul 15, 2014 at 5:20 PM, Paul Hargrove <span dir="ltr">&lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;</span> wrote:<br>
+
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, Jul 15, 2014 at 12:49 PM, Pritchard, Howard r <span dir="ltr">&lt;<a href="mailto:howardp@lanl.gov" target="_blank">howardp@lanl.gov</a>&gt;</span> wrote:<br>
+
+
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="overflow:hidden">I don't think there's anything wrong with using ctor/dtors in shared libraries,<br>
+
+
+
+
+but one does need to make sure that in these functions there's no assumptions<br>
+about ordering of them wrt to other ctors/dtors.</div></blockquote></div><div class="gmail_extra"><br></div></div></div><div class="gmail_extra">The ELF specification is clear that the order of execution of DT_INIT and DT_FINI entries is undefined.<br>
+
+
+
+</div><div class="gmail_extra">The .ctors and .dtors sections typically used by the GNU toolchain are, I believe, not part of any formal linker specification.</div><div class="gmail_extra">So, I agree w/ Howard that one must take care not to assume anything about order.</div>
+
+
+<span><font color="#888888">
+<div class="gmail_extra"><br></div><div class="gmail_extra">-Paul<br><br clear="all"><span><font color="#888888"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+
+
+
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department &nbsp; &nbsp; Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory &nbsp; &nbsp; Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+
+
+</font>
+</font></span></div></font></span></div><span><font color="#888888">
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15153.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15153.php</a><br></font></span></blockquote></div><br></div>
+
+
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15155.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15155.php</a><br></blockquote></div><div class=""><br><br clear="all">
+<div>
+<br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>
+
+Computer and Data Sciences Department &nbsp; &nbsp; Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory &nbsp; &nbsp; Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+</font>
+</div></div>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15156.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15156.php</a><br></blockquote></div><br></div>
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15158.php">http://www.open-mpi.org/community/lists/devel/2014/07/15158.php</a></blockquote></div><br></div></div></blockquote></div><br></div></body></html>

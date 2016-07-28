@@ -1,0 +1,56 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+On 06/04/10 11:47, Jeff Squyres wrote:
+<blockquote cite="mid:D449AA50-C8A1-4905-8305-1D6538BC0CBD@cisco.com"
+ type="cite">
+  <pre wrap="">On Jun 2, 2010, at 1:36 PM, Jeff Squyres (jsquyres) wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <blockquote type="cite">
+      <pre wrap="">We did assume that at least the errors are symmetric, i.e. if A fails to connect to B then B will fail when trying to connect to A. However, if there are other BTL the connection is supposed to smoothly move over some other BTL. As an example in the MX BTL, if two nodes have MX support, but they do not share the same mapper the add_procs will silently fails.
+      </pre>
+    </blockquote>
+    <pre wrap="">This sounds dodgy and icky.  We have to wait for a connect timeout to fail over to the next BTL?  How long is the typical/default TCP timeout?
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+After thinking about this more, I still do not think that this is good behavior.
+
+Short version: 
+--------------
+
+If a BTL is going to fail, it should do so early in the selection process and therefore disqualify itself.  Failing in add_procs() means that it lied in the selection process and has created a set of difficult implications for the rest of the job.
+
+Perhaps the best compromise is that there should be an MCA parameter to choose between a) the "failover" behavior that George described (i.e., wait for the timeout and then have the PML/BML fail over to a 2nd BTL, if available), and b) abort the job.
+
+More details:
+-------------
+
+If a BTL has advertised contact information in the modex but then an error in add_procs() causes the BTL to not be able to listen at that advertised contact point, I think that this is a very serious error.  I see a few options:
+
+1. Current behavior supposedly has the PML fail over to another eligible BTL.  It's not entirely clear whether this functionality works or not, but even if it does, it can cause a lengthy "hang" *potentially for each connection* while we're waiting for the timeout before failing over to another connection.
+
+--&gt; IMHO: this behavior just invites user questions and bug reports.  It also is potentially quite expensive -- consider that in an MPI_ALLTOALL operation, every peer might have a substantial delay before it fails over to the secondary BTL.
+
+2. When a BTL detects that it cannot honor its advertised contact information, either the BTL or the BML can send a modex update to all of the process peers, effectively eliminating that contact information.  This kind of asynchronous update seems racy and difficult -- could be difficult to get this right (indeed, the modex doesn't even currently support an after-the-fact update).
+
+3. When a BTL detects that it cannot honor its advertised contact information, it fails upward to the BML and the BML decides to abort the job.  
+
+I think #2 is a bad idea.  I am leaning towards #3 simply because a BTL should not fail by the time it reaches add_procs().  If a BTL is going to fail, it should do so and disqualify itself earlier in the selection process.  Or, perhaps we can have an MCA parameter to switch between #1 and #3.
+
+Or maybe someone can think of a #4 that would be better...?
+  </pre>
+</blockquote>
+I think I like idea #3.&nbsp; It is simple, explainable, and the job is
+aborting just as it is starting to run.&nbsp; It seems these cases should be
+infrequent and may signify something is really wrong, so aborting the
+job is OK.<br>
+Rolf<br>
+</body>
+</html>
+

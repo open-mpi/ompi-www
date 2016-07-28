@@ -1,0 +1,424 @@
+<div dir="ltr">I have an extremely vague recollection about a similar issue in the datatype engine: on the SPARC architecture the 64 bits integers must be aligned on a 64bits boundary or you get a bus error. <div><br></div>
+<div><span style="font-family:arial,sans-serif;font-size:13px">Takahiro you can confirm this by printing the value of data when signal is raised.</span><br></div><div><span style="font-family:arial,sans-serif;font-size:13px"><br>
+</span></div><div><span style="font-family:arial,sans-serif;font-size:13px">George.</span></div><div><span style="font-family:arial,sans-serif;font-size:13px"><br></span></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">
+On Fri, Aug 8, 2014 at 12:03 AM, Kawashima, Takahiro <span dir="ltr">&lt;<a href="mailto:t-kawashima@jp.fujitsu.com" target="_blank">t-kawashima@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<div class="">Hi,<br>
+<br>
+&gt; &gt; &gt;&gt;&gt; I have installed openmpi-1.8.2rc2 with gcc-4.9.0 on Solaris<br>
+&gt; &gt; &gt;&gt;&gt; 10 Sparc and I receive a bus error, if I run a small program.<br>
+<br>
+</div>I&#39;ve finally reproduced the bus error in my SPARC environment.<br>
+<br>
+#0 0xffffffff00db4740 (__waitpid_nocancel + 0x44) (0x200,0x0,0x0,0xa0,0xfffff80100064af0,0x35b4)<br>
+#1 0xffffffff0001a310 (handle_signal + 0x574) (signo=10,info=(struct siginfo *) 0x000007feffffd100,p=(void *) 0x000007feffffd100) at line 277 in ../sigattach.c &lt;SIGNAL HANDLER&gt;<br>
+#2 0xffffffff0282aff4 (store + 0x540) (uid=(unsigned long *) 0xffffffff0118a128,scope=8:&#39;\b&#39;,key=(char *) 0xffffffff0106a0a8 &quot;opal.local.ldr&quot;,data=(void *) 0x000007feffffde74,type=15:&#39;\017&#39;) at line 252 in db_hash.c<br>
+
+#3 0xffffffff01266350 (opal_db_base_store + 0xc4) (proc=(unsigned long *) 0xffffffff0118a128,scope=8:&#39;\b&#39;,key=(char *) 0xffffffff0106a0a8 &quot;opal.local.ldr&quot;,object=(void *) 0x000007feffffde74,type=15:&#39;\017&#39;) at line 49 in db_base_fns.c<br>
+
+#4 0xffffffff00fdbab4 (orte_util_decode_pidmap + 0x790) (bo=(struct *) 0x0000000000281d70) at line 975 in nidmap.c<br>
+#5 0xffffffff00fd6d20 (orte_util_nidmap_init + 0x3dc) (buffer=(struct opal_buffer_t *) 0x0000000000241fc0) at line 141 in nidmap.c<br>
+#6 0xffffffff01e298cc (rte_init + 0x2a0) () at line 153 in ess_env_module.c<br>
+#7 0xffffffff00f9f28c (orte_init + 0x308) (pargc=(int *) 0x0000000000000000,pargv=(char ***) 0x0000000000000000,flags=32) at line 148 in orte_init.c<br>
+#8 0xffffffff001a6f08 (ompi_mpi_init + 0x31c) (argc=1,argv=(char **) 0x000007fefffff348,requested=0,provided=(int *) 0x000007feffffe698) at line 464 in ompi_mpi_init.c<br>
+#9 0xffffffff001ff79c (MPI_Init + 0x2b0) (argc=(int *) 0x000007feffffe814,argv=(char ***) 0x000007feffffe818) at line 84 in init.c<br>
+#10 0x0000000000100ae4 (main + 0x44) (argc=1,argv=(char **) 0x000007fefffff348) at line 8 in mpiinitfinalize.c<br>
+#11 0xffffffff00d2b81c (__libc_start_main + 0x194) (0x100aa0,0x1,0x7fefffff348,0x100d24,0x100d14,0x0)<br>
+#12 0x000000000010094c (_start + 0x2c) ()<br>
+<br>
+The line 252 in opal/mca/db/hash/db_hash.c is:<br>
+<br>
+    case OPAL_UINT64:<br>
+        if (NULL == data) {<br>
+            OPAL_ERROR_LOG(OPAL_ERR_BAD_PARAM);<br>
+            return OPAL_ERR_BAD_PARAM;<br>
+        }<br>
+        kv-&gt;type = OPAL_UINT64;<br>
+        kv-&gt;data.uint64 = *(uint64_t*)(data); // !!! here !!!<br>
+        break;<br>
+<br>
+My environment is:<br>
+<br>
+  Open MPI v1.8 branch r32447 (latest)<br>
+  configure --enable-debug<br>
+  SPARC-V9 (Fujitsu SPARC64 IXfx)<br>
+  Linux (custom)<br>
+  gcc 4.2.4<br>
+<br>
+I could not reproduce it with Open MPI trunk nor with Fujitsu compiler.<br>
+<br>
+Can this information help?<br>
+<br>
+Takahiro Kawashima,<br>
+MPI development team,<br>
+Fujitsu<br>
+<div><div class="h5"><br>
+&gt; Hi,<br>
+&gt;<br>
+&gt; I&#39;m sorry once more to answer late, but the last two days our mail<br>
+&gt; server was down (hardware error).<br>
+&gt;<br>
+&gt; &gt; Did you configure this --enable-debug?<br>
+&gt;<br>
+&gt; Yes, I used the following command.<br>
+&gt;<br>
+&gt; ../openmpi-1.8.2rc3/configure --prefix=/usr/local/openmpi-1.8.2_64_gcc \<br>
+&gt;   --libdir=/usr/local/openmpi-1.8.2_64_gcc/lib64 \<br>
+&gt;   --with-jdk-bindir=/usr/local/jdk1.8.0/bin \<br>
+&gt;   --with-jdk-headers=/usr/local/jdk1.8.0/include \<br>
+&gt;   JAVA_HOME=/usr/local/jdk1.8.0 \<br>
+&gt;   LDFLAGS=&quot;-m64 -L/usr/local/gcc-4.9.0/lib/amd64&quot; \<br>
+&gt;   CC=&quot;gcc&quot; CXX=&quot;g++&quot; FC=&quot;gfortran&quot; \<br>
+&gt;   CFLAGS=&quot;-m64&quot; CXXFLAGS=&quot;-m64&quot; FCFLAGS=&quot;-m64&quot; \<br>
+&gt;   CPP=&quot;cpp&quot; CXXCPP=&quot;cpp&quot; \<br>
+&gt;   CPPFLAGS=&quot;&quot; CXXCPPFLAGS=&quot;&quot; \<br>
+&gt;   --enable-mpi-cxx \<br>
+&gt;   --enable-cxx-exceptions \<br>
+&gt;   --enable-mpi-java \<br>
+&gt;   --enable-heterogeneous \<br>
+&gt;   --enable-mpi-thread-multiple \<br>
+&gt;   --with-threads=posix \<br>
+&gt;   --with-hwloc=internal \<br>
+&gt;   --without-verbs \<br>
+&gt;   --with-wrapper-cflags=&quot;-std=c11 -m64&quot; \<br>
+&gt;   --enable-debug \<br>
+&gt;   |&amp; tee log.configure.$SYSTEM_ENV.$MACHINE_ENV.64_gcc<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; &gt; If so, you should get a line number in the backtrace<br>
+&gt;<br>
+&gt; I got them for gdb (see below), but not for &quot;dbx&quot;.<br>
+&gt;<br>
+&gt;<br>
+&gt; Kind regards<br>
+&gt;<br>
+&gt; Siegmar<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; On Aug 5, 2014, at 2:59 AM, Siegmar Gross<br>
+&gt; &lt;<a href="mailto:Siegmar.Gross@informatik.hs-fulda.de">Siegmar.Gross@informatik.hs-fulda.de</a>&gt; wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; &gt; Hi,<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; I&#39;m sorry to answer so late, but last week I didn&#39;t have Internet<br>
+&gt; &gt; &gt; access. In the meantime I&#39;ve installed openmpi-1.8.2rc3 and I get<br>
+&gt; &gt; &gt; the same error.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;&gt; This looks like the typical type of alignment error that we used<br>
+&gt; &gt; &gt;&gt; to see when testing regularly on SPARC.  :-\<br>
+&gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt;&gt; It looks like the error was happening in mca_db_hash.so.  Could<br>
+&gt; &gt; &gt;&gt; you get a stack trace / file+line number where it was failing<br>
+&gt; &gt; &gt;&gt; in mca_db_hash?  (i.e., the actual bad code will likely be under<br>
+&gt; &gt; &gt;&gt; opal/mca/db/hash somewhere)<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Unfortunately I don&#39;t get a file+line number from a file in<br>
+&gt; &gt; &gt; opal/mca/db/Hash.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; tyr small_prog 102 ompi_info | grep MPI:<br>
+&gt; &gt; &gt;                Open MPI: 1.8.2rc3<br>
+&gt; &gt; &gt; tyr small_prog 103 which mpicc<br>
+&gt; &gt; &gt; /usr/local/openmpi-1.8.2_64_gcc/bin/mpicc<br>
+&gt; &gt; &gt; tyr small_prog 104 mpicc init_finalize.c<br>
+&gt; &gt; &gt; tyr small_prog 106 /opt/solstudio12.3/bin/sparcv9/dbx<br>
+&gt; /usr/local/openmpi-1.8.2_64_gcc/bin/mpiexec<br>
+&gt; &gt; &gt; For information about new features see `help changes&#39;<br>
+&gt; &gt; &gt; To remove this message, put `dbxenv suppress_startup_message 7.9&#39; in your<br>
+&gt; .dbxrc<br>
+&gt; &gt; &gt; Reading mpiexec<br>
+&gt; &gt; &gt; Reading ld.so.1<br>
+&gt; &gt; &gt; Reading libopen-rte.so.7.0.4<br>
+&gt; &gt; &gt; Reading libopen-pal.so.6.2.0<br>
+&gt; &gt; &gt; Reading libsendfile.so.1<br>
+&gt; &gt; &gt; Reading libpicl.so.1<br>
+&gt; &gt; &gt; Reading libkstat.so.1<br>
+&gt; &gt; &gt; Reading liblgrp.so.1<br>
+&gt; &gt; &gt; Reading libsocket.so.1<br>
+&gt; &gt; &gt; Reading libnsl.so.1<br>
+&gt; &gt; &gt; Reading libgcc_s.so.1<br>
+&gt; &gt; &gt; Reading librt.so.1<br>
+&gt; &gt; &gt; Reading libm.so.2<br>
+&gt; &gt; &gt; Reading libpthread.so.1<br>
+&gt; &gt; &gt; Reading libc.so.1<br>
+&gt; &gt; &gt; Reading libdoor.so.1<br>
+&gt; &gt; &gt; Reading libaio.so.1<br>
+&gt; &gt; &gt; Reading libmd.so.1<br>
+&gt; &gt; &gt; (dbx) check -all<br>
+&gt; &gt; &gt; access checking - ON<br>
+&gt; &gt; &gt; memuse checking - ON<br>
+&gt; &gt; &gt; (dbx) run -np 1 a.outRunning: mpiexec -np 1 a.out<br>
+&gt; &gt; &gt; (process id 27833)<br>
+&gt; &gt; &gt; Reading rtcapihook.so<br>
+&gt; &gt; &gt; Reading libdl.so.1<br>
+&gt; &gt; &gt; Reading rtcaudit.so<br>
+&gt; &gt; &gt; Reading libmapmalloc.so.1<br>
+&gt; &gt; &gt; Reading libgen.so.1<br>
+&gt; &gt; &gt; Reading libc_psr.so.1<br>
+&gt; &gt; &gt; Reading rtcboot.so<br>
+&gt; &gt; &gt; Reading librtc.so<br>
+&gt; &gt; &gt; Reading libmd_psr.so.1<br>
+&gt; &gt; &gt; RTC: Enabling Error Checking...<br>
+&gt; &gt; &gt; RTC: Running program...<br>
+&gt; &gt; &gt; Write to unallocated (wua) on thread 1:<br>
+&gt; &gt; &gt; Attempting to write 1 byte at address 0xffffffff79f04000<br>
+&gt; &gt; &gt; t@1 (l@1) stopped in _readdir at 0xffffffff55174da0<br>
+&gt; &gt; &gt; 0xffffffff55174da0: _readdir+0x0064:    call<br>
+&gt; _PROCEDURE_LINKAGE_TABLE_+0x2380 [PLT] ! 0xffffffff55342a80<br>
+&gt; &gt; &gt; (dbx) where<br>
+&gt; &gt; &gt; current thread: t@1<br>
+&gt; &gt; &gt; =&gt;[1] _readdir(0xffffffff79f00300, 0x2e6800, 0x4, 0x2d, 0x4,<br>
+&gt; 0xffffffff79f00300), at 0xffffffff55174da0<br>
+&gt; &gt; &gt;  [2] list_files_by_dir(0x100138fd8, 0xffffffff7fffd1f0, 0xffffffff7fffd1e8,<br>
+&gt; 0xffffffff7fffd210, 0x0, 0xffffffff702a0010), at<br>
+&gt; &gt; &gt; 0xffffffff63174594<br>
+&gt; &gt; &gt;  [3] foreachfile_callback(0x100138fd8, 0xffffffff7fffd458, 0x0, 0x2e, 0x0,<br>
+&gt; 0xffffffff702a0010), at 0xffffffff6317461c<br>
+&gt; &gt; &gt;  [4] foreach_dirinpath(0x1001d8a28, 0x0, 0xffffffff631745e0,<br>
+&gt; 0xffffffff7fffd458, 0x0, 0xffffffff702a0010), at 0xffffffff63171684<br>
+&gt; &gt; &gt;  [5] lt_dlforeachfile(0x1001d8a28, 0xffffffff6319656c, 0x0, 0x53, 0x2f,<br>
+&gt; 0xf), at 0xffffffff63174748<br>
+&gt; &gt; &gt;  [6] find_dyn_components(0x0, 0xffffffff6323b570, 0x0, 0x1,<br>
+&gt; 0xffffffff7fffd6a0, 0xffffffff702a0010), at 0xffffffff63195e38<br>
+&gt; &gt; &gt;  [7] mca_base_component_find(0x0, 0xffffffff6323b570, 0xffffffff6335e1b0,<br>
+&gt; 0x0, 0xffffffff7fffd6a0, 0x1), at 0xffffffff631954d8<br>
+&gt; &gt; &gt;  [8] mca_base_framework_components_register(0xffffffff6335e1c0, 0x0, 0x3e,<br>
+&gt; 0x0, 0x3b, 0x100800), at 0xffffffff631b1638<br>
+&gt; &gt; &gt;  [9] mca_base_framework_register(0xffffffff6335e1c0, 0x0, 0x2,<br>
+&gt; 0xffffffff7fffd8d0, 0x0, 0xffffffff702a0010), at 0xffffffff631b24d4<br>
+&gt; &gt; &gt;  [10] mca_base_framework_open(0xffffffff6335e1c0, 0x0, 0x2,<br>
+&gt; 0xffffffff7fffd990, 0x0, 0xffffffff702a0010), at 0xffffffff631b25d0<br>
+&gt; &gt; &gt;  [11] opal_init(0xffffffff7fffdd70, 0xffffffff7fffdd78, 0x100117c60,<br>
+&gt; 0xffffffff7fffde58, 0x400, 0x100117c60), at<br>
+&gt; &gt; &gt; 0xffffffff63153694<br>
+&gt; &gt; &gt;  [12] orterun(0x4, 0xffffffff7fffde58, 0x2, 0xffffffff7fffdda0, 0x0,<br>
+&gt; 0xffffffff702a0010), at 0x100005078<br>
+&gt; &gt; &gt;  [13] main(0x4, 0xffffffff7fffde58, 0xffffffff7fffde80, 0x100117c60,<br>
+&gt; 0x100000000, 0xffffffff6a700200), at 0x100003d68<br>
+&gt; &gt; &gt; (dbx)<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; I get the following output with gdb.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; tyr small_prog 107 /usr/local/gdb-7.6.1_64_gcc/bin/gdb<br>
+&gt; /usr/local/openmpi-1.8.2_64_gcc/bin/mpiexec<br>
+&gt; &gt; &gt; GNU gdb (GDB) 7.6.1<br>
+&gt; &gt; &gt; Copyright (C) 2013 Free Software Foundation, Inc.<br>
+&gt; &gt; &gt; License GPLv3+: GNU GPL version 3 or later<br>
+&gt; &lt;<a href="http://gnu.org/licenses/gpl.html" target="_blank">http://gnu.org/licenses/gpl.html</a>&gt;<br>
+&gt; &gt; &gt; This is free software: you are free to change and redistribute it.<br>
+&gt; &gt; &gt; There is NO WARRANTY, to the extent permitted by law.  Type &quot;show copying&quot;<br>
+&gt; &gt; &gt; and &quot;show warranty&quot; for details.<br>
+&gt; &gt; &gt; This GDB was configured as &quot;sparc-sun-solaris2.10&quot;.<br>
+&gt; &gt; &gt; For bug reporting instructions, please see:<br>
+&gt; &gt; &gt; &lt;<a href="http://www.gnu.org/software/gdb/bugs/" target="_blank">http://www.gnu.org/software/gdb/bugs/</a>&gt;...<br>
+&gt; &gt; &gt; Reading symbols from<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/bin/orterun...done.<br>
+&gt; &gt; &gt; (gdb) run -np 1 a.out<br>
+&gt; &gt; &gt; Starting program: /usr/local/openmpi-1.8.2_64_gcc/bin/mpiexec -np 1 a.out<br>
+&gt; &gt; &gt; [Thread debugging using libthread_db enabled]<br>
+&gt; &gt; &gt; [New Thread 1 (LWP 1)]<br>
+&gt; &gt; &gt; [New LWP    2        ]<br>
+&gt; &gt; &gt; [tyr:27867] *** Process received signal ***<br>
+&gt; &gt; &gt; [tyr:27867] Signal: Bus Error (10)<br>
+&gt; &gt; &gt; [tyr:27867] Signal code: Invalid address alignment (1)<br>
+&gt; &gt; &gt; [tyr:27867] Failing at address: ffffffff7fffd224<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-pal.so.6.2.0:opal_b<br>
+&gt; acktrace_print+0x2c<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-pal.so.6.2.0:0xccfa<br>
+&gt; 0<br>
+&gt; &gt; &gt; /lib/sparcv9/libc.so.1:0xd8b98<br>
+&gt; &gt; &gt; /lib/sparcv9/libc.so.1:0xcc70c<br>
+&gt; &gt; &gt; /lib/sparcv9/libc.so.1:0xcc918<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/openmpi/mca_db_hash.so:0x3e<br>
+&gt; e8 [ Signal 10 (BUS)]<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-pal.so.6.2.0:opal_d<br>
+&gt; b_base_store+0xc8<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-rte.so.7.0.4:orte_u<br>
+&gt; til_decode_pidmap+0x798<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-rte.so.7.0.4:orte_u<br>
+&gt; til_nidmap_init+0x3cc<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/openmpi/mca_ess_env.so:0x22<br>
+&gt; 6c<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-rte.so.7.0.4:orte_i<br>
+&gt; nit+0x308<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libmpi.so.1.5.2:ompi_mpi_in<br>
+&gt; it+0x31c<br>
+&gt; &gt; &gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libmpi.so.1.5.2:PMPI_Init+0<br>
+&gt; x2a8<br>
+&gt; &gt; &gt;<br>
+&gt; /home/fd1026/work/skripte/master/parallel/prog/mpi/small_prog/a.out:main+0x20<br>
+&gt; &gt; &gt;<br>
+&gt; /home/fd1026/work/skripte/master/parallel/prog/mpi/small_prog/a.out:_start+0x7c<br>
+&gt; &gt; &gt; [tyr:27867] *** End of error message ***<br>
+&gt; &gt; &gt; --------------------------------------------------------------------------<br>
+&gt; &gt; &gt; mpiexec noticed that process rank 0 with PID 27867 on node tyr exited on<br>
+&gt; signal 10 (Bus Error).<br>
+&gt; &gt; &gt; --------------------------------------------------------------------------<br>
+&gt; &gt; &gt; [LWP    2         exited]<br>
+&gt; &gt; &gt; [New Thread 2        ]<br>
+&gt; &gt; &gt; [Switching to Thread 1 (LWP 1)]<br>
+&gt; &gt; &gt; sol_thread_fetch_registers: td_ta_map_id2thr: no thread can be found to<br>
+&gt; satisfy query<br>
+&gt; &gt; &gt; (gdb) bt<br>
+&gt; &gt; &gt; #0  0xffffffff7f6173d0 in rtld_db_dlactivity () from<br>
+&gt; /usr/lib/sparcv9/ld.so.1<br>
+&gt; &gt; &gt; #1  0xffffffff7f6175a8 in rd_event () from /usr/lib/sparcv9/ld.so.1<br>
+&gt; &gt; &gt; #2  0xffffffff7f618950 in lm_delete () from /usr/lib/sparcv9/ld.so.1<br>
+&gt; &gt; &gt; #3  0xffffffff7f6226bc in remove_so () from /usr/lib/sparcv9/ld.so.1<br>
+&gt; &gt; &gt; #4  0xffffffff7f624574 in remove_hdl () from /usr/lib/sparcv9/ld.so.1<br>
+&gt; &gt; &gt; #5  0xffffffff7f61d97c in dlclose_core () from /usr/lib/sparcv9/ld.so.1<br>
+&gt; &gt; &gt; #6  0xffffffff7f61d9d4 in dlclose_intn () from /usr/lib/sparcv9/ld.so.1<br>
+&gt; &gt; &gt; #7  0xffffffff7f61db0c in dlclose () from /usr/lib/sparcv9/ld.so.1<br>
+&gt; &gt; &gt; #8  0xffffffff7ec7746c in vm_close ()<br>
+&gt; &gt; &gt;   from /usr/local/openmpi-1.8.2_64_gcc/lib64/libopen-pal.so.6<br>
+&gt; &gt; &gt; #9  0xffffffff7ec74a4c in lt_dlclose ()<br>
+&gt; &gt; &gt;   from /usr/local/openmpi-1.8.2_64_gcc/lib64/libopen-pal.so.6<br>
+&gt; &gt; &gt; #10 0xffffffff7ec99b70 in ri_destructor (obj=0x1001ead30)<br>
+&gt; &gt; &gt;    at<br>
+&gt; ../../../../openmpi-1.8.2rc3/opal/mca/base/mca_base_component_repository.c:391<br>
+&gt; &gt; &gt; #11 0xffffffff7ec98488 in opal_obj_run_destructors (object=0x1001ead30)<br>
+&gt; &gt; &gt;    at ../../../../openmpi-1.8.2rc3/opal/class/opal_object.h:446<br>
+&gt; &gt; &gt; #12 0xffffffff7ec993ec in mca_base_component_repository_release (<br>
+&gt; &gt; &gt;    component=0xffffffff7b023cf0 &lt;mca_oob_tcp_component&gt;)<br>
+&gt; &gt; &gt;    at<br>
+&gt; ../../../../openmpi-1.8.2rc3/opal/mca/base/mca_base_component_repository.c:244<br>
+&gt; &gt; &gt; #13 0xffffffff7ec9b734 in mca_base_component_unload (<br>
+&gt; &gt; &gt;    component=0xffffffff7b023cf0 &lt;mca_oob_tcp_component&gt;, output_id=-1)<br>
+&gt; &gt; &gt;    at<br>
+&gt; ../../../../openmpi-1.8.2rc3/opal/mca/base/mca_base_components_close.c:47<br>
+&gt; &gt; &gt; #14 0xffffffff7ec9b7c8 in mca_base_component_close (<br>
+&gt; &gt; &gt;    component=0xffffffff7b023cf0 &lt;mca_oob_tcp_component&gt;, output_id=-1)<br>
+&gt; &gt; &gt;    at<br>
+&gt; ../../../../openmpi-1.8.2rc3/opal/mca/base/mca_base_components_close.c:60<br>
+&gt; &gt; &gt; #15 0xffffffff7ec9b89c in mca_base_components_close (output_id=-1,<br>
+&gt; &gt; &gt;    components=0xffffffff7f12b430 &lt;orte_oob_base_framework+80&gt;, skip=0x0)<br>
+&gt; &gt; &gt; ---Type &lt;return&gt; to continue, or q &lt;return&gt; to quit---<br>
+&gt; &gt; &gt;    at<br>
+&gt; ../../../../openmpi-1.8.2rc3/opal/mca/base/mca_base_components_close.c:86<br>
+&gt; &gt; &gt; #16 0xffffffff7ec9b804 in mca_base_framework_components_close (<br>
+&gt; &gt; &gt;    framework=0xffffffff7f12b3e0 &lt;orte_oob_base_framework&gt;, skip=0x0)<br>
+&gt; &gt; &gt;    at<br>
+&gt; ../../../../openmpi-1.8.2rc3/opal/mca/base/mca_base_components_close.c:66<br>
+&gt; &gt; &gt; #17 0xffffffff7efae1e4 in orte_oob_base_close ()<br>
+&gt; &gt; &gt;    at ../../../../openmpi-1.8.2rc3/orte/mca/oob/base/oob_base_frame.c:94<br>
+&gt; &gt; &gt; #18 0xffffffff7ecb28ac in mca_base_framework_close (<br>
+&gt; &gt; &gt;    framework=0xffffffff7f12b3e0 &lt;orte_oob_base_framework&gt;)<br>
+&gt; &gt; &gt;    at ../../../../openmpi-1.8.2rc3/opal/mca/base/mca_base_framework.c:187<br>
+&gt; &gt; &gt; #19 0xffffffff7bf078c0 in rte_finalize ()<br>
+&gt; &gt; &gt;    at ../../../../../openmpi-1.8.2rc3/orte/mca/ess/hnp/ess_hnp_module.c:858<br>
+&gt; &gt; &gt; #20 0xffffffff7ef30a44 in orte_finalize ()<br>
+&gt; &gt; &gt;    at ../../openmpi-1.8.2rc3/orte/runtime/orte_finalize.c:65<br>
+&gt; &gt; &gt; #21 0x00000001000070c4 in orterun (argc=4, argv=0xffffffff7fffe0e8)<br>
+&gt; &gt; &gt;    at ../../../../openmpi-1.8.2rc3/orte/tools/orterun/orterun.c:1096<br>
+&gt; &gt; &gt; #22 0x0000000100003d70 in main (argc=4, argv=0xffffffff7fffe0e8)<br>
+&gt; &gt; &gt;    at ../../../../openmpi-1.8.2rc3/orte/tools/orterun/main.c:13<br>
+&gt; &gt; &gt; (gdb)<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Is the above information helpful to track down the error? Do you need<br>
+&gt; &gt; &gt; anything else? Thank you very much for any help in advance.<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Kind regards<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; Siegmar<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt;&gt; On Jul 25, 2014, at 2:08 AM, Siegmar Gross<br>
+&gt; &lt;<a href="mailto:Siegmar.Gross@informatik.hs-fulda.de">Siegmar.Gross@informatik.hs-fulda.de</a>&gt; wrote:<br>
+&gt; &gt; &gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; Hi,<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; I have installed openmpi-1.8.2rc2 with gcc-4.9.0 on Solaris<br>
+&gt; &gt; &gt;&gt;&gt; 10 Sparc and I receive a bus error, if I run a small program.<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; tyr hello_1 105 mpiexec -np 2 a.out<br>
+&gt; &gt; &gt;&gt;&gt; [tyr:29164] *** Process received signal ***<br>
+&gt; &gt; &gt;&gt;&gt; [tyr:29164] Signal: Bus Error (10)<br>
+&gt; &gt; &gt;&gt;&gt; [tyr:29164] Signal code: Invalid address alignment (1)<br>
+&gt; &gt; &gt;&gt;&gt; [tyr:29164] Failing at address: ffffffff7fffd1c4<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-pal.so.6.2.0:opal_b<br>
+&gt; acktrace_print+0x2c<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-pal.so.6.2.0:0xccfd<br>
+&gt; 0<br>
+&gt; &gt; &gt;&gt;&gt; /lib/sparcv9/libc.so.1:0xd8b98<br>
+&gt; &gt; &gt;&gt;&gt; /lib/sparcv9/libc.so.1:0xcc70c<br>
+&gt; &gt; &gt;&gt;&gt; /lib/sparcv9/libc.so.1:0xcc918<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/openmpi/mca_db_hash.so:0x3e<br>
+&gt; e8 [ Signal 10 (BUS)]<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-pal.so.6.2.0:opal_d<br>
+&gt; b_base_store+0xc8<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-rte.so.7.0.4:orte_u<br>
+&gt; til_decode_pidmap+0x798<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-rte.so.7.0.4:orte_u<br>
+&gt; til_nidmap_init+0x3cc<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/openmpi/mca_ess_env.so:0x22<br>
+&gt; 6c<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libopen-rte.so.7.0.4:orte_i<br>
+&gt; nit+0x308<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libmpi.so.1.5.2:ompi_mpi_in<br>
+&gt; it+0x31c<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /export2/prog/SunOS_sparc/openmpi-1.8.2_64_gcc/lib64/libmpi.so.1.5.2:PMPI_Init+0<br>
+&gt; x2a8<br>
+&gt; &gt; &gt;&gt;&gt; /home/fd1026/work/skripte/master/parallel/prog/mpi/hello_1/a.out:main+0x20<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; /home/fd1026/work/skripte/master/parallel/prog/mpi/hello_1/a.out:_start+0x7c<br>
+&gt; &gt; &gt;&gt;&gt; [tyr:29164] *** End of error message ***<br>
+&gt; &gt; &gt;&gt;&gt; ...<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; I get the following output if I run the program in &quot;dbx&quot;.<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; ...<br>
+&gt; &gt; &gt;&gt;&gt; RTC: Enabling Error Checking...<br>
+&gt; &gt; &gt;&gt;&gt; RTC: Running program...<br>
+&gt; &gt; &gt;&gt;&gt; Write to unallocated (wua) on thread 1:<br>
+&gt; &gt; &gt;&gt;&gt; Attempting to write 1 byte at address 0xffffffff79f04000<br>
+&gt; &gt; &gt;&gt;&gt; t@1 (l@1) stopped in _readdir at 0xffffffff55174da0<br>
+&gt; &gt; &gt;&gt;&gt; 0xffffffff55174da0: _readdir+0x0064:    call<br>
+&gt; _PROCEDURE_LINKAGE_TABLE_+0x2380 [PLT] ! 0xffffffff55342a80<br>
+&gt; &gt; &gt;&gt;&gt; (dbx)<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; Hopefully the above output helps to fix the error. Can I provide<br>
+&gt; &gt; &gt;&gt;&gt; anything else? Thank you very much for any help in advance.<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; Kind regards<br>
+&gt; &gt; &gt;&gt;&gt;<br>
+&gt; &gt; &gt;&gt;&gt; Siegmar<br>
+_______________________________________________<br>
+</div></div>devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15541.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15541.php</a><br>
+</blockquote></div><br></div>
+

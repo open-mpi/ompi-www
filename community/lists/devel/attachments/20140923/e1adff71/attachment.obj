@@ -1,0 +1,80 @@
+Index: orte/mca/oob/tcp/oob_tcp_connection.c
+===================================================================
+--- orte/mca/oob/tcp/oob_tcp_connection.c	(revision 32771)
++++ orte/mca/oob/tcp/oob_tcp_connection.c	(working copy)
+@@ -547,7 +547,7 @@
+  *  connected socket and verify the expected response. If so, move the
+  *  socket to a connected state.
+  */
+-static void retry(mca_oob_tcp_peer_t* peer, int sd)
++static bool retry(mca_oob_tcp_peer_t* peer, int sd)
+ {
+     int cmpval;
+ 
+@@ -555,6 +555,27 @@
+                         "%s SIMUL CONNECTION WITH %s",
+                         ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+                         ORTE_NAME_PRINT(&peer->name));
++    cmpval = orte_util_compare_name_fields(ORTE_NS_CMP_ALL, &peer->name, ORTE_PROC_MY_NAME);
++    if (OPAL_VALUE1_GREATER == cmpval) {
++        /* The other end will retry the connection */
++        if (peer->send_ev_active) {
++            opal_event_del(&peer->send_event);
++            peer->send_ev_active = false;
++        }
++        if (peer->recv_ev_active) {
++            opal_event_del(&peer->recv_event);
++            peer->recv_ev_active = false;
++        }
++        CLOSE_THE_SOCKET(peer->sd);
++        peer->state = MCA_OOB_TCP_UNCONNECTED;
++        return false;
++    } else {
++        /* The connection will be retried */
++        CLOSE_THE_SOCKET(sd);
++        return true;
++        // ORTE_ACTIVATE_TCP_CONN_STATE(peer, mca_oob_tcp_peer_try_connect);
++    }
++#if 0
+     if (peer->recv_ev_active) {
+         opal_event_del(&peer->recv_event);
+         peer->recv_ev_active = false;
+@@ -571,15 +592,7 @@
+     if (NULL != peer->active_addr) {
+         peer->active_addr->retries = 0;
+     }
+-    cmpval = orte_util_compare_name_fields(ORTE_NS_CMP_ALL, &peer->name, ORTE_PROC_MY_NAME);
+-    if (OPAL_VALUE1_GREATER == cmpval) {
+-        /* force the other end to retry the connection */
+-        peer->state = MCA_OOB_TCP_UNCONNECTED;
+-    } else {
+-        /* retry the connection */
+-        peer->state = MCA_OOB_TCP_CONNECTING;
+-        ORTE_ACTIVATE_TCP_CONN_STATE(peer, mca_oob_tcp_peer_try_connect);
+-    }
++#endif
+ }
+ 
+ int mca_oob_tcp_peer_recv_connect_ack(mca_oob_tcp_peer_t* pr,
+@@ -629,7 +642,8 @@
+         if (NULL != peer &&
+             (MCA_OOB_TCP_CONNECTED == peer->state ||
+              MCA_OOB_TCP_CONNECTING == peer->state ||
+-             MCA_OOB_TCP_CONNECT_ACK == peer->state)) {
++             MCA_OOB_TCP_CONNECT_ACK == peer->state ||
++             MCA_OOB_TCP_CLOSED == peer->state)) {
+             retry(peer, sd);
+         }
+         return ORTE_ERR_UNREACH;
+@@ -696,8 +710,9 @@
+             if (MCA_OOB_TCP_CONNECTED == peer->state ||
+                 MCA_OOB_TCP_CONNECTING == peer->state ||
+                 MCA_OOB_TCP_CONNECT_ACK == peer->state) {
+-                retry(peer, sd);
+-                return ORTE_ERR_UNREACH;
++                if (retry(peer, sd)) {
++                    return ORTE_ERR_UNREACH;
++                }
+             }
+         }
+     } else {

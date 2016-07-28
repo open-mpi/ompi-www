@@ -1,0 +1,214 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Ralph,<br>
+      <br>
+      here is my understanding of what happens on Linux :<br>
+      <br>
+      lo: 127.0.0.1/8<br>
+      eth0: 192.168.122.101/24<br>
+      <br>
+      mpirun --mca orte_oob_tcp_if_include eth0 ...<br>
+      <br>
+      so the mpi task tries to contact orted/mpirun on 192.168.0.1/24<br>
+      <br>
+      that works just fine if the loopback interface is active,<br>
+      and that hangs if there is no loopback interface.<br>
+      <br>
+      <br>
+      imho that is a linux oddity, and OMPI has nothing to do with it<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      [root@slurm1 ~]# ping -c 3 192.168.122.101<br>
+      PING 192.168.122.101 (192.168.122.101) 56(84) bytes of data.<br>
+      64 bytes from 192.168.122.101: icmp_seq=1 ttl=64 time=0.013 ms<br>
+      64 bytes from 192.168.122.101: icmp_seq=2 ttl=64 time=0.009 ms<br>
+      64 bytes from 192.168.122.101: icmp_seq=3 ttl=64 time=0.011 ms<br>
+      <br>
+      --- 192.168.122.101 ping statistics ---<br>
+      3 packets transmitted, 3 received, 0% packet loss, time 1999ms<br>
+      rtt min/avg/max/mdev = 0.009/0.011/0.013/0.001 ms<br>
+      <br>
+      <br>
+      <br>
+      [root@slurm1 ~]# ifdown lo<br>
+      [root@slurm1 ~]# ping -c 3 192.168.122.101<br>
+      PING 192.168.122.101 (192.168.122.101) 56(84) bytes of data.<br>
+      <br>
+      --- 192.168.122.101 ping statistics ---<br>
+      3 packets transmitted, 0 received, 100% packet loss, time 11999ms<br>
+      <br>
+      <br>
+      On 2014/12/12 13:54, Ralph Castain wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:77D1B79D-B970-4257-B8D3-9F7441F32139@open-mpi.org"
+      type="cite">
+      <pre wrap="">I honestly think it has to be a selected interface, Gilles, else we will fail to connect.
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">On Dec 11, 2014, at 8:26 PM, Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;gilles.gouaillardet@iferc.org&gt;</a> wrote:
+
+Paul,
+
+about the five warnings :
+can you confirm you are running mpirun *not* on n15 nor n16 ?
+if my guess is correct, then you can get up to 5 warnings : mpirun + 2 orted + 2 mpi tasks
+
+do you have any oob_tcp_if_include or oob_tcp_if_exclude settings in your openmpi-mca-params.conf ?
+
+here is attached a patch to fix this issue.
+what we really want is test there is a loopback interface, period.
+the current code (my bad for not having reviewed in a timely manner) seems to check
+there is a *selected* loopback interface.
+
+Cheers,
+
+Gilles
+
+On 2014/12/12 13:15, Paul Hargrove wrote:
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Ralph,
+
+Sorry to be the bearer of more bad news.
+The "good" news is I've seen the new warning regarding the lack of a
+loopback interface.
+The BAD news is that it is occurring on a Linux cluster that I'ver verified
+DOES have 'lo' configured on the front-end and compute nodes (UP and
+RUNNING according to ifconfig).
+
+Though run with "-np 2" the warning appears FIVE times.
+ADDITIONALLY, there is a SEGV at exit!
+
+Unfortunately, despite configuring with --enable-debug, I didn't get line
+numbers from the core (and there was no backtrace printed).
+
+All of this appears below (and no, "-mca mtl psm" is not a typo or a joke).
+
+Let me know what tracing flags to apply to gather the info needed to debug
+this.
+
+-Paul
+
+
+$ mpirun -mca btl sm,self -np 2 -host n15,n16 -mca mtl psm examples/ring_c
+--------------------------------------------------------------------------
+WARNING: No loopback interface was found. This can cause problems
+when we spawn processes as they are likely to be unable to connect
+back to their host daemon. Sadly, it may take awhile for the connect
+attempt to fail, so you may experience a significant hang time.
+
+You may wish to ctrl-c out of your job and activate loopback support
+on at least one interface before trying again.
+
+--------------------------------------------------------------------------
+[... above message FOUR more times ...]
+Process 1 exiting
+Process 0 sending 10 to 1, tag 201 (2 processes in ring)
+Process 0 sent to 1
+Process 0 decremented value: 9
+Process 0 decremented value: 8
+Process 0 decremented value: 7
+Process 0 decremented value: 6
+Process 0 decremented value: 5
+Process 0 decremented value: 4
+Process 0 decremented value: 3
+Process 0 decremented value: 2
+Process 0 decremented value: 1
+Process 0 decremented value: 0
+Process 0 exiting
+--------------------------------------------------------------------------
+mpirun noticed that process rank 0 with PID 0 on node n15 exited on signal
+11 (Segmentation fault).
+--------------------------------------------------------------------------
+
+$ /sbin/ifconfig lo
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+          RX packets:481228 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:481228 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:81039065 (77.2 MiB)  TX bytes:81039065 (77.2 MiB)
+
+$ ssh n15 /sbin/ifconfig lo
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+          RX packets:24885 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:24885 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:1509940 (1.4 MiB)  TX bytes:1509940 (1.4 MiB)
+
+$ ssh n16 /sbin/ifconfig lo
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+          RX packets:24938 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:24938 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:1543408 (1.4 MiB)  TX bytes:1543408 (1.4 MiB)
+
+$ gdb examples/ring_c core.29728
+[...]
+(gdb) where
+#0  0x0000002a97a19980 in ?? ()
+#1  &lt;signal handler called&gt;
+#2  0x0000003a6d40607c in _Unwind_FindEnclosingFunction () from
+/lib64/libgcc_s.so.1
+#3  0x0000003a6d406b57 in _Unwind_RaiseException () from
+/lib64/libgcc_s.so.1
+#4  0x0000003a6d406c4c in _Unwind_ForcedUnwind () from /lib64/libgcc_s.so.1
+#5  0x0000003a6c30ac50 in __pthread_unwind () from
+/lib64/tls/libpthread.so.0
+#6  0x0000003a6c305202 in sigcancel_handler () from
+/lib64/tls/libpthread.so.0
+#7  &lt;signal handler called&gt;
+#8  0x0000003a6b6bd9a2 in poll () from /lib64/tls/libc.so.6
+#9  0x0000002a978f8f7d in ?? ()
+#10 0x002000010000000e in ?? ()
+#11 0x0000000000000000 in ?? ()
+
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16525.php">http://www.open-mpi.org/community/lists/devel/2014/12/16525.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16525.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16525.php&gt;</a>
+</pre>
+        </blockquote>
+        <pre wrap="">&lt;loopback.diff&gt;_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16526.php">http://www.open-mpi.org/community/lists/devel/2014/12/16526.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16527.php">http://www.open-mpi.org/community/lists/devel/2014/12/16527.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

@@ -1,0 +1,102 @@
+Hi Nadia<br><br>We actually have a framework in the system for this purpose, though it might require some minor modifications to do precisely what you describe. It is the ORTE &quot;notifier&quot; framework - you will find it at orte/mca/notifier. There are several components, each of which supports a different notification mechanism (e.g., message into the sys log, smtp, and even &quot;twitter&quot;).<br>
+<br>The system works by adding orte_notifier calls to the OMPI code wherever we deem it advisable to alert someone. For example, if we think a sys admin might want to be alerted when the number of IB send retries exceeds some limit, we add a call to orte_notifier to the IB code with:<br>
+<br>if (#retries &gt; threshold) {<br>    orte_notifier.xxx(....);<br>}<br><br>I believe we could easily extend this to support your proposed functionality. A couple of possibilities that immediately spring to mind would be:<br>
+<br>1. you could create a new component (or we could modify the existing ones) that tracks how many times it is called for a given error, and only actually issues a notification for that specific error when the count exceeds a threshold. The negative to this approach is that the threshold would be uniform across all errors.<br>
+<br>2. we could extend the current notifier APIs to add a threshold count upon which the notification is to be sent, perhaps creating a new macro ORTE_NOTIFIER_VERBOSE that takes the threshold as one of its arguments. We could then let each OMPI framework have a new &quot;threshold&quot; MCA param, thus allowing the sys admins to &quot;tune&quot; the frequency of error reporting by framework. Of course, we could let them get as detailed here as you want - they could even have &quot;threshold&quot; params for each component, function, or whatever. This would be combined with #1 above to alert only when the count exceeded the threshold for that specific error message.<br>
+<br>I&#39;m sure you and others will come up with additional (probably better) ways of implementing this extension. My point here was simply to ensure you knew that the basic mechanism already exists, and to stimulate some thought as to how to use it for your proposed purpose.<br>
+<br>I would be happy to help you do so as this is something we (LANL) have put at a high priority - our sys admins on the large clusters really need the help.<br><br>HTH<br>Ralph<br><br><br><div class="gmail_quote">On Mon, May 25, 2009 at 11:33 PM, Nadia Derbey <span dir="ltr">&lt;<a href="mailto:Nadia.Derbey@bull.net">Nadia.Derbey@bull.net</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">What: Warn the administrator when unusual events are occurring too<br>
+frequently.<br>
+<br>
+Why: Such unusual events might be the symptom of some problem that can<br>
+easily be fixed (by a better tuning, for example)<br>
+<br>
+Where: Adds a new ompi framework<br>
+<br>
+-------------------------------------------------------------------<br>
+<br>
+Description:<br>
+<br>
+The objective of the Open MPI library is to make applications run to<br>
+completion, given that no fatal error is encountered.<br>
+In some situations, unusual events may occur. Since these events are not<br>
+considered to be fatal enough, the library arbitrarily chooses to bypass<br>
+them using a software mechanism, instead of actually stopping the<br>
+application. But even though this choice helps in completing the<br>
+application, it may frequently result in significant performance<br>
+degradation. This is not an issue if such “unusual events” don&#39;t occur<br>
+too frequently. But if they actually do, that might be representative of<br>
+a real problem that could sometimes be easily avoided.<br>
+<br>
+For example, when mca_pml_ob1_send_request_start() starts a send request<br>
+and faces a resource shortage, it silently calls<br>
+add_request_to_send_pending() to queue that send request into the list<br>
+of pending send requests in order to process it later on. If an adapting<br>
+mechanism is not provided at runtime to increase the receive queue<br>
+length, at least a message can be sent to the administrator to let him<br>
+do the tuning by hand before the next run.<br>
+<br>
+We had a look at other tracing utilities (like PMPI, PERUSE, VT), but<br>
+found them either too high level or too intrusive at the application<br>
+level.<br>
+<br>
+The “diagnostic framework” we&#39;d like to propose would help capturing<br>
+such “unusual events” and tracing them, while having a very low impact<br>
+on the performances. This is obtained by defining tracing routines that<br>
+can be called from the ompi code. The collected events are aggregated<br>
+per MPI process and only traced if a threshold has been reached. Another<br>
+threshold (time threshold) can be used to condition subsequent traces<br>
+generation for an already traced event.<br>
+<br>
+This is obtained by defining 2 mca parameters and a rule:<br>
+. the count threshold C<br>
+. the time delay T<br>
+The rule is: an event will only be traced if it happened N times, and it<br>
+won&#39;t be traced more than once every T seconds.<br>
+<br>
+Thus, events happening at a very low rate will never generate a trace<br>
+except one at MPI_Finalize summarizing:<br>
+[time] At finalize : 23 times : pre-allocated buffers all full, calling<br>
+malloc<br>
+<br>
+Those happening &quot;a little too much&quot; will sometimes generate a trace<br>
+saying something like:<br>
+[time] 1000 warnings : could not send in openib now, delaying<br>
+[time+12345 sec] 1000 warnings : could not send in openib now, delaying<br>
+<br>
+And events occurring at a high frequency will only generate a message<br>
+every T seconds saying:<br>
+[time]     1000 warnings : adding buffers in the SRQ<br>
+[time+T]   1,234,567 warnings (in T seconds) : adding buffers in the SRQ<br>
+[time+2*T] 2,345,678 warnings (in T seconds) : adding buffers in the SRQ<br>
+<br>
+The count threshold and time delay are defined per event.<br>
+They can also be defined as MCA parameters. In that case, the mca<br>
+parameter value overrides the per event values.<br>
+<br>
+The following information are traced too:<br>
+  . job family<br>
+  . the local job id<br>
+  . the job vpid<br>
+<br>
+Another aspect of performance savings is that a mechanism ala<br>
+show_help() can be used in order to let the HNP actually do the job.<br>
+<br>
+We started the implementation of this feature, so patches are available if<br>
+needed. We are currently trying to setup hgweb on an external server.<br>
+<br>
+Since I&#39;m an Open MPI newbie, I&#39;m submitting this RFC to have your<br>
+opinion about its usefulness, or even to know if there&#39;s an already<br>
+existing mechanism to do this job.<br>
+<br>
+Regards,<br>
+Nadia<br>
+<font color="#888888"><br>
+--<br>
+Nadia Derbey &lt;<a href="mailto:Nadia.Derbey@bull.net">Nadia.Derbey@bull.net</a>&gt;<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></font></blockquote></div><br>
+

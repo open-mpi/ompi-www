@@ -1,0 +1,370 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=windows-1252"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">Thanks Gilles!<div class=""><br class=""></div><div class="">The “clean” event doesn’t have to go last - any messages that arrive after all recvs have been removed will simply be dropped upon termination. This commit only ensures that the list of posted recvs is cleanly destructed, which will prevent the segfault.</div><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Jul 22, 2015, at 1:03 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles@rist.or.jp" class="">gilles@rist.or.jp</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class="">
+  
+    <meta content="text/html; charset=windows-1252" http-equiv="Content-Type" class="">
+  
+  <div bgcolor="#FFFFFF" text="#000000" class="">
+    Thanks Ralph,<br class="">
+    <br class="">
+    i was unable to reproduce any crash with this fix :-)<br class="">
+    <br class="">
+    i checked the code that is invoked in the progress thread, and it
+    might queue other events.<br class="">
+    bottom line, i am not 100% convinced the "clean" event will be
+    executed at the very last.<br class="">
+    <br class="">
+    that being said, and once again, i was unable to reproduce any
+    crash.<br class="">
+    <br class="">
+    Cheers,<br class="">
+    <br class="">
+    Gilles<br class="">
+    <br class="">
+    <div class="moz-cite-prefix">On 7/22/2015 12:48 AM, Ralph Castain
+      wrote:<br class="">
+    </div>
+    <blockquote cite="mid:E4B44CA0-0D3C-4260-A980-BDB39676E49B@open-mpi.org" type="cite" class="">
+      <meta http-equiv="Content-Type" content="text/html;
+        charset=windows-1252" class="">
+      I believe I have this fixed - please see if this solves the
+      problem:
+      <div class=""><br class="">
+      </div>
+      <div class=""><a moz-do-not-send="true" href="https://github.com/open-mpi/ompi/pull/730" class="">https://github.com/open-mpi/ompi/pull/730</a></div>
+      <div class=""><br class="">
+      </div>
+      <div class=""><br class="">
+        <div class="">
+          <blockquote type="cite" class="">
+            <div class="">On Jul 21, 2015, at 12:22 AM, Gilles
+              Gouaillardet &lt;<a moz-do-not-send="true" href="mailto:gilles@rist.or.jp" class="">gilles@rist.or.jp</a>&gt;
+              wrote:</div>
+            <br class="Apple-interchange-newline">
+            <div class="">
+              <meta content="text/html; charset=windows-1252" http-equiv="Content-Type" class="">
+              <div bgcolor="#FFFFFF" text="#000000" class=""> Ralph,<br class="">
+                <br class="">
+                here is some more detailed information.<br class="">
+                <br class="">
+                <br class="">
+                from orte_ess_base_app_finalize()<br class="">
+                first orte_rml_base_close() is invoked(via
+                mca_base_framework_close(&amp;orte_rml_base_framework);<br class="">
+                and it does<br class="">
+                &nbsp;&nbsp;&nbsp; while (NULL != (item =
+                opal_list_remove_first(&amp;orte_rml_base.posted_recvs)))
+                {<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OBJ_RELEASE(item);<br class="">
+                &nbsp;&nbsp;&nbsp; }<br class="">
+                then, opal_stop_progress_thread() is invoked<br class="">
+                <br class="">
+                that means that when orte_rml_base_close is invoked, the
+                progress thread is up and running,<br class="">
+                and can potentially invoke orte_rml_base_post_recv that
+                does<br class="">
+                <br class="">
+                &nbsp;&nbsp;&nbsp; if (req-&gt;cancel) {<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OPAL_LIST_FOREACH(recv,
+                &amp;orte_rml_base.posted_recvs, orte_rml_posted_recv_t)
+                {<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (OPAL_EQUAL ==
+                orte_util_compare_name_fields(mask, &amp;post-&gt;peer,
+                &amp;recv-&gt;peer) &amp;&amp;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; post-&gt;tag == recv-&gt;tag) {<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; opal_output_verbose(5,
+                orte_rml_base_framework.framework_output,<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "%s canceling recv
+                %d for peer %s",<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; post-&gt;tag,
+                ORTE_NAME_PRINT(&amp;recv-&gt;peer));<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* got a match - remove it */<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                opal_list_remove_item(&amp;orte_rml_base.posted_recvs,
+                &amp;recv-&gt;super);<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OBJ_RELEASE(recv);<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; break;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OBJ_RELEASE(req);<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; return;<br class="">
+                &nbsp;&nbsp;&nbsp; }<br class="">
+                <br class="">
+                /* this is where the assert fails */<br class="">
+                <br class="">
+                since there is no lock, there is room for a race
+                condition.<br class="">
+                <br class="">
+                <br class="">
+                before all that happen, and in
+                orte_ess_base_app_finalize(), <br class="">
+                mca_base_framework_close(&amp;orte_grpcomm_base_framework)
+                invokes finalize from grpcomm_rcd.c<br class="">
+                that does<br class="">
+                orte_rml.recv_cancel(ORTE_NAME_WILDCARD,
+                ORTE_RML_TAG_ALLGATHER_RCD) that is<br class="">
+                orte_rml_oob_recv_cancel that ends up doing
+                opal_event_set(..., orte_rml_base_post_recv)<br class="">
+                <br class="">
+                <br class="">
+                my first and naive attempt was to stop the opal_async
+                progress thread before closing the rml_base framework:<br class="">
+                diff --git a/orte/mca/ess/base/ess_base_std_app.c
+                b/orte/mca/ess/base/ess_base_std_app.c<br class="">
+                index d3bc6e6..4e09b47 100644<br class="">
+                --- a/orte/mca/ess/base/ess_base_std_app.c<br class="">
+                +++ b/orte/mca/ess/base/ess_base_std_app.c<br class="">
+                @@ -353,18 +353,18 @@ int
+                orte_ess_base_app_finalize(void)<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; (void)
+                mca_base_framework_close(&amp;orte_dfs_base_framework);<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; (void)
+                mca_base_framework_close(&amp;orte_routed_base_framework);<br class="">
+                &nbsp;<br class="">
+                -&nbsp;&nbsp;&nbsp; (void)
+                mca_base_framework_close(&amp;orte_rml_base_framework);<br class="">
+                -&nbsp;&nbsp;&nbsp; (void)
+                mca_base_framework_close(&amp;orte_oob_base_framework);<br class="">
+                -&nbsp;&nbsp;&nbsp; (void)
+                mca_base_framework_close(&amp;orte_state_base_framework);<br class="">
+                -<br class="">
+                -&nbsp;&nbsp;&nbsp; orte_session_dir_finalize(ORTE_PROC_MY_NAME);<br class="">
+                -<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; /* release the event base */<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; if (progress_thread_running) {<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; opal_stop_progress_thread("opal_async", true);<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; progress_thread_running = false;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; }<br class="">
+                &nbsp;<br class="">
+                +&nbsp;&nbsp;&nbsp; (void)
+                mca_base_framework_close(&amp;orte_rml_base_framework);<br class="">
+                +&nbsp;&nbsp;&nbsp; (void)
+                mca_base_framework_close(&amp;orte_oob_base_framework);<br class="">
+                +&nbsp;&nbsp;&nbsp; (void)
+                mca_base_framework_close(&amp;orte_state_base_framework);<br class="">
+                +<br class="">
+                +&nbsp;&nbsp;&nbsp; orte_session_dir_finalize(ORTE_PROC_MY_NAME);<br class="">
+                +<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; return ORTE_SUCCESS;<br class="">
+                &nbsp;}<br class="">
+                <br class="">
+                that did not work : the opal_async progress thread is
+                also used by pmix, so at this stage,<br class="">
+                invoking opal_stop_progress_thread only decrements the
+                refcount (e.g. no pthread_join() )<br class="">
+                <br class="">
+                my second and dumb attempt was to finalize pmix before
+                ess_base_app, and that did not work<br class="">
+                (crash)<br class="">
+                <br class="">
+                i ran out of idea on how to fix this issue, but i found
+                a simple workaround :<br class="">
+                adding a short sleep (10 ms) in orte_rml_base_close()
+                seems enough to avoid the race condition.<br class="">
+                <br class="">
+                diff --git a/orte/mca/rml/base/rml_base_frame.c
+                b/orte/mca/rml/base/rml_base_frame.c<br class="">
+                index 54dc454..050154c 100644<br class="">
+                --- a/orte/mca/rml/base/rml_base_frame.c<br class="">
+                +++ b/orte/mca/rml/base/rml_base_frame.c<br class="">
+                @@ -17,6 +17,7 @@<br class="">
+                &nbsp;<br class="">
+                &nbsp;#include "orte_config.h"<br class="">
+                &nbsp;<br class="">
+                +#include &lt;sys/poll.h&gt;<br class="">
+                &nbsp;#include &lt;string.h&gt;<br class="">
+                &nbsp;<br class="">
+                &nbsp;#include "opal/dss/dss.h"<br class="">
+                @@ -78,6 +79,7 @@ static int orte_rml_base_close(void)<br class="">
+                &nbsp;{<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; opal_list_item_t *item;<br class="">
+                &nbsp;<br class="">
+                +&nbsp;&nbsp;&nbsp; poll(NULL,0,10);<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; while (NULL != (item =
+                opal_list_remove_first(&amp;orte_rml_base.posted_recvs)))
+                {<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OBJ_RELEASE(item);<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; }<br class="">
+                <br class="">
+                incidentally, i found two OPAL_LIST_FOREACH "loops" in
+                which opal_list_remove_item is invoked.<br class="">
+                per a comment in opal_list.h, this is unsafe and
+                OPAL_LIST_FOREACH_SAFE should be used :<br class="">
+                <br class="">
+                &nbsp;diff --git a/orte/mca/rml/base/rml_base_msg_handlers.c
+                b/orte/mca/rml/base/rml_base_msg_handlers.c<br class="">
+                index 758bf91..22c7601 100644<br class="">
+                --- a/orte/mca/rml/base/rml_base_msg_handlers.c<br class="">
+                +++ b/orte/mca/rml/base/rml_base_msg_handlers.c<br class="">
+                @@ -12,7 +12,9 @@<br class="">
+                &nbsp; *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; All rights reserved.<br class="">
+                &nbsp; * Copyright (c) 2007-2013 Los Alamos National
+                Security, LLC.&nbsp; All rights<br class="">
+                &nbsp; *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; reserved.<br class="">
+                - * Copyright (c) 2015 Intel, Inc. All rights reserved.<br class="">
+                + * Copyright (c) 2015&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Intel, Inc. All rights
+                reserved.<br class="">
+                + * Copyright (c) 2015&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Research Organization for
+                Information Science<br class="">
+                + *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; and Technology (RIST). All
+                rights reserved.<br class="">
+                &nbsp; * $COPYRIGHT$<br class="">
+                &nbsp; *<br class="">
+                &nbsp; * Additional copyrights may follow<br class="">
+                @@ -55,7 +57,7 @@ static void
+                msg_match_recv(orte_rml_posted_recv_t *rcv, bool
+                get_all);<br class="">
+                &nbsp;void orte_rml_base_post_recv(int sd, short args, void
+                *cbdata)<br class="">
+                &nbsp;{<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; orte_rml_recv_request_t *req =
+                (orte_rml_recv_request_t*)cbdata;<br class="">
+                -&nbsp;&nbsp;&nbsp; orte_rml_posted_recv_t *post, *recv;<br class="">
+                +&nbsp;&nbsp;&nbsp; orte_rml_posted_recv_t *post, *recv, *next;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; orte_ns_cmp_bitmask_t mask = ORTE_NS_CMP_ALL |
+                ORTE_NS_CMP_WILD;<br class="">
+                &nbsp;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; opal_output_verbose(5,
+                orte_rml_base_framework.framework_output,<br class="">
+                @@ -75,7 +77,7 @@ void orte_rml_base_post_recv(int sd,
+                short args, void *cbdata)<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * and remove it from our list<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; if (req-&gt;cancel) {<br class="">
+                -&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OPAL_LIST_FOREACH(recv,
+                &amp;orte_rml_base.posted_recvs, orte_rml_posted_recv_t)
+                {<br class="">
+                +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; OPAL_LIST_FOREACH_SAFE(recv, next,
+                &amp;orte_rml_base.posted_recvs, orte_rml_posted_recv_t)
+                {<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if (OPAL_EQUAL ==
+                orte_util_compare_name_fields(mask, &amp;post-&gt;peer,
+                &amp;recv-&gt;peer) &amp;&amp;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; post-&gt;tag == recv-&gt;tag) {<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; opal_output_verbose(5,
+                orte_rml_base_framework.framework_output,<br class="">
+                @@ -120,12 +122,12 @@ void orte_rml_base_post_recv(int
+                sd, short args, void *cbdata)<br class="">
+                &nbsp;<br class="">
+                &nbsp;void orte_rml_base_complete_recv_msg (orte_rml_recv_t
+                **recv_msg)<br class="">
+                &nbsp;{<br class="">
+                -&nbsp;&nbsp;&nbsp; orte_rml_posted_recv_t *post;<br class="">
+                +&nbsp;&nbsp;&nbsp; orte_rml_posted_recv_t *post, *next;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; orte_ns_cmp_bitmask_t mask = ORTE_NS_CMP_ALL |
+                ORTE_NS_CMP_WILD;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; opal_buffer_t buf;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; orte_rml_recv_t *msg = *recv_msg;<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp; /* see if we have a waiting recv for this message
+                */<br class="">
+                -&nbsp;&nbsp;&nbsp; OPAL_LIST_FOREACH(post,
+                &amp;orte_rml_base.posted_recvs, orte_rml_posted_recv_t)
+                {<br class="">
+                +&nbsp;&nbsp;&nbsp; OPAL_LIST_FOREACH_SAFE(post, next,
+                &amp;orte_rml_base.posted_recvs, orte_rml_posted_recv_t)
+                {<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* since names could include wildcards, must
+                use<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * the more generalized comparison function<br class="">
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<br class="">
+                <br class="">
+                i hope this helps,<br class="">
+                <br class="">
+                Gilles<br class="">
+                <br class="">
+                <div class="moz-cite-prefix">On 7/17/2015 11:04 PM,
+                  Ralph Castain wrote:<br class="">
+                </div>
+                <blockquote cite="mid:B4C85838-13E4-4F9A-B292-53BA2F2A1A46@open-mpi.org" type="cite" class="">
+                  <meta http-equiv="Content-Type" content="text/html;
+                    charset=windows-1252" class="">
+                  It’s probably a race condition caused by uniting the
+                  ORTE and OPAL async threads, though I can’t confirm
+                  that yet.
+                  <div class=""><br class="">
+                    <div class="">
+                      <blockquote type="cite" class="">
+                        <div class="">On Jul 17, 2015, at 3:11 AM,
+                          Gilles Gouaillardet &lt;<a moz-do-not-send="true" href="mailto:gilles.gouaillardet@gmail.com" class="">gilles.gouaillardet@gmail.com</a>&gt;
+
+                          wrote:</div>
+                        <br class="Apple-interchange-newline">
+                        <div class="">Folks,
+                          <div class=""><br class="">
+                          </div>
+                          <div class="">I noticed several errors such as
+                            <a moz-do-not-send="true" href="http://mtt.open-mpi.org/index.php?do_redir=2244" class="">http://mtt.open-mpi.org/index.php?do_redir=2244</a></div>
+                          <div class="">that did not make any sense to
+                            me (at first glance)</div>
+                          <div class=""><br class="">
+                          </div>
+                          <div class="">I was able to attach one process
+                            when the issue occurs.</div>
+                          <div class="">the sigsegv occurs in thread 2,
+                            while thread 1 is invoking
+                            ompi_rte_finalize.</div>
+                          <div class=""><br class="">
+                          </div>
+                          <div class="">All I can think is a scenario in
+                            which the progress thread (aka thread 2) is
+                            still dealing with some memory that was just
+                            freed/unmapped/corrupted by the main thread.</div>
+                          <div class=""><br class="">
+                          </div>
+                          <div class="">I empirically noticed the error
+                            is more likely to occur when there are many
+                            tasks on one node</div>
+                          <div class="">e.g. mpirun --oversubscribe -np
+                            32 a.out</div>
+                          <div class=""><br class="">
+                          </div>
+                          <div class="">Cheers,</div>
+                          <div class=""><br class="">
+                          </div>
+                          <div class="">Gilles<br class="">
+                            <br class="">
+                          </div>
+_______________________________________________<br class="">
+                          devel mailing list<br class="">
+                          <a moz-do-not-send="true" href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+                          Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+                          Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/07/17652.php">http://www.open-mpi.org/community/lists/devel/2015/07/17652.php</a></div>
+                      </blockquote>
+                    </div>
+                    <br class="">
+                  </div>
+                  <br class="">
+                  <fieldset class="mimeAttachmentHeader"></fieldset>
+                  <br class="">
+                  <pre class="" wrap="">_______________________________________________
+devel mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/07/17655.php">http://www.open-mpi.org/community/lists/devel/2015/07/17655.php</a></pre>
+                </blockquote>
+                <br class="">
+              </div>
+              _______________________________________________<br class="">
+              devel mailing list<br class="">
+              <a moz-do-not-send="true" href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+              Subscription:
+              <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+              Link to this post:
+              <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/07/17668.php">http://www.open-mpi.org/community/lists/devel/2015/07/17668.php</a></div>
+          </blockquote>
+        </div>
+        <br class="">
+      </div>
+      <br class="">
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br class="">
+      <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/07/17669.php">http://www.open-mpi.org/community/lists/devel/2015/07/17669.php</a></pre>
+    </blockquote>
+    <br class="">
+  </div>
+
+_______________________________________________<br class="">devel mailing list<br class=""><a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/devel<br class="">Link to this post: http://www.open-mpi.org/community/lists/devel/2015/07/17678.php</div></blockquote></div><br class=""></div></body></html>

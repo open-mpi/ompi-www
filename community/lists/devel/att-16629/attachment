@@ -1,0 +1,165 @@
+<div dir="ltr">Gilles,<div><br></div><div>If I have done my testing correctly (not 100% sure) then adding &quot;-D_REENTRANT&quot; was NOT sufficient, where &quot;-mt&quot; was.</div><div><br></div><div>I can at least test 1 tarball with one set of configure args each evening.</div><div><div>Anything more than that I cannot commit to.</div></div><div><br></div><div>My scripts are capable of grabbing the v1.8 nightly instead of the rc if that helps.</div><div><br></div><div>-Paul</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, Dec 16, 2014 at 10:31 PM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>&gt;</span> wrote:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div text="#000000" bgcolor="#FFFFFF">
+    <div>Ralph,<br>
+      <br>
+      i think that will not work.<br>
+      <br>
+      here is the full story :<br>
+      <br>
+      once upon a time, on solaris, we did not try to compile pthread&#39;ed
+      app without any special parameters.<br>
+      that was a minor annoyance on solaris 10 with old gcc : configure
+      passed a flag (-pthread if i remember correctly)<br>
+      that was not supported by gcc (at that time) and generated tons of
+      warnings.<br>
+      when i asked &quot;why don&#39;t we just try no special parameter on
+      solaris ?&quot; i was replied this is because looong time ago<br>
+      openmpi used solaris lwp, so solaris was &quot;special&quot; anyway.<br>
+      since solaris is able to build (compile+link) a pthread&#39;ed app
+      without any flags, i removed the special case for solaris,<br>
+      and no flag was used.<br>
+      then i noticed that lead to bad code (errno is global instead of
+      per thread specific), so you automatically added -D_REENTRANT<br>
+      on solaris (e.g. if the __sun__ macro is defined)<br>
+      then i found that solarisstudio compilers do not define the
+      __sun__macro automatically (__sun and sun are defined) so i
+      improved<br>
+      the test (e.g. we are on solaris if __sun__ or __sun is defined)<br>
+      this was merged (yesterday) and is not in rc4<br>
+      <br>
+      what we should do know is unclear for me ...<br>
+      is -D_REENTRANT enough for gcc compilers on solaris ?<br>
+      is -D_REENTRANT *not* enough for solarisstudio compilers on
+      solaris ?<br>
+      /* if -D_REENTRANT is *not* enough, then we all we have to do is
+      use -mt since that implies -D_REENTRANT */<br>
+      <br>
+      <br>
+      a working solution (minus the minor annoyance i described earlier)
+      is to restore<br>
+      config/opal_check_os_flavors.m4<br>
+      config/ompi_config_pthreads.m4<br>
+      <br>
+      and then i ll find a better way to correctly set the flags that
+      must be used on solaris<br>
+      <br>
+      that being said, and based on Paul&#39;s availability, i d rather have
+      a new tarball (rc5?) tested.<br>
+      (do we *really* need -mt ? isn&#39;t -D_REENTRANT enough ?)<br>
+      this tarball must include
+<a href="https://github.com/open-mpi/ompi-release/commit/ac8b84ce674b958dbf8c9481b300beeef0548b83" target="_blank">https://github.com/open-mpi/ompi-release/commit/ac8b84ce674b958dbf8c9481b300beeef0548b83</a><br>
+      <div>
+        <pre>configury: test the __sun macro to detect solaris OS.</pre>
+      </div>
+      <br>
+      FWIW. i was unable to reproduce the problem on solaris 11 with
+      sunstudio 12.4 even if i do not use -D_REENTRANT *nor* -mt (!)<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<div><div class="h5"><br>
+      <br>
+      On 2014/12/17 15:01, Ralph Castain wrote:<br>
+    </div></div></div>
+    <blockquote type="cite"><div><div class="h5">
+      <pre>Hi Paul
+
+Can you try the attached patch? It would require running autogen, I fear.
+Otherwise, I can add it to the tarball.
+
+Ralph
+
+
+On Tue, Dec 16, 2014 at 9:59 PM, Paul Hargrove <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+</pre>
+      <blockquote type="cite">
+        <pre>Gilles,
+
+The 1.8.3 test works where the 1.8.4rc4 one fails with identical configure
+arguments.
+
+While it may be overkill, I configured 1.8.4rc4 with
+
+   CFLAGS=&quot;-m64 -mt&quot; --with-wrapper-cflags=&quot;-m64 -mt&quot; \
+   LDFLAGS=&quot;-mt&quot; --with-wrapper-ldflags=&quot;-mt&quot;
+
+The resulting run worked!
+
+So, I very strongly suspect that the problem will be resolved if one
+restores the configure logic that my previous email shows has vanished
+(since that would restore &quot;-mt&quot; to CFLAGS and wrapper cflags).
+
+-Paul
+
+On Tue, Dec 16, 2014 at 8:10 PM, Paul Hargrove <a href="mailto:phhargrove@lbl.gov" target="_blank">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+</pre>
+        <blockquote type="cite">
+          <pre>My 1.8.3 build has not completed.
+HOWEVER, I can already see a key difference in the configure step.
+
+In 1.8.3 &quot;-mt&quot; was added AUTOMATICALLY to CFLAGS by configure:
+
+checking if C compiler and POSIX threads work as is... no - Solaris, not
+checked
+checking if C++ compiler and POSIX threads work as is... no - Solaris,
+not checked
+checking if Fortran compiler and POSIX threads work as is... no -
+Solaris, not checked
+checking if C compiler and POSIX threads work with -pthread... no
+checking if C compiler and POSIX threads work with -pthreads... no
+checking if C compiler and POSIX threads work with -mt... yes
+checking if C++ compiler and POSIX threads work with -pthread... yes
+checking if Fortran compiler and POSIX threads work with -pthread... yes
+
+This is not the case in 1.8.4rc4:
+
+checking if C compiler and POSIX threads work as is... yes
+checking if C++ compiler and POSIX threads work as is... yes
+checking if Fortran compiler and POSIX threads work as is... yes
+
+
+So, it looks like a chunk of Solaris-specific configure logic was LOST.
+
+-Paul
+
+</pre>
+        </blockquote>
+        <pre>
+--
+Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a>
+Computer Languages &amp; Systems Software (CLaSS) Group
+Computer Science Department               Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a>
+Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a>
+
+_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16625.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16625.php</a>
+
+</pre>
+      </blockquote>
+      <pre></pre>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      </div></div><pre><div><div class="h5">_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/12/16626.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16626.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/12/16628.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16628.php</a><br></blockquote></div><br clear="all"><div><br></div>-- <br><div class="gmail_signature"><div dir="ltr"><div><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Computer Languages &amp; Systems Software (CLaSS) Group</div><div>Computer Science Department               Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font></div></div></div>
+</div>
+

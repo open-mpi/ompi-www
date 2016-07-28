@@ -1,0 +1,110 @@
+<div dir="ltr"><span style="font-family:arial,sans-serif;font-size:13px">Takahiro,</span><br><div><span style="font-family:arial,sans-serif;font-size:13px"><br></span></div><div><span style="font-family:arial,sans-serif;font-size:13px">Sorry for the delay in answering. Thanks for the bug report and the patch. I applied you patch, and added some tougher tests to make sure we catch similar issues in the future.</span></div><div><span style="font-family:arial,sans-serif;font-size:13px"><br></span></div><div><span style="font-family:arial,sans-serif;font-size:13px">Thanks,</span></div><div><span style="font-family:arial,sans-serif;font-size:13px">  George.</span></div><div><span style="font-family:arial,sans-serif;font-size:13px"><br></span></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Mon, Sep 29, 2014 at 8:56 PM, Kawashima, Takahiro <span dir="ltr">&lt;<a href="mailto:t-kawashima@jp.fujitsu.com" target="_blank">t-kawashima@jp.fujitsu.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi George,<br>
+<br>
+Thank you for attending the meeting at Kyoto. As we talked<br>
+at the meeting, my colleague suffers from a datatype problem.<br>
+<br>
+See attached create_resized.c. It creates a datatype with an<br>
+LB marker using MPI_Type_create_struct and MPI_Type_create_resized.<br>
+<br>
+Expected contents of the output file (received_data) is:<br>
+--------------------------------<br>
+0: t1 = 0.1, t2 = 0.2<br>
+1: t1 = 1.1, t2 = 1.2<br>
+2: t1 = 2.1, t2 = 2.2<br>
+3: t1 = 3.1, t2 = 3.2<br>
+4: t1 = 4.1, t2 = 4.2<br>
+... snip ...<br>
+1995: t1 = 1995.1, t2 = 1995.2<br>
+1996: t1 = 1996.1, t2 = 1996.2<br>
+1997: t1 = 1997.1, t2 = 1997.2<br>
+1998: t1 = 1998.1, t2 = 1998.2<br>
+1999: t1 = 1999.1, t2 = 1999.2<br>
+--------------------------------<br>
+<br>
+But if you run the program many times with multiple BTL modules<br>
+and with their small eager_limit and small max_send_size,<br>
+you&#39;ll see on some run:<br>
+--------------------------------<br>
+0: t1 = 0.1, t2 = 0.2<br>
+1: t1 = 1.1, t2 = 1.2<br>
+2: t1 = 2.1, t2 = 2.2<br>
+3: t1 = 3.1, t2 = 3.2<br>
+4: t1 = 4.1, t2 = 4.2<br>
+... snip ...<br>
+470: t1 = 470.1, t2 = 470.2<br>
+471: t1 = 471.1, t2 = 471.2<br>
+472: t1 = 472.1, t2 = 472.2<br>
+473: t1 = 473.1, t2 = 473.2<br>
+474: t1 = 474.1, t2 = 0        &lt;-- broken!<br>
+475: t1 = 0, t2 = 475.1<br>
+476: t1 = 0, t2 = 476.1<br>
+477: t1 = 0, t2 = 477.1<br>
+... snip ...<br>
+1995: t1 = 0, t2 = 1995.1<br>
+1996: t1 = 0, t2 = 1996.1<br>
+1997: t1 = 0, t2 = 1997.1<br>
+1998: t1 = 0, t2 = 1998.1<br>
+1999: t1 = 0, t2 = 1999.1<br>
+--------------------------------<br>
+<br>
+The index of the array at which data start to break (474 in the<br>
+above case) may change on every run.<br>
+Same result appears on both trunk and v1.8.3.<br>
+<br>
+You can reproduce this with the following options if you have<br>
+multiple IB HCAs.<br>
+<br>
+  -n 2<br>
+  --mca btl self,openib<br>
+  --mca btl_openib_eager_limit 256<br>
+  --mca btl_openib_max_send_size 384<br>
+<br>
+Or if you don&#39;t have multiple NICs, with the following options.<br>
+<br>
+  -n 2<br>
+  --host localhost<br>
+  --mca btl self,sm,vader<br>
+  --mca btl_vader_exclusivity 65536<br>
+  --mca btl_vader_eager_limit 256<br>
+  --mca btl_vader_max_send_size 384<br>
+  --mca btl_sm_exclusivity 65536<br>
+  --mca btl_sm_eager_limit 256<br>
+  --mca btl_sm_max_send_size 384<br>
+<br>
+My colleague found that OPAL convertor on the receiving process<br>
+seems to add the LB value twice for out-of-order arrival of<br>
+fragments when computing the receive buffer write-offset.<br>
+<br>
+He created the patch bellow. Our program works fine with<br>
+this patch but we don&#39;t know this is a correct fix.<br>
+Could you see this issue?<br>
+<br>
+Index: opal/datatype/opal_convertor.c<br>
+===================================================================<br>
+--- opal/datatype/opal_convertor.c      (revision 32807)<br>
++++ opal/datatype/opal_convertor.c      (working copy)<br>
+@@ -362,11 +362,11 @@<br>
+     if( OPAL_LIKELY(0 == count) ) {<br>
+         pStack[1].type     = pElems-&gt;elem.common.type;<br>
+         pStack[1].count    = pElems-&gt;elem.count;<br>
+-        pStack[1].disp     = pElems-&gt;elem.disp;<br>
++        pStack[1].disp     = 0;<br>
+     } else {<br>
+         pStack[1].type  = OPAL_DATATYPE_UINT1;<br>
+         pStack[1].count = pData-&gt;size - count;<br>
+-        pStack[1].disp  = pData-&gt;true_lb + count;<br>
++        pStack[1].disp  = count;<br>
+     }<br>
+     pStack[1].index    = 0;  /* useless */<br>
+<br>
+<br>
+Best regards,<br>
+Takahiro Kawashima,<br>
+MPI development team,<br>
+Fujitsu<br>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/09/15939.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/09/15939.php</a><br></blockquote></div><br></div>
+

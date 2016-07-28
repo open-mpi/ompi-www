@@ -1,0 +1,122 @@
+Index: ompi/mca/pml/v/pml_v_component.c
+===================================================================
+--- ompi/mca/pml/v/pml_v_component.c	(revision 27561)
++++ ompi/mca/pml/v/pml_v_component.c	(working copy)
+@@ -67,6 +67,7 @@
+     int verbose;
+     int priority;
+     char *vprotocol_include_list;
++    int rc;
+     
+     priority = mca_pml_v_param_register_int("priority", -1);
+     output = mca_pml_v_param_register_string("output", "stderr");
+@@ -84,7 +85,10 @@
+             
+     V_OUTPUT_VERBOSE(500, "loaded");
+ 
+-    return mca_vprotocol_base_open(vprotocol_include_list);
++    rc = mca_vprotocol_base_open(vprotocol_include_list);
++    free (vprotocol_include_list);
++
++    return rc;
+ }
+  
+ static int mca_pml_v_component_close(void)
+Index: ompi/mca/coll/ml/coll_ml_mca.c
+===================================================================
+--- ompi/mca/coll/ml/coll_ml_mca.c	(revision 27561)
++++ ompi/mca/coll/ml/coll_ml_mca.c	(working copy)
+@@ -65,8 +65,6 @@
+                                deprecated_param_name, true);
+     }
+ 
+-    mca_base_param_lookup_string(index, &value);
+-
+     if (0 != (flags & REGSTR_EMPTY_OK) && 0 == strlen(value)) {
+         opal_output(0, "Bad parameter value for parameter \"%s\"",
+                 param_name);
+Index: ompi/mca/coll/ml/coll_ml_component.c
+===================================================================
+--- ompi/mca/coll/ml/coll_ml_component.c	(revision 27561)
++++ ompi/mca/coll/ml/coll_ml_component.c	(working copy)
+@@ -390,6 +390,8 @@
+     cs->base_sequence_number = -1;
+     cs->progress_is_busy = false;
+ 
++    mca_coll_ml_component.config_file_name = NULL;
++
+     /* load mca parametres */
+     rc = mca_coll_ml_register_params();
+     if (OMPI_SUCCESS != rc) {
+@@ -477,6 +479,12 @@
+ 
+     mca_coll_ml_component_t *cs = &mca_coll_ml_component;
+ 
++    /* Free the config file name (allocated by mca_coll_ml_register_params) */
++    if (NULL != mca_coll_ml_component.config_file_name) {
++        free (mca_coll_ml_component.config_file_name);
++        mca_coll_ml_component.config_file_name = NULL;
++    }
++
+     /* There is not need to release/close resource if the 
+      * priority was set to zero */
+     if (cs->ml_priority <= 0) {
+Index: ompi/mca/btl/openib/btl_openib_mca.c
+===================================================================
+--- ompi/mca/btl/openib/btl_openib_mca.c	(revision 27561)
++++ ompi/mca/btl/openib/btl_openib_mca.c	(working copy)
+@@ -81,7 +81,6 @@
+                                &mca_btl_openib_component.super.btl_version,
+                                deprecated_param_name, true);
+     }
+-    mca_base_param_lookup_string(index, &value);
+ 
+     if (0 != (flags & REGSTR_EMPTY_OK) && 0 == strlen(value)) {
+         opal_output(0, "Bad parameter value for parameter \"%s\"",
+Index: ompi/mca/vprotocol/base/vprotocol_base.c
+===================================================================
+--- ompi/mca/vprotocol/base/vprotocol_base.c	(revision 27561)
++++ ompi/mca/vprotocol/base/vprotocol_base.c	(working copy)
+@@ -27,11 +27,11 @@
+ int mca_vprotocol_base_open(char *vprotocol_include_list)
+ {
+     OBJ_CONSTRUCT(&mca_vprotocol_base_components_available, opal_list_t);
+-    mca_vprotocol_base_include_list = vprotocol_include_list;
+-    if (NULL == mca_vprotocol_base_include_list ||
++    if (NULL == vprotocol_include_list ||
+        mca_vprotocol_base_include_list[0] == 0) {
+         return OMPI_SUCCESS;
+     }
++    mca_vprotocol_base_include_list = strdup (vprotocol_include_list);
+     return mca_base_components_open("vprotocol", 0, 
+                                     mca_vprotocol_base_static_components, 
+                                     &mca_vprotocol_base_components_available, 
+Index: opal/mca/base/mca_base_param.c
+===================================================================
+--- opal/mca/base/mca_base_param.c	(revision 27561)
++++ opal/mca/base/mca_base_param.c	(working copy)
+@@ -10,6 +10,8 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2008-2011 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2012      Los Alamos National Security, LLC. All rights
++ *                         reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -514,8 +516,14 @@
+ int mca_base_param_lookup_source(int index, mca_base_param_source_t *source, char **source_file)
+ {
+     mca_base_param_storage_t storage;
++
++    storage->stringval = NULL;
+   
+     if (param_lookup(index, &storage, source, source_file)) {
++        if (storage->stringval) {
++            free (storage->stringval);
++        }
++
+         return OPAL_SUCCESS;
+     }
+     return OPAL_ERROR;
+

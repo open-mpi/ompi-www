@@ -1,0 +1,22 @@
+<div dir="ltr"><div>Hi,</div>
+<div> </div>
+<div>Changing default value is an easy fix. This fix will not add new possible bugs/dead locks/pathes where noone has gone before on the PML level.</div>
+<div>This fix can be added to Open MPI 1.3 that currently is blocked due to OSU failure.</div>
+<div> </div>
+<div>PML fix can be done later (IMHO)</div>
+<div> </div>
+<div>Lenny.<br><br></div>
+<div class="gmail_quote">On Sat, Apr 4, 2009 at 1:46 AM, Eugene Loh <span dir="ltr">&lt;<a href="mailto:Eugene.Loh@sun.com">Eugene.Loh@sun.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="PADDING-LEFT: 1ex; MARGIN: 0px 0px 0px 0.8ex; BORDER-LEFT: #ccc 1px solid">What&#39;s next on this ticket?  It&#39;s supposed to be a blocker.  Again, the issue is that osu_bw deluges a receiver with rendezvous messages, but the receiver does not have enough eager frags to acknowledge them all.  We see this now that the sizing of the mmap file has changed and there&#39;s less headroom to grow the free lists.  Possible fixes are:<br>
+<br>A) Just make the mmap file default size larger (though less overkill than we used to have).<br>B) Fix the PML code that is supposed to deal with cases like this.  (At least I think the PML has code that&#39;s intended for this purpose.) 
+<div>
+<div></div>
+<div class="h5"><br><br>Eugene Loh wrote:<br><br>
+<blockquote class="gmail_quote" style="PADDING-LEFT: 1ex; MARGIN: 0px 0px 0px 0.8ex; BORDER-LEFT: #ccc 1px solid">In osu_bw, process 0 pumps lots of Isend&#39;s to process 1, and process 1 in turn sets up lots of matching Irecvs.  Many messages are in flight.  The question is what happens when resources are exhausted and OMPI cannot handle so much in-flight traffic.  Let&#39;s specifically consider the case of long, rendezvous messages.  There are at least two situations.<br>
+<br>1) When the sender no longer has any fragments (nor can grow its free list any more), it queues a send up with add_request_to_send_pending() and somehow life is good.  The PML seems to handle this case &quot;correctly&quot;.<br>
+<br>2) When the receiver -- specifically mca_pml_ob1_recv_request_ack_send_btl() -- no longer has any fragments to send ACKs back to confirm readiness for rendezvous, the resource-exhaustion signal travels up the call stack to mca_pml_ob1_recv_request_ack_send(), who does a MCA_PML_OB1_ADD_ACK_TO_PENDING().  In short, the PML adds the ACK to pckt_pending.  Somehow, this code path doesn&#39;t work.<br>
+<br>The reason we see the problem now is that I added &quot;autosizing&quot; of the shared-memory area.  We used to mmap *WAY* too much shared-memory for small-np jobs.  (Yes, that&#39;s a subjective statement.)  Meanwhile, at large-np, we didn&#39;t mmap enough and jobs wouldn&#39;t start.  (Objective statement there.)  So, I added heuristics to size the shared area &quot;appropriately&quot;.  The heuristics basically targetted the needs of MPI_Init().  If you want fragment free lists to grow on demand after MPI_Init(), you now basically have to bump mpool_sm_min_size up explicitly.<br>
+<br>I&#39;d like feedback on a fix.  Here are two options:<br><br>A) Someone (could be I) increases the default resources.  E.g., we could start with a larger eager free list.  Or, I could change those &quot;heuristics&quot; to allow some amount of headroom for free lists to grow on demand.  Either way, I&#39;d appreciate feedback on how big to set these things.<br>
+<br>B) Someone (not I, since I don&#39;t know how) fixes the ob1 PML to handle scenario 2 above correctly. <br></blockquote><br>_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></div></div></blockquote></div><br></div>
+

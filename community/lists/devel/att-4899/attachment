@@ -1,0 +1,178 @@
+<HTML>
+<HEAD>
+<TITLE>Re: [OMPI devel] SM backing file size</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>Just a few comments:<BR>
+&nbsp;&nbsp;- not sure what sort of alternative memory approach is being considered. &nbsp;The current approach was selected for two reasons:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;- If something like anonymous memory is being used, one can only inherit access to the shared files, so one process needs<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;set up the shared memory regions, and then fork() the procs that will use it. &nbsp;This usually implies that to do this portably,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;this needs to happen inside of MPI_Init(), so up to that stage only one process runs on each host. &nbsp;Also, unrelated procs can&#8217;t<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;access this memory &#8211; can&#8217;t use this in the context of Fault Tolerance.<BR>
+&nbsp;&nbsp;- The approach used here is very efficient for small systems, so alternatives should be added to what is in place here, so we<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;don&#8217;t loose the performance potential on small SMP&#8217;s, which still describes the vast majority of systems.<BR>
+<BR>
+Rich<BR>
+<BR>
+<BR>
+On 11/14/08 9:22 AM, &quot;Jeff Squyres&quot; &lt;<a href="jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>Ok. &nbsp;Should be pretty easy to test/simulate to figure out what's going <BR>
+on -- e.g., whether it's segv'ing in MPI_INIT or the first MPI_SEND.<BR>
+<BR>
+<BR>
+On Nov 14, 2008, at 9:19 AM, Ralph Castain wrote:<BR>
+<BR>
+&gt; Until we do complete the switch, and for systems that do not support <BR>
+&gt; the alternate type of shared memory (I believe it is only Linux?), I <BR>
+&gt; truly believe we should do something nicer than segv.<BR>
+&gt;<BR>
+&gt; Just to clarify: I know the segv case was done with paffinity set, <BR>
+&gt; and believe both cases were done that way. In the first case, I was <BR>
+&gt; told that the segv hit when they did MPI_Send, but I did not <BR>
+&gt; personally verify that claim - it could be that it hit during <BR>
+&gt; maffinity binding if, as you suggest, we actually touch the page at <BR>
+&gt; that time.<BR>
+&gt;<BR>
+&gt; Ralph<BR>
+&gt;<BR>
+&gt;<BR>
+&gt;<BR>
+&gt; On Nov 14, 2008, at 7:07 AM, Jeff Squyres wrote:<BR>
+&gt;<BR>
+&gt;&gt; It's been a looooong time since I've looked at the sm code; Eugene <BR>
+&gt;&gt; has looked at it much more in-depth recently than I have. &nbsp;But I'm <BR>
+&gt;&gt; guessing we *haven't* checked this stuff to abort nicely in such <BR>
+&gt;&gt; error conditions. &nbsp;We might very well succeed in the mmap but then <BR>
+&gt;&gt; segv later when the memory isn't actually available. &nbsp;Perhaps we <BR>
+&gt;&gt; should try to touch every page first to ensure that it's actually <BR>
+&gt;&gt; there...? &nbsp;(I'm pretty sure we do this when using paffinity to <BR>
+&gt;&gt; ensure to maffinity bind memory to processors -- perhaps we're not <BR>
+&gt;&gt; doing that in the !paffinity case?)<BR>
+&gt;&gt;<BR>
+&gt;&gt; Additionally, another solution might well be what Tim has long <BR>
+&gt;&gt; advocated: switch to the other type of shared memory on systems <BR>
+&gt;&gt; that support auto-pruning it when all processes die, and/or have <BR>
+&gt;&gt; the orted kill it when all processes die. &nbsp;Then a) we're not <BR>
+&gt;&gt; dependent on the filesystem free space, and b) we're not writing <BR>
+&gt;&gt; all the dirty pages to disk when the processes exit.<BR>
+&gt;&gt;<BR>
+&gt;&gt;<BR>
+&gt;&gt;<BR>
+&gt;&gt; On Nov 14, 2008, at 8:42 AM, Ralph Castain wrote:<BR>
+&gt;&gt;<BR>
+&gt;&gt;&gt; Hi Eugene<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt; I too am interested - I think we need to do something about the sm <BR>
+&gt;&gt;&gt; backing file situation as larger core machines are slated to <BR>
+&gt;&gt;&gt; become more prevalent shortly.<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt; I appreciate your info on the sizes and controls. One other <BR>
+&gt;&gt;&gt; question: what happens when there isn't enough memory to support <BR>
+&gt;&gt;&gt; all this? Are we smart enough to detect this situation? Does the <BR>
+&gt;&gt;&gt; sm subsystem quietly shut down? Warn and shut down? Segfault?<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt; I have two examples so far:<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt; 1. using a ramdisk, /tmp was set to 10MB. OMPI was run on a single <BR>
+&gt;&gt;&gt; node, 2ppn, with btl=openib,sm,self. The program started, but <BR>
+&gt;&gt;&gt; segfaulted on the first MPI_Send. No warnings were printed.<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt; 2. again with a ramdisk, /tmp was reportedly set to 16MB <BR>
+&gt;&gt;&gt; (unverified - some uncertainty, could be have been much larger). <BR>
+&gt;&gt;&gt; OMPI was run on multiple nodes, 16ppn, with btl=openib,sm,self. <BR>
+&gt;&gt;&gt; The program ran to completion without errors or warning. I don't <BR>
+&gt;&gt;&gt; know the communication pattern - could be no local comm was <BR>
+&gt;&gt;&gt; performed, though that sounds doubtful.<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt; If someone doesn't know, I'll have to dig into the code and figure <BR>
+&gt;&gt;&gt; out the response - just hoping that someone can spare me the pain.<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt; Thanks<BR>
+&gt;&gt;&gt; Ralph<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt; On Nov 13, 2008, at 3:21 PM, Eugene Loh wrote:<BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt; Ralph Castain wrote:<BR>
+&gt;&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt;&gt; As has frequently been commented upon at one time or another, <BR>
+&gt;&gt;&gt;&gt;&gt; the &nbsp;shared memory backing file can be quite huge. There used to <BR>
+&gt;&gt;&gt;&gt;&gt; be a param &nbsp;for controlling this size, but I can't find it in <BR>
+&gt;&gt;&gt;&gt;&gt; 1.3 - or at least, &nbsp;the name or method for controlling file size <BR>
+&gt;&gt;&gt;&gt;&gt; has morphed into &nbsp;something I don't recognize.<BR>
+&gt;&gt;&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt;&gt; Can someone more familiar with that subsystem point me to one or <BR>
+&gt;&gt;&gt;&gt;&gt; more &nbsp;params that will allow us to control the size of that <BR>
+&gt;&gt;&gt;&gt;&gt; file? It is &nbsp;swamping our systems and causing OMPI to segfault.<BR>
+&gt;&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt; Sounds like you've already gotten your answers, but I'll add my <BR>
+&gt;&gt;&gt;&gt; $0.02 anyhow.<BR>
+&gt;&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt; The file size is the number of local processes (call it n) times <BR>
+&gt;&gt;&gt;&gt; mpool_sm_per_peer_size (default 32M), but with a minimum of <BR>
+&gt;&gt;&gt;&gt; mpool_sm_min_size (default 128M) and a maximum of <BR>
+&gt;&gt;&gt;&gt; mpool_sm_max_size (default 2G? &nbsp;256M?). &nbsp;So, you can tweak those <BR>
+&gt;&gt;&gt;&gt; parameters to control file size.<BR>
+&gt;&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt; Another issue is possibly how small a backing file you can get <BR>
+&gt;&gt;&gt;&gt; away with. &nbsp;That is, just forcing the file to be smaller may not <BR>
+&gt;&gt;&gt;&gt; be enough since your job may no longer run. &nbsp;The backing file <BR>
+&gt;&gt;&gt;&gt; seems to be used mainly by:<BR>
+&gt;&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt; *) eager-fragment free lists: &nbsp;We start with enough eager <BR>
+&gt;&gt;&gt;&gt; fragments so that we could have two per connection. &nbsp;So, you <BR>
+&gt;&gt;&gt;&gt; could bump the sm eager size down if you need to shoehorn a job <BR>
+&gt;&gt;&gt;&gt; into a very small backing file.<BR>
+&gt;&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt; *) large-fragment free lists: &nbsp;We start with 8*n large <BR>
+&gt;&gt;&gt;&gt; fragments. &nbsp;If this term plagues you, you can bump the sm chunk <BR>
+&gt;&gt;&gt;&gt; size down or reduce the value of 8 (using btl_sm_free_list_num, I <BR>
+&gt;&gt;&gt;&gt; think).<BR>
+&gt;&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt; *) FIFOs: &nbsp;The code tries to align a number of things on pagesize <BR>
+&gt;&gt;&gt;&gt; boundaries, so you end up with about 3*n*n*pagesize overhead <BR>
+&gt;&gt;&gt;&gt; here. &nbsp;If this term is causing you problems, you're stuck (unless <BR>
+&gt;&gt;&gt;&gt; you modify OMPI).<BR>
+&gt;&gt;&gt;&gt;<BR>
+&gt;&gt;&gt;&gt; I'm interested in this subject! &nbsp;:^)<BR>
+&gt;&gt;&gt;&gt; _______________________________________________<BR>
+&gt;&gt;&gt;&gt; devel mailing list<BR>
+&gt;&gt;&gt;&gt; <a href="devel@open-mpi.org">devel@open-mpi.org</a><BR>
+&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+&gt;&gt;&gt;<BR>
+&gt;&gt;&gt; _______________________________________________<BR>
+&gt;&gt;&gt; devel mailing list<BR>
+&gt;&gt;&gt; <a href="devel@open-mpi.org">devel@open-mpi.org</a><BR>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+&gt;&gt;<BR>
+&gt;&gt;<BR>
+&gt;&gt; --<BR>
+&gt;&gt; Jeff Squyres<BR>
+&gt;&gt; Cisco Systems<BR>
+&gt;&gt;<BR>
+&gt;&gt; _______________________________________________<BR>
+&gt;&gt; devel mailing list<BR>
+&gt;&gt; <a href="devel@open-mpi.org">devel@open-mpi.org</a><BR>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+&gt;<BR>
+&gt; _______________________________________________<BR>
+&gt; devel mailing list<BR>
+&gt; <a href="devel@open-mpi.org">devel@open-mpi.org</a><BR>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+<BR>
+<BR>
+--<BR>
+Jeff Squyres<BR>
+Cisco Systems<BR>
+<BR>
+_______________________________________________<BR>
+devel mailing list<BR>
+<a href="devel@open-mpi.org">devel@open-mpi.org</a><BR>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+<BR>
+</SPAN></FONT></BLOCKQUOTE>
+</BODY>
+</HTML>
+
+

@@ -1,0 +1,241 @@
+Index: ompi/mpi/c/dims_create.c
+===================================================================
+--- ompi/mpi/c/dims_create.c	(revision 30654)
++++ ompi/mpi/c/dims_create.c	(working copy)
+@@ -10,7 +10,9 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2012      Los Alamos National Security, LLC.  All rights
+- *                         reserved. 
++ *                         reserved.
++ * Copyright (c) 2014      Friedrich-Alexander-Universitaet Erlangen-Nuernberg,
++ *                         All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -20,6 +22,8 @@
+ 
+ #include "ompi_config.h"
+ 
++#include <math.h>
++
+ #include "ompi/mpi/c/bindings.h"
+ #include "ompi/runtime/params.h"
+ #include "ompi/communicator/communicator.h"
+@@ -37,8 +41,7 @@
+ 
+ /* static functions */
+ static int assignnodes(int ndim, int nfactor, int *pfacts, int *counts, int **pdims);
+-static int getfactors(int num, int nprime, int *primes, int **pcounts);
+-static int getprimes(int num, int *pnprime, int **pprimes);
++static int getprimefactors(int num, int *nfactors, int **pprimes, int **pcounts);
+ 
+ 
+ /*
+@@ -50,7 +53,7 @@
+     int i;
+     int freeprocs;
+     int freedims;
+-    int nprimes;
++    int nfactors;
+     int *primes;
+     int *factors;
+     int *procs;
+@@ -108,20 +111,14 @@
+         return MPI_SUCCESS;
+     }
+ 
+-    /* Compute the relevant prime numbers for factoring */
+-    if (MPI_SUCCESS != (err = getprimes(freeprocs, &nprimes, &primes))) {
+-       return OMPI_ERRHANDLER_INVOKE(MPI_COMM_WORLD, err,
+-                                     FUNC_NAME);
+-    }
+-
+     /* Factor the number of free processes */
+-    if (MPI_SUCCESS != (err = getfactors(freeprocs, nprimes, primes, &factors))) {
++    if (MPI_SUCCESS != (err = getprimefactors(freeprocs, &nfactors, &primes, &factors))) {
+        return OMPI_ERRHANDLER_INVOKE(MPI_COMM_WORLD, err,
+                                      FUNC_NAME);
+     }
+ 
+     /* Assign free processes to free dimensions */
+-    if (MPI_SUCCESS != (err = assignnodes(freedims, nprimes, primes, factors, &procs))) {
++    if (MPI_SUCCESS != (err = assignnodes(freedims, nfactors, primes, factors, &procs))) {
+        return OMPI_ERRHANDLER_INVOKE(MPI_COMM_WORLD, err,
+                                      FUNC_NAME);
+     }
+@@ -166,7 +163,7 @@
+     int f;
+     int *p;
+     int *pmin;
+-          
++
+     if (0 >= ndim) {
+        return MPI_ERR_DIMS;
+     }
+@@ -212,100 +209,100 @@
+ }
+ 
+ /*
+- *  getfactors
++ *  getprimefactors
+  *
++ *  Function:   - get all prime factors of number and
++ *          - count how often they occurr in the factorization
++ *  Accepts:    - number
++ *          - ptr # of primes (returned value)
++ *          - ptr array of primes (returned values)
++ *  Returns:    - 0 or ERROR
+  *  Function:   - factorize a number
+  *  Accepts:    - number
+- *          - # of primes
+- *          - array of primes
++ *          - ptr to array of primes (returned value)
+  *          - ptr to array of counts (returned value)
+  *  Returns:    - 0 or ERROR
+  */
+ static int
+-getfactors(int num, int nprime, int *primes, int **pcounts)
++getprimefactors(int num, int *nfactors, int **pprimes, int **pcounts)
+ {
++    int *primes;
+     int *counts;
+     int i;
++    int j;
++    int n;
+     int *p;
+     int *c;
+-    
+-    if (0 >= nprime) {
++    int size;
++
++    if (0 >= num) {
+         return MPI_ERR_INTERN;
+     }
+ 
++    /* Only check up to sqrt(num), as there can only be at most one
++     * prime factor of num which is greater than num.
++     *
++     * Proof: assume p_1, p_2 > sqrt(num), p_1 != p_2. The p_1 * p_2 >
++     * sqrt(num) * sqrt(num) = num. Hence p_1, p_2 cannot occurr in
++     * the integer factorization of num.
++     */
++    size = sqrt(num) + 1;
+     /* Allocate the factor counts array */
+-    counts = (int *) malloc((unsigned) nprime * sizeof(int));
++    counts = (int *) malloc((unsigned) size * sizeof(int));
+     if (NULL == counts) {
+        return MPI_ERR_NO_MEM;
+     }
++    primes = (int *) malloc((unsigned) size * sizeof(int));
++    if (NULL == primes) {
++       return MPI_ERR_NO_MEM;
++    }
+ 
++    *pprimes = primes;
+     *pcounts = counts;
+ 
+-    /* Loop over the prime numbers */
+-    i = nprime - 1;
+-    p = primes + i;
+-    c = counts + i;
++    primes[0] = 2;
++    counts[0] = 0;
++    while ((num % 2) == 0) {
++        num /= 2;
++        ++counts[0];
++    }
++    i = 1;
+ 
+-    for (; i >= 0; --i, --p, --c) {
+-        *c = 0;
+-        while ((num % *p) == 0) {
+-            ++(*c);
+-            num /= *p;
++    /* Loop over all candidates */
++    for (n = 3; n < size; n += 2) {
++        for (j = 1; j < i; ++j) {
++            if ((n % primes[j]) == 0) {
++             break;
++          }
+         }
+-    }
+ 
+-    if (1 != num) {
+-        return MPI_ERR_INTERN;
+-    }
++        /* if n is prime */
++        if (j == i) {
++            primes[i] = n;
++            counts[i] = 0;
+ 
+-    return MPI_SUCCESS;
+-}
++            /* count occurrences in factorization */
++            while ((num > n) && (num % n) == 0) {
++                num /= n;
++                ++counts[i];
++            }
+ 
+-/*
+- *  getprimes
+- *
+- *  Function:   - get primes smaller than number
+- *          - array of primes dynamically allocated
+- *  Accepts:    - number
+- *          - ptr # of primes (returned value)
+- *          - ptr array of primes (returned values)
+- *  Returns:    - 0 or ERROR
+- */
+-static int
+-getprimes(int num, int *pnprime, int **pprimes) {
++            ++i;
++        }
+ 
+-   int i, j;
+-   int n;
+-   int size;
+-   int *primes;
++        if (num == 1) {
++            break;
++        }
++    }
+ 
+-   /* Allocate the array of primes */
+-   size = (num / 2) + 1;
+-   primes = (int *) malloc((unsigned) size * sizeof(int));
+-   if (NULL == primes) {
+-       return MPI_ERR_NO_MEM;
+-   }
+-   *pprimes = primes;
++    /* Catch last prime, which may exceed sqrt(num) */
++    if (num != 1) {
++        primes[i] = num;
++        counts[i] = 1;
++        ++i;
++    }
+ 
+-   /* Find the prime numbers */
+-   i = 0;
+-   primes[i++] = 2;
++    *nfactors = i;
+ 
+-   for (n = 3; n <= num; n += 2) {
+-      for (j = 1; j < i; ++j) {
+-         if ((n % primes[j]) == 0) {
+-             break;
+-          }
+-      }
+-
+-      if (j == i) {
+-        if (i >= size) {
+-           return MPI_ERR_DIMS;
+-         }
+-         primes[i++] = n;
+-      }
+-   }
+-
+-   *pnprime = i;
+-   return MPI_SUCCESS;
++    return MPI_SUCCESS;
+ }

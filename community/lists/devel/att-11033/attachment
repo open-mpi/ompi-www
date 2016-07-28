@@ -1,0 +1,217 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Actually, I don't think the below is the issue.&nbsp; I think the
+    OMPI_ARRAY_INT_2_LOGICAL macro is doing a free on line 193 when it
+    shouldn't because the OMPI_ARRAY_LOGICAL_2_INT macro calling an
+    empty OMPI_ARRAY_LOGICAL__2_INT_ALLOC macro which in the other case
+    that macro actually does a malloc.&nbsp; <br>
+    <br>
+    It was interesting looking at the diff between 26283 and the prior
+    version for fint_2_int.h and seeing commented out "frees" being
+    uncommented.&nbsp; I suspect only one of the frees should have been
+    commented out.<br>
+    <br>
+    --td<br>
+    <br>
+    On 5/24/2012 2:06 PM, Larry Baker wrote:
+    <blockquote cite="mid:637F7A4C-99A1-44CF-B5BC-4B88818F16B5@usgs.gov"
+      type="cite">Terry,
+      <div><br>
+      </div>
+      <div>What you are seeing is a bug in the vectorizer in the
+        Intel&nbsp;2011.6.233 release. &nbsp;We've talked about this before. &nbsp;You
+        should probably remove that compiler from your system(s). &nbsp;I
+        think the new release of OpenMPI describes this problem, but
+        does not stop if from occurring. &nbsp;I write a patch for
+        ptmalloc2/malloc.c for OpenMPI 1.4.3 which automatically adjusts
+        the optimization level for&nbsp;_int_malloc(), which is where the bug
+        occurs.</div>
+      <div><br>
+        <div>
+          <span class="Apple-style-span" style="orphans: 2; text-align:
+            -webkit-auto; text-indent: 0px; widows: 2;
+            -webkit-text-decorations-in-effect: none; ">Larry Baker<br>
+            US Geological Survey<br>
+            650-329-5608<br>
+            <a moz-do-not-send="true" href="mailto:baker@usgs.gov">baker@usgs.gov</a><br>
+            <br>
+            <div>
+              <div><span class="Apple-style-span" style="orphans: 2;
+                  text-align: -webkit-auto; text-indent: 0px; widows: 2;
+                  -webkit-text-decorations-in-effect: none; ">
+                  <div style="border-collapse: separate; color: rgb(0,
+                    0, 0); font-family: 'Helvetica Neue'; font-style:
+                    normal; font-variant: normal; font-weight: normal;
+                    letter-spacing: normal; line-height: normal;
+                    text-transform: none; white-space: normal;
+                    word-spacing: 0px;
+                    -webkit-border-horizontal-spacing: 0px;
+                    -webkit-border-vertical-spacing: 0px;
+                    -webkit-text-size-adjust: auto;
+                    -webkit-text-stroke-width: 0px; font-size: medium; ">----------
+                    Start of Patch ----------</div>
+                </span></div>
+              --- opal/mca/memory/ptmalloc2/malloc.c.original<span
+                class="Apple-tab-span" style="white-space: pre; "> </span>2010-04-13
+              10:30:26.000000000 -0700</div>
+            <div>+++ opal/mca/memory/ptmalloc2/malloc.c<span
+                class="Apple-tab-span" style="white-space:pre"> </span>2011-11-04
+              15:01:37.000000000 -0700</div>
+            <div>@@ -2,6 +2,17 @@</div>
+            <div>&nbsp;/* Copyright (c) 2010 &nbsp; &nbsp; &nbsp;Cisco Systems, Inc. &nbsp;All
+              rights reserved.</div>
+            <div>&nbsp; */</div>
+            <div>&nbsp;</div>
+            <div>+/* With Intel Composer XE V12.1.0, release 2011.6.233,
+              any launch &nbsp; */</div>
+            <div>+/* fails, even before main(), due to a bug in the
+              vectorizer (see &nbsp; */</div>
+            <div>+/*
+              <a class="moz-txt-link-freetext" href="https://svn.open-mpi.org/trac/ompi/changeset/25290">https://svn.open-mpi.org/trac/ompi/changeset/25290</a>). &nbsp;The
+              fix is */</div>
+            <div>+/* to disable vectorization by reducing the
+              optimization level to &nbsp; */</div>
+            <div>+/* -O1 for _int_malloc(). &nbsp;The only reliable method to
+              identify &nbsp; &nbsp; */</div>
+            <div>+/* release 2011.6.233 is the predefined
+              __INTEL_COMPILER_BUILD_DATE */</div>
+            <div>+/* macro, which will have the value 20110811 (Linux,
+              Windows, and &nbsp; */</div>
+            <div>+/* Mac OS X). &nbsp;(The predefined __INTEL_COMPILER macro
+              is nonsense, &nbsp;*/</div>
+            <div>+/* 9999, and both the 2011.6.233 and 2011.7.256
+              releases identify &nbsp; */</div>
+            <div>+/* themselves as V12.1.0 from the -v command line
+              option.) &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;*/</div>
+            <div>+</div>
+            <div>&nbsp;#define OPAL_DISABLE_ENABLE_MEM_DEBUG 1</div>
+            <div>&nbsp;#include "opal_config.h"</div>
+            <div>&nbsp;</div>
+            <div>@@ -3945,6 +3956,12 @@</div>
+            <div>&nbsp; &nbsp;------------------------------ malloc
+              ------------------------------</div>
+            <div>&nbsp;*/</div>
+            <div>&nbsp;</div>
+            <div>+#ifdef __INTEL_COMPILER_BUILD_DATE</div>
+            <div>+#if __INTEL_COMPILER_BUILD_DATE == 20110811</div>
+            <div>+#pragma GCC optimization_level 1</div>
+            <div>+#endif</div>
+            <div>+#endif</div>
+            <div>+</div>
+            <div>&nbsp;Void_t*</div>
+            <div>&nbsp;_int_malloc(mstate av, size_t bytes)</div>
+            <div>&nbsp;{</div>
+            <div style="border-collapse: separate; color: rgb(0, 0, 0);
+              font-family: 'Helvetica Neue'; font-style: normal;
+              font-variant: normal; font-weight: normal; letter-spacing:
+              normal; line-height: normal; text-transform: none;
+              white-space: normal; word-spacing: 0px;
+              -webkit-border-horizontal-spacing: 0px;
+              -webkit-border-vertical-spacing: 0px;
+              -webkit-text-size-adjust: auto; -webkit-text-stroke-width:
+              0px; font-size: medium; ">---------- End of Patch
+              ----------</div>
+          </span>
+        </div>
+        <br>
+        <div>
+          <div>On 24 May 2012, at 6:54 AM, TERRY DONTJE wrote:</div>
+          <br class="Apple-interchange-newline">
+          <blockquote type="cite">
+            <meta http-equiv="content-type" content="text/html;
+              charset=ISO-8859-1">
+            <div bgcolor="#FFFFFF" text="#000000"> I am seeing several
+              Cart Fortran tests (like MPI_Cart_coords_f) segv in
+              opal_memory_ptmalloc2_int_free when OMPI trunk is compiled
+              with icc 12.1.0 for 64 bit on linux.&nbsp;&nbsp; Just wondering if
+              anyone has seen anything similar to this with a different
+              version of icc.&nbsp; Other non-Intel compilers seem to not
+              exhibit this issue.<br>
+              <br>
+              <div class="moz-signature">-- <br>
+                <meta content="text/html; charset=ISO-8859-1"
+                  http-equiv="Content-Type">
+                <div class="moz-signature">
+                  <meta http-equiv="content-type" content="text/html;
+                    charset=ISO-8859-1">
+                  <title></title>
+                  <div class="moz-signature">
+                    <div class="moz-signature">
+                      <div class="moz-signature">
+                        <div class="moz-signature">Terry D. Dontje |
+                          Principal Software Engineer<br>
+                          <div class="moz-signature"><font
+                              color="#666666" face="Verdana" size="2">Developer
+
+                              Tools Engineering | +1.781.442.2631<br>
+                            </font> <font color="#ff0000"
+                              face="Verdana" size="2">Oracle </font><font
+                              color="#666666" face="Verdana" size="2"><b>
+                                - Performance Technologies</b></font><br>
+                            <font color="#666666" face="Verdana"
+                              size="2"> 95 Network Drive, Burlington, MA
+                              01803<br>
+                              Email <a moz-do-not-send="true"
+                                href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+                            </font><br>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <br>
+                <br>
+              </div>
+            </div>
+            _______________________________________________<br>
+            devel mailing list<br>
+            <a moz-do-not-send="true" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+            <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+        </div>
+        <br>
+      </div>
+    </blockquote>
+    <br>
+    <div class="moz-signature">-- <br>
+      <meta content="text/html; charset=ISO-8859-1"
+        http-equiv="Content-Type">
+      <div class="moz-signature">
+        <meta http-equiv="content-type" content="text/html;
+          charset=ISO-8859-1">
+        <title></title>
+        <div class="moz-signature">
+          <div class="moz-signature">
+            <div class="moz-signature">
+              <div class="moz-signature">Terry D. Dontje | Principal
+                Software Engineer<br>
+                <div class="moz-signature"><font color="#666666"
+                    face="Verdana" size="2">Developer
+                    Tools
+                    Engineering | +1.781.442.2631<br>
+                  </font>
+                  <font color="#ff0000" face="Verdana" size="2">Oracle
+                  </font><font color="#666666" face="Verdana" size="2"><b>
+                      - Performance
+                      Technologies</b></font><br>
+                  <font color="#666666" face="Verdana" size="2">
+                    95 Network Drive, Burlington, MA 01803<br>
+                    Email <a moz-do-not-send="true"
+                      href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+                  </font><br>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <br>
+    </div>
+  </body>
+</html>
+

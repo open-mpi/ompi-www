@@ -1,0 +1,66 @@
+Index: trunk/orte/mca/rmaps/round_robin/rmaps_rr_mappers.c
+===================================================================
+--- trunk/orte/mca/rmaps/round_robin/rmaps_rr_mappers.c	(revision 31198)
++++ trunk/orte/mca/rmaps/round_robin/rmaps_rr_mappers.c	(working copy)
+@@ -478,7 +478,6 @@
+     int idx;
+     hwloc_obj_t obj=NULL;
+     unsigned int nobjs;
+-    bool add_one;
+     bool second_pass;
+ 
+     /* there are two modes for mapping by object: span and not-span. The
+@@ -543,7 +542,6 @@
+     nprocs_mapped = 0;
+     second_pass = false;
+     do {
+-        add_one = false;
+         OPAL_LIST_FOREACH(node, node_list, orte_node_t) {
+             if (NULL == node->topology) {
+                 orte_show_help("help-orte-rmaps-ppr.txt", "ppr-topo-missing",
+@@ -556,14 +554,8 @@
+             if (0 == nobjs) {
+                 continue;
+             }
+-            opal_output_verbose(2, orte_rmaps_base_framework.framework_output,
+-                                "mca:rmaps:rr: found %u %s objects on node %s",
+-                                nobjs, hwloc_obj_type_string(target), node->name);
+-
+             /* compute the number of procs to go on this node */
+             nprocs = (node->slots - node->slots_inuse) / orte_rmaps_base.cpus_per_rank;
+-            opal_output_verbose(2, orte_rmaps_base_framework.framework_output,
+-                                "mca:rmaps:rr: calculated nprocs %d", nprocs);
+             if (nprocs < 1) {
+                 if (second_pass) {
+                     /* already checked for oversubscription permission, so at least put
+@@ -589,8 +581,6 @@
+                 ++(jdata->map->num_nodes);
+             }
+             nmapped = 0;
+-            opal_output_verbose(2, orte_rmaps_base_framework.framework_output,
+-                                "mca:rmaps:rr: assigning nprocs %d", nprocs);
+             do {
+                 /* loop through the number of objects */
+                 for (i=0; i < (int)nobjs && nmapped < nprocs && nprocs_mapped < (int)app->num_procs; i++) {
+@@ -615,7 +605,6 @@
+                     proc->locale = obj;
+                 }
+             } while (nmapped < nprocs && nprocs_mapped < (int)app->num_procs);
+-            add_one = true;
+             /* not all nodes are equal, so only set oversubscribed for
+              * this node if it is in that state
+              */
+@@ -630,8 +619,12 @@
+                 break;
+             }
+         }
++        /* if the user hasn't permitted oversubscription, don't move to second pass */
++        if (ORTE_MAPPING_NO_OVERSUBSCRIBE & ORTE_GET_MAPPING_DIRECTIVE(jdata->map->mapping)) {
++            break;
++        }
+         second_pass = true;
+-    } while (add_one && nprocs_mapped < app->num_procs);
++    } while (nprocs_mapped < app->num_procs);
+ 
+     if (nprocs_mapped < app->num_procs) {
+         /* usually means there were no objects of the requested type */

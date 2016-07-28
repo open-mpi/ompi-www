@@ -1,0 +1,183 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <p>In my environment, the root cause of MPI_File_open failing seems
+      to be NFS.</p>
+    <p>MPI_File_open(MPI_COMM_WORLD, "temp", MPI_MODE_RDWR |
+      MPI_MODE_CREATE,<br>
+                        MPI_INFO_NULL, &amp;lFile);</p>
+    <p><br>
+    </p>
+    <p>if the file does not previously exists, rank 0 creates the file,
+      MPI_Bcast(), and then every rank open the file.</p>
+    <p>that works fine with all the tasks running on the same node than
+      rank 0, but other nodes fail when opening the file.</p>
+    <p><br>
+    </p>
+    <p>i ran some more tests and observe a quite consistent behavior:</p>
+    <p>on n1:</p>
+    <p>nc -l 6666 &amp;&amp; touch temp</p>
+    <p>on n0:</p>
+    <p>echo "" | nc n1 6666 ; while true; do date ; ls -l temp
+      &amp;&amp; break ; sleep 1; done</p>
+    <p><br>
+    </p>
+    <p>on n0, the temp file is immediatly found, no problem so far.</p>
+    <p><br>
+    </p>
+    <p>now, if i run</p>
+    <p>on n1:</p>
+    <p>nc -l 6666 &amp;&amp; touch temp2</p>
+    <p>on n0:</p>
+    <p>ls -l temp2; echo "" | nc n1 6666 ; while true; do date ; ls -l
+      temp2 &amp;&amp; break ; sleep 1; done</p>
+    <p><br>
+    </p>
+    <p>it takes a few iterations before n0 find temp2.</p>
+    <p>the only difference is that n0 looked up this file before it was
+      created, and it somehow cache this information</p>
+    <p>(e.g. the file does not exist), and it takes a while before the
+      cache gets updated (e.g. the file now exists)<br>
+    </p>
+    <p><br>
+    </p>
+    <p>i cannot remember whether this is what should be expected from
+      NFS nor if that can be changed with appropriate tuning.</p>
+    <p><br>
+    </p>
+    <p>Cheers,</p>
+    <p><br>
+    </p>
+    <p>Gilles</p>
+    <p><br>
+    </p>
+    <p>On 5/27/2016 10:32 AM, Gilles Gouaillardet wrote:<br>
+    </p>
+    <blockquote
+      cite="mid:7b99cd04-7826-17ad-6279-a460bd097433@rist.or.jp"
+      type="cite">
+      <meta content="text/html; charset=windows-1252"
+        http-equiv="Content-Type">
+      <p>Ralph,</p>
+      <p><br>
+      </p>
+      <p>the cxx_win_attr issue is dealt at <a moz-do-not-send="true"
+          class="moz-txt-link-freetext"
+          href="https://github.com/open-mpi/ompi/pull/1473">https://github.com/open-mpi/ompi/pull/1473</a></p>
+      <p>iirc, only big endian and/or sizeof(Fortran integer) &gt;
+        sizeof(int) is impacted.</p>
+      <p><br>
+      </p>
+      <p>the second error seems a bit weirdest at a time.</p>
+      <p>once in a while, MPI_File_open fails, and when it fails, it
+        always fails silently.</p>
+      <p>in this case (MPI_File_open failed), if --mca mpi_param_check
+        true, then next calls to MPI-IO will also fail silently.</p>
+      <p>if --mca mpi_param_check false (or Open MPI was configure'd
+        with --without-mpi-param-check),</p>
+      <p>then something will go wrong in MPI_File_close<br>
+      </p>
+      <p><br>
+      </p>
+      <p><br>
+      </p>
+      <p>that raises several questions ...</p>
+      <p>- why does MPI-IO default behavior is to fail silently ?</p>
+      <p>(point to point or collective will abort by default)</p>
+      <p>- why does MPI_File_open fails once in a while ?</p>
+      <p>(Open MPI bug ? ROMIO bug ? intermittent failure caused by the
+        NFS filesystem ?)</p>
+      <p>- is there a bug in the test ?</p>
+      <p>for example, the program could abort with error code 77 (skip)
+        if MPI_File_open fails</p>
+      <p><br>
+      </p>
+      <p>Cheers,</p>
+      <p><br>
+      </p>
+      <p>Gilles<br>
+      </p>
+      <br>
+      <div class="moz-cite-prefix">On 5/26/2016 11:14 PM, Ralph Castain
+        wrote:<br>
+      </div>
+      <blockquote
+        cite="mid:6C767A1D-CFAA-4DD1-8732-58532C7AC524@open-mpi.org"
+        type="cite">
+        <meta http-equiv="Content-Type" content="text/html;
+          charset=windows-1252">
+        I’m seeing three errors in MTT today - of these, I only consider
+        the first two to be of significant concern:
+        <div class=""><br class="">
+        </div>
+        <div class="">
+          <pre class="">onesided/cxx_win_attr : <a moz-do-not-send="true" href="https://mtt.open-mpi.org/index.php?do_redir=2326" class="">https://mtt.open-mpi.org/index.php?do_redir=2326</a></pre>
+          <pre class=""><pre class="">[**ERROR**]: MPI_COMM_WORLD rank 0, file cxx_win_attr.cc:50:
+Win::Get_attr: Got wrong value for disp
+unit--------------------------------------------------------------------------
+</pre><div class="">
+</div><div class="">
+</div></pre>
+          <div class="">
+            <pre class="">datatype/idx_null : <a moz-do-not-send="true" href="https://mtt.open-mpi.org/index.php?do_redir=2327" class="">https://mtt.open-mpi.org/index.php?do_redir=2327</a></pre>
+            <pre class=""><pre class="">home/mpiteam/scratches/community/2016-05-25cron/56jr/installs/i0Lt/install/lib/libopen-pal.so.13(opal_memory_ptmalloc2_int_free+0x82)[0x2aaaab7ef70a]
+[mpi031:06729] [ 2]
+/home/mpiteam/scratches/community/2016-05-25cron/56jr/installs/i0Lt/install/lib/libopen-pal.so.13(opal_memory_ptmalloc2_free+0x96)[0x2aaaab7ee047]
+[mpi031:06729] [ 3]
+/home/mpiteam/scratches/community/2016-05-25cron/56jr/installs/i0Lt/install/lib/libopen-pal.so.13(+0xd0ed8)[0x2aaaab7eced8]
+[mpi031:06729] [ 4]
+/home/mpiteam/scratches/community/2016-05-25cron/56jr/installs/i0Lt/install/lib/libmpi.so.12(ompi_file_close+0x101)[0x2aaaaab2963c]
+[mpi031:06729] [ 5]
+/home/mpiteam/scratches/community/2016-05-25cron/56jr/installs/i0Lt/install/lib/libmpi.so.12(PMPI_File_close+0x18)[0x2aaaaab83216]
+[mpi031:06729] [ 6] datatype/idx_null[0x400cb2]
+[mpi031:06729] [ 7] /lib64/libc.so.6(__libc_start_main+0xfd)[0x3c2f21ed1d]
+[mpi031:06729] [ 8] datatype/idx_null[0x400a89]
+[mpi031:06729] *** End of error message ***
+[mpi031:06732] *** Process received signal ***
+[mpi031:06732] Signal: Segmentation fault (11)
+[mpi031:06732] Signal code: Address not mapped (1)
+[mpi031:06732] Failing at address: 0x2ab2aba3cea0
+[mpi031:06732] [ 0] /lib64/libpthread.so.0[0x3c2f60f710]
+[mpi031:06732] [ 1]
+</pre><div class="">
+</div></pre>
+            <div class="">
+              <pre class="">dynamic/loop_spawn : <a moz-do-not-send="true" href="https://mtt.open-mpi.org/index.php?do_redir=2328" class="">https://mtt.open-mpi.org/index.php?do_redir=2328</a></pre>
+              <pre class=""><pre class="">[p10a601:159913] too many retries sending message to 0x000b:0x00427ad6, giving up
+-------------------------------------------------------
+Child job 8 terminated normally, but 1 process returned
+a non-zero exit code.. Per user-direction, the job has been aborted.
+---------------------------------------------------------------------------------------------------------------------------------
+mp</pre><div class="">
+</div></pre>
+              <div class=""><br class="">
+              </div>
+            </div>
+          </div>
+        </div>
+        <br>
+        <fieldset class="mimeAttachmentHeader"></fieldset>
+        <br>
+        <pre wrap="">_______________________________________________
+devel mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="https://www.open-mpi.org/mailman/listinfo.cgi/devel">https://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2016/05/19037.php">http://www.open-mpi.org/community/lists/devel/2016/05/19037.php</a></pre>
+      </blockquote>
+      <br>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="https://www.open-mpi.org/mailman/listinfo.cgi/devel">https://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2016/05/19040.php">http://www.open-mpi.org/community/lists/devel/2016/05/19040.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

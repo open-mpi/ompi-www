@@ -1,0 +1,363 @@
+From 8f00146e4af9152c65ced0d8619385bea2ecefdd Mon Sep 17 00:00:00 2001
+From: Dave Goodell <dgoodell@cisco.com>
+Date: Thu, 26 Jun 2014 13:41:31 -0500
+Subject: [PATCH] add opal/threads/spinlock.h
+
+Add a spinlock interface that can use OS-level spinlock implementations
+like pthread_spinlock_t.  Falls back to a opal_atomic_lock_t if pthreads
+is unavailable.
+
+Reviewed-by: Nathan Hjelm <hjelmn@lanl.gov>
+---
+ config/opal_config_pthreads.m4  |  7 +++
+ opal/threads/Makefile.am        |  3 ++
+ opal/threads/spinlock.h         | 93 ++++++++++++++++++++++++++++++++++++++
+ opal/threads/spinlock_atomics.h | 68 ++++++++++++++++++++++++++++
+ opal/threads/spinlock_pthread.h | 99 +++++++++++++++++++++++++++++++++++++++++
+ test/threads/Makefile.am        | 12 +++--
+ 6 files changed, 278 insertions(+), 4 deletions(-)
+ create mode 100644 opal/threads/spinlock.h
+ create mode 100644 opal/threads/spinlock_atomics.h
+ create mode 100644 opal/threads/spinlock_pthread.h
+
+diff --git a/config/opal_config_pthreads.m4 b/config/opal_config_pthreads.m4
+index d8b56d5..74cac7e 100644
+--- a/config/opal_config_pthreads.m4
++++ b/config/opal_config_pthreads.m4
+@@ -686,6 +686,13 @@ OPAL_INTL_POSIX_THREADS_LIBS
+ AC_CHECK_FUNCS([pthread_mutexattr_setpshared pthread_condattr_setpshared])
+ 
+ #
++# check for pthread_spinlock_t functionality
++#
++AC_CHECK_FUNC([pthread_spin_init], [defval=1], [defval=0])
++AC_DEFINE_UNQUOTED([OPAL_HAVE_PTHREAD_SPIN_INIT], [$defval],
++                   [If PTHREADS implementation supports pthread_spin_init])
++
++#
+ # check to see if we can set error checking mutexes
+ #
+ 
+diff --git a/opal/threads/Makefile.am b/opal/threads/Makefile.am
+index 29e7b1b..b51abbc 100644
+--- a/opal/threads/Makefile.am
++++ b/opal/threads/Makefile.am
+@@ -24,6 +24,9 @@ headers += \
+         threads/condition.h \
+         threads/mutex.h \
+         threads/mutex_unix.h \
++        threads/spinlock.h \
++        threads/spinlock_atomics.h \
++        threads/spinlock_pthread.h \
+         threads/threads.h \
+ 	threads/tsd.h
+ 
+diff --git a/opal/threads/spinlock.h b/opal/threads/spinlock.h
+new file mode 100644
+index 0000000..657f57d
+--- /dev/null
++++ b/opal/threads/spinlock.h
+@@ -0,0 +1,93 @@
++/*
++ * Copyright (c) 2014      Cisco Systems, Inc.  All rights reserved.
++ *
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++
++#ifndef OPAL_SPINLOCK_H
++#define OPAL_SPINLOCK_H 1
++
++/**
++ * @file:
++ *
++ * Spin lock functions.  These are locks that have low overhead to acquire and
++ * release, but threads which are blocked in opal_spin_lock will not yield the
++ * processor.  Furthermore, unlike full mutexes, spin locks do not cooperate
++ * with condition variables.
++ *
++ * NOTE: The process holding the spin lock may be preempted by the OS and
++ * descheduled at any time!
++ */
++
++BEGIN_C_DECLS
++
++/**
++ * Opaque spin lock object
++ */
++typedef struct opal_spinlock_t opal_spinlock_t;
++
++enum opal_spin_pshared {
++    OPAL_SPIN_PROCESS_PRIVATE = 0,
++    OPAL_SPIN_PROCESS_SHARED = 1
++};
++
++/**
++ * Initialize the given lock.
++ *
++ * @param lock     Pointer to the lock.
++ * @param pshared  Indicates whether the lock should be shared between processes
++ *                 or private to the current process only.
++ * @return OPAL_SUCCESS on success or another OPAL_* error code on failure
++ */
++static inline int opal_spin_init(opal_spinlock_t *lock, enum opal_spin_pshared pshared);
++
++
++/**
++ * Destroy the given lock.
++ *
++ * @param lock     Pointer to the lock.
++ * @return OPAL_SUCCESS on success or another OPAL_* error code on failure
++ */
++static inline int opal_spin_destroy(opal_spinlock_t *lock);
++
++/**
++ * Acquire the lock.  Will block until the lock is successfully acquired.
++ *
++ * @param lock Pointer to the lock.
++ */
++static inline void opal_spin_lock(opal_spinlock_t *lock);
++
++/**
++ * Attempt to acquire the lock.  Returns immediately; does not spin.
++ *
++ * @param lock Pointer to the lock.
++ * @returns true if the lock was successfully acquired, false otherwise
++ */
++static inline bool opal_spin_trylock(opal_spinlock_t *lock);
++
++/**
++ * Release the lock.
++ *
++ * @param lock Pointer to the lock.
++ */
++static inline void opal_spin_unlock(opal_spinlock_t *lock);
++
++END_C_DECLS
++
++#if OPAL_HAVE_POSIX_THREADS && OPAL_HAVE_PTHREAD_SPIN_INIT
++#include "opal/threads/spinlock_pthread.h"
++#elif OPAL_HAVE_ATOMIC_SPINLOCKS
++#include "opal/threads/spinlock_atomics.h"
++#else
++#error "no spinlock implementation available!"
++#endif
++
++#if !OPAL_SPINLOCK_IMPLEMENTED
++#error "no spinlock implementation provided!"
++#endif
++
++#endif /* OPAL_SPINLOCK_H */
+diff --git a/opal/threads/spinlock_atomics.h b/opal/threads/spinlock_atomics.h
+new file mode 100644
+index 0000000..456cd58
+--- /dev/null
++++ b/opal/threads/spinlock_atomics.h
+@@ -0,0 +1,68 @@
++/*
++ * Copyright (c) 2014      Cisco Systems, Inc.  All rights reserved.
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++
++/**
++ * @file:
++ *
++ * Implement the spinlock interface using the opal_atomic_lock interface.
++ * Internally that will fall back on the Darwin OSSpinLock facility if
++ * necessary.
++ *
++ * This file should only be included when protected by external logic that
++ * chooses among the different spinlock implementations
++ */
++
++#ifndef OPAL_SPINLOCK_ATOMICS_H
++#define OPAL_SPINLOCK_ATOMICS_H 1
++
++#ifdef OPAL_SPINLOCK_IMPLEMENTED
++#error "a spinlock implementation was previously defined!"
++#endif
++#define OPAL_SPINLOCK_IMPLEMENTED 1
++
++#include "opal/sys/atomic.h"
++
++BEGIN_C_DECLS
++
++struct opal_spinlock_t {
++    opal_atomic_lock_t oal;
++};
++
++static inline int opal_spin_init(opal_spinlock_t *lock,
++                                 enum opal_spin_pshared pshared)
++{
++    opal_atomic_init(&lock->oal, OPAL_ATOMIC_UNLOCKED);
++    return OPAL_SUCCESS;
++}
++
++static inline int opal_spin_destroy(opal_spinlock_t *lock)
++{
++    /* do nothing */
++    return OPAL_SUCCESS;
++}
++
++static inline void opal_spin_lock(opal_spinlock_t *lock)
++{
++    opal_atomic_lock(&lock->oal);
++}
++
++static inline bool opal_spin_trylock(opal_spinlock_t *lock)
++{
++    /* opal_atomic_trylock returns 0 on successful lock acquisition */
++    return !opal_atomic_trylock(&lock->oal);
++}
++
++static inline void opal_spin_unlock(opal_spinlock_t *lock)
++{
++    opal_atomic_unlock(&lock->oal);
++}
++
++END_C_DECLS
++
++#endif /* OPAL_SPINLOCK_ATOMICS_H */
+diff --git a/opal/threads/spinlock_pthread.h b/opal/threads/spinlock_pthread.h
+new file mode 100644
+index 0000000..e69ca5f
+--- /dev/null
++++ b/opal/threads/spinlock_pthread.h
+@@ -0,0 +1,99 @@
++/*
++ * Copyright (c) 2014      Cisco Systems, Inc.  All rights reserved.
++ * $COPYRIGHT$
++ *
++ * Additional copyrights may follow
++ *
++ * $HEADER$
++ */
++
++/**
++ * @file:
++ *
++ * Implement the spinlock interface using the pthread_spinlock_t interface.
++ *
++ * This file should only be included when protected by external logic that
++ * chooses among the different spinlock implementations
++ */
++
++#ifndef OPAL_SPINLOCK_ATOMICS_H
++#define OPAL_SPINLOCK_ATOMICS_H 1
++
++#ifdef OPAL_SPINLOCK_IMPLEMENTED
++#error "a spinlock implementation was previously defined!"
++#endif
++#define OPAL_SPINLOCK_IMPLEMENTED 1
++
++#ifdef HAVE_PTHREAD_H
++#include <pthread.h>
++#endif
++#include <errno.h>
++#include <stdio.h>
++#include <string.h>
++
++BEGIN_C_DECLS
++
++struct opal_spinlock_t {
++    pthread_spinlock_t ps;
++};
++
++static inline int opal_spin_init(opal_spinlock_t *lock,
++                                 enum opal_spin_pshared pshared)
++{
++    int ret;
++
++    if (OPAL_SPIN_PROCESS_PRIVATE != pshared &&
++        OPAL_SPIN_PROCESS_SHARED != pshared) {
++        return OPAL_ERR_BAD_PARAM;
++    }
++
++    ret = pthread_spin_init(&lock->ps, (pshared == PTHREAD_PROCESS_SHARED));
++    if (0 == ret) {
++        return OPAL_SUCCESS;
++    } else if (EINVAL == ret) {
++        return OPAL_ERR_BAD_PARAM;
++    }
++    else {
++        return OPAL_ERROR;
++    }
++}
++
++static inline int opal_spin_destroy(opal_spinlock_t *lock)
++{
++    int ret;
++    ret = pthread_spin_destroy(&lock->ps);
++    if (0 == ret) {
++        return OPAL_SUCCESS;
++    } else if (EINVAL == ret) {
++        return OPAL_ERR_BAD_PARAM;
++    } else {
++        return OPAL_ERROR;
++    }
++}
++
++static inline void opal_spin_lock(opal_spinlock_t *lock)
++{
++#if OPAL_ENABLE_DEBUG
++    int ret = pthread_spin_lock(&lock->ps);
++    if (0 != ret) {
++        opal_output(0, "opal_spin_lock(): error detected (%d -- %s)",
++                    ret, strerror(ret));
++    }
++#else
++    pthread_spin_lock(&lock->ps);
++#endif
++}
++
++static inline bool opal_spin_trylock(opal_spinlock_t *lock);
++{
++    return (pthread_spin_trylock(&lock->ps) ? false : true);
++}
++
++static inline void opal_spin_unlock(opal_spinlock_t *lock);
++{
++    pthread_spin_unlock(&lock->ps);
++}
++
++END_C_DECLS
++
++#endif /* OPAL_SPINLOCK_ATOMICS_H */
+diff --git a/test/threads/Makefile.am b/test/threads/Makefile.am
+index edd8ce4..22760e5 100644
+--- a/test/threads/Makefile.am
++++ b/test/threads/Makefile.am
+@@ -23,11 +23,10 @@ AM_LDFLAGS = -lpthread
+ 
+ check_PROGRAMS = \
+ 	opal_thread \
+-	opal_condition
++	opal_condition \
++	opal_spinlock
+ 
+-# JMS possibly to be re-added when #1232 is fixed
+-#TESTS = $(check_PROGRAMS)
+-TESTS =
++TESTS = $(check_PROGRAMS)
+ 
+ opal_thread_SOURCES = opal_thread.c
+ opal_thread_LDADD = \
+@@ -41,3 +40,8 @@ opal_condition_LDADD = \
+         $(top_builddir)/opal/libopen-pal.la
+ opal_condition_DEPENDENCIES = $(opal_condition_LDADD)
+ 
++opal_spinlock_SOURCES = opal_spinlock.c
++opal_spinlock_LDADD = \
++        $(top_builddir)/test/support/libsupport.a \
++        $(top_builddir)/opal/libopen-pal.la
++opal_spinlock_DEPENDENCIES = $(opal_spinlock_LDADD)
+-- 
+1.9.2
+

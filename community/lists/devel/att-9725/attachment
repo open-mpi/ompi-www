@@ -1,0 +1,232 @@
+<tt><font size=2>devel-bounces@open-mpi.org wrote on 08/29/2011 06:59:49
+PM:<br>
+<br>
+&gt; De : Brice Goglin &lt;Brice.Goglin@inria.fr&gt;</font></tt>
+<br><tt><font size=2>&gt; A : Open MPI Developers &lt;devel@open-mpi.org&gt;</font></tt>
+<br><tt><font size=2>&gt; Date : 08/29/2011 07:00 PM</font></tt>
+<br><tt><font size=2>&gt; Objet : Re: [OMPI devel] known limitation or
+bug in hwloc?</font></tt>
+<br><tt><font size=2>&gt; Envoyé par : devel-bounces@open-mpi.org</font></tt>
+<br><tt><font size=2>&gt; <br>
+&gt; I am playing with those aspects right now (it's planned for hwloc
+v1.4).<br>
+&gt; hwloc (even the 1.2 currently in OMPI) can already support topology<br>
+&gt; containing different machines,</font></tt>
+<br>
+<br><tt><font size=2>I guess this is what corresponds to the HWLOC_OBJ_SYSTEM
+topology object?</font></tt>
+<br>
+<br><tt><font size=2>&gt; but there's no easy/automatic way to<br>
+&gt; agregate multiple machine topologies into a single global one. The<br>
+&gt; important thing to understand is that the cpuset/bitmap structure
+does<br>
+&gt; not span to multiple machines, it remains local (because it's tightly<br>
+&gt; coupled to binding processes/memory). So if a process running on A<br>
+&gt; considers a topology containing nodes A and B, only the cpusets of<br>
+&gt; objects corresponding to A are meaningful. Trying (on A) to bind on<br>
+&gt; cpusets from B objects would actually bind on A (if the core numbers
+are<br>
+&gt; similar). And the objects &quot;above&quot; the machine just have
+no cpusets at<br>
+&gt; all (because there's no way to bind across multiple machines).<br>
+&gt; <br>
+&gt; That said, my understanding is that this is not what this discussion
+is<br>
+&gt; about. Doesn't OMPI use one topology for each node so far? Nadia might<br>
+&gt; just be playing with large node (more than 64 cores?) which cause
+the<br>
+&gt; bit loop to end too early.</font></tt>
+<br>
+<br><tt><font size=2>Exactly: Bull guys are doing some tests on Westmere-EX
+nodes: 4 sockets of 10 cores each, with potentially HT enabled.</font></tt>
+<br><tt><font size=2>The problem is that the BIOS has numbered the cores
+in the following way (each pair x,y corresponds to the ids of a physical
+core):</font></tt>
+<br>
+<br><tt><font size=2>socket 0: 0,32 4,36 &nbsp;8,40 12,44 16,48 20,52 24,56
+28,60 64,72 68,76</font></tt>
+<br><tt><font size=2>socket 0: 1,33 5,37 &nbsp;9,41 13,45 17,49 21,53 25,57
+29,61 65,73 69,77</font></tt>
+<br><tt><font size=2>socket 2: 2,34 6,38 10,42 14,46 18,50 22,54 26,58
+30,62 66,74 70,78</font></tt>
+<br><tt><font size=2>socket 3: 3,35 7,39 11,43 15,47 19,51 23,55 27,59
+31,63 67,75 71,79</font></tt>
+<br>
+<br><tt><font size=2>I hit the issue with a rankfile as soon as I reached
+the following line:</font></tt>
+<br>
+<br><tt><font size=2>rank 8=my_host slot=p64</font></tt>
+<br>
+<br><tt><font size=2>Regards,</font></tt>
+<br><tt><font size=2>Nadia</font></tt>
+<br><tt><font size=2><br>
+&gt; <br>
+&gt; Brice<br>
+&gt; <br>
+&gt; <br>
+&gt; <br>
+&gt; <br>
+&gt; Le 29/08/2011 18:47, Kenneth Lloyd a écrit :<br>
+&gt; &gt; This might get interesting. &nbsp;In &quot;portable hardware
+locality&quot; (hwloc) as<br>
+&gt; &gt; originating at the native cpuset, and I see &quot;locality&quot;
+working at the<br>
+&gt; &gt; machine level (machines in my world can have up to 8 CPUs, for
+example).<br>
+&gt; &gt;<br>
+&gt; &gt; But from an ompi world view, the execution graph across myriad
+machines<br>
+&gt; &gt; might dictate a larger, yet still fine grained approach. &nbsp;I
+haven't had a<br>
+&gt; &gt; chance to play with those aspects. &nbsp;Has anyone else?<br>
+&gt; &gt;<br>
+&gt; &gt; Ken<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; -----Original Message-----<br>
+&gt; &gt; From: devel-bounces@open-mpi.org [</font></tt><a href="mailto:devel-bounces@open-mpi.org"><tt><font size=2>mailto:devel-bounces@open-mpi.org</font></tt></a><tt><font size=2>]
+On<br>
+&gt; &gt; Behalf Of Ralph Castain<br>
+&gt; &gt; Sent: Monday, August 29, 2011 8:21 AM<br>
+&gt; &gt; To: Open MPI Developers<br>
+&gt; &gt; Subject: Re: [OMPI devel] known limitation or bug in hwloc?<br>
+&gt; &gt;<br>
+&gt; &gt; Actually, I'll eat those words. I was looking at the wrong place.<br>
+&gt; &gt;<br>
+&gt; &gt; Yes, that is a bug in hwloc. It needs to loop over CPU_MAX for
+those cases<br>
+&gt; &gt; where the bit mask extends over multiple words.<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; On Aug 29, 2011, at 7:16 AM, Ralph Castain wrote:<br>
+&gt; &gt;<br>
+&gt; &gt;&gt; Actually, if you look closely at the definition of those
+two values,<br>
+&gt; &gt; you'll see that it really doesn't matter which one we loop over.
+The<br>
+&gt; &gt; NUM_BITS value defines the actual total number of bits in the
+mask. The<br>
+&gt; &gt; CPU_MAX is the total number of cpus we can support, which was
+set to a value<br>
+&gt; &gt; such that the two are equal (i.e., it's a power of two that happens
+to be an<br>
+&gt; &gt; integer multiple of 64).<br>
+&gt; &gt;&gt; I believe the original intent was to allow CPU_MAX to be
+independent of<br>
+&gt; &gt; address-alignment questions, so NUM_BITS could technically be
+greater than<br>
+&gt; &gt; CPU_MAX. Even if this happens, though, all that would do is cause
+the loop<br>
+&gt; &gt; to run across more bits than required.<br>
+&gt; &gt;&gt; So it doesn't introduce a limitation at all. In hindsight,
+we could<br>
+&gt; &gt; simplify things by eliminating one of those values and just putting
+a<br>
+&gt; &gt; requirement on the number that it be a multiple of 64 so it aligns
+with a<br>
+&gt; &gt; memory address.<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt; On Aug 29, 2011, at 7:05 AM, Kenneth Lloyd wrote:<br>
+&gt; &gt;&gt;<br>
+&gt; &gt;&gt;&gt; Nadia,<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; Interesting. I haven't tried pushing this to levels above
+8 on a<br>
+&gt; &gt; particular<br>
+&gt; &gt;&gt;&gt; machine. Do you think that the cpuset / paffinity / hwloc
+only applies at<br>
+&gt; &gt;&gt;&gt; the machine level, at which time you need to employ a
+graph with carto?<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; Regards,<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; Ken<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; -----Original Message-----<br>
+&gt; &gt;&gt;&gt; From: devel-bounces@open-mpi.org [</font></tt><a href="mailto:devel-bounces@open-mpi.org"><tt><font size=2>mailto:devel-bounces@open-mpi.org</font></tt></a><tt><font size=2>]
+On<br>
+&gt; &gt;&gt;&gt; Behalf Of nadia.derbey<br>
+&gt; &gt;&gt;&gt; Sent: Monday, August 29, 2011 5:45 AM<br>
+&gt; &gt;&gt;&gt; To: Open MPI Developers<br>
+&gt; &gt;&gt;&gt; Subject: [OMPI devel] known limitation or bug in hwloc?<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; Hi list,<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; I'm hitting a limitation with paffinity/hwloc with cpu
+numbers &gt;= 64.<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; In opal/mca/paffinity/hwloc/paffinity_hwloc_module.c,
+module_set() is<br>
+&gt; &gt;&gt;&gt; the routine that sets the calling process affinity to
+the mask given as<br>
+&gt; &gt;&gt;&gt; parameter. Note that &quot;mask&quot; is a opal_paffinity_base_cpu_set_t
+(so we<br>
+&gt; &gt;&gt;&gt; allow the cpus to be potentially numbered up to<br>
+&gt; &gt;&gt;&gt; OPAL_PAFFINITY_BITMASK_CPU_MAX - 1).<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; The problem with module_set() is that is loops over<br>
+&gt; &gt;&gt;&gt; OPAL_PAFFINITY_BITMASK_T_NUM_BITS bits to check if these
+bits are set in<br>
+&gt; &gt;&gt;&gt; the mask:<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; for (i = 0; ((unsigned int) i) &lt; OPAL_PAFFINITY_BITMASK_T_NUM_BITS;
+++i)<br>
+&gt; &gt;&gt;&gt; {<br>
+&gt; &gt;&gt;&gt; &nbsp; &nbsp; &nbsp; if (OPAL_PAFFINITY_CPU_ISSET(i,
+mask)) {<br>
+&gt; &gt;&gt;&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; hwloc_bitmap_set(set,
+i);<br>
+&gt; &gt;&gt;&gt; &nbsp; &nbsp; &nbsp; }<br>
+&gt; &gt;&gt;&gt; &nbsp; }<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; Given &quot;mask&quot;'s type, I think module_set() should
+instead loop over<br>
+&gt; &gt;&gt;&gt; OPAL_PAFFINITY_BITMASK_CPU_MAX bits.<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; Note that module_set() uses a type for its internal mask
+that is<br>
+&gt; &gt;&gt;&gt; coherent with OPAL_PAFFINITY_BITMASK_T_NUM_BITS (hwloc_bitmap_t).<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; So I'm wondering whether this is a known limitation I've
+never heard of<br>
+&gt; &gt;&gt;&gt; or an actual bug?<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; Regards,<br>
+&gt; &gt;&gt;&gt; Nadia<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; _______________________________________________<br>
+&gt; &gt;&gt;&gt; devel mailing list<br>
+&gt; &gt;&gt;&gt; devel@open-mpi.org<br>
+&gt; &gt;&gt;&gt; </font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"><tt><font size=2>http://www.open-mpi.org/mailman/listinfo.cgi/devel</font></tt></a><tt><font size=2><br>
+&gt; &gt;&gt;&gt; -----<br>
+&gt; &gt;&gt;&gt; No virus found in this message.<br>
+&gt; &gt;&gt;&gt; Checked by AVG - </font></tt><a href=www.avg.com><tt><font size=2>www.avg.com</font></tt></a><tt><font size=2><br>
+&gt; &gt;&gt;&gt; Version: 10.0.1392 / Virus Database: 1520/3864 - Release
+Date: 08/28/11<br>
+&gt; &gt;&gt;&gt;<br>
+&gt; &gt;&gt;&gt; _______________________________________________<br>
+&gt; &gt;&gt;&gt; devel mailing list<br>
+&gt; &gt;&gt;&gt; devel@open-mpi.org<br>
+&gt; &gt;&gt;&gt; </font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"><tt><font size=2>http://www.open-mpi.org/mailman/listinfo.cgi/devel</font></tt></a><tt><font size=2><br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; devel mailing list<br>
+&gt; &gt; devel@open-mpi.org<br>
+&gt; &gt; </font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"><tt><font size=2>http://www.open-mpi.org/mailman/listinfo.cgi/devel</font></tt></a><tt><font size=2><br>
+&gt; &gt; -----<br>
+&gt; &gt; No virus found in this message.<br>
+&gt; &gt; Checked by AVG - </font></tt><a href=www.avg.com><tt><font size=2>www.avg.com</font></tt></a><tt><font size=2><br>
+&gt; &gt; Version: 10.0.1392 / Virus Database: 1520/3865 - Release Date:
+08/29/11<br>
+&gt; &gt;<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; devel mailing list<br>
+&gt; &gt; devel@open-mpi.org<br>
+&gt; &gt; </font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"><tt><font size=2>http://www.open-mpi.org/mailman/listinfo.cgi/devel</font></tt></a><tt><font size=2><br>
+&gt; <br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; devel@open-mpi.org<br>
+&gt; </font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel"><tt><font size=2>http://www.open-mpi.org/mailman/listinfo.cgi/devel</font></tt></a><tt><font size=2><br>
+</font></tt>

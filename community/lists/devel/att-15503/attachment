@@ -1,0 +1,90 @@
+<div dir="ltr">Ralph and Jeff,<div><br></div><div>I&#39;ve been digging and find the problem is wider than just the one library and has manifestations specific to FreeBSD, NetBSD and Solaris.  I am adding new info to the ticket as I unearth it.</div>
+<div><br></div><div>Additionally, it appears this existed in 1.8, 1.8.1 and in the 1.7 series as well.</div><div>So, would suggest this NOT be a blocker for a 1.8.2 release.</div><div><br></div><div>Of course I am willing to provide testing if you still want to push for a quick resolution.</div>
+<div><br></div><div>-Paul</div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Aug 4, 2014 at 1:27 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">Okay, I filed a blocker on this for 1.8.2 and assigned it to Jeff. I took a crack at fixing it, but came up short :-(<div>
+<br></div><div><br><div><div>On Aug 3, 2014, at 10:46 PM, Paul Hargrove &lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt; wrote:</div><br><blockquote type="cite"><div dir="ltr">I&#39;ve identified the difference between the platform that does link libutil and the one that does not.<div>
+<br></div><div>1) libutil is linked (as an OMPI dependency) only on the working system:</div><div>
+<br></div><div>Working system:</div><div>$ grep &#39;checking for .* LIBS&#39; configure.out</div><div>checking for OPAL LIBS... -lm -lpciaccess -ldl </div><div>checking for ORTE LIBS... -lm -lpciaccess -ldl -ltorque </div>
+
+<div>checking for OMPI LIBS... -lm -lpciaccess -ldl -ltorque -lrt -lnsl -lutil</div><div><br></div><div>NON-working system:</div><div>$ grep &#39;checking for .* LIBS&#39; configure.out<br></div><div><div>checking for OPAL LIBS... -lm -ldl </div>
+
+<div>checking for ORTE LIBS... -lm -ldl -ltorque </div><div>checking for OMPI LIBS... -lm -ldl -ltorque </div></div><div><br></div><div>So, the working system that does link libutil is doing so as an OMPI dependency.</div>
+
+<div>However it is also needed for opal (only caller of openpty is opal/util/open_pty.c).</div><div><br></div><div>2) Only the working system is building ROMIO:</div><div><br></div><div>Comparing the &#39;checking if * can compile&#39; lines of configure output shows only ONE difference:</div>
+
+<div><br></div><div><div> checking if MCA component fs:ufs can compile... yes<br></div><div> checking if MCA component fs:pvfs2 can compile... no</div><div> checking if MCA component io:ompio can compile... yes</div><div>
+
+-checking if MCA component io:romio can compile... no</div><div>+checking if MCA component io:romio can compile... yes</div><div> checking if MCA component mpool:grdma can compile... yes</div><div> checking if MCA component mpool:sm can compile... yes</div>
+
+<div> checking if MCA component mpool:udreg can compile... no</div></div><div><br></div><div>So, it appears that *if* ROMIO is configured in, then &quot;-lutil&quot; gets added to OMPI_WRAPPER_EXTRA_LIBS.</div><div>This masks the fact that it is missing from OPAL_WRAPPER_EXTRA_LIBS.</div>
+
+<div><br></div><div><br></div><div>I have confirmed that I can reproduce the static linking failure by adding --disable-io-romio to the configure options of the system that worked previously.</div><div><br></div><div><div>
+
+So, I update my report (and the email subject line) to:</div><div>   Static linking fails on Linux when not building ROMIO</div></div><div><br></div><div>-Paul</div><div><br></div><div class="gmail_extra"><br><br><div class="gmail_quote">
+
+On Sun, Aug 3, 2014 at 6:22 PM, Paul Hargrove <span dir="ltr">&lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+
+<div dir="ltr">Hmm,<div><br></div><div>On a different Linux/x86-64 host things work as expected with &#39;-lutil&#39; linked explicitly:</div><div><br></div><div><div>$ ./INST/bin/mpicc -showme BLD/examples/hello_c.c </div>
+
+
+<div>pgcc BLD/examples/hello_c.c -I/scratch/scratchdirs/hargrove/OMPI/openmpi-1.8.2rc3-linux-x86_64-pgi-14.1/INST/include -L/opt/torque/4.2.7.h1/lib -Wl,-rpath -Wl,/opt/torque/4.2.7.h1/lib -Wl,-rpath -Wl,/opt/torque/4.2.7.h1/lib -Wl,-rpath -Wl,/opt/torque/4.2.7.h1/lib -Wl,-rpath -Wl,/opt/torque/4.2.7.h1/lib -Wl,-rpath -Wl,/scratch/scratchdirs/hargrove/OMPI/openmpi-1.8.2rc3-linux-x86_64-pgi-14.1/INST/lib -L/scratch/scratchdirs/hargrove/OMPI/openmpi-1.8.2rc3-linux-x86_64-pgi-14.1/INST/lib -lmpi -lopen-rte -lopen-pal -lm -lpciaccess -ldl -ltorque -lrt -lnsl -lutil</div>
+
+
+</div><div><br></div><div>Searching for relevant differences now...</div><div><br></div><div>-Paul</div><div class="gmail_extra"><br><br><div class="gmail_quote">On Sun, Aug 3, 2014 at 4:58 PM, Paul Hargrove <span dir="ltr">&lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;</span> wrote:<br>
+
+
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex"><div dir="ltr"><div><br></div>I&#39;ve configured the 1.8.2rc3 tarball with &quot;--enable-static --disable-shared&quot; on a fairly standard Linux/x86-64 platform.  While there are no problems on the same platform w/o these configure flags, with them I cannot link any application codes.<div>
+
+
+
+<br></div><div><div>$ mpicc -g    hello_c.c   -o hello_c</div><div>/global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.8.2rc3-linux-x86_64-static/INST/lib/libopen-pal.a(opal_pty.o): In function `opal_openpty&#39;:</div><div>
+
+
+
+opal_pty.c:(.text+0x1): undefined reference to `openpty&#39;</div><div><br></div><div>I checked &quot;make openpty&quot; and the manpage says to link with &#39;-lutil&#39;.</div><div>The &#39;-showme&#39; does not show libutil:</div>
+
+
+
+<div><br></div><div><div>$ mpicc -showme hello_c.c</div><div>gcc hello_c.c -I/global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.8.2rc3-linux-x86_64-static/INST/include -pthread -L/usr/syscom/opt/torque/4.1.4/lib -Wl,-rpath -Wl,/usr/syscom/opt/torque/4.1.4/lib -Wl,-rpath -Wl,/usr/syscom/opt/torque/4.1.4/lib -Wl,-rpath -Wl,/usr/syscom/opt/torque/4.1.4/lib -Wl,-rpath -Wl,/usr/syscom/opt/torque/4.1.4/lib -Wl,-rpath -Wl,/global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.8.2rc3-linux-x86_64-static/INST/lib -Wl,--enable-new-dtags -L/global/homes/h/hargrove/GSCRATCH/OMPI/openmpi-1.8.2rc3-linux-x86_64-static/INST/lib -lmpi -lopen-rte -lopen-pal -lm -ldl -ltorque -libverbs -lrdmacm</div>
+
+
+
+</div><div><br></div><div><br></div><div>It looks like configure is doing the right thing on some level, but failing to add &#39;-lutil&#39; to the appropriate list of libs (OPAL_WRAPPER_EXTRA_LIBS?):</div><div><br></div>
+
+
+
+<div><div>============================================================================</div><div>== Library and Function tests</div><div>============================================================================</div><div>
+
+
+
+checking if we need -lutil for openpty... yes</div><div>checking for openpty... yes</div></div><span><font color="#888888"><div><br></div><div><br></div><div>-Paul</div><span><font color="#888888"><div><br></div>
+-- <br><font face="courier new, monospace"><div>
+Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+
+
+</font>
+</font></span></font></span></div></div><span><font color="#888888">
+</font></span></blockquote></div><span><font color="#888888"><br><br clear="all"><span class="HOEnZb"><font color="#888888"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+
+
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+
+</font>
+</font></span></font></span></div></div><span class="HOEnZb"><font color="#888888">
+</font></span></blockquote></div><span class="HOEnZb"><font color="#888888"><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div><div>Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+</font>
+</font></span></div></div><span class="HOEnZb"><font color="#888888">
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15492.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15492.php</a></font></span></blockquote></div><br></div></div>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15501.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15501.php</a><br></blockquote></div><br><br clear="all"><div>
+<br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>
+Computer and Data Sciences Department     Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font>
+</div>
+

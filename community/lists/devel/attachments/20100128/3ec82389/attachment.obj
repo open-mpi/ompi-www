@@ -1,0 +1,535 @@
+diff --git a/contrib/platform/win32/CMakeModules/ompi_configure.cmake b/contrib/platform/win32/CMakeModules/ompi_configure.cmake
+--- a/contrib/platform/win32/CMakeModules/ompi_configure.cmake
++++ b/contrib/platform/win32/CMakeModules/ompi_configure.cmake
+@@ -4,6 +4,7 @@
+ # Copyright (c) 2008      The University of Tennessee and The University
+ #                         of Tennessee Research Foundation.  All rights
+ #                         reserved.
++# Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+ # $COPYRIGHT$
+ # 
+ # Additional copyrights may follow
+@@ -195,7 +196,7 @@
+ 
+ OMPI_DEF_OPT(OMPI_ENABLE_MPI_PROFILING "Whether we want MPI profiling or not." ON)
+ 
+-OMPI_DEF_OPT(OPAL_ENABLE_MPI_THREADS "Whether we should enable support for multiple user threads." OFF)
++OMPI_DEF_OPT(OPAL_ENABLE_THREAD_SAFETY "Whether we should enable support for multiple user threads." OFF)
+ 
+ OMPI_DEF_OPT(OPAL_ENABLE_PROGRESS_THREADS "Whether we should use progress threads rather than polling." OFF)
+ 
+diff --git a/ompi/communicator/comm_cid.c b/ompi/communicator/comm_cid.c
+--- a/ompi/communicator/comm_cid.c
++++ b/ompi/communicator/comm_cid.c
+@@ -10,7 +10,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2007-2010 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2007      Voltaire All rights reserved.
+  * Copyright (c) 2006-2010 University of Houston.  All rights reserved.
+  * Copyright (c) 2009      Sun Microsystems, Inc.  All rights reserved.
+@@ -311,7 +311,7 @@
+             if ( regcom->cid > cid ) {
+                 break;
+             }
+-#if OPAL_ENABLE_MPI_THREADS
++#if OPAL_ENABLE_THREAD_SAFETY
+             if( regcom->cid == cid ) {
+                 /**
+                  * The MPI standard state that is the user responsability to
+@@ -324,7 +324,7 @@
+                 OBJ_RELEASE(newentry);
+                 return OMPI_ERROR;
+             }
+-#endif  /* OPAL_ENABLE_MPI_THREADS */
++#endif  /* OPAL_ENABLE_THREAD_SAFETY */
+         }
+         opal_list_insert_pos (&ompi_registered_comms, item, 
+                               (opal_list_item_t *)newentry);
+diff --git a/ompi/mca/bml/r2/bml_r2_ft.c b/ompi/mca/bml/r2/bml_r2_ft.c
+--- a/ompi/mca/bml/r2/bml_r2_ft.c
++++ b/ompi/mca/bml/r2/bml_r2_ft.c
+@@ -11,7 +11,7 @@
+  *                         All rights reserved.
+  * Copyright (c) 2007      Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
+- * Copyright (c) 2008      Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2008-2010 Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -175,7 +175,7 @@
+              * network options on this machine, and post proper modex informaiton.
+              */
+             if( OMPI_SUCCESS != (ret = mca_btl_base_select(OPAL_ENABLE_PROGRESS_THREADS,
+-                                                           OPAL_ENABLE_MPI_THREADS) ) ) {
++                                                           OPAL_ENABLE_THREAD_SAFETY) ) ) {
+                 opal_output(0, "bml:r2: ft_event(Restart): Failed to select in BTL framework\n");
+                 return ret;
+             }
+@@ -275,7 +275,7 @@
+          * network options on this machine, and post proper modex informaiton.
+          */
+         if( OMPI_SUCCESS != (ret = mca_btl_base_select(OPAL_ENABLE_PROGRESS_THREADS,
+-                                                       OPAL_ENABLE_MPI_THREADS) ) ) {
++                                                       OPAL_ENABLE_THREAD_SAFETY) ) ) {
+             opal_output(0, "bml:r2: ft_event(Restart): Failed to select in BTL framework\n");
+             return ret;
+         }
+diff --git a/ompi/mca/btl/gm/btl_gm.c b/ompi/mca/btl/gm/btl_gm.c
+--- a/ompi/mca/btl/gm/btl_gm.c
++++ b/ompi/mca/btl/gm/btl_gm.c
+@@ -10,6 +10,7 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2006-2009 Myricom, Inc.  All rights reserved.
++ * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -75,7 +76,7 @@
+         mca_btl_gm_free, 
+         mca_btl_gm_prepare_src,
+         mca_btl_gm_prepare_dst,
+-#if OPAL_ENABLE_MPI_THREADS || OPAL_ENABLE_PROGRESS_THREADS
++#if OPAL_ENABLE_THREAD_SAFETY || OPAL_ENABLE_PROGRESS_THREADS
+         mca_btl_gm_send,
+         NULL, /* send immediate */
+         mca_btl_gm_put,
+diff --git a/ompi/mca/pml/dr/configure.m4 b/ompi/mca/pml/dr/configure.m4
+--- a/ompi/mca/pml/dr/configure.m4
++++ b/ompi/mca/pml/dr/configure.m4
+@@ -2,6 +2,7 @@
+ #
+ # Copyright (c) 2004-2008 The Trustees of the University of Tennessee.
+ #                         All rights reserved.
++# Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+ # $COPYRIGHT$
+ # 
+ # Additional copyrights may follow
+@@ -16,7 +17,7 @@
+     # support for 64 bits atomics.
+     AS_IF([test $OPAL_ASM_SUPPORT_64BIT -eq 1],
+         [$1],
+-        [AS_IF([test $OPAL_ENABLE_PROGRESS_THREADS -eq 1 -o $OPAL_ENABLE_MPI_THREADS -eq 1],
++        [AS_IF([test $OPAL_ENABLE_PROGRESS_THREADS -eq 1 -o $OPAL_ENABLE_THREAD_SAFETY -eq 1],
+                [$2],
+                [$1])
+         ])
+diff --git a/ompi/mca/pml/v/pml_v_component.c b/ompi/mca/pml/v/pml_v_component.c
+--- a/ompi/mca/pml/v/pml_v_component.c
++++ b/ompi/mca/pml/v/pml_v_component.c
+@@ -1,6 +1,7 @@
+ /*
+  * Copyright (c) 2004-2007 The Trustees of the University of Tennessee.
+  *                         All rights reserved.
++ * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -55,7 +56,7 @@
+ };
+ 
+ static bool pml_v_enable_progress_treads = OPAL_ENABLE_PROGRESS_THREADS;
+-static bool pml_v_enable_mpi_threads = OPAL_ENABLE_MPI_THREADS;
++static bool pml_v_enable_mpi_threads = OPAL_ENABLE_THREAD_SAFETY;
+ 
+ /*******************************************************************************
+  * MCA level functions - parasite setup
+diff --git a/ompi/mpi/c/cart_create.c b/ompi/mpi/c/cart_create.c
+--- a/ompi/mpi/c/cart_create.c
++++ b/ompi/mpi/c/cart_create.c
+@@ -9,7 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2007-2008 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2007-2010 Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -98,7 +98,7 @@
+         }
+         if (OMPI_SUCCESS != 
+             (err = mca_topo_base_find_available(OPAL_ENABLE_PROGRESS_THREADS,
+-                                                OPAL_ENABLE_MPI_THREADS))) {
++                                                OPAL_ENABLE_THREAD_SAFETY))) {
+             return OMPI_ERRHANDLER_INVOKE(old_comm, err, FUNC_NAME);
+         }
+     }
+diff --git a/ompi/mpi/c/file_delete.c b/ompi/mpi/c/file_delete.c
+--- a/ompi/mpi/c/file_delete.c
++++ b/ompi/mpi/c/file_delete.c
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -71,7 +72,7 @@
+         }
+         if (OMPI_SUCCESS != 
+             (rc = mca_io_base_find_available(OPAL_ENABLE_PROGRESS_THREADS,
+-                                             OPAL_ENABLE_MPI_THREADS))) {
++                                             OPAL_ENABLE_THREAD_SAFETY))) {
+             return OMPI_ERRHANDLER_INVOKE(MPI_FILE_NULL, rc, FUNC_NAME);
+         }
+     }
+diff --git a/ompi/mpi/c/file_open.c b/ompi/mpi/c/file_open.c
+--- a/ompi/mpi/c/file_open.c
++++ b/ompi/mpi/c/file_open.c
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -83,7 +84,7 @@
+         }
+         if (OMPI_SUCCESS != 
+             (rc = mca_io_base_find_available(OPAL_ENABLE_PROGRESS_THREADS,
+-                                             OPAL_ENABLE_MPI_THREADS))) {
++                                             OPAL_ENABLE_THREAD_SAFETY))) {
+             return OMPI_ERRHANDLER_INVOKE(MPI_FILE_NULL, rc, FUNC_NAME);
+         }
+     }
+diff --git a/ompi/mpi/c/graph_create.c b/ompi/mpi/c/graph_create.c
+--- a/ompi/mpi/c/graph_create.c
++++ b/ompi/mpi/c/graph_create.c
+@@ -9,7 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2007-2008 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2007-2010 Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -92,7 +92,7 @@
+         }
+         if (OMPI_SUCCESS != 
+             (err = mca_topo_base_find_available(OPAL_ENABLE_PROGRESS_THREADS,
+-                                                OPAL_ENABLE_MPI_THREADS))) {
++                                                OPAL_ENABLE_THREAD_SAFETY))) {
+             return OMPI_ERRHANDLER_INVOKE(old_comm, err, FUNC_NAME);
+         }
+     }
+diff --git a/ompi/mpi/c/init_thread.c b/ompi/mpi/c/init_thread.c
+--- a/ompi/mpi/c/init_thread.c
++++ b/ompi/mpi/c/init_thread.c
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -52,7 +53,7 @@
+      *   = MPI_THREAD_MULTIPLE. Such an implementation may always return provided
+      *   = MPI_THREAD_MULTIPLE, irrespective of the value of required.
+      */
+-#if OPAL_ENABLE_MPI_THREADS
++#if OPAL_ENABLE_THREAD_SAFETY
+     *provided = MPI_THREAD_MULTIPLE;
+ #else
+     *provided = MPI_THREAD_SINGLE;
+diff --git a/ompi/mpi/c/is_thread_main.c b/ompi/mpi/c/is_thread_main.c
+--- a/ompi/mpi/c/is_thread_main.c
++++ b/ompi/mpi/c/is_thread_main.c
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -49,7 +50,7 @@
+ 
+     /* Compare this thread ID to the main thread ID */
+ 
+-#if OPAL_ENABLE_MPI_THREADS
++#if OPAL_ENABLE_THREAD_SAFETY
+     *flag = (int) opal_thread_self_compare(ompi_mpi_main_thread);
+ #else
+     *flag = 1;
+diff --git a/ompi/mpi/c/register_datarep.c b/ompi/mpi/c/register_datarep.c
+--- a/ompi/mpi/c/register_datarep.c
++++ b/ompi/mpi/c/register_datarep.c
+@@ -9,6 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
++ * Copyright (c) 2010      Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -65,7 +66,7 @@
+         }
+         if (OMPI_SUCCESS != 
+             (rc = mca_io_base_find_available(OPAL_ENABLE_PROGRESS_THREADS,
+-                                             OPAL_ENABLE_MPI_THREADS))) {
++                                             OPAL_ENABLE_THREAD_SAFETY))) {
+             return OMPI_ERRHANDLER_INVOKE(MPI_FILE_NULL, rc, FUNC_NAME);
+         }
+     }
+diff --git a/ompi/runtime/ompi_mpi_init.c b/ompi/runtime/ompi_mpi_init.c
+--- a/ompi/runtime/ompi_mpi_init.c
++++ b/ompi/runtime/ompi_mpi_init.c
+@@ -9,7 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2006-2009 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2006-2010 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2006-2007 Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
+  * Copyright (c) 2006-2009 University of Houston. All rights reserved.
+@@ -373,7 +373,7 @@
+     if (OPAL_HAVE_THREAD_SUPPORT == 0) {
+         ompi_mpi_thread_provided = *provided = MPI_THREAD_SINGLE;
+         ompi_mpi_main_thread = NULL;
+-    } else if (OPAL_ENABLE_MPI_THREADS == 1) {
++    } else if (OPAL_ENABLE_THREAD_SAFETY == 1) {
+         ompi_mpi_thread_provided = *provided = requested;
+         ompi_mpi_main_thread = opal_thread_get_self();
+     } else {
+@@ -507,7 +507,7 @@
+     }
+     if (OMPI_SUCCESS != 
+         (ret = ompi_op_base_find_available(OPAL_ENABLE_PROGRESS_THREADS,
+-                                           OPAL_ENABLE_MPI_THREADS))) {
++                                           OPAL_ENABLE_THREAD_SAFETY))) {
+         error = "ompi_op_base_find_available() failed";
+         goto error;
+     }
+@@ -561,20 +561,20 @@
+ 
+     if (OMPI_SUCCESS != 
+         (ret = mca_mpool_base_init(OPAL_ENABLE_PROGRESS_THREADS,
+-                                   OPAL_ENABLE_MPI_THREADS))) {
++                                   OPAL_ENABLE_THREAD_SAFETY))) {
+         error = "mca_mpool_base_init() failed";
+         goto error;
+     }
+ 
+     if (OMPI_SUCCESS != 
+         (ret = mca_pml_base_select(OPAL_ENABLE_PROGRESS_THREADS,
+-                                   OPAL_ENABLE_MPI_THREADS))) {
++                                   OPAL_ENABLE_THREAD_SAFETY))) {
+         error = "mca_pml_base_select() failed";
+         goto error;
+     }
+ 
+     /* select buffered send allocator component to be used */
+-    ret=mca_pml_base_bsend_init(OPAL_ENABLE_MPI_THREADS);
++    ret=mca_pml_base_bsend_init(OPAL_ENABLE_THREAD_SAFETY);
+     if( OMPI_SUCCESS != ret ) {
+         error = "mca_pml_base_bsend_init() failed";
+         goto error;
+@@ -582,14 +582,14 @@
+ 
+     if (OMPI_SUCCESS != 
+         (ret = mca_coll_base_find_available(OPAL_ENABLE_PROGRESS_THREADS,
+-                                            OPAL_ENABLE_MPI_THREADS))) {
++                                            OPAL_ENABLE_THREAD_SAFETY))) {
+         error = "mca_coll_base_find_available() failed";
+         goto error;
+     }
+ 
+     if (OMPI_SUCCESS != 
+         (ret = ompi_osc_base_find_available(OPAL_ENABLE_PROGRESS_THREADS,
+-                                           OPAL_ENABLE_MPI_THREADS))) {
++                                           OPAL_ENABLE_THREAD_SAFETY))) {
+         error = "ompi_osc_base_find_available() failed";
+         goto error;
+     }
+diff --git a/ompi/tools/ompi_info/param.c b/ompi/tools/ompi_info/param.c
+--- a/ompi/tools/ompi_info/param.c
++++ b/ompi/tools/ompi_info/param.c
+@@ -9,7 +9,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2007-2009 Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2007-2010 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2009      Oak Ridge National Labs.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+@@ -572,7 +572,7 @@
+     if (OPAL_HAVE_SOLARIS_THREADS || OPAL_HAVE_POSIX_THREADS) {
+         asprintf(&threads, "%s (mpi: %s, progress: %s)", OPAL_HAVE_SOLARIS_THREADS ? "solaris" :
+                  (OPAL_HAVE_POSIX_THREADS ? "posix" : "type unknown"),
+-                 OPAL_ENABLE_MPI_THREADS ? "yes" : "no",
++                 OPAL_ENABLE_THREAD_SAFETY ? "yes" : "no",
+                  OPAL_ENABLE_PROGRESS_THREADS ? "yes" : "no");
+     } else {
+         threads = strdup("no");
+diff --git a/opal/config/opal_config_threads.m4 b/opal/config/opal_config_threads.m4
+--- a/opal/config/opal_config_threads.m4
++++ b/opal/config/opal_config_threads.m4
+@@ -9,7 +9,7 @@
+ dnl                         University of Stuttgart.  All rights reserved.
+ dnl Copyright (c) 2004-2005 The Regents of the University of California.
+ dnl                         All rights reserved.
+-dnl Copyright (c) 2008      Cisco Systems, Inc.  All rights reserved.
++dnl Copyright (c) 2008-2010 Cisco Systems, Inc.  All rights reserved.
+ dnl $COPYRIGHT$
+ dnl 
+ dnl Additional copyrights may follow
+@@ -179,48 +179,51 @@
+ AM_CONDITIONAL(OPAL_HAVE_SOLARIS_THREADS, test "$THREAD_TYPE" = "solaris")
+ 
+ #
+-# Now configure the whole MPI and progress thread gorp
++# Now configure the whole thread safe and progress thread gorp
+ #
+-AC_MSG_CHECKING([if want MPI thread support])
++AC_MSG_CHECKING([if want thread-safe library support])
+ AC_ARG_ENABLE([mpi-threads],
+     AC_HELP_STRING([--enable-mpi-threads],
+-        [Enable threads for MPI applications (default: disabled)]),
+-    [enable_mpi_threads="$enableval"])
++        [Synonym for --enable-thread-safety.]))
+ 
+-if test "$enable_mpi_threads" = "" ; then 
+-dnl    # no argument given either way.  Default to whether
+-dnl    # we have threads or not
+-dnl    if test "$THREAD_TYPE" != "none" ; then
+-dnl        OPAL_ENABLE_MPI_THREADS=1
+-dnl        enable_mpi_threads="yes"
+-dnl    else
+-dnl        OPAL_ENABLE_MPI_THREADS=0
+-dnl        enable_mpi_threads="no"
+-dnl    fi
++AC_ARG_ENABLE([thread-safety],
++    AC_HELP_STRING([--enable-thread-safety],
++        [Enable thread safety (required for MPI_THREAD_MULTIPLE support, default: disabled)]))
++
++# Check for combinations of -*-mpi-threads and -*-thread-safety that
++# don't make sense
++good=1
++AS_IF([test "$enable_mpi_threads" = "yes" -a "$enable_thread_safety" = "no"],
++      [good=0]);
++AS_IF([test "$enable_mpi_threads" = "no" -a "$enable_thread_safety" = "yes"],
++      [good=0]);
++AS_IF([test "$enable_mpi_threads" = "yes"],
++      [enable_thread_safety=yes])
++AC_MSG_RESULT([$enable_thread_safety])
++
++if test "$enable_thread_safety" = "" ; then 
+     # no argument - default to no
+-    OPAL_ENABLE_MPI_THREADS=0
+-    enable_mpi_threads="no"
+-elif test "$enable_mpi_threads" = "no" ; then
+-    OPAL_ENABLE_MPI_THREADS=0
++    OPAL_ENABLE_THREAD_SAFETY=0
++    enable_thread_safety="no"
++elif test "$enable_thread_safety" = "no" ; then
++    OPAL_ENABLE_THREAD_SAFETY=0
+ else
+     # they want MPI threads.  Make sure we have threads
+     if test "$THREAD_TYPE" != "none" ; then
+-        OPAL_ENABLE_MPI_THREADS=1
+-        enable_mpi_threads="yes"
++        OPAL_ENABLE_THREAD_SAFETY=1
++        enable_thread_safety="yes"
+     else
+         AC_MSG_ERROR([User requested MPI threads, but no threading model supported])
+     fi
+ fi
+-AC_DEFINE_UNQUOTED([OPAL_ENABLE_MPI_THREADS], [$OPAL_ENABLE_MPI_THREADS],
++AC_DEFINE_UNQUOTED([OPAL_ENABLE_THREAD_SAFETY], [$OPAL_ENABLE_THREAD_SAFETY],
+                    [Whether we should enable support for multiple user threads])
+-AC_MSG_RESULT([$enable_mpi_threads])
+ 
+ 
+ AC_MSG_CHECKING([if want asynchronous progress thread support])
+ AC_ARG_ENABLE([progress-threads],
+     AC_HELP_STRING([--enable-progress-threads],
+-        [Enable threads asynchronous communication progress (default: disabled)]),
+-    [enable_progress_threads="$enableval"])
++        [Enable threads asynchronous communication progress (default: disabled)]))
+ 
+ if test "$enable_progress_threads" = "" ; then
+     # no argument given either way.  Default to no.
+@@ -274,28 +277,28 @@
+ AC_MSG_CHECKING([if want fault tolerance thread])
+ AC_ARG_ENABLE([ft_thread],
+     [AC_HELP_STRING([--disable-ft-thread],
+-                    [Disable fault tolerance thread running inside all processes. Requires progress and/or MPI threads (default: enabled)])],
++                    [Disable fault tolerance thread running inside all processes. Requires progress threads or thread safety (default: enabled)])],
+     [enable_ft_thread="$enableval"],
+     [enable_ft_thread="undef"])
+ 
+ # if they do not want FT support, then they do not want this thread either
+ if test "$ompi_want_ft" = "0"; then
+     ompi_want_ft_thread=0
+-    AC_MSG_RESULT([Disabled (fault tolerance disabled --without-ft)])
++    AC_MSG_RESULT([disabled (fault tolerance disabled --without-ft)])
+ # if --disable-ft-thread
+ elif test "$enable_ft_thread" = "no"; then
+     ompi_want_ft_thread=0
+-    AC_MSG_RESULT([Disabled])
+-# if default, and no progress or MPI threads
+-elif test "$enable_ft_thread" = "undef" -a "$enable_progress_threads" = "no"  -a "$enable_mpi_threads" = "no" ; then
++    AC_MSG_RESULT([disabled])
++# if default, and no progress threads or thread safety
++elif test "$enable_ft_thread" = "undef" -a "$enable_progress_threads" = "no"  -a "$enable_thread_safety" = "no" ; then
+     ompi_want_ft_thread=0
+-    AC_MSG_RESULT([Disabled (Progress and MPI Threads Disabled)])
+-# if default, and either progress or MPI threads enabled
++    AC_MSG_RESULT([disabled (progress threads and thread safety disabled)])
++# if default, and either progress threads or thread safety enabled
+ else
+     # Default: Enable
+-    # Make sure we have at least Progress Threads or MPI Threads enabled 
+-    if test "$enable_progress_threads" = "no" -a "$enable_mpi_threads" = "no"; then
+-        AC_MSG_RESULT([Must enable progress or MPI threads to use this option])
++    # Make sure we have at least Progress Threads or thread safety enabled 
++    if test "$enable_progress_threads" = "no" -a "$enable_thread_safety" = "no"; then
++        AC_MSG_RESULT([Must enable progress threads or thread safety to use this option])
+         AC_MSG_ERROR([Cannot continue])
+     else
+         AC_MSG_RESULT([yes])
+@@ -303,9 +306,9 @@
+         AC_MSG_WARN([**************************************************])
+         AC_MSG_WARN([*** Fault Tolerance with a thread in Open MPI    *])
+         AC_MSG_WARN([*** is an experimental, research quality option. *])
+-        AC_MSG_WARN([*** It requires progress or MPI threads, and     *])
+-        AC_MSG_WARN([*** care should be used when enabling these      *])
+-        AC_MSG_WARN([*** options.                                     *])
++        AC_MSG_WARN([*** It requires progress threads or thread       *])
++        AC_MSG_WARN([*** safety, and care should be used when         *])
++        AC_MSG_WARN([*** enabling these options.                      *])
+         AC_MSG_WARN([**************************************************])
+     fi
+ fi
+diff --git a/opal/include/opal_config_bottom.h b/opal/include/opal_config_bottom.h
+--- a/opal/include/opal_config_bottom.h
++++ b/opal/include/opal_config_bottom.h
+@@ -10,7 +10,7 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2009      Sun Microsystems, Inc.  All rights reserved.
+- * Copyright (c) 2009      Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2009-2010 Cisco Systems, Inc.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -69,7 +69,7 @@
+ /* Do we have posix or solaris thread lib */
+ #define OPAL_HAVE_THREADS (OPAL_HAVE_POSIX_THREADS || OPAL_HAVE_SOLARIS_THREADS)
+ /* Do we have thread support? */
+-#define OPAL_HAVE_THREAD_SUPPORT (OPAL_ENABLE_MPI_THREADS || OPAL_ENABLE_PROGRESS_THREADS)
++#define OPAL_HAVE_THREAD_SUPPORT (OPAL_ENABLE_THREAD_SAFETY || OPAL_ENABLE_PROGRESS_THREADS)
+ 
+ /*
+  * BEGIN_C_DECLS should be used at the beginning of your declarations,

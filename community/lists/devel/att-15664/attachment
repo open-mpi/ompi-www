@@ -1,0 +1,240 @@
+r32551 now detects this limitation and automatically disable oshmem profile. I am now revamping the patch for v1.8<br><br>Gilles<br><br>Gilles Gouaillardet &lt;gilles.gouaillardet@iferc.org&gt; wrote:<br>
+    <div class="moz-cite-prefix">In the case of PGI compilers prior to
+      13, a workaround is to configure with --disable-oshmem-profile<br>
+      <br>
+      On 2014/08/18 16:21, Gilles Gouaillardet wrote:<br>
+    </div>
+    <blockquote cite="mid:53F1A97F.9070405@iferc.org" type="cite">
+      <pre wrap="">Josh, Paul,
+
+the problem with old PGI compilers comes from the preprocessor (!)
+
+with pgi 12.10 :
+oshmem/shmem/fortran/start_pes_f.c
+SHMEM_GENERATE_WEAK_BINDINGS(START_PES, start_pes)
+
+gets expanded as
+
+#pragma weak START_PES = PSTART_PES SHMEM_GENERATE_WEAK_PRAGMA ( weak
+start_pes_ = pstart_pes_ )
+
+whereas with pgi 14.7, it gets expanded as
+
+#pragma weak START_PES = PSTART_PES
+#pragma weak start_pes_ = pstart_pes_
+#pragma weak start_pes__ = pstart_pes__
+
+from oshmem/shmem/fortran/profile/pbindings.h :
+#define SHMEM_GENERATE_WEAK_PRAGMA(x) _Pragma(#x)
+
+#define SHMEM_GENERATE_WEAK_BINDINGS(UPPER_NAME,
+lower_name)                 \
+    SHMEM_GENERATE_WEAK_PRAGMA(weak UPPER_NAME = P ##
+UPPER_NAME)            \
+    SHMEM_GENERATE_WEAK_PRAGMA(weak lower_name ## _ = p ## lower_name ##
+_)  \
+    SHMEM_GENERATE_WEAK_PRAGMA(weak lower_name ## __ = p ## lower_name
+## __)
+
+a workaround is to manually expand the SHMEM_GENERATE_WEAK_BINDINGS
+macro and replace
+
+SHMEM_GENERATE_WEAK_BINDINGS(START_PES, start_pes)
+
+with
+
+SHMEM_GENERATE_WEAK_PRAGMA(weak START_PES = PSTART_PES)
+SHMEM_GENERATE_WEAK_PRAGMA(weak start_pes_ = pstart_pes_)
+SHMEM_GENERATE_WEAK_PRAGMA(weak start_pes__ = pstart_pes__)
+
+/* i was unable to get something that works by simply replacing the
+definition of the SHMEM_GENERATE_WEAK_BINDINGS macro */
+
+of course, this would have to be repeated in all the source files ...
+
+
+Cheers,
+
+Gilles
+
+On 2014/08/15 3:44, Paul Hargrove wrote:
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Josh,
+
+The specific compilers that caused the most problems are the older PGI
+compilers (any before 13.x).
+In this case the user has the option to update their compiler to 13.10 or
+newer.
+
+There are also issues with IBM's xlf.
+For the IBM compiler I have never found a version that builds/links the MPI
+f08 bindings, and now also find no version that can link the OSHMEM fortran
+bindings.
+
+-Paul
+
+-Paul
+
+
+On Thu, Aug 14, 2014 at 11:30 AM, Joshua Ladd <a class="moz-txt-link-rfc2396E" href="mailto:jladd.mlnx@gmail.com">&lt;jladd.mlnx@gmail.com&gt;</a> wrote:
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">We will update the README accordingly. Thank you, Paul.
+
+Josh
+
+
+On Thu, Aug 14, 2014 at 10:00 AM, Jeff Squyres (jsquyres) &lt;
+<a class="moz-txt-link-abbreviated" href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">Good points.
+
+Mellanox -- can you update per Paul's suggestions?
+
+
+On Aug 13, 2014, at 8:26 PM, Paul Hargrove <a class="moz-txt-link-rfc2396E" href="mailto:phhargrove@lbl.gov">&lt;phhargrove@lbl.gov&gt;</a> wrote:
+
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">The following is NOT a bug report.
+This is just an observation that may deserve some text in the README.
+
+I've reported issues in the past with some Fortran compilers (mostly
+</pre>
+            </blockquote>
+            <pre wrap="">older XLC and PGI) which either cannot build the "use mpi_f08" module, or
+cannot correctly link to it (and sometimes this fails only if configured
+with --enable-debug).
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">Testing the OSHMEM Fortran bindings (enabled by default on Linux) I
+</pre>
+            </blockquote>
+            <pre wrap="">have found several compilers which fail to link the examples
+(hello_oshmemfh and ring_oshmemfh).  I reported one specific instance (with
+xlc-11/xlf-13) back in February:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/02/14057.php">http://www.open-mpi.org/community/lists/devel/2014/02/14057.php</a>
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">So far I have these failures only on platforms where the Fortran
+</pre>
+            </blockquote>
+            <pre wrap="">compiler is *known* to be broken for the MPI f90 and/or f08 bindings.
+Specifically, all the failing platforms are ones on which either:
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">+ Configure determines (without my help) that FC cannot build the F90
+</pre>
+            </blockquote>
+            <pre wrap="">and/or F08 modules.
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">OR
++ I must pass --enable-mpi-fortran=usempi or --enable-mpi-fortran=mpifh
+</pre>
+            </blockquote>
+            <pre wrap="">for cases configure cannot detect.
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">So, I do *not* believe there is anything wrong with the OSHMEM code,
+</pre>
+            </blockquote>
+            <pre wrap="">which is why I started this post with "The following is NOT a bug report".
+However, I have two recommendations to make:
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">1) Documentation
+
+The README says just:
+
+--disable-oshmem-fortran
+  Disable building only the Fortran OSHMEM bindings.
+
+So, I recommend adding a sentence there referencing the "Compiler
+</pre>
+            </blockquote>
+            <pre wrap="">Notes" section of the README which has details on some known bad Fortran
+compilers.
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">2) Configure:
+
+As I noted above, at least some of the failures are on platforms where
+</pre>
+            </blockquote>
+            <pre wrap="">configure has determined it cannot build the f08 MPI bindings.  So, maybe
+there is something that could be done at configure time to disqualify some
+Fortran compilers from building the OSHMEM fotran bindings, too.
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">-Paul
+
+--
+Paul H. Hargrove                          <a class="moz-txt-link-abbreviated" href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>
+Future Technologies Group
+Computer and Data Sciences Department     Tel: +1-510-495-2352
+Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+</pre>
+            </blockquote>
+            <pre wrap=""><a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15643.php">http://www.open-mpi.org/community/lists/devel/2014/08/15643.php</a>
+
+
+--
+Jeff Squyres
+<a class="moz-txt-link-abbreviated" href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>
+For corporate legal information go to:
+<a class="moz-txt-link-freetext" href="http://www.cisco.com/web/about/doing_business/legal/cri/">http://www.cisco.com/web/about/doing_business/legal/cri/</a>
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15650.php">http://www.open-mpi.org/community/lists/devel/2014/08/15650.php</a>
+
+</pre>
+          </blockquote>
+          <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15653.php">http://www.open-mpi.org/community/lists/devel/2014/08/15653.php</a>
+
+</pre>
+        </blockquote>
+        <pre wrap="">
+
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15654.php">http://www.open-mpi.org/community/lists/devel/2014/08/15654.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15661.php">http://www.open-mpi.org/community/lists/devel/2014/08/15661.php</a></pre>
+    </blockquote>
+    <br>
+  

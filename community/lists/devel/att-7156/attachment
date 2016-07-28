@@ -1,0 +1,576 @@
+<div dir="ltr"><div>We are currently out of heterogeneous cluster and can&#39;t really check this patch.<br></div><div></div><div>Lenny.</div><br><div class="gmail_quote">On Wed, Nov 25, 2009 at 12:14 AM, Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div class="im">On Nov 16, 2009, at 10:46 AM, Vasily Philipov wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Here is new patch for heterogeneous clusters supporting.<br>
+<br>
+</blockquote>
+<br></div>
+Voltaire / IBM / Sun -- please review and test this patch.  You guys care about this stuff more than I do.  :-)<br>
+<br>
+My comments below.<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+diff -r 521e5f4b161a ompi/mca/btl/openib/btl_openib.c<br>
+--- a/ompi/mca/btl/openib/btl_openib.c  Fri Nov 06 12:00:16 2009 -0800<br>
++++ b/ompi/mca/btl/openib/btl_openib.c  Mon Nov 16 17:41:48 2009 +0200<br>
+@@ -39,6 +39,8 @@<br>
+#include &quot;ompi/runtime/ompi_cr.h&quot;<br>
+#endif<br>
+<br>
++#include &quot;btl_openib_ini.h&quot;<br>
++<br>
+#include &quot;btl_openib.h&quot;<br>
+#include &quot;btl_openib_frag.h&quot;<br>
+#include &quot;btl_openib_proc.h&quot;<br>
+@@ -287,6 +289,158 @@<br>
+    return rc;<br>
+}<br>
+<br>
++const char* btl_openib_get_transport_name(mca_btl_openib_transport_type_t transport_type)<br>
++{<br>
++    switch(transport_type) {<br>
++        case MCA_BTL_OPENIB_TRANSPORT_RDMAOE:<br>
++            return &quot;MCA_BTL_OPENIB_TRANSPORT_RDMAOE&quot;;<br>
++<br>
++        case MCA_BTL_OPENIB_TRANSPORT_IB:<br>
++            return &quot;MCA_BTL_OPENIB_TRANSPORT_IB&quot;;<br>
++<br>
++        case MCA_BTL_OPENIB_TRANSPORT_IWARP:<br>
++            return &quot;MCA_BTL_OPENIB_TRANSPORT_IWARP&quot;;<br>
++<br>
++        case MCA_BTL_OPENIB_TRANSPORT_UNKNOWN:<br>
++        default:<br>
++            return &quot;MCA_BTL_OPENIB_TRANSPORT_UNKNOWN&quot;;<br>
++    }<br>
++}<br>
+</blockquote>
+<br>
+Do you want to make a char** array of these names rather than a function?  Doesn&#39;t really matter too much to me, but I thought I&#39;d ask.<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++mca_btl_openib_transport_type_t mca_btl_openib_get_transport_type(mca_btl_openib_module_t* openib_btl)<br>
++{<br>
++#ifdef OMPI_HAVE_RDMAOE<br>
++    switch(openib_btl-&gt;ib_port_attr.transport) {<br>
+</blockquote>
+<br>
+Are you 100% sure that all the other device drivers will fill in ib_port_attr.transport?  That&#39;s new in Mellanox&#39;s RDMAoE support, right?<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++        case RDMA_TRANSPORT_IB:<br>
++            return MCA_BTL_OPENIB_TRANSPORT_IB;<br>
++<br>
++        case RDMA_TRANSPORT_IWARP:<br>
++            return MCA_BTL_OPENIB_TRANSPORT_IWARP;<br>
++<br>
++        case RDMA_TRANSPORT_RDMAOE:<br>
++            return MCA_BTL_OPENIB_TRANSPORT_RDMAOE;<br>
++<br>
++        default:<br>
++            return MCA_BTL_OPENIB_TRANSPORT_UNKNOWN;<br>
++    }<br>
++#else<br>
++#ifdef HAVE_STRUCT_IBV_DEVICE_TRANSPORT_TYPE<br>
++    switch(openib_btl-&gt;device-&gt;ib_dev-&gt;transport_type) {<br>
++        case IBV_TRANSPORT_IB:<br>
++            return MCA_BTL_OPENIB_TRANSPORT_IB;<br>
++<br>
++        case IBV_TRANSPORT_IWARP:<br>
++            return MCA_BTL_OPENIB_TRANSPORT_IWARP;<br>
++<br>
++        case IBV_TRANSPORT_UNKNOWN:            <br>
++        default:<br>
++            return MCA_BTL_OPENIB_TRANSPORT_UNKNOWN;<br>
++    }<br>
++#endif<br>
++    return MCA_BTL_OPENIB_TRANSPORT_IB;<br>
++#endif<br>
++}<br>
+</blockquote>
+<br>
+Can you put in some comments explain the above logic -- i.e., the rules about how transport_type and transport (what horrible names :-( ) are filled in, and why you check them in the order that you check them?<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++static int mca_btl_openib_tune_endpoint(mca_btl_openib_module_t* openib_btl,<br>
++                                            mca_btl_base_endpoint_t* endpoint)<br>
++{<br>
++    int ret = OMPI_SUCCESS;<br>
++<br>
++    char* recv_qps = NULL;<br>
++<br>
++    ompi_btl_openib_ini_values_t values;<br>
++<br>
++    if(mca_btl_openib_get_transport_type(openib_btl) != endpoint-&gt;rem_info.rem_transport_type) {<br>
++        orte_show_help(&quot;help-mpi-btl-openib.txt&quot;,<br>
++                &quot;conflicting transport types&quot;, true,<br>
++                orte_process_info.nodename,<br>
++                        ibv_get_device_name(openib_btl-&gt;device-&gt;ib_dev),<br>
++                        (openib_btl-&gt;device-&gt;ib_dev_attr).vendor_id,<br>
++                        (openib_btl-&gt;device-&gt;ib_dev_attr).vendor_part_id,<br>
++                        btl_openib_get_transport_name(mca_btl_openib_get_transport_type(openib_btl)),<br>
++                        endpoint-&gt;endpoint_proc-&gt;proc_ompi-&gt;proc_hostname,<br>
++                        endpoint-&gt;rem_info.rem_vendor_id,<br>
++                        endpoint-&gt;rem_info.rem_vendor_part_id,<br>
++                        btl_openib_get_transport_name(endpoint-&gt;rem_info.rem_transport_type));<br>
++<br>
++        return OMPI_ERROR;<br>
+</blockquote>
+<br>
+I *love* the consistent use of show_help().  Bravo!  :-)<br>
+<br>
+Can you put in some comments about what exactly you&#39;re checking for?  For example, I see that the abov elogic is checking for if the transport types are different.  How exactly would we get to this point if the transport types are different?  Wouldn&#39;t we simply not try to connect them?  I.e., why is this an *error* rather than a &quot;OMPI won&#39;t try to connect these endpoints&quot;?<br>
+
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++    }<br>
++<br>
++    memset(&amp;values, 0, sizeof(ompi_btl_openib_ini_values_t));<br>
++    ret = ompi_btl_openib_ini_query(endpoint-&gt;rem_info.rem_vendor_id,<br>
++                          endpoint-&gt;rem_info.rem_vendor_part_id, &amp;values);<br>
++<br>
++    if (OMPI_SUCCESS != ret &amp;&amp; OMPI_ERR_NOT_FOUND != ret) {<br>
++        orte_show_help(&quot;help-mpi-btl-openib.txt&quot;,<br>
++                       &quot;error in device init&quot;, true,<br>
++                       orte_process_info.nodename,<br>
++                       ibv_get_device_name(openib_btl-&gt;device-&gt;ib_dev));<br>
++        return ret;<br>
++    }<br>
++<br>
++    if(openib_btl-&gt;device-&gt;mtu &lt; endpoint-&gt;rem_info.rem_mtu) {<br>
++        endpoint-&gt;rem_info.rem_mtu = openib_btl-&gt;device-&gt;mtu;<br>
++    }<br>
++<br>
++    endpoint-&gt;use_eager_rdma = openib_btl-&gt;device-&gt;use_eager_rdma &amp;<br>
++                               endpoint-&gt;use_eager_rdma;<br>
++<br>
++    /* Receive queues checking */<br>
++    switch(mca_btl_openib_component.receive_queues_source) {<br>
++        case BTL_OPENIB_RQ_SOURCE_MCA:<br>
++        case BTL_OPENIB_RQ_SOURCE_MAX:<br>
++            break;<br>
++<br>
++        case BTL_OPENIB_RQ_SOURCE_DEVICE_INI:<br>
++            if(NULL != values.receive_queues) {<br>
++                recv_qps = values.receive_queues;<br>
++            } else {<br>
++                recv_qps = mca_btl_openib_component.default_recv_qps;<br>
++            }<br>
++<br>
++            if(0 != strcmp(mca_btl_openib_component.receive_queues,<br>
++                                                         recv_qps)) {<br>
++                orte_show_help(&quot;help-mpi-btl-openib.txt&quot;,<br>
++                               &quot;unsupported queues configuration&quot;, true,<br>
++                               orte_process_info.nodename,<br>
++                               ibv_get_device_name(openib_btl-&gt;device-&gt;ib_dev),<br>
++                               (openib_btl-&gt;device-&gt;ib_dev_attr).vendor_id,<br>
++                               (openib_btl-&gt;device-&gt;ib_dev_attr).vendor_part_id,<br>
++                               mca_btl_openib_component.receive_queues,<br>
++                               endpoint-&gt;endpoint_proc-&gt;proc_ompi-&gt;proc_hostname,<br>
++                               endpoint-&gt;rem_info.rem_vendor_id,<br>
++                               endpoint-&gt;rem_info.rem_vendor_part_id,<br>
++                               recv_qps);<br>
++<br>
++                return OMPI_ERROR;<br>
++            }<br>
++            break;<br>
++<br>
++        case  BTL_OPENIB_RQ_SOURCE_DEFAULT:<br>
++            if(NULL != values.receive_queues) {<br>
++                if(0 != strcmp(mca_btl_openib_component.receive_queues,<br>
++                                                values.receive_queues)) {<br>
++                     orte_show_help(&quot;help-mpi-btl-openib.txt&quot;,<br>
++                               &quot;unsupported queues configuration&quot;, true,<br>
++                               orte_process_info.nodename,<br>
++                               ibv_get_device_name(openib_btl-&gt;device-&gt;ib_dev),<br>
++                               (openib_btl-&gt;device-&gt;ib_dev_attr).vendor_id,<br>
++                               (openib_btl-&gt;device-&gt;ib_dev_attr).vendor_part_id,<br>
++                               mca_btl_openib_component.receive_queues,<br>
++                               endpoint-&gt;endpoint_proc-&gt;proc_ompi-&gt;proc_hostname,<br>
++                               endpoint-&gt;rem_info.rem_vendor_id,<br>
++                               endpoint-&gt;rem_info.rem_vendor_part_id,<br>
++                               values.receive_queues);<br>
++<br>
++                    return OMPI_ERROR;<br>
++                }<br>
++            }<br>
++            break;<br>
++    }<br>
+</blockquote>
+<br>
+For the latter two cases, is the point that if the rq string values are different, then we simply don&#39;t support?  (that&#39;s fine, I just want to understand -- some comments here would be helpful...)<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++    return OMPI_SUCCESS;<br>
++}<br>
++<br>
+/*<br>
+ *  add a proc to this btl module<br>
+ *    creates an endpoint that is setup on the<br>
+@@ -471,6 +625,10 @@<br>
+            continue;<br>
+        }<br>
+<br>
++         if(OMPI_SUCCESS != mca_btl_openib_tune_endpoint(openib_btl, endpoint)) {<br>
++            return OMPI_ERROR;<br>
++        }<br>
+</blockquote>
+<br>
+Don&#39;t you need to release the endpoint and the lock before returning?<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++<br>
+        endpoint-&gt;index = opal_pointer_array_add(openib_btl-&gt;device-&gt;endpoints, (void*)endpoint);<br>
+        if( 0 &gt; endpoint-&gt;index ) {<br>
+            OBJ_RELEASE(endpoint);<br>
+diff -r 521e5f4b161a ompi/mca/btl/openib/btl_openib.h<br>
+--- a/ompi/mca/btl/openib/btl_openib.h  Fri Nov 06 12:00:16 2009 -0800<br>
++++ b/ompi/mca/btl/openib/btl_openib.h  Mon Nov 16 17:41:48 2009 +0200<br>
+@@ -75,6 +75,13 @@<br>
+ */<br>
+<br>
+typedef enum {<br>
++    MCA_BTL_OPENIB_TRANSPORT_UNKNOWN    = -1,<br>
+</blockquote>
+<br>
+Any particular reason to make this -1 instead of 0?<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++    MCA_BTL_OPENIB_TRANSPORT_IB    = 0,<br>
++    MCA_BTL_OPENIB_TRANSPORT_IWARP,<br>
++    MCA_BTL_OPENIB_TRANSPORT_RDMAOE<br>
++} mca_btl_openib_transport_type_t;<br>
++<br>
++typedef enum {<br>
+    MCA_BTL_OPENIB_PP_QP,<br>
+    MCA_BTL_OPENIB_SRQ_QP,<br>
+    MCA_BTL_OPENIB_XRC_QP<br>
+@@ -254,6 +261,8 @@<br>
+    ompi_free_list_t recv_user_free;<br>
+    /**&lt; frags for coalesced massages */<br>
+    ompi_free_list_t send_free_coalesced;<br>
++    /**&lt; Default receive queues */<br>
++    char* default_recv_qps;<br>
+}; typedef struct mca_btl_openib_component_t mca_btl_openib_component_t;<br>
+<br>
+OMPI_MODULE_DECLSPEC extern mca_btl_openib_component_t mca_btl_openib_component;<br>
+@@ -272,6 +281,12 @@<br>
+    uint16_t apm_lid;<br>
+    /** The MTU used by this port */<br>
+    uint8_t mtu;<br>
++    /** vendor id define device type and tuning */<br>
++    uint32_t vendor_id;<br>
++    /** vendor part id define device type and tuning */<div class="im"><br>
++    uint32_t vendor_part_id;<br></div>
++    /** Transport type of remote port */<br>
++    uint8_t transport_type;<br>
+</blockquote>
+<br>
+I see that the rq string is not sent in the modex message (i.e., this is not a new problem).  I think the assumption here is that when you look up and strcmp the rq strings, you assume that either the value is found in the ini file or the value is obtained from an MCA param that is uniform on all procs.<br>
+
+<br>
+But what if the value is not uniform for all procs?  (this is possible)<br>
+<br>
+I don&#39;t think you have to solve this problem in this patch, but could you put a comment in here somewhere indicating that this is a problem that we do not [yet] solve?  (mebbe this can be solved in ofacm...?)<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+    /** Dummy field used to calculate the real length */<br>
+    uint8_t end;<br>
+} mca_btl_openib_modex_message_t;<br>
+@@ -633,6 +648,18 @@<br>
+<br>
+int mca_btl_openib_post_srr(mca_btl_openib_module_t* openib_btl, const int qp);<br>
+<br>
++/**<br>
++ * Get a transport name of btl by its transport type.<br>
++ */<br>
++<br>
++const char* btl_openib_get_transport_name(mca_btl_openib_transport_type_t transport_type);<br>
++<br>
++/**<br>
++ * Get a transport type of btl.<br>
++ */<br>
++<br>
++mca_btl_openib_transport_type_t mca_btl_openib_get_transport_type(mca_btl_openib_module_t* openib_btl);<br>
++<br>
+static inline int qp_cq_prio(const int qp)<br>
+{<br>
+    if(0 == qp)<br>
+diff -r 521e5f4b161a ompi/mca/btl/openib/btl_openib_component.c<br>
+--- a/ompi/mca/btl/openib/btl_openib_component.c        Fri Nov 06 12:00:16 2009 -0800<br>
++++ b/ompi/mca/btl/openib/btl_openib_component.c        Mon Nov 16 17:41:48 2009 +0200<br>
+@@ -143,6 +143,7 @@<br>
+    OBJ_CONSTRUCT(&amp;mca_btl_openib_component.devices, opal_pointer_array_t);<br>
+    mca_btl_openib_component.devices_count = 0;<br>
+    mca_btl_openib_component.cpc_explicitly_defined = false;<br>
++    mca_btl_openib_component.default_recv_qps = NULL;<br>
+<br>
+    /* initialize objects */<br>
+    OBJ_CONSTRUCT(&amp;mca_btl_openib_component.ib_procs, opal_list_t);<br>
+@@ -196,6 +197,10 @@<br>
+        free(mca_btl_openib_component.receive_queues);<br>
+    }<br>
+<br>
++    if (NULL != mca_btl_openib_component.default_recv_qps) {<br>
++        free(mca_btl_openib_component.default_recv_qps);<br>
++    }<br>
++<br>
+    return rc;<br>
+}<br>
+<br>
+@@ -303,6 +308,16 @@<br>
+<br>
+        /* Pack the modex common message struct.  */<br>
+        size = modex_message_size;<br>
++<br>
++        (mca_btl_openib_component.openib_btls[i]-&gt;port_info).vendor_id =<br>
++            (mca_btl_openib_component.openib_btls[i]-&gt;device-&gt;ib_dev_attr).vendor_id;<br>
++<br>
++        (mca_btl_openib_component.openib_btls[i]-&gt;port_info).vendor_part_id =<br>
++            (mca_btl_openib_component.openib_btls[i]-&gt;device-&gt;ib_dev_attr).vendor_part_id;<br>
++<br>
++        (mca_btl_openib_component.openib_btls[i]-&gt;port_info).transport_type =<br>
++            mca_btl_openib_get_transport_type(mca_btl_openib_component.openib_btls[i]);<br>
++<br>
+        memcpy(offset,<br>
+               &amp;(mca_btl_openib_component.openib_btls[i]-&gt;port_info),<br>
+               size);<br>
+@@ -1657,45 +1672,6 @@<br>
+        ibv_destroy_cq(cq);<br>
+    }<br>
+<br>
+-    /* If the user specified btl_openib_receive_queues MCA param, it<br>
+-       overrides all device INI params */<br>
+-    if (BTL_OPENIB_RQ_SOURCE_MCA !=<br>
+-        mca_btl_openib_component.receive_queues_source &amp;&amp;<br>
+-        NULL != values.receive_queues) {<br>
+-        /* If a prior device&#39;s INI values set a different value for<br>
+-           receive_queues, this is unsupported (see<br>
+-           <a href="https://svn.open-mpi.org/trac/ompi/ticket/1285" target="_blank">https://svn.open-mpi.org/trac/ompi/ticket/1285</a>) */<br>
+-        if (BTL_OPENIB_RQ_SOURCE_DEVICE_INI ==<br>
+-            mca_btl_openib_component.receive_queues_source) {<br>
+-            if (0 != strcmp(values.receive_queues,<br>
+-                            mca_btl_openib_component.receive_queues)) {<br>
+-                orte_show_help(&quot;help-mpi-btl-openib.txt&quot;,<br>
+-                               &quot;conflicting receive_queues&quot;, true,<br>
+-                               orte_process_info.nodename,<br>
+-                               ibv_get_device_name(device-&gt;ib_dev),<br>
+-                               device-&gt;ib_dev_attr.vendor_id,<br>
+-                               device-&gt;ib_dev_attr.vendor_part_id,<br>
+-                               values.receive_queues,<br>
+-                               ibv_get_device_name(receive_queues_device-&gt;ib_dev),<br>
+-                               receive_queues_device-&gt;ib_dev_attr.vendor_id,<br>
+-                               receive_queues_device-&gt;ib_dev_attr.vendor_part_id,<br>
+-                               mca_btl_openib_component.receive_queues,<br>
+-                               opal_install_dirs.pkgdatadir);<br>
+-                ret = OMPI_ERR_RESOURCE_BUSY;<br>
+-                goto error;<br>
+-            }<br>
+-        } else {<br>
+-            if (NULL != mca_btl_openib_component.receive_queues) {<br>
+-                free(mca_btl_openib_component.receive_queues);<br>
+-            }<br>
+-            receive_queues_device = device;<br>
+-            mca_btl_openib_component.receive_queues =<br>
+-                strdup(values.receive_queues);<br>
+-            mca_btl_openib_component.receive_queues_source =<br>
+-                BTL_OPENIB_RQ_SOURCE_DEVICE_INI;<br>
+-        }<br>
+-    }<br>
+-<br>
+    /* Should we use RDMA for short / eager messages?  First check MCA<br>
+       param, then check INI file values. */<br>
+    if (mca_btl_openib_component.use_eager_rdma &gt;= 0) {<br>
+@@ -1795,6 +1771,45 @@<br>
+                           &quot;apm not enough ports&quot;, true);<br>
+            mca_btl_openib_component.apm_ports = 0;<br>
+        }<br>
++<br>
++        /* If the user specified btl_openib_receive_queues MCA param, it<br>
++           overrides all device INI params */<br>
++        if (BTL_OPENIB_RQ_SOURCE_MCA !=<br>
++            mca_btl_openib_component.receive_queues_source &amp;&amp;<br>
++            NULL != values.receive_queues) {<br>
++            /* If a prior device&#39;s INI values set a different value for<br>
++               receive_queues, this is unsupported (see<br>
++               <a href="https://svn.open-mpi.org/trac/ompi/ticket/1285" target="_blank">https://svn.open-mpi.org/trac/ompi/ticket/1285</a>) */<br>
++            if (BTL_OPENIB_RQ_SOURCE_DEVICE_INI ==<br>
++                mca_btl_openib_component.receive_queues_source) {<br>
++                if (0 != strcmp(values.receive_queues,<br>
++                                mca_btl_openib_component.receive_queues)) {<br>
++                    orte_show_help(&quot;help-mpi-btl-openib.txt&quot;,<br>
++                                   &quot;conflicting receive_queues&quot;, true,<br>
++                                   orte_process_info.nodename,<br>
++                                   ibv_get_device_name(device-&gt;ib_dev),<br>
++                                   device-&gt;ib_dev_attr.vendor_id,<br>
++                                   device-&gt;ib_dev_attr.vendor_part_id,<br>
++                                   values.receive_queues,<br>
++                                   ibv_get_device_name(receive_queues_device-&gt;ib_dev),<br>
++                                   receive_queues_device-&gt;ib_dev_attr.vendor_id,<br>
++                                   receive_queues_device-&gt;ib_dev_attr.vendor_part_id,<br>
++                                   mca_btl_openib_component.receive_queues,<br>
++                                   opal_install_dirs.pkgdatadir);<br>
++                    ret = OMPI_ERR_RESOURCE_BUSY;<br>
++                    goto error;<br>
++                }<br>
++            } else {<br>
++                if (NULL != mca_btl_openib_component.receive_queues) {<br>
++                    free(mca_btl_openib_component.receive_queues);<br>
++                }<br>
++                receive_queues_device = device;<br>
++                mca_btl_openib_component.receive_queues =<br>
++                    strdup(values.receive_queues);<br>
++                mca_btl_openib_component.receive_queues_source =<br>
++                    BTL_OPENIB_RQ_SOURCE_DEVICE_INI;<br>
++            }<br>
++        }<br>
+        return OMPI_SUCCESS;<br>
+    }<br>
+</blockquote>
+<br>
+<br>
+Can you explain why you moved the above logic down further in the init sequence?  If something goes wrong and we abort, there&#39;s more to cleanup by the time we get all the way down here.  If there&#39;s a reason to move this stuff down, please put it in a comment.<br>
+
+<br>
+I love comments.  :-)<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+diff -r 521e5f4b161a ompi/mca/btl/openib/btl_openib_endpoint.c<br>
+--- a/ompi/mca/btl/openib/btl_openib_endpoint.c Fri Nov 06 12:00:16 2009 -0800<br>
++++ b/ompi/mca/btl/openib/btl_openib_endpoint.c Mon Nov 16 17:41:48 2009 +0200<br>
+@@ -310,6 +310,11 @@<br>
+                ep-&gt;rem_info.rem_subnet_id,<br>
+                ep-&gt;rem_info.rem_mtu);<br>
+<br>
++    ep-&gt;rem_info.rem_vendor_id = (remote_proc_info-&gt;pm_port_info).vendor_id;<br>
++    ep-&gt;rem_info.rem_vendor_part_id = (remote_proc_info-&gt;pm_port_info).vendor_part_id;<br>
++<br>
++    ep-&gt;rem_info.rem_transport_type = (remote_proc_info-&gt;pm_port_info).transport_type;<br>
++<br>
+    for (qp = 0; qp &lt; mca_btl_openib_component.num_qps; qp++) {<br>
+        endpoint_init_qp(ep, qp);<br>
+    }<br>
+diff -r 521e5f4b161a ompi/mca/btl/openib/btl_openib_endpoint.h<br>
+--- a/ompi/mca/btl/openib/btl_openib_endpoint.h Fri Nov 06 12:00:16 2009 -0800<br>
++++ b/ompi/mca/btl/openib/btl_openib_endpoint.h Mon Nov 16 17:41:48 2009 +0200<br>
+@@ -94,6 +94,12 @@<br>
+    mca_btl_openib_rem_qp_info_t *rem_qps;<br>
+    /* Remote xrc_srq info, used only with XRC connections */<br>
+    mca_btl_openib_rem_srq_info_t *rem_srqs;<br>
++    /* Vendor id of remote HCA */<br>
++    uint32_t rem_vendor_id;<br>
++    /* Vendor part id of remote HCA */<br>
++    uint32_t rem_vendor_part_id;<br>
++    /* Transport type of remote port */<br>
++    mca_btl_openib_transport_type_t rem_transport_type;<br>
+} mca_btl_openib_rem_info_t;<br>
+<br>
+<br>
+diff -r 521e5f4b161a ompi/mca/btl/openib/btl_openib_mca.c<br>
+--- a/ompi/mca/btl/openib/btl_openib_mca.c      Fri Nov 06 12:00:16 2009 -0800<br>
++++ b/ompi/mca/btl/openib/btl_openib_mca.c      Mon Nov 16 17:41:48 2009 +0200<br>
+@@ -10,7 +10,7 @@<br>
+ * Copyright (c) 2004-2005 The Regents of the University of California.<br>
+ *                         All rights reserved.<br>
+ * Copyright (c) 2006-2008 Cisco Systems, Inc.  All rights reserved.<br>
+- * Copyright (c) 2006-2008 Mellanox Technologies. All rights reserved.<br>
++ * Copyright (c) 2006-2009 Mellanox Technologies. All rights reserved.<br>
+ * Copyright (c) 2006-2007 Los Alamos National Security, LLC.  All rights<br>
+ *                         reserved.<br>
+ * Copyright (c) 2006-2007 Voltaire All rights reserved.<br>
+@@ -526,6 +526,13 @@<br>
+            mid_qp_size,<br>
+            (uint32_t)mca_btl_openib_module.super.btl_eager_limit,<br>
+            (uint32_t)mca_btl_openib_module.super.btl_max_send_size);<br>
++<br>
++    mca_btl_openib_component.default_recv_qps = strdup(default_qps);<br>
++    if(NULL == mca_btl_openib_component.default_recv_qps) {<br>
++        BTL_ERROR((&quot;Unable to allocate memory for default receive queues string.\n&quot;));<br>
++        return OMPI_ERROR;<br>
++    }<br>
+</blockquote>
+<br>
+...and you were doing so well with show_help() up above.  :-)<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+    CHECK(reg_string(&quot;receive_queues&quot;, NULL,<br>
+                     &quot;Colon-delimited, comma delimited list of receive queues: P,4096,8,6,4:P,32768,8,6,4&quot;,<br>
+                     default_qps, &amp;mca_btl_openib_component.receive_queues,<br>
+diff -r 521e5f4b161a ompi/mca/btl/openib/help-mpi-btl-openib.txt<br>
+--- a/ompi/mca/btl/openib/help-mpi-btl-openib.txt       Fri Nov 06 12:00:16 2009 -0800<br>
++++ b/ompi/mca/btl/openib/help-mpi-btl-openib.txt       Mon Nov 16 17:41:48 2009 +0200<br>
+@@ -11,7 +11,7 @@<br>
+# Copyright (c) 2004-2006 The Regents of the University of California.<br>
+#                         All rights reserved.<br>
+# Copyright (c) 2006-2009 Cisco Systems, Inc.  All rights reserved.<br>
+-# Copyright (c) 2007-2008 Mellanox Technologies. All rights reserved.<br>
++# Copyright (c) 2007-2009 Mellanox Technologies. All rights reserved.<br>
+# Copyright (c) 2009      Sun Microsystems, Inc.  All rights reserved.<br>
+# $COPYRIGHT$<br>
+#<br>
+@@ -590,3 +590,28 @@<br>
+  Local host: %s<br>
+  Value:      %s<br>
+  Message:    %s<br>
++#<br>
++[unsupported queues configuration]<br>
++The remote and local queues were automatically configured for different<br>
++devices and as result Open MPI failed to find optimal configuration.<br>
++Please use MCA parameters in order define Open Fabrics queues configuration.<br>
+</blockquote>
+<br>
+What exactly does this message mean?  Is it displayed when the rq string values of two endpoints do not match?  If so, I suggest the following text:<br>
+<br>
+The Open MPI receive queue configuration for the OpenFabrics devices on two nodes are incompatible, meaning that MPI processes on two specific nodes were unable to communicate with each other.  This generally happens when you are using OpenFabrics devices from different vendors on the same network.  You should be able to use the mca_btl_openib_receive_queues MCA parameter to set a uniform receive queue configuration for all the devices in the MPI job, and therefore be able to run successfully.<br>
+
+<br>
+The message below indicates the *first* two processes in this MPI job that failed to connect to each other because of mismatched receive queue configuration:<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++  Local host:       %s<br>
++  Local adapter:    %s (vendor 0x%x, part ID %d)<br>
++  Local queues:     %s<br>
++<br>
++  Remote host:      %s<br>
++  Remote adapter:   remote adapter (vendor 0x%x, part ID %d)<br>
+</blockquote>
+<br>
+Is the second &quot;remote adapter&quot; redundant?<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++  Remote queues:    %s<br>
++#<br>
++[conflicting transport types]<br>
++Open MPI detected two different OpenFabrics transport types in the same Infiniband network.<br>
++Such mixed network trasport configuration is not supported by Open MPI.<br>
+</blockquote>
+<br>
+Pasha tried to explain this to me on IM, but I don&#39;t think I quite understand.  Does this happen when an IB port has the same subnet ID as an RDMAoE port, but they&#39;re actually on different networks?  (they *must* be on two different physical networks...)<br>
+
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++  Local host:            %s<br>
++  Local adapter:         %s (vendor 0x%x, part ID %d)<br>
++  Local transport type:  %s<br>
++<br>
++  Remote host:           %s<br>
++  Remote Adapter:        remote adapter (vendor 0x%x, part ID %d)<br>
+</blockquote>
+<br>
+Redundant &quot;recmote adapter&quot; comment.<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
++  Remote transport type: %s<br>
+</blockquote><div><div class="h5">
+<br>
+<br>
+-- <br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br></div>
+

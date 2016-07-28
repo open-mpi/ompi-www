@@ -1,0 +1,283 @@
+/*
+ * Copyright (c) 2014      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ *
+ * $COPYRIGHT$
+ * 
+ * Additional copyrights may follow
+ * 
+ * $HEADER$
+ */
+
+#include "mpi.h"
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <getopt.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sched.h>
+#include <signal.h>
+#include <dlfcn.h>
+#include <math.h>
+#include <assert.h>
+#include <stdint.h>
+
+/** Knuth algorithm for online numerically stable computation of variance */
+typedef struct {
+    int     n;
+    double  mean;
+    double  m2;
+    int     ks;
+    double *samples;
+} stat_t;
+
+static inline double stat_get_mean(stat_t *s) {
+    return s->mean;
+}
+
+static inline double stat_get_stdev(stat_t *s) {
+    if( s->n > 1 )
+        return sqrt(s->m2/(double)(s->n-1));
+    return NAN;
+}
+
+static inline int stat_get_nbsamples(stat_t *s) {
+    return s->n;
+}
+
+static inline void stat_record(stat_t *s, double v) {
+    double delta;
+    if( s->n < s->ks ) {
+        s->samples[s->n] = v;
+    }
+    s->n++;
+    delta = v - s->mean;
+    s->mean += delta / (double)s->n;
+    s->m2 += delta * (v - s->mean);
+}
+
+static inline void stat_init(stat_t *s, int keep_samples) {
+    s->n    = 0;
+    s->mean = 0.0;
+    s->m2   = 0.0;
+    s->samples = (double*)calloc(keep_samples, sizeof(double));
+    s->ks = keep_samples;
+}
+
+#define NBCOMMS 1024
+
+static MPI_Comm comms[NBCOMMS];
+static int    is_used[NBCOMMS];
+static int nbcomms = 0;
+static unsigned int seed = 1789;
+static int  verbose = 0;
+static int rank, size;
+
+static int iteration_testline = 0;
+
+void testline(void)
+{
+    int i, r, nb, nc, oc;
+
+    iteration_testline++;
+
+    if( (nbcomms > 0 && (rand_r(&seed) % 4 == 1)) || nbcomms == NBCOMMS) {
+        /* We free up to 10 old comms, at least one. */
+        nb = (rand_r(&seed) % 10) + 1;
+        do {
+            r = rand_r(&seed) % nbcomms;
+            for(i = 0; i < NBCOMMS; i++) {
+                if( is_used[i] ) {
+                    if(r == 0) {
+                        if( comms[i] != MPI_COMM_NULL) {
+                            if( verbose ) {
+                                fprintf(stderr, "IT %d Rank %d :: free communicator at index %d\n", 
+                                        iteration_testline, rank, i);
+                            }
+                            MPI_Comm_free(&comms[i]);
+                            comms[i] = MPI_COMM_NULL;
+                        }
+                        is_used[i] = 0;
+                        nbcomms--;
+                        assert(nbcomms >= 0 && nbcomms < NBCOMMS);
+                        break;
+                    }
+                    r--;
+                }
+            }
+            nb--;
+        } while(nb > 0 && i < NBCOMMS && nbcomms > 0);
+    }
+
+    if( verbose ) {
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    nc = -1;
+    for(i = 0; i < NBCOMMS; i++) {
+        if( is_used[i] == 0 ) {
+            nc = i;
+            break;
+        }
+    }
+    assert(-1 != nc);
+
+    oc = -1;
+    if(nbcomms > NBCOMMS /* never */) {
+        r = rand_r(&seed) % (nbcomms+4);
+        for(i = 0; i < NBCOMMS; i++) {
+            if( is_used[i] ) {
+                if(r == 0) {
+                    oc = i;
+                    break;
+                }
+                r--;
+            }
+        }
+    }
+
+    r = rand_r(&seed) % 10 + 1;
+    if( oc == -1 ) {
+        if( verbose ) {
+            fprintf(stderr, "IT %d Rank %d :: split MPI_COMM_WORLD with %s to create comm at index %d\n", 
+                    iteration_testline, rank,  (rank % r) == 1 ? "MPI_UNDEFINED" : "0", nc);
+        }
+        MPI_Comm_split(MPI_COMM_WORLD, (rank % r) == 1 ? MPI_UNDEFINED : 0, rank, &comms[nc]);
+        if( verbose ) {
+            fprintf(stderr, "IT %d Rank %d :: done splitting MPI_COMM_WORLD with %s to create comm at index %d\n", 
+                    iteration_testline, rank,  (rank % r) == 1 ? "MPI_UNDEFINED" : "0", nc);
+        }
+    } else if( comms[oc] != MPI_COMM_NULL ) {
+        if( verbose ) {
+            fprintf(stderr, "IT %d Rank %d :: split communicator at index %d with %s to create comm at index %d\n", 
+                    iteration_testline, rank, oc, (rank % r) == 1 ? "MPI_UNDEFINED" : "0", nc);
+        }
+        MPI_Comm_split(comms[oc], (rank % r) == 1 ? MPI_UNDEFINED : 0, rank, &comms[nc]);
+        if( verbose ) {
+            fprintf(stderr, "IT %d Rank %d :: done splitting communicator at index %d with %s to create comm at index %d\n", 
+                    iteration_testline, rank, oc,  (rank % r) == 1 ? "MPI_UNDEFINED" : "0", nc);
+        }
+    }
+
+    /** Check that the created communicator works */
+    if( comms[nc] != MPI_COMM_NULL ) {
+        MPI_Barrier(comms[nc]);
+    }
+
+    is_used[nc] = 1;
+    nbcomms++;
+}
+
+int main(int argc, char *argv[])
+{
+    int c, i;
+
+    int  before = 10;
+    int  after  = 10;
+
+    double start;
+    stat_t sbefore, safter;
+    int debug = 0xffffffff;
+    int loop = 0;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    for(i = 0; i < NBCOMMS; i++) {
+        comms[i] = MPI_COMM_NULL;
+        is_used[i] = 0;
+    }
+
+    while(1) {
+        static struct option long_options[] = {
+            { "verbose",      0, 0, 'v' },
+            { "before",       1, 0, 'b' },
+            { "after",        1, 0, 'a' },
+            { "debug",        2, 0, 'd' },
+            { NULL,           0, 0, 0   }
+        };
+
+        c = getopt_long(argc, argv, "vb:a:d::", long_options, NULL);
+        if (c == -1)
+            break;
+
+        switch(c) {
+        case 'v':
+            verbose = 1;
+            break;
+        case 'b':
+            before = atoi(optarg);
+            break;
+        case 'a':
+            after = atoi(optarg);
+            break;
+        case 'd':
+            if(optarg)
+                debug = atoi(optarg);
+            else
+                debug = 0xfffffff0;
+            break;
+        }
+    }
+
+    if( debug != 0xffffffff ) {
+        if( debug == 0xfffffff0 || rank == debug ) {
+            char hostname[255];
+            loop = 1;
+            gethostname(hostname, 255);
+            printf("ssh -t %s gdb -p %d\n", hostname, getpid());
+            while( loop ) {
+                sleep(1);
+            }
+        }
+    }
+
+    stat_init(&sbefore, 0);
+    stat_init(&safter, 0);
+
+    srand(getpid());
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    for(i = 0; i < before; i++) {
+        start = MPI_Wtime();
+        testline();
+        stat_record(&sbefore, MPI_Wtime() - start);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    printf("WARMUP %g s (stdev %g ) per agreement on rank %d (average over %d agreements)\n", 
+           stat_get_mean(&sbefore), stat_get_stdev(&sbefore), rank, stat_get_nbsamples(&sbefore));
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    for(i = 0; i < NBCOMMS; i++) {
+        if( comms[i] != MPI_COMM_NULL ) {
+            MPI_Comm_free(&comms[i]);
+            comms[i] = MPI_COMM_NULL;
+        }
+        is_used[i] = 0;
+    }
+    nbcomms = 0;
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    for(i = 0; i < after; i++) {
+        start = MPI_Wtime();
+        testline();
+        stat_record(&safter, MPI_Wtime() - start);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    printf("RUN %g s (stdev %g ) per agreement on rank %d (average over %d agreements) -- Precision is %g\n",
+           stat_get_mean(&safter), stat_get_stdev(&safter), rank, stat_get_nbsamples(&safter), MPI_Wtick());
+
+    if( verbose ) {
+        for(i = 0; i < safter.n && i < safter.ks; i++) {
+            fprintf(stderr, "%d %g\n", rank, safter.samples[i]);
+        }
+    }
+
+    MPI_Finalize();
+
+    return 0;
+}

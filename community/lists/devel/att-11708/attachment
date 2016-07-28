@@ -1,0 +1,131 @@
+Note that with Apple&#39;s latest versions of Xcode (4.2 and higher, IIRC) Clang is now the default C compiler.  I am told that Clang is the ONLY bundled compiler for OSX 10.8 (Mountain Lion) unless you take extra steps to install gcc (which is actually llvm-gcc and cross-compiles for OSX 10.7).<div>
+<br></div><div>So, Clang *is* gaining some &quot;market share&quot;, though not yet in major HPC systems.</div><div><br></div><div>-Paul</div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, Oct 31, 2012 at 11:40 AM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">If it&#39;s only on for Clang, I very much doubt anyone will care - I&#39;m unaware of any of our users that currently utilize that compiler, and certainly not on the clusters in the national labs (gcc, Intel, etc. - but I&#39;ve never seen them use Clang).<br>
+
+<br>
+Not saying anything negative about Clang - just noting it isn&#39;t much used in our current community that I&#39;ve heard.<br>
+<br>
+<br>
+On Oct 31, 2012, at 11:19 AM, Dmitri Gribenko &lt;<a href="mailto:gribozavr@gmail.com">gribozavr@gmail.com</a>&gt; wrote:<br>
+<br>
+&gt; On Wed, Oct 31, 2012 at 5:04 PM, Jeff Squyres &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+&gt;&gt; On Oct 31, 2012, at 9:38 AM, Dmitri Gribenko wrote:<br>
+&gt;&gt;<br>
+&gt;&gt;&gt;&gt; The rationale here is that correct MPI applications should not need to add any extra compiler files to compile without warnings.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I would disagree with this.  Compiler warnings are most useful when<br>
+&gt;&gt;&gt; they are on by default.  Only a few developers will turn on a warning<br>
+&gt;&gt;&gt; because warnings are hard to discover and enabling a warning requires<br>
+&gt;&gt;&gt; an explicit action from the developer.<br>
+&gt;&gt;<br>
+&gt;&gt; Understood, but:<br>
+&gt;&gt;<br>
+&gt;&gt; a) MPI explicitly allows this kind of deliberate mismatch.  It does not make sense to warn for things that are correct in MPI.<br>
+&gt;<br>
+&gt; I don&#39;t think it is MPI.  It is the C standard that allows one to<br>
+&gt; store any pointer in void* and char*.  But C standard also considers<br>
+&gt; lots of other weird things to be valid, see below.<br>
+&gt;<br>
+&gt;&gt; b) Warnings are significantly less useful if the user looks at them and says, &quot;the compiler is wrong; I know that MPI says that this deliberate mismatch in my code is ok.&quot;<br>
+&gt;<br>
+&gt; Well, one can also argue that since the following is valid C, the<br>
+&gt; warning in question should not be implemented at all:<br>
+&gt;<br>
+&gt; long *b = malloc(sizeof(int));<br>
+&gt; MPI_Recv(b, 1, MPI_INT, ...);<br>
+&gt;<br>
+&gt; But this code is clearly badly written, so we are left with a question<br>
+&gt; about where to draw the line.<br>
+&gt;<br>
+&gt;&gt; c) as such, these warnings are really only useful for the application where type/MPI_Datatype matching is expected/desired.<br>
+&gt;<br>
+&gt; Compilers already warn about valid C code.  Silencing many warnings<br>
+&gt; relies on conventions that are derived from best practices of being<br>
+&gt; explicit about something unusual.  For example:<br>
+&gt;<br>
+&gt; $ cat /tmp/aaa.c<br>
+&gt; void foo(void *a) {<br>
+&gt;  for(int i = a; i &lt; 10; i++)<br>
+&gt;  {<br>
+&gt;    if(i = 5)<br>
+&gt;      return;<br>
+&gt;  }<br>
+&gt; }<br>
+&gt; $ clang -fsyntax-only -std=c99 /tmp/aaa.c<br>
+&gt; /tmp/aaa.c:2:11: warning: incompatible pointer to integer conversion<br>
+&gt; initializing &#39;int&#39; with an expression of type &#39;void *&#39;<br>
+&gt; [-Wint-conversion]<br>
+&gt;  for(int i = a; i &lt; 10; i++)<br>
+&gt;          ^   ~<br>
+&gt; /tmp/aaa.c:4:10: warning: using the result of an assignment as a<br>
+&gt; condition without parentheses [-Wparentheses]<br>
+&gt;    if(i = 5)<br>
+&gt;       ~~^~~<br>
+&gt; /tmp/aaa.c:4:10: note: place parentheses around the assignment to<br>
+&gt; silence this warning<br>
+&gt;    if(i = 5)<br>
+&gt;         ^<br>
+&gt;       (    )<br>
+&gt; /tmp/aaa.c:4:10: note: use &#39;==&#39; to turn this assignment into an<br>
+&gt; equality comparison<br>
+&gt;    if(i = 5)<br>
+&gt;         ^<br>
+&gt;         ==<br>
+&gt; 2 warnings generated.<br>
+&gt;<br>
+&gt; According to C standard this is valid C code, but clang emits two<br>
+&gt; warnings on this.<br>
+&gt;<br>
+&gt;&gt; Can these warnings be enabled as part of the warnings rollup -Wall option?  That would be an easy way to find/enable these warnings.<br>
+&gt;<br>
+&gt; IIRC, -Wall warning set is frozen in clang.  -Wall is misleading in<br>
+&gt; that it does not turn on all warnings implemented in the compiler.<br>
+&gt; Clang has -Weverything to really turn on all warnings.  But<br>
+&gt; -Weverything is very noisy (by design, not to be fixed) unless one<br>
+&gt; also turns off all warnings that are not interesting for the project<br>
+&gt; with -Wno-foo.<br>
+&gt;<br>
+&gt; I don&#39;t think it is possible to disable this warning by default<br>
+&gt; because off-by-default warnings are discouraged in Clang.  There is no<br>
+&gt; formal policy, but the rule of thumb is: either make the warning good<br>
+&gt; enough for everyone or don&#39;t implement it; if some particular app does<br>
+&gt; something strange, it can disable this warning.<br>
+&gt;<br>
+&gt;&gt;&gt; The pattern you described is an important one, but most MPI<br>
+&gt;&gt;&gt; applications will have matching buffer types/type tags.<br>
+&gt;&gt;<br>
+&gt;&gt; I agree that most applications *probably* don&#39;t do this.  But significant developer in this community (i.e., Sandia) has at least multiple applications that *do* do it.  I can&#39;t ignore that.  :-(<br>
+&gt;<br>
+&gt; Here are a few approaches to solving this in order of preference:<br>
+&gt;<br>
+&gt; 0. Is this really a concern for Sandia?  (I.e., do they target Clang?)<br>
+&gt;<br>
+&gt; 1. Ask the developer to silence the warning with a cast to &#39;void *&#39; or<br>
+&gt; -Wno-type-safety.  Rationale: compilers already do warn about valid<br>
+&gt; but suspicious code.<br>
+&gt;<br>
+&gt; 2. Turn off checking for char* just like for void*.  Rationale: C<br>
+&gt; standard allows char* to alias a pointer of any type.  Note that char*<br>
+&gt; is special in this regard (strict aliasing rules).<br>
+&gt;<br>
+&gt; 3. Turn off annotations by default in mpi.h.<br>
+&gt;<br>
+&gt; Dmitri<br>
+&gt;<br>
+&gt; --<br>
+&gt; main(i,j){for(i=2;;i++){for(j=2;j&lt;i;j++){if(!(i%j)){j=0;break;}}if<br>
+&gt; (j){printf(&quot;%d\n&quot;,i);}}} /*Dmitri Gribenko &lt;<a href="mailto:gribozavr@gmail.com">gribozavr@gmail.com</a>&gt;*/<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+<div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font><br>
+</div>
+

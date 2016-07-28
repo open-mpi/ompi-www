@@ -1,0 +1,212 @@
+[From nobody Fri Jan 17 14:44:19 2014
+Message-ID: &lt;4662102E-8863-4DBA-BF92-4F7E7A5A32DE@usgs.gov&gt;
+From: Larry Baker &lt;baker@usgs.gov&gt;
+To: PGI Technical Support &lt;trs@pgroup.com&gt;
+In-Reply-To: &lt;4C4F80DB.2070004@pgroup.com&gt;
+Content-Type: text/plain; charset=&quot;WINDOWS-1252&quot;; format=flowed; delsp=yes
+X-Smtp-Server: gscamnlh01.wr.usgs.gov
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0 (Apple Message framework v936)
+Subject: Re: pgcc overly picky about type mismatch?
+Date: Tue, 27 Jul 2010 18:16:39 -0700
+References: &lt;07842FE0-A7CD-43F9-B1DD-DA3D12AC2837@usgs.gov&gt;
+	&lt;4C4F80DB.2070004@pgroup.com&gt;
+
+FYI.  The Intel compilers also do not complain.
+
+Larry Baker
+US Geological Survey
+650-329-5608
+baker@usgs.gov
+
+On Jul 27, 2010, at 5:59 PM, PGI Technical Support wrote:
+
+&gt; Larry,
+&gt;
+&gt;    Thanks for the report.
+&gt;
+&gt;    We recreated your behavior and logged it as TPR 17139.
+&gt;
+&gt; regards,
+&gt; dave
+&gt;
+&gt;
+&gt; Larry Baker wrote:
+&gt;&gt; Customer information:
+&gt;&gt;
+&gt;&gt; Larry Baker
+&gt;&gt; US Geological Survey
+&gt;&gt; 650-329-5608
+&gt;&gt; baker@usgs.gov
+&gt;&gt;
+&gt;&gt; Product: 2183-WS
+&gt;&gt; PIN: 507549
+&gt;&gt;
+&gt;&gt; Problem description:
+&gt;&gt;
+&gt;&gt; I am trying to track down the warnings that occur when compiling =20
+&gt;&gt; the UCAR NetCDF package with PGI compilers.  I have found a case =20
+&gt;&gt; that gcc does not warn about, but pgcc does.  If I understand the =20
+&gt;&gt; code and the C (1990) standard, I think pgcc is complaining too much.
+&gt;&gt;
+&gt;&gt; You can reproduce the warnings by downloading the UCAR NetCDF =20
+&gt;&gt; source package, netcdf.tar.gz, from =
+http://www.unidata.ucar.edu/software/netcdf/=20
+&gt;&gt; .  Assuming you download it to /usr/local/src, here are the =20
+&gt;&gt; commands that illustrate the warnings:
+&gt;&gt;
+&gt;&gt; # cd /usr/local/src
+&gt;&gt; # tar -xzf netcdf.tar.gz
+&gt;&gt; # cd netcdf-4.1.1
+&gt;&gt; # ./configure &gt;/dev/null 2&gt;&amp;1
+&gt;&gt; # cd ncgen
+&gt;&gt; # pgcc -DHAVE_CONFIG_H -I. -I.. -I../fortran       -I.. -I../libsrc =20=
+
+&gt;&gt; -I../libsrc    -g -O2 -tp amd64 -Msignextend -DNO_PGI_OFFSET -c -o =20=
+
+&gt;&gt; genf77.o genf77.c
+&gt;&gt; PGC-W-0095-Type cast required for this conversion (genf77.c: 498)
+&gt;&gt; PGC-W-0095-Type cast required for this conversion (genf77.c: 511)
+&gt;&gt; PGC/x86-64 Linux 10.3-0: compilation completed with warnings
+&gt;&gt;
+&gt;&gt; To eliminate the warnings, I had to modify the two source lines to =20=
+
+&gt;&gt; cast the result from static const char* f77varncid() as (char *):
+&gt;&gt;
+&gt;&gt;&gt;    /* Use the specialized put_att_XX routines if possible*/
+&gt;&gt;&gt;    switch (basetype-&gt;typ.typecode) {
+&gt;&gt;&gt;    case NC_BYTE:
+&gt;&gt;&gt;    case NC_SHORT:
+&gt;&gt;&gt;    case NC_INT:
+&gt;&gt;&gt;    case NC_FLOAT:
+&gt;&gt;&gt;    case NC_DOUBLE:
+&gt;&gt;&gt;        f77attrify(asym,code);
+&gt;&gt;&gt;        codedump(code);
+&gt;&gt;&gt;        bbClear(code);
+&gt;&gt;&gt;        bbprintf0(stmt,&quot;stat =3D nf_put_att_%s(ncid, %s, %s, %s, %lu, =
+=20
+&gt;&gt;&gt; %sval)\n&quot;,
+&gt;&gt;&gt;                nfstype(basetype-&gt;typ.typecode),
+&gt;&gt;&gt;                (asym-&gt;att.var =3D=3D NULL?&quot;NF_GLOBAL&quot;
+&gt;&gt;&gt;                                      :(char *) f77varncid(asym-=20
+&gt;&gt;&gt; &gt;att.var)),   &lt;--- here
+&gt;&gt;&gt;                f77escapifyname(asym-&gt;name),
+&gt;&gt;&gt;                nftype(basetype-&gt;typ.typecode),
+&gt;&gt;&gt;                len,
+&gt;&gt;&gt;                ncftype(basetype-&gt;typ.typecode));
+&gt;&gt;&gt;        codedump(stmt);
+&gt;&gt;&gt;        break;
+&gt;&gt;&gt;
+&gt;&gt;&gt;    case NC_CHAR:
+&gt;&gt;&gt;        len =3D bbLength(code);
+&gt;&gt;&gt;        f77quotestring(code);
+&gt;&gt;&gt;        bbprintf0(stmt,&quot;stat =3D nf_put_att_text(ncid, %s, %s, %lu, =
+&quot;,
+&gt;&gt;&gt;                (asym-&gt;att.var =3D=3D NULL?&quot;NF_GLOBAL&quot;
+&gt;&gt;&gt;                                      :(char *)f77varncid(asym-=20
+&gt;&gt;&gt; &gt;att.var)),   &lt;--- and here
+&gt;&gt;&gt;                f77escapifyname(asym-&gt;name),
+&gt;&gt;&gt;                (len=3D=3D0?1:len));
+&gt;&gt;&gt;        codedump(stmt);
+&gt;&gt;&gt;        codedump(code);
+&gt;&gt;&gt;        codeline(&quot;)&quot;);
+&gt;&gt;&gt;        break;
+&gt;&gt;
+&gt;&gt; Here is static const char* f77varncid():
+&gt;&gt;
+&gt;&gt;&gt; /* Compute the name for a given var's id*/
+&gt;&gt;&gt; /* Watch out: the result is a static*/
+&gt;&gt;&gt; static const char*
+&gt;&gt;&gt; f77varncid(Symbol* vsym)
+&gt;&gt;&gt; {
+&gt;&gt;&gt;    const char* tmp1;
+&gt;&gt;&gt;    char* vartmp;
+&gt;&gt;&gt;    tmp1 =3D f77name(vsym);
+&gt;&gt;&gt;    vartmp =3D poolalloc(strlen(tmp1)+strlen(&quot;_id&quot;)+1);
+&gt;&gt;&gt;    strcpy(vartmp,tmp1);
+&gt;&gt;&gt;    strcat(vartmp,&quot;_id&quot;);
+&gt;&gt;&gt;    return vartmp;
+&gt;&gt;&gt; }
+&gt;&gt;
+&gt;&gt; There are other lines in genf77.c that use f77varncid() in a print =20=
+
+&gt;&gt; statement, so the warnings do not occur every time f77varncid() =20
+&gt;&gt; provides a string for %s:
+&gt;&gt;
+&gt;&gt;&gt;    if (nvars &gt; 0) {
+&gt;&gt;&gt;        f77skip();
+&gt;&gt;&gt;        f77comment(&quot;variable ids&quot;);
+&gt;&gt;&gt;        for(ivar =3D 0; ivar &lt; nvars; ivar++) {
+&gt;&gt;&gt;            Symbol* vsym =3D (Symbol*)listget(vardefs,ivar);
+&gt;&gt;&gt;            bbprintf0(stmt,&quot;integer %s;\n&quot;, f77varncid(vsym));
+&gt;&gt;&gt;            codedump(stmt);
+&gt;&gt;&gt;        }
+&gt;&gt;
+&gt;&gt; The warnings occur in the only two instances where f77varncid() is =20=
+
+&gt;&gt; used in a conditional expression.  In both cases, the second =20
+&gt;&gt; operand is a literal string, e.g., &quot;NF_GLOBAL&quot;.  I would have =20
+&gt;&gt; thought that a (static const char*) and a string literal would be =20
+&gt;&gt; compatible types.  I experimented with a (const char *) cast =20
+&gt;&gt; instead of a (char *) cast, but that does not work.  I think it =20
+&gt;&gt; should.
+&gt;&gt;
+&gt;&gt; I admit, I have an old copy of the C standard =97 from 1990.  But, =20=
+
+&gt;&gt; here's my interpretation of what it says about this:
+&gt;&gt;
+&gt;&gt; =95 6.1.4 String literals, says string literals are converted to an =20=
+
+&gt;&gt; array of type char.  If the program attempts to modify a string =20
+&gt;&gt; literal, the behavior is undefined.  It does not say that the type =20=
+
+&gt;&gt; has the const type qualifier (though, you would think it should).
+&gt;&gt;
+&gt;&gt; =95 6.3.15 Conditional operator, says if the second and third =20
+&gt;&gt; operands are pointers ..., the result type is a pointer to a type =20
+&gt;&gt; qualified with all the type qualifiers of the types pointed-to by =20
+&gt;&gt; both operands.
+&gt;&gt;
+&gt;&gt; This would seem to explain the warning message, since the string =20
+&gt;&gt; literal is (char *) and f77varncid() is (const char *).  However, =20
+&gt;&gt; 6.3.15 goes on to say:
+&gt;&gt;
+&gt;&gt; Furthermore, if both operands are pointers to ... differently =20
+&gt;&gt; qualified versions of a compatible type, the result has the =20
+&gt;&gt; composite type.
+&gt;&gt;
+&gt;&gt; Which leads me to believe you are allowed to mix const and non-=20
+&gt;&gt; const versions of a compatible type.
+&gt;&gt;
+&gt;&gt; Lastly:
+&gt;&gt;
+&gt;&gt; =95 6.5.3 Type qualifiers, says that the properties associated with =20=
+
+&gt;&gt; qualified types are meaningful only for expressions that are lvalues.
+&gt;&gt;
+&gt;&gt; Seems to make the issue moot, since it says const-ness only applies =20=
+
+&gt;&gt; to lvalues.
+&gt;&gt;
+&gt;&gt; So, I think both 6.3.15 and 6.5.3 imply that (char *) and (const =20
+&gt;&gt; char *) are compatible as the second and third operands in a =20
+&gt;&gt; conditional expression which is not an lvalue, which is the case in =20=
+
+&gt;&gt; this code.  As I mentioned above, gcc does not complain about this =20=
+
+&gt;&gt; code.  What do you think?
+&gt;&gt;
+&gt;&gt; Larry Baker
+&gt;&gt; US Geological Survey
+&gt;&gt; 650-329-5608
+&gt;&gt; baker@usgs.gov
+&gt;&gt;
+&gt;
+&gt;
+&gt; --=20
+&gt; Dave Borer	Customer Service Manager, The Portland Group
+&gt; email		dave.borer@st.com
+&gt; phone		(503)-431-7113
+&gt;
+
+]

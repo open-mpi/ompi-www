@@ -1,0 +1,174 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">George,<br>
+      <br>
+      please allow me to jump in with naive comments ...<br>
+      <br>
+      currently (master) both openib and usnic btl invokes
+      opal_using_threads in component_init() :<br>
+      <br>
+      btl_openib_component_init(int *num_btl_modules,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bool enable_progress_threads,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bool enable_mpi_threads)<br>
+      {<br>
+      [...]<br>
+      &nbsp;&nbsp;&nbsp; /* Currently refuse to run if MPI_THREAD_MULTIPLE is enabled
+      */<br>
+      &nbsp;&nbsp;&nbsp; if (opal_using_threads() &amp;&amp;
+      !mca_btl_base_thread_multiple_override) {<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; opal_output_verbose(5,
+      opal_btl_base_framework.framework_output,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "btl:openib: MPI_THREAD_MULTIPLE not
+      suppported; skipping this component");<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; goto no_btls;<br>
+      &nbsp;&nbsp;&nbsp; }<br>
+      <br>
+      <blockquote type="cite">
+        <pre wrap="">The overall design in OMPI was that no OMPI module should be allowed to decide if threads are on</pre>
+      </blockquote>
+      <br>
+      does "OMPI module" exclude OPAL and ORTE module ?<br>
+      if yes, did the btl move from OMPI down to OPAL have any impact ?<br>
+      <br>
+      if not, then could/should opal_using_threads() abort and/or
+      display an error message if it is called too early<br>
+      (at least in debug builds) ?<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/12/12 10:30, Ralph Castain wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:64F63AA6-FA7D-4049-9087-D2B26EF55DC7@open-mpi.org"
+      type="cite">
+      <pre wrap="">Just to help me understand: I don&#8217;t think this change actually changed any behavior. However, it certainly *allows* a different behavior. Isn&#8217;t that true?
+
+If so, I guess the real question is for Pascal at Bull: why do you feel this earlier setting is required?
+
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">On Dec 11, 2014, at 4:21 PM, George Bosilca <a class="moz-txt-link-rfc2396E" href="mailto:bosilca@icl.utk.edu">&lt;bosilca@icl.utk.edu&gt;</a> wrote:
+
+The overall design in OMPI was that no OMPI module should be allowed to decide if threads are on (thus it should not rely on the value returned by opal_using_threads during it's initialization stage). Instead, they should respect the level of thread support requested as an argument during the initialization step.
+
+And this is true even for the BTLs. The PML component init function is propagating the  enable_progress_threads and enable_mpi_threads, down to the BML, and then to the BTL. This 2 variables, enable_progress_threads and enable_mpi_threads, are exactly what the ompi_mpi_init is using to compute the the value of the opal) using_thread (and that this patch moved).
+
+The setting of the opal_using_threads was delayed during the initialization to ensure that it's value was not used to select a specific thread-level in any module, a behavior that is allowed now with the new setting.
+
+A drastic change in behavior...
+
+  George.
+
+
+On Tue, Dec 9, 2014 at 3:33 AM, Ralph Castain &lt;<a class="moz-txt-link-abbreviated" href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;mailto:rhc@open-mpi.org&gt;</a>&gt; wrote:
+Kewl - I&#8217;ll fix. Thanks!
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">On Dec 9, 2014, at 12:32 AM, Pascal Deveze &lt;<a class="moz-txt-link-abbreviated" href="mailto:pascal.deveze@bull.net">pascal.deveze@bull.net</a> <a class="moz-txt-link-rfc2396E" href="mailto:pascal.deveze@bull.net">&lt;mailto:pascal.deveze@bull.net&gt;</a>&gt; wrote:
+
+Hi Ralph,
+ 
+This in in the trunk.
+ 
+De : devel [<a class="moz-txt-link-freetext" href="mailto:devel-bounces@open-mpi.org">mailto:devel-bounces@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel-bounces@open-mpi.org">&lt;mailto:devel-bounces@open-mpi.org&gt;</a>] De la part de Ralph Castain
+Envoy&eacute; : mardi 9 d&eacute;cembre 2014 09:32
+&Agrave; : Open MPI Developers
+Objet : Re: [OMPI devel] Patch proposed: opal_set_using_threads(true) in ompi/runtime/ompi_mpi_init.c is called to late
+ 
+Hi Pascal
+ 
+Is this in the trunk or in the 1.8 series (or both)?
+ 
+ 
+On Dec 9, 2014, at 12:28 AM, Pascal Deveze &lt;<a class="moz-txt-link-abbreviated" href="mailto:pascal.deveze@bull.net">pascal.deveze@bull.net</a> <a class="moz-txt-link-rfc2396E" href="mailto:pascal.deveze@bull.net">&lt;mailto:pascal.deveze@bull.net&gt;</a>&gt; wrote:
+ 
+ 
+In case where MPI is compiled with --enable-mpi-thread-multiple, a call to opal_using_threads() always returns 0 in the routine btl_xxx_component_init() of the BTLs, event if the application calls MPI_Init_thread() with MPI_THREAD_MULTIPLE.
+ 
+This is because opal_set_using_threads(true) in ompi/runtime/ompi_mpi_init.c is called to late.
+ 
+I propose the following patch that solves the problem for me:
+ 
+diff --git a/ompi/runtime/ompi_mpi_init.c b/ompi/runtime/ompi_mpi_init.c
+index 35509cf..c2370fc 100644
+--- a/ompi/runtime/ompi_mpi_init.c
++++ b/ompi/runtime/ompi_mpi_init.c
+@@ -512,6 +512,13 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided)
+     }
+#endif
+ 
++    /* If thread support was enabled, then setup OPAL to allow for
++       them. */
++    if ((OPAL_ENABLE_PROGRESS_THREADS == 1) ||
++        (*provided != MPI_THREAD_SINGLE)) {
++        opal_set_using_threads(true);
++    }
++
+     /* initialize datatypes. This step should be done early as it will
+      * create the local convertor and local arch used in the proc
+      * init.
+@@ -724,13 +731,6 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided)
+        goto error;
+     }
+ 
+-    /* If thread support was enabled, then setup OPAL to allow for
+-       them. */
+-    if ((OPAL_ENABLE_PROGRESS_THREADS == 1) ||
+-        (*provided != MPI_THREAD_SINGLE)) {
+-        opal_set_using_threads(true);
+-    }
+-
+     /* start PML/BTL's */
+     ret = MCA_PML_CALL(enable(true));
+     if( OMPI_SUCCESS != ret ) {
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16459.php">http://www.open-mpi.org/community/lists/devel/2014/12/16459.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16459.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16459.php&gt;</a>
+ 
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16462.php">http://www.open-mpi.org/community/lists/devel/2014/12/16462.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16462.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16462.php&gt;</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16463.php">http://www.open-mpi.org/community/lists/devel/2014/12/16463.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16463.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16463.php&gt;</a>
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16516.php">http://www.open-mpi.org/community/lists/devel/2014/12/16516.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16517.php">http://www.open-mpi.org/community/lists/devel/2014/12/16517.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

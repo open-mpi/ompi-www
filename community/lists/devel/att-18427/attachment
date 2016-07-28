@@ -1,0 +1,142 @@
+Justin,<div><br></div><div>knem allows a process to write into the address space of an other process, to do zero copy.</div><div>in the case of osv, threads can simply do a memcpy(), and I doubt knew is even available.</div><div>so a new btl that uses memcpy would be optimal on osv.</div><div><br></div><div>one option is to starts from the vader btl, and replace knem invocation with memcpy()</div><div>an other option could be to extend the self btl</div><div><br></div><div>but once again, this is for performance only, using tcp btl only should be enough to get things work.</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Wednesday, December 16, 2015, Justin Cinkelj &lt;<a href="mailto:justin.cinkelj@xlab.si">justin.cinkelj@xlab.si</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    Vader is for intra-node communication only, right? So for inter-node
+    communication some other mechanism will be used anyway.<br>
+    Why would be even better to write a new btl? To avoid memcpy (knem
+    would use it, if I understand you correctly; I guess code assumes
+    that multiple processes on same node have isolated address spaces).<br>
+    <br>
+    Fork + execve was one of first problems, yes. I replaced that with
+    OSv specific calls (ignore fork, and instead of execve start given
+    binary in new thread). The global variables required OSv
+    modification - the guys from <a href="http://osv.io/" target="_blank">http://osv.io/</a> took care of that (I was
+    surprised that at the end, the patches were really small and
+    elegant). So while there are no real processes, new binary / ELF
+    file is loaded at different address then the rest of OS - so it has
+    separate global variables, and separate environ too. Other resources
+    like file descriptors are still shared.<br>
+    <br>
+    BR Justin<br>
+    <br>
+    <div>On 15. 12. 2015 14:55, Gilles
+      Gouaillardet wrote:<br>
+    </div>
+    <blockquote type="cite">Justin,
+      <div><br>
+      </div>
+      <div>at first glance, vader should be symmetric (e.g.
+        call opal_shmem_segment_dettach() instead of munmap()</div>
+      <div>Nathan, can you please comment ?</div>
+      <div><br>
+      </div>
+      <div>using tid instead of pid should also do the trick</div>
+      <div><br>
+      </div>
+      <div>that being said, a more elegant approach would be to create a
+        new module in the shmem framework</div>
+      <div>basically, create = malloc, attach = return the malloc&#39;ed
+        address, detach = noop, destroy = free</div>
+      <div><br>
+      </div>
+      <div>and an even better approach would be to write your own btl
+        that replaces vader.</div>
+      <div>basically, vader can use the knem module to write into an
+        other process address space.</div>
+      <div>since your os is thread only, knem invocation would become a
+        simple memcpy.</div>
+      <div><br>
+      </div>
+      <div>makes sense ?</div>
+      <div><br>
+      </div>
+      <div><br>
+      </div>
+      <div>as a side note,</div>
+      <div>ompi uses global variables, and orted forks and exec MPI
+        tasks after setting some environment variables. it seems porting
+        ompi to this new os was not so painful, and I would have
+        expected some issues with the global variables, and some race
+        conditions with the environment.</div>
+      <div>did you already solve these issues ?</div>
+      <div><br>
+      </div>
+      <div>Cheers,</div>
+      <div><br>
+      </div>
+      <div>Gilles<br>
+        <br>
+        On Tuesday, December 15, 2015, Justin Cinkelj &lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;justin.cinkelj@xlab.si&#39;);" target="_blank"></a><a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;justin.cinkelj@xlab.si&#39;);" target="_blank">justin.cinkelj@xlab.si</a>&gt;
+        wrote:<br>
+        <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">I&#39;m trying
+          to port Open MPI to OS with threads instead of processes.
+          Currently, during MPI_Finalize, I get attempt to call munmap
+          first with address of 0x200000c00000 and later 0x200000c00008.<br>
+          <br>
+          mca_btl_vader_component_close():<br>
+          munmap (mca_btl_vader_component.my_segment,
+          mca_btl_vader_component.segment_size)<br>
+          <br>
+          mca_btl_vader_component_init():<br>
+          if(MCA_BTL_VADER_XPMEM !=
+          mca_btl_vader_component.single_copy_mechanism) {<br>
+            opal_shmem_segment_create (&amp;component-&gt;seg_ds,
+          sm_file, component-&gt;segment_size);<br>
+            component-&gt;my_segment = opal_shmem_segment_attach
+          (&amp;component-&gt;seg_ds);<br>
+          } else {<br>
+            mmap (NULL, component-&gt;segment_size, PROT_READ |
+          PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);<br>
+          }<br>
+          <br>
+          But opal_shmem_segment_attach (from mmap module) ends with:<br>
+              /* update returned base pointer with an offset that hides
+          our stuff */<br>
+              return (ds_buf-&gt;seg_base_addr +
+          sizeof(opal_shmem_seg_hdr_t));<br>
+          <br>
+          So mca_btl_vader_component_close() should in that case call
+          opal_shmem_segment_dettach() instead of munmap.<br>
+          Or actually, as at that point shmem_mmap module cleanup code
+          is already done, vader could/should just skip cleanup part?<br>
+          <br>
+          Maybe I should ask first how does that setup/cleanup work on
+          normal Linux system?<br>
+          Is mmap called twice, and vader and shmem_mmap module each
+          uses different address (so vader munmap is indeed required in
+          that case)?<br>
+          <br>
+          Second question.<br>
+          With two threads in one process, I got attempt to
+          opal_shmem_segment_dettach() and munmap() on same mmap-ed
+          address, from both threads. I &#39;fixed&#39; that by replacing
+          &quot;ds_buf-&gt;seg_cpid = getpid()&quot; with gettid(), and then each
+          thread munmap-s only address allocated by itself. Is that
+          correct? Or is it possible, that the second thread might still
+          try to access data at that address?<br>
+          <br>
+          BR Justin<br>
+          <br>
+          _______________________________________________<br>
+          devel mailing list<br>
+          <a>devel@open-mpi.org</a><br>
+          Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+          Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/12/18417.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/12/18417.php</a><br>
+        </blockquote>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      <pre>_______________________________________________
+devel mailing list
+<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;devel@open-mpi.org&#39;);" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/12/18418.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/12/18418.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+</blockquote></div>
+

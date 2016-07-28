@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 TRANSITIONAL//EN">
+<HTML>
+<HEAD>
+  <META HTTP-EQUIV="Content-Type" CONTENT="text/html; CHARSET=UTF-8">
+  <META NAME="GENERATOR" CONTENT="GtkHTML/3.28.3">
+</HEAD>
+<BODY>
+Good start!&nbsp; Looking forward to interactions between hwloc and MPI_Graph_dist (and extending /extending these down to device IO, memories and processors on the PCIe bus), does anyone envision completeness of this intersection within MPI (esp. OpenMPI) to the computational network graph structure?&nbsp; Currently, this info is a hodge-podge between the kernel(s), device queries, and lookups (ugh).<BR>
+<BR>
+On Sat, 2012-04-21 at 08:13 -0400, Jeffrey Squyres wrote:
+<BLOCKQUOTE TYPE=CITE>
+<PRE>
+WHAT: Remove 3 outdated frameworks: maffinity, paffinity, carto
+
+WHY: Their functionality is wholly replaced by hwloc.  Removing these frameworks has actually been a to-do item since we made hwloc a 1st-class citizen in OMPI.
+
+WHERE: rm -rf opal/mca/[maffinity, paffinity, carto], and update various places around the tree that use these frameworks to use hwloc instead
+
+TIMEOUT: Tuesday teleconference, 1 May 2012
+
+-----
+
+More details:
+
+The maffinity (memory affinity), paffinity (processor affinity), and carto (cartography) frameworks are now outdated.  All of their functionality (and much more) can be effected with hwloc.
+
+Indeed, all three frameworks had significant limitations in one way or another -- hwloc is a much more general solution to all three (no more needing to specify carto files -- woo hoo!).
+
+Note that this officially opens the door for more hwloc usage within Open MPI.  The opal_hwloc_topology global variable will filled in after orte_init() completes (which is pretty early in ompi_mpi_init()).  There's also a bunch of hwloc helper functions in opal/mca/hwloc/base/base.h (e.g., use opal_hwloc_base_get_level_and_index() to get a simple enum back indicating the locality of where this process has been bound).  
+
+===================================
+==&gt;&gt; Let the hwlocness begin!! &lt;&lt;==
+===================================
+
+Ralph and I have a bitbucket where we have removed all 3 of these frameworks:
+
+   <A HREF="https://bitbucket.org/jsquyres/ompi-remove-paff-maff">https://bitbucket.org/jsquyres/ompi-remove-paff-maff</A>
+
+*** Notable items that came out of the implementation:
+
+- The sm BTL used to (potentially) make multiple mpools if a carto file was supplied.  It now only makes 1 mpool.  However, based on UTK's Euro MPI 2010 paper, the optimization of creating multiple mpools based on NUMA information may be re-added in the future.
+
+- Ditto for the smcuda BTL.
+
+- Nathan tells me that he's going to do the same for the vader BTL; I have therefore not done so.
+
+- The openib BTL will shortly have its use of carto (to find nearby IBV devices) re-implemented using hwloc distances.
+
+- Ditto for wv.
+
+- The &quot;affinity&quot; mpiext was effectively completely re-implemented.  It now shows hyperthread information, too.
+
+- New ORTE-level global variables:
+
+ - orte_proc_is_bound: a boolean that is set after orte_init that indicates whether this process is bound or not (regardless of who bound the process).
+ - orte_proc_applied_binding: if OMPI bound this process, this hwloc_cpuset_t will contain the *physical* PUs where it was bound
+
+*** IMPORTANT hwloc CONSIDERATIONS TO REMEMBER (because getting this wrong screwed us up more than once):
+
+- The cpusets hanging off hwloc objects represent PHYSICAL indices
+- The objects in the hwloc tree are in LOGICAL order
+==&gt;&gt; BE SURE TO USE obj-&gt;physical_index OR obj-&gt;logical_index AS APPROPRIATE!
+
+</PRE>
+</BLOCKQUOTE>
+<BR>
+<TABLE CELLSPACING="0" CELLPADDING="0" WIDTH="100%">
+<TR>
+<TD>
+==============<BR>
+<B>Kenneth A. Lloyd, Jr.</B><BR>
+CEO - Director of Systems Science<BR>
+Watt Systems Technologies Inc.<BR>
+Albuquerque, NM US<BR>
+<BR>
+<TT><FONT SIZE="2"><FONT COLOR="#737373">This e-mail is covered by the Electronic Communications Privacy Act, 18 U.S.C. 2510-2521 and is intended only for the addressee named above. It may contain privileged or confidential information. If you are not the addressee you must not copy, distribute, disclose or use any of the information in it. If you have received it in error please delete it and immediately notify the sender.</FONT></FONT></TT><BR>
+<BR>
+<BR>
+</TD>
+</TR>
+</TABLE>
+</BODY>
+</HTML>
+

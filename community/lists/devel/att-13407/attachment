@@ -1,0 +1,418 @@
+<div dir="ltr">With the modification that Ralph mentioned below, I think the patch it good to go.<div><br></div><div>Thanks!<br><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Dec 9, 2013 at 2:19 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im">On Dec 9, 2013, at 10:07 AM, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br>
+
+<br>
+&gt; I see some things in here that concern me. First, there are variables being added to functions that would appear to generate &quot;not used&quot; warnings if ft is not enabled - they need to be properly protected. Second, I see references like this one:<br>
+
+&gt;<br>
+&gt; -        (ret = orte_oob.ft_event(state)) ) {<br>
+&gt; +    if( ORTE_SUCCESS != (ret = orte_rml_oob_module.super.ft_event(state)) ) {<br>
+<br>
+</div>Took me awhile to grok what you were doing with the above line - it&#39;s actually okay, but you could avoid going thru the module dereference by just calling<br>
+<br>
+orte_rml_oob_ft_event<br>
+<br>
+No need to reference thru the module unless you want to for some reason.<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+&gt;<br>
+&gt; This doesn&#39;t seem right - if we are referencing the OOB, then we need to go directly to it. I&#39;ll have to check/correct the code, but the RML shouldn&#39;t even be storing a pointer to the OOB in it as there no longer is a direct linkage.<br>
+
+&gt;<br>
+&gt;<br>
+&gt; On Dec 9, 2013, at 5:38 AM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; From: Adrian Reber &lt;<a href="mailto:adrian.reber@hs-esslingen.de">adrian.reber@hs-esslingen.de</a>&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; This are the remaining changes to get C/R to compile again. This patch<br>
+&gt;&gt; includes various fixes all over the C/R code and are hard to group<br>
+&gt;&gt; like the previous patches.<br>
+&gt;&gt;<br>
+&gt;&gt; Changes from V1:<br>
+&gt;&gt; * explain why mca_base_component_distill_checkpoint_ready no longer works<br>
+&gt;&gt; * compare return result of opal functions with OPAL_* values<br>
+&gt;&gt;<br>
+&gt;&gt; Signed-off-by: Adrian Reber &lt;<a href="mailto:adrian.reber@hs-esslingen.de">adrian.reber@hs-esslingen.de</a>&gt;<br>
+&gt;&gt; ---<br>
+&gt;&gt; ompi/mca/bml/r2/bml_r2_ft.c                    | 10 +++++-----<br>
+&gt;&gt; opal/mca/base/mca_base_components_open.c       |  9 +++++++++<br>
+&gt;&gt; opal/mca/crs/self/crs_self_component.c         | 16 ++++++++--------<br>
+&gt;&gt; opal/tools/opal-restart/opal-restart.c         |  2 +-<br>
+&gt;&gt; orte/mca/errmgr/base/errmgr_base_fns.c         |  2 +-<br>
+&gt;&gt; orte/mca/ess/env/ess_env_module.c              |  2 +-<br>
+&gt;&gt; orte/mca/plm/base/plm_base_launch_support.c    |  1 +<br>
+&gt;&gt; orte/mca/rml/oob/rml_oob_component.c           |  9 ++-------<br>
+&gt;&gt; orte/mca/snapc/base/snapc_base_frame.c         |  4 ++--<br>
+&gt;&gt; orte/mca/snapc/full/snapc_full_app.c           | 15 +++++++++++++++<br>
+&gt;&gt; orte/mca/snapc/full/snapc_full_component.c     |  7 ++++---<br>
+&gt;&gt; orte/mca/snapc/full/snapc_full_global.c        |  8 ++++----<br>
+&gt;&gt; orte/mca/snapc/full/snapc_full_local.c         |  2 +-<br>
+&gt;&gt; orte/mca/sstore/stage/sstore_stage_component.c |  5 +++++<br>
+&gt;&gt; 14 files changed, 59 insertions(+), 33 deletions(-)<br>
+&gt;&gt;<br>
+&gt;&gt; diff --git a/ompi/mca/bml/r2/bml_r2_ft.c b/ompi/mca/bml/r2/bml_r2_ft.c<br>
+&gt;&gt; index 1448c04..fc16452 100644<br>
+&gt;&gt; --- a/ompi/mca/bml/r2/bml_r2_ft.c<br>
+&gt;&gt; +++ b/ompi/mca/bml/r2/bml_r2_ft.c<br>
+&gt;&gt; @@ -191,7 +191,7 @@ int mca_bml_r2_ft_event(int state)<br>
+&gt;&gt;<br>
+&gt;&gt;            for(p = 0; p &lt; (int)num_procs; ++p) {<br>
+&gt;&gt;                if( NULL != procs[p]-&gt;proc_endpoints[OMPI_PROC_ENDPOINT_TAG_BML]) {<br>
+&gt;&gt; -                    OBJ_RELEASE((mca_bml_base_endpoint_t*) procs[p]-&gt;proc_endpoints[OMPI_PROC_ENDPOINT_TAG_BML]);<br>
+&gt;&gt; +                    OBJ_RELEASE(procs[p]-&gt;proc_endpoints[OMPI_PROC_ENDPOINT_TAG_BML]);<br>
+&gt;&gt;                    procs[p]-&gt;proc_endpoints[OMPI_PROC_ENDPOINT_TAG_BML] = NULL;<br>
+&gt;&gt;                }<br>
+&gt;&gt;<br>
+&gt;&gt; @@ -263,9 +263,9 @@ int mca_bml_r2_ft_event(int state)<br>
+&gt;&gt;        mca_base_var_get_value(param_type, &amp;btl_list, NULL, NULL);<br>
+&gt;&gt;        opal_output_verbose(11, ompi_cr_output,<br>
+&gt;&gt;                            &quot;Restart (New BTL MCA): &lt;%s&gt;\n&quot;, btl_list ? btl_list[0] : &quot;&quot;);<br>
+&gt;&gt; -        if( NULL != param_list ) {<br>
+&gt;&gt; -            free(param_list);<br>
+&gt;&gt; -            param_list = NULL;<br>
+&gt;&gt; +        if( NULL != btl_list ) {<br>
+&gt;&gt; +            free(btl_list);<br>
+&gt;&gt; +            btl_list = NULL;<br>
+&gt;&gt;        }<br>
+&gt;&gt;<br>
+&gt;&gt;        /*<br>
+&gt;&gt; @@ -286,7 +286,7 @@ int mca_bml_r2_ft_event(int state)<br>
+&gt;&gt;<br>
+&gt;&gt;        for(p = 0; p &lt; (int)num_procs; ++p) {<br>
+&gt;&gt;            if( NULL != procs[p]-&gt;proc_endpoints[OMPI_PROC_ENDPOINT_TAG_BML]) {<br>
+&gt;&gt; -                OBJ_RELEASE((mca_bml_base_endpoint_t*) procs[p]-&gt;proc_endpoints[OMPI_PROC_ENDPOINT_TAG_BML]);<br>
+&gt;&gt; +                OBJ_RELEASE(procs[p]-&gt;proc_endpoints[OMPI_PROC_ENDPOINT_TAG_BML]);<br>
+&gt;&gt;                procs[p]-&gt;proc_endpoints[OMPI_PROC_ENDPOINT_TAG_BML] = NULL;<br>
+&gt;&gt;            }<br>
+&gt;&gt;<br>
+&gt;&gt; diff --git a/opal/mca/base/mca_base_components_open.c b/opal/mca/base/mca_base_components_open.c<br>
+&gt;&gt; index e46e0f3..4568a51 100644<br>
+&gt;&gt; --- a/opal/mca/base/mca_base_components_open.c<br>
+&gt;&gt; +++ b/opal/mca/base/mca_base_components_open.c<br>
+&gt;&gt; @@ -141,9 +141,18 @@ static int open_components(mca_base_framework_t *framework)<br>
+&gt;&gt;     * NTH: Logic moved to mca_base_components_filter.<br>
+&gt;&gt;     */<br>
+&gt;&gt; #if (OPAL_ENABLE_FT == 1) &amp;&amp; (OPAL_ENABLE_FT_CR == 1)<br>
+&gt;&gt; +#ifdef ENABLE_FT_FIXED<br>
+&gt;&gt; +    /* FIXME_FT<br>
+&gt;&gt; +     *<br>
+&gt;&gt; +     * the variable mca_base_component_distill_checkpoint_ready<br>
+&gt;&gt; +     * was removed by commit 8181c8273c486bba59b3dead324939eac1a58b8c (r28237)<br>
+&gt;&gt; +     * &quot;Introduce the MCA framework system. This formalizes the interface frameworks must provide.&quot;<br>
+&gt;&gt; +     *<br>
+&gt;&gt; +     * */<br>
+&gt;&gt;    if (mca_base_component_distill_checkpoint_ready) {<br>
+&gt;&gt;        open_only_flags |= MCA_BASE_METADATA_PARAM_CHECKPOINT;<br>
+&gt;&gt;    }<br>
+&gt;&gt; +#endif /* ENABLE_FT_FIXED */<br>
+&gt;&gt; #endif  /* (OPAL_ENABLE_FT == 1) &amp;&amp; (OPAL_ENABLE_FT_CR == 1) */<br>
+&gt;&gt;<br>
+&gt;&gt;    /* If mca_base_framework_register_components was called with the MCA_BASE_COMPONENTS_ALL flag<br>
+&gt;&gt; diff --git a/opal/mca/crs/self/crs_self_component.c b/opal/mca/crs/self/crs_self_component.c<br>
+&gt;&gt; index e0ca1ab..eb45d59 100644<br>
+&gt;&gt; --- a/opal/mca/crs/self/crs_self_component.c<br>
+&gt;&gt; +++ b/opal/mca/crs/self/crs_self_component.c<br>
+&gt;&gt; @@ -90,9 +90,9 @@ static int crs_self_register (void)<br>
+&gt;&gt;    mca_crs_self_component.super.priority = 20;<br>
+&gt;&gt;    ret = mca_base_component_var_register (&amp;mca_crs_self_component.super.base_version,<br>
+&gt;&gt;                                           &quot;priority&quot;, &quot;Priority of the CRS self component &quot;<br>
+&gt;&gt; -                                           &quot;(default: 20)&quot;, MCA_BASE_VAR_TYPE_INT, NULL,<br>
+&gt;&gt; +                                           &quot;(default: 20)&quot;, MCA_BASE_VAR_TYPE_INT, NULL, 0,<br>
+&gt;&gt;                                           MCA_BASE_VAR_FLAG_SETTABLE,<br>
+&gt;&gt; -                                           OPAL_INFO_LVL_9, MPI_BASE_VAR_SCOPE_ALL_EQ,<br>
+&gt;&gt; +                                           OPAL_INFO_LVL_9, MCA_BASE_VAR_SCOPE_ALL_EQ,<br>
+&gt;&gt;                                           &amp;mca_crs_self_component.super.priority);<br>
+&gt;&gt;    if (0 &gt; ret) {<br>
+&gt;&gt;        return ret;<br>
+&gt;&gt; @@ -102,8 +102,8 @@ static int crs_self_register (void)<br>
+&gt;&gt;    ret = mca_base_component_var_register (&amp;mca_crs_self_component.super.base_version,<br>
+&gt;&gt;                                           &quot;verbose&quot;,<br>
+&gt;&gt;                                           &quot;Verbose level for the CRS self component&quot;,<br>
+&gt;&gt; -                                           MCA_BASE_VAR_TYPE_INT, NULL,MCA_BASE_VAR_FLAG_SETTABLE,<br>
+&gt;&gt; -                                           OPAL_INFO_LVL_9, MPI_BASE_VAR_SCOPE_LOCAL,<br>
+&gt;&gt; +                                           MCA_BASE_VAR_TYPE_INT, NULL, 0, MCA_BASE_VAR_FLAG_SETTABLE,<br>
+&gt;&gt; +                                           OPAL_INFO_LVL_9, MCA_BASE_VAR_SCOPE_LOCAL,<br>
+&gt;&gt;                                           &amp;mca_crs_self_component.super.verbose);<br>
+&gt;&gt;    if (0 &gt; ret) {<br>
+&gt;&gt;        return ret;<br>
+&gt;&gt; @@ -116,8 +116,8 @@ static int crs_self_register (void)<br>
+&gt;&gt;    ret = mca_base_component_var_register (&amp;mca_crs_self_component.super.base_version,<br>
+&gt;&gt;                                           &quot;prefix&quot;,<br>
+&gt;&gt;                                           &quot;Prefix for user defined callback functions&quot;,<br>
+&gt;&gt; -                                           MCA_BASE_VAR_TYPE_STRING, NULL, MCA_BASE_VAR_FLAG_SETTABLE,<br>
+&gt;&gt; -                                           OPAL_INFO_LVL_9, MPI_BASE_VAR_SCOPE_LOCAL,<br>
+&gt;&gt; +                                           MCA_BASE_VAR_TYPE_STRING, NULL, 0, MCA_BASE_VAR_FLAG_SETTABLE,<br>
+&gt;&gt; +                                           OPAL_INFO_LVL_9, MCA_BASE_VAR_SCOPE_LOCAL,<br>
+&gt;&gt;                                           &amp;mca_crs_self_component.prefix);<br>
+&gt;&gt;    if (0 &gt; ret) {<br>
+&gt;&gt;        return ret;<br>
+&gt;&gt; @@ -126,8 +126,8 @@ static int crs_self_register (void)<br>
+&gt;&gt;    ret = mca_base_component_var_register (&amp;mca_crs_self_component.super.base_version,<br>
+&gt;&gt;                                           &quot;do_restart&quot;,<br>
+&gt;&gt;                                           &quot;Start execution by calling restart callback&quot;,<br>
+&gt;&gt; -                                           MCA_BASE_VAR_TYPE_BOOL, NULL, MCA_BASE_VAR_FLAG_SETTABLE,<br>
+&gt;&gt; -                                           OPAL_INFO_LVL_9, MPI_BASE_VAR_SCOPE_LOCAL,<br>
+&gt;&gt; +                                           MCA_BASE_VAR_TYPE_BOOL, NULL, 0, MCA_BASE_VAR_FLAG_SETTABLE,<br>
+&gt;&gt; +                                           OPAL_INFO_LVL_9, MCA_BASE_VAR_SCOPE_LOCAL,<br>
+&gt;&gt;                                           &amp;mca_crs_self_component.do_restart);<br>
+&gt;&gt;    return (0 &gt; ret) ? ret : OPAL_SUCCESS;<br>
+&gt;&gt; }<br>
+&gt;&gt; diff --git a/opal/tools/opal-restart/opal-restart.c b/opal/tools/opal-restart/opal-restart.c<br>
+&gt;&gt; index 35b7843..53da7f3 100644<br>
+&gt;&gt; --- a/opal/tools/opal-restart/opal-restart.c<br>
+&gt;&gt; +++ b/opal/tools/opal-restart/opal-restart.c<br>
+&gt;&gt; @@ -247,7 +247,7 @@ main(int argc, char *argv[])<br>
+&gt;&gt;     * restart on this node because it doesn&#39;t have the proper checkpointer<br>
+&gt;&gt;     * available.<br>
+&gt;&gt;     */<br>
+&gt;&gt; -    if( OPAL_SUCCESS != (ret = opal_crs_base_open()) ) {<br>
+&gt;&gt; +    if( OPAL_SUCCESS != (ret = opal_crs_base_open(MCA_BASE_OPEN_DEFAULT)) ) {<br>
+&gt;&gt;        opal_show_help(&quot;help-opal-restart.txt&quot;, &quot;comp_select_failure&quot;, true,<br>
+&gt;&gt;                       &quot;crs&quot;, ret);<br>
+&gt;&gt;        exit_status = ret;<br>
+&gt;&gt; diff --git a/orte/mca/errmgr/base/errmgr_base_fns.c b/orte/mca/errmgr/base/errmgr_base_fns.c<br>
+&gt;&gt; index 399c237..e8f41a2 100644<br>
+&gt;&gt; --- a/orte/mca/errmgr/base/errmgr_base_fns.c<br>
+&gt;&gt; +++ b/orte/mca/errmgr/base/errmgr_base_fns.c<br>
+&gt;&gt; @@ -366,7 +366,7 @@ void orte_errmgr_base_migrate_state_notify(int state)<br>
+&gt;&gt;    }<br>
+&gt;&gt; }<br>
+&gt;&gt;<br>
+&gt;&gt; -void orte_errmgr_base_proc_state_notify(orte_proc_state_t state, orte_process_name_t *proc)<br>
+&gt;&gt; +int orte_errmgr_base_proc_state_notify(orte_proc_state_t state, orte_process_name_t *proc)<br>
+&gt;&gt; {<br>
+&gt;&gt;    if (NULL != proc) {<br>
+&gt;&gt;        switch(state) {<br>
+&gt;&gt; diff --git a/orte/mca/ess/env/ess_env_module.c b/orte/mca/ess/env/ess_env_module.c<br>
+&gt;&gt; index 6a71230..9b80099 100644<br>
+&gt;&gt; --- a/orte/mca/ess/env/ess_env_module.c<br>
+&gt;&gt; +++ b/orte/mca/ess/env/ess_env_module.c<br>
+&gt;&gt; @@ -422,7 +422,7 @@ static int rte_ft_event(int state)<br>
+&gt;&gt;            exit_status = ret;<br>
+&gt;&gt;            goto cleanup;<br>
+&gt;&gt;        }<br>
+&gt;&gt; -        if (ORTE_SUCCESS != (ret = orte_db.remove(NULL, NULL))) {<br>
+&gt;&gt; +        if (OPAL_SUCCESS != (ret = opal_db.remove(NULL, NULL))) {<br>
+&gt;&gt;            ORTE_ERROR_LOG(ret);<br>
+&gt;&gt;            exit_status = ret;<br>
+&gt;&gt;            goto cleanup;<br>
+&gt;&gt; diff --git a/orte/mca/plm/base/plm_base_launch_support.c b/orte/mca/plm/base/plm_base_launch_support.c<br>
+&gt;&gt; index 3deee11..6aba2c2 100644<br>
+&gt;&gt; --- a/orte/mca/plm/base/plm_base_launch_support.c<br>
+&gt;&gt; +++ b/orte/mca/plm/base/plm_base_launch_support.c<br>
+&gt;&gt; @@ -333,6 +333,7 @@ void orte_plm_base_complete_setup(int fd, short args, void *cbdata)<br>
+&gt;&gt; {<br>
+&gt;&gt;    orte_job_t *jdata, *jdatorted;<br>
+&gt;&gt;    orte_state_caddy_t *caddy = (orte_state_caddy_t*)cbdata;<br>
+&gt;&gt; +    int rc;<br>
+&gt;&gt;<br>
+&gt;&gt;    /* if we don&#39;t want to launch the apps, now is the time to leave */<br>
+&gt;&gt;    if (orte_do_not_launch) {<br>
+&gt;&gt; diff --git a/orte/mca/rml/oob/rml_oob_component.c b/orte/mca/rml/oob/rml_oob_component.c<br>
+&gt;&gt; index dd539cd..b91f4a3 100644<br>
+&gt;&gt; --- a/orte/mca/rml/oob/rml_oob_component.c<br>
+&gt;&gt; +++ b/orte/mca/rml/oob/rml_oob_component.c<br>
+&gt;&gt; @@ -11,11 +11,7 @@<br>
+&gt;&gt; * Copyright (c) 2004-2005 The Regents of the University of California.<br>
+&gt;&gt; *                         All rights reserved.<br>
+&gt;&gt; * Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.<br>
+&gt;&gt; -&lt;&lt;&lt;&lt;&lt;&lt;&lt; .mine<br>
+&gt;&gt; - * Copyright (c) 2011-2012 Los Alamos National Security, LLC.<br>
+&gt;&gt; -=======<br>
+&gt;&gt; * Copyright (c) 2011-2013 Los Alamos National Security, LLC.<br>
+&gt;&gt; -&gt;&gt;&gt;&gt;&gt;&gt;&gt; .r28253<br>
+&gt;&gt; *                         All rights reserved.<br>
+&gt;&gt; * $COPYRIGHT$<br>
+&gt;&gt; *<br>
+&gt;&gt; @@ -189,8 +185,7 @@ orte_rml_oob_ft_event(int state) {<br>
+&gt;&gt;        ;<br>
+&gt;&gt;    }<br>
+&gt;&gt;<br>
+&gt;&gt; -    if( ORTE_SUCCESS !=<br>
+&gt;&gt; -        (ret = orte_oob.ft_event(state)) ) {<br>
+&gt;&gt; +    if( ORTE_SUCCESS != (ret = orte_rml_oob_module.super.ft_event(state)) ) {<br>
+&gt;&gt;        ORTE_ERROR_LOG(ret);<br>
+&gt;&gt;        exit_status = ret;<br>
+&gt;&gt;        goto cleanup;<br>
+&gt;&gt; @@ -212,7 +207,7 @@ orte_rml_oob_ft_event(int state) {<br>
+&gt;&gt;            goto cleanup;<br>
+&gt;&gt;        }<br>
+&gt;&gt;<br>
+&gt;&gt; -        if( ORTE_SUCCESS != (ret = mca_oob_base_select())) {<br>
+&gt;&gt; +        if( ORTE_SUCCESS != (ret = orte_oob_base_select())) {<br>
+&gt;&gt;            ORTE_ERROR_LOG(ret);<br>
+&gt;&gt;            exit_status = ret;<br>
+&gt;&gt;            goto cleanup;<br>
+&gt;&gt; diff --git a/orte/mca/snapc/base/snapc_base_frame.c b/orte/mca/snapc/base/snapc_base_frame.c<br>
+&gt;&gt; index edb8e6e..a46c77a 100644<br>
+&gt;&gt; --- a/orte/mca/snapc/base/snapc_base_frame.c<br>
+&gt;&gt; +++ b/orte/mca/snapc/base/snapc_base_frame.c<br>
+&gt;&gt; @@ -79,7 +79,7 @@ static int orte_snapc_base_register(mca_base_register_flag_t flags)<br>
+&gt;&gt;    return ORTE_SUCCESS;<br>
+&gt;&gt; }<br>
+&gt;&gt;<br>
+&gt;&gt; -static int orte_snapc_base_close(void)<br>
+&gt;&gt; +int orte_snapc_base_close(void)<br>
+&gt;&gt; {<br>
+&gt;&gt;    /* Close the selected component */<br>
+&gt;&gt;    if( NULL != orte_snapc.snapc_finalize ) {<br>
+&gt;&gt; @@ -93,7 +93,7 @@ static int orte_snapc_base_close(void)<br>
+&gt;&gt; * Function for finding and opening either all MCA components,<br>
+&gt;&gt; * or the one that was specifically requested via a MCA parameter.<br>
+&gt;&gt; */<br>
+&gt;&gt; -static int orte_snapc_base_open(mca_base_open_flag_t flags)<br>
+&gt;&gt; +int orte_snapc_base_open(mca_base_open_flag_t flags)<br>
+&gt;&gt; {<br>
+&gt;&gt;    /* Init the sequence (interval) number */<br>
+&gt;&gt;    orte_snapc_base_snapshot_seq_number = 0;<br>
+&gt;&gt; diff --git a/orte/mca/snapc/full/snapc_full_app.c b/orte/mca/snapc/full/snapc_full_app.c<br>
+&gt;&gt; index 1ff036e..c7438f1 100644<br>
+&gt;&gt; --- a/orte/mca/snapc/full/snapc_full_app.c<br>
+&gt;&gt; +++ b/orte/mca/snapc/full/snapc_full_app.c<br>
+&gt;&gt; @@ -99,6 +99,12 @@ static int current_cr_state = OPAL_CRS_NONE;<br>
+&gt;&gt; static orte_sstore_base_handle_t current_ss_handle = ORTE_SSTORE_HANDLE_INVALID, last_ss_handle = ORTE_SSTORE_HANDLE_INVALID;<br>
+&gt;&gt; static opal_crs_base_ckpt_options_t *current_options = NULL;<br>
+&gt;&gt;<br>
+&gt;&gt; +static void snapc_full_app_callback_recv(int status,<br>
+&gt;&gt; +                                         orte_process_name_t* sender,<br>
+&gt;&gt; +                                         opal_buffer_t* buffer,<br>
+&gt;&gt; +                                         orte_rml_tag_t tag,<br>
+&gt;&gt; +                                         void* cbdata);<br>
+&gt;&gt; +<br>
+&gt;&gt; /************************<br>
+&gt;&gt; * Function Definitions<br>
+&gt;&gt; ************************/<br>
+&gt;&gt; @@ -1673,3 +1679,12 @@ int app_coord_request_op(orte_snapc_base_request_op_t *datum)<br>
+&gt;&gt;<br>
+&gt;&gt;    return exit_status;<br>
+&gt;&gt; }<br>
+&gt;&gt; +<br>
+&gt;&gt; +/* dummy implementation of a callback function to get it to compile again */<br>
+&gt;&gt; +static void snapc_full_app_callback_recv(int status,<br>
+&gt;&gt; +                                         orte_process_name_t* sender,<br>
+&gt;&gt; +                                         opal_buffer_t* buffer,<br>
+&gt;&gt; +                                         orte_rml_tag_t tag,<br>
+&gt;&gt; +                                         void* cbdata)<br>
+&gt;&gt; +{<br>
+&gt;&gt; +}<br>
+&gt;&gt; diff --git a/orte/mca/snapc/full/snapc_full_component.c b/orte/mca/snapc/full/snapc_full_component.c<br>
+&gt;&gt; index 7815363..b953e17 100644<br>
+&gt;&gt; --- a/orte/mca/snapc/full/snapc_full_component.c<br>
+&gt;&gt; +++ b/orte/mca/snapc/full/snapc_full_component.c<br>
+&gt;&gt; @@ -32,6 +32,7 @@ const char *orte_snapc_full_component_version_string =<br>
+&gt;&gt; */<br>
+&gt;&gt; static int snapc_full_open(void);<br>
+&gt;&gt; static int snapc_full_close(void);<br>
+&gt;&gt; +static int snapc_full_register(void);<br>
+&gt;&gt;<br>
+&gt;&gt; bool orte_snapc_full_skip_app   = false;<br>
+&gt;&gt; bool orte_snapc_full_timing_enabled = false;<br>
+&gt;&gt; @@ -74,7 +75,7 @@ orte_snapc_full_component_t mca_snapc_full_component = {<br>
+&gt;&gt;    }<br>
+&gt;&gt; };<br>
+&gt;&gt;<br>
+&gt;&gt; -static int snaps_full_register (void)<br>
+&gt;&gt; +static int snapc_full_register (void)<br>
+&gt;&gt; {<br>
+&gt;&gt;    mca_base_component_t *component = &amp;mca_snapc_full_component.super.base_version;<br>
+&gt;&gt;    /*<br>
+&gt;&gt; @@ -129,7 +130,7 @@ static int snaps_full_register (void)<br>
+&gt;&gt;                                            OPAL_INFO_LVL_9,<br>
+&gt;&gt;                                            MCA_BASE_VAR_SCOPE_LOCAL,<br>
+&gt;&gt;                                            &amp;orte_snapc_full_progress_meter);<br>
+&gt;&gt; -    orte_snapc_full_progress_meter = (value % 101);<br>
+&gt;&gt; +    orte_snapc_full_progress_meter %= 101;<br>
+&gt;&gt;<br>
+&gt;&gt;    return ORTE_SUCCESS;<br>
+&gt;&gt; }<br>
+&gt;&gt; @@ -148,7 +149,7 @@ static int snapc_full_open(void)<br>
+&gt;&gt;    }<br>
+&gt;&gt;<br>
+&gt;&gt;    /* recheck the progress meter (it may have changed between register and open) */<br>
+&gt;&gt; -    orte_snapc_full_progress_meter = (value % 101);<br>
+&gt;&gt; +    orte_snapc_full_progress_meter %= 101;<br>
+&gt;&gt;<br>
+&gt;&gt;    /*<br>
+&gt;&gt;     * Debug Output<br>
+&gt;&gt; diff --git a/orte/mca/snapc/full/snapc_full_global.c b/orte/mca/snapc/full/snapc_full_global.c<br>
+&gt;&gt; index c88c6db..9f6da34 100644<br>
+&gt;&gt; --- a/orte/mca/snapc/full/snapc_full_global.c<br>
+&gt;&gt; +++ b/orte/mca/snapc/full/snapc_full_global.c<br>
+&gt;&gt; @@ -513,7 +513,7 @@ int global_coord_end_ckpt(orte_snapc_base_quiesce_t *datum)<br>
+&gt;&gt;    if( currently_migrating ) {<br>
+&gt;&gt;        OPAL_OUTPUT_VERBOSE((10, mca_snapc_full_component.super.output_handle,<br>
+&gt;&gt;                             &quot;Global) End Ckpt: Flush the modex cached data\n&quot;));<br>
+&gt;&gt; -        if (ORTE_SUCCESS != (ret = orte_db.remove(NULL, NULL))) {<br>
+&gt;&gt; +        if (OPAL_SUCCESS != (ret = opal_db.remove(NULL, NULL))) {<br>
+&gt;&gt;            ORTE_ERROR_LOG(ret);<br>
+&gt;&gt;            exit_status = ret;<br>
+&gt;&gt;            goto cleanup;<br>
+&gt;&gt; @@ -1138,7 +1138,7 @@ void snapc_full_global_orted_recv(int status,<br>
+&gt;&gt;            OPAL_OUTPUT_VERBOSE((10, mca_snapc_full_component.super.output_handle,<br>
+&gt;&gt;                                 &quot;Global) Command: Job State Update (quick)&quot;));<br>
+&gt;&gt;<br>
+&gt;&gt; -            snapc_full_process_job_update_cmd(&amp;sender, buffer, true);<br>
+&gt;&gt; +            snapc_full_process_job_update_cmd(sender, buffer, true);<br>
+&gt;&gt;            break;<br>
+&gt;&gt;<br>
+&gt;&gt;        case ORTE_SNAPC_FULL_UPDATE_JOB_STATE_CMD:<br>
+&gt;&gt; @@ -1974,7 +1974,7 @@ static void snapc_full_process_job_update_cmd(orte_process_name_t* sender,<br>
+&gt;&gt;<br>
+&gt;&gt; static int snapc_full_establish_snapshot_dir(bool empty_metadata)<br>
+&gt;&gt; {<br>
+&gt;&gt; -    const char **value = NULL;<br>
+&gt;&gt; +    char **value = NULL;<br>
+&gt;&gt;    int idx = 0;<br>
+&gt;&gt;<br>
+&gt;&gt;    /*********************<br>
+&gt;&gt; @@ -1998,7 +1998,7 @@ static int snapc_full_establish_snapshot_dir(bool empty_metadata)<br>
+&gt;&gt;        opal_show_help(&quot;help-orte-restart.txt&quot;, &quot;amca_param_not_found&quot;, true);<br>
+&gt;&gt;    }<br>
+&gt;&gt;    if( 0 &lt; idx ) {<br>
+&gt;&gt; -        mca_base_var_get_value (idx, &amp;value, sizeof (value), NULL, NULL);<br>
+&gt;&gt; +        mca_base_var_get_value (idx, &amp;value, NULL, NULL);<br>
+&gt;&gt;<br>
+&gt;&gt;        if (*value) {<br>
+&gt;&gt;            orte_sstore.set_attr(global_snapshot.ss_handle,<br>
+&gt;&gt; diff --git a/orte/mca/snapc/full/snapc_full_local.c b/orte/mca/snapc/full/snapc_full_local.c<br>
+&gt;&gt; index c0b168a..b13fce9 100644<br>
+&gt;&gt; --- a/orte/mca/snapc/full/snapc_full_local.c<br>
+&gt;&gt; +++ b/orte/mca/snapc/full/snapc_full_local.c<br>
+&gt;&gt; @@ -1776,7 +1776,7 @@ static void snapc_full_local_comm_read_event(int fd, short flags, void *arg)<br>
+&gt;&gt;    if( currently_migrating &amp;&amp; !flushed_modex ) {<br>
+&gt;&gt;        OPAL_OUTPUT_VERBOSE((10, mca_snapc_full_component.super.output_handle,<br>
+&gt;&gt;                             &quot;Local) Read Event: Flush the modex cached data\n&quot;));<br>
+&gt;&gt; -        if (ORTE_SUCCESS != (ret = orte_db.remove(NULL, NULL))) {<br>
+&gt;&gt; +        if (OPAL_SUCCESS != (ret = opal_db.remove(NULL, NULL))) {<br>
+&gt;&gt;            ORTE_ERROR_LOG(ret);<br>
+&gt;&gt;            exit_status = ret;<br>
+&gt;&gt;            goto cleanup;<br>
+&gt;&gt; diff --git a/orte/mca/sstore/stage/sstore_stage_component.c b/orte/mca/sstore/stage/sstore_stage_component.c<br>
+&gt;&gt; index 19d7c75..aca2b46 100644<br>
+&gt;&gt; --- a/orte/mca/sstore/stage/sstore_stage_component.c<br>
+&gt;&gt; +++ b/orte/mca/sstore/stage/sstore_stage_component.c<br>
+&gt;&gt; @@ -235,3 +235,8 @@ static int sstore_stage_close(void)<br>
+&gt;&gt;<br>
+&gt;&gt;    return ORTE_SUCCESS;<br>
+&gt;&gt; }<br>
+&gt;&gt; +<br>
+&gt;&gt; +static int sstore_stage_register(void)<br>
+&gt;&gt; +{<br>
+&gt;&gt; +    return ORTE_SUCCESS;<br>
+&gt;&gt; +}<br>
+&gt;&gt; --<br>
+&gt;&gt; 1.8.4.2<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Joshua Hursey<br>Assistant Professor of Computer Science<br>University of Wisconsin-La Crosse<br><a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a>
+</div></div></div>
+

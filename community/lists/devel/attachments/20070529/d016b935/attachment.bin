@@ -1,0 +1,235 @@
+diff --git a/ompi/mca/pml/ob1/pml_ob1.c b/ompi/mca/pml/ob1/pml_ob1.c
+index 690a512..cdb88d0 100644
+--- a/ompi/mca/pml/ob1/pml_ob1.c
++++ b/ompi/mca/pml/ob1/pml_ob1.c
+@@ -253,7 +253,8 @@ int mca_pml_ob1_send_fin(
+         ompi_proc_t* proc,
+         mca_bml_base_btl_t* bml_btl,
+         void *hdr_des,
+-        uint8_t order
++        uint8_t order,
++        uint32_t status
+         )
+ {
+     mca_btl_base_descriptor_t* fin;
+@@ -262,7 +263,7 @@ int mca_pml_ob1_send_fin(
+ 
+     MCA_PML_OB1_DES_ALLOC(bml_btl, fin, order, sizeof(mca_pml_ob1_fin_hdr_t));
+     if(NULL == fin) {
+-        MCA_PML_OB1_ADD_FIN_TO_PENDING(proc, hdr_des, bml_btl, order);
++        MCA_PML_OB1_ADD_FIN_TO_PENDING(proc, hdr_des, bml_btl, order, status);
+         return OMPI_ERR_OUT_OF_RESOURCE;
+     }
+     fin->des_flags |= MCA_BTL_DES_FLAGS_PRIORITY;
+@@ -274,6 +275,7 @@ int mca_pml_ob1_send_fin(
+     hdr->hdr_common.hdr_flags = 0;
+     hdr->hdr_common.hdr_type = MCA_PML_OB1_HDR_TYPE_FIN;
+     hdr->hdr_des.pval = hdr_des;
++    hdr->hdr_fail = status;
+ 
+ #if OMPI_ENABLE_HETEROGENEOUS_SUPPORT
+ #ifdef WORDS_BIGENDIAN
+@@ -296,12 +298,11 @@ int mca_pml_ob1_send_fin(
+                            MCA_BTL_TAG_PML
+                            );
+     if(OMPI_SUCCESS != rc) {
+-        MCA_PML_OB1_ADD_FIN_TO_PENDING(proc, hdr_des, bml_btl, order);
+         MCA_BML_BASE_BTL_DES_RETURN(bml_btl, fin);
++        MCA_PML_OB1_ADD_FIN_TO_PENDING(proc, hdr_des, bml_btl, order, status);
+         return OMPI_ERR_OUT_OF_RESOURCE;
+     }
+     
+-
+     return OMPI_SUCCESS;
+ }
+ 
+@@ -352,7 +353,8 @@ void mca_pml_ob1_process_pending_packets(mca_bml_base_btl_t* bml_btl)
+             case MCA_PML_OB1_HDR_TYPE_FIN:
+                 rc = mca_pml_ob1_send_fin(pckt->proc, send_dst,
+                                           pckt->hdr.hdr_fin.hdr_des.pval,
+-                                          pckt->order);
++                                          pckt->order,
++                                          pckt->hdr.hdr_fin.hdr_fail);
+                 MCA_PML_OB1_PCKT_PENDING_RETURN(pckt);
+                 if(OMPI_ERR_OUT_OF_RESOURCE == rc)
+                      return;
+@@ -378,6 +380,7 @@ void mca_pml_ob1_process_pending_rdma(void)
+         if(NULL == frag)
+             break;
+         if(frag->rdma_state == MCA_PML_OB1_RDMA_PUT) {
++            frag->retries++;
+             rc = mca_pml_ob1_send_request_put_frag(frag);
+         } else {
+             rc = mca_pml_ob1_recv_request_get_frag(frag);
+diff --git a/ompi/mca/pml/ob1/pml_ob1.h b/ompi/mca/pml/ob1/pml_ob1.h
+index bb371f5..50c8f31 100644
+--- a/ompi/mca/pml/ob1/pml_ob1.h
++++ b/ompi/mca/pml/ob1/pml_ob1.h
+@@ -54,6 +54,7 @@ struct mca_pml_ob1_t {
+     size_t eager_limit;     /* maximum eager limit size - overrides btl setting */
+     size_t send_pipeline_depth;
+     size_t recv_pipeline_depth;
++    size_t rdma_put_retries_limit;
+     bool leave_pinned; 
+     int leave_pinned_pipeline;
+     
+@@ -266,7 +267,7 @@ do {                                                            \
+         (ompi_free_list_item_t*)pckt);                          \
+ } while(0)
+ 
+-#define MCA_PML_OB1_ADD_FIN_TO_PENDING(P, D, B, O)                  \
++#define MCA_PML_OB1_ADD_FIN_TO_PENDING(P, D, B, O, S)               \
+     do {                                                            \
+         mca_pml_ob1_pckt_pending_t *_pckt;                          \
+         int _rc;                                                    \
+@@ -274,6 +275,7 @@ do {                                                            \
+         MCA_PML_OB1_PCKT_PENDING_ALLOC(_pckt,_rc);                  \
+         _pckt->hdr.hdr_common.hdr_type = MCA_PML_OB1_HDR_TYPE_FIN;  \
+         _pckt->hdr.hdr_fin.hdr_des.pval = (D);                      \
++        _pckt->hdr.hdr_fin.hdr_fail = (S);                          \
+         _pckt->proc = (P);                                          \
+         _pckt->bml_btl = (B);                                       \
+         _pckt->order = (O);                                         \
+@@ -285,7 +287,7 @@ do {                                                            \
+ 
+ 
+ int mca_pml_ob1_send_fin(ompi_proc_t* proc, mca_bml_base_btl_t* bml_btl, 
+-        void *hdr_des, uint8_t order);
++        void *hdr_des, uint8_t order, uint32_t status);
+ 
+ /* This function tries to resend FIN/ACK packets from pckt_pending queue.
+  * Packets are added to the queue when sending of FIN or ACK is failed due to
+diff --git a/ompi/mca/pml/ob1/pml_ob1_component.c b/ompi/mca/pml/ob1/pml_ob1_component.c
+index 198564d..d3237e5 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_component.c
++++ b/ompi/mca/pml/ob1/pml_ob1_component.c
+@@ -111,7 +111,9 @@ int mca_pml_ob1_component_open(void)
+         mca_pml_ob1_param_register_int("send_pipeline_depth", 3);
+     mca_pml_ob1.recv_pipeline_depth =
+         mca_pml_ob1_param_register_int("recv_pipeline_depth", 4);
+-    
++    mca_pml_ob1.rdma_put_retries_limit =
++        mca_pml_ob1_param_register_int("rdma_put_retries_limit", 5);
++
+     mca_pml_ob1.unexpected_limit =
+         mca_pml_ob1_param_register_int("unexpected_limit", 128);
+  
+diff --git a/ompi/mca/pml/ob1/pml_ob1_hdr.h b/ompi/mca/pml/ob1/pml_ob1_hdr.h
+index 87eac7d..6d35581 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_hdr.h
++++ b/ompi/mca/pml/ob1/pml_ob1_hdr.h
+@@ -219,6 +219,7 @@ struct mca_pml_ob1_fin_hdr_t {
+     uint8_t hdr_padding[6];
+ #endif
+     ompi_ptr_t hdr_des;                       /**< completed descriptor */
++    uint32_t hdr_fail;                        /**< RDMA operation failed */
+ };
+ typedef struct mca_pml_ob1_fin_hdr_t mca_pml_ob1_fin_hdr_t;
+ 
+diff --git a/ompi/mca/pml/ob1/pml_ob1_rdmafrag.h b/ompi/mca/pml/ob1/pml_ob1_rdmafrag.h
+index c892c6b..1ff5ce5 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_rdmafrag.h
++++ b/ompi/mca/pml/ob1/pml_ob1_rdmafrag.h
+@@ -45,6 +45,7 @@ struct mca_pml_ob1_rdma_frag_t {
+     struct mca_bml_base_endpoint_t* rdma_ep;
+     ompi_convertor_t convertor;
+     mca_mpool_base_registration_t* reg;
++    uint32_t retries;
+ };
+ typedef struct mca_pml_ob1_rdma_frag_t mca_pml_ob1_rdma_frag_t;
+ 
+diff --git a/ompi/mca/pml/ob1/pml_ob1_recvfrag.c b/ompi/mca/pml/ob1/pml_ob1_recvfrag.c
+index 4fab266..d8405ae 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_recvfrag.c
++++ b/ompi/mca/pml/ob1/pml_ob1_recvfrag.c
+@@ -182,7 +182,8 @@ void mca_pml_ob1_recv_frag_callback(
+             }
+ #endif
+             rdma = (mca_btl_base_descriptor_t*)hdr->hdr_fin.hdr_des.pval;
+-            rdma->des_cbfunc(btl, NULL, rdma, OMPI_SUCCESS);
++            rdma->des_cbfunc(btl, NULL, rdma,
++                    hdr->hdr_fin.hdr_fail ? OMPI_ERROR : OMPI_SUCCESS);
+             break;
+         }
+     default:
+diff --git a/ompi/mca/pml/ob1/pml_ob1_recvreq.c b/ompi/mca/pml/ob1/pml_ob1_recvreq.c
+index 94114af..9cf5661 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_recvreq.c
++++ b/ompi/mca/pml/ob1/pml_ob1_recvreq.c
+@@ -157,8 +157,10 @@ static void mca_pml_ob1_put_completion( mca_btl_base_module_t* btl,
+     mca_pml_ob1_recv_request_t* recvreq = (mca_pml_ob1_recv_request_t*)des->des_cbdata;
+     size_t bytes_received = 0;
+ 
+-    MCA_PML_OB1_COMPUTE_SEGMENT_LENGTH( des->des_dst, des->des_dst_cnt,
+-                                        0, bytes_received );
++    if(status == OMPI_SUCCESS) {
++        MCA_PML_OB1_COMPUTE_SEGMENT_LENGTH( des->des_dst, des->des_dst_cnt,
++                0, bytes_received );
++    }
+     OPAL_THREAD_ADD_SIZE_T(&recvreq->req_pipeline_depth,-1);
+     mca_bml_base_free(bml_btl, des);
+ 
+@@ -308,7 +310,7 @@ static void mca_pml_ob1_rget_completion(
+     mca_pml_ob1_send_fin(recvreq->req_recv.req_base.req_proc,
+                          bml_btl,
+                          frag->rdma_hdr.hdr_rget.hdr_des.pval,
+-                         des->order); 
++                         des->order, 0); 
+ 
+     /* is receive request complete */
+     if( OPAL_THREAD_ADD_SIZE_T(&recvreq->req_bytes_received, frag->rdma_length)
+diff --git a/ompi/mca/pml/ob1/pml_ob1_sendreq.c b/ompi/mca/pml/ob1/pml_ob1_sendreq.c
+index 8c7a3d6..606ea61 100644
+--- a/ompi/mca/pml/ob1/pml_ob1_sendreq.c
++++ b/ompi/mca/pml/ob1/pml_ob1_sendreq.c
+@@ -1074,7 +1074,7 @@ static void mca_pml_ob1_put_completion( mca_btl_base_module_t* btl,
+     mca_pml_ob1_send_fin(sendreq->req_send.req_base.req_proc, 
+                          bml_btl,
+                          frag->rdma_hdr.hdr_rdma.hdr_des.pval,
+-                         des->order);
++                         des->order, 0);
+     
+     /* check for request completion */
+     if( OPAL_THREAD_ADD_SIZE_T(&sendreq->req_bytes_delivered, frag->rdma_length)
+@@ -1115,12 +1115,27 @@ int mca_pml_ob1_send_request_put_frag( mca_pml_ob1_rdma_frag_t* frag )
+                               &des );
+     
+     if(NULL == des) {
+-        size_t offset = (size_t)frag->rdma_hdr.hdr_rdma.hdr_rdma_offset;
+-        frag->rdma_length = save_size; 
+-        ompi_convertor_set_position(&frag->convertor, &offset);
+-        OPAL_THREAD_LOCK(&mca_pml_ob1.lock);
+-        opal_list_append(&mca_pml_ob1.rdma_pending, (opal_list_item_t*)frag);
+-        OPAL_THREAD_UNLOCK(&mca_pml_ob1.lock);
++        if(frag->retries < mca_pml_ob1.rdma_put_retries_limit) {
++            size_t offset = (size_t)frag->rdma_hdr.hdr_rdma.hdr_rdma_offset;
++            frag->rdma_length = save_size; 
++            ompi_convertor_set_position(&frag->convertor, &offset);
++            OPAL_THREAD_LOCK(&mca_pml_ob1.lock);
++            opal_list_append(&mca_pml_ob1.rdma_pending, (opal_list_item_t*)frag);
++            OPAL_THREAD_UNLOCK(&mca_pml_ob1.lock);
++        } else {
++            mca_pml_ob1_send_request_t *sendreq =
++                (mca_pml_ob1_send_request_t*)frag->rdma_req;
++
++            /* tell receiver to unregister memory */
++            mca_pml_ob1_send_fin(sendreq->req_send.req_base.req_proc,
++                    frag->rdma_hdr.hdr_rdma.hdr_des.pval, bml_btl,
++                    MCA_BTL_NO_ORDER, 1);
++
++            /* send fragment by copy in/out */
++            mca_pml_ob1_send_requst_copy_in_out(sendreq,
++                    frag->rdma_hdr.hdr_rdma.hdr_rdma_offset, frag->rdma_length);
++            mca_pml_ob1_send_request_schedule(sendreq);
++        }
+         return OMPI_ERR_OUT_OF_RESOURCE;
+     }
+     
+@@ -1194,6 +1209,7 @@ void mca_pml_ob1_send_request_put(
+     frag->rdma_length = size;
+     frag->rdma_state = MCA_PML_OB1_RDMA_PUT;
+     frag->reg = NULL;
++    frag->retries = 0;
+ 
+     /* lookup the corresponding registration */
+     for(i=0; i<sendreq->req_rdma_cnt; i++) {

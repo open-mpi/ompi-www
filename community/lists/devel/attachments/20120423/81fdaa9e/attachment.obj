@@ -1,0 +1,129 @@
+Index: ompi/runtime/ompi_mpi_init.c
+===================================================================
+--- ompi/runtime/ompi_mpi_init.c	(revision 26313)
++++ ompi/runtime/ompi_mpi_init.c	(working copy)
+@@ -388,6 +388,7 @@
+         gettimeofday(&ompistart, NULL);
+     }
+     
++    opal_output(0, "Pre orte_init -- cacheline size is: %d\n", opal_cache_line_size);
+     /* Setup ORTE - note that we are an MPI process  */
+     if (ORTE_SUCCESS != (ret = orte_init(NULL, NULL, ORTE_PROC_MPI))) {
+         error = "ompi_mpi_init: orte_init failed";
+@@ -1188,5 +1189,6 @@
+     }
+ #endif
+ 
++    opal_output(0, "Post orte_init -- cacheline size is: %d\n", opal_cache_line_size);
+     return MPI_SUCCESS;
+ }
+Index: opal/runtime/opal.h
+===================================================================
+--- opal/runtime/opal.h	(revision 26313)
++++ opal/runtime/opal.h	(working copy)
+@@ -30,11 +30,10 @@
+ /** version string of opal */
+ OPAL_DECLSPEC extern const char opal_version_string[];
+ 
+-/* Size of a cache line.  To be replaced with real hwloc info (in
+-   trunk/v1.5 and beyond, only), but for the moment, just move it here
+-   so that we can remove opal/include/sys/cache.h whose only purpose
+-   is life is to #define CACHE_LINE_SIZE (and has a conflict on
+-   NetBSD). */
++/* Size of a cache line.  Initialized to -1 until hwloc data is
++   available, at which time it is filled with the smallest size of the
++   lowest cache line (e.g., the smallest line size from all L1 caches
++   found on the current system). */
+ OPAL_DECLSPEC extern int opal_cache_line_size;
+ 
+ /**
+Index: opal/runtime/opal_init.c
+===================================================================
+--- opal/runtime/opal_init.c	(revision 26313)
++++ opal/runtime/opal_init.c	(working copy)
+@@ -70,7 +70,10 @@
+ 
+ int opal_initialized = 0;
+ int opal_util_initialized = 0;
+-int opal_cache_line_size;
++/* We have to put a guess in here in case hwloc is not available.  If
++   hwloc is available, this value will be overwritten when the
++   hwloc data is loaded. */
++int opal_cache_line_size = 128;
+ 
+ static int
+ opal_err2str(int errnum, const char **errmsg)
+@@ -232,12 +235,6 @@
+         return OPAL_SUCCESS;
+     }
+ 
+-    /* JMS See note in runtime/opal.h -- this is temporary; to be
+-       replaced with real hwloc information soon (in trunk/v1.5 and
+-       beyond, only).  This *used* to be a #define, so it's important
+-       to define it very early.  */
+-    opal_cache_line_size = 128;
+-
+     /* initialize the memory allocator */
+     opal_malloc_init();
+ 
+Index: opal/mca/hwloc/base/hwloc_base_util.c
+===================================================================
+--- opal/mca/hwloc/base/hwloc_base_util.c	(revision 26313)
++++ opal/mca/hwloc/base/hwloc_base_util.c	(working copy)
+@@ -27,6 +27,7 @@
+ #include <unistd.h>
+ #endif
+ 
++#include "opal/runtime/opal.h"
+ #include "opal/constants.h"
+ #include "opal/util/argv.h"
+ #include "opal/util/output.h"
+@@ -169,6 +170,34 @@
+     return OPAL_SUCCESS;
+ }
+ 
++static void fill_cache_line_size(void)
++{
++    int i = 0;
++    unsigned size;
++    hwloc_obj_t obj;
++
++    size = 4096;
++    printf("Calculating cachlinesize:\n");
++    while (1) {
++        obj = opal_hwloc_base_get_obj_by_type(opal_hwloc_topology,
++                                              HWLOC_OBJ_CACHE, 1,
++                                              i, OPAL_HWLOC_LOGICAL);
++        if (NULL == obj) {
++            break;
++        } else { 
++            printf("Examining L1 cache %d\n", i);
++            if (NULL != obj->attr &&
++                size > obj->attr->cache.linesize) {
++                size = obj->attr->cache.linesize;
++            }
++        }
++        ++i;
++    }
++
++    opal_cache_line_size = (int) size;
++    printf("Calculated cachlinesize: %d\n", opal_cache_line_size);
++}
++
+ int opal_hwloc_base_get_topology(void)
+ {
+     int rc;
+@@ -186,6 +215,13 @@
+ 
+     /* filter the cpus thru any default cpu set */
+     rc = opal_hwloc_base_filter_cpus(opal_hwloc_topology);
++    if (OPAL_SUCCESS != rc) {
++        return rc;
++    }
++
++    /* fill opal_cache_line_size global with the smallest L1 cache
++       line size */
++    fill_cache_line_size();
+     return rc;
+ }
+ 

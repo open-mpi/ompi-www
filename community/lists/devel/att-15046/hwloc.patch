@@ -1,0 +1,70 @@
+Index: opal/mca/hwloc/base/hwloc_base_util.c
+===================================================================
+--- opal/mca/hwloc/base/hwloc_base_util.c	(revision 32067)
++++ opal/mca/hwloc/base/hwloc_base_util.c	(working copy)
+@@ -13,6 +13,8 @@
+  * Copyright (c) 2012-2013 Los Alamos National Security, LLC.
+  *                         All rights reserved.
+  * Copyright (c) 2013-2014 Intel, Inc. All rights reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -1315,8 +1317,7 @@
+     hwloc_cpuset_t avail;
+     bool shared;
+     hwloc_obj_type_t type;
+-    int sect1, sect2;
+-    hwloc_cpuset_t loc1, loc2;
++    hwloc_cpuset_t loc1, loc2, loc;
+ 
+     /* start with what we know - they share a node on a cluster
+      * NOTE: we may alter that latter part as hwloc's ability to
+@@ -1337,6 +1338,19 @@
+     hwloc_bitmap_list_sscanf(loc1, cpuset1);
+     loc2 = hwloc_bitmap_alloc();
+     hwloc_bitmap_list_sscanf(loc2, cpuset2);
++    loc = hwloc_bitmap_alloc();
++    hwloc_bitmap_or(loc, loc1, loc2);
++    
++    width = hwloc_get_nbobjs_by_depth(topo, 0);
++    for (w = 0; w < width; w++) {
++        obj = hwloc_get_obj_by_depth(topo, 0, w);
++        avail = opal_hwloc_base_get_available_cpus(topo, obj);
++        if ( hwloc_bitmap_isequal(avail, loc) ) {
++            /* the task is bound to all the node cpus,
++               return without digging further */
++            goto out;
++        }
++    }
+ 
+     /* start at the first depth below the top machine level */
+     for (d=1; d < depth; d++) {
+@@ -1362,11 +1376,8 @@
+             obj = hwloc_get_obj_by_depth(topo, d, w);
+             /* get the available cpuset for this obj */
+             avail = opal_hwloc_base_get_available_cpus(topo, obj);
+-            /* see if our locations intersect with it */
+-            sect1 = hwloc_bitmap_intersects(avail, loc1);
+-            sect2 = hwloc_bitmap_intersects(avail, loc2);
+-            /* if both intersect, then we share this level */
+-            if (sect1 && sect2) {
++            /* see if our locations is included */
++            if ( hwloc_bitmap_isincluded(loc, avail) ) {
+                 shared = true;
+                 switch(obj->type) {
+                 case HWLOC_OBJ_NODE:
+@@ -1410,9 +1421,11 @@
+         }
+     }
+ 
++out:
+     opal_output_verbose(5, opal_hwloc_base_framework.framework_output,
+                         "locality: %s",
+                         opal_hwloc_base_print_locality(locality));
++    hwloc_bitmap_free(loc);
+     hwloc_bitmap_free(loc1);
+     hwloc_bitmap_free(loc2);
+ 
+

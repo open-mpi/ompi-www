@@ -1,0 +1,298 @@
+<div dir="ltr">We at least need to release an immediate 1.8.7 to rectify the situation, either by &quot;rm -rf&quot; of ml or ompi_ignore it. I&#39;ll ompi_ignore it in the 1.10 branch for now as that hasn&#39;t been released yet - if we can get a fix in the next week or two, we can &quot;unignore&quot; it for the release. I&#39;m still angling for 1.10 release in the first half of July.<div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Thu, Jun 25, 2015 at 5:27 AM, Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Should we .ompi_ignore ml?<br>
+<div><div class="h5"><br>
+<br>
+&gt; On Jun 25, 2015, at 4:41 AM, Joshua Ladd &lt;<a href="mailto:jladd.mlnx@gmail.com">jladd.mlnx@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Thanks, Gilles.<br>
+&gt;<br>
+&gt; We are addressing this.<br>
+&gt;<br>
+&gt; Josh<br>
+&gt;<br>
+&gt; Sent from my iPhone<br>
+&gt;<br>
+&gt; On Jun 25, 2015, at 11:03 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles@rist.or.jp">gilles@rist.or.jp</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; Folks,<br>
+&gt;&gt;<br>
+&gt;&gt; this is a followup on an issue reported by Daniel on the users mailing list :<br>
+&gt;&gt; OpenMPI is built with hcoll from Mellanox.<br>
+&gt;&gt; the coll ml module has default priority zero.<br>
+&gt;&gt;<br>
+&gt;&gt; on my cluster, it works just fine<br>
+&gt;&gt; on Daniel&#39;s cluster, it crashes.<br>
+&gt;&gt;<br>
+&gt;&gt; i was able to reproduce the crash by tweaking mca_base_component_path and ensure<br>
+&gt;&gt; the coll ml module is loaded first.<br>
+&gt;&gt;<br>
+&gt;&gt; basically, i found two issues :<br>
+&gt;&gt; 1) libhcoll.so (vendor lib provided by Mellanox, i tested hpcx-v1.3.336-gcc-OFED-1.5.4.1-redhat6.2-x86_64) seems to include its own coll ml, since there are some *public* symbols that are common to this module (ml_open, ml_coll_hier_barrier_setup, ...)<br>
+&gt;&gt; 2) coll ml priority is zero, and even if the library is dlclose&#39;d, it seems this is uneffective<br>
+&gt;&gt; (nothing changed in /proc/xxx/maps before and after dlclose)<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; there are two workarounds :<br>
+&gt;&gt; mpirun --mca coll ^ml<br>
+&gt;&gt; or<br>
+&gt;&gt; mpirun --mca coll ^hcoll ... (probably not what is needed though ...)<br>
+&gt;&gt;<br>
+&gt;&gt; is it expected the library is not unloaded after dlclose ?<br>
+&gt;&gt;<br>
+&gt;&gt; Mellanox folks,<br>
+&gt;&gt; can you please double check how libhcoll is built ?<br>
+&gt;&gt; i guess it would work if the ml_ symbols were private to the library.<br>
+&gt;&gt; if not, the only workaround is to mpirun --mca coll ^ml<br>
+&gt;&gt; otherwise, it might crash (if coll_ml is loaded before coll_hcoll, which is really system dependent)<br>
+&gt;&gt;<br>
+&gt;&gt; Cheers,<br>
+&gt;&gt;<br>
+&gt;&gt; Gilles<br>
+&gt;&gt; On 6/25/2015 10:46 AM, Gilles Gouaillardet wrote:<br>
+&gt;&gt;&gt; Daniel,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; thanks for the logs.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; an other workaround is to<br>
+&gt;&gt;&gt; mpirun --mca coll ^hcoll ...<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; i was able to reproduce the issue, and it surprisingly occurs only if the coll_ml module is loaded *before* the hcoll module.<br>
+&gt;&gt;&gt; /* this is not the case on my system, so i had to hack my mca_base_component_path in order to reproduce the issue */<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; as far as i understand, libhcoll is a proprietary software, so i cannot dig into it.<br>
+&gt;&gt;&gt; that being said, i noticed libhcoll defines some symbols (such as ml_coll_hier_barrier_setup) that are also defined by the coll_ml module, so it is likely hcoll coll_ml and openmpi coll_ml are not binary compatible hence the error.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; i will dig a bit more and see if this is even supposed to happen (since coll_ml_priority is zero, why is the module still loaded ?)<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; as far as i am concerned, you *have to* mpirun --mca coll ^ml or update your user/system wide config file to blacklist the coll_ml module to ensure this is working.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Mike and Mellanox folks, could you please comment on that ?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Gilles<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; On 6/24/2015 5:23 PM, Daniel Letai wrote:<br>
+&gt;&gt;&gt;&gt; Gilles,<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Attached the two output logs.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Thanks,<br>
+&gt;&gt;&gt;&gt; Daniel<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; On 06/22/2015 08:08 AM, Gilles Gouaillardet wrote:<br>
+&gt;&gt;&gt;&gt;&gt; Daniel,<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; i double checked this and i cannot make any sense with these logs.<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; if coll_ml_priority is zero, then i do not any way how ml_coll_hier_barrier_setup can be invoked.<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; could you please run again with --mca coll_base_verbose 100<br>
+&gt;&gt;&gt;&gt;&gt; with and without --mca coll ^ml<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Gilles<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; On 6/22/2015 12:08 AM, Gilles Gouaillardet wrote:<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Daniel,<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; ok, thanks<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; it seems that even if priority is zero, some code gets executed<br>
+&gt;&gt;&gt;&gt;&gt;&gt; I will confirm this tomorrow and send you a patch to work around the issue if that if my guess is proven right<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Gilles<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; On Sunday, June 21, 2015, Daniel Letai &lt;<a href="mailto:dani@letai.org.il">dani@letai.org.il</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt;&gt;&gt; MCA coll: parameter &quot;coll_ml_priority&quot; (current value: &quot;0&quot;, data source: default, level: 9 dev/all, type: int)<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Not sure how to read this, but for any n&gt;1 mpirun only works with --mca coll ^ml<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Thanks for helping<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; On 06/18/2015 04:36 PM, Gilles Gouaillardet wrote:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; This is really odd...<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; you can run<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; ompi_info --all<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; and search coll_ml_priority<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; it will display the current value and the origin<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; (e.g. default, system wide config, user config, cli, environment variable)<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; Gilles<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; On Thursday, June 18, 2015, Daniel Letai &lt;<a href="mailto:dani@letai.org.il">dani@letai.org.il</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; No, that&#39;s the issue.<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; I had to disable it to get things working.<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; That&#39;s why I included my config settings - I couldn&#39;t figure out which option enabled it, so I could remove it from the configuration...<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; On 06/18/2015 02:43 PM, Gilles Gouaillardet wrote:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Daniel,<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; ML module is not ready for production and is disabled by default.<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Did you explicitly enable this module ?<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; If yes, I encourage you to disable it<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Cheers,<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Gilles<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; On Thursday, June 18, 2015, Daniel Letai &lt;<a href="mailto:dani@letai.org.il">dani@letai.org.il</a>&gt; wrote:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; given a simple hello.c:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; #include &lt;stdio.h&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; #include &lt;mpi.h&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; int main(int argc, char* argv[])<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; {<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;         int size, rank, len;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;         char name[MPI_MAX_PROCESSOR_NAME];<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;         MPI_Init(&amp;argc, &amp;argv);<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;         MPI_Comm_size(MPI_COMM_WORLD, &amp;size);<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;         MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;         MPI_Get_processor_name(name, &amp;len);<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;         printf(&quot;%s: Process %d out of %d\n&quot;, name, rank, size);<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;         MPI_Finalize();ffff<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; }<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; for n=1<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; mpirun -n 1 ./hello<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; it works correctly.<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; for n&gt;1 it segfaults with signal 11<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; used gdb to trace the problem to ml coll:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Program received signal SIGSEGV, Segmentation fault.<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; 0x00007ffff6750845 in ml_coll_hier_barrier_setup()<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;     from &lt;path to openmpi 1.8.5&gt;/lib/openmpi/mca_coll_ml.so<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; running with<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; mpirun -n 2 --mca coll ^ml ./hello<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; works correctly<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; using mellanox ofed 2.3-2.0.5-rhel6.4-x86_64, if it&#39;s at all relevant.<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; openmpi 1.8.5 was built with following options:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; rpmbuild --rebuild --define &#39;configure_options --with-verbs=/usr --with-verbs-libdir=/usr/lib64 CC=gcc CXX=g++ FC=gfortran CFLAGS=&quot;-g -O3&quot; --enable-mpirun-prefix-by-default --enable-orterun-prefix-by-default --disable-debug --with-knem=/opt/knem-1.1.1.90mlnx --with-platform=optimized --without-mpi-param-check --with-contrib-vt-flags=--disable-iotrace --enable-builtin-atomics --enable-cxx-exceptions --enable-sparse-groups --enable-mpi-thread-multiple --enable-memchecker --enable-btl-openib-failover --with-hwloc=internal --with-verbs --with-x --with-slurm --with-pmi=/opt/slurm --with-fca=/opt/mellanox/fca --with-mxm=/opt/mellanox/mxm --with-hcoll=/opt/mellanox/hcoll&#39; openmpi-1.8.5-1.src.rpm<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; gcc version 5.1.1<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Thanks in advance<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/06/27154.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27154.php</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Subscription:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Link to this post:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2015/06/27155.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27155.php</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; Subscription:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; Link to this post:<br>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2015/06/27157.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27157.php</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Subscription:<br>
+&gt;&gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;&gt; Link to this post:<br>
+&gt;&gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2015/06/27169.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27169.php</a><br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Subscription:<br>
+&gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;&gt; Link to this post:<br>
+&gt;&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2015/06/27170.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27170.php</a><br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Subscription:<br>
+&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Link to this post:<br>
+&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2015/06/27183.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27183.php</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Subscription:<br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Link to this post:<br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/devel/2015/06/17528.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/06/17528.php</a><br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/06/17529.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/06/17529.php</a><br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div>&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/06/17530.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/06/17530.php</a><br>
+<br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" rel="noreferrer" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<span class=""><br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</span>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/06/17531.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/06/17531.php</a><br>
+</blockquote></div><br></div>
+
