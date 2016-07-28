@@ -1,7 +1,9 @@
 <?php
   $topdir = "../..";
   include_once("$topdir/includes/force-server.inc");
-  force_server("www.open-mpi.org");
+  if ($_SERVER['SERVER_NAME'] != "gator.open-mpi.org") {
+    force_server("www.open-mpi.org");
+  }
 
   $title = "Open MPI: v2.0 nightly snapshot tarballs";
   include_once("$topdir/software/ompi/nav.inc");

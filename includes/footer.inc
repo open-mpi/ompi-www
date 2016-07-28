@@ -8,6 +8,7 @@ global $topdir;
 global $mirror_dir;
 
 include_once("$topdir/includes/functions.inc");
+include_once("$topdir/includes/mailto.inc");
 include_once("$topdir/community/mirrors/read_mirrors.php");  
 
 if (!isset($topurl) || $topurl == "") {

@@ -1,12 +1,15 @@
 <?php
   $topdir = "../../../..";
   include_once("$topdir/includes/force-server.inc");
-  force_server("www.open-mpi.org");
+  if ($_SERVER['SERVER_NAME'] != "gator.open-mpi.org") {
+    force_server("www.open-mpi.org");
+  }
 
   $title = "Hardware Locality (hwloc): v1.11 series nightly snapshot tarballs";
   include_once("$topdir/projects/hwloc/nav.inc");
   include_once("$topdir/includes/header.inc");
   include_once("$topdir/includes/downloads.inc");
+  include_once("$topdir/includes/mailto.inc");
   $dir = "$topdir/software/hwloc/nightly/v1.11";
 ?>
 

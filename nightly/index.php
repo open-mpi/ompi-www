@@ -55,32 +55,32 @@ latest progression in the feature 1.7.x series; it was morphed into the
 v1.8 stable series at the end of March 2014.  This tree is unlikely to be
 updated any more.</li>
 
-<li><a href="v1.6/"><strong>v1.6 series</strong></a> (previous stable
+<li><a href="v1.6/"><strong>v1.6 series</strong></a> (older stable
 series): These snapshots
 are from the 1.6 branch, which is the prior super stable release
 series (i.e., these are snapshots from the renamed v1.5 branch that
 reached the end of its feature development).
 This tree is unlikely to be updated any more.</li>
 
-<li><a href="v1.5/"><strong>v1.5 series</strong></a> (previous
+<li><a href="v1.5/"><strong>v1.5 series</strong></a> (older
 feature series): These snapshots are from the 1.5 branch and reflect the
 latest progression in the feature 1.5.x series; it was morphed into the
 v1.6 stable series in April of 2012.  This tree is unlikely
 to be updated any more.</li>
 
-<li><a href="v1.4/"><strong>v1.4 series</strong></a> (previous stable release
+<li><a href="v1.4/"><strong>v1.4 series</strong></a> (older stable release
 series): These snapshots are from the 1.4 branch and reflect the
 latest progression in the 1.4.x series (it used to be the v1.3.x
 feature series, but morphed into the "super stable" series).  This
 tree is unlikely to be updated any more.</li>
 
-<li><a href="v1.3/"><strong>v1.3 series</strong></a> (previous
+<li><a href="v1.3/"><strong>v1.3 series</strong></a> (older
 feature series): These snapshots are from the 1.3 branch and reflect the
 latest progression in the feature 1.3.x series; it was morphed into the
 v1.4 stable series in December of 2009.  This tree is unlikely
 to be updated any more.</li>
 
-<li><a href="v1.2/"><strong>v1.2 series</strong></a> (previous
+<li><a href="v1.2/"><strong>v1.2 series</strong></a> (older
 stable): These snapshots are from the 1.2 branch and reflect the
 latest progression in the stable 1.2.x series.  This tree is unlikely
 to be updated any more.</li>
