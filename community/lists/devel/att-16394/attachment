@@ -1,0 +1,248 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Ralph,<br>
+      <br>
+      no problem :<br>
+      <br>
+      I just tried slurm-14-11-11-1 and *both* pmi1 and pmi2 fail with
+      the same error message :<br>
+      <br>
+      symbol lookup error:
+      /opt/slurm-14-11.11.1/lib/slurm/auth_munge.so: undefined symbol:
+      slurm_debug<br>
+      <br>
+      on the bright side, auth_munge.so has no slurm_auth_get_arg_desc
+      undefined symbol.<br>
+      if i relink auth_munge.so so it depends on libslurm.so, this fixes
+      *both* pmi1 and pmi2<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/12/02 13:15, Ralph Castain wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:FF269567-F2C0-4FD3-9375-EE049B9AC094@open-mpi.org"
+      type="cite">
+      <pre wrap="">If it isn&#8217;t too much trouble, it would be good to confirm that it remains broken. I strongly suspect it is based on Moe&#8217;s comments.
+
+Obviously, other people are making this work. For Intel MPI, all you do is point it at libpmi and they can run. However, they do explicitly dlopen it in their code, and I don&#8217;t know what flags they might pass when they do so.
+
+If necessary, I suppose we could follow that pattern. In other words, rather than specifically linking the &#8220;s1&#8221; component to libpmi, instead require that the user point us to a pmi library via an MCA param, then explicitly dlopen that library with RTLD_GLOBAL. This avoids the issues cited by Jeff, but resolves the pmi linkage problem.
+
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">On Dec 1, 2014, at 8:09 PM, Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;gilles.gouaillardet@iferc.org&gt;</a> wrote:
+
+$ srun --version
+slurm 2.6.6-VENDOR_PROVIDED
+
+$ srun --mpi=pmi2 -n 1 ~/hw
+I am 0 / 1
+
+$ srun -n 1 ~/hw
+/csc/home1/gouaillardet/hw: symbol lookup error: /usr/lib64/slurm/auth_munge.so: undefined symbol: slurm_verbose
+srun: error: slurm_receive_msg: Zero Bytes were transmitted or received
+srun: error: slurm_receive_msg[10.0.3.15]: Zero Bytes were transmitted or received
+srun: error: soleil: task 0: Exited with exit code 127
+
+$ ldd /usr/lib64/slurm/auth_munge.so
+    linux-vdso.so.1 =&gt;  (0x00007fff54478000)
+    libmunge.so.2 =&gt; /usr/lib64/libmunge.so.2 (0x00007f744760f000)
+    libpthread.so.0 =&gt; /lib64/libpthread.so.0 (0x00007f74473f1000)
+    libc.so.6 =&gt; /lib64/libc.so.6 (0x00007f744705d000)
+    /lib64/ld-linux-x86-64.so.2 (0x0000003bf5400000)
+
+
+now, if i reling auth_munge.so so it depends on libslurm :
+
+$ srun -n 1 ~/hw
+srun: symbol lookup error: /usr/lib64/slurm/auth_munge.so: undefined symbol: slurm_auth_get_arg_desc
+
+
+i can give a try to the latest slurm if needed
+
+Cheers,
+
+Gilles
+
+
+On 2014/12/02 12:56, Ralph Castain wrote:
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Out of curiosity - how are you testing these? I have more current versions of Slurm and would like to test the observations there.
+
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">On Dec 1, 2014, at 7:49 PM, Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;gilles.gouaillardet@iferc.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;mailto:gilles.gouaillardet@iferc.org&gt;</a> wrote:
+
+I d like to make a step back ...
+
+i previously tested with slurm 2.6.0, and it complained about the slurm_verbose symbol that is defined in libslurm.so
+so with slurm 2.6.0, RTLD_GLOBAL or relinking is ok
+
+now i tested with slurm 2.6.6 and it complains about the slurm_auth_get_arg_desc symbol, and this symbol is not
+defined in any dynamic library. it is internally defined in the static libcommon.a library, which is used to build the slurm binaries.
+
+as far as i understand, auth_munge.so can only be invoked from a slurm binary, which means it cannot be invoked from an mpi application
+even if it is linked with libslurm, libpmi, ...
+
+that looks like a slurm design issue that the slurm folks will take care of.
+
+Cheers,
+
+Gilles
+
+On 2014/12/02 12:33, Ralph Castain wrote:
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">Another option is to simply add the -lslurm -lauth flags to the pmix/s1 component as this is the only place that requires it, and it won&#8217;t hurt anything to do so.
+
+
+</pre>
+              <blockquote type="cite">
+                <pre wrap="">On Dec 1, 2014, at 6:03 PM, Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;gilles.gouaillardet@iferc.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;mailto:gilles.gouaillardet@iferc.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;mailto:gilles.gouaillardet@iferc.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;mailto:gilles.gouaillardet@iferc.org&gt;</a> wrote:
+
+Jeff,
+
+FWIW, you can read my analysis of what is going wrong at
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php">http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php">&lt;http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php">&lt;http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php">&lt;http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php">&lt;http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi
+ .org/co
+mmunity/lists/pmix-devel/2014/11/0293.php">&lt;http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php">&lt;http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php">&lt;http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php&gt;</a>
+
+bottom line, i agree this is a slurm issue (slurm plugin should depend
+on libslurm, but they do not, yet)
+
+a possible workaround would be to make the pmi component a "proxy" that
+dlopen with RTLD_GLOBAL the "real" component in which the job is done.
+that being said, the impact is quite limited (no direct launch in slurm
+with pmi1, but pmi2 works fine) so it makes sense not to work around
+someone else problem.
+and that being said, configure could detect this broken pmi1 and not
+build pmi1 support or print a user friendly error message if pmi1 is used.
+
+any thoughts ?
+
+Cheers,
+
+Gilles
+
+On 2014/12/02 7:47, Jeff Squyres (jsquyres) wrote:
+</pre>
+                <blockquote type="cite">
+                  <pre wrap="">Ok, if the problem is moot, great.
+
+(sidenote: this is moot, so ignore this if you want: with this explanation, I'm still not sure how RTLD_GLOBAL fixes the issue)
+
+
+On Dec 1, 2014, at 5:15 PM, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;mailto:rhc@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;mailto:rhc@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;mailto:rhc@open-mpi.org&gt;</a> wrote:
+
+</pre>
+                  <blockquote type="cite">
+                    <pre wrap="">Easy enough to explain. We link libpmi into the pmix/s1 component. This library is missing the linkage to libslurm that contains the linkage to libauth where munge resides. So when we call a PMI function, libpmi references a call to munge for authentication and hits an &#8220;unresolved symbol&#8221; error.
+
+Moe acknowledges the error is in Slurm and is fixing the linkages so this problem goes away
+
+
+</pre>
+                    <blockquote type="cite">
+                      <pre wrap="">On Dec 1, 2014, at 2:13 PM, Jeff Squyres (jsquyres) <a class="moz-txt-link-rfc2396E" href="mailto:jsquyres@cisco.com">&lt;jsquyres@cisco.com&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:jsquyres@cisco.com">&lt;mailto:jsquyres@cisco.com&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:jsquyres@cisco.com">&lt;mailto:jsquyres@cisco.com&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:jsquyres@cisco.com">&lt;mailto:jsquyres@cisco.com&gt;</a> wrote:
+
+On Dec 1, 2014, at 5:07 PM, Ralph Castain <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;rhc@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;mailto:rhc@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;mailto:rhc@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:rhc@open-mpi.org">&lt;mailto:rhc@open-mpi.org&gt;</a> wrote:
+
+</pre>
+                      <blockquote type="cite">
+                        <pre wrap="">FWIW: It&#8217;s Slurm&#8217;s pmi-1 library that isn&#8217;t linked correctly against its dependencies (the pmi-2 one is correct).  Moe is aware of the problem and fixing it on their side. This won&#8217;t help existing installations until they upgrade, but I tend to agree with Jeff about not fixing other people&#8217;s problems.
+</pre>
+                      </blockquote>
+                      <pre wrap="">Can you explain what is happening?
+
+I ask because I'm not sure I understand the problem such that using RTLD_GLOBAL would fix it.  I.e., even if libpmi1.so isn't linked against its dependencies properly, that shouldn't cause a problem if OMPI components A and B are both linked against libpmi1.so, and then A is loaded, and then B is loaded.
+
+...or perhaps we can just discuss this on the call tomorrow?
+
+-- 
+Jeff Squyres
+<a class="moz-txt-link-abbreviated" href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a> <a class="moz-txt-link-rfc2396E" href="mailto:jsquyres@cisco.com">&lt;mailto:jsquyres@cisco.com&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:jsquyres@cisco.com">&lt;mailto:jsquyres@cisco.com&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:jsquyres@cisco.com">&lt;mailto:jsquyres@cisco.com&gt;</a>
+For corporate legal information go to: <a class="moz-txt-link-freetext" href="http://www.cisco.com/web/about/doing_business/legal/cri/">http://www.cisco.com/web/about/doing_business/legal/cri/</a> <a class="moz-txt-link-rfc2396E" href="http://www.cisco.com/web/about/doing_business/legal/cri/">&lt;http://www.cisco.com/web/about/doing_business/legal/cri/&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.cisco.com/web/about/doing_business/legal/cri/">&lt;http://www.cisco.com/web/about/doing_business/legal/cri/&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.cisco.com/web/about/doing_business/legal/cri/">&lt;http://www.cisco.com/web/about/doing_business/legal/cri/&gt;</a>
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16383.php">http://www.open-mpi.org/community/lists/devel/2014/12/16383.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16383.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16383.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16383.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16383.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16383.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16383.php&gt;</a>
+</pre>
+                    </blockquote>
+                    <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16384.php">http://www.open-mpi.org/community/lists/devel/2014/12/16384.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16384.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16384.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16384.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16384.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16384.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16384.php&gt;</a>
+</pre>
+                  </blockquote>
+                </blockquote>
+                <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.o
+ rg/mail
+man/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php">http://www.open-mpi.org/community/lists/devel/2014/12/16386.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16386.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16386.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16386.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16386.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/
+ devel/2
+014/12/16386.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16386.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16386.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16386.php&gt;</a>
+</pre>
+              </blockquote>
+              <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16387.php">http://www.open-mpi.org/community/lists/devel/2014/12/16387.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16387.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16387.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16387.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16387.php&gt;</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16387.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16387.php&gt;</a>
+</pre>
+            </blockquote>
+            <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16388.php">http://www.open-mpi.org/community/lists/devel/2014/12/16388.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16388.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16388.php&gt;</a>
+</pre>
+          </blockquote>
+          <pre wrap="">
+
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="mailto:devel@open-mpi.org">&lt;mailto:devel@open-mpi.org&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">&lt;http://www.open-mpi.org/mailman/listinfo.cgi/devel&gt;</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16389.php">http://www.open-mpi.org/community/lists/devel/2014/12/16389.php</a> <a class="moz-txt-link-rfc2396E" href="http://www.open-mpi.org/community/lists/devel/2014/12/16389.php">&lt;http://www.open-mpi.org/community/lists/devel/2014/12/16389.php&gt;</a>
+</pre>
+        </blockquote>
+        <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16390.php">http://www.open-mpi.org/community/lists/devel/2014/12/16390.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16391.php">http://www.open-mpi.org/community/lists/devel/2014/12/16391.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

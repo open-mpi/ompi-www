@@ -1,0 +1,37 @@
+#include <stdio.h>
+#include "mpi.h"
+
+int main( int argc, char *argv[] )
+{
+  MPI_Comm comm1;
+  int root=0;
+  int rank2, size2, global_buf=1;
+  int rank, size;
+
+  MPI_Init ( &argc, &argv );
+
+  MPI_Comm_rank ( MPI_COMM_WORLD, &rank );
+  MPI_Comm_size ( MPI_COMM_WORLD, &size );
+
+/* Setting up a new communicator */
+  MPI_Comm_dup ( MPI_COMM_WORLD, &comm1 );
+
+  MPI_Comm_size ( comm1, &size2 );
+  MPI_Comm_rank ( comm1, &rank2 );
+
+
+  MPI_Bcast ( &global_buf, 1, MPI_INT, root, MPI_COMM_WORLD );
+  if ( rank == root ) {
+      printf("Bcast on MPI_COMM_WORLD finished\n");
+  }
+  MPI_Bcast ( &global_buf, 1, MPI_INT, root, comm1 );
+  if ( rank == root ) {
+      printf("Bcast on duplicate of MPI_COMM_WORLD finished\n");
+  }
+
+  MPI_Comm_free ( &comm1 );
+
+  MPI_Finalize ();
+  return ( 0 );
+}
+

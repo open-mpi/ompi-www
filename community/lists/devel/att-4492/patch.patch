@@ -1,0 +1,231 @@
+Index: opal/mca/paffinity/base/paffinity_base_open.c
+===================================================================
+--- opal/mca/paffinity/base/paffinity_base_open.c	(revision 19096)
++++ opal/mca/paffinity/base/paffinity_base_open.c	(working copy)
+@@ -69,7 +69,7 @@
+         
+     mca_base_param_reg_string_name("opal", "paffinity_base_slot_list",
+                                    "Used to set list of processor IDs to bind MPI processes to (e.g., used in conjunction with rank files)",
+-                                   false, false, NULL, NULL);
++                                   true, false, NULL, NULL);
+ 
+     /* Open up all available components */
+ 
+Index: orte/mca/odls/base/odls_base_default_fns.c
+===================================================================
+--- orte/mca/odls/base/odls_base_default_fns.c	(revision 19096)
++++ orte/mca/odls/base/odls_base_default_fns.c	(working copy)
+@@ -972,14 +972,16 @@
+         opal_setenv("OMPI_COMM_WORLD_LOCAL_RANK", value, true, &app->env);
+         free(value);
+ 
++        param = mca_base_param_environ_variable("opal", NULL, "paffinity_base_slot_list");
+         if ( NULL != child->slot_list ) {
+-            param = mca_base_param_environ_variable("opal", NULL, "paffinity_base_slot_list");
+             asprintf(&value, "%s", child->slot_list);
+             opal_setenv(param, value, true, &app->env);
+-            free(param);
+             free(value);
++        } else {
++            opal_unsetenv(param,  &app->env);
+         }
+-
++        free(param);
++         
+         /* must unlock prior to fork to keep things clean in the
+          * event library
+          */
+Index: orte/mca/rmaps/base/base.h
+===================================================================
+--- orte/mca/rmaps/base/base.h	(revision 19096)
++++ orte/mca/rmaps/base/base.h	(working copy)
+@@ -71,6 +71,8 @@
+     bool display_map;
+     /* balance load across nodes */
+     bool loadbalance;
++    /* slot list, if provided by user */
++    char *slot_list;
+ } orte_rmaps_base_t;
+ 
+ /**
+Index: orte/mca/rmaps/base/rmaps_base_open.c
+===================================================================
+--- orte/mca/rmaps/base/rmaps_base_open.c	(revision 19096)
++++ orte/mca/rmaps/base/rmaps_base_open.c	(working copy)
+@@ -126,7 +126,11 @@
+             orte_rmaps_base.pernode = true;
+         }
+     }
+-    
++    /* did the user provide a slot list? */
++    param = mca_base_param_reg_string_name("rmaps", "base_slot_list",
++                                            "List of processor IDs to bind MPI processes to (e.g., used in conjunction with rank files) [default=NULL]",
++                                            false, false, NULL, &orte_rmaps_base.slot_list);
++        
+     /* Should we schedule on the local node or not? */
+ 
+     mca_base_param_reg_int_name("rmaps", "base_no_schedule_local",
+Index: orte/mca/rmaps/rank_file/rmaps_rank_file_component.c
+===================================================================
+--- orte/mca/rmaps/rank_file/rmaps_rank_file_component.c	(revision 19096)
++++ orte/mca/rmaps/rank_file/rmaps_rank_file_component.c	(working copy)
+@@ -23,11 +23,12 @@
+ 
+ #include "orte/runtime/orte_globals.h"
+ #include "orte/mca/ras/ras_types.h"
++#include "orte/util/show_help.h"
+ 
+ #include "opal/mca/base/base.h"
+ #include "opal/mca/base/mca_base_param.h"
+-#include "orte/util/show_help.h"
+ 
++#include "orte/mca/rmaps/base/base.h"
+ #include "orte/mca/rmaps/base/rmaps_private.h"
+ #include "orte/mca/rmaps/rank_file/rmaps_rank_file.h"
+ #include "orte/mca/rmaps/rank_file/rmaps_rank_file_lex.h"
+@@ -81,7 +82,7 @@
+                               "path",
+                               "The path to the rank mapping file",
+                               false, false, NULL, &orte_rmaps_rank_file_path);
+-    if (NULL != orte_rmaps_rank_file_path) {
++    if (NULL != orte_rmaps_rank_file_path || NULL != orte_rmaps_base.slot_list) {
+         mca_rmaps_rank_file_component.priority = 100;
+     }
+ 
+Index: orte/mca/rmaps/rank_file/rmaps_rank_file.c
+===================================================================
+--- orte/mca/rmaps/rank_file/rmaps_rank_file.c	(revision 19096)
++++ orte/mca/rmaps/rank_file/rmaps_rank_file.c	(working copy)
+@@ -110,10 +110,6 @@
+                 }
+         } while ( strcmp(node->name, rankmap[num_alloc + vpid_start].node_name));
+         node->slot_list = strdup(rankmap[num_alloc+vpid_start].slot_list);
+-        if (mca_rmaps_rank_file_component.debug) {
+-           opal_output(0, "rank_file RMAPS component: [%s:%d]->slot_list=%s\n",
+-                   rankmap[num_alloc + vpid_start].node_name,rankmap[num_alloc+vpid_start].rank, node->slot_list);
+-        }
+         if (ORTE_SUCCESS != (rc = orte_rmaps_base_claim_slot(jdata, node, rankmap[num_alloc+vpid_start].rank, app->idx,
+             nodes, jdata->map->oversubscribe, true))) {
+             /** if the code is ORTE_ERR_NODE_FULLY_USED, then we know this
+@@ -194,11 +190,8 @@
+         }
+         /* Allocate a slot on this node */
+         node = (orte_node_t*) cur_node_item;
+-        if ( NULL != orte_mca_rmaps_rank_file_slot_list){
+-            node->slot_list = (char*) malloc(64*sizeof(char));
+-            if ( NULL != node->slot_list ) {
+-                strcpy(node->slot_list, orte_mca_rmaps_rank_file_slot_list);
+-            }
++        if ( NULL != orte_rmaps_base.slot_list ) {
++            node->slot_list = strdup(orte_rmaps_base.slot_list);
+         }
+         if (ORTE_SUCCESS != (rc = orte_rmaps_base_claim_slot(jdata, node, vpid_start + num_alloc, app->idx,
+                                              nodes, jdata->map->oversubscribe, true))) {
+@@ -291,7 +284,7 @@
+         } else {
+             num_slots_to_take = node->slots - node->slots_inuse;
+         }
+-        
++
+         /* check if we are in npernode mode - if so, then set the num_slots_to_take
+          * to the num_per_node
+          */
+@@ -304,11 +297,8 @@
+                 ++num_alloc;
+                 continue;
+             }
+-            if ( NULL != orte_mca_rmaps_rank_file_slot_list){
+-                node->slot_list = (char*) malloc(64*sizeof(char));
+-                if ( NULL != node->slot_list ) {
+-                    strcpy(node->slot_list, orte_mca_rmaps_rank_file_slot_list);
+-                }
++            if ( NULL != orte_rmaps_base.slot_list ) {
++                node->slot_list = strdup(orte_rmaps_base.slot_list);
+             }
+             if (ORTE_SUCCESS != (rc = orte_rmaps_base_claim_slot(jdata, node, vpid_start + num_alloc, app->idx,
+                                                  nodes, jdata->map->oversubscribe, true))) {
+@@ -377,7 +367,7 @@
+     vpid_start = 0;
+ 
+     /* cycle through the app_contexts, mapping them sequentially */
+-             for(i=0; i < jdata->num_apps; i++) {
++      for(i=0; i < jdata->num_apps; i++) {
+         app = apps[i];
+ 
+         /* if the number of processes wasn't specified, then we know there can be only
+@@ -439,16 +429,7 @@
+         }
+ 
+         if (map->pernode && map->npernode == 1) {
+-            /* there are three use-cases that we need to deal with:
+-            * (a) if -np was not provided, then we just use the number of nodes
+-            * (b) if -np was provided AND #procs > #nodes, then error out
+-            * (c) if -np was provided AND #procs <= #nodes, then launch
+-            *     the specified #procs one/node. In this case, we just
+-            *     leave app->num_procs alone
+-            */
+-            if (0 == app->num_procs) {
+-                app->num_procs = num_nodes;
+-            } else if (app->num_procs > num_nodes) {
++            if (app->num_procs > num_nodes) {
+                 orte_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:per-node-and-too-many-procs",
+                                true, app->num_procs, num_nodes, NULL);
+                 rc = ORTE_ERR_SILENT;
+@@ -465,30 +446,12 @@
+                 rc = ORTE_ERR_SILENT;
+                 goto error;
+             }
+-            /* there are three use-cases that we need to deal with:
+-            * (a) if -np was not provided, then we just use the n/node * #nodes
+-            * (b) if -np was provided AND #procs > (n/node * #nodes), then error out
+-            * (c) if -np was provided AND #procs <= (n/node * #nodes), then launch
+-            *     the specified #procs n/node. In this case, we just
+-            *     leave app->num_procs alone
+-            */
+-            if (0 == app->num_procs) {
+-                /* set the num_procs to equal the specified num/node * the number of nodes */
+-                app->num_procs = map->npernode * num_nodes;
+-            } else if (app->num_procs > (map->npernode * num_nodes)) {
++            if (app->num_procs > (map->npernode * num_nodes)) {
+                 orte_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:n-per-node-and-too-many-procs",
+                                true, app->num_procs, map->npernode, num_nodes, num_slots, NULL);
+                 rc = ORTE_ERR_SILENT;
+                 goto error;
+             }
+-        } else if (0 == app->num_procs) {
+-                /* we can't handle this - it should have been set when we got
+-                 * the map info. If it wasn't, then we can only error out
+-                 */
+-                orte_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:no-np-and-user-map",
+-                               true, app->num_procs, map->npernode, num_nodes, num_slots, NULL);
+-                rc = ORTE_ERR_SILENT;
+-                goto error;
+         }
+         /** track the total number of processes we mapped */
+         jdata->num_procs += app->num_procs;
+@@ -589,6 +552,11 @@
+        goto unlock;
+    }
+ 
++   if ( 0 == np ) {
++        orte_show_help("help-rmaps_rank_file.txt", "orte-rmaps-rf:no-np-and-user-map", true, NULL);
++        return ORTE_ERR_BAD_PARAM;
++   }
++   
+     while (!orte_rmaps_rank_file_done) {
+         token = orte_rmaps_rank_file_lex();
+         switch (token) {
+Index: orte/tools/orterun/orterun.c
+===================================================================
+--- orte/tools/orterun/orterun.c	(revision 19096)
++++ orte/tools/orterun/orterun.c	(working copy)
+@@ -222,6 +222,9 @@
+     { "rmaps", "base", "n_pernode", '\0', "npernode", "npernode", 1,
+         NULL, OPAL_CMD_LINE_TYPE_INT,
+         "Launch n processes per node on all allocated nodes" },
++    { "rmaps", "base", "slot_list", '\0', "slot-list", "slot-list", 1,
++        NULL, OPAL_CMD_LINE_TYPE_STRING,
++        "List of processor IDs to bind MPI processes to (e.g., used in conjunction with rank files)" },
+     { "rmaps", "base", "no_oversubscribe", '\0', "nooversubscribe", "nooversubscribe", 0,
+       NULL, OPAL_CMD_LINE_TYPE_BOOL,
+       "Nodes are not to be oversubscribed, even if the system supports such operation"},

@@ -1,0 +1,415 @@
+<html dir="ltr">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=Windows-1252">
+<style id="owaParaStyle" type="text/css">P {margin-top:0;margin-bottom:0;}</style>
+</head>
+<body ocsi="0" fpstyle="1">
+<div style="direction: ltr;font-family: Tahoma;color: #000000;font-size: 12pt;">Jeff:<br>
+<br>
+Thanks for the extremely informative reply!<br>
+I can appreciate the reasons for dropping of Windows support.&nbsp; The reason for wanting a Windows version of this scientific calculation software is to allow the non-programmerish end-users be able to run it 'out of the box' using precompiled Windows executables.<br>
+I do not know much about Cygwin; I'll look into that and see what it can do for my situation.<br>
+Good info to know about 'sm' and why it doesn't play well with MPI_Comm_spawn.<br>
+<br>
+I had wondered about recoding to _not_ use MPI_Comm_spawn, but (a) this works absolutely fabulously under Linux (both multi-core systems and clusters); and (b) any such changes would require significant changes to the architecture of the programs depending
+ on it.&nbsp; Given this alternative, the licensing fee for the Intel MPI library may not be an obstacle anymore.<br>
+A Linux VM on a Windows machine could be a possible solution, except that some of the end-users have their Windows boxes locked down tight, for security reasons.<br>
+I also thought the TCP connection issue was odd; I got the same results on both my work and home Windows computers.&nbsp;
+<br>
+<br>
+<br>
+________________________________________<br>
+From: users [users-bounces@open-mpi.org] on behalf of Jeff Squyres (jsquyres) [jsquyres@cisco.com]<br>
+Sent: Thursday, June 09, 2016 8:56 AM<br>
+To: Open MPI User's List<br>
+Subject: Re: [OMPI users] Processes unable to communicate when using MPI_Comm_spawn on Windows<br>
+<br>
+I think there were a few not-entirely-correct data points in this thread. Let me clarify a few things:<br>
+<br>
+1. Yes, Open MPI suspended native Windows support a while back. Native windows support is simply not a popular use case, and therefore we couldn't justify spending the time on it (not the mention the fact that no one in the community had enough Windows development
+ experience to keep a native port alive and well-maintained).<br>
+<br>
+2. That being said, AFAIK, Open MPI still compiles and runs fine -- albeit with restrictions -- in a Cygwin environment on Windows. This was deemed &quot;good enough&quot; by the Open MPI community (especially given the points from #1). Recent binary versions of Open
+ MPI are available courtesy of the Cygwin project: https://cygwin.com/cgi-bin2/package-grep.cgi?grep=openmpi.<br>
+<br>
+3. &quot;sm&quot; works fine with intercommunicators. What it doesn't do is handle the expansion of its shared memory allocation when new MPI processes are added via the dynamic APIs (e.g., MPI_COMM_SPAWN). We've talked about removing this restriction in &quot;vader&quot; (the
+ next-gen version of the &quot;sm&quot; BTL -- yes, I know, the name is not intuitive at all...), but I don't think that this has been an important enough feature for anyone to spend time on it. As always, patches are welcome. ;-)<br>
+<br>
+-----<br>
+<br>
+It's been pointed out, but Open MPI 1.6.5 is pretty ancient (it was released Jun of 2013). Per #2, you might want to try the latest stable release (e.g., via Cygwin binaries).<br>
+<br>
+There's two other options that may not have been mentioned yet:<br>
+<br>
+1. Re-code your application to not use the MPI dynamic APIs (e.g., MPI_COMM_SPAWN). I know this is not quite what you want to do, but given all the other restrictions and data points, it might be your least-sucky option.<br>
+<br>
+2. Run a VM on your Windows machine with some flavor of Linux. That would give you access to a much greater set of Open MPI features (i.e., significantly fewer restrictions).<br>
+<br>
+As for why your machine cannot connect to itself using its own IP addresses, that's a bit odd. It suggests that you have some kind of blocking software in there somewhere. We probably don't have enough Windows experience here in the community to help with that.<br>
+<br>
+Hope that helps!<br>
+<br>
+<br>
+<br>
+&gt; On Jun 9, 2016, at 5:06 AM, Roth, Christopher &lt;CRoth@aer.com&gt; wrote:<br>
+&gt;<br>
+&gt; Thanks for the info, Gilles.<br>
+&gt; Being relatively new to MPI, I was not aware 'sm' did not work with intercommunicators - I had assumed it was an option if the others were not available.<br>
+&gt;<br>
+&gt; I am running as an admin on this test machine. When adding the option '-mca btl_tcp_port_min_v4 2000', a higher port number is used, but that does not alter the program behavior at all.<br>
+&gt;<br>
+&gt; Given that the initial development was on Linux using OpenMpi v1.5, I would like to assume the Windows implementation would have mostly equivalent feature development, and then improved in v1.6. Apparently that isn't true...<br>
+&gt; This is rather disappointing that a seemingly basic MPI communication functionality is broken like this under Windows, even if it is an older version.<br>
+&gt; Hacking on the Windows OpenMPI code is a rabbit hole that I do not want to go down for numerous reasons.<br>
+&gt;<br>
+&gt; I have briefly explored alternate Windows MPI libraries: the Windows version of MPICH (from Microsoft) has not implemented MPI_Comm_Spawn; Intel MPI has a licensing fee. Do you any other alternatives to suggest?<br>
+&gt;<br>
+&gt; From: users [users-bounces@open-mpi.org] on behalf of Gilles Gouaillardet [gilles@rist.or.jp]<br>
+&gt; Sent: Wednesday, June 08, 2016 7:58 PM<br>
+&gt; To: Open MPI Users<br>
+&gt; Subject: Re: [OMPI users] Processes unable to communicate when using MPI_Comm_spawn on Windows<br>
+&gt;<br>
+&gt; Christopher,<br>
+&gt;<br>
+&gt; the sm btl does not work with inter communicators and hence disqualifies itself.<br>
+&gt; i guess this is what you interpreted as 'partially working'<br>
+&gt;<br>
+&gt; i am surprised you are using a privileged port (260 &lt; 1024), are you running as an admin ?<br>
+&gt;<br>
+&gt; Open MPI is no more supported on windows, and the 1.6 series is pretty antique these days...<br>
+&gt;<br>
+&gt; regardless this, the source code points to<br>
+&gt;<br>
+&gt; static __inline int opal_get_socket_errno(void) {<br>
+&gt; int ret = WSAGetLastError();<br>
+&gt; switch (ret) {<br>
+&gt; case WSAEINTR: return EINTR;<br>
+&gt; ...<br>
+&gt; default: printf(&quot;Feature not implemented: %d %s\n&quot;, __LINE__, __FILE__); return OPAL_ERROR;<br>
+&gt; };<br>
+&gt; }<br>
+&gt;<br>
+&gt; at first, it is worth printing (ret) if the feature is not implemented.<br>
+&gt; then you can hack this part and add the missing case<br>
+&gt; recent windows (7) might use a newer one that was not available on older ones (xp)<br>
+&gt;<br>
+&gt; Cheers,<br>
+&gt;<br>
+&gt; Gilles<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; On 6/9/2016 1:51 AM, Roth, Christopher wrote:<br>
+&gt;&gt; Well, that obvious error message states the basic problem - I was hoping you had noticed a detail in the ompi_info output that would point to a reason for it.<br>
+&gt;&gt;<br>
+&gt;&gt; Further test runs with the option '-mca btl tcp,self' (excluding 'sm' from the mix) and '-mca btl_base_verbose 100', supply some more information:<br>
+&gt;&gt; ------<br>
+&gt;&gt; [sweet1:04556] btl: tcp: attempting to connect() to address 10.3.2.109 on port 260<br>
+&gt;&gt; [sweet1:04556] btl: tcp: attempting to connect() to address 10.3.2.109 on port 260<br>
+&gt;&gt; ------<br>
+&gt;&gt; The ip address is the host machine's. The process ID corresponds to the first of the executor programs. The programs now hang at that point (within the scheduler's MPI_Comm_spawn call and the executors' MPI_Init calls), and and have to be manually killed.<br>
+&gt;&gt;<br>
+&gt;&gt; Yet another test, adding the '-mca mpi_preconnect_mpi 1' (along with the other two added arguments), gives more info:<br>
+&gt;&gt; ------<br>
+&gt;&gt; [sweet1:04976] btl: tcp: attempting to connect() to address 10.3.2.109 on port 260<br>
+&gt;&gt; [sweet1:04516] btl: tcp: attempting to connect() to address 10.3.2.109 on port 260<br>
+&gt;&gt; [sweet1:03824] btl: tcp: attempting to connect() to address 10.3.2.109 on port 260<br>
+&gt;&gt; [sweet1][[17613,2],1][..\..\..\openmpi-1.6.2\ompi\mca\btl\tcp\btl_tcp_endpoint.c:486:..\..\..\openmpi-1.6.2\ompi\mca\btl<br>
+&gt;&gt; \tcp\btl_tcp_endpoint.c] received unexpected process identifier [[17613,2],0]<br>
+&gt;&gt; [sweet1][[17613,2],0][..\..\..\openmpi-1.6.2\ompi\mca\btl\tcp\btl_tcp_frag.c:215:..\..\..\openmpi-1.6.2\ompi\mca\btl\tcp<br>
+&gt;&gt; \btl_tcp_frag.c] Feature not implemented: 130 D:/temp/OpenMPI/openmpi-1.6.2/opal/include\opal/opal_socket_errno.h<br>
+&gt;&gt; Feature not implemented: 130 D:/temp/OpenMPI/openmpi-1.6.2/opal/include\opal/opal_socket_errno.h<br>
+&gt;&gt; mca_btl_tcp_frag_recv: readv failed: Unknown error (-1)<br>
+&gt;&gt; ------<br>
+&gt;&gt; With the 'preconnect' option, it sets up the TCP link for all of the executor processes, but then runs into an actual error, regarding some function not implemented. This option is not required, but I had to give it a whirl.<br>
+&gt;&gt;<br>
+&gt;&gt; All of these test runs have the same behavior when performed with and without the firewall active.<br>
+&gt;&gt;<br>
+&gt;&gt; The fact that the executor programs don't get past the MPI_Init call when the 'sm' is excluded from btl set , implies that the 'sm' is at least partially working.<br>
+&gt;&gt;<br>
+&gt;&gt; From: users [users-bounces@open-mpi.org] on behalf of Ralph Castain [rhc@open-mpi.org]<br>
+&gt;&gt; Sent: Wednesday, June 08, 2016 10:47 AM<br>
+&gt;&gt; To: Open MPI Users<br>
+&gt;&gt; Subject: Re: [OMPI users] Processes unable to communicate when using MPI_Comm_spawn on Windows<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; On Jun 8, 2016, at 4:30 AM, Roth, Christopher &lt;CRoth@aer.com&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; What part of this output indicates this non-communicative configuration?<br>
+&gt;&gt;<br>
+&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt; At least one pair of MPI processes are unable to reach each other for<br>
+&gt;&gt; MPI communications. This means that no Open MPI device has indicated<br>
+&gt;&gt; that it can be used to communicate between these processes. This is<br>
+&gt;&gt; an error; Open MPI requires that all MPI processes be able to reach<br>
+&gt;&gt; each other. This error can sometimes be the result of forgetting to<br>
+&gt;&gt; specify the &quot;self&quot; BTL.<br>
+&gt;&gt;<br>
+&gt;&gt; Process 1 ([[20141,1],0]) is on host: sweet1<br>
+&gt;&gt; Process 2 ([[20141,2],0]) is on host: sweet1<br>
+&gt;&gt; BTLs attempted: tcp sm self<br>
+&gt;&gt;<br>
+&gt;&gt; Your MPI job is now going to abort; sorry.<br>
+&gt;&gt; —————————————————————————————————————<br>
+&gt;&gt;<br>
+&gt;&gt; Both procs are on the same host. Since they cannot communicate, it means that (a) the shared memory component (sm) was unable to be used, and (b) the TCP subsystem did not provide a usable address for the two procs to reach each other. The former could mean
+ that there wasn’t enough room in the tmp directory, and the latter indicates that the TCP subsystem isn’t configured to allow connections from its own local IP address.<br>
+&gt;&gt;<br>
+&gt;&gt; I don’t know anything about Windows configuration I’m afraid.<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; Please recall, this is using the precompiled OpenMpi Windows installation<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; When the 'verbose' option is added, I see this sequence of output for the scheduler and each of the executor processes:<br>
+&gt;&gt;&gt; ------<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: Looking for btl components<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: opening btl components<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: found loaded component tcp<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: component tcp register function successful<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: component tcp open function successful<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: found loaded component sm<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: component sm has no register function<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: component sm open function successful<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: found loaded component self<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: component self has no register function<br>
+&gt;&gt;&gt; [sweet1:06412] mca: base: components_open: component self open function successful<br>
+&gt;&gt;&gt; [sweet1:06412] select: initializing btl component tcp<br>
+&gt;&gt;&gt; [sweet1:06412] select: init of component tcp returned success<br>
+&gt;&gt;&gt; [sweet1:06412] select: initializing btl component sm<br>
+&gt;&gt;&gt; [sweet1:06412] select: init of component sm returned success<br>
+&gt;&gt;&gt; [sweet1:06412] select: initializing btl component self<br>
+&gt;&gt;&gt; [sweet1:06412] select: init of component self returned success<br>
+&gt;&gt;&gt; -------<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; This output appears to show the btl components for TCP, SM and Self are all available, but this is contradicted the error message shown in the initial post (&quot;At least one pair of MPI processes are unable to reach each other for MPI communications....&quot;)<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; If there is some sort of misconfiguration present, do you have a suggestion for correcting the situation?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; From: users [users-bounces@open-mpi.org] on behalf of Ralph Castain [rhc@open-mpi.org]<br>
+&gt;&gt;&gt; Sent: Tuesday, June 07, 2016 3:39 PM<br>
+&gt;&gt;&gt; To: Open MPI Users<br>
+&gt;&gt;&gt; Subject: Re: [OMPI users] Processes unable to communicate when using MPI_Comm_spawn on Windows<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Just looking at this output, it would appear that Windows is configured in a way that prevents the procs from connecting to each other via TCP while on the same node, and shared memory is disqualifying itself - which leaves no way for two procs on the same
+ node to communicate.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; On Jun 7, 2016, at 12:16 PM, Roth, Christopher &lt;CRoth@aer.com&gt; wrote:<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; I have developed a set of C&#43;&#43; MPI programs for performing a series of scientific calculations. The master 'scheduler' program spawns off sets of parallelized 'executor' programs using the MPI_Comm_spawn routine; these executors communicate back and forth
+ with the scheduler (only small amounts of information) via MPI_Bcast, MPI_Recv and MPI_Send routines (the 'C' library versions).<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; This software was originally developed on a multi-core Linux machine using OpenMpi v1.5.2, and works extremely well; now I'm attempting to port it to multi-core Windows 7 machine, using Visual Studios 2012 and the precompiled OpenMpi v1.6.2 Windows release.
+ It all compiles and links properly under VS2012.<br>
+&gt;&gt;&gt;&gt; When attempting to run this software on the Windows machine, the scheduler program is able to spawn off the executor programs as intended, but everything chokes when scheduler sends its initial broadcast. There is slightly different behavior when launching
+ the scheduler via 'mpirun', or just by itself, as shown in the logs below:<br>
+&gt;&gt;&gt;&gt; (the warning about the 127.0.0.1 address is benign - there is no loopback on Windows)<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; C:\Users\cjr\Desktop\mpi_demo&gt;mpirun -np 1 mpi_scheduler.exe<br>
+&gt;&gt;&gt;&gt; scheduler: MPI_Init<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; WARNING: An invalid value was given for btl_tcp_if_exclude. This<br>
+&gt;&gt;&gt;&gt; value will be ignored.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Local host: sweet1<br>
+&gt;&gt;&gt;&gt; Value: 127.0.0.1/8<br>
+&gt;&gt;&gt;&gt; Message: Did not find interface matching this subnet<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; --&gt;MPI_COMM_WORLD size = 1<br>
+&gt;&gt;&gt;&gt; parent: MPI_UNIVERSE_SIZE = 1<br>
+&gt;&gt;&gt;&gt; scheduler: calling MPI_Comm_spawn for 4 instances of 'mpi_executor.exe'<br>
+&gt;&gt;&gt;&gt; executor: MPI_Init<br>
+&gt;&gt;&gt;&gt; executor: MPI_Init<br>
+&gt;&gt;&gt;&gt; executor: MPI_Init<br>
+&gt;&gt;&gt;&gt; executor: MPI_Init<br>
+&gt;&gt;&gt;&gt; [sweet1][[20141,1],0][..\..\..\openmpi-1.6.2\ompi\mca\btl\tcp\btl_tcp_proc.c:128:..\..\..\openmpi-1.6.2\ompi\mca\btl\tcp<br>
+&gt;&gt;&gt;&gt; \btl_tcp_proc.c] mca_base_modex_recv: failed with return value=-13<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; At least one pair of MPI processes are unable to reach each other for<br>
+&gt;&gt;&gt;&gt; MPI communications. This means that no Open MPI device has indicated<br>
+&gt;&gt;&gt;&gt; that it can be used to communicate between these processes. This is<br>
+&gt;&gt;&gt;&gt; an error; Open MPI requires that all MPI processes be able to reach<br>
+&gt;&gt;&gt;&gt; each other. This error can sometimes be the result of forgetting to<br>
+&gt;&gt;&gt;&gt; specify the &quot;self&quot; BTL.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Process 1 ([[20141,1],0]) is on host: sweet1<br>
+&gt;&gt;&gt;&gt; Process 2 ([[20141,2],0]) is on host: sweet1<br>
+&gt;&gt;&gt;&gt; BTLs attempted: tcp sm self<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Your MPI job is now going to abort; sorry.<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; subtask rank = 1 out of 4<br>
+&gt;&gt;&gt;&gt; subtask rank = 2 out of 4<br>
+&gt;&gt;&gt;&gt; subtask rank = 0 out of 4<br>
+&gt;&gt;&gt;&gt; subtask rank = 3 out of 4<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; scheduler: MPI_Comm_spawn completed<br>
+&gt;&gt;&gt;&gt; scheduler broadcasting function string length = 4<br>
+&gt;&gt;&gt;&gt; child: MPI_UNIVERSE_SIZE = 4<br>
+&gt;&gt;&gt;&gt; child: MPI_UNIVERSE_SIZE = 4<br>
+&gt;&gt;&gt;&gt; child: MPI_UNIVERSE_SIZE = 4<br>
+&gt;&gt;&gt;&gt; child: MPI_UNIVERSE_SIZE = 4<br>
+&gt;&gt;&gt;&gt; Proc0 wait for first broadcast<br>
+&gt;&gt;&gt;&gt; Proc1 wait for first broadcast<br>
+&gt;&gt;&gt;&gt; Proc2 wait for first broadcast<br>
+&gt;&gt;&gt;&gt; Proc3 wait for first broadcast<br>
+&gt;&gt;&gt;&gt; [sweet1:6800] *** An error occurred in MPI_Bcast<br>
+&gt;&gt;&gt;&gt; [sweet1:6800] *** on communicator<br>
+&gt;&gt;&gt;&gt; [sweet1:6800] *** MPI_ERR_INTERN: internal error<br>
+&gt;&gt;&gt;&gt; [sweet1:6800] *** MPI_ERRORS_ARE_FATAL: your MPI job will now abort<br>
+&gt;&gt;&gt;&gt; [sweet1:02412] [[20141,0],0]-[[20141,1],0] mca_oob_tcp_msg_recv: readv failed: Unknown error (108)<br>
+&gt;&gt;&gt;&gt; [sweet1:02412] 4 more processes have sent help message help-mpi-btl-tcp.txt / invalid if_inexclude<br>
+&gt;&gt;&gt;&gt; [sweet1:02412] Set MCA parameter &quot;orte_base_help_aggregate&quot; to 0 to see all help / error messages<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; WARNING: A process refused to die!<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Host: sweet1<br>
+&gt;&gt;&gt;&gt; PID: 524<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; This process may still be running and/or consuming resources.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; [sweet1:02412] [[20141,0],0]-[[20141,2],1] mca_oob_tcp_msg_recv: readv failed: Unknown error (108)<br>
+&gt;&gt;&gt;&gt; [sweet1:02412] [[20141,0],0]-[[20141,2],0] mca_oob_tcp_msg_recv: readv failed: Unknown error (108)<br>
+&gt;&gt;&gt;&gt; [sweet1:02412] [[20141,0],0]-[[20141,2],2] mca_oob_tcp_msg_recv: readv failed: Unknown error (108)<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; mpirun has exited due to process rank 0 with PID 488 on<br>
+&gt;&gt;&gt;&gt; node sweet1 exiting improperly. There are two reasons this could occur:<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; 1. this process did not call &quot;init&quot; before exiting, but others in<br>
+&gt;&gt;&gt;&gt; the job did. This can cause a job to hang indefinitely while it waits<br>
+&gt;&gt;&gt;&gt; for all processes to call &quot;init&quot;. By rule, if one process calls &quot;init&quot;,<br>
+&gt;&gt;&gt;&gt; then ALL processes must call &quot;init&quot; prior to termination.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; 2. this process called &quot;init&quot;, but exited without calling &quot;finalize&quot;.<br>
+&gt;&gt;&gt;&gt; By rule, all processes that call &quot;init&quot; MUST call &quot;finalize&quot; prior to<br>
+&gt;&gt;&gt;&gt; exiting or it will be considered an &quot;abnormal termination&quot;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; This may have caused other processes in the application to be<br>
+&gt;&gt;&gt;&gt; terminated by signals sent by mpirun (as reported here).<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; [sweet1:02412] 3 more processes have sent help message help-odls-default.txt / odls-default:could-not-kill<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; C:\Users\cjr\Desktop\mpi_demo&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; ====================================================<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; C:\Users\cjr\Desktop\mpi_demo&gt;mpi_scheduler.exe<br>
+&gt;&gt;&gt;&gt; scheduler: MPI_Init<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; WARNING: An invalid value was given for btl_tcp_if_exclude. This<br>
+&gt;&gt;&gt;&gt; value will be ignored.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Local host: sweet1<br>
+&gt;&gt;&gt;&gt; Value: 127.0.0.1/8<br>
+&gt;&gt;&gt;&gt; Message: Did not find interface matching this subnet<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; --&gt;MPI_COMM_WORLD size = 1<br>
+&gt;&gt;&gt;&gt; parent: MPI_UNIVERSE_SIZE = 1<br>
+&gt;&gt;&gt;&gt; scheduler: calling MPI_Comm_spawn for 4 instances of 'mpi_executor.exe'<br>
+&gt;&gt;&gt;&gt; executor: MPI_Init<br>
+&gt;&gt;&gt;&gt; executor: MPI_Init<br>
+&gt;&gt;&gt;&gt; executor: MPI_Init<br>
+&gt;&gt;&gt;&gt; executor: MPI_Init<br>
+&gt;&gt;&gt;&gt; [sweet1:04400] 1 more process has sent help message help-mpi-btl-tcp.txt / invalid if_inexclude<br>
+&gt;&gt;&gt;&gt; [sweet1:04400] Set MCA parameter &quot;orte_base_help_aggregate&quot; to 0 to see all help / error messages<br>
+&gt;&gt;&gt;&gt; subtask rank = 2 out of 4<br>
+&gt;&gt;&gt;&gt; subtask rank = 1 out of 4<br>
+&gt;&gt;&gt;&gt; subtask rank = 0 out of 4<br>
+&gt;&gt;&gt;&gt; subtask rank = 3 out of 4<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; scheduler: MPI_Comm_spawn completed<br>
+&gt;&gt;&gt;&gt; scheduler broadcasting function string length = 4<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; child: MPI_UNIVERSE_SIZE = 4<br>
+&gt;&gt;&gt;&gt; child: MPI_UNIVERSE_SIZE = 4<br>
+&gt;&gt;&gt;&gt; child: MPI_UNIVERSE_SIZE = 4<br>
+&gt;&gt;&gt;&gt; child: MPI_UNIVERSE_SIZE = 4<br>
+&gt;&gt;&gt;&gt; Proc0 wait for first broadcast<br>
+&gt;&gt;&gt;&gt; Proc1 wait for first broadcast<br>
+&gt;&gt;&gt;&gt; Proc2 wait for first broadcast<br>
+&gt;&gt;&gt;&gt; Proc3 wait for first broadcast<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; [sweet1:04400] 3 more processes have sent help message help-mpi-btl-tcp.txt / invalid if_inexclude<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; &lt;&lt;&lt;&lt;***mpi_executor.exe processes are running, but 'hung' while wating for first broadcast***&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; &lt;&lt;&lt;&lt;***manually killed one of the 'mpi_executor.exe' processes; others subsequently exited***&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; [sweet1:04400] [[22257,0],0]-[[22257,2],3] mca_oob_tcp_msg_recv: readv failed: Unknown error (108)<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; WARNING: A process refused to die!<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Host: sweet1<br>
+&gt;&gt;&gt;&gt; PID: 568<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; This process may still be running and/or consuming resources.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; --------------------------------------------------------------------------<br>
+&gt;&gt;&gt;&gt; [sweet1:04400] [[22257,0],0]-[[22257,2],0] mca_oob_tcp_msg_recv: readv failed: Unknown error (108)<br>
+&gt;&gt;&gt;&gt; [sweet1:04400] [[22257,0],0]-[[22257,2],1] mca_oob_tcp_msg_recv: readv failed: Unknown error (108)<br>
+&gt;&gt;&gt;&gt; [sweet1:04400] 2 more processes have sent help message help-odls-default.txt / odls-default:could-not-kill<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; C:\Users\cjr\Desktop\mpi_demo&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; ================================================<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; The addition of the mpirun option &quot;-mca btl_tcp_if_exclude none&quot; eliminates the benign 127.0.0.1 warning; the option &quot;-mca btl_base_verbose 100&quot; adds output that verifies that the tcp, sm and self btl modules are successfully initialized - nothing else
+ seems to be amiss!<br>
+&gt;&gt;&gt;&gt; I have also tested this with the firewall completely disabled on the Windows machine, with no change in behavior.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; I have been unable to determine what the error codes indicate, and am puzzled why the behavior is different when using the 'mpirun' launcher.<br>
+&gt;&gt;&gt;&gt; I have attached the prototype scheduler and executor program source code files, as well as files containing the Windows installation ompi information.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Please help me figure out what is needed to enable this MPI communication.<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Thanks,<br>
+&gt;&gt;&gt;&gt; CJ Roth<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; This email is intended solely for the recipient. It may contain privileged, proprietary or confidential information or material. If you are not the intended recipient, please delete this email and any attachments and notify the sender of the error.<br>
+&gt;&gt;&gt;&gt; &lt;mpi_scheduler.cpp&gt;&lt;mpi_executor.cpp&gt;&lt;ompi_info-all.txt&gt;&lt;ompi_btl_info.txt&gt;_______________________________________________<br>
+&gt;&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt;&gt; users@open-mpi.org<br>
+&gt;&gt;&gt;&gt; Subscription: https://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+&gt;&gt;&gt;&gt; Link to this post: http://www.open-mpi.org/community/lists/users/2016/06/29395.php<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; users@open-mpi.org<br>
+&gt;&gt;&gt; Subscription: https://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+&gt;&gt;&gt; Link to this post: http://www.open-mpi.org/community/lists/users/2016/06/29408.php<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt;<br>
+&gt;&gt; users@open-mpi.org<br>
+&gt;&gt;<br>
+&gt;&gt; Subscription:<br>
+&gt;&gt; https://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+&gt;&gt;<br>
+&gt;&gt; Link to this post:<br>
+&gt;&gt; http://www.open-mpi.org/community/lists/users/2016/06/29412.php<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; Subscription: https://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+&gt; Link to this post: http://www.open-mpi.org/community/lists/users/2016/06/29416.php<br>
+<br>
+<br>
+--<br>
+Jeff Squyres<br>
+jsquyres@cisco.com<br>
+For corporate legal information go to: http://www.cisco.com/web/about/doing_business/legal/cri/<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+users@open-mpi.org<br>
+Subscription: https://www.open-mpi.org/mailman/listinfo.cgi/users<br>
+Link to this post: http://www.open-mpi.org/community/lists/users/2016/06/29417.php<br>
+</div>
+</body>
+</html>
+

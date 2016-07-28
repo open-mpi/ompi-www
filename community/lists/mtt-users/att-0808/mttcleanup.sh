@@ -1,0 +1,4 @@
+#!/bin/bash
+rm -rf /home/common/mttscratch-slurm/*
+rm -rf /home/common/mttscratch-rsh/*
+

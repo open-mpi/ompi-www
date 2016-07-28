@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Copy-and-paste-error: The second part of the fix ought to be:<br>
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if ( !have_wdir ) {<br>
+&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; &nbsp;&nbsp; free(cwd);<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }<br>
+<br>
+Murat<br>
+<br>
+<br>
+<br>
+<br>
+Murat Knecht schrieb:
+<blockquote cite="mid:46FBE6B3.5010502@student.hpi.uni-potsdam.de"
+ type="cite">
+  <pre wrap="">Hi all,
+
+I think, I found a bug and a fix for it.
+Could someone verify the rationale behind this bug, as I have this
+SIGSEG on only one of two machines, and I don't quite see why it doesn't
+occur always. (Same testprogram, equally compiled 1.2.4 OpenMPI).
+Though the fix does prevent the segmentation fault. :)
+
+Thanks,
+Murat
+
+
+
+
+
+Where:
+Bug:
+free() crashes when trying to free stack memory
+ompi/communicator/comm_dyn.c:630
+    
+    OBJ_RELEASE(apps[i]);
+
+
+SIGSEG:
+orte/mca/rmgr/rmgr_types.h:113
+
+        free (app_context-&gt;cwd);
+
+
+    
+There are two ways that apps[i]-&gt;cwd is filled:
+1. dynamically allocated memory
+548     if ( !have_wdir ) {
+            getcwd(cwd, OMPI_PATH_MAX);
+            apps[i]-&gt;cwd = strdup(cwd);    // &lt;--
+        }
+
+2. stack
+354    char cwd[OMPI_PATH_MAX];
+// ...
+516         /* check for 'wdir' */
+            ompi_info_get (array_of_info[i], "wdir", valuelen, cwd, &amp;flag);
+            if ( flag ) {
+                apps[i]-&gt;cwd = cwd;  // &lt;--
+                have_wdir = 1;
+            }
+
+
+
+Fix: Allocate cwd always manually and make sure, it is deleted afterwards.
+
+1.
+&lt;    char cwd[OMPI_PATH_MAX];
+---
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">   char *cwd = (char*)malloc(OMPI_PATH_MAX);
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+2. And on cleanup (somewhere below line 624)
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">       if ( !have_wdir ) {
+           getcwd(cwd, OMPI_PATH_MAX);
+           apps[i]-&gt;cwd = strdup(cwd);
+       }
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+  </pre>
+</blockquote>
+</body>
+</html>
+

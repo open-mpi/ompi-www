@@ -1,0 +1,78 @@
+<div dir="ltr"><div><div>All,<br></div>  I appreciate your help here.  I&#39;m traveling all this week and next.  I&#39;ll forward these comments to some members of my team, but I won&#39;t be able to test/look at anything specific to the HPC configuration until I get back.  I can say that during my troubleshooting, I did determine that MPI_STATUS_SIZE =3 when I compiled with -m64 and -fdefault-integer-8 options.  However, the memory corruption issues only resolved when I used MPI_STATUS_IGNORE.<br>
+<br>Cheers,<br></div>--Jim<br></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Nov 12, 2013 at 3:25 PM, George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@icl.utk.edu" target="_blank">bosilca@icl.utk.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im"><br>
+On Nov 12, 2013, at 19:47 , Jeff Squyres (jsquyres) &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+<br>
+&gt; On Nov 12, 2013, at 4:42 AM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu">bosilca@icl.utk.edu</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt;&gt; 2. In the 64 bit case, you&#39;ll have a difficult time extracting the MPI status values from the 8-byte INTEGERs in the status array in Fortran (because the first 2 of 3 each really be 2 4-byte integers).<br>
+
+&gt;&gt;<br>
+&gt;&gt; My understanding is that in Fortran explicitly types variables will retain their expected size. Thus, instead of declaring<br>
+&gt;&gt;<br>
+&gt;&gt; INTEGER :: status[MPI_STATUS_SIZE]<br>
+&gt;&gt;<br>
+&gt;&gt; one should go for<br>
+&gt;&gt;<br>
+&gt;&gt; INTEGER*4 :: status[MPI_STATUS_SIZE]<br>
+&gt;&gt;<br>
+&gt;&gt; This should make it work right now.<br>
+&gt;<br>
+&gt; You are correct.  That’s a good workaround.<br>
+<br>
+</div>Not good … temporary ;)<br>
+<div class="im"><br>
+&gt;&gt; However, it is a non-standard solution, and we should fix the status handling internally in Open MPI.<br>
+&gt;&gt;<br>
+&gt;&gt; Looking at the code I think that correctly detecting the type of our ompi_fortran_integer_t during configure (which should be a breeze if the correct flags are passed) should solve all issues here as we are protecting the status conversion between C and Fortran.<br>
+
+&gt;<br>
+&gt; Not quite.  We do already correctly determine ompi_fortran_integer_t as a C &quot;int&quot; or &quot;long long&quot; (that&#39;s what I saw yesterday when I tested this myself).<br>
+&gt;<br>
+&gt; However, the key here is that MPI_STATUS_SIZE is set to be the size of a ***C*** MPI_Status (but expressed in units of Fortran INTEGER size -- so in the sizeof(int)==sizeof(INTEGER)==4 case, MPI_STATUS_SIZE is 6.  But in the sizeof(int)==4, sizeof(INTEGER)==8 case, MPI_STATUS_SIZE is 3.<br>
+
+&gt;<br>
+</div>&gt; That being said, we *could* change this so that MPI_STATUS_SIZE is always 6, and have the C&lt;—&gt;Fortran status routines just do the Right Thing depending on the size/type of ompi_fortran_integer_t.<br>
+<br>
+Indeed. We can have an Fortran MPI_Status (only in the Fortran interface) that will be 3 ompi_fortran_integer_t, and alter the translation macros to do the right thing (translate from C int to the chosen Fortran int).<br>
+
+<div class="im"><br>
+&gt; Either way, as you say, it&#39;s a nonstandard solution.  So I don&#39;t know which way is &quot;more correct&quot;.  On the one hand, we&#39;ve had it this way for *years* (so perhaps there&#39;s code out there that uses the George workaround and is working fine).  But OTOH, it’s different than what you would have to do in the non-dash-i8 case, and so we should make MPI_STATUS_SIZE be 6 and then Fortran code will work identically (without INTEGER*4) regardless of whether you used -i8 or not.<br>
+
+<br>
+</div>Honestly, I think that most users will expect that an MPI compiled with -i8 will have the status as a 3 8 bytes integers and not some other weird combination depending on another layer of the library (compiled in a language lacking the subtlety of -i8 ;)).<br>
+
+<span class="HOEnZb"><font color="#888888"><br>
+  George.<br>
+</font></span><div class="HOEnZb"><div class="h5"><br>
+<br>
+&gt;<br>
+&gt; Shrug.<br>
+&gt;<br>
+&gt;&gt; Jim, can you go in the include directory on your Open MPI installation and grep for the definition of ompi_fortran_integer_t please.<br>
+&gt;&gt;<br>
+&gt;&gt; George.<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Jeff Squyres<br>
+&gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; For corporate legal information go to:<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br></div>
+

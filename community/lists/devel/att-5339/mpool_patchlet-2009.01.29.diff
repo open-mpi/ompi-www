@@ -1,0 +1,246 @@
+Index: onet/mca/mpool/mpool.h
+===================================================================
+--- onet/mca/mpool/mpool.h	(revision 20371)
++++ onet/mca/mpool/mpool.h	(working copy)
+@@ -51,6 +51,20 @@
+ OMPI_DECLSPEC OBJ_CLASS_DECLARATION(mca_mpool_base_registration_t); 
+ 
+ /**
++ * \internal
++ * Used to pass Info from the ompi-layer down.
++ */
++struct mca_mpool_base_info_entry_t {
++    opal_list_item_t super;
++    char * value;
++};
++
++typedef struct mca_mpool_base_info_entry_t mca_mpool_base_info_entry_t;
++
++OMPI_DECLSPEC OBJ_CLASS_DECLARATION(mca_mpool_base_info_entry_t);
++
++
++/**
+  * component initialize
+  */
+ typedef struct mca_mpool_base_module_t* (*mca_mpool_base_component_init_fn_t)(
+@@ -208,7 +222,7 @@
+  * @retval pointer to the allocated memory
+  * @retval NULL on failure
+  */
+-OMPI_DECLSPEC void * mca_mpool_base_alloc(size_t size, struct ompi_info_t * info);
++OMPI_DECLSPEC void * mca_mpool_base_alloc(size_t size, opal_list_t *info_list);
+ 
+ /**
+  * Function to free memory previously allocated by mca_mpool_base_alloc
+Index: onet/mca/mpool/base/mpool_base_alloc.c
+===================================================================
+--- onet/mca/mpool/base/mpool_base_alloc.c	(revision 20371)
++++ onet/mca/mpool/base/mpool_base_alloc.c	(working copy)
+@@ -23,13 +23,36 @@
+ #if HAVE_STRING_H
+ #include <string.h>
+ #endif  /* HAVE_STRING_H */
+-#include "ompi/mca/mpool/mpool.h"
++#include "opal/threads/mutex.h" 
++#include "onet/mca/mpool/mpool.h"
+ #include "base.h"
+ #include "mpool_base_tree.h"
+-#include "opal/threads/mutex.h" 
+ #include "mpool_base_mem_cb.h"
+ 
+ /**
++ * Pass information from the ompi-layer to the mpool
++ */
++static void mca_mpool_base_info_constructor(mca_mpool_base_info_entry_t * entry);
++static void mca_mpool_base_info_destructor(mca_mpool_base_info_entry_t *entry);
++
++OBJ_CLASS_INSTANCE(mca_mpool_base_info_entry_t,
++                   opal_list_item_t,
++                   mca_mpool_base_info_constructor,
++                   mca_mpool_base_info_destructor);
++
++static void mca_mpool_base_info_constructor(mca_mpool_base_info_entry_t * entry)
++{
++}
++
++static void mca_mpool_base_info_destructor(mca_mpool_base_info_entry_t *entry)
++{
++    if (NULL != entry->value) {
++        free (entry->value);
++    }
++}
++
++
++/**
+  * Memory Pool Registration
+  */
+ 
+@@ -93,7 +116,7 @@
+  * @retval pointer to the allocated memory
+  * @retval NULL on failure
+  */
+-void *mca_mpool_base_alloc(size_t size, ompi_info_t *info)
++void *mca_mpool_base_alloc(size_t size, opal_list_t *info_list)
+ {
+     opal_list_item_t * item;
+     int num_modules = opal_list_get_size(&mca_mpool_base_modules);
+@@ -107,8 +130,9 @@
+     mca_mpool_base_module_t *mpool;
+     void * mem = NULL;
+     int flag = 0;
+-    bool match_found = false;
++    bool mpool_matched = false;
+     bool mpool_requested = false;
++    int info_list_size;
+ 
+     if(num_modules > 0) {
+         has_reg_function = (mca_mpool_base_selected_module_t **)
+@@ -125,7 +149,9 @@
+     mpool_tree_item->num_bytes = size;
+     mpool_tree_item->count = 0;
+     
+-    if(&ompi_mpi_info_null == info)
++    info_list_size = opal_list_get_size (info_list);
++
++    if(0 == info_list_size)
+     {
+         for(item = opal_list_get_first(&mca_mpool_base_modules);
+             item != opal_list_get_end(&mca_mpool_base_modules);
+@@ -143,33 +169,24 @@
+     }
+     else
+     {
+-        int num_keys;
+-        char key[MPI_MAX_INFO_KEY + 1];
+-        char value[MPI_MAX_INFO_VAL + 1];
++        mca_mpool_base_info_entry_t * info_list_item;
++        char * value;
+ 
+-        ompi_info_get_nkeys(info, &num_keys);
+-        for(i = 0; i < num_keys; i++)
+-        {
+-            ompi_info_get_nthkey(info, i, key);
+-            if ( 0 != strcmp(key, "mpool") ) {
+-                continue;
+-            }
++        for(info_list_item = opal_list_get_first(info_list);
++            info_list_item != opal_list_get_end(info_list);
++            info_list_item = opal_list_get_next(info_list_item)) {
++
+             mpool_requested = true;
+-            ompi_info_get(info, key, MPI_MAX_INFO_VAL, value, &flag);
+-            if ( !flag ) {
+-                continue;
+-            }
+-
+-            match_found = false;
++            mpool_matched = false;
+             for(item = opal_list_get_first(&mca_mpool_base_modules);
+                 item != opal_list_get_end(&mca_mpool_base_modules);
+-                item = opal_list_get_next(item)) 
++                item = opal_list_get_next(item))
+             {
+                 current = ((mca_mpool_base_selected_module_t *)item);
+-                if(0 == strcmp(value, 
++                if(0 == strcmp(info_list_item->value,
+                        current->mpool_module->mpool_component->mpool_version.mca_component_name))
+                 {
+-                    match_found = true;
++                    mpool_matched = true;
+                     if(NULL == current->mpool_module->mpool_register)
+                     {
+                         if(NULL != no_reg_function)
+@@ -186,7 +203,7 @@
+                     }
+                 }
+             }
+-            if(!match_found)
++            if(!mpool_matched)
+             {
+                 /* one of the keys given to us by the user did not match any
+                  * mpools, so return an error */
+Index: ompi/mpi/c/alloc_mem.c
+===================================================================
+--- ompi/mpi/c/alloc_mem.c	(revision 20383)
++++ ompi/mpi/c/alloc_mem.c	(working copy)
+@@ -10,6 +10,7 @@
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+  * Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.
++ * Copyright (c) 2009      Oak Ridge National Labs.  All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -24,7 +25,8 @@
+ 
+ #include "ompi/mpi/c/bindings.h"
+ #include "ompi/info/info.h"
+-#include "ompi/mca/mpool/mpool.h"
++#include "onet/mca/mpool/mpool.h"
++#include "opal/class/opal_list.h"
+ 
+ #if OMPI_HAVE_WEAK_SYMBOLS && OMPI_PROFILING_DEFINES
+ #pragma weak MPI_Alloc_mem = PMPI_Alloc_mem
+@@ -39,6 +41,10 @@
+ 
+ int MPI_Alloc_mem(MPI_Aint size, MPI_Info info, void *baseptr)
+ {
++    int rc = MPI_SUCCESS;
++    int i;
++    int num_keys;
++    opal_list_t info_list;
+ 
+     if (MPI_PARAM_CHECK) {
+         OMPI_ERR_INIT_FINALIZE(FUNC_NAME);
+@@ -65,14 +71,44 @@
+ 
+     OPAL_CR_ENTER_LIBRARY();
+ 
+-    *((void **) baseptr) = mca_mpool_base_alloc((size_t) size, info);
++    ompi_info_get_nkeys(info, &num_keys);
++
++    OBJ_CONSTRUCT(&info_list, opal_list_t);
++
++    for(i = 0; i < num_keys; i++) {
++        int flag;
++        char key[MPI_MAX_INFO_KEY + 1];
++        char value[MPI_MAX_INFO_VAL + 1];
++        mca_mpool_base_info_entry_t * val;
++
++        ompi_info_get_nthkey(info, i, key);
++        if ( 0 != strcmp(key, "mpool") ) {
++            continue;
++        }
++
++        ompi_info_get(info, key, MPI_MAX_INFO_VAL, value, &flag);
++ 
++        /* Well, if the key mpool was set, there should be a value to be found! */
++        assert (1 == flag);
++
++        val = OBJ_NEW(ompi_info_entry_t);
++        if (NULL == val) {
++            rc = MPI_ERR_NO_MEM;
++            goto out;            
++        }
++        val->value = strdup (value);
++
++        opal_list_prepend (&info_list, (opal_list_item_t*)val);
++    }
++ 
++    *((void **) baseptr) = mca_mpool_base_alloc((size_t) size, &info_list);
+     OPAL_CR_EXIT_LIBRARY();
++
+     if (NULL == *((void **) baseptr)) {
+-        return OMPI_ERRHANDLER_INVOKE(MPI_COMM_WORLD, MPI_ERR_NO_MEM, 
+-                                      FUNC_NAME);
++        rc = MPI_ERR_NO_MEM;
+     }
+ 
+-    /* All done */
+-    return MPI_SUCCESS;
++out:
++    OBJ_DESTRUCT (&info_list);
++    OMPI_ERRHANDLER_RETURN(rc, MPI_COMM_WORLD, rc, FUNC_NAME);
+ }
+-
+

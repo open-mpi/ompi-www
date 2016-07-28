@@ -1,0 +1,128 @@
+<div dir="ltr">The patch related to ticket #4597 is zapping only the datatypes where the user explicitly provided a zero count.<div><br></div><div>We can argue about LB and UB, but I have a hard time understanding the rationale of allowing zero count only for LB and UB. If it is required by the standard we can easily support it (the line in the patch has to move a little down in the code).</div>
+<div><br></div><div>  George.</div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Aug 11, 2014 at 9:44 AM, Rob Latham <span dir="ltr">&lt;<a href="mailto:robl@mcs.anl.gov" target="_blank">robl@mcs.anl.gov</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class=""><br>
+<br>
+On 08/10/2014 07:32 PM, Mohamad Chaarawi wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Update:<br>
+<br>
+George suggested that I try with the 1.8.2 rc3 and that one resolves the<br>
+hindexed_block segfault that I was seeing with ompi. the I/O part now<br>
+works with ompio, but needs the patches from Rob in ROMIO to work correctly.<br>
+<br>
+The 2nd issue with collective I/O where some processes participate with<br>
+0 sized datatypes created with hindexed and hvector, is still unresolved.<br>
+</blockquote>
+<br></div>
+I think this ticket was closed a bit too early:<br>
+<br>
+<a href="https://svn.open-mpi.org/trac/ompi/ticket/4597" target="_blank">https://svn.open-mpi.org/trac/<u></u>ompi/ticket/4597</a><br>
+<br>
+I don&#39;t know OpenMPI&#39;s type processing at all, but if it&#39;s like ROMIO, you cannot simply zap blocks of zero length:  some zero length blocks indicate upper bound and lower bound.<br>
+<br>
+or maybe it&#39;s totally unrelated.  There were a flurry of datatype bugs reported against both MPICH and OpenMPI in may of this year and I am sure I am confusing several issues.<br>
+<br>
+==rob<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div class="h5">
+<br>
+Thanks,<br>
+Mohamad<br>
+<br>
+On 8/6/2014 11:50 AM, Mohamad Chaarawi wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Hi all,<br>
+<br>
+I&#39;m seeing some problems with dervided datatype construction and I/O<br>
+with OpenMPI 1.8.1.<br>
+<br>
+I have replicated them in the attached program.<br>
+The first issue is that MPI_Type_create_hindexed_<u></u>block() always<br>
+sefgaults. Usage of this routine is commented out in the program. (I<br>
+have a separate email thread with George and Edgar about this).<br>
+<br>
+The other issue is a segfault in MPI_File_set_view, when I have ranks<br>
+&gt; 0 creating the derived datatypes with count 0, and rank 0 creating a<br>
+derived datatype of count NUM_BLOCKS. If I use MPI_Type_contiguous to<br>
+create the 0 sized file and memory datatypes (instead of hindexed and<br>
+hvector) it works fine.<br>
+To replicate, run the program with 2 or more procs:<br>
+<br>
+mpirun -np 2 ./hindexed_io mpi_test_file<br>
+<br>
+[jam:15566] *** Process received signal ***<br>
+[jam:15566] Signal: Segmentation fault (11)<br>
+[jam:15566] Signal code: Address not mapped (1)<br>
+[jam:15566] Failing at address: (nil)<br>
+[jam:15566] [ 0] [0xfcd440]<br>
+[jam:15566] [ 1]<br>
+/scr/chaarawi/install/ompi/<u></u>lib/libmpi.so.1(ADIOI_Flatten_<u></u>datatype+0x17a)[0xc80f2a]<br>
+[jam:15566] [ 2]<br>
+/scr/chaarawi/install/ompi/<u></u>lib/libmpi.so.1(ADIO_Set_view+<u></u>0x1c1)[0xc72a6d]<br>
+[jam:15566] [ 3]<br>
+/scr/chaarawi/install/ompi/<u></u>lib/libmpi.so.1(mca_io_romio_<u></u>dist_MPI_File_set_view+0x69b)[<u></u>0xc8d11b]<br>
+[jam:15566] [ 4]<br>
+/scr/chaarawi/install/ompi/<u></u>lib/libmpi.so.1(mca_io_romio_<u></u>file_set_view+0x7c)[0xc4f7c5]<br>
+[jam:15566] [ 5]<br>
+/scr/chaarawi/install/ompi/<u></u>lib/libmpi.so.1(PMPI_File_set_<u></u>view+0x1e6)[0xb32f7e]<br>
+[jam:15566] [ 6] ./hindexed_io[0x8048aa6]<br>
+[jam:15566] [ 7] /lib/libc.so.6(__libc_start_<u></u>main+0xdc)[0x7d5ebc]<br>
+[jam:15566] [ 8] ./hindexed_io[0x80487e1]<br>
+[jam:15566] *** End of error message ***<br>
+<br>
+If I use --mca io ompio with 2 or more procs, the program segfaults in<br>
+write_at_all (regardless of what routine is used to construct a 0<br>
+sized datatype):<br>
+<br>
+[jam:15687] *** Process received signal ***<br>
+[jam:15687] Signal: Floating point exception (8)<br>
+[jam:15687] Signal code: Integer divide-by-zero (1)<br>
+[jam:15687] Failing at address: 0x3e29b7<br>
+[jam:15687] [ 0] [0xe56440]<br>
+[jam:15687] [ 1]<br>
+/scr/chaarawi/install/ompi/<u></u>lib/libmpi.so.1(ompi_io_ompio_<u></u>set_explicit_offset+0x9d)[<u></u>0x3513bc]<br>
+[jam:15687] [ 2]<br>
+/scr/chaarawi/install/ompi/<u></u>lib/libmpi.so.1(ompio_io_<u></u>ompio_file_write_at_all+0x3e)[<u></u>0x35869a]<br>
+[jam:15687] [ 3]<br>
+/scr/chaarawi/install/ompi/<u></u>lib/libmpi.so.1(mca_io_ompio_<u></u>file_write_at_all+0x66)[<u></u>0x358650]<br>
+[jam:15687] [ 4]<br>
+/scr/chaarawi/install/ompi/<u></u>lib/libmpi.so.1(MPI_File_<u></u>write_at_all+0x1b3)[0x1f46f3]<br>
+[jam:15687] [ 5] ./hindexed_io[0x8048b07]<br>
+[jam:15687] [ 6] /lib/libc.so.6(__libc_start_<u></u>main+0xdc)[0x7d5ebc]<br>
+[jam:15687] [ 7] ./hindexed_io[0x80487e1]<br>
+[jam:15687] *** End of error message ***<br>
+<br>
+If I use mpich 3.1.2 , I don&#39;t see those issues.<br>
+<br>
+Thanks,<br>
+Mohamad<br>
+<br>
+<br>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription:<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-<u></u>mpi.org/mailman/listinfo.cgi/<u></u>users</a><br>
+Link to this post:<a href="http://www.open-mpi.org/community/lists/users/2014/08/24931.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/08/<u></u>24931.php</a><br>
+</blockquote>
+<br>
+<br>
+<br>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/08/24963.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/08/<u></u>24963.php</a><br>
+<br>
+</blockquote><div class="">
+<br>
+-- <br>
+Rob Latham<br>
+Mathematics and Computer Science Division<br>
+Argonne National Lab, IL USA<br></div><div class="">
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/08/24971.php" target="_blank">http://www.open-mpi.org/<u></u>community/lists/users/2014/08/<u></u>24971.php</a><br>
+</blockquote></div><br></div>
+

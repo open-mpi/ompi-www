@@ -1,0 +1,390 @@
+Index: ompi/mca/pml/ob1/pml_ob1_irecv.c
+===================================================================
+--- ompi/mca/pml/ob1/pml_ob1_irecv.c	(revision 30145)
++++ ompi/mca/pml/ob1/pml_ob1_irecv.c	(working copy)
+@@ -1,8 +1,9 @@
++/* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
+ /*
+  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+  *                         University Research and Technology
+  *                         Corporation.  All rights reserved.
+- * Copyright (c) 2004-2013 The University of Tennessee and The University
++ * Copyright (c) 2004-2014 The University of Tennessee and The University
+  *                         of Tennessee Research Foundation.  All rights
+  *                         reserved.
+  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
+@@ -9,7 +10,7 @@
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2007      Los Alamos National Security, LLC.  All rights
++ * Copyright (c) 2007-2014 Los Alamos National Security, LLC.  All rights
+  *                         reserved. 
+  * Copyright (c) 2010-2012 Oracle and/or its affiliates.  All rights reserved.
+  * Copyright (c) 2011      Sandia National Laboratories. All rights reserved.
+@@ -43,10 +44,10 @@
+     MCA_PML_OB1_RECV_REQUEST_INIT(recvreq,
+                                    addr,
+                                    count, datatype, src, tag, comm, true);
+-    
++
+     PERUSE_TRACE_COMM_EVENT (PERUSE_COMM_REQ_ACTIVATE,
+                              &((recvreq)->req_recv.req_base),
+-                             PERUSE_RECV);                              
++                             PERUSE_RECV);
+ 
+     *request = (ompi_request_t *) recvreq;
+     return OMPI_SUCCESS;
+@@ -87,28 +88,29 @@
+                      struct ompi_communicator_t *comm,
+                      ompi_status_public_t * status)
+ {
++    mca_pml_ob1_recv_request_t recvreq;
+     int rc;
+-    mca_pml_ob1_recv_request_t *recvreq;
+-    MCA_PML_OB1_RECV_REQUEST_ALLOC(recvreq);
+-    if (NULL == recvreq)
+-        return OMPI_ERR_TEMP_OUT_OF_RESOURCE;
+ 
+-    MCA_PML_OB1_RECV_REQUEST_INIT(recvreq,
+-                                   addr,
+-                                   count, datatype, src, tag, comm, false);
++    OBJ_CONSTRUCT(&recvreq, mca_pml_ob1_recv_request_t);
+ 
++    MCA_PML_OB1_RECV_REQUEST_INIT(&recvreq, addr, count, datatype,
++                                  src, tag, comm, false);
++
+     PERUSE_TRACE_COMM_EVENT (PERUSE_COMM_REQ_ACTIVATE,
+-                             &((recvreq)->req_recv.req_base),
++                             &(recvreq.req_recv.req_base),
+                              PERUSE_RECV);
+ 
+-    MCA_PML_OB1_RECV_REQUEST_START(recvreq);
+-    ompi_request_wait_completion(&recvreq->req_recv.req_base.req_ompi);
++    MCA_PML_OB1_RECV_REQUEST_START(&recvreq);
++    ompi_request_wait_completion(&recvreq.req_recv.req_base.req_ompi);
+ 
+     if (NULL != status) {  /* return status */
+-        *status = recvreq->req_recv.req_base.req_ompi.req_status;
++        *status = recvreq.req_recv.req_base.req_ompi.req_status;
+     }
+-    rc = recvreq->req_recv.req_base.req_ompi.req_status.MPI_ERROR;
+-    ompi_request_free( (ompi_request_t**)&recvreq );
++
++    rc = recvreq.req_recv.req_base.req_ompi.req_status.MPI_ERROR;
++    MCA_PML_BASE_RECV_REQUEST_FINI(&recvreq.req_recv);
++    OBJ_DESTRUCT(&recvreq);
++
+     return rc;
+ }
+ 
+Index: ompi/mca/pml/ob1/pml_ob1_isend.c
+===================================================================
+--- ompi/mca/pml/ob1/pml_ob1_isend.c	(revision 30145)
++++ ompi/mca/pml/ob1/pml_ob1_isend.c	(working copy)
+@@ -1,20 +1,21 @@
++/* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
+ /*
+  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+  *                         University Research and Technology
+  *                         Corporation.  All rights reserved.
+- * Copyright (c) 2004-2013 The University of Tennessee and The University
++ * Copyright (c) 2004-2014 The University of Tennessee and The University
+  *                         of Tennessee Research Foundation.  All rights
+  *                         reserved.
+- * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
++ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
+  *                         University of Stuttgart.  All rights reserved.
+  * Copyright (c) 2004-2005 The Regents of the University of California.
+  *                         All rights reserved.
+- * Copyright (c) 2007      Los Alamos National Security, LLC.  All rights
+- *                         reserved. 
++ * Copyright (c) 2007-2014 Los Alamos National Security, LLC.  All rights
++ *                         reserved.
+  * $COPYRIGHT$
+- * 
++ *
+  * Additional copyrights may follow
+- * 
++ *
+  * $HEADER$
+  */
+ 
+@@ -45,7 +46,7 @@
+                                   datatype,
+                                   dst, tag,
+                                   comm, sendmode, true);
+-    
++
+     PERUSE_TRACE_COMM_EVENT (PERUSE_COMM_REQ_ACTIVATE,
+                              &(sendreq)->req_send.req_base,
+                              PERUSE_SEND);
+@@ -54,7 +55,66 @@
+     return OMPI_SUCCESS;
+ }
+ 
++/* try to get a small message out on to the wire quickly */
++static inline int mca_pml_ob1_send_inline (void *buf, size_t count,
++                                           ompi_datatype_t * datatype,
++                                           int dst, int tag,
++                                           ompi_communicator_t * comm)
++{
++    ompi_proc_t *dst_proc = ompi_comm_peer_lookup (comm, dst);
++    mca_bml_base_endpoint_t* endpoint = (mca_bml_base_endpoint_t*)
++                                        dst_proc->proc_endpoints[OMPI_PROC_ENDPOINT_TAG_BML];
++    mca_pml_ob1_comm_t* ob1_comm = comm->c_pml_comm;
++    mca_pml_ob1_match_hdr_t match;
++    mca_bml_base_btl_t* bml_btl;
++    opal_convertor_t convertor;
++    size_t size = 0;
++    int rc;
+ 
++    bml_btl = mca_bml_base_btl_array_get_next(&endpoint->btl_eager);
++
++    ompi_datatype_type_size(datatype, &size);
++
++    if (OPAL_UNLIKELY((size * count) > 256 || !bml_btl->btl->btl_sendi)) {
++        return OMPI_ERR_NOT_AVAILABLE;
++    }
++
++    if (count > 0) {
++        /* initialize just enough of the convertor to avoid a SEGV in opal_convertor_cleanup */
++        convertor.stack_size = 0;
++
++        /* We will create a convertor specialized for the        */
++        /* remote architecture and prepared with the datatype.   */
++        opal_convertor_copy_and_prepare_for_send (dst_proc->proc_convertor,
++                                                  (const struct opal_datatype_t *) datatype,
++                                                  count, buf, 0, &convertor);
++
++        /* find out the packed size of the data */
++        opal_convertor_get_packed_size (&convertor, &size);
++    }
++
++    match.hdr_common.hdr_type = MCA_PML_OB1_HDR_TYPE_MATCH;
++    match.hdr_ctx = comm->c_contextid;
++    match.hdr_src = comm->c_my_rank;
++    match.hdr_tag = tag;
++    match.hdr_seq = (uint16_t) OPAL_THREAD_ADD32(&ob1_comm->procs[dst].send_sequence, 1);
++
++    /* try to send immediately */
++    rc = mca_bml_base_sendi (bml_btl, &convertor, &match, OMPI_PML_OB1_MATCH_HDR_LEN,
++                             size, MCA_BTL_NO_ORDER, MCA_BTL_DES_FLAGS_PRIORITY | MCA_BTL_DES_FLAGS_BTL_OWNERSHIP,
++                             MCA_PML_OB1_HDR_TYPE_MATCH, NULL);
++    if (count > 0) {
++        opal_convertor_cleanup (&convertor);
++    }
++
++    if (OPAL_UNLIKELY(OMPI_SUCCESS != rc)) {
++        OPAL_THREAD_ADD32(&ob1_comm->procs[dst].send_sequence, -1);
++        return rc;
++    }
++
++    return (int) size;
++}
++
+ int mca_pml_ob1_isend(void *buf,
+                       size_t count,
+                       ompi_datatype_t * datatype,
+@@ -66,11 +126,11 @@
+ {
+     int rc;
+     mca_pml_ob1_send_request_t *sendreq = NULL;
+-    
++
+     MCA_PML_OB1_SEND_REQUEST_ALLOC(comm, dst, sendreq);
+     if (NULL == sendreq)
+         return OMPI_ERR_OUT_OF_RESOURCE;
+-    
++
+     MCA_PML_OB1_SEND_REQUEST_INIT(sendreq,
+                                   buf,
+                                   count,
+@@ -87,7 +147,6 @@
+     return rc;
+ }
+ 
+-
+ int mca_pml_ob1_send(void *buf,
+                      size_t count,
+                      ompi_datatype_t * datatype,
+@@ -96,14 +155,20 @@
+                      mca_pml_base_send_mode_t sendmode,
+                      ompi_communicator_t * comm)
+ {
++    mca_pml_ob1_send_request_t sendreq;
+     int rc;
+-    mca_pml_ob1_send_request_t *sendreq = NULL;
+ 
+-    MCA_PML_OB1_SEND_REQUEST_ALLOC(comm, dst, sendreq);
+-    if (NULL == sendreq)
+-        return OMPI_ERR_OUT_OF_RESOURCE;
+-    
+-    MCA_PML_OB1_SEND_REQUEST_INIT(sendreq,
++    if (MCA_PML_BASE_SEND_SYNCHRONOUS != sendmode) {
++        rc = mca_pml_ob1_send_inline (buf, count, datatype, dst, tag, comm);
++        if (OPAL_LIKELY(0 <= rc)) {
++            return OMPI_SUCCESS;
++        }
++    }
++
++    OBJ_CONSTRUCT(&sendreq, mca_pml_ob1_send_request_t);
++    sendreq.req_send.req_base.req_proc = ompi_comm_peer_lookup(comm, dst);
++
++    MCA_PML_OB1_SEND_REQUEST_INIT(&sendreq,
+                                   buf,
+                                   count,
+                                   datatype,
+@@ -111,18 +176,15 @@
+                                   comm, sendmode, false);
+ 
+     PERUSE_TRACE_COMM_EVENT (PERUSE_COMM_REQ_ACTIVATE,
+-                             &(sendreq)->req_send.req_base,
++                             &(sendreq.req_send.req_base),
+                              PERUSE_SEND);
+-    
+-    MCA_PML_OB1_SEND_REQUEST_START(sendreq, rc);
+-    if (rc != OMPI_SUCCESS) {
+-        MCA_PML_OB1_SEND_REQUEST_RETURN( sendreq );
+-        return rc;
++
++    MCA_PML_OB1_SEND_REQUEST_START(&sendreq, rc);
++    if (rc == OMPI_SUCCESS) {
++        ompi_request_wait_completion(&sendreq.req_send.req_base.req_ompi);
++        rc = sendreq.req_send.req_base.req_ompi.req_status.MPI_ERROR;
+     }
+-
+-    ompi_request_wait_completion(&sendreq->req_send.req_base.req_ompi);
+-
+-    rc = sendreq->req_send.req_base.req_ompi.req_status.MPI_ERROR;
+-    ompi_request_free( (ompi_request_t**)&sendreq );
++    MCA_PML_BASE_SEND_REQUEST_FINI(&sendreq.req_send);
++    OBJ_DESTRUCT(&sendreq);
+     return rc;
+ }
+Index: ompi/mca/pml/ob1/pml_ob1_recvreq.c
+===================================================================
+--- ompi/mca/pml/ob1/pml_ob1_recvreq.c	(revision 30145)
++++ ompi/mca/pml/ob1/pml_ob1_recvreq.c	(working copy)
+@@ -3,7 +3,7 @@
+  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+  *                         University Research and Technology
+  *                         Corporation.  All rights reserved.
+- * Copyright (c) 2004-2013 The University of Tennessee and The University
++ * Copyright (c) 2004-2014 The University of Tennessee and The University
+  *                         of Tennessee Research Foundation.  All rights
+  *                         reserved.
+  * Copyright (c) 2004-2008 High Performance Computing Center Stuttgart, 
+@@ -13,7 +13,7 @@
+  * Copyright (c) 2008      UT-Battelle, LLC. All rights reserved.
+  * Copyright (c) 2011      Sandia National Laboratories. All rights reserved.
+  * Copyright (c) 2012-2013 NVIDIA Corporation.  All rights reserved.
+- * Copyright (c) 2011-2012 Los Alamos National Security, LLC. All rights
++ * Copyright (c) 2011-2014 Los Alamos National Security, LLC. All rights
+  *                         reserved.
+  * Copyright (c) 2012      FUJITSU LIMITED.  All rights reserved.
+  * $COPYRIGHT$
+@@ -145,7 +145,7 @@
+ 
+ static void mca_pml_ob1_recv_request_construct(mca_pml_ob1_recv_request_t* request)
+ {
+-    request->req_recv.req_base.req_type = MCA_PML_REQUEST_RECV;
++    /* the request type is set by the superclass */
+     request->req_recv.req_base.req_ompi.req_free = mca_pml_ob1_recv_request_free;
+     request->req_recv.req_base.req_ompi.req_cancel = mca_pml_ob1_recv_request_cancel;
+     request->req_rdma_cnt = 0;
+Index: ompi/mca/pml/ob1/pml_ob1_recvreq.h
+===================================================================
+--- ompi/mca/pml/ob1/pml_ob1_recvreq.h	(revision 30145)
++++ ompi/mca/pml/ob1/pml_ob1_recvreq.h	(working copy)
+@@ -2,7 +2,7 @@
+  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+  *                         University Research and Technology
+  *                         Corporation.  All rights reserved.
+- * Copyright (c) 2004-2013 The University of Tennessee and The University
++ * Copyright (c) 2004-2014 The University of Tennessee and The University
+  *                         of Tennessee Research Foundation.  All rights
+  *                         reserved.
+  * Copyright (c) 2004-2007 High Performance Computing Center Stuttgart, 
+@@ -116,11 +116,11 @@
+  *
+  *  @param recvreq (IN)  Receive request.
+  */
+-#define MCA_PML_OB1_RECV_REQUEST_MPI_COMPLETE( recvreq )                              \
+-    do {                                                                              \
+-       PERUSE_TRACE_COMM_EVENT( PERUSE_COMM_REQ_COMPLETE,                             \
+-                                &(recvreq->req_recv.req_base), PERUSE_RECV );         \
+-        ompi_request_complete( &(recvreq->req_recv.req_base.req_ompi), true );        \
++#define MCA_PML_OB1_RECV_REQUEST_MPI_COMPLETE( recvreq )                       \
++    do {                                                                       \
++        PERUSE_TRACE_COMM_EVENT( PERUSE_COMM_REQ_COMPLETE,                     \
++                                 &(recvreq->req_recv.req_base), PERUSE_RECV ); \
++        ompi_request_complete( &(recvreq->req_recv.req_base.req_ompi), true ); \
+     } while (0)
+ 
+ /*
+@@ -129,7 +129,7 @@
+ #define MCA_PML_OB1_RECV_REQUEST_RETURN(recvreq)                        \
+     {                                                                   \
+         MCA_PML_BASE_RECV_REQUEST_FINI(&(recvreq)->req_recv);           \
+-        OMPI_FREE_LIST_RETURN_MT( &mca_pml_base_recv_requests,             \
++        OMPI_FREE_LIST_RETURN_MT( &mca_pml_base_recv_requests,          \
+                                (ompi_free_list_item_t*)(recvreq));      \
+     }
+ 
+Index: ompi/mca/pml/ob1/pml_ob1_sendreq.h
+===================================================================
+--- ompi/mca/pml/ob1/pml_ob1_sendreq.h	(revision 30145)
++++ ompi/mca/pml/ob1/pml_ob1_sendreq.h	(working copy)
+@@ -3,7 +3,7 @@
+  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+  *                         University Research and Technology
+  *                         Corporation.  All rights reserved.
+- * Copyright (c) 2004-2013 The University of Tennessee and The University
++ * Copyright (c) 2004-2014 The University of Tennessee and The University
+  *                         of Tennessee Research Foundation.  All rights
+  *                         reserved.
+  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
+@@ -12,7 +12,7 @@
+  *                         All rights reserved.
+  * Copyright (c) 2009      Sun Microsystems, Inc.  All rights reserved.
+  * Copyright (c) 2011-2012 NVIDIA Corporation.  All rights reserved.
+- * Copyright (c) 2011-2012 Los Alamos National Security, LLC. All rights
++ * Copyright (c) 2011-2014 Los Alamos National Security, LLC. All rights
+  *                         reserved.
+  * $COPYRIGHT$
+  * 
+@@ -143,7 +143,7 @@
+                                        sendmode,                        \
+                                        persistent)                      \
+     {                                                                   \
+-        MCA_PML_BASE_SEND_REQUEST_INIT(&sendreq->req_send,              \
++        MCA_PML_BASE_SEND_REQUEST_INIT(&(sendreq)->req_send,            \
+                                        buf,                             \
+                                        count,                           \
+                                        datatype,                        \
+@@ -157,9 +157,9 @@
+     }
+ 
+ #define MCA_PML_OB1_SEND_REQUEST_RESET(sendreq)                         \
+-    if (sendreq->req_send.req_bytes_packed > 0) {                       \
++    if ((sendreq)->req_send.req_bytes_packed > 0) {                     \
+         size_t _position = 0;                                           \
+-        opal_convertor_set_position(&sendreq->req_send.req_base.req_convertor, \
++        opal_convertor_set_position(&(sendreq)->req_send.req_base.req_convertor, \
+                                     &_position);                        \
+         assert( 0 == _position );                                       \
+     }
+@@ -215,9 +215,9 @@
+ #define MCA_PML_OB1_SEND_REQUEST_RETURN(sendreq)                        \
+     do {                                                                \
+     /*  Let the base handle the reference counts */                     \
+-    MCA_PML_BASE_SEND_REQUEST_FINI((&(sendreq)->req_send));             \
+-    OMPI_FREE_LIST_RETURN_MT( &mca_pml_base_send_requests,                 \
+-                           (ompi_free_list_item_t*)sendreq);            \
++    MCA_PML_BASE_SEND_REQUEST_FINI(&(sendreq)->req_send);               \
++    OMPI_FREE_LIST_RETURN_MT( &mca_pml_base_send_requests,              \
++                           (ompi_free_list_item_t*)(sendreq));          \
+     } while(0)
+ 
+ 

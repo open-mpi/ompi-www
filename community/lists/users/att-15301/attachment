@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title></title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Jeff,<br>
+<br>
+Only the processes of the program where process 0 successed to publish
+name, have srv=1 and then call MPI_Comm_accept.<br>
+The processes of the program where process 0 failed to publish name,
+have srv=0 and then call MPI_Comm_connect.<br>
+<br>
+That's worked like this with openmpi 1.4.1.<br>
+<br>
+Is it different whith openmpi 1.5.1 ?<br>
+<br>
+Best<br>
+Bernard<br>
+<br>
+<br>
+Jeff Squyres a &eacute;crit&nbsp;:
+<blockquote cite="mid:7B683EA2-7E56-4C4F-AC0C-628F081BD7AC@cisco.com"
+ type="cite">
+  <pre wrap="">On Jan 5, 2011, at 10:36 AM, Bernard Secher - SFME/LGLS wrote:
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">MPI_Comm remoteConnect(int myrank, int *srv, char *port_name, char* service)
+{
+  int clt=0;
+  MPI_Request request; /* requete pour communication non bloquante */
+  MPI_Comm gcom;
+  MPI_Status status; 
+  char   port_name_clt[MPI_MAX_PORT_NAME]; 
+
+  if( service == NULL ) service = defaultService;
+
+  /* only process of rank null can publish name */
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  /* A lookup for an unpublished service generate an error */
+  MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+  if( myrank == 0 ){
+    /* Try to be a server. If there service is already published, try to be a cient */
+    MPI_Open_port(MPI_INFO_NULL, port_name); 
+    printf("[%d] Publish name\n",myrank);
+    if ( MPI_Publish_name(service, MPI_INFO_NULL, port_name) == MPI_SUCCESS )  {
+      *srv = 1;
+      printf("[%d] service %s available at %s\n",myrank,service,port_name);
+    }
+    else if ( MPI_Lookup_name(service, MPI_INFO_NULL, port_name_clt) == MPI_SUCCESS ){
+      MPI_Close_port( port_name ); 
+      clt = 1;
+    }
+    else
+      /* Throw exception */
+      printf("[%d] Error\n",myrank);
+  }
+  else{
+    /* Waiting rank 0 publish name */
+    sleep(1);
+    printf("[%d] Lookup name\n",myrank);
+    if ( MPI_Lookup_name(service, MPI_INFO_NULL, port_name_clt) == MPI_SUCCESS ){
+      clt = 1;
+    }
+    else
+      /* Throw exception */
+      ;
+  }
+  MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
+  
+  MPI_Bcast(srv,1,MPI_INT,0,MPI_COMM_WORLD);
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+You're broadcasting srv here -- won't everyone now have *srv==1, such that they all call MPI_COMM_ACCEPT, below?
+
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">  if ( *srv )
+    /* I am the Master */
+    MPI_Comm_accept( port_name, MPI_INFO_NULL, 0, MPI_COMM_WORLD, &amp;gcom );
+  else{
+    /*  Connect to service SERVER, get the inter-communicator server*/
+    MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+    if ( MPI_Comm_connect(port_name_clt, MPI_INFO_NULL, 0, MPI_COMM_WORLD, &amp;gcom )  == MPI_SUCCESS )
+      printf("[%d] I get the connection with %s at %s !\n",myrank, service, port_name_clt);
+    MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
+  }
+
+  if(myrank != 0) *srv = 0;
+
+  return gcom;
+
+}
+
+
+
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+
+  </pre>
+</blockquote>
+<br>
+<br>
+<div class="moz-signature">-- <br>
+<pre>       _\\|//_
+      (' 0 0 ')
+____ooO  (_) Ooo______________________________________________________
+ Bernard S&eacute;cher  DEN/DM2S/SFME/LGLS    mailto : <a class="moz-txt-link-abbreviated" href="mailto:bsecher@cea.fr">bsecher@cea.fr</a>
+ CEA Saclay, B&acirc;t 454, Pi&egrave;ce 114        Phone  : 33 (0)1 69 08 73 78
+ 91191 Gif-sur-Yvette Cedex, France    Fax    : 33 (0)1 69 08 10 87
+------------Oooo---------------------------------------------------
+       oooO (   )
+       (   ) ) /
+        \ ( (_/
+         \_)
+
+<font color="blue">
+Ce message &eacute;lectronique et tous les fichiers attach&eacute;s qu'il contient
+sont confidentiels et destin&eacute;s exclusivement &agrave; l'usage de la personne
+&agrave; laquelle ils sont adress&eacute;s. Si vous avez re&ccedil;u ce message par erreur,
+merci d'en avertir imm&eacute;diatement son &eacute;metteur et de ne pas en conserver
+de copie.
+
+This e-mail and any files transmitted with it are confidential and
+intended solely for the use of the individual to whom they are addressed.
+If you have received this e-mail in error please inform the sender
+immediately, without keeping any copy thereof.
+</font>
+</pre>
+</div>
+</body>
+</html>
+

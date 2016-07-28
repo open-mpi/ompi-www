@@ -1,0 +1,65 @@
+diff --git a/orte/mca/state/dvm/state_dvm.c b/orte/mca/state/dvm/state_dvm.c
+index 0e7309c..5b1a841 100644
+--- a/orte/mca/state/dvm/state_dvm.c
++++ b/orte/mca/state/dvm/state_dvm.c
+@@ -267,6 +267,7 @@ void check_complete(int fd, short args, void *cbdata)
+         if (jdata->state < ORTE_JOB_STATE_UNTERMINATED) {
+             jdata->state = ORTE_JOB_STATE_TERMINATED;
+         }
++        opal_output(0, "%s JOB %s HAS TERMINATED", ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), ORTE_JOBID_PRINT(jdata->jobid));
+     }
+ 
+     /* tell the IOF that the job is complete */
+diff --git a/orte/tools/orte-dvm/orte-dvm.c b/orte/tools/orte-dvm/orte-dvm.c
+index 3cdf585..003f93a 100644
+--- a/orte/tools/orte-dvm/orte-dvm.c
++++ b/orte/tools/orte-dvm/orte-dvm.c
+@@ -442,18 +442,6 @@ int main(int argc, char *argv[])
+     exit(orte_exit_status);
+ }
+ 
+-static void send_callback(int status, orte_process_name_t *peer,
+-                          opal_buffer_t* buffer, orte_rml_tag_t tag,
+-                          void* cbdata)
+-
+-{
+-    orte_job_t *jdata = (orte_job_t*)cbdata;
+-
+-    OBJ_RELEASE(buffer);
+-    /* cleanup the job object */
+-    opal_pointer_array_set_item(orte_job_data, ORTE_LOCAL_JOBID(jdata->jobid), NULL);
+-    OBJ_RELEASE(jdata);
+-}
+ static void notify_requestor(int sd, short args, void *cbdata)
+ {
+     orte_state_caddy_t *caddy = (orte_state_caddy_t*)cbdata;
+@@ -462,6 +450,11 @@ static void notify_requestor(int sd, short args, void *cbdata)
+     int ret;
+     opal_buffer_t *reply;
+ 
++opal_output(0, "%s NOTIFYING %s OF JOB %s COMPLETION",
++            ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
++            ORTE_NAME_PRINT(&jdata->originator),
++            ORTE_JOBID_PRINT(jdata->jobid));
++
+     /* notify the requestor */
+     reply = OBJ_NEW(opal_buffer_t);
+     /* see if there was any problem */
+@@ -471,11 +464,13 @@ static void notify_requestor(int sd, short args, void *cbdata)
+         ret = 0;
+     }
+     opal_dss.pack(reply, &ret, 1, OPAL_INT);
+-    orte_rml.send_buffer_nb(&jdata->originator, reply, ORTE_RML_TAG_TOOL, send_callback, jdata);
++    orte_rml.send_buffer_nb(&jdata->originator, reply, ORTE_RML_TAG_TOOL, orte_rml_send_callback, NULL);
++
++    /* flag that we were notified */
++    jdata->state = ORTE_JOB_STATE_NOTIFIED;
++    /* send us back thru job complete */
++    ORTE_ACTIVATE_JOB_STATE(jdata, ORTE_JOB_STATE_TERMINATED);
+ 
+-    /* we cannot cleanup the job object as we might
+-     * hit an error during transmission, so clean it
+-     * up in the send callback */
+     OBJ_RELEASE(caddy);
+ }
+ 

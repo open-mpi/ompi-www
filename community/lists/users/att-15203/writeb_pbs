@@ -1,0 +1,146 @@
+#!/bin/tcsh
+#
+cat <<EOS > pgmb.f
+      program main
+      implicit none
+      include 'mpif.h'
+      integer lm, ln
+      integer lmall,lnall
+      integer i, j
+      integer rank, size, ierr
+      parameter (lmall=100,lnall=100)
+      integer iarray_of_sizes(2)
+      integer iarray_of_subsizes(2)
+      integer iarray_of_starts(2)
+      integer icoord(2), nproc(2), ndims, ilocal_size
+      integer ifiletype, ifh
+      integer status(MPI_STATUS_SIZE)
+      real, dimension(:,:), allocatable :: alocal
+      double precision t0, t1
+C
+      call MPI_INIT( ierr )
+      call MPI_COMM_RANK( MPI_COMM_WORLD, rank, ierr )
+      call MPI_COMM_SIZE( MPI_COMM_WORLD, size, ierr )
+
+      if (size .ne. 4) then 
+         print *, 'This example requires 4 processes'
+         call MPI_ABORT( MPI_COMM_WORLD, 1, ierr )
+      endif
+      
+c     nproc(1) = 4
+c     nproc(2) = 1
+c     nproc(1) = 2
+c     nproc(2) = 2
+      nproc(1) = 1
+      nproc(2) = 4
+
+      icoord(1) = rank / nproc(2)
+      icoord(2) = mod(rank,nproc(2))
+
+      iarray_of_sizes(1)    = lmall
+      iarray_of_sizes(2)    = lnall
+      lm= lmall/nproc(1)
+      ln= lnall/nproc(2)
+      iarray_of_subsizes(1) = lm
+      iarray_of_subsizes(2) = ln
+
+      icoord(1) = rank / nproc(2)
+      icoord(2) = mod(rank,nproc(2))
+
+      iarray_of_sizes(1)    = lmall
+      iarray_of_sizes(2)    = lnall
+      lm= lmall/nproc(1)
+      ln= lnall/nproc(2)
+      iarray_of_subsizes(1) = lm
+      iarray_of_subsizes(2) = ln
+
+      icoord(1) = rank / nproc(2)
+      icoord(2) = mod(rank,nproc(2))
+
+      iarray_of_sizes(1)    = lmall
+      iarray_of_sizes(2)    = lnall
+      lm= lmall/nproc(1)
+      ln= lnall/nproc(2)
+      iarray_of_subsizes(1) = lm
+      iarray_of_subsizes(2) = ln
+C
+C Note that starts are 0-origin, even in Fortran
+      iarray_of_starts(1) = icoord(1) * iarray_of_subsizes(1)
+      iarray_of_starts(2) = icoord(2) * iarray_of_subsizes(2)
+      ndims = 2
+       print*,' sizes ',rank,iarray_of_sizes
+       print*,' subsizes ',rank,iarray_of_subsizes
+       print*,' starts ',rank,iarray_of_starts
+
+      call MPI_TYPE_CREATE_SUBARRAY(ndims, iarray_of_sizes,
+     &     iarray_of_subsizes, iarray_of_starts,
+     &     MPI_ORDER_FORTRAN, MPI_REAL, ifiletype, ierr) 
+      call MPI_TYPE_COMMIT(ifiletype, ierr)
+
+      allocate(alocal(lm,ln))
+C
+C Initialize alocal with the order values in Global numbering
+      do 20 j=1,ln
+         do 10 i=1,lm
+            alocal(i,j) = i + iarray_of_starts(1) + (j - 1 +
+     &           iarray_of_starts(2)) * iarray_of_sizes(1)
+ 10      continue
+ 20      continue
+C
+C Do the file operations
+C
+      call MPI_FILE_OPEN(MPI_COMM_WORLD, 'testb', MPI_MODE_CREATE +
+     &     MPI_MODE_RDWR, MPI_INFO_NULL, ifh, ierr) 
+        
+      call MPI_BARRIER( MPI_COMM_WORLD, ierr )
+      t0 = MPI_WTIME()
+      call MPI_FILE_SET_VIEW(ifh, 0, MPI_REAL, ifiletype,
+     &     'native', MPI_INFO_NULL, ierr) 
+
+      ilocal_size = iarray_of_subsizes(1) * iarray_of_subsizes(2)
+
+      call MPI_FILE_WRITE_ALL(ifh, alocal, ilocal_size,
+     &     MPI_REAL, status, ierr)
+
+      call mpi_type_free(ifiletype,ierr)
+      if(rank.eq.0) print*,' file size= ',lmall*lnall*4
+      call MPI_BARRIER( MPI_COMM_WORLD, ierr )
+      t1 = MPI_WTIME() - t0
+      if (rank .eq. 0) then
+         print *, 'Write Aglobal in ', t1, ' seconds'
+      endif
+
+      call MPI_FILE_CLOSE(ifh, ierr)
+
+      call MPI_FINALIZE( ierr )
+      end
+EOS
+mpif90 pgmb.f
+#
+cp a.out /SCRATCH/rosmond
+
+cat << EOS0 > chkb
+#!/bin/ksh
+#PBS -S /bin/ksh
+#PBS -N mpi_test
+#PBS -j oe
+#PBS -V
+#PBS -l nodes=1:ppn=4
+#PBS -q medium
+#PBS -W umask=18
+#
+ulimit -c 0
+ulimit -s unlimited
+#
+ export OMP_NUM_THREADS=1
+ export FORT_BUFFERED=true
+#
+cd /SCRATCH/rosmond
+ mpirun -np 4 -bycore -bind-to-core /SCRATCH/rosmond/a.out > /SCRATCH/rosmond/outiob
+
+EOS0
+#
+chmod 755  chkb    
+#
+ qsub  chkb 
+

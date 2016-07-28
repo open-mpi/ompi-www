@@ -1,0 +1,94 @@
+diff --git a/config/hwloc.m4 b/config/hwloc.m4
+index 9c0208e..a3ef25c 100644
+--- a/config/hwloc.m4
++++ b/config/hwloc.m4
+@@ -486,25 +486,6 @@ EOF])
+     AC_CHECK_HEADERS([sys/utsname.h])
+     AC_CHECK_FUNCS([uname])
+ 
+-    # set_mempolicy and mbind support   
+-    AC_CHECK_HEADERS([numaif.h], [
+-      AC_CHECK_LIB([numa], [set_mempolicy], [
+-	enable_set_mempolicy=yes
+-	AC_SUBST([HWLOC_LINUX_LIBNUMA_LIBS], ["-lnuma"])
+-	AC_DEFINE([HWLOC_HAVE_SET_MEMPOLICY], [1], [Define to 1 if set_mempolicy is available.])
+-      ])
+-      AC_CHECK_LIB([numa], [mbind], [
+-	enable_mbind=yes
+-	AC_SUBST([HWLOC_LINUX_LIBNUMA_LIBS], ["-lnuma"])
+-	AC_DEFINE([HWLOC_HAVE_MBIND], [1], [Define to 1 if mbind is available.])
+-      ])
+-      AC_CHECK_LIB([numa], [migrate_pages], [
+-	enable_migrate_pages=yes
+-	AC_SUBST([HWLOC_LINUX_LIBNUMA_LIBS], ["-lnuma"])
+-	AC_DEFINE([HWLOC_HAVE_MIGRATE_PAGES], [1], [Define to 1 if migrate_pages is available.])
+-      ])
+-    ])
+-
+     AC_CHECK_HEADERS([pthread_np.h])
+     AC_CHECK_DECLS([pthread_setaffinity_np],,[:],[[
+       #include <pthread.h>
+@@ -524,6 +505,47 @@ EOF])
+       AC_DEFINE([HWLOC_HAVE_PTHREAD_GETTHRDS_NP], 1, `Define to 1 if you have pthread_getthrds_np')
+     )
+ 
++    # libnuma support
++    hwloc_libnuma_happy=no
++    if test "x$enable_libnuma" != "xno"; then
++        hwloc_libnuma_happy=yes
++        AC_CHECK_HEADERS([numaif.h], [
++            AC_CHECK_LIB([numa], [numa_available], [HWLOC_LINUX_LIBNUMA_LIBS="-lnuma"], [hwloc_libnuma_happy=no])
++        ], [hwloc_libnuma_happy=no])
++    fi
++    AC_SUBST(HWLOC_LINUX_LIBNUMA_LIBS)
++    # If we asked for libnuma support but couldn't deliver, fail
++    AS_IF([test "$enable_libnuma" = "yes" -a "$hwloc_libnuma_happy" = "no"],
++          [AC_MSG_WARN([Specified --enable-libnuma switch, but could not])
++           AC_MSG_WARN([find appropriate support])
++           AC_MSG_ERROR([Cannot continue])])
++    if test "x$hwloc_libnuma_happy" = "xyes"; then
++      tmp_save_LIBS="$LIBS"
++      LIBS="$LIBS $HWLOC_LINUX_LIBNUMA_LIBS"
++
++      AC_CHECK_LIB([numa], [set_mempolicy], [
++	enable_set_mempolicy=yes
++	AC_DEFINE([HWLOC_HAVE_SET_MEMPOLICY], [1], [Define to 1 if set_mempolicy is available.])
++      ])
++      AC_CHECK_LIB([numa], [mbind], [
++	enable_mbind=yes
++	AC_DEFINE([HWLOC_HAVE_MBIND], [1], [Define to 1 if mbind is available.])
++      ])
++      AC_CHECK_LIB([numa], [migrate_pages], [
++	enable_migrate_pages=yes
++	AC_DEFINE([HWLOC_HAVE_MIGRATE_PAGES], [1], [Define to 1 if migrate_pages is available.])
++      ])
++
++      HWLOC_REQUIRES="libnuma $HWLOC_REQUIRES"
++      AC_DEFINE([HWLOC_HAVE_LIBNUMA], [1], [Define to 1 if you have the `libnuma' library.])
++      AC_SUBST([HWLOC_HAVE_LIBNUMA], [1])
++      CFLAGS="$tmp_save_CFLAGS"
++      LIBS="$tmp_save_LIBS"
++    else
++      AC_SUBST([HWLOC_HAVE_LIBNUMA], [0])
++    fi
++    HWLOC_CFLAGS="$HWLOC_CFLAGS $HWLOC_LIBNUMA_CFLAGS"
++
+     # PCI support
+     hwloc_pci_happy=no
+     if test "x$enable_pci" != "xno"; then
+diff --git a/config/hwloc_internal.m4 b/config/hwloc_internal.m4
+index daee2a6..2eb8770 100644
+--- a/config/hwloc_internal.m4
++++ b/config/hwloc_internal.m4
+@@ -65,6 +65,11 @@ AC_DEFUN([HWLOC_DEFINE_ARGS],[
+                   AS_HELP_STRING([--disable-pci],
+                                  [Disable the PCI device discovery using libpci]))
+ 
++    # libnuma
++    AC_ARG_ENABLE([libnuma],
++                  AS_HELP_STRING([--disable-libnuma],
++                                 [Disable the linux libnuma]))
++
+ ])dnl
+ 
+ #-----------------------------------------------------------------------

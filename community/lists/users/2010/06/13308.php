@@ -1,0 +1,69 @@
+<?
+$subject_val = "[OMPI users] (no subject)";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Fri Jun 11 05:08:58 2010" -->
+<!-- isoreceived="20100611090858" -->
+<!-- sent="Fri, 11 Jun 2010 11:08:51 +0200" -->
+<!-- isosent="20100611090851" -->
+<!-- name="asmae.elbahlouli_at_[hidden]" -->
+<!-- email="asmae.elbahlouli_at_[hidden]" -->
+<!-- subject="[OMPI users] (no subject)" -->
+<!-- id="OF6C717CA3.7D0FB1EA-ONC125773F.00324009-C125773F.0032400C_at_mpsa.com" -->
+<!-- charset="UTF-8" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> [OMPI users] (no subject)<br>
+<strong>From:</strong> <a href="mailto:asmae.elbahlouli_at_[hidden]?Subject=Re:%20[OMPI%20users]%20(no%20subject)"><em>asmae.elbahlouli_at_[hidden]</em></a><br>
+<strong>Date:</strong> 2010-06-11 05:08:51
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="http://www.open-mpi.org/community/lists/users/2010/05/13309.php">José Ignacio Aliaga Estellés: "Re: [OMPI users] GM + OpenMPI bug ..."</a>
+<li><strong>Previous message:</strong> <a href="13307.php">asmae.elbahlouli_at_[hidden]: "[OMPI users] problem with mpirun"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="http://www.open-mpi.org/community/lists/users/2006/04/1109.php">semper: "Re: [OMPI users] (no subject)"</a>
+<li><strong>Maybe reply:</strong> <a href="http://www.open-mpi.org/community/lists/users/2006/04/1109.php">semper: "Re: [OMPI users] (no subject)"</a>
+<li><strong>Maybe reply:</strong> <a href="http://www.open-mpi.org/community/lists/users/2006/07/1562.php">Jeff Squyres \(jsquyres\): "Re: [OMPI users] (no subject)"</a>
+<li><strong>Maybe reply:</strong> <a href="http://www.open-mpi.org/community/lists/users/2007/04/3031.php">JiaXing Cai: "Re: [OMPI users] (no subject)"</a>
+<li><strong>Reply:</strong> <a href="13311.php">Peter Kjellstrom: "Re: [OMPI users] (no subject)"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<FONT face="Default Sans Serif,Verdana,Arial,Helvetica,sans-serif" size=2><P style="MARGIN: 0px">Hello </P><P style="MARGIN: 0px">i have&nbsp;a problem with parFoam, when i type in the terminal parafoam, it lauches nothing but in the terminal i have :</P><P style="MARGIN: 0px">&nbsp;</P><P style="MARGIN: 0px">&nbsp;</P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace"><A href="mailto:tta201@linux-qv31:/media/OpenFoam/FOAMpro/FOAMpro-1.5-2.2/FOAM-1.5-2.2/tutorials/icoFoam/cavity" target=blank>tta201@linux-qv31:/media/OpenFoam/FOAMpro/FOAMpro-1.5-2.2/FOAM-1.5-2.2/tutorials/icoFoam/cavity</A>&gt; paraFoam<?xml:namespace prefix = o ns = "urn:schemas-microsoft-com:office:office" /><o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<SPAN style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </SPAN><o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<SPAN style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </SPAN><o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<SPAN style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </SPAN><o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<SPAN style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </SPAN><o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<SPAN style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </SPAN><o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<SPAN style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </SPAN><o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<SPAN style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </SPAN><o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<SPAN style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </SPAN><o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">ERROR: In /home/kitware/Dashboard/MyTests/ParaView-3-8/ParaView-3.8/ParaView/VTK/Rendering/vtkXOpenGLRenderWindow.cxx, line 404<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">vtkXOpenGLRenderWindow (0x117b3d0): Could not find a decent visual</FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><o:p><FONT face="Default Monospace,Courier New,Courier,monospace">&nbsp;</FONT></o:p></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">ERROR: In /home/kitware/Dashboard/MyTests/ParaView-3-8/ParaView-3.8/ParaView/VTK/Rendering/vtkXOpenGLRenderWindow.cxx, line 404<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">vtkXOpenGLRenderWindow (0x117b3d0): Could not find a decent visual</FONT><o:p><FONT face="Default Monospace,Courier New,Courier,monospace">&nbsp;</FONT></o:p></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><o:p><FONT face="Default Monospace,Courier New,Courier,monospace">&nbsp;</FONT></o:p></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">Xlib:<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>extension "GLX" missing on display ":0.0".<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">ERROR: In /home/kitware/Dashboard/MyTests/ParaView-3-8/ParaView-3.8/ParaView/VTK/Rendering/vtkXOpenGLRenderWindow.cxx, line 611<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">vtkXOpenGLRenderWindow (0x117b3d0): GLX not found.<SPAN style="mso-spacerun: yes">&nbsp; </SPAN>Aborting.<o:p></o:p></FONT></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><o:p><FONT face="Default Monospace,Courier New,Courier,monospace">&nbsp;</FONT></o:p><o:p><FONT face="Default Monospace,Courier New,Courier,monospace">&nbsp;</FONT></o:p></P><P class=MsoNormal style="MARGIN: 0cm 0cm 0pt"><FONT face="Default Monospace,Courier New,Courier,monospace">/media/OpenFoam/FOAMpro/FOAMpro-1.5-2.2/FOAM-1.5-2.2/bin/paraFoam: line 81: 15497 Aborted<SPAN style="mso-spacerun: yes">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </SPAN>paraview --data=$caseFile<o:p></o:p></FONT></P><P style="MARGIN: 0px">&nbsp;</P><P style="MARGIN: 0px">&nbsp;</P><P style="MARGIN: 0px">&nbsp;</P><P style="MARGIN: 0px">I don't understand the problem, can someone help me please?</P><P style="MARGIN: 0px">thanks</P></FONT><!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="http://www.open-mpi.org/community/lists/users/2010/05/13309.php">José Ignacio Aliaga Estellés: "Re: [OMPI users] GM + OpenMPI bug ..."</a>
+<li><strong>Previous message:</strong> <a href="13307.php">asmae.elbahlouli_at_[hidden]: "[OMPI users] problem with mpirun"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="http://www.open-mpi.org/community/lists/users/2006/04/1109.php">semper: "Re: [OMPI users] (no subject)"</a>
+<li><strong>Maybe reply:</strong> <a href="http://www.open-mpi.org/community/lists/users/2006/04/1109.php">semper: "Re: [OMPI users] (no subject)"</a>
+<li><strong>Maybe reply:</strong> <a href="http://www.open-mpi.org/community/lists/users/2006/07/1562.php">Jeff Squyres \(jsquyres\): "Re: [OMPI users] (no subject)"</a>
+<li><strong>Maybe reply:</strong> <a href="http://www.open-mpi.org/community/lists/users/2007/04/3031.php">JiaXing Cai: "Re: [OMPI users] (no subject)"</a>
+<li><strong>Reply:</strong> <a href="13311.php">Peter Kjellstrom: "Re: [OMPI users] (no subject)"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

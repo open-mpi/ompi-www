@@ -1,0 +1,27 @@
+<div class="gmail_quote">On Wed, May 23, 2012 at 8:29 AM, Barrett, Brian W <span dir="ltr">&lt;<a href="mailto:bwbarre@sandia.gov" target="_blank">bwbarre@sandia.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<div class="HOEnZb adM"><div class="im">&gt;I should add the caveat that they are need when linking statically, but<br>
+&gt;not when using shared libraries.<br>
+<br>
+</div></div>And therein lies the problem.  We have a number of <span class="il">users</span> who build Open<br>
+MPI statically and even some who build both static and shared libraries in<br>
+the same build.  We&#39;ve never been able to figure out a reasonable way to<br>
+guess if we need to add -lhwloc or -ldl, so we add them.  It&#39;s better to<br>
+list them and have some redundant dependencies (since you have to have the<br>
+library anyways) than to not list them and have odd link errors.</blockquote></div><br><div>So pkg-config has the --static option for exactly this reason. Let&#39;s look at Cairo as an example.</div><div><br></div><div><div>
+<font face="courier new, monospace">$ cat /usr/lib/pkgconfig/cairo.pc </font></div><div><font face="courier new, monospace">prefix=/usr</font></div><div><font face="courier new, monospace">exec_prefix=${prefix}</font></div>
+<div><font face="courier new, monospace">libdir=${exec_prefix}/lib</font></div><div><font face="courier new, monospace">includedir=${prefix}/include</font></div><div><font face="courier new, monospace"><br></font></div><div>
+<font face="courier new, monospace">Name: cairo</font></div><div><font face="courier new, monospace">Description: Multi-platform 2D graphics library</font></div><div><font face="courier new, monospace">Version: 1.12.2</font></div>
+<div><font face="courier new, monospace"><br></font></div><div><font face="courier new, monospace">Requires.private:   gobject-2.0 glib-2.0       pixman-1 &gt;= 0.22.0    fontconfig &gt;= 2.2.95 freetype2 &gt;= 9.7.3   libpng xcb-shm xcb &gt;= 1.6 xcb-render &gt;= 1.6 xrender &gt;= 0.6 x11 </font></div>
+<div><font face="courier new, monospace">Libs: -L${libdir} -lcairo</font></div><div><font face="courier new, monospace">Libs.private:            -lz -lz         </font></div><div><font face="courier new, monospace">Cflags: -I${includedir}/cairo</font></div>
+</div><div><font face="courier new, monospace"><br></font></div><div><div><font face="courier new, monospace">$ pkg-config cairo --libs</font></div><div><font face="courier new, monospace">-lcairo</font></div></div><div><div>
+<font face="courier new, monospace">$ pkg-config cairo --libs --static</font></div><div><font face="courier new, monospace">-pthread -lcairo -lgobject-2.0 -lffi -lpixman-1 -lfontconfig -lexpat -lfreetype -lbz2 -lpng15 -lz -lm -lxcb-shm -lxcb-render -lXrender -lglib-2.0 -lrt -lpcre -lX11 -lpthread -lxcb -lXau -lXdmcp</font></div>
+</div><div><font face="courier new, monospace"><div>$ ldd /usr/lib/libcairo.so</div><div>        linux-vdso.so.1 =&gt;  (0x00007fff741ff000)</div><div>        libpthread.so.0 =&gt; /lib/libpthread.so.0 (0x00007f135eac7000)</div>
+<div>        libpixman-1.so.0 =&gt; /usr/lib/libpixman-1.so.0 (0x00007f135e83f000)</div><div>        libfontconfig.so.1 =&gt; /usr/lib/libfontconfig.so.1 (0x00007f135e608000)</div><div>        libfreetype.so.6 =&gt; /usr/lib/libfreetype.so.6 (0x00007f135e369000)</div>
+<div>        libpng15.so.15 =&gt; /usr/lib/libpng15.so.15 (0x00007f135e13c000)</div><div>        libxcb-shm.so.0 =&gt; /usr/lib/libxcb-shm.so.0 (0x00007f135df39000)</div><div>        libxcb-render.so.0 =&gt; /usr/lib/libxcb-render.so.0 (0x00007f135dd30000)</div>
+<div>        libxcb.so.1 =&gt; /usr/lib/libxcb.so.1 (0x00007f135db12000)</div><div>        libXrender.so.1 =&gt; /usr/lib/libXrender.so.1 (0x00007f135d906000)</div><div>        libX11.so.6 =&gt; /usr/lib/libX11.so.6 (0x00007f135d5cc000)</div>
+<div>        libz.so.1 =&gt; /usr/lib/libz.so.1 (0x00007f135d3b6000)</div><div>        librt.so.1 =&gt; /lib/librt.so.1 (0x00007f135d1ad000)</div><div>        libm.so.6 =&gt; /lib/libm.so.6 (0x00007f135ceb8000)</div><div>
+        libc.so.6 =&gt; /lib/libc.so.6 (0x00007f135cb17000)</div><div>        /lib/ld-linux-x86-64.so.2 (0x00007f135f012000)</div><div>        libbz2.so.1.0 =&gt; /usr/lib/libbz2.so.1.0 (0x00007f135c906000)</div><div>        libexpat.so.1 =&gt; /usr/lib/libexpat.so.1 (0x00007f135c6dc000)</div>
+<div>        libXau.so.6 =&gt; /usr/lib/libXau.so.6 (0x00007f135c4d8000)</div><div>        libXdmcp.so.6 =&gt; /usr/lib/libXdmcp.so.6 (0x00007f135c2d1000)</div><div>        libdl.so.2 =&gt; /lib/libdl.so.2 (0x00007f135c0cd000)</div>
+</font></div><div><font face="courier new, monospace"><br></font></div><div><font face="arial, helvetica, sans-serif">Now I&#39;m not saying that Open MPI should commit to pkg-config instead of wrapper compilers, but the concept of linking differently for static versus shared libraries is something that should be observed.</font></div>
+<div><font face="arial, helvetica, sans-serif"><br></font></div><div><font face="arial, helvetica, sans-serif">(Over-linking is an ongoing problem with HPC-oriented packages. We are probably all guilty of it, but tools like pkg-config don&#39;t handle multiple configurations well and I don&#39;t know of a similar system that manages both static/shared and multi-configuration well.)</font></div>
+

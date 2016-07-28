@@ -1,0 +1,107 @@
+<div dir="ltr"><div>Since the blocking semantics are important for correctness of the prior code, I would not just replace send_buffer with send_buffer_nb. This makes the semantics incorrect, and will make things confusing later when you try to sort out prior calls to send_buffer_nb with those that you replaced.</div>
+<div><br></div><div>As an alternative I would suggest that you &quot;#ifdef 0&quot; out those sections of code and leave the send_buffer_nb alternative in a comment. Then leave a big TODO comment there for you to go back and fix the semantics - which will likely involve just rewriting large sections of that framework. But at least you will be able to see what was there before when you try to move it to a more nonblocking model.</div>
+<div><br></div><div>The bkmrk component is subtle, maybe more that it should be. So keeping the old blocking interfaces there will probably help quite a bit when you get to it later. In that component the blocking calls are critical to correctness, so we will need to sort out how to make that more asynchronous in our redesign.</div>
+<div><br></div><div>Other than that modification (#ifdef comments instead of nonblocking replacements), I think this patch is fine. As was mentioned previously, we will need to go back (after things compile) and figure out a new model for this behavior.</div>
+<div><br></div><div>Thanks!</div><div>Josh</div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, Dec 4, 2013 at 9:58 AM, Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Err... upon further thought, I might be totally wrong about emulating blocking.  There might be (probably are?) rules/assumptions in the ORTE layer (of which I am *not* an expert) that disallow you from [emulating] blocking.<br>
+
+<br>
+If that&#39;s the case, then there&#39;s architectural issues with converting from blocking to nonblocking on both the sending and the receiving sides that might be a bit thorny to sort out.<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+<br>
+On Dec 4, 2013, at 10:54 AM, &quot;Jeff Squyres (jsquyres)&quot; &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+<br>
+&gt; On Nov 25, 2013, at 9:59 AM, Adrian Reber &lt;<a href="mailto:adrian@lisas.de">adrian@lisas.de</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; * Send Non-blocking<br>
+&gt;&gt; */<br>
+&gt;&gt; int orte_rml_ftrm_send_nb(orte_process_name_t* peer,<br>
+&gt;&gt;                          struct iovec* msg,<br>
+&gt;&gt;                          int count,<br>
+&gt;&gt;                          orte_rml_tag_t tag,<br>
+&gt;&gt; -                          int flags,<br>
+&gt;&gt;                          orte_rml_callback_fn_t cbfunc,<br>
+&gt;&gt;                          void* cbdata)<br>
+&gt;&gt; {<br>
+&gt;&gt;    int ret;<br>
+&gt;&gt;<br>
+&gt;&gt;    opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt;&gt; -                        &quot;orte_rml_ftrm: send_nb(%s, %d, %d, %d )&quot;,<br>
+&gt;&gt; -                        ORTE_NAME_PRINT(peer), count, tag, flags);<br>
+&gt;&gt; +                        &quot;orte_rml_ftrm: send_nb(%s, %d, %d )&quot;,<br>
+&gt;&gt; +                        ORTE_NAME_PRINT(peer), count, tag);<br>
+&gt;&gt;<br>
+&gt;&gt;    if( NULL != orte_rml_ftrm_wrapped_module.send_nb ) {<br>
+&gt;&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.send_nb(peer, msg, count, tag, flags, cbfunc, cbdata) ) ) {<br>
+&gt;&gt; -            return ret;<br>
+&gt;&gt; -        }<br>
+&gt;&gt; -    }<br>
+&gt;&gt; -<br>
+&gt;&gt; -    return ORTE_SUCCESS;<br>
+&gt;&gt; -}<br>
+&gt;&gt; -<br>
+&gt;&gt; -/*<br>
+&gt;&gt; - * Send Buffer<br>
+&gt;&gt; - */<br>
+&gt;&gt; -int orte_rml_ftrm_send_buffer(orte_process_name_t* peer,<br>
+&gt;&gt; -                              opal_buffer_t* buffer,<br>
+&gt;&gt; -                              orte_rml_tag_t tag,<br>
+&gt;&gt; -                              int flags)<br>
+&gt;&gt; -{<br>
+&gt;&gt; -    int ret;<br>
+&gt;&gt; -<br>
+&gt;&gt; -    opal_output_verbose(20, rml_ftrm_output_handle,<br>
+&gt;&gt; -                        &quot;orte_rml_ftrm: send_buffer(%s, %d, %d )&quot;,<br>
+&gt;&gt; -                        ORTE_NAME_PRINT(peer), tag, flags);<br>
+&gt;&gt; -<br>
+&gt;&gt; -    if( NULL != orte_rml_ftrm_wrapped_module.send_buffer ) {<br>
+&gt;&gt; -        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.send_buffer(peer, buffer, tag, flags) ) ) {<br>
+&gt;&gt; +        if( ORTE_SUCCESS != (ret = orte_rml_ftrm_wrapped_module.send_nb(peer, msg, count, tag, cbfunc, cbdata) ) ) {<br>
+&gt;&gt;            return ret;<br>
+&gt;&gt;        }<br>
+&gt;&gt;    }<br>
+&gt;<br>
+&gt; Similar to my reply about patch 3, I don&#39;t think this hunk is correct.<br>
+&gt;<br>
+&gt; This routine accepts an iovec and sends it in a non-blocking fashion.  I&#39;ll bet that the caller frees the iovec upon return from the function (because it used to be a blocking send, and freeing it immediately was acceptable).<br>
+
+&gt;<br>
+&gt; But now the iovec may well still be in use when this function returns, so the caller should *not* free/reuse the iovec until it knows that the send has complete.<br>
+&gt;<br>
+&gt; It may be more desirable to keep the blocking send function orte_rml_ftrm_send_buffer() and emulate blocking by invoking send_nb under the covers, but then not returning until the send callback has actually been invoked.<br>
+
+&gt;<br>
+&gt; Then the blocking semantics expected by the caller may well be acceptable/safe.<br>
+&gt;<br>
+&gt; This loses some potential optimizations of asynchronicity, but it may be worth it: a) performance in this part of the code isn&#39;t too critical, and b) blocking semantics are usually simpler and easier to maintain, from the caller&#39;s perspective.<br>
+
+&gt;<br>
+&gt; This idea may also apply to what I said in reply to patch 3...?  (i.e., preserve a blocking send by using the _nb variant under the covers, but not returning until the nonblocking variant has actually completed the receive).<br>
+
+&gt;<br>
+&gt; Since this is a fairly large change, I didn&#39;t look too closely throughout the rest of this patch.  I assume that there are a few other architectural cases similar to this one.<br>
+&gt;<br>
+&gt; --<br>
+&gt; Jeff Squyres<br>
+&gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Joshua Hursey<br>Assistant Professor of Computer Science<br>University of Wisconsin-La Crosse<br><a href="http://cs.uwlax.edu/~jjhursey" target="_blank">http://cs.uwlax.edu/~jjhursey</a>
+</div>
+

@@ -1,0 +1,88 @@
+Hmmm...I&#39;ll take a look. It seems to be working for me under Torque and SLURM, though I cannot vouch for the tree launch. The problem with letting the index start at 0 is it breaks other things, so I&#39;ll have to see about fixing the routing schemes, or find some compromise.<br>
+<br>Thanks for the heads up.<br>Ralph<br><br><br><div class="gmail_quote">On Wed, Jul 1, 2009 at 1:49 PM, George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu">bosilca@eecs.utk.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Ralph,<br>
+<br>
+This commit break several components in OMPI, mainly the routing schemes and the tree launch. The part with the problem is the reduction of the number of declared daemons on the second part of the commit, where you change the boundary for the for loop from 0 to 1. As a result the number of daemons was decreased by one (I guess in order to exclude the HNP), which is not something that the routing implementations tolerate.<br>
+
+<br>
+Setting the loop boundary back to 0 seems to fix all problems. Please reconsider your patch.<br>
+<br>
+  george.<br>
+<br>
+On Fri, 26 Jun 2009, <a href="mailto:rhc@osl.iu.edu" target="_blank">rhc@osl.iu.edu</a> wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Author: rhc<br>
+Date: 2009-06-26 18:07:25 EDT (Fri, 26 Jun 2009)<br>
+New Revision: 21548<br>
+URL: <a href="https://svn.open-mpi.org/trac/ompi/changeset/21548" target="_blank">https://svn.open-mpi.org/trac/ompi/changeset/21548</a><br>
+<br>
+Log:<br>
+Cleanup some indexing bugs so that shared memory can function<br>
+<br>
+Text files modified:<br>
+  trunk/orte/util/nidmap.c |    12 +++++++-----<br>
+  1 files changed, 7 insertions(+), 5 deletions(-)<br>
+<br>
+Modified: trunk/orte/util/nidmap.c<br>
+==============================================================================<br>
+--- trunk/orte/util/nidmap.c    (original)<br>
++++ trunk/orte/util/nidmap.c    2009-06-26 18:07:25 EDT (Fri, 26 Jun 2009)<br>
+@@ -341,10 +341,10 @@<br>
+<br>
+    /* pack every nodename individually */<br>
+    for (i=1; i &lt; orte_node_pool-&gt;size; i++) {<br>
++        if (NULL == (node = (orte_node_t*)opal_pointer_array_get_item(orte_node_pool, i))) {<br>
++            continue;<br>
++        }<br>
+        if (!orte_keep_fqdn_hostnames) {<br>
+-            if (NULL == (node = (orte_node_t*)opal_pointer_array_get_item(orte_node_pool, i))) {<br>
+-                continue;<br>
+-            }<br>
+            nodename = strdup(node-&gt;name);<br>
+            if (NULL != (ptr = strchr(nodename, &#39;.&#39;))) {<br>
+                *ptr = &#39;\0&#39;;<br>
+@@ -553,6 +553,8 @@<br>
+        ORTE_ERROR_LOG(rc);<br>
+        return rc;<br>
+    }<br>
++    /* set the daemon to 0 */<br>
++    node-&gt;daemon = 0;<br>
+<br>
+    /* loop over nodes and unpack the raw nodename */<br>
+    for (i=1; i &lt; num_nodes; i++) {<br>
+@@ -570,7 +572,7 @@<br>
+        }<br>
+    }<br>
+<br>
+-    /* unpack the daemon names */<br>
++    /* unpack the daemon vpids */<br>
+    vpids = (orte_vpid_t*)malloc(num_nodes * sizeof(orte_vpid_t));<br>
+    n=num_nodes;<br>
+    if (ORTE_SUCCESS != (rc = opal_dss.unpack(&amp;buf, vpids, &amp;n, ORTE_VPID))) {<br>
+@@ -581,7 +583,7 @@<br>
+     * daemons in the system<br>
+     */<br>
+    num_daemons = 0;<br>
+-    for (i=0; i &lt; num_nodes; i++) {<br>
++    for (i=1; i &lt; num_nodes; i++) {<br>
+        if (NULL != (ndptr = (orte_nid_t*)opal_pointer_array_get_item(&amp;orte_nidmap, i))) {<br>
+            ndptr-&gt;daemon = vpids[i];<br>
+            if (ORTE_VPID_INVALID != vpids[i]) {<br>
+_______________________________________________<br>
+svn mailing list<br>
+<a href="mailto:svn@open-mpi.org" target="_blank">svn@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/svn" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/svn</a><br>
+<br>
+</blockquote>
+<br>
+&quot;We must accept finite disappointment, but we must never lose infinite<br>
+hope.&quot;<br>
+                                  Martin Luther King<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote></div><br>
+

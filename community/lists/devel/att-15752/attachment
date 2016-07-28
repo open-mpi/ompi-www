@@ -1,0 +1,203 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Ralph,<br>
+      <br>
+      <pre wrap="">r32639 and r32642 fixes bugs that do exist in both trunk and v1.8, and they can be considered as independent of the issue that is discussed in this thread and the one you pointed.
+
+so imho, they should land v1.8 even if they do not fix the issue we are now discussing here
+
+Cheers,
+
+Gilles
+</pre>
+      <br>
+      On 2014/08/29 16:42, Ralph Castain wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:73E8F541-AEF5-47BC-BF56-31A6DDF996A4@open-mpi.org"
+      type="cite">
+      <pre wrap="">This is the email thread which sparked the problem:
+
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/07/15329.php">http://www.open-mpi.org/community/lists/devel/2014/07/15329.php</a>
+
+I actually tried to apply the original CMR and couldn't get it to work in the 1.8 branch - just kept having problems, so I pushed it off to 1.8.3. I'm leery to accept either of the current CMRs for two reasons: (a) none of the preceding changes is in the 1.8 series yet, and (b) it doesn't sound like we still have a complete solution.
+
+Anyway, I just wanted to point to the original problem that was trying to be addressed.
+
+
+On Aug 28, 2014, at 10:01 PM, Gilles Gouaillardet <a class="moz-txt-link-rfc2396E" href="mailto:gilles.gouaillardet@iferc.org">&lt;gilles.gouaillardet@iferc.org&gt;</a> wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Howard and Edgar,
+
+i fixed a few bugs (r32639 and r32642)
+
+the bug is trivial to reproduce with any mpi hello world program
+
+mpirun -np 2 --mca btl openib,self hello_world
+
+after setting the mca param in the $HOME/.openmpi/mca-params.conf
+
+$ cat ~/.openmpi/mca-params.conf
+btl_openib_receive_queues = S,12288,128,64,32:S,65536,128,64,3
+
+good news is the program does not crash with a glory SIGSEGV any more
+bad news is the program will (nicely) abort for an incorrect reason :
+
+--------------------------------------------------------------------------
+The Open MPI receive queue configuration for the OpenFabrics devices
+on two nodes are incompatible, meaning that MPI processes on two
+specific nodes were unable to communicate with each other.  This
+generally happens when you are using OpenFabrics devices from
+different vendors on the same network.  You should be able to use the
+mca_btl_openib_receive_queues MCA parameter to set a uniform receive
+queue configuration for all the devices in the MPI job, and therefore
+be able to run successfully.
+
+ Local host:       node0
+ Local adapter:    mlx4_0 (vendor 0x2c9, part ID 4099)
+ Local queues:     S,12288,128,64,32:S,65536,128,64,3
+
+ Remote host:      node0
+ Remote adapter:   (vendor 0x2c9, part ID 4099)
+ Remote queues:   
+P,128,256,192,128:S,2048,1024,1008,64:S,12288,1024,1008,64:S,65536,1024,1008,64
+
+the root cause is the remote host did not send its receive_queues to the
+local host
+(and hence the local host believes the remote hosts uses the default value)
+
+the logic was revamped vs v1.8, that is why v1.8 does not have such issue.
+
+i am still thinking what should be the right fix :
+- one option is to send the receive queues
+- an other option would be to differenciate value overrided in
+mca-params.conf (should be always ok) of value overrided in the .ini
+ (might want to double check local and remote values match)
+
+Cheers,
+
+Gilles
+
+On 2014/08/29 7:02, Pritchard Jr., Howard wrote:
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Hi Edgar,
+
+Could you send me your conf file?  I'll try to reproduce it.
+
+Maybe run with --mca btl_base_verbose 20 or something to
+see what the code that is parsing this field in the conf file
+is finding.
+
+
+Howard
+
+
+-----Original Message-----
+From: devel [<a class="moz-txt-link-freetext" href="mailto:devel-bounces@open-mpi.org">mailto:devel-bounces@open-mpi.org</a>] On Behalf Of Edgar Gabriel
+Sent: Thursday, August 28, 2014 3:40 PM
+To: Open MPI Developers
+Subject: Re: [OMPI devel] segfault in openib component on trunk
+
+to add another piece of information that I just found, the segfault only occurs if I have a particular mca parameter set in my mca-params.conf file, namely
+
+btl_openib_receive_queues = S,12288,128,64,32:S,65536,128,64,3
+
+Has the syntax for this parameter changed, or should/can I get rid of it?
+
+Thanks
+Edgar
+
+On 08/28/2014 04:19 PM, Edgar Gabriel wrote:
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">we are having recently problems running trunk with openib component 
+enabled on one of our clusters. The problem occurs right in the 
+initialization part, here is the stack right before the segfault:
+
+---snip---
+(gdb) where
+#0  mca_btl_openib_tune_endpoint (openib_btl=0x762a40,
+endpoint=0x7d9660) at btl_openib.c:470
+#1  0x00007f1062f105c4 in mca_btl_openib_add_procs (btl=0x762a40, 
+nprocs=2, procs=0x759be0, peers=0x762440, reachable=0x7fff22dd16f0) at
+btl_openib.c:1093
+#2  0x00007f106316102c in mca_bml_r2_add_procs (nprocs=2, 
+procs=0x759be0, reachable=0x7fff22dd16f0) at bml_r2.c:201
+#3  0x00007f10615c0dd5 in mca_pml_ob1_add_procs (procs=0x70dc00,
+nprocs=2) at pml_ob1.c:334
+#4  0x00007f106823ed84 in ompi_mpi_init (argc=1, argv=0x7fff22dd1da8, 
+requested=0, provided=0x7fff22dd184c) at runtime/ompi_mpi_init.c:790
+#5  0x00007f1068273a2c in MPI_Init (argc=0x7fff22dd188c,
+argv=0x7fff22dd1880) at init.c:84
+#6  0x00000000004008e7 in main (argc=1, argv=0x7fff22dd1da8) at
+hello_world.c:13
+---snip---
+
+
+in line 538 of the file containing the mca_btl_openib_tune_endpoint 
+routine, the strcmp operation fails, because  recv_qps is a NULL pointer.
+
+
+---snip---
+
+if(0 != strcmp(mca_btl_openib_component.receive_queues, recv_qps)) {
+
+---snip---
+
+Does anybody have an idea on what might be going wrong and how to 
+resolve it? Just to confirm, everything works perfectly with the 1.8 
+series on that very same  cluster
+
+Thanks
+Edgar
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15746.php">http://www.open-mpi.org/community/lists/devel/2014/08/15746.php</a>
+</pre>
+          </blockquote>
+          <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15747.php">http://www.open-mpi.org/community/lists/devel/2014/08/15747.php</a>
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15748.php">http://www.open-mpi.org/community/lists/devel/2014/08/15748.php</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15749.php">http://www.open-mpi.org/community/lists/devel/2014/08/15749.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/08/15750.php">http://www.open-mpi.org/community/lists/devel/2014/08/15750.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

@@ -1,0 +1,66 @@
+Index: btl_openib_connect_sl.c
+===================================================================
+--- btl_openib_connect_sl.c	(revision 32823)
++++ btl_openib_connect_sl.c	(working copy)
+@@ -106,6 +106,7 @@
+ {
+     struct ibv_qp_init_attr iattr;
+     struct ibv_qp_attr mattr;
++    struct ibv_recv_wr *brwr;
+     int rc;
+ 
+     /* create cq */
+@@ -169,6 +170,21 @@
+                     cache->qp->qp_num, strerror(errno), errno));
+         return OMPI_ERROR;
+     }
++    
++    memset(&(cache->rwr), 0, sizeof(cache->rwr));
++    cache->rwr.num_sge = 1;
++    cache->rwr.sg_list = &(cache->rsge);
++    memset(&(cache->rsge), 0, sizeof(cache->rsge));
++    cache->rsge.addr = (uint64_t)(void *) (cache->send_recv_buffer + MAD_BLOCK_SIZE);
++    cache->rsge.length = MAD_BLOCK_SIZE + 40;
++    cache->rsge.lkey = cache->mr->lkey;
++    
++    rc = ibv_post_recv(cache->qp, &(cache->rwr), &brwr);
++    if (0 != rc) {
++	BTL_ERROR(("error posting receive on QP [0x%x] errno says: %s [%d]",
++		    cache->qp->qp_num, strerror(errno), errno));
++	return OMPI_ERROR;
++    }
+ 
+     return OMPI_SUCCESS;
+ }
+@@ -235,13 +251,14 @@
+ 
+     got_sl_value = 0;
+     get_sl_rec_retries = 0;
+-
++#if 0
+     rc = ibv_post_recv(cache->qp, &(cache->rwr), &brwr);
+     if (0 != rc) {
+         BTL_ERROR(("error posting receive on QP [0x%x] errno says: %s [%d]",
+                    cache->qp->qp_num, strerror(errno), errno));
+         return OMPI_ERROR;
+     }
++#endif
+ 
+     while (0 == got_sl_value) {
+         rc = ibv_post_send(cache->qp, swr, &bswr);
+@@ -373,6 +390,7 @@
+         return OMPI_ERROR;
+     }
+ 
++#if 0
+     memset(&(cache->rwr), 0, sizeof(cache->rwr));
+     cache->rwr.num_sge = 1;
+     cache->rwr.sg_list = &(cache->rsge);
+@@ -381,6 +399,7 @@
+         (cache->send_recv_buffer + MAD_BLOCK_SIZE);
+     cache->rsge.length = MAD_BLOCK_SIZE + 40;
+     cache->rsge.lkey = cache->mr->lkey;
++#endif
+ 
+     return 0;
+ }

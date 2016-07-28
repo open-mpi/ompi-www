@@ -1,0 +1,135 @@
+<div dir="ltr">I would say the switch to __sync atomics by default is surprising to me.<div><div>I am *not* campaigning to reverse the result of the RFC (of which I mist have missed the details and outcome).</div></div><div>However, I have a couple observations:</div><div><br></div><div>1) The loss of aqc/rel distinctions is probably minor on x86/x86-64 but might be significant on other platforms</div><div><br></div><div>2) For the case of x86 the &quot;old&quot; inline assembly provided opal_atomic_cmpset_64, and implemented 64-bit add, sub and swap in terms of it.</div><div>However, gcc is NOT providing a __sync_bool_compare_and_swap_8(), or at least not where I tested (gcc 4.8.4 and 4.2.1, for instance).</div><div>You could call that a gcc bug if you wish.</div><div><br></div><div>-Paul</div><div class="gmail_extra"><br><div class="gmail_quote">On Mon, May 9, 2016 at 10:43 AM, Hjelm, Nathan Thomas <span dir="ltr">&lt;<a href="mailto:hjelmn@lanl.gov" target="_blank">hjelmn@lanl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">We have chosen to use the __sync builtins by default on master. There was an rfc on it awhile ago. Is there a good reason to go back to the inline by default or is this just surprising?<br>
+<br>
+<br>
+________________________________________<br>
+From: devel on behalf of Paul Hargrove<br>
+Sent: Monday, May 09, 2016 11:12:16 AM<br>
+<span class="">To: Open MPI Developers<br>
+Subject: Re: [OMPI devel] Master broken for ILP32<br>
+<br>
+</span><div><div class="h5">Regarding &quot;distro&quot;:<br>
+This was happening, for instance, on OpenBSD and NetBSD (32-bit kernels on 64-bit h/w) when testing your PR1643.<br>
+However, it sounds like Nathan knows how/where to fix this.<br>
+<br>
+HOWEVER, that is not the only issue here.<br>
+Why is master is picking the BUILTIN (__sync) atomics (as shown in the configure output quoted below), while v2.x (same system and same config args) uses a .s file:<br>
+*** Assembler<br>
+checking dependency style of gcc -std=gnu99... gcc3<br>
+checking for BSD- or MS-compatible name lister (nm)... /usr/bin/nm -B<br>
+checking the name lister (/usr/bin/nm -B) interface... BSD nm<br>
+checking for fgrep... /usr/bin/grep -F<br>
+checking if .proc/endp is needed... no<br>
+checking directive for setting text section... .text<br>
+checking directive for exporting symbols... .globl<br>
+checking for objdump... objdump<br>
+checking if .note.GNU-stack is needed... no<br>
+checking suffix for labels... :<br>
+checking prefix for global symbol labels...<br>
+checking prefix for lsym labels... .L<br>
+checking prefix for function in .type... @<br>
+checking if .size is needed... yes<br>
+checking if .align directive takes logarithmic value... no<br>
+checking if processor supports x86_64 16-byte compare-and-exchange... no<br>
+checking if gcc -std=gnu99 supports GCC inline assembly... yes<br>
+checking if gcc -std=gnu99 supports DEC inline assembly... no<br>
+checking if gcc -std=gnu99 supports XLC inline assembly... no<br>
+checking for assembly format... default-.text-.globl-:--.L-@-1-0-1-1-0<br>
+checking for assembly architecture... IA32<br>
+checking for builtin atomics... BUILTIN_NO<br>
+checking for perl... perl<br>
+checking for pre-built assembly file... yes (atomic-ia32-linux-nongas.s)<br>
+checking for atomic assembly filename... atomic-ia32-linux-nongas.s<br>
+<br>
+<br>
+-Paul<br>
+<br>
+</div></div><div><div class="h5">On Mon, May 9, 2016 at 1:22 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles@rist.or.jp">gilles@rist.or.jp</a>&lt;mailto:<a href="mailto:gilles@rist.or.jp">gilles@rist.or.jp</a>&gt;&gt; wrote:<br>
+<br>
+Paul,<br>
+<br>
+<br>
+on which distro are you running ?<br>
+<br>
+are you compiling on a 64 bit distro to generate a 32 bit library ?<br>
+<br>
+<br>
+it seems we are currently only testing a atomic on a long (32 bits on a 32 bits arch) and<br>
+<br>
+then incorrectly assume it works also on 64 bits (!)<br>
+<br>
+<br>
+Cheers,<br>
+<br>
+<br>
+Gilles<br>
+<br>
+On 5/9/2016 3:59 PM, Paul Hargrove wrote:<br>
+Perhaps this is already known.<br>
+Several builds I&#39;ve tried recently from the ompi (not ompi-release) repo are failing on 32-bit platforms with<br>
+   ../../../opal/.libs/libopen-pal.so: undefined reference to `__sync_add_and_fetch_8&#39;<br>
+<br>
+This is impacting PRs that I am being asked to test (e.g. 1643).<br>
+<br>
+Note that I did *not* configure with --enable-builtin-atomics, yet configure seems to show them being selected anyway:<br>
+*** Assembler<br>
+checking dependency style of gcc -std=gnu99... gcc3<br>
+checking for BSD- or MS-compatible name lister (nm)... /usr/bin/nm -B<br>
+checking the name lister (/usr/bin/nm -B) interface... BSD nm<br>
+checking for fgrep... /usr/bin/grep -F<br>
+checking for __sync builtin atomics... yes<br>
+checking for processor support of __sync builtin atomic compare-and-swap on 128-bit values... no<br>
+checking for __sync builtin atomic compare-and-swap on 128-bit values with -mcx16 flag... no<br>
+checking if .proc/endp is needed... no<br>
+checking directive for setting text section... .text<br>
+checking directive for exporting symbols... .globl<br>
+checking for objdump... objdump<br>
+checking if .note.GNU-stack is needed... no<br>
+checking suffix for labels... :<br>
+checking prefix for global symbol labels...<br>
+checking prefix for lsym labels... .L<br>
+checking prefix for function in .type... @<br>
+checking if .size is needed... yes<br>
+checking if .align directive takes logarithmic value... no<br>
+checking if processor supports x86_64 16-byte compare-and-exchange... no<br>
+checking for assembly architecture... IA32<br>
+checking for builtin atomics... BUILTIN_SYNC<br>
+checking for atomic assembly filename... none<br>
+<br>
+-Paul<br>
+<br>
+--<br>
+</div></div>Paul H. Hargrove                          &lt;mailto:<a href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>&gt; <a href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>&lt;mailto:<a href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>&gt;<br>
+<span class="">Computer Languages &amp; Systems Software (CLaSS) Group<br>
+</span>Computer Science Department               Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352">+1-510-495-2352</a>&lt;tel:%2B1-510-495-2352&gt;<br>
+Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900">+1-510-486-6900</a>&lt;tel:%2B1-510-486-6900&gt;<br>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+<span class="">Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/05/18941.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/05/18941.php</a><br>
+<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+</span><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+<span class="">Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/05/18942.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/05/18942.php</a><br>
+<br>
+<br>
+<br>
+--<br>
+</span>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>&lt;mailto:<a href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>&gt;<br>
+<span class="">Computer Languages &amp; Systems Software (CLaSS) Group<br>
+Computer Science Department               Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352">+1-510-495-2352</a><br>
+Lawrence Berkeley National Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900">+1-510-486-6900</a><br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</span>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/05/18946.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/05/18946.php</a><br>
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature"><div dir="ltr"><div><font face="courier new, monospace"><div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Computer Languages &amp; Systems Software (CLaSS) Group</div><div>Computer Science Department               Tel: +1-510-495-2352</div><div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font></div></div></div>
+</div></div>
+

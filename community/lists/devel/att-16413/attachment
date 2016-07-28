@@ -1,0 +1,729 @@
+<div dir="ltr"><div>Hello,</div><div><br></div><div>Jeff, your fix brakes my system again. Actually you just reverted my changes. Here is what I have:</div><div><br></div><div><div>configure:5441: *** GNU libltdl setup</div><div>configure:296939: checking location of libltdl</div><div>configure:296952: result: internal copy</div><div>configure:297028: OPAL configuring in opal/libltdl</div><div>configure:297113: running /bin/bash &#39;.../opal/libltdl/configure&#39;  &#39;--prefix=.../ompi-pmix-refactoring_install/&#39; &#39;--enable-debug&#39; &#39;--disable-oshmem&#39; &#39;--with-pmi=/home/artpol/sandboxes/slurm/&#39; --enable-ltdl-convenience --disable-ltdl-install --enable-shared --disable-static --cache-file=/dev/null --srcdir=.../opal/libltdl --disable-option-checking</div><div>configure:297119: /bin/bash &#39;.../opal/libltdl/configure&#39; succeeded for opal/libltdl</div><div>In file included from conftest.c:718:0:</div><div>.../opal/libltdl/ltdl.h:36:31: fatal error: libltdl/lt_system.h: No such file or directory</div><div> #include &lt;libltdl/lt_system.h&gt;</div><div>                               ^</div><div>compilation terminated.</div><div>configure:297864: checking for lt_dladvise</div><div>configure:297870: result: no</div><div>configure:297923: creating ./<a href="http://config.lt">config.lt</a></div></div><div><br></div><div>Surprisingly to me this error (I am sure!) occurs on any system but only on mine it fails to set advise on! I checked that on other machines! </div><div><br></div><div>The reason was pointed in original PR:</div><div>ltdl.h has includes</div><div><pre style="overflow:auto;font-family:Consolas,&#39;Liberation Mono&#39;,Menlo,Courier,monospace;font-size:12px;margin-top:0px;margin-bottom:0px;font-stretch:normal;line-height:1.45;padding:16px;border-top-left-radius:3px;border-top-right-radius:3px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;word-wrap:normal;word-break:normal;color:rgb(51,51,51);background-color:rgb(247,247,247)">#<span class="" style="color:rgb(167,29,93)">include</span> <span class="" style="color:rgb(223,80,0)"><span class="">&lt;</span> libltdl/lt_system.h <span class="">&gt;</span></span>
+#<span class="" style="color:rgb(167,29,93)">include</span> <span class="" style="color:rgb(223,80,0)"><span class="">&lt;</span> libltdl/lt_error.h <span class="">&gt;</span></span></pre></div><div><br></div><div>That can&#39;t be found without &quot;-I$srcdir/opal/libltdl/&quot;.</div><div><br></div><div>The point is that we DO need &quot;-I$srcdir/opal/libltdl/&quot; but we ALSO need &quot;-I$srcdir&quot; too! I filed the new PR (<a href="https://github.com/open-mpi/ompi/pull/301">https://github.com/open-mpi/ompi/pull/301</a>) but won&#39;t merge it until Edgar confirms that it&#39;s OK with his system.</div><div><br></div><div>So the original error was in removing -I$srcdir. I was sure that we converged on this and found another valuable discussion in ompi-release: <a href="https://github.com/open-mpi/ompi-release/pull/34">https://github.com/open-mpi/ompi-release/pull/34</a></div><div><br></div><div>There I was looking into configure script and found:</div><div><pre style="overflow:auto;font-family:Consolas,&#39;Liberation Mono&#39;,Menlo,Courier,monospace;font-size:12px;margin-top:0px;margin-bottom:0px;font-stretch:normal;line-height:1.45;padding:16px;border-top-left-radius:3px;border-top-right-radius:3px;border-bottom-right-radius:3px;border-bottom-left-radius:3px;word-wrap:normal;word-break:normal;color:rgb(51,51,51);background-color:rgb(247,247,247)">CPPFLAGS=<span class="" style="color:rgb(223,80,0)"><span class="">&quot;</span>-I<span class="" style="color:rgb(51,51,51)">$srcdir</span>/ -I<span class="" style="color:rgb(51,51,51)">$srcdir</span>/opal/libltdl/<span class="">&quot;</span></span>
+<span class="" style="color:rgb(150,152,150)"># Must specifically mention $srcdir here for VPATH builds</span>
+<span class="" style="color:rgb(150,152,150)"># (this file is in the src tree).</span>
+cat confdefs.h - <span class="" style="color:rgb(223,80,0)"><span class="" style="color:rgb(167,29,93)">&lt;&lt;</span><span class="" style="color:rgb(167,29,93)">_ACEOF</span> &gt;conftest.$ac_ext</span>
+<span class="" style="color:rgb(223,80,0)">/* end confdefs.h.  */</span>
+<span class="" style="color:rgb(223,80,0)">#include &lt;$srcdir/opal/libltdl/ltdl.h&gt;</span>
+<span class="" style="color:rgb(223,80,0)"></span>
+<span class="" style="color:rgb(223,80,0)"><span class="" style="color:rgb(167,29,93)">_ACEOF</span></span></pre></div><div><br></div><div>And it was obvious that we don&#39;t need &quot;-I$srcdir/&quot; because it was hardcoded in the include but it turns out that I&#39;ve been wrong and maybe some other building system emmits different code. I would like to see Edgars original config.log. Jeff could you send it to me directly? </div><div><br></div><div>So, everybody, sorry for inconvinience!</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-03 0:41 GMT+06:00 Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span>:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">See <a href="https://github.com/open-mpi/ompi/pull/298" target="_blank">https://github.com/open-mpi/ompi/pull/298</a> for a fix.<br>
+<br>
+There&#39;s 2 commits on that PR -- the 2nd is just a cleanup.  The real fix is the 1st commit, here:<br>
+<br>
+<a href="https://github.com/jsquyres/ompi/commit/a736d83fb9a7b27986a008a2cda6eb1fea839fb3" target="_blank">https://github.com/jsquyres/ompi/commit/a736d83fb9a7b27986a008a2cda6eb1fea839fb3</a><br>
+<br>
+If someone can confirm that this works for them, we can bring it to master.<br>
+<br>
+It may have the side effect of &quot;fixing / working around&quot; (by coincidence) the SLURM bug (we all agree that the Right solution is to have SLURM fix it upstream, but I think this will put us back in the case of &quot;working by accident / despite the SLURM bug&quot;).<br>
+<div><div class="h5"><br>
+<br>
+<br>
+On Dec 2, 2014, at 10:59 AM, Jeff Squyres (jsquyres) &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt; wrote:<br>
+<br>
+&gt; I&#39;m able to replicate Edgar&#39;s problem.<br>
+&gt;<br>
+&gt; I&#39;m investigating...<br>
+&gt;<br>
+&gt;<br>
+&gt; On Dec 2, 2014, at 10:39 AM, Edgar Gabriel &lt;<a href="mailto:gabriel@cs.uh.edu">gabriel@cs.uh.edu</a>&gt; wrote:<br>
+&gt;<br>
+&gt;&gt; the mailing list refused to let me add the config.log file, since it is too large, I can forward the output to you directly as well (as I did to Jeff).<br>
+&gt;&gt;<br>
+&gt;&gt; I honestly have not looked into the configure logic, I can just tell that OPAL_HAVE_LTDL_ADVISE is not set on my linux system for master, but is set on the 1.8 series (1.8 series checkout was from Nov. 20, so if something changed in between the result might be different).<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On 12/2/2014 9:27 AM, Artem Polyakov wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; 2014-12-02 20:59 GMT+06:00 Edgar Gabriel &lt;<a href="mailto:gabriel@cs.uh.edu">gabriel@cs.uh.edu</a><br>
+&gt;&gt;&gt; &lt;mailto:<a href="mailto:gabriel@cs.uh.edu">gabriel@cs.uh.edu</a>&gt;&gt;:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   didn&#39;t want to interfere with this thread, although I have a similar<br>
+&gt;&gt;&gt;   issue, since I have the solution nearly fully cooked up. But anyway,<br>
+&gt;&gt;&gt;   this last email gave the hint on why we have suddenly the problem in<br>
+&gt;&gt;&gt;   ompio:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   it looks like OPAL_HAVE_LTDL_ADVISE (at least on my systems) is not<br>
+&gt;&gt;&gt;   set anymore, so the entire section is being skipped. I double<br>
+&gt;&gt;&gt;   checked that with the 1.8 branch, it goes through the section, but<br>
+&gt;&gt;&gt;   not with master.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Hi, Edgar.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Both master and ompi-release (isn&#39;t it 1.8?!) are equal in sence of my<br>
+&gt;&gt;&gt; fix. Something else!? I&#39;d like to see config.log too but will look into<br>
+&gt;&gt;&gt; it only tomorrow.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Also I want to add that SLURM PMI2 communicates with local slurmstepd&#39;s<br>
+&gt;&gt;&gt; and doesn&#39;t need any authentification. All PMI1 processes otherwise<br>
+&gt;&gt;&gt; communicate to the srun process and thus need libslurm services for<br>
+&gt;&gt;&gt; communication and authentification.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   Thanks<br>
+&gt;&gt;&gt;   Edgar<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   On 12/2/2014 7:56 AM, Jeff Squyres (jsquyres) wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;       Looks like I was totally lying in<br>
+&gt;&gt;&gt;       <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16381.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16381.php</a><br>
+&gt;&gt;&gt;       &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16381.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16381.php</a>&gt; (where<br>
+&gt;&gt;&gt;       I said we should not use RTLD_GLOBAL).  We *do* use RTLD_GLOBAL:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;       <a href="https://github.com/open-mpi/__ompi/blob/master/opal/mca/__base/mca_base_component___repository.c#L124" target="_blank">https://github.com/open-mpi/__ompi/blob/master/opal/mca/__base/mca_base_component___repository.c#L124</a><br>
+&gt;&gt;&gt;       &lt;<a href="https://github.com/open-mpi/ompi/blob/master/opal/mca/base/mca_base_component_repository.c#L124" target="_blank">https://github.com/open-mpi/ompi/blob/master/opal/mca/base/mca_base_component_repository.c#L124</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;       This ltdl advice object is passed to lt_dlopen() for all<br>
+&gt;&gt;&gt;       components.  My mistake; sorry.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;       So the idea that using RTLD_GLOBAL will fix this SLURM bug is<br>
+&gt;&gt;&gt;       incorrect.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;       I believe someone said earlier in the thread that adding the<br>
+&gt;&gt;&gt;       right -llibs to the configure line will solve the issue, and<br>
+&gt;&gt;&gt;       that sounds correct to me.  If there&#39;s a missing symbol because<br>
+&gt;&gt;&gt;       the SLURM libraries are not automatically pulling in the right<br>
+&gt;&gt;&gt;       dependent libraries, then *if* we put a workaround in OMPI to<br>
+&gt;&gt;&gt;       fix this issue, then the right workaround is to add the relevant<br>
+&gt;&gt;&gt;       -llibs when that component is linked.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;       *If* you add that workaround (which is a whole separate<br>
+&gt;&gt;&gt;       discussion), I would suggest adding a configure.m4 test to see<br>
+&gt;&gt;&gt;       if adding the additional -llibs are necessary.  Perhaps<br>
+&gt;&gt;&gt;       AC_LINK_IFELSE looking for a symbol, and then if that fails,<br>
+&gt;&gt;&gt;       AC_LINK_IFELSE again with the additional -llibs to see if that<br>
+&gt;&gt;&gt;       works.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;       Or something like that.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;       On Dec 2, 2014, at 6:38 AM, Artem Polyakov &lt;<a href="mailto:artpol84@gmail.com">artpol84@gmail.com</a><br>
+&gt;&gt;&gt;       &lt;mailto:<a href="mailto:artpol84@gmail.com">artpol84@gmail.com</a>&gt;&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;           Agree. First you should check is to what value<br>
+&gt;&gt;&gt;           OPAL_HAVE_LTDL_ADVISE is set. If it is zero - very probably<br>
+&gt;&gt;&gt;           this is the same bug as mine.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;           2014-12-02 17:33 GMT+06:00 Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a><br>
+&gt;&gt;&gt;           &lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;&gt;:<br>
+&gt;&gt;&gt;           It does look similar - question is: why didn’t this fix the<br>
+&gt;&gt;&gt;           problem? Will have to investigate.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;           Thanks<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;               On Dec 2, 2014, at 3:17 AM, Artem Polyakov<br>
+&gt;&gt;&gt;               &lt;<a href="mailto:artpol84@gmail.com">artpol84@gmail.com</a> &lt;mailto:<a href="mailto:artpol84@gmail.com">artpol84@gmail.com</a>&gt;&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;               2014-12-02 17:13 GMT+06:00 Ralph Castain<br>
+&gt;&gt;&gt;               &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a> &lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;&gt;:<br>
+&gt;&gt;&gt;               Hmmm…if that is true, then it didn’t fix this problem as<br>
+&gt;&gt;&gt;               it is being reported in the master.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;               I had this problem on my laptop installation. You can<br>
+&gt;&gt;&gt;               check my report it was detailed enough and see if you<br>
+&gt;&gt;&gt;               hitting the same issue. My fix was also included into<br>
+&gt;&gt;&gt;               1.8 branch. I am not sure that this is the same issue<br>
+&gt;&gt;&gt;               but they looks similar.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                   On Dec 1, 2014, at 9:40 PM, Artem Polyakov<br>
+&gt;&gt;&gt;                   &lt;<a href="mailto:artpol84@gmail.com">artpol84@gmail.com</a> &lt;mailto:<a href="mailto:artpol84@gmail.com">artpol84@gmail.com</a>&gt;&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                   I think this might be related to the configuration<br>
+&gt;&gt;&gt;                   problem I was fixing with Jeff few months ago. Refer<br>
+&gt;&gt;&gt;                   here:<br>
+&gt;&gt;&gt;                   <a href="https://github.com/open-mpi/__ompi/pull/240" target="_blank">https://github.com/open-mpi/__ompi/pull/240</a><br>
+&gt;&gt;&gt;                   &lt;<a href="https://github.com/open-mpi/ompi/pull/240" target="_blank">https://github.com/open-mpi/ompi/pull/240</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                   2014-12-02 10:15 GMT+06:00 Ralph Castain<br>
+&gt;&gt;&gt;                   &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a> &lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;&gt;:<br>
+&gt;&gt;&gt;                   If it isn’t too much trouble, it would be good to<br>
+&gt;&gt;&gt;                   confirm that it remains broken. I strongly suspect<br>
+&gt;&gt;&gt;                   it is based on Moe’s comments.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                   Obviously, other people are making this work. For<br>
+&gt;&gt;&gt;                   Intel MPI, all you do is point it at libpmi and they<br>
+&gt;&gt;&gt;                   can run. However, they do explicitly dlopen it in<br>
+&gt;&gt;&gt;                   their code, and I don’t know what flags they might<br>
+&gt;&gt;&gt;                   pass when they do so.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                   If necessary, I suppose we could follow that<br>
+&gt;&gt;&gt;                   pattern. In other words, rather than specifically<br>
+&gt;&gt;&gt;                   linking the “s1” component to libpmi, instead<br>
+&gt;&gt;&gt;                   require that the user point us to a pmi library via<br>
+&gt;&gt;&gt;                   an MCA param, then explicitly dlopen that library<br>
+&gt;&gt;&gt;                   with RTLD_GLOBAL. This avoids the issues cited by<br>
+&gt;&gt;&gt;                   Jeff, but resolves the pmi linkage problem.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       On Dec 1, 2014, at 8:09 PM, Gilles Gouaillardet<br>
+&gt;&gt;&gt;                       &lt;<a href="mailto:gilles.gouaillardet@iferc.org">gilles.gouaillardet@iferc.org</a><br>
+&gt;&gt;&gt;                       &lt;mailto:<a href="mailto:gilles.gouaillardet@iferc.org">gilles.gouaillardet@iferc.org</a>&gt;__&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       $ srun --version<br>
+&gt;&gt;&gt;                       slurm 2.6.6-VENDOR_PROVIDED<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       $ srun --mpi=pmi2 -n 1 ~/hw<br>
+&gt;&gt;&gt;                       I am 0 / 1<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       $ srun -n 1 ~/hw<br>
+&gt;&gt;&gt;                       /csc/home1/gouaillardet/hw: symbol lookup error:<br>
+&gt;&gt;&gt;                       /usr/lib64/slurm/auth_munge.__so: undefined<br>
+&gt;&gt;&gt;                       symbol: slurm_verbose<br>
+&gt;&gt;&gt;                       srun: error: slurm_receive_msg: Zero Bytes were<br>
+&gt;&gt;&gt;                       transmitted or received<br>
+&gt;&gt;&gt;                       srun: error: slurm_receive_msg[10.0.3.15]: Zero<br>
+&gt;&gt;&gt;                       Bytes were transmitted or received<br>
+&gt;&gt;&gt;                       srun: error: soleil: task 0: Exited with exit<br>
+&gt;&gt;&gt;                       code 127<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       $ ldd /usr/lib64/slurm/auth_munge.so<br>
+&gt;&gt;&gt;                             linux-vdso.so.1 =&gt;  (0x00007fff54478000)<br>
+&gt;&gt;&gt;                             libmunge.so.2 =&gt; /usr/lib64/libmunge.so.2<br>
+&gt;&gt;&gt;                       (0x00007f744760f000)<br>
+&gt;&gt;&gt;                             libpthread.so.0 =&gt; /lib64/libpthread.so.0<br>
+&gt;&gt;&gt;                       (0x00007f74473f1000)<br>
+&gt;&gt;&gt;                             libc.so.6 =&gt; /lib64/libc.so.6<br>
+&gt;&gt;&gt;                       (0x00007f744705d000)<br>
+&gt;&gt;&gt;                             /lib64/ld-linux-x86-64.so.2<br>
+&gt;&gt;&gt;                       (0x0000003bf5400000)<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       now, if i reling auth_munge.so so it depends on<br>
+&gt;&gt;&gt;                       libslurm :<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       $ srun -n 1 ~/hw<br>
+&gt;&gt;&gt;                       srun: symbol lookup error:<br>
+&gt;&gt;&gt;                       /usr/lib64/slurm/auth_munge.__so: undefined<br>
+&gt;&gt;&gt;                       symbol: slurm_auth_get_arg_desc<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       i can give a try to the latest slurm if needed<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       Cheers,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       Gilles<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       On 2014/12/02 12:56, Ralph Castain wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                           Out of curiosity - how are you testing<br>
+&gt;&gt;&gt;                           these? I have more current versions of Slurm<br>
+&gt;&gt;&gt;                           and would like to test the observations there.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               On Dec 1, 2014, at 7:49 PM, Gilles<br>
+&gt;&gt;&gt;                               Gouaillardet<br>
+&gt;&gt;&gt;                               &lt;<a href="mailto:gilles.gouaillardet@iferc.org">gilles.gouaillardet@iferc.org</a><br>
+&gt;&gt;&gt;                               &lt;mailto:<a href="mailto:gilles.gouaillardet@iferc.org">gilles.gouaillardet@iferc.org</a>&gt;__&gt;<br>
+&gt;&gt;&gt;                                  wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               I d like to make a step back ...<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               i previously tested with slurm 2.6.0,<br>
+&gt;&gt;&gt;                               and it complained about the<br>
+&gt;&gt;&gt;                               slurm_verbose symbol that is defined in<br>
+&gt;&gt;&gt;                               libslurm.so<br>
+&gt;&gt;&gt;                               so with slurm 2.6.0, RTLD_GLOBAL or<br>
+&gt;&gt;&gt;                               relinking is ok<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               now i tested with slurm 2.6.6 and it<br>
+&gt;&gt;&gt;                               complains about the<br>
+&gt;&gt;&gt;                               slurm_auth_get_arg_desc symbol, and this<br>
+&gt;&gt;&gt;                               symbol is not<br>
+&gt;&gt;&gt;                               defined in any dynamic library. it is<br>
+&gt;&gt;&gt;                               internally defined in the static<br>
+&gt;&gt;&gt;                               libcommon.a library, which is used to<br>
+&gt;&gt;&gt;                               build the slurm binaries.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               as far as i understand, auth_munge.so<br>
+&gt;&gt;&gt;                               can only be invoked from a slurm binary,<br>
+&gt;&gt;&gt;                               which means it cannot be invoked from an<br>
+&gt;&gt;&gt;                               mpi application<br>
+&gt;&gt;&gt;                               even if it is linked with libslurm,<br>
+&gt;&gt;&gt;                               libpmi, ...<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               that looks like a slurm design issue<br>
+&gt;&gt;&gt;                               that the slurm folks will take care of.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               Cheers,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               Gilles<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               On 2014/12/02 12:33, Ralph Castain wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                   Another option is to simply add the<br>
+&gt;&gt;&gt;                                   -lslurm -lauth flags to the pmix/s1<br>
+&gt;&gt;&gt;                                   component as this is the only place<br>
+&gt;&gt;&gt;                                   that requires it, and it won’t hurt<br>
+&gt;&gt;&gt;                                   anything to do so.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       On Dec 1, 2014, at 6:03 PM,<br>
+&gt;&gt;&gt;                                       Gilles Gouaillardet<br>
+&gt;&gt;&gt;                                       &lt;<a href="mailto:gilles.gouaillardet@iferc.org">gilles.gouaillardet@iferc.org</a><br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:gilles.gouaillardet@iferc.org">gilles.gouaillardet@iferc.org</a>&gt;__&gt;<br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:gilles.gouaillardet@">gilles.gouaillardet@</a>__<a href="http://iferc.org" target="_blank">iferc.org</a><br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:gilles.gouaillardet@iferc.org">gilles.gouaillardet@iferc.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                          wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       Jeff,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       FWIW, you can read my analysis<br>
+&gt;&gt;&gt;                                       of what is going wrong at<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       <a href="http://www.open-mpi.org/__community/lists/pmix-devel/__2014/11/0293.php" target="_blank">http://www.open-mpi.org/__community/lists/pmix-devel/__2014/11/0293.php</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php" target="_blank">http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php</a>&gt;<br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/__community/lists/pmix-devel/__2014/11/0293.php" target="_blank">http://www.open-mpi.org/__community/lists/pmix-devel/__2014/11/0293.php</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php" target="_blank">http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/__community/lists/pmix-devel/__2014/11/0293.php" target="_blank">http://www.open-mpi.org/__community/lists/pmix-devel/__2014/11/0293.php</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php" target="_blank">http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/__community/lists/pmix-devel/__2014/11/0293.php" target="_blank">http://www.open-mpi.org/__community/lists/pmix-devel/__2014/11/0293.php</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php" target="_blank">http://www.open-mpi.org/community/lists/pmix-devel/2014/11/0293.php</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       bottom line, i agree this is a<br>
+&gt;&gt;&gt;                                       slurm issue (slurm plugin should<br>
+&gt;&gt;&gt;                                       depend<br>
+&gt;&gt;&gt;                                       on libslurm, but they do not, yet)<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       a possible workaround would be<br>
+&gt;&gt;&gt;                                       to make the pmi component a<br>
+&gt;&gt;&gt;                                       &quot;proxy&quot; that<br>
+&gt;&gt;&gt;                                       dlopen with RTLD_GLOBAL the<br>
+&gt;&gt;&gt;                                       &quot;real&quot; component in which the<br>
+&gt;&gt;&gt;                                       job is done.<br>
+&gt;&gt;&gt;                                       that being said, the impact is<br>
+&gt;&gt;&gt;                                       quite limited (no direct launch<br>
+&gt;&gt;&gt;                                       in slurm<br>
+&gt;&gt;&gt;                                       with pmi1, but pmi2 works fine)<br>
+&gt;&gt;&gt;                                       so it makes sense not to work around<br>
+&gt;&gt;&gt;                                       someone else problem.<br>
+&gt;&gt;&gt;                                       and that being said, configure<br>
+&gt;&gt;&gt;                                       could detect this broken pmi1<br>
+&gt;&gt;&gt;                                       and not<br>
+&gt;&gt;&gt;                                       build pmi1 support or print a<br>
+&gt;&gt;&gt;                                       user friendly error message if<br>
+&gt;&gt;&gt;                                       pmi1 is used.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       any thoughts ?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       Cheers,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       Gilles<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       On 2014/12/02 7:47, Jeff Squyres<br>
+&gt;&gt;&gt;                                       (jsquyres) wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                           Ok, if the problem is moot,<br>
+&gt;&gt;&gt;                                           great.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                           (sidenote: this is moot, so<br>
+&gt;&gt;&gt;                                           ignore this if you want:<br>
+&gt;&gt;&gt;                                           with this explanation, I&#39;m<br>
+&gt;&gt;&gt;                                           still not sure how<br>
+&gt;&gt;&gt;                                           RTLD_GLOBAL fixes the issue)<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                           On Dec 1, 2014, at 5:15 PM,<br>
+&gt;&gt;&gt;                                           Ralph Castain<br>
+&gt;&gt;&gt;                                           &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a><br>
+&gt;&gt;&gt;                                           &lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                           &lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a><br>
+&gt;&gt;&gt;                                           &lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                              wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                               Easy enough to explain.<br>
+&gt;&gt;&gt;                                               We link libpmi into the<br>
+&gt;&gt;&gt;                                               pmix/s1 component. This<br>
+&gt;&gt;&gt;                                               library is missing the<br>
+&gt;&gt;&gt;                                               linkage to libslurm that<br>
+&gt;&gt;&gt;                                               contains the linkage to<br>
+&gt;&gt;&gt;                                               libauth where munge<br>
+&gt;&gt;&gt;                                               resides. So when we call<br>
+&gt;&gt;&gt;                                               a PMI function, libpmi<br>
+&gt;&gt;&gt;                                               references a call to<br>
+&gt;&gt;&gt;                                               munge for authentication<br>
+&gt;&gt;&gt;                                               and hits an “unresolved<br>
+&gt;&gt;&gt;                                               symbol” error.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                               Moe acknowledges the<br>
+&gt;&gt;&gt;                                               error is in Slurm and is<br>
+&gt;&gt;&gt;                                               fixing the linkages so<br>
+&gt;&gt;&gt;                                               this problem goes away<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   On Dec 1, 2014, at<br>
+&gt;&gt;&gt;                                                   2:13 PM, Jeff<br>
+&gt;&gt;&gt;                                                   Squyres (jsquyres)<br>
+&gt;&gt;&gt;                                                   &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                                      wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   On Dec 1, 2014, at<br>
+&gt;&gt;&gt;                                                   5:07 PM, Ralph Castain<br>
+&gt;&gt;&gt;                                                   &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a><br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a><br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                                      wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                       FWIW: It’s<br>
+&gt;&gt;&gt;                                                       Slurm’s pmi-1<br>
+&gt;&gt;&gt;                                                       library that<br>
+&gt;&gt;&gt;                                                       isn’t linked<br>
+&gt;&gt;&gt;                                                       correctly<br>
+&gt;&gt;&gt;                                                       against its<br>
+&gt;&gt;&gt;                                                       dependencies<br>
+&gt;&gt;&gt;                                                       (the pmi-2 one<br>
+&gt;&gt;&gt;                                                       is correct).<br>
+&gt;&gt;&gt;                                                       Moe is aware of<br>
+&gt;&gt;&gt;                                                       the problem and<br>
+&gt;&gt;&gt;                                                       fixing it on<br>
+&gt;&gt;&gt;                                                       their side. This<br>
+&gt;&gt;&gt;                                                       won’t help<br>
+&gt;&gt;&gt;                                                       existing<br>
+&gt;&gt;&gt;                                                       installations<br>
+&gt;&gt;&gt;                                                       until they<br>
+&gt;&gt;&gt;                                                       upgrade, but I<br>
+&gt;&gt;&gt;                                                       tend to agree<br>
+&gt;&gt;&gt;                                                       with Jeff about<br>
+&gt;&gt;&gt;                                                       not fixing other<br>
+&gt;&gt;&gt;                                                       people’s problems.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   Can you explain what<br>
+&gt;&gt;&gt;                                                   is happening?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   I ask because I&#39;m<br>
+&gt;&gt;&gt;                                                   not sure I<br>
+&gt;&gt;&gt;                                                   understand the<br>
+&gt;&gt;&gt;                                                   problem such that<br>
+&gt;&gt;&gt;                                                   using RTLD_GLOBAL<br>
+&gt;&gt;&gt;                                                   would fix it.  I.e.,<br>
+&gt;&gt;&gt;                                                   even if libpmi1.so<br>
+&gt;&gt;&gt;                                                   isn&#39;t linked against<br>
+&gt;&gt;&gt;                                                   its dependencies<br>
+&gt;&gt;&gt;                                                   properly, that<br>
+&gt;&gt;&gt;                                                   shouldn&#39;t cause a<br>
+&gt;&gt;&gt;                                                   problem if OMPI<br>
+&gt;&gt;&gt;                                                   components A and B<br>
+&gt;&gt;&gt;                                                   are both linked<br>
+&gt;&gt;&gt;                                                   against libpmi1.so,<br>
+&gt;&gt;&gt;                                                   and then A is<br>
+&gt;&gt;&gt;                                                   loaded, and then B<br>
+&gt;&gt;&gt;                                                   is loaded.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   ...or perhaps we can<br>
+&gt;&gt;&gt;                                                   just discuss this on<br>
+&gt;&gt;&gt;                                                   the call tomorrow?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   --<br>
+&gt;&gt;&gt;                                                   Jeff Squyres<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;<br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   For corporate legal<br>
+&gt;&gt;&gt;                                                   information go to:<br>
+&gt;&gt;&gt;                                                   <a href="http://www.cisco.com/web/__about/doing_business/legal/__cri/" target="_blank">http://www.cisco.com/web/__about/doing_business/legal/__cri/</a><br>
+&gt;&gt;&gt;                                                   &lt;<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a>&gt;<br>
+&gt;&gt;&gt;                                                   &lt;<a href="http://www.cisco.com/web/__about/doing_business/legal/__cri/" target="_blank">http://www.cisco.com/web/__about/doing_business/legal/__cri/</a><br>
+&gt;&gt;&gt;                                                   &lt;<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   _________________________________________________<br>
+&gt;&gt;&gt;                                                   devel mailing list<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                                   &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   Subscription:<br>
+&gt;&gt;&gt;                                                   <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                                   &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;                                                   &lt;<a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                                   &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                                   Link to this post:<br>
+&gt;&gt;&gt;                                                   <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16383.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16383.php</a><br>
+&gt;&gt;&gt;                                                   &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16383.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16383.php</a>&gt;<br>
+&gt;&gt;&gt;                                                   &lt;<a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16383.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16383.php</a><br>
+&gt;&gt;&gt;                                                   &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16383.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16383.php</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                               _________________________________________________<br>
+&gt;&gt;&gt;                                               devel mailing list<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                               <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                               &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;                                               &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                               &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                               Subscription:<br>
+&gt;&gt;&gt;                                               <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                               &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;                                               &lt;<a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                               &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                               Link to this post:<br>
+&gt;&gt;&gt;                                               <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16384.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16384.php</a><br>
+&gt;&gt;&gt;                                               &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16384.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16384.php</a>&gt;<br>
+&gt;&gt;&gt;                                               &lt;<a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16384.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16384.php</a><br>
+&gt;&gt;&gt;                                               &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16384.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16384.php</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       _________________________________________________<br>
+&gt;&gt;&gt;                                       devel mailing list<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                       &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       Subscription:<br>
+&gt;&gt;&gt;                                       <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                       Link to this post:<br>
+&gt;&gt;&gt;                                       <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16386.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16386.php</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16386.php</a>&gt;<br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16386.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16386.php</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16386.php</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16386.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16386.php</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16386.php</a>&gt;&gt;<br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16386.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16386.php</a><br>
+&gt;&gt;&gt;                                       &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16386.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16386.php</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                   _________________________________________________<br>
+&gt;&gt;&gt;                                   devel mailing list<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                   <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                   &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;                                   &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                                   &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                   Subscription:<br>
+&gt;&gt;&gt;                                   <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                   &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;                                   &lt;<a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                                   &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                                   Link to this post:<br>
+&gt;&gt;&gt;                                   <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16387.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16387.php</a><br>
+&gt;&gt;&gt;                                   &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16387.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16387.php</a>&gt;<br>
+&gt;&gt;&gt;                                   &lt;<a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16387.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16387.php</a><br>
+&gt;&gt;&gt;                                   &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16387.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16387.php</a>&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               _________________________________________________<br>
+&gt;&gt;&gt;                               devel mailing list<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;                               &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               Subscription:<br>
+&gt;&gt;&gt;                               <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                               &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                               Link to this post:<br>
+&gt;&gt;&gt;                               <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16388.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16388.php</a><br>
+&gt;&gt;&gt;                               &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16388.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16388.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                           _________________________________________________<br>
+&gt;&gt;&gt;                           devel mailing list<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                           <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                           Subscription:<br>
+&gt;&gt;&gt;                           <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                           &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                           Link to this post:<br>
+&gt;&gt;&gt;                           <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16389.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16389.php</a><br>
+&gt;&gt;&gt;                           &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16389.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16389.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                       _________________________________________________<br>
+&gt;&gt;&gt;                       devel mailing list<br>
+&gt;&gt;&gt;                       <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;                       Subscription:<br>
+&gt;&gt;&gt;                       <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                       &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;                       Link to this post:<br>
+&gt;&gt;&gt;                       <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16390.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16390.php</a><br>
+&gt;&gt;&gt;                       &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16390.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16390.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                   _________________________________________________<br>
+&gt;&gt;&gt;                   devel mailing list<br>
+&gt;&gt;&gt;                   <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;                   Subscription:<br>
+&gt;&gt;&gt;                   <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                   &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;                   Link to this post:<br>
+&gt;&gt;&gt;                   <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16391.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16391.php</a><br>
+&gt;&gt;&gt;                   &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16391.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16391.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;                   --<br>
+&gt;&gt;&gt;                   С Уважением, Поляков Артем Юрьевич<br>
+&gt;&gt;&gt;                   Best regards, Artem Y. Polyakov<br>
+&gt;&gt;&gt;                   _________________________________________________<br>
+&gt;&gt;&gt;                   devel mailing list<br>
+&gt;&gt;&gt;                   <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;                   Subscription:<br>
+&gt;&gt;&gt;                   <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;                   &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;                   Link to this post:<br>
+&gt;&gt;&gt;                   <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16393.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16393.php</a><br>
+&gt;&gt;&gt;                   &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16393.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16393.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;               _________________________________________________<br>
+&gt;&gt;&gt;               devel mailing list<br>
+&gt;&gt;&gt;               <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;               Subscription:<br>
+&gt;&gt;&gt;               <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;               &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;               Link to this post:<br>
+&gt;&gt;&gt;               <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16395.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16395.php</a><br>
+&gt;&gt;&gt;               &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16395.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16395.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;               --<br>
+&gt;&gt;&gt;               С Уважением, Поляков Артем Юрьевич<br>
+&gt;&gt;&gt;               Best regards, Artem Y. Polyakov<br>
+&gt;&gt;&gt;               _________________________________________________<br>
+&gt;&gt;&gt;               devel mailing list<br>
+&gt;&gt;&gt;               <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;               Subscription:<br>
+&gt;&gt;&gt;               <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;               &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;               Link to this post:<br>
+&gt;&gt;&gt;               <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16396.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16396.php</a><br>
+&gt;&gt;&gt;               &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16396.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16396.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;           _________________________________________________<br>
+&gt;&gt;&gt;           devel mailing list<br>
+&gt;&gt;&gt;           <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;           Subscription:<br>
+&gt;&gt;&gt;           <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;           &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;           Link to this post:<br>
+&gt;&gt;&gt;           <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16397.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16397.php</a><br>
+&gt;&gt;&gt;           &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16397.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16397.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;           --<br>
+&gt;&gt;&gt;           С Уважением, Поляков Артем Юрьевич<br>
+&gt;&gt;&gt;           Best regards, Artem Y. Polyakov<br>
+&gt;&gt;&gt;           _________________________________________________<br>
+&gt;&gt;&gt;           devel mailing list<br>
+&gt;&gt;&gt;           <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;           Subscription:<br>
+&gt;&gt;&gt;           <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;           &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;           Link to this post:<br>
+&gt;&gt;&gt;           <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16398.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16398.php</a><br>
+&gt;&gt;&gt;           &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16398.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16398.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;   --<br>
+&gt;&gt;&gt;   Edgar Gabriel<br>
+&gt;&gt;&gt;   Associate Professor<br>
+&gt;&gt;&gt;   Parallel Software Technologies Lab <a href="http://pstl.cs.uh.edu" target="_blank">http://pstl.cs.uh.edu</a><br>
+&gt;&gt;&gt;   Department of Computer Science          University of Houston<br>
+&gt;&gt;&gt;   Philip G. Hoffman Hall, Room 524        Houston, TX-77204, USA<br>
+&gt;&gt;&gt;   Tel: +1 (713) 743-3857                  Fax: +1 (713) 743-3335<br>
+&gt;&gt;&gt;   _________________________________________________<br>
+&gt;&gt;&gt;   devel mailing list<br>
+&gt;&gt;&gt;   <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> &lt;mailto:<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>&gt;<br>
+&gt;&gt;&gt;   Subscription: <a href="http://www.open-mpi.org/__mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/__mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;   &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>&gt;<br>
+&gt;&gt;&gt;   Link to this post:<br>
+&gt;&gt;&gt;   <a href="http://www.open-mpi.org/__community/lists/devel/2014/12/__16400.php" target="_blank">http://www.open-mpi.org/__community/lists/devel/2014/12/__16400.php</a><br>
+&gt;&gt;&gt;   &lt;<a href="http://www.open-mpi.org/community/lists/devel/2014/12/16400.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16400.php</a>&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; --<br>
+&gt;&gt;&gt; С Уважением, Поляков Артем Юрьевич<br>
+&gt;&gt;&gt; Best regards, Artem Y. Polyakov<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/12/16404.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16404.php</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; --<br>
+&gt;&gt; Edgar Gabriel<br>
+&gt;&gt; Associate Professor<br>
+&gt;&gt; Parallel Software Technologies Lab      <a href="http://pstl.cs.uh.edu" target="_blank">http://pstl.cs.uh.edu</a><br>
+&gt;&gt; Department of Computer Science          University of Houston<br>
+&gt;&gt; Philip G. Hoffman Hall, Room 524        Houston, TX-77204, USA<br>
+&gt;&gt; Tel: +1 (713) 743-3857                  Fax: +1 (713) 743-3335<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/12/16405.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16405.php</a><br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Jeff Squyres<br>
+&gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;<br>
+<br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/12/16409.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/12/16409.php</a></blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature">С Уважением, Поляков Артем Юрьевич<br>Best regards, Artem Y. Polyakov</div>
+</div>

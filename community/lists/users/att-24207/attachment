@@ -1,0 +1,756 @@
+<div dir="ltr"><div><div>Using the instructions that you gave me I actually managed to setup the one that was already installed. I followed commands that you sent me and I made it work. It is an MPICH MPI. I feel somewhat bad not to installing Open MPI, but I think I will in a couple of weeks. I have to finish some simulation in WRF (so I wouldn&#39;t like to experiment now) and after that I could play and install Open MPI. <br>
+
+<br></div>Thanks so much for this explanation about MPI and OpenMP. I am meteorologist and I like to consider myself as a theoretical meteorologist that with area of expertise in dynamic of the atmosphere and climatology. Therefore, this high-level numerical computing is challenging for me. You gave an excellent explanation of it and sites are really good (easy readable, not some journal papers). I will spend the rest of day reading this to get better understanding of it. <br>
+
+<br></div>By the way, I attended the WRF tutorial and they said that there are no many WRF experiments on using MPI + OpenMP, but the one that they did show that there is no much improvement in running WRF in that mode. Moreover, many times, they said, it is more efficient to run it just using MPI. At that point I didn&#39;t know what they were talking about, but now I actually do. <br>
+
+</div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Apr 15, 2014 at 3:34 PM, Gus Correa <span dir="ltr">&lt;<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi Djordje<br>
+<br>
+That is great news.<br>
+Congrats for making it work!<br>
+<br>
+Just out of curiosity: What did the trick?<br>
+Did you install Open MPI from source, or did you sort out<br>
+the various MPI flavors which were previously installed on your system?<br>
+<br>
+Now the challenge is to add OpenMP and run WRF<br>
+in hybrid mode just for fun!  :)<br>
+<br>
+Best,<br>
+Gus Correa<br>
+<br>
+***<br>
+<br>
+PS: Parallel computing, MPI, and OpenMP, tutorials at LLNL:<br>
+<br>
+<a href="https://computing.llnl.gov/tutorials/parallel_comp/" target="_blank">https://computing.llnl.gov/<u></u>tutorials/parallel_comp/</a><br>
+<a href="https://computing.llnl.gov/tutorials/mpi/" target="_blank">https://computing.llnl.gov/<u></u>tutorials/mpi/</a><br>
+<a href="https://computing.llnl.gov/tutorials/openMP/" target="_blank">https://computing.llnl.gov/<u></u>tutorials/openMP/</a><br>
+<br>
+Ch. 5 in the first tutorial gives an outline of the various<br>
+parallel programming models, and the basic ideas behind MPI and OpenMP.<br>
+<br>
+**<br>
+<br>
+Wild guesses based on other models (climate, not weather):<br>
+<br>
+Most likely WRF uses the domain decomposition technique to solve<br>
+the dynamics&#39; PDEs, exchanging sub-domain boundary data via MPI.<br>
+[Besides the dynamics, each process will also<br>
+compute thermodynamics, radiation effects, etc,<br>
+which may also require data exchange with neighbors.]<br>
+Each MPI process takes care of/computes on a subdomain,<br>
+and exchanges boundary data with those processes assigned<br>
+to neighbor subdomains, with the whole group contributing to<br>
+solve the PDEs in the global domain.<br>
+[This uses MPI point-to-point functions like MPI_Send/MPI_Recv.]<br>
+There may be some additional global calculations also, say,<br>
+to ensure conservation of mass, energy, momentum, etc,<br>
+which may involve all MPI processes.<br>
+[This may use MPI collective functions like MPI_Reduce.]<br>
+<br>
+<a href="http://en.wikipedia.org/wiki/Domain_decomposition_methods" target="_blank">http://en.wikipedia.org/wiki/<u></u>Domain_decomposition_methods</a><br>
+<br>
+Besides, WRF  probably can split computation on<br>
+loops across different threads via OpenMP.<br>
+[Well, there is more to OpenMP than just loop splitting,<br>
+but loop splitting is the most common.]<br>
+You need to provide physical processors for those threads,<br>
+which is typically done by setting the environment variable OMP_NUM_THREADS (e.g. in bash: &#39;export OMP_NUM_THREADS=4&#39;).<br>
+<br>
+In hybrid (MPI + OpenMP mode) you use both, but must be careful<br>
+to provide enough processors for all MPI processes and OpenMP threads.<br>
+Say, for 3 MPI processes, each one launching two OpenMP threads,<br>
+you could do (if you turned both on when you configured WRF):<br>
+<br>
+export OMP_NUM_THREADS=2<br>
+mpirun -np 3 ./wrf.exe<br>
+<br>
+for a total of 6 processors.<br>
+<br>
+Better not oversubscribe processors.<br>
+If your computer has 4 cores, use -np 2 instead of 3 in the lines above.<br>
+<br>
+For a small number of processors (and/or a small global domain), you will probably get better performance if you assign<br>
+all processors to MPI processes, and simply do not use OpenMP.<br>
+<br>
+Finally, if you do:<br>
+export OMP_NUM_THREADS=1<br>
+mpiexec -np 4 ./wrf.exe<br>
+WRF will run in MPI mode, even if you configured it hybrid.<br>
+[At least this is what it is supposed to do.]<div class=""><br>
+<br>
+I hope this helps,<br>
+Gus Correa<br>
+<br></div><div class="">
+On 04/15/2014 01:59 PM, Djordje Romanic wrote:<br>
+</div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Hi,<br>
+<br><div class="">
+It is working now. It shows:<br>
+------------------------------<u></u>--------------<br>
+starting wrf task            0  of            4<br>
+  starting wrf task            1  of            4<br>
+  starting wrf task            2  of            4<br>
+  starting wrf task            3  of            4<br>
+------------------------------<u></u>---------------<br>
+Thank you so much!!! You helped me a lot! Finally :) And plus I know the<br>
+difference between OpenMP and Open MPI (well, to be honest not<br>
+completely, but more than i knew before). :D<br>
+<br>
+Thanks,<br>
+<br>
+Djordje<br>
+<br>
+<br>
+<br>
+<br>
+On Tue, Apr 15, 2014 at 11:57 AM, Gus Correa &lt;<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a><br></div><div class="">
+&lt;mailto:<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt;<u></u>&gt; wrote:<br>
+<br>
+    Hi Djordje<br>
+<br>
+    &quot;locate mpirun&quot; shows items labled &quot;intel&quot;, &quot;mpich&quot;, and &quot;openmpi&quot;,<br>
+    maybe more.<br>
+    Is it Ubuntu or Debian?<br>
+<br>
+    Anyway, if you got this mess from somebody else,<br>
+    instead of sorting it out,<br>
+    it may save you time and headaches installing Open MPI from<br>
+    source.<br>
+    Since it is a single machine, there are no worries about<br>
+    having an homogeneous installation for several computers (which<br>
+    could be done if needed, though).<br>
+<br>
+    0. Make sure you have gcc, g++, and gfortran installed,<br>
+    including any &quot;devel&quot; packages that may exist.<br>
+    [apt-get or yum should tell you]<br>
+    If something is missing, install it.<br>
+<br>
+    1. Download the Open MPI (a.k.a OMPI) tarball to a work directory<br>
+    of your choice,<br>
+    say /home/djordje/inst/openmpi/1.8 (create the directory if needed),<br>
+    and untar the tarball (tar -jxvf ...)<br>
+<br></div>
+    <a href="http://www.open-mpi.org/__software/ompi/v1.8/" target="_blank">http://www.open-mpi.org/__<u></u>software/ompi/v1.8/</a><div class=""><br>
+    &lt;<a href="http://www.open-mpi.org/software/ompi/v1.8/" target="_blank">http://www.open-mpi.org/<u></u>software/ompi/v1.8/</a>&gt;<br>
+<br>
+    2. Configure it to be installed in yet another directory under<br>
+    your home, say /home/djordje/sw/openmpi/1.8 (with --prefix).<br>
+<br>
+    cd /home/djordje/inst/openmpi/1.8<br>
+<br></div>
+    ./configure --prefix=/home/djordje/sw/__<u></u>openmpi/1.8 CC=gcc, CXX=g++,<div class=""><br>
+    FC=gfortran<br>
+<br>
+    [Not sure if with 1.8 there is a separate F77 interface, if there is<br>
+    add F77=gfortran to the configure command line above.<br>
+    Also, I am using OMPI 1.6.5,<br>
+    but my recollection is that Jeff would phase off mpif90 and mpif77 in<br>
+    favor of a single mpifortran of sorts.  Please check the OMPI README<br>
+    file.]<br>
+<br>
+    Then do<br>
+<br>
+    make<br>
+    make install<br>
+<br>
+    3. Setup your environment variables PATH and LD_LIBRARY_PATH<br>
+    to point to *this* Open MPI installation ahead of anything else.<br>
+    This is easily done in your .bashrc or .tcshrc/.cshrc file,<br>
+    depending on which shell you use<br>
+<br>
+    .bashrc :<br></div>
+    export PATH=/home/djordje/sw/openmpi/<u></u>__1.8/bin:$PATH<br>
+    export<br>
+    LD_LIBRARY_PATH=/home/djordje/<u></u>__sw/openmpi/1.8/lib:$LD___<u></u>LIBRARY_PATH<br>
+<br>
+    .tcshrc/.cshrc:<br>
+<br>
+    setenv PATH /home/djordje/sw/openmpi/1.8/_<u></u>_bin:$PATH<br>
+    setenv LD_LIBRARY_PATH<br>
+    /home/djordje/sw/openmpi/1.8/_<u></u>_lib:$LD_LIBRARY_PATH<div class=""><br>
+<br>
+    4. Logout, login again (or open a new terminal), and check if you<br>
+    get the right mpirun, etc:<br>
+<br>
+    which mpicc<br>
+    which mpif90<br>
+    which mpirun<br>
+<br></div>
+    They should point to items in /home/djordje/sw/openmpi/1.8/_<u></u>_bin<div class=""><br>
+<br>
+    5. Rebuild WRF from scratch.<br>
+<br>
+    6. Check if WRF got the libraries right:<br>
+<br>
+    ldd wrf.exe<br>
+<br></div>
+    This should show mpi libraries in /home/djordje/sw/openmpi/1.8/_<u></u>_lib<div class=""><br>
+<br>
+    7. Run WRF<br>
+    mpirun -np 4 wrf.exe<br>
+<br>
+<br>
+    I hope this helps,<br>
+    Gus Correa<br>
+<br>
+<br>
+<br>
+<br>
+    On 04/14/2014 08:21 PM, Djordje Romanic wrote:<br>
+<br>
+        Hi,<br>
+<br>
+        Thanks for this guys. I think I might have two MPI implementations<br>
+        installed because &#39;locate mpirun&#39; gives (see bold lines) :<br></div>
+        ------------------------------<u></u>__-----------<br>
+        /etc/alternatives/mpirun<br>
+        /etc/alternatives/mpirun.1.gz<br>
+        */home/djordje/Build_WRF/__<u></u>LIBRARIES/mpich/bin/mpirun*<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/intel/<u></u>4.__1.1.036/linux-x86_64/bin/_<u></u>_mpirun<br>
+        &lt;<a href="http://4.1.1.036/linux-x86_64/bin/mpirun" target="_blank">http://4.1.1.036/linux-x86_<u></u>64/bin/mpirun</a>&gt;<br>
+        &lt;<a href="http://4.1.1.036/linux-x86___64/bin/mpirun" target="_blank">http://4.1.1.036/linux-x86___<u></u>64/bin/mpirun</a><br>
+        &lt;<a href="http://4.1.1.036/linux-x86_64/bin/mpirun" target="_blank">http://4.1.1.036/linux-x86_<u></u>64/bin/mpirun</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/intel/<u></u>4.__1.1.036/linux-x86_64/<u></u>bin64/__mpirun<br>
+        &lt;<a href="http://4.1.1.036/linux-x86_64/bin64/mpirun" target="_blank">http://4.1.1.036/linux-x86_<u></u>64/bin64/mpirun</a>&gt;<br>
+        &lt;<a href="http://4.1.1.036/linux-x86___64/bin64/mpirun" target="_blank">http://4.1.1.036/linux-x86___<u></u>64/bin64/mpirun</a><br>
+        &lt;<a href="http://4.1.1.036/linux-x86_64/bin64/mpirun" target="_blank">http://4.1.1.036/linux-x86_<u></u>64/bin64/mpirun</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/intel/<u></u>4.__1.1.036/linux-x86_64/ia32/<u></u>bin/__mpirun<br>
+        &lt;<a href="http://4.1.1.036/linux-x86_64/ia32/bin/mpirun" target="_blank">http://4.1.1.036/linux-x86_<u></u>64/ia32/bin/mpirun</a>&gt;<br>
+        &lt;<a href="http://4.1.1.036/linux-x86___64/ia32/bin/mpirun" target="_blank">http://4.1.1.036/linux-x86___<u></u>64/ia32/bin/mpirun</a><br>
+        &lt;<a href="http://4.1.1.036/linux-x86_64/ia32/bin/mpirun" target="_blank">http://4.1.1.036/linux-x86_<u></u>64/ia32/bin/mpirun</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/intel/<u></u>4.__1.1.036/linux-x86_64/<u></u>intel64/__bin/mpirun<br>
+        &lt;<a href="http://4.1.1.036/linux-x86_64/intel64/bin/mpirun" target="_blank">http://4.1.1.036/linux-x86_<u></u>64/intel64/bin/mpirun</a>&gt;<br>
+        &lt;<a href="http://4.1.1.036/linux-x86___64/intel64/bin/mpirun" target="_blank">http://4.1.1.036/linux-x86___<u></u>64/intel64/bin/mpirun</a><br>
+        &lt;<a href="http://4.1.1.036/linux-x86_64/intel64/bin/mpirun" target="_blank">http://4.1.1.036/linux-x86_<u></u>64/intel64/bin/mpirun</a>&gt;&gt;<br>
+<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/<u></u>openmpi/__1.4.3/linux-x86_64-<u></u>2.3.4/gnu4.__5/bin/mpirun<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/<u></u>openmpi/__1.4.3/linux-x86_64-<u></u>2.3.4/gnu4.__5/share/man/man1/<u></u>mpirun.1<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/<u></u>openmpi/__1.6.4/linux-x86_64-<u></u>2.3.4/gnu4.__6/bin/mpirun<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/<u></u>openmpi/__1.6.4/linux-x86_64-<u></u>2.3.4/gnu4.__6/share/man/man1/<u></u>mpirun.1<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/bin/mpirun</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/bin/mpirun" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/bin/mpirun</a><br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/bin/mpirun" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun.__mpich" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/bin/mpirun.__<u></u>mpich</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/bin/mpirun.mpich" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun.<u></u>mpich</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun.__mpich" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/bin/mpirun.__<u></u>mpich</a><br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/bin/mpirun.mpich" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun.<u></u>mpich</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun.__mpich2" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/bin/mpirun.__<u></u>mpich2</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/bin/mpirun.mpich2" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun.<u></u>mpich2</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun.__mpich2" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/bin/mpirun.__<u></u>mpich2</a> &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/bin/mpirun.mpich2" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun.<u></u>mpich2</a>&gt;&gt;<br>
+
+
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun</a><br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun.mpich" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun.mpich</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun.mpich" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun.mpich</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun.mpich" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun.mpich</a><br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun.mpich" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun.mpich</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun.mpich2" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun.mpich2</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun.mpich2" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun.mpich2</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun.mpich2" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun.mpich2</a><br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun.mpich2" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun.mpich2</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/lib/__linux_amd64/libmpirun.so" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/lib/__<u></u>linux_amd64/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/lib/linux_amd64/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/lib/<u></u>linux_amd64/libmpirun.so</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/lib/__linux_amd64/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/lib/__<u></u>linux_amd64/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/lib/linux_amd64/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/lib/<u></u>linux_amd64/libmpirun.so</a>&gt;&gt;<br>
+
+
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/lib/__linux_ia32/libmpirun.so" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/lib/__<u></u>linux_ia32/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/lib/linux_ia32/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/lib/<u></u>linux_ia32/libmpirun.so</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/ia32/lib/__linux_ia32/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/lib/__<u></u>linux_ia32/libmpirun.so</a><br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/ia32/lib/linux_ia32/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/lib/<u></u>linux_ia32/libmpirun.so</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/lib/linux___amd64/libmpirun.so" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/lib/linux___<u></u>amd64/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/lib/linux_amd64/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/lib/linux_<u></u>amd64/libmpirun.so</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/lib/linux___amd64/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/lib/linux___<u></u>amd64/libmpirun.so</a><br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/lib/linux_amd64/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/lib/linux_<u></u>amd64/libmpirun.so</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/lib/linux___ia32/libmpirun.so" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/lib/linux___<u></u>ia32/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/lib/linux_ia32/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/lib/linux_<u></u>ia32/libmpirun.so</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/lib/linux___ia32/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/lib/linux___<u></u>ia32/libmpirun.so</a><br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/lib/linux_ia32/libmpirun.so" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/lib/linux_<u></u>ia32/libmpirun.so</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/share/man/__man1/mpirun.1.gz" target="_blank">8.2.0.0/linux64_2.6-_<u></u>_x86-glibc_2.3.4/share/man/__<u></u>man1/mpirun.1.gz</a><br>
+
+
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/share/man/man1/mpirun.1.gz" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/share/man/<u></u>man1/mpirun.1.gz</a>&gt;<br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-__x86-glibc_2.3.4/share/man/__man1/mpirun.1.gz" target="_blank">http://8.2.0.0/linux64_2.6-__<u></u>x86-glibc_2.3.4/share/man/__<u></u>man1/mpirun.1.gz</a><br>
+        &lt;<a href="http://8.2.0.0/linux64_2.6-x86-glibc_2.3.4/share/man/man1/mpirun.1.gz" target="_blank">http://8.2.0.0/linux64_2.6-<u></u>x86-glibc_2.3.4/share/man/<u></u>man1/mpirun.1.gz</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/bin/mpirun</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/bin/mpirun" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/bin/mpirun</a><br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/bin/mpirun" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun.__mpich" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/bin/mpirun.__<u></u>mpich</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/bin/mpirun.mpich" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun.<u></u>mpich</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun.__mpich" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/bin/mpirun.__<u></u>mpich</a><br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/bin/mpirun.mpich" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun.<u></u>mpich</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun.__mpich2" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/bin/mpirun.__<u></u>mpich2</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/bin/mpirun.mpich2" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun.<u></u>mpich2</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/bin/mpirun.__mpich2" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/bin/mpirun.__<u></u>mpich2</a> &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/bin/mpirun.mpich2" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/bin/mpirun.<u></u>mpich2</a>&gt;&gt;<br>
+
+
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun</a><br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun.mpich" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun.mpich</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun.mpich" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun.mpich</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun.mpich" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun.mpich</a><br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun.mpich" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun.mpich</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun.mpich2" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun.mpich2</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun.mpich2" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun.mpich2</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/bin/__mpirun.mpich2" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/bin/__<u></u>mpirun.mpich2</a><br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/bin/mpirun.mpich2" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/bin/<u></u>mpirun.mpich2</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/lib/__linux_amd64/libmpirun.so" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/lib/__<u></u>linux_amd64/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/lib/linux_amd64/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/lib/<u></u>linux_amd64/libmpirun.so</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/lib/__linux_amd64/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/lib/__<u></u>linux_amd64/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/lib/linux_amd64/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/lib/<u></u>linux_amd64/libmpirun.so</a>&gt;&gt;<br>
+
+
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/lib/__linux_ia32/libmpirun.so" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/ia32/lib/__<u></u>linux_ia32/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/lib/linux_ia32/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/lib/<u></u>linux_ia32/libmpirun.so</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/ia32/lib/__linux_ia32/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/ia32/lib/__<u></u>linux_ia32/libmpirun.so</a><br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/ia32/lib/linux_ia32/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/ia32/lib/<u></u>linux_ia32/libmpirun.so</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/lib/linux___amd64/libmpirun.so" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/lib/linux___<u></u>amd64/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/lib/linux_amd64/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/lib/linux_<u></u>amd64/libmpirun.so</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/lib/linux___amd64/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/lib/linux___<u></u>amd64/libmpirun.so</a><br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/lib/linux_amd64/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/lib/linux_<u></u>amd64/libmpirun.so</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/lib/linux___ia32/libmpirun.so" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/lib/linux___<u></u>ia32/libmpirun.so</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/lib/linux_ia32/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/lib/linux_<u></u>ia32/libmpirun.so</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/lib/linux___ia32/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/lib/linux___<u></u>ia32/libmpirun.so</a><br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/lib/linux_ia32/libmpirun.so" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/lib/linux_<u></u>ia32/libmpirun.so</a>&gt;&gt;<br>
+        /home/djordje/StarCCM/Install/<u></u>__STAR-CCM+8.06.007/mpi/__<u></u>platform/<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/share/man/__man1/mpirun.1.gz" target="_blank">8.3.0.2/linux64_2.6-_<u></u>_x86-glibc_2.3.4/share/man/__<u></u>man1/mpirun.1.gz</a><br>
+
+
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/share/man/man1/mpirun.1.gz" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/share/man/<u></u>man1/mpirun.1.gz</a>&gt;<br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-__x86-glibc_2.3.4/share/man/__man1/mpirun.1.gz" target="_blank">http://8.3.0.2/linux64_2.6-__<u></u>x86-glibc_2.3.4/share/man/__<u></u>man1/mpirun.1.gz</a><br>
+        &lt;<a href="http://8.3.0.2/linux64_2.6-x86-glibc_2.3.4/share/man/man1/mpirun.1.gz" target="_blank">http://8.3.0.2/linux64_2.6-<u></u>x86-glibc_2.3.4/share/man/<u></u>man1/mpirun.1.gz</a>&gt;&gt;<br>
+        */usr/bin/mpirun*<br>
+<br>
+        /usr/bin/mpirun.openmpi<br>
+        /usr/lib/openmpi/include/__<u></u>openmpi/ompi/runtime/__<u></u>mpiruntime.h<br>
+        /usr/share/man/man1/mpirun.1._<u></u>_gz<br>
+        /usr/share/man/man1/mpirun.__<u></u>openmpi.1.gz<br>
+        /var/lib/dpkg/alternatives/__<u></u>mpirun<br>
+        ------------------------------<u></u>__-----------<div class=""><br>
+        This is a single machine. I actually just got it... another user<br>
+        used it<br>
+        for 1-2 years.<br>
+<br>
+        Is this a possible cause of the problem?<br>
+<br>
+        Regards,<br>
+        Djordje<br>
+<br>
+<br>
+        On Mon, Apr 14, 2014 at 7:06 PM, Gus Correa<br>
+        &lt;<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a> &lt;mailto:<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt;<br></div>
+        &lt;mailto:<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a> &lt;mailto:<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt;<u></u>&gt;__&gt;<div><div class="h5">
+
+<br>
+        wrote:<br>
+<br>
+             Apologies for stirring even more the confusion by mispelling<br>
+             &quot;Open MPI&quot; as &quot;OpenMPI&quot;.<br>
+             &quot;OMPI&quot; doesn&#39;t help either, because all OpenMP environment<br>
+             variables and directives start with &quot;OMP&quot;.<br>
+             Maybe associating the names to<br>
+             &quot;message passing&quot; vs. &quot;threads&quot; would help?<br>
+<br>
+             Djordje:<br>
+<br>
+             &#39;which mpif90&#39; etc show everything in /usr/bin.<br>
+             So, very likely they were installed from packages<br>
+             (yum, apt-get, rpm ...),right?<br>
+             Have you tried something like<br>
+             &quot;yum list |grep mpi&quot;<br>
+             to see what you have?<br>
+<br>
+             As Dave, Jeff and Tom said, this may be a mixup of different<br>
+             MPI implementations at compilation (mpicc mpif90) and<br>
+        runtime (mpirun).<br>
+             That is common, you may have different MPI implementations<br>
+        installed.<br>
+<br>
+             Other possibilities that may tell what MPI you have:<br>
+<br>
+             mpirun --version<br>
+             mpif90 --show<br>
+             mpicc --show<br>
+<br>
+             Yet another:<br>
+<br>
+             locate mpirun<br>
+             locate mpif90<br>
+             locate mpicc<br>
+<br>
+             The ldd didn&#39;t show any MPI libraries, maybe they are<br>
+        static libraries.<br>
+<br>
+             An alternative is to install Open MPI from source,<br>
+             and put it in a non-system directory<br>
+             (not /usr/bin, not /usr/local/bin, etc).<br>
+<br>
+             Is this a single machine or a cluster?<br>
+             Or perhaps a set of PCs that you have access to?<br>
+             If it is a cluster, do you have access to a filesystem that is<br>
+             shared across the cluster?<br>
+             On clusters typically /home is shared, often via NFS.<br>
+<br>
+             Gus Correa<br>
+<br>
+<br>
+             On 04/14/2014 05:15 PM, Jeff Squyres (jsquyres) wrote:<br>
+<br>
+                 Maybe we should rename OpenMP to be something less<br>
+        confusing --<br>
+                 perhaps something totally unrelated, perhaps even<br>
+        non-sensical.<br>
+                 That&#39;ll end lots of confusion!<br>
+<br>
+                 My vote: OpenMP --&gt; SharkBook<br>
+<br>
+                 It&#39;s got a ring to it, doesn&#39;t it?  And it sounds fearsome!<br>
+<br>
+<br>
+<br>
+                 On Apr 14, 2014, at 5:04 PM, &quot;Elken, Tom&quot;<br>
+        &lt;<a href="mailto:tom.elken@intel.com" target="_blank">tom.elken@intel.com</a> &lt;mailto:<a href="mailto:tom.elken@intel.com" target="_blank">tom.elken@intel.com</a>&gt;<br></div></div>
+                 &lt;mailto:<a href="mailto:tom.elken@intel.com" target="_blank">tom.elken@intel.com</a><div class=""><br>
+        &lt;mailto:<a href="mailto:tom.elken@intel.com" target="_blank">tom.elken@intel.com</a>&gt;&gt;&gt; wrote:<br>
+<br>
+                     That’s OK.  Many of us make that mistake, though<br>
+        often as a<br>
+                     typo.<br>
+                     One thing that helps is that the correct spelling<br>
+        of Open<br>
+                     MPI has a space in it,<br>
+<br>
+             but OpenMP does not.<br>
+<br>
+                     If not aware what OpenMP is, here is a link:<br>
+        <a href="http://openmp.org/wp/" target="_blank">http://openmp.org/wp/</a><br>
+<br>
+                     What makes it more confusing is that more and more<br>
+        apps.<br>
+<br>
+             offer the option of running in a hybrid mode, such as WRF,<br>
+             with OpenMP threads running over MPI ranks with the same<br>
+        executable.<br>
+             And sometimes that MPI is Open MPI.<br>
+<br>
+<br>
+                     Cheers,<br>
+                     -Tom<br>
+<br></div>
+                     From: users [mailto:<a href="mailto:users-bounces@open-____mpi.org" target="_blank">users-bounces@open-___<u></u>_mpi.org</a><br>
+        &lt;mailto:<a href="mailto:users-bounces@open-__mpi.org" target="_blank">users-bounces@open-__<u></u>mpi.org</a>&gt;<div class=""><br>
+<br>
+                     &lt;mailto:<a href="mailto:users-bounces@open-__mpi.org" target="_blank">users-bounces@open-__<u></u>mpi.org</a><br>
+        &lt;mailto:<a href="mailto:users-bounces@open-mpi.org" target="_blank">users-bounces@open-<u></u>mpi.org</a>&gt;&gt;] On Behalf Of Djordje<br>
+                     Romanic<br>
+                     Sent: Monday, April 14, 2014 1:28 PM<br>
+                     To: Open MPI Users<br>
+                     Subject: Re: [OMPI users] mpirun runs in serial<br>
+        even I set<br>
+                     np to several processors<br>
+<br>
+                     OK guys... Thanks for all this info. Frankly, I<br>
+        didn&#39;t know<br>
+                     these diferences between OpenMP and OpenMPI. The<br>
+        commands:<br>
+                     which mpirun<br>
+                     which mpif90<br>
+                     which mpicc<br>
+                     give,<br>
+                     /usr/bin/mpirun<br>
+                     /usr/bin/mpif90<br>
+                     /usr/bin/mpicc<br>
+                     respectively.<br>
+<br>
+                     A tutorial on how to compile WRF<br>
+<br></div>
+        (<a href="http://www.mmm.ucar.edu/wrf/____OnLineTutorial/compilation_____tutorial.php" target="_blank">http://www.mmm.ucar.edu/wrf/_<u></u>___OnLineTutorial/compilation_<u></u>____tutorial.php</a><br>
+        &lt;<a href="http://www.mmm.ucar.edu/wrf/__OnLineTutorial/compilation___tutorial.php" target="_blank">http://www.mmm.ucar.edu/wrf/_<u></u>_OnLineTutorial/compilation___<u></u>tutorial.php</a>&gt;<div class=""><br>
+
+
+<br>
+        &lt;<a href="http://www.mmm.ucar.edu/wrf/__OnLineTutorial/compilation___tutorial.php" target="_blank">http://www.mmm.ucar.edu/wrf/_<u></u>_OnLineTutorial/compilation___<u></u>tutorial.php</a><br>
+        &lt;<a href="http://www.mmm.ucar.edu/wrf/OnLineTutorial/compilation_tutorial.php" target="_blank">http://www.mmm.ucar.edu/wrf/<u></u>OnLineTutorial/compilation_<u></u>tutorial.php</a>&gt;&gt;)<br>
+<br>
+                     provides a test program to test MPI. I ran the<br>
+        program and<br>
+                     it gave me the output of successful run, which is:<br></div>
+                     ------------------------------<u></u>____---------------<div class=""><br>
+<br>
+                     C function called by Fortran<br>
+                     Values are xx = 2.00 and ii = 1<br>
+                     status = 2<br>
+                     SUCCESS test 2 fortran + c + netcdf + mpi<br></div>
+                     ------------------------------<u></u>____---------------<div class=""><br>
+<br>
+                     It uses mpif90 and mpicc for compiling. Below is<br>
+        the output<br>
+                     of &#39;ldd ./wrf.exe&#39;:<br>
+<br>
+<br>
+                           linux-vdso.so.1 =&gt;  (0x00007fff584e7000)<br>
+                           libpthread.so.0 =&gt;<br></div>
+                     /lib/x86_64-linux-gnu/____<u></u>libpthread.so.0<br>
+        (0x00007f4d160ab000)<br>
+                           libgfortran.so.3 =&gt;<br>
+                     /usr/lib/x86_64-linux-gnu/____<u></u>libgfortran.so.3<br>
+                     (0x00007f4d15d94000)<br>
+                           libm.so.6 =&gt; /lib/x86_64-linux-gnu/libm.so.<u></u>____6<br>
+                     (0x00007f4d15a97000)<br>
+                           libgcc_s.so.1 =&gt;<br>
+        /lib/x86_64-linux-gnu/libgcc__<u></u>___s.so.1<br>
+                     (0x00007f4d15881000)<br>
+                           libc.so.6 =&gt; /lib/x86_64-linux-gnu/libc.so.<u></u>____6<div class=""><br>
+<br>
+                     (0x00007f4d154c1000)<br>
+                           /lib64/ld-linux-x86-64.so.2 (0x00007f4d162e8000)<br>
+                           libquadmath.so.0 =&gt;<br></div>
+                     /usr/lib/x86_64-linux-gnu/____<u></u>libquadmath.so.0<div class=""><br>
+<br>
+                     (0x00007f4d1528a000)<br>
+<br>
+<br>
+<br>
+                     On Mon, Apr 14, 2014 at 4:09 PM, Gus Correa<br>
+                     &lt;<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a><br></div>
+        &lt;mailto:<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt; &lt;mailto:<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a><div><div class="h5"><br>
+
+
+        &lt;mailto:<a href="mailto:gus@ldeo.columbia.edu" target="_blank">gus@ldeo.columbia.edu</a>&gt;<u></u>&gt;__&gt; wrote:<br>
+                     Djordje<br>
+<br>
+                     Your WRF configure file seems to use mpif90 and<br>
+        mpicc (line<br>
+                     115 &amp; following).<br>
+                     In addition, it also seems to have DISABLED OpenMP (NO<br>
+                     TRAILING &quot;I&quot;)<br>
+                     (lines 109-111, where OpenMP stuff is commented out).<br>
+                     So, it looks like to me your intent was to compile<br>
+        with MPI.<br>
+<br>
+                     Whether it is THIS MPI (OpenMPI) or another MPI<br>
+        (say MPICH,<br>
+                     or MVAPICH,<br>
+                     or Intel MPI, or Cray, or ...) only your<br>
+        environment can tell.<br>
+<br>
+                     What do you get from these commands:<br>
+<br>
+                     which mpirun<br>
+                     which mpif90<br>
+                     which mpicc<br>
+<br>
+                     I never built WRF here (but other people here use it).<br>
+                     Which input do you provide to the command that<br>
+        generates the<br>
+                     configure<br>
+                     script that you sent before?<br>
+                     Maybe the full command line will shed some light on<br>
+        the problem.<br>
+<br>
+<br>
+                     I hope this helps,<br>
+                     Gus Correa<br>
+<br>
+<br>
+                     On 04/14/2014 03:11 PM, Djordje Romanic wrote:<br>
+                     to get help :)<br>
+<br>
+<br>
+<br>
+                     On Mon, Apr 14, 2014 at 3:11 PM, Djordje Romanic<br>
+                     &lt;<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a> &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;<br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a> &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;&gt;<br>
+                     &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt; &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;&gt;&gt;&gt; wrote:<br>
+<br>
+                           Yes, but I was hoping to get. :)<br>
+<br>
+<br>
+                           On Mon, Apr 14, 2014 at 3:02 PM, Jeff Squyres<br>
+        (jsquyres)<br>
+                           &lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt; &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;&gt;<br>
+                     &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt; &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;&gt;&gt;&gt; wrote:<br>
+<br>
+                               If you didn&#39;t use Open MPI, then this is<br>
+        the wrong<br>
+                     mailing list<br>
+                               for you.  :-)<br>
+<br>
+                               (this is the Open MPI users&#39; support<br>
+        mailing list)<br>
+<br>
+<br>
+                               On Apr 14, 2014, at 2:58 PM, Djordje Romanic<br>
+                     &lt;<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a> &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;<br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a> &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;&gt;<br>
+                               &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;<br>
+<br>
+                     &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;&gt;&gt;&gt; wrote:<br>
+<br>
+                                &gt; I didn&#39;t use OpenMPI.<br>
+                                &gt;<br>
+                                &gt;<br>
+                                &gt; On Mon, Apr 14, 2014 at 2:37 PM, Jeff<br>
+        Squyres<br>
+                     (jsquyres)<br>
+                               &lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt; &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;&gt;<br>
+                     &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt; &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;&gt;&gt;&gt; wrote:<br>
+                                &gt; This can also happen when you compile your<br>
+                     application with<br>
+                               one MPI implementation (e.g., Open MPI),<br>
+        but then<br>
+                     mistakenly use<br>
+                               the &quot;mpirun&quot; (or &quot;mpiexec&quot;) from a<br>
+        different MPI<br>
+                     implementation<br>
+                               (e.g., MPICH).<br>
+                                &gt;<br>
+                                &gt;<br>
+                                &gt; On Apr 14, 2014, at 2:32 PM, Djordje<br>
+        Romanic<br>
+                               &lt;<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt; &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;&gt;<br>
+                     &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt; &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;&gt;&gt;&gt; wrote:<br>
+                                &gt;<br>
+                                &gt; &gt; I compiled it with: x86_64 Linux,<br>
+        gfortran<br>
+                     compiler with<br>
+                               gcc   (dmpar). dmpar - distributed memory<br>
+        option.<br>
+                                &gt; &gt;<br>
+                                &gt; &gt; Attached is the self-generated<br>
+        configuration<br>
+                     file. The<br>
+                               architecture specification settings start<br>
+        at line<br>
+                     107. I didn&#39;t<br>
+                               use Open MPI (shared memory option).<br>
+                                &gt; &gt;<br>
+                                &gt; &gt;<br>
+                                &gt; &gt; On Mon, Apr 14, 2014 at 1:23 PM,<br>
+        Dave Goodell<br>
+                     (dgoodell)<br>
+                               &lt;<a href="mailto:dgoodell@cisco.com" target="_blank">dgoodell@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:dgoodell@cisco.com" target="_blank">dgoodell@cisco.com</a>&gt; &lt;mailto:<a href="mailto:dgoodell@cisco.com" target="_blank">dgoodell@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:dgoodell@cisco.com" target="_blank">dgoodell@cisco.com</a>&gt;&gt;<br>
+                     &lt;mailto:<a href="mailto:dgoodell@cisco.com" target="_blank">dgoodell@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:dgoodell@cisco.com" target="_blank">dgoodell@cisco.com</a>&gt; &lt;mailto:<a href="mailto:dgoodell@cisco.com" target="_blank">dgoodell@cisco.com</a><br>
+        &lt;mailto:<a href="mailto:dgoodell@cisco.com" target="_blank">dgoodell@cisco.com</a>&gt;&gt;&gt;&gt; wrote:<br>
+                                &gt; &gt; On Apr 14, 2014, at 12:15 PM,<br>
+        Djordje Romanic<br>
+                               &lt;<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt; &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;&gt;<br>
+                     &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt; &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a><br>
+        &lt;mailto:<a href="mailto:djordje8@gmail.com" target="_blank">djordje8@gmail.com</a>&gt;&gt;&gt;&gt; wrote:<br>
+                                &gt; &gt;<br>
+                                &gt; &gt; &gt; When I start wrf with mpirun -np 4<br>
+                     ./wrf.exe, I get this:<br>
+                                &gt; &gt; &gt;<br></div></div>
+                     ------------------------------<u></u>____-------------------<div class=""><br>
+<br>
+                                &gt; &gt; &gt;  starting wrf task            0  of<br>
+                         1<br>
+                                &gt; &gt; &gt;  starting wrf task            0  of<br>
+                         1<br>
+                                &gt; &gt; &gt;  starting wrf task            0  of<br>
+                         1<br>
+                                &gt; &gt; &gt;  starting wrf task            0  of<br>
+                         1<br>
+                                &gt; &gt; &gt;<br></div>
+                     ------------------------------<u></u>____-------------------<div class=""><br>
+<br>
+                                &gt; &gt; &gt; This indicates that it is not using 4<br>
+                     processors, but 1.<br>
+                                &gt; &gt; &gt;<br>
+                                &gt; &gt; &gt; Any idea what might be the problem?<br>
+                                &gt; &gt;<br>
+                                &gt; &gt; It could be that you compiled WRF with a<br>
+                     different MPI<br>
+                               implementation than you are using to run<br>
+        it (e.g.,<br>
+                     MPICH vs.<br>
+                               Open MPI).<br>
+                                &gt; &gt;<br>
+                                &gt; &gt; -Dave<br>
+                                &gt; &gt;<br>
+                                &gt; &gt;<br></div>
+        ______________________________<u></u>_____________________<br>
+</blockquote><div class="HOEnZb"><div class="h5">
+<br>
+______________________________<u></u>_________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/<u></u>mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br></div>
+

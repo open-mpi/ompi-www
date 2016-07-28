@@ -1,0 +1,61 @@
+Index: opal/mca/btl/ugni/btl_ugni_add_procs.c
+===================================================================
+--- opal/mca/btl/ugni/btl_ugni_add_procs.c	(revision 32368)
++++ opal/mca/btl/ugni/btl_ugni_add_procs.c	(working copy)
+@@ -20,7 +20,7 @@
+ #include "ompi/communicator/communicator.h"
+ 
+ static int
+-mca_btl_ugni_setup_mpools (mca_btl_ugni_module_t *ugni_module);
++mca_btl_ugni_setup_mpools (mca_btl_ugni_module_t *ugni_module, size_t nprocs);
+ static void
+ mca_btl_ugni_module_set_max_reg (mca_btl_ugni_module_t *ugni_module, int nlocal_procs);
+ static int mca_btl_ugni_smsg_setup (int nprocs);
+@@ -32,13 +32,12 @@
+                            opal_bitmap_t *reachable) {
+     mca_btl_ugni_module_t *ugni_module = (mca_btl_ugni_module_t *) btl;
+     opal_proc_t *my_proc = ompi_proc_local ();
+-    size_t ntotal_procs, i;
++    size_t i;
+     int rc;
+ 
+     if (false == ugni_module->initialized) {
+-        ntotal_procs = ompi_comm_size ((ompi_communicator_t *) MPI_COMM_WORLD);
+ 
+-        rc = opal_pointer_array_init (&ugni_module->endpoints, ntotal_procs, 1 << 24, 512);
++        rc = opal_pointer_array_init (&ugni_module->endpoints, nprocs, 1 << 24, 512);
+         if (OPAL_SUCCESS != rc) {
+             BTL_ERROR(("error inializing the endpoint array. rc = %d", rc));
+             return rc;
+@@ -109,7 +108,7 @@
+             return opal_common_rc_ugni_to_opal (rc);
+         }
+ 
+-        rc = mca_btl_ugni_setup_mpools (ugni_module);
++        rc = mca_btl_ugni_setup_mpools (ugni_module, nprocs);
+         if (OPAL_UNLIKELY(OPAL_SUCCESS != rc)) {
+             BTL_ERROR(("btl/ugni error setting up mpools/free lists"));
+             return rc;
+@@ -219,10 +218,10 @@
+ }
+ 
+ static int
+-mca_btl_ugni_setup_mpools (mca_btl_ugni_module_t *ugni_module)
++mca_btl_ugni_setup_mpools (mca_btl_ugni_module_t *ugni_module, size_t nprocs)
+ {
+     struct mca_mpool_base_resources_t mpool_resources;
+-    unsigned int mbox_increment, nprocs;
++    unsigned int mbox_increment;
+     const char *mpool_name;
+     int rc;
+ 
+@@ -232,9 +231,6 @@
+         return rc;
+     }
+ 
+-    /* determine how many procs are in the job (might want to check universe size here) */
+-    nprocs = ompi_comm_size ((ompi_communicator_t *) MPI_COMM_WORLD);
+-
+     rc = mca_btl_ugni_smsg_setup (nprocs);
+     if (OPAL_UNLIKELY(OPAL_SUCCESS != rc)) {
+         BTL_ERROR(("error setting up smsg"));

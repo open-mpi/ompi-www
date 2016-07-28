@@ -1,0 +1,361 @@
+<HTML>
+<HEAD>
+<TITLE>Re: [OMPI devel] Multiworld MCA parameter values broken</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>My, you are joining late! ;-)<BR>
+<BR>
+The problem is with MCA params that take string arguments. If we pass the following:<BR>
+<BR>
+-mca foo &quot;my beloved string&quot;<BR>
+<BR>
+on the command line of an orted, we get a value for foo that includes the quote marks. I verified this rather painfully when attempting to pass a command line mca param for a uri. I eventually had to add specific code to clean the paramater up.<BR>
+<BR>
+This appears to be somehow related to the precise method used to register the param. For example, the following deprecated method works fine:<BR>
+<BR>
+On the setup end:<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;opal_argv_append(argc, argv, &quot;--gprreplica&quot;);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;if (NULL != orte_process_info.gpr_replica_uri) {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;contact_info = strdup(orte_process_info.gpr_replica_uri);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;} else {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;contact_info = orte_rml.get_contact_info();<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;asprintf(&amp;param, &quot;\&quot;%s\&quot;&quot;, contact_info);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;opal_argv_append(argc, argv, param);<BR>
+<BR>
+And on the receiving end:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;id = mca_base_param_register_string(&quot;gpr&quot;, &quot;replica&quot;, &quot;uri&quot;, NULL, orte_process_info.gpr_replica_uri);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;mca_base_param_lookup_string(id, &amp;(orte_process_info.gpr_replica_uri));<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;mca_base_param_set_internal(id, true);<BR>
+<BR>
+&nbsp;<BR>
+However, the following does NOT work cleanly:<BR>
+<BR>
+On the setup end:<BR>
+</SPAN></FONT><FONT FACE="Monaco, Courier New"><SPAN STYLE='font-size:11.0px'> &nbsp;&nbsp;&nbsp;rml_uri = orte_rml.get_contact_info();<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;asprintf(&amp;param, <FONT COLOR="#8B1914">&quot;\&quot;%s\&quot;&quot;</FONT>, rml_uri);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;opal_argv_append(argc, argv, <FONT COLOR="#8B1914">&quot;--hnp-uri&quot;</FONT>);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;opal_argv_append(argc, argv, param);<BR>
+<BR>
+On the receiving end:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;mca_base_param_reg_string_name(<FONT COLOR="#8B1914">&quot;orte&quot;</FONT>, <FONT COLOR="#8B1914">&quot;hnp_uri&quot;</FONT>,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<FONT COLOR="#8B1914">&quot;HNP contact info&quot;</FONT>,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;true, false, <FONT COLOR="#771650">NULL</FONT>, &nbsp;&amp;uri);<BR>
+<BR>
+Thereby necessitating the addition of the following code to clean it up:<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;<FONT COLOR="#771650">if</FONT> (<FONT COLOR="#771650">NULL</FONT> != uri) {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<FONT COLOR="#206C24">/* the uri value passed to us will have quote marks around it to protect<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* the value if passed on the command line. We must remove those<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* to have a correct uri string<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/<BR>
+</FONT> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<FONT COLOR="#771650">if</FONT> (<FONT COLOR="#001AFF">'&quot;'</FONT> == uri[<FONT COLOR="#001AFF">0</FONT>]) {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<FONT COLOR="#206C24">/* if the first char is a quote, then so will the last one be */<BR>
+</FONT> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ptr = &amp;uri[<FONT COLOR="#001AFF">1</FONT>];<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;len = strlen(ptr) - <FONT COLOR="#001AFF">1</FONT>;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} <FONT COLOR="#771650">else</FONT> {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ptr = &amp;uri[<FONT COLOR="#001AFF">0</FONT>];<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;len = strlen(uri);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<FONT COLOR="#206C24">/* we have to copy the string by hand as strndup is a GNU extension<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;* and may not be generally available<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*/<BR>
+</FONT> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;orte_process_info.my_hnp_uri = (<FONT COLOR="#771650">char</FONT>*)malloc(len<FONT COLOR="#001AFF">+1</FONT>);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<FONT COLOR="#771650">for</FONT> (i=<FONT COLOR="#001AFF">0</FONT>; i &lt; len; i++) {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;orte_process_info.my_hnp_uri[i] = ptr[i];<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;orte_process_info.my_hnp_uri[len] = <FONT COLOR="#001AFF">'\0'</FONT>; &nbsp;<FONT COLOR="#206C24">/* NULL terminate */<BR>
+</FONT> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;free(uri);<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;}<BR>
+<BR>
+It was my understanding that you wanted us to move away from the deprecated interface &#8211; hence my comment that we cannot just quote all the strings as we would have to add this code all over the place, or (better) fix opal_cmd_line_parse.<BR>
+<BR>
+Hope that helps<BR>
+Ralph<BR>
+</SPAN></FONT><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+<BR>
+On 11/19/07 7:01 AM, &quot;Jeff Squyres&quot; &lt;jsquyres@cisco.com&gt; wrote:<BR>
+<BR>
+<FONT COLOR="#0000FF">&gt; Sorry -- I'm just joining this conversation late: what's the problem &nbsp;<BR>
+&gt; with opal_cmd_line_parse?<BR>
+&gt; <BR>
+&gt; It should obey all quoting from shells, etc. &nbsp;I.e., it shouldn't care &nbsp;<BR>
+&gt; about tokens with special characters (to include spaces) because the &nbsp;<BR>
+&gt; shell divides all of that stuff up -- it just gets a char*[] that it &nbsp;<BR>
+&gt; treats as discrete tokens.<BR>
+&gt; <BR>
+&gt; Is it doing something wrong?<BR>
+&gt; <BR>
+&gt; <BR>
+&gt; <BR>
+&gt; On Nov 19, 2007, at 8:39 AM, Ralph H Castain wrote:<BR>
+&gt; <BR>
+</FONT><FONT COLOR="#008000">&gt;&gt; I'm not sure it is really necessary - the problem is solely within<BR>
+&gt;&gt; opal_cmd_line_parse and (if someone can parse that code ;-)) is &nbsp;<BR>
+&gt;&gt; truly simple<BR>
+&gt;&gt; to fix. The overly long cmd line issue is due to a bug that Josh was &nbsp;<BR>
+&gt;&gt; going<BR>
+&gt;&gt; to look at (may already have done so while I was out of touch).<BR>
+&gt;&gt; <BR>
+&gt;&gt; Ralph<BR>
+&gt;&gt; <BR>
+&gt;&gt; <BR>
+&gt;&gt; <BR>
+&gt;&gt; On 11/9/07 5:10 AM, &quot;Jeff Squyres&quot; &lt;jsquyres@cisco.com&gt; wrote:<BR>
+&gt;&gt; <BR>
+</FONT><FONT COLOR="#FF0000">&gt;&gt;&gt; Should there be another option for passing MCA parameters between<BR>
+&gt;&gt;&gt; processes, such as via stdin (or any file descriptor)? &nbsp;I.e., during<BR>
+&gt;&gt;&gt; the command line parsing to check for command line MCA params, &nbsp;<BR>
+&gt;&gt;&gt; perhaps<BR>
+&gt;&gt;&gt; a new argument could be introduced: -mcauri &lt;uri&gt;, where &lt;uri&gt; could<BR>
+&gt;&gt;&gt; be a few different forms:<BR>
+&gt;&gt;&gt; <BR>
+&gt;&gt;&gt; - file://stdin: (note the 2 //, not 3, so &quot;stdin&quot; would never &nbsp;<BR>
+&gt;&gt;&gt; conflict<BR>
+&gt;&gt;&gt; with a real file named /stdin) &nbsp;Read the parameters in off stdin.<BR>
+&gt;&gt;&gt; <BR>
+&gt;&gt;&gt; - rml://...rml contact info...: read in the MCA params via the RML<BR>
+&gt;&gt;&gt; (although I assume that reading via the RML would be *waaaay* to late<BR>
+&gt;&gt;&gt; during the MCA setup process -- I mentioned this option for<BR>
+&gt;&gt;&gt; completeness, even though I don't think it'll work)<BR>
+&gt;&gt;&gt; <BR>
+&gt;&gt;&gt; - ip://ipaddress:port: open a socket back and read the MCA params in<BR>
+&gt;&gt;&gt; over a socket. &nbsp;This could have some scalability issues...? &nbsp;But who<BR>
+&gt;&gt;&gt; knows; it could be tied into the hierarchical startup such that we<BR>
+&gt;&gt;&gt; wouldn't have to have an all-to-one connection scheme. &nbsp;Certainly it<BR>
+&gt;&gt;&gt; would cause scalability problems when paired with today's all-to-one<BR>
+&gt;&gt;&gt; RML connection scheme for the OOB.<BR>
+&gt;&gt;&gt; <BR>
+&gt;&gt;&gt; I'm not sure that the rml: and ip: schemes are worthwhile. &nbsp;Maybe a<BR>
+&gt;&gt;&gt; file://stdin kind of approach could work? &nbsp;Or perhaps some other kind<BR>
+&gt;&gt;&gt; of URI/IPC...? &nbsp;(I really haven't thought through the issues -- this<BR>
+&gt;&gt;&gt; is off the top of my head)<BR>
+&gt;&gt;&gt; <BR>
+&gt;&gt;&gt; <BR>
+&gt;&gt;&gt; <BR>
+&gt;&gt;&gt; On Nov 8, 2007, at 2:36 PM, Ralph H Castain wrote:<BR>
+&gt;&gt;&gt; <BR>
+</FONT><FONT COLOR="#800080">&gt;&gt;&gt;&gt; Might I suggest:<BR>
+&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt; https://svn.open-mpi.org/trac/ompi/ticket/1073<BR>
+&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt; It deals with some of these issues and explains the boundaries of &nbsp;<BR>
+&gt;&gt;&gt;&gt; the<BR>
+&gt;&gt;&gt;&gt; problem. As for what a string param can contain, I have no opinion.<BR>
+&gt;&gt;&gt;&gt; I only<BR>
+&gt;&gt;&gt;&gt; note that it must handle special characters such as ';', '/', etc.<BR>
+&gt;&gt;&gt;&gt; that are<BR>
+&gt;&gt;&gt;&gt; typically found in uri's. I cannot think of any reason it should<BR>
+&gt;&gt;&gt;&gt; have a<BR>
+&gt;&gt;&gt;&gt; quote in it.<BR>
+&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt; Ralph<BR>
+&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt; On 11/8/07 12:25 PM, &quot;Tim Prins&quot; &lt;tprins@cs.indiana.edu&gt; wrote:<BR>
+&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt; The alias option you presented does not work. I think we do some<BR>
+&gt;&gt;&gt;&gt;&gt; weird<BR>
+&gt;&gt;&gt;&gt;&gt; things to find the absolute path for ssh, instead of just issuing &nbsp;<BR>
+&gt;&gt;&gt;&gt;&gt; the<BR>
+&gt;&gt;&gt;&gt;&gt; command.<BR>
+&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt; I would spend some time fixing this, but I don't want to do it<BR>
+&gt;&gt;&gt;&gt;&gt; wrong. We<BR>
+&gt;&gt;&gt;&gt;&gt; could quote all the param values, and change the parser to remove &nbsp;<BR>
+&gt;&gt;&gt;&gt;&gt; the<BR>
+&gt;&gt;&gt;&gt;&gt; quotes, but this is assuming that a mca param does not contain<BR>
+&gt;&gt;&gt;&gt;&gt; quotes.<BR>
+&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt; So I guess there are 2 questions that need to be answered before a<BR>
+&gt;&gt;&gt;&gt;&gt; fix<BR>
+&gt;&gt;&gt;&gt;&gt; is made:<BR>
+&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt; 1. What exactly can a string mca param contain? Can it have &nbsp;<BR>
+&gt;&gt;&gt;&gt;&gt; quotes or<BR>
+&gt;&gt;&gt;&gt;&gt; spaces or?<BR>
+&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt; 2. Which mca parameters should be forwarded? Should it be just the<BR>
+&gt;&gt;&gt;&gt;&gt; ones<BR>
+&gt;&gt;&gt;&gt;&gt; from the command line? From the environment? From config files?<BR>
+&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt; Tim<BR>
+&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt; Ralph Castain wrote:<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; What changed is that we never passed mca params to the orted<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; before - they<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; always went to the app, but it's the orted that has the issue.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; There is a<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; bug ticket thread on this subject - I forget the number &nbsp;<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; immediately.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt; Basically, the problem was that we cannot generally pass the local<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; environment to the orteds when we launch them. However, people<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; needed<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; various mca params to get to the orteds to control their behavior.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; The only<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; way to resolve that problem was to pass the params via the command<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; line,<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; which is what was done.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt; Except for a very few cases, all of our mca params are single<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; values that do<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; not include spaces, so this is not a problem that is causing<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; widespread<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; issues. As I said, I already had to deal with one special case<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; that didn't<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; involve spaces, but did have special characters that required<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; quoting, which<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; identified the larger problem of dealing with quoted strings.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt; I have no objection to a more general fix. Like I said in my note,<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; though,<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; the general fix will take a larger effort. If someone is willing<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; to do so,<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; that is fine with me - I was only offering solutions that would<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; fill the<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; interim time as I haven't heard anyone step up to say they would<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; fix it<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; anytime soon.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt; Please feel free to jump in and volunteer! ;-) I'm willing to put<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; the quotes<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; around things if you will fix the mca cmd line parser to cleanly<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; remove them<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; on the other end.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt; Ralph<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt; On 11/7/07 5:50 PM, &quot;Tim Prins&quot; &lt;tprins@cs.indiana.edu&gt; wrote:<BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; I'm curious what changed to make this a problem. How were we<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; passing mca<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; param<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; from the base to the app before, and why did it change?<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; I think that options 1 &amp; 2 below are no good, since we, in<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; general, allow<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; string mca params to have spaces (as far as I understand it). So<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; a more<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; general approach is needed.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; Tim<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; On Wednesday 07 November 2007 10:40:45 am Ralph H Castain wrote:<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Sorry for delay - wasn't ignoring the issue.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; There are several fixes to this problem - ranging in order from<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; least to<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; most work:<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; 1. just alias &quot;ssh&quot; to be &quot;ssh -Y&quot; and run without setting the<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; mca param.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; It won't affect anything on the backend because the daemon/procs<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; don't use<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; ssh.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; 2. include &quot;pls_rsh_agent&quot; in the array of mca params not to be<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; passed to<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; the orted in orte/mca/pls/base/pls_base_general_support_fns.c, &nbsp;<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; the<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; orte_pls_base_orted_append_basic_args function. This would fix<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; the specific<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; problem cited here, but I admit that listing every such param by<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; name would<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; get tedious.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; 3. we could easily detect that a &quot;problem&quot; character was in the<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; mca param<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; value when we add it to the orted's argv, and then put &quot;&quot; around<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; it. The<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; problem, however, is that the mca param parser on the far end<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; doesn't<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; remove those &quot;&quot; from the resulting string. At least, I spent<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; over a day<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; fighting with a problem only to discover that was happening.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Could be an<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; error in the way I was doing things, or could be a real<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; characteristic of<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; the parser. Anyway, we would have to ensure that the parser<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; removes any<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; surrounding &quot;&quot; before passing along the param value or this<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; won't work.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Ralph<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; On 11/5/07 12:10 PM, &quot;Tim Prins&quot; &lt;tprins@cs.indiana.edu&gt; wrote:<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Hi,<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Commit 16364 broke things when using multiword mca param<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; values. For<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; instance:<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; mpirun --debug-daemons -mca orte_debug 1 -mca pls rsh -mca<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; pls_rsh_agent<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; &quot;ssh -Y&quot; xterm<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Will crash and burn, because the value &quot;ssh -Y&quot; is being stored<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; into the<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; argv orted_cmd_line in orterun.c:1506. This is then added to<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; the launch<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; command for the orted:<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; /usr/bin/ssh -Y odin004 &nbsp;PATH=/san/homedirs/tprins/usr/rsl/bin:<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; $PATH ;<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; export PATH ;<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; LD_LIBRARY_PATH=/san/homedirs/tprins/usr/rsl/lib:<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; $LD_LIBRARY_PATH ;<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; export LD_LIBRARY_PATH ; /san/homedirs/tprins/usr/rsl/bin/orted<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; --debug<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; --debug-daemons --name 0.1 --num_procs 2 --vpid_start 0 --<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; nodename<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; odin004 --universe tprins@odin.cs.indiana.edu:default-<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; universe-27872<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; --nsreplica<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; &quot;0.0;tcp://<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; 129.79.240.100:40907;tcp6://2001:18e8:2:240:2e0:81ff:fe2d:21a0<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; :4090 8&quot;<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; --gprreplica<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; &quot;0.0;tcp://<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; 129.79.240.100:40907;tcp6://2001:18e8:2:240:2e0:81ff:fe2d:21a0<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; :4090 8&quot;<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; -mca orte_debug 1 -mca pls_rsh_agent ssh -Y -mca<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; mca_base_param_file_path<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; /u/tprins/usr/rsl/share/openmpi/amca-param-sets:/san/homedirs/<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; tprins/rsl/<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; examp les<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; -mca mca_base_param_file_path_force /san/homedirs/tprins/rsl/<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; examples<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Notice that in this command we now have &quot;-mca pls_rsh_agent ssh<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; -Y&quot;. So<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; the quotes have been lost, as we die a horrible death.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; So we need to add the quotes back in somehow, or pass these<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; options<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; differently. I'm not sure what the best way to fix this.<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Thanks,<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt; Tim<BR>
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt; <BR>
+&gt;&gt;&gt;&gt; _______________________________________________<BR>
+&gt;&gt;&gt;&gt; devel mailing list<BR>
+&gt;&gt;&gt;&gt; devel@open-mpi.org<BR>
+&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+</FONT><FONT COLOR="#FF0000">&gt;&gt;&gt; <BR>
+</FONT><FONT COLOR="#0000FF">&gt; <BR>
+</FONT></SPAN></FONT>
+</BODY>
+</HTML>
+
+

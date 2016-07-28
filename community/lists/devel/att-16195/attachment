@@ -1,0 +1,121 @@
+<div dir="ltr"><div>Quick question. Out of curiosity, how do you handle the (common) case of mixing network atomics with CPU atomics? Say for a single target with two initiators, one initiator is on host with the target, so goes through the SM BTL, and the other initiator is off host, so goes through the network BTL. <br><br></div>Josh<br></div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, Nov 4, 2014 at 6:46 PM, Nathan Hjelm <span dir="ltr">&lt;<a href="mailto:hjelmn@lanl.gov" target="_blank">hjelmn@lanl.gov</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
+What: Completely revamp the BTL RDMA interface (btl_put, btl_get) to<br>
+better match what is needed for MPI one-sided.<br>
+<br>
+Why: I am preparing to push an enhanced MPI-3 one-sided component that<br>
+makes use of network rdma and atomic operations to provide a fast truely<br>
+one-sided implementation. Before I can push this component I want to<br>
+change the btl interface to:<br>
+<br>
+ - Provide access to network atomic operations. I only need add and<br>
+   cswap but the interface can be extended to any number of operations.<br>
+<br>
+   The new interface provides three new functions: btl_atomic_op,<br>
+   btl_atomic_fop, and btl_atomic_cswap. Additionally there are two new<br>
+   btl_flags to indicate available atomic support:<br>
+   MCA_BTL_FLAGS_ATOMIC_OPS, and MCA_BTL_FLAGS_ATOMIC_FOPS. The<br>
+   btl_atomics_flags field has been added to indicate which atomic<br>
+   operations are supported (see mca_btl_base_atomic_op_t). At this time<br>
+   I only added support for 64-bit integer atomics but I am open to<br>
+   adding support for 32-bit as well.<br>
+<br>
+<br>
+ - Provide an interface that will allow simultaneous put/get operations<br>
+   without extra calls into the btl. The current interface requires the<br>
+   btl user to call prepare_src/prepare_dst before every rdma<br>
+   operation. In some cases this is a complete waste (vader, sm with<br>
+   CMA, knem, or xpmem).<br>
+<br>
+   I seperated the registration of memory from the segment info. More<br>
+   information is provided below. The new put/get functions have the<br>
+   following signatures:<br>
+<br>
+<br>
+typedef int (*mca_btl_base_module_put_fn_t) (struct mca_btl_base_module_t *btl,<br>
+    struct mca_btl_base_endpoint_t *endpoint, void *local_address,<br>
+    uint64_t remote_address, struct mca_btl_base_registration_handle_t *local_handle,<br>
+    struct mca_btl_base_registration_handle_t *remote_handle, size_t size, int flags,<br>
+    int order, mca_btl_base_rdma_completion_fn_t cbfunc, void *cbcontext, void *cbdata);<br>
+<br>
+typedef int (*mca_btl_base_module_get_fn_t) (struct mca_btl_base_module_t *btl,<br>
+    struct mca_btl_base_endpoint_t *endpoint, void *local_address,<br>
+    uint64_t remote_address, struct mca_btl_base_registration_handle_t *local_handle,<br>
+    struct mca_btl_base_registration_handle_t *remote_handle, size_t size, int flags,<br>
+    int order, mca_btl_base_rdma_completion_fn_t cbfunc, void *cbcontext, void *cbdata);<br>
+<br>
+typedef void (*mca_btl_base_rdma_completion_fn_t)(<br>
+    struct mca_btl_base_module_t* module,<br>
+    struct mca_btl_base_endpoint_t* endpoint,<br>
+    void *local_address,<br>
+    struct mca_btl_base_registration_handle_t *local_handle,<br>
+    void *context,<br>
+    void *cbdata,<br>
+    int status);<br>
+<br>
+   I may modify the completion function to provide more information on<br>
+   the completed operation (size).<br>
+<br>
+<br>
+ - Allow the registration of an entire region even if the region can not<br>
+   be modified with a single rdma operation. At this time prepare_src<br>
+   and prepare_dst may modify the size and register a smaller<br>
+   region. This will not work.<br>
+<br>
+   This is done in the new interface through the new btl_register_mem,<br>
+   and btl_deregister_mem interfaces. The btl_register_mem interface<br>
+   returns a registration handle of size btl_registration_handle_size<br>
+   that can be used as either the local_handle or remote_handle to any<br>
+   rdma/atomic function. BTLs that do not provide these functions do not<br>
+   require registration for rdma/atomic operations.<br>
+<br>
+typedef struct mca_btl_base_registration_handle_t *(*mca_btl_base_module_register_mem_fn_t)(<br>
+    struct mca_btl_base_module_t* btl, struct mca_btl_base_endpoint_t *endpoint, void *base,<br>
+    size_t size, uint32_t flags);<br>
+<br>
+typedef struct mca_btl_base_registration_handle_t *(*mca_btl_base_module_register_mem_fn_t)(<br>
+    struct mca_btl_base_module_t* btl, struct mca_btl_base_endpoint_t *endpoint, void *base,<br>
+    size_t size, uint32_t flags);<br>
+<br>
+<br>
+ - Expose the limitations of the put and get operations so the caller<br>
+   can make decisions before trying a get or put operation. Two<br>
+   examples: the Gemini interconnect has an alignment restriction on<br>
+   get, openib devices may have a limit on how large a single get/put<br>
+   operation can be. The current interface sort of gives the put limit<br>
+   but it is tied to the rdma pipeline protocol.<br>
+<br>
+   This is done in the new interface by providing btl_get_limit,<br>
+   btl_get_alignment, btl_put_limit, and btl_put_alignment. Operations<br>
+   that violate these restrictions should return OPAL_ERR_BAD_PARAM<br>
+   (operation over limit) or OPAL_ERR_NOT_SUPPORTED (operation not<br>
+   supported due to alignment restructions with either the source or<br>
+   destination buffer).<br>
+<br>
+This is a big change and I do not expect everyone to like 100% of these<br>
+changes. I welcome any feedback people have.<br>
+<br>
+<br>
+When: Tuesday, Nov 17, 2015. This is during SC so there will be time for<br>
+face-to-face discussion if anyone has any concerns or would like to see<br>
+something changed.<br>
+<br>
+<br>
+<br>
+The proposed new btl interface as well as updated versions of: pml/ob1,<br>
+btl/openib, btl/self, btl/scif, btl/sm, btl/tcp, btl/ugni, and btl/vader<br>
+can be found in my btlmod branch at:<br>
+<br>
+<a href="https://github.com/hjelmn/ompi/tree/btlmod" target="_blank">https://github.com/hjelmn/ompi/tree/btlmod</a><br>
+<br>
+Other btls (smcuda, and usnic) still need to be updated to provide the<br>
+new interface. Unmodified btl will not build.<br>
+<br>
+If there are no objections I will push the btl modifications into the<br>
+master two weeks from today (Nov 17). Please take a look and let me know<br>
+what you think.<br>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/11/16193.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/11/16193.php</a><br></blockquote></div><br></div>
+

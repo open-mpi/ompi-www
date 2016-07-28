@@ -1,0 +1,166 @@
+commit 883db5e1ce8c3b49cc1376e6acf9c2d5d0d77983
+Author: Gleb Natapov <gleb@voltaire.com>
+Date:   Tue May 27 14:55:11 2008 +0300
+
+    Add functions to maffinity.
+
+diff --git a/opal/mca/maffinity/base/base.h b/opal/mca/maffinity/base/base.h
+index c44efed..339e6a1 100644
+--- a/opal/mca/maffinity/base/base.h
++++ b/opal/mca/maffinity/base/base.h
+@@ -105,6 +105,9 @@ OPAL_DECLSPEC int opal_maffinity_base_select(void);
+  */
+ OPAL_DECLSPEC int opal_maffinity_base_set(opal_maffinity_base_segment_t *segments, size_t num_segments);
+ 
++OPAL_DECLSPEC int opal_maffinity_base_node_name_to_id(char *, int *);
++OPAL_DECLSPEC int opal_maffinity_base_bind(opal_maffinity_base_segment_t *, size_t, int);
++
+ /**
+  * Shut down the maffinity MCA framework.
+  *
+diff --git a/opal/mca/maffinity/base/maffinity_base_wrappers.c b/opal/mca/maffinity/base/maffinity_base_wrappers.c
+index ec843eb..eef5c7d 100644
+--- a/opal/mca/maffinity/base/maffinity_base_wrappers.c
++++ b/opal/mca/maffinity/base/maffinity_base_wrappers.c
+@@ -31,3 +31,33 @@ int opal_maffinity_base_set(opal_maffinity_base_segment_t *segments,
+     }
+     return opal_maffinity_base_module->maff_module_set(segments, num_segments);
+ }
++
++int opal_maffinity_base_node_name_to_id(char *node_name, int *node_id)
++{
++    if (!opal_maffinity_base_selected) {
++        return OPAL_ERR_NOT_FOUND;
++    }
++
++    if (!opal_maffinity_base_module->maff_module_name_to_id) {
++        *node_id = 0;
++        return OPAL_ERR_NOT_IMPLEMENTED;
++    }
++
++    return opal_maffinity_base_module->maff_module_name_to_id(node_name,
++            node_id);
++}
++
++int opal_maffinity_base_bind(opal_maffinity_base_segment_t *segments,
++        size_t num_segments, int node_id)
++{
++    if (!opal_maffinity_base_selected) {
++        return OPAL_ERR_NOT_FOUND;
++    }
++
++    if (!opal_maffinity_base_module->maff_module_bind) {
++        return OPAL_ERR_NOT_IMPLEMENTED;
++    }
++
++    return opal_maffinity_base_module->maff_module_bind(segments, num_segments,
++            node_id);
++}
+diff --git a/opal/mca/maffinity/first_use/maffinity_first_use_module.c b/opal/mca/maffinity/first_use/maffinity_first_use_module.c
+index a68c2a9..0ae33e1 100644
+--- a/opal/mca/maffinity/first_use/maffinity_first_use_module.c
++++ b/opal/mca/maffinity/first_use/maffinity_first_use_module.c
+@@ -41,7 +41,9 @@ static const opal_maffinity_base_module_1_0_0_t loc_module = {
+     first_use_module_init,
+ 
+     /* Module function pointers */
+-    first_use_module_set
++    first_use_module_set,
++    NULL,
++    NULL
+ };
+ 
+ int opal_maffinity_first_use_component_query(mca_base_module_t **module, int *priority)
+diff --git a/opal/mca/maffinity/libnuma/maffinity_libnuma_module.c b/opal/mca/maffinity/libnuma/maffinity_libnuma_module.c
+index 1fc2231..b2b109c 100644
+--- a/opal/mca/maffinity/libnuma/maffinity_libnuma_module.c
++++ b/opal/mca/maffinity/libnuma/maffinity_libnuma_module.c
+@@ -20,6 +20,7 @@
+ 
+ #include <string.h>
+ #include <numa.h>
++#include <numaif.h>
+ 
+ #include "opal/constants.h"
+ #include "opal/mca/maffinity/maffinity.h"
+@@ -33,6 +34,8 @@
+ static int libnuma_module_init(void);
+ static int libnuma_module_set(opal_maffinity_base_segment_t *segments,
+                               size_t num_segments);
++static int libnuma_module_node_name_to_id(char *, int *);
++static int libnuma_modules_bind(opal_maffinity_base_segment_t *, size_t, int);
+ 
+ /*
+  * Libnuma maffinity module
+@@ -42,7 +45,9 @@ static const opal_maffinity_base_module_1_0_0_t loc_module = {
+     libnuma_module_init,
+ 
+     /* Module function pointers */
+-    libnuma_module_set
++    libnuma_module_set,
++    libnuma_module_node_name_to_id,
++    libnuma_modules_bind
+ };
+ 
+ int opal_maffinity_libnuma_component_query(mca_base_module_t **module, int *priority)
+@@ -92,3 +97,28 @@ static int libnuma_module_set(opal_maffinity_base_segment_t *segments,
+ 
+     return OPAL_SUCCESS;
+ }
++
++static int libnuma_module_node_name_to_id(char *node_name, int *id)
++{
++    /* GLB: fix me */
++    *id = atoi(node_name + 3);
++
++    return OPAL_SUCCESS;
++}
++
++static int libnuma_modules_bind(opal_maffinity_base_segment_t *segs,
++        size_t count, int node_id)
++{
++    size_t i;
++    int rc;
++    unsigned long node_mask = (1 << node_id);
++
++    for(i = 0; i < count; i++) {
++        rc = mbind(segs[i].mbs_start_addr, segs[i].mbs_len, MPOL_PREFERRED,
++                &node_mask, sizeof(node_mask) * 8, MPOL_MF_MOVE);
++        if(rc != 0)
++            return OPAL_ERROR;
++    }
++
++    return OPAL_SUCCESS;
++}
+diff --git a/opal/mca/maffinity/maffinity.h b/opal/mca/maffinity/maffinity.h
+index 0fdcee3..5a1a5b2 100644
+--- a/opal/mca/maffinity/maffinity.h
++++ b/opal/mca/maffinity/maffinity.h
+@@ -82,6 +82,17 @@ typedef int (*opal_maffinity_base_module_init_1_0_0_fn_t)(void);
+ typedef int (*opal_maffinity_base_module_set_fn_t)
+     (opal_maffinity_base_segment_t *segments, size_t num_segments);
+ 
++/**
++ * translate memory node name (such as "mem0") to memory node id
++ */
++typedef int (*opal_maffinity_base_module_node_name_to_id_fn_t)
++    (char *node_name, int *node_id);
++
++/**
++ * bind memory to node
++ */
++typedef int (*opal_maffinity_base_module_bind_fn_t)
++    (opal_maffinity_base_segment_t *segments, size_t num_segments, int node_id);
+ 
+ /**
+  * Structure for maffinity v1.0.0 components.
+@@ -108,6 +119,8 @@ struct opal_maffinity_base_module_1_0_0_t {
+ 
+     /** Set memory affinity */
+     opal_maffinity_base_module_set_fn_t maff_module_set;
++    opal_maffinity_base_module_node_name_to_id_fn_t maff_module_name_to_id;
++    opal_maffinity_base_module_bind_fn_t maff_module_bind;
+ };
+ /**
+  * Convenience typedef
+

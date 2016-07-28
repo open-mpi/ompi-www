@@ -1,0 +1,264 @@
+diff -u -r openmpi-trunk2/ompi/communicator/comm.c openmpi-trunk/ompi/communicator/comm.c
+--- openmpi-trunk2/ompi/communicator/comm.c	2013-06-25 16:36:42.000000000 +0900
++++ openmpi-trunk/ompi/communicator/comm.c	2013-06-25 18:52:17.000000000 +0900
+@@ -1446,6 +1446,8 @@
+         opal_output(0," topo-cart,");
+     if ( OMPI_COMM_IS_GRAPH(comm))
+         opal_output(0," topo-graph");
++    if ( OMPI_COMM_IS_DIST_GRAPH(comm))
++        opal_output(0," topo-dist-graph");
+     opal_output(0,"\n");
+ 
+     if (OMPI_COMM_IS_INTER(comm)) {
+diff -u -r openmpi-trunk2/ompi/communicator/communicator.h openmpi-trunk/ompi/communicator/communicator.h
+--- openmpi-trunk2/ompi/communicator/communicator.h	2013-06-25 16:36:42.000000000 +0900
++++ openmpi-trunk/ompi/communicator/communicator.h	2013-06-25 17:19:31.000000000 +0900
+@@ -46,7 +46,7 @@
+ #define OMPI_COMM_INVALID      0x00000020
+ #define OMPI_COMM_CART         0x00000100
+ #define OMPI_COMM_GRAPH        0x00000200
+-#define OMPI_COMM_DIST_GRAPH   0x00000300
++#define OMPI_COMM_DIST_GRAPH   0x00000400
+ #define OMPI_COMM_PML_ADDED    0x00001000
+ #define OMPI_COMM_EXTRA_RETAIN 0x00004000
+ 
+--- openmpi-trunk2/ompi/mca/topo/base/topo_base_dist_graph_create_adjacent.c	2013-06-25 16:36:38.000000000 +0900
++++ openmpi-trunk/ompi/mca/topo/base/topo_base_dist_graph_create_adjacent.c	2013-06-26 11:44:40.000000000 +0900
+@@ -47,18 +47,18 @@
+     topo->out = topo->outw = NULL;
+     topo->indegree = indegree;
+     topo->outdegree = outdegree;
+-    topo->weighted = !((sourceweights == MPI_UNWEIGHTED) || (destweights == MPI_UNWEIGHTED));
++    topo->weighted = !((MPI_UNWEIGHTED == sourceweights) && (MPI_UNWEIGHTED == destweights));
+     topo->in = (int*)malloc(sizeof(int) * topo->indegree);
+     if( NULL == topo->in ) {
+         goto bail_out;
+     }
+     memcpy( topo->in, sources, sizeof(int) * topo->indegree );
+-    if( sourceweights == MPI_UNWEIGHTED ) {
++    if( MPI_UNWEIGHTED != sourceweights ) {
+         topo->inw = (int*)malloc(sizeof(int) * topo->indegree);
+         if( NULL == topo->inw ) {
+             goto bail_out;
+         }
+-        memcpy( topo->in, sourceweights, sizeof(int) * topo->indegree );
++        memcpy( topo->inw, sourceweights, sizeof(int) * topo->indegree );
+     }
+     topo->out = (int*)malloc(sizeof(int) * topo->outdegree);
+     if( NULL == topo->out ) {
+@@ -66,12 +66,12 @@
+     }
+     memcpy( topo->out, destinations, sizeof(int) * topo->outdegree );
+     topo->outw = NULL;
+-    if( destweights == MPI_UNWEIGHTED ) {
++    if( MPI_UNWEIGHTED != destweights ) {
+         topo->outw = (int*)malloc(sizeof(int) * topo->outdegree);
+         if( NULL == topo->outw ) {
+             goto bail_out;
+         }
+-        memcpy( topo->out, destweights, sizeof(int) * topo->outdegree );
++        memcpy( topo->outw, destweights, sizeof(int) * topo->outdegree );
+     }
+     (*newcomm)->c_topo                 = module;
+     (*newcomm)->c_topo->mtc.dist_graph = topo;
+@@ -82,15 +82,16 @@
+ 
+  bail_out:
+     if( NULL != topo->in ) free(topo->in);
+-    if( sourceweights == MPI_UNWEIGHTED ) {
++    if( MPI_UNWEIGHTED != sourceweights ) {
+         if( NULL != topo->inw ) free(topo->inw);
+     }
+     if( NULL != topo->out ) free(topo->out);
+-    if( destweights == MPI_UNWEIGHTED ) {
++    if( MPI_UNWEIGHTED != destweights ) {
+         if( NULL != topo->outw ) free(topo->outw);
+     }
+     if( NULL != topo ) {
+         free(topo);
+     }
++    ompi_comm_free(newcomm);
+     return err;
+ }
+diff -u -r openmpi-trunk2/ompi/mca/topo/base/topo_base_dist_graph_create.c openmpi-trunk/ompi/mca/topo/base/topo_base_dist_graph_create.c
+--- openmpi-trunk2/ompi/mca/topo/base/topo_base_dist_graph_create.c	2013-06-25 16:36:38.000000000 +0900
++++ openmpi-trunk/ompi/mca/topo/base/topo_base_dist_graph_create.c	2013-06-25 18:39:36.000000000 +0900
+@@ -102,7 +102,7 @@
+             position = pos[targets[index]].in + idx[targets[index]].in;
+             if( MPI_UNWEIGHTED != weights ) {
+                 position *= 2;
+-                rin[position + 1] = weights[i];
++                rin[position + 1] = weights[index];
+             }
+             rin[position + 0] = nodes[i];
+             idx[targets[index]].in++;
+@@ -130,19 +130,15 @@
+     topo->in = (int*)malloc(sizeof(int) * topo->indegree);
+     topo->out = (int*)malloc(sizeof(int) * topo->outdegree);
+     if( (NULL == topo->in) || (NULL == topo->out) ) {
+-        if( NULL != topo->in ) free(topo->in);
+-        if( NULL != topo->out ) free(topo->out);
+         err = OMPI_ERR_OUT_OF_RESOURCE;
+         goto bail_out;
+     }
+     topo->inw = NULL;
+     topo->outw = NULL;
+-    if (weights != MPI_UNWEIGHTED) {
++    if (MPI_UNWEIGHTED != weights) {
+         topo->inw = (int*)malloc(sizeof(int) * topo->indegree);
+         topo->outw = (int*)malloc(sizeof(int) * topo->outdegree);
+         if( (NULL == topo->inw) || (NULL == topo->outw) ) {
+-            if( NULL != topo->inw ) free(topo->inw);
+-            if( NULL != topo->outw ) free(topo->outw);
+             err = OMPI_ERR_OUT_OF_RESOURCE;
+             goto bail_out;
+         }
+@@ -153,7 +149,7 @@
+         int position;
+         if( 0 != (count = cnt[i].in) ) {
+             position = pos[i].in;
+-            if (weights != MPI_UNWEIGHTED) {
++            if (MPI_UNWEIGHTED != weights) {
+                 count *= 2;  /* don't forget the weights */
+                 position *= 2;
+             }
+@@ -164,7 +160,7 @@
+         }
+         if( 0 != (count = cnt[i].out) ) {
+             position = pos[i].out;
+-            if (weights != MPI_UNWEIGHTED) {
++            if (MPI_UNWEIGHTED != weights) {
+                 count *= 2;  /* don't forget the weights */
+                 position *= 2;
+             }
+@@ -181,7 +177,7 @@
+      */
+     count = topo->indegree;
+     temp = topo->in;
+-    if (weights != MPI_UNWEIGHTED) {
++    if (MPI_UNWEIGHTED != weights) {
+         count *= 2;  /* don't forget the weights */
+         temp = (int*)malloc(count*sizeof(int));  /* Allocate an array big enough to hold the edges and their weights */
+         if( NULL == temp ) {
+@@ -195,15 +191,15 @@
+                            MPI_ANY_SOURCE, MCA_TOPO_BASE_TAG_DIST_EDGE_IN,
+                            comm, &status ));
+         how_much = status._ucount / int_size;
+-        if (weights != MPI_UNWEIGHTED) {
++        if (MPI_UNWEIGHTED != weights) {
+             for( j = 0; j < ((int)how_much >> 1); j++, current_pos++ ) {
+-                topo->in[current_pos]  = temp[2 * j + 0];
+-                topo->inw[current_pos] = temp[2 * j + 1];
++                topo->in[current_pos]  = temp[2 * j + 0 + (count - left_over)];
++                topo->inw[current_pos] = temp[2 * j + 1 + (count - left_over)];
+             }
+         }
+         left_over -= how_much;
+     }
+-    if (weights != MPI_UNWEIGHTED) {
++    if (MPI_UNWEIGHTED != weights) {
+         free(temp);
+     }
+ 
+@@ -213,7 +209,7 @@
+      */
+     count = topo->outdegree;
+     temp = topo->out;
+-    if (weights != MPI_UNWEIGHTED) {
++    if (MPI_UNWEIGHTED != weights) {
+         count *= 2;  /* don't forget the weights */
+         temp = (int*)malloc(count*sizeof(int));  /* Allocate an array big enough to hold the edges and their weights */
+         if( NULL == temp ) {
+@@ -228,15 +224,15 @@
+                            comm, &status ));
+         how_much = status._ucount / int_size;
+ 
+-        if (weights != MPI_UNWEIGHTED) {
++        if (MPI_UNWEIGHTED != weights) {
+             for( j = 0; j < ((int)how_much >> 1); j++, current_pos++ ) {
+-                topo->out[current_pos]  = temp[2 * j + 0];
+-                topo->outw[current_pos] = temp[2 * j + 1];
++                topo->out[current_pos]  = temp[2 * j + 0 + (count - left_over)];
++                topo->outw[current_pos] = temp[2 * j + 1 + (count - left_over)];
+             }
+         }
+         left_over -= how_much;
+     }
+-    if (weights != MPI_UNWEIGHTED) {
++    if (MPI_UNWEIGHTED != weights) {
+         free(temp);
+     }
+ 
+@@ -255,6 +251,18 @@
+         free(cnt);
+     }
+     if( NULL != topo ) {
++        if ( NULL != topo->in ) {
++            free(topo->in);
++        }
++        if ( NULL != topo->out ) {
++            free(topo->out);
++        }
++        if ( NULL != topo->inw ) {
++            free(topo->inw);
++        }
++        if ( NULL != topo->outw ) {
++            free(topo->outw);
++        }
+         free(topo);
+     }
+     return err;
+diff -u -r openmpi-trunk2/ompi/mca/topo/base/topo_base_dist_graph_neighbors.c openmpi-trunk/ompi/mca/topo/base/topo_base_dist_graph_neighbors.c
+--- openmpi-trunk2/ompi/mca/topo/base/topo_base_dist_graph_neighbors.c	2013-06-25 16:36:38.000000000 +0900
++++ openmpi-trunk/ompi/mca/topo/base/topo_base_dist_graph_neighbors.c	2013-06-26 08:44:25.000000000 +0900
+@@ -28,17 +28,17 @@
+ 
+     if (!OMPI_COMM_IS_DIST_GRAPH(comm)) {
+         return OMPI_ERR_NOT_FOUND;
+-    } else if (maxindegree < dg->indegree || maxoutdegree < dg->outdegree) {
++    } else if (maxindegree > dg->indegree || maxoutdegree > dg->outdegree) {
+         return OMPI_ERR_BAD_PARAM;
+     }
+ 
+-    for (i = 0; i < dg->indegree; ++i) {
++    for (i = 0; (i < dg->indegree) && (i < maxindegree); ++i) {
+         sources[i] = dg->in[i];
+         if (NULL != dg->inw) {
+             sourceweights[i] = dg->inw[i];
+         }
+     }
+-    for (i = 0; i < dg->outdegree; ++i) {
++    for (i = 0; (i < dg->outdegree) && (i < maxoutdegree); ++i) {
+         destinations[i] = dg->out[i];
+         if (NULL != dg->outw) {
+             destweights[i] = dg->outw[i];
+diff -u -r openmpi-trunk2/ompi/mpi/c/dist_graph_create_adjacent.c openmpi-trunk/ompi/mpi/c/dist_graph_create_adjacent.c
+--- openmpi-trunk2/ompi/mpi/c/dist_graph_create_adjacent.c	2013-06-25 16:36:39.000000000 +0900
++++ openmpi-trunk/ompi/mpi/c/dist_graph_create_adjacent.c	2013-06-26 11:49:22.000000000 +0900
+@@ -63,18 +63,19 @@
+         }
+         comm_size = ompi_comm_size(comm_old);
+         for (i = 0; i < indegree; ++i) {
+-            if (sources[i] < 0 || sources[i] >= comm_size ||
+-                sourceweights[i] < 0) {
++            if (sources[i] < 0 || sources[i] >= comm_size) {
++                return OMPI_ERRHANDLER_INVOKE(comm_old, MPI_ERR_ARG, 
++                                              FUNC_NAME);
++            } else if (MPI_UNWEIGHTED != sourceweights && sourceweights[i] < 0) {
+                 return OMPI_ERRHANDLER_INVOKE(comm_old, MPI_ERR_ARG, 
+                                               "MPI_Dist_create_graph adjacent 3");
+             }
+         }
+         for (i = 0; i < outdegree; ++i) {
+-            if (destinations[i] < 0 || destinations[i] >= comm_size ||
+-                destweights[i] < 0) {
+-                opal_output(0, "MPI_DCGA %d, %d", 
+-                            destinations[i],
+-                            destweights[i]);
++            if (destinations[i] < 0 || destinations[i] >= comm_size) {
++                return OMPI_ERRHANDLER_INVOKE(comm_old, MPI_ERR_ARG, 
++                                              FUNC_NAME);
++            } else if (MPI_UNWEIGHTED != destweights && destweights[i] < 0) {
+                 return OMPI_ERRHANDLER_INVOKE(comm_old, MPI_ERR_ARG, 
+                                               "MPI_Dist_create_graph_adjacent 4\n");
+             }

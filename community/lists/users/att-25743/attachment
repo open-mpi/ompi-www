@@ -1,0 +1,158 @@
+<div dir="ltr"><div><div><div><div><div><div><div>I was able to reproduce your issue and I think I understand the problem a bit better at least. This demonstrates exactly what I was pointing to:<br><br></div>It looks like when the test switches over from eager RDMA (I&#39;ll explain in a second), to doing a rendezvous protocol working entirely in user buffer space things go bad.<br><br></div>If you&#39;re input is smaller than some threshold, the eager RDMA limit, then the contents of your user buffer are copied into OMPI/OpenIB BTL scratch buffers called &quot;eager fragments&quot;. This pool of resources is preregistered, pinned, and have had their rkeys exchanged. So, in the eager protocol, your data is copied into these &quot;locked and loaded&quot; RDMA frags and the put/get is handled internally. When the data is received, it&#39;s copied back out into your buffer. In your setup, this always works. <br><br>$mpirun -np 2 --map-by node --bind-to core -mca pml ob1 -mca btl_openib_if_include mlx4_0:1 -mca btl_openib_use_eager_rdma 1 -mca btl_openib_eager_limit 512 -mca btl openib,self ./ibtest -s 56<br>per-node buffer has size 448 bytes<br>node 0 iteration 0, lead word received from peer is 0x00000401 [ok]<br>node 0 iteration 1, lead word received from peer is 0x00000801 [ok]<br>node 0 iteration 2, lead word received from peer is 0x00000c01 [ok]<br>node 0 iteration 3, lead word received from peer is 0x00001001 [ok]<br><br></div>When you exceed the eager threshold, this always fails on the second iteration. To understand this, you need to understand that there is a protocol switch where now your user buffer is used for the transfer. Hence, the user buffer is registered with the HCA. This operation is an inherently high latency operation and is one of the primary motives for doing copy-in/copy-out into preregistered buffers for small, latency sensitive ops. For bandwidth bound transfers, the cost to register can be amortized over the whole transfer, but it still affects the total bandwidth. In the case of a rendezvous protocol where the user buffer is registered, there is an optimization mostly used to help improve the numbers in a bandwidth benchmark called a registration cache. With registration caching the user buffer is registered once and the mkey put into a cache and the memory is kept pinned until the system provides some notification via either memory hooks in p2p malloc, or ummunotify that the buffer has been freed and this signals that the mkey can be evicted from the cache.  On subsequent send/recv operations from the same user buffer address, OpenIB BTL will find the address in the registration cache and take the cached mkey and avoid paying the cost of the memory registration the memory registration and start the data transfer. <br><br></div>What I noticed is when the rendezvous protocol kicks in, it always fails on the second iteration.<br><br>$mpirun -np 2 --map-by node --bind-to core -mca pml ob1 -mca btl_openib_if_include mlx4_0:1 -mca btl_openib_use_eager_rdma 1 -mca btl_openib_eager_limit 128 -mca btl openib,self ./ibtest -s 56<br>per-node buffer has size 448 bytes<br>node 0 iteration 0, lead word received from peer is 0x00000401 [ok]<br>node 0 iteration 1, lead word received from peer is 0x00000000 [NOK]<br>--------------------------------------------------------------------------<br><br></div>So, I suspected it has something to do with the way the virtual address is being handled in this case. To test that theory, I just completely disabled the registration cache by setting -mca mpi_leave_pinned 0 and things start to work:<br><br>$mpirun -np 2 --map-by node --bind-to core -mca pml ob1 -mca btl_openib_if_include mlx4_0:1 -mca btl_openib_use_eager_rdma 1 -mca btl_openib_eager_limit 128 -mca mpi_leave_pinned 0 -mca btl openib,self ./ibtest -s 56<br>per-node buffer has size 448 bytes<br>node 0 iteration 0, lead word received from peer is 0x00000401 [ok]<br>node 0 iteration 1, lead word received from peer is 0x00000801 [ok]<br>node 0 iteration 2, lead word received from peer is 0x00000c01 [ok]<br>node 0 iteration 3, lead word received from peer is 0x00001001 [ok]<br><br></div>I don&#39;t know enough about memory hooks or the registration cache implementation to speak with any authority, but it looks like this is where the issue resides. As a workaround, can you try your original experiment with -mca mpi_leave_pinned 0 and see if you get consistent results.<br><br><br></div>Josh<br><br><br><div>  <br><div><br></div></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Tue, Nov 11, 2014 at 7:07 AM, Emmanuel Thomé <span dir="ltr">&lt;<a href="mailto:emmanuel.thome@gmail.com" target="_blank">emmanuel.thome@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi again,<br>
+<br>
+I&#39;ve been able to simplify my test case significantly. It now runs<br>
+with 2 nodes, and only a single MPI_Send / MPI_Recv pair is used.<br>
+<br>
+The pattern is as follows.<br>
+<br>
+ *  - ranks 0 and 1 both own a local buffer.<br>
+ *  - each fills it with (deterministically known) data.<br>
+ *  - rank 0 collects the data from rank 1&#39;s local buffer<br>
+ *    (whose contents should be no mystery), and writes this to a<br>
+ *    file-backed mmaped area.<br>
+ *  - rank 0 compares what it receives with what it knows it *should<br>
+ *  have* received.<br>
+<br>
+The test fails if:<br>
+<br>
+ *  - the openib btl is used among the 2 nodes<br>
+ *  - a file-backed mmaped area is used for receiving the data.<br>
+ *  - the write is done to a newly created file.<br>
+ *  - per-node buffer is large enough.<br>
+<br>
+For a per-node buffer size above 12kb (12240 bytes to be exact), my<br>
+program fails, since the MPI_Recv does not receive the correct data<br>
+chunk (it just gets zeroes).<br>
+<br>
+I attach the simplified test case. I hope someone will be able to<br>
+reproduce the problem.<br>
+<br>
+Best regards,<br>
+<br>
+E.<br>
+<div class="HOEnZb"><div class="h5"><br>
+<br>
+On Mon, Nov 10, 2014 at 5:48 PM, Emmanuel Thomé<br>
+&lt;<a href="mailto:emmanuel.thome@gmail.com">emmanuel.thome@gmail.com</a>&gt; wrote:<br>
+&gt; Thanks for your answer.<br>
+&gt;<br>
+&gt; On Mon, Nov 10, 2014 at 4:31 PM, Joshua Ladd &lt;<a href="mailto:jladd.mlnx@gmail.com">jladd.mlnx@gmail.com</a>&gt; wrote:<br>
+&gt;&gt; Just really quick off the top of my head, mmaping relies on the virtual<br>
+&gt;&gt; memory subsystem, whereas IB RDMA operations rely on physical memory being<br>
+&gt;&gt; pinned (unswappable.)<br>
+&gt;<br>
+&gt; Yes. Does that mean that the result of computations should be<br>
+&gt; undefined if I happen to give a user buffer which corresponds to a<br>
+&gt; file ? That would be surprising.<br>
+&gt;<br>
+&gt;&gt; For a large message transfer, the OpenIB BTL will<br>
+&gt;&gt; register the user buffer, which will pin the pages and make them<br>
+&gt;&gt; unswappable.<br>
+&gt;<br>
+&gt; Yes. But what are the semantics of pinning the VM area pointed to by<br>
+&gt; ptr if ptr happens to be mmaped from a file ?<br>
+&gt;<br>
+&gt;&gt; If the data being transfered is small, you&#39;ll copy-in/out to<br>
+&gt;&gt; internal bounce buffers and you shouldn&#39;t have issues.<br>
+&gt;<br>
+&gt; Are you saying that the openib layer does have provision in this case<br>
+&gt; for letting the RDMA happen with a pinned physical memory range, and<br>
+&gt; later perform the copy to the file-backed mmaped range ? That would<br>
+&gt; make perfect sense indeed, although I don&#39;t have enough familiarity<br>
+&gt; with the OMPI code to see where it happens, and more importantly<br>
+&gt; whether the completion properly waits for this post-RDMA copy to<br>
+&gt; complete.<br>
+&gt;<br>
+&gt;<br>
+&gt;&gt; 1.If you try to just bcast a few kilobytes of data using this technique, do<br>
+&gt;&gt; you run into issues?<br>
+&gt;<br>
+&gt; No. All &quot;simpler&quot; attempts were successful, unfortunately. Can you be<br>
+&gt; a little bit more precise about what scenario you imagine ? The<br>
+&gt; setting &quot;all ranks mmap a local file, and rank 0 broadcasts there&quot; is<br>
+&gt; successful.<br>
+&gt;<br>
+&gt;&gt; 2. How large is the data in the collective (input and output), is in_place<br>
+&gt;&gt; used? I&#39;m guess it&#39;s large enough that the BTL tries to work with the user<br>
+&gt;&gt; buffer.<br>
+&gt;<br>
+&gt; MPI_IN_PLACE is used in reduce_scatter and allgather in the code.<br>
+&gt; Collectives are with communicators of 2 nodes, and we&#39;re talking (for<br>
+&gt; the smallest failing run) 8kb per node (i.e. 16kb total for an<br>
+&gt; allgather).<br>
+&gt;<br>
+&gt; E.<br>
+&gt;<br>
+&gt;&gt; On Mon, Nov 10, 2014 at 9:29 AM, Emmanuel Thomé &lt;<a href="mailto:emmanuel.thome@gmail.com">emmanuel.thome@gmail.com</a>&gt;<br>
+&gt;&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Hi,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I&#39;m stumbling on a problem related to the openib btl in<br>
+&gt;&gt;&gt; openmpi-1.[78].*, and the (I think legitimate) use of file-backed<br>
+&gt;&gt;&gt; mmaped areas for receiving data through MPI collective calls.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; A test case is attached. I&#39;ve tried to make is reasonably small,<br>
+&gt;&gt;&gt; although I recognize that it&#39;s not extra thin. The test case is a<br>
+&gt;&gt;&gt; trimmed down version of what I witness in the context of a rather<br>
+&gt;&gt;&gt; large program, so there is no claim of relevance of the test case<br>
+&gt;&gt;&gt; itself. It&#39;s here just to trigger the desired misbehaviour. The test<br>
+&gt;&gt;&gt; case contains some detailed information on what is done, and the<br>
+&gt;&gt;&gt; experiments I did.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; In a nutshell, the problem is as follows.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;  - I do a computation, which involves MPI_Reduce_scatter and<br>
+&gt;&gt;&gt; MPI_Allgather.<br>
+&gt;&gt;&gt;  - I save the result to a file (collective operation).<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; *If* I save the file using something such as:<br>
+&gt;&gt;&gt;  fd = open(&quot;blah&quot;, ...<br>
+&gt;&gt;&gt;  area = mmap(..., fd, )<br>
+&gt;&gt;&gt;  MPI_Gather(..., area, ...)<br>
+&gt;&gt;&gt; *AND* the MPI_Reduce_scatter is done with an alternative<br>
+&gt;&gt;&gt; implementation (which I believe is correct)<br>
+&gt;&gt;&gt; *AND* communication is done through the openib btl,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; then the file which gets saved is inconsistent with what is obtained<br>
+&gt;&gt;&gt; with the normal MPI_Reduce_scatter (alghough memory areas do coincide<br>
+&gt;&gt;&gt; before the save).<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I tried to dig a bit in the openib internals, but all I&#39;ve been able<br>
+&gt;&gt;&gt; to witness was beyond my expertise (an RDMA read not transferring the<br>
+&gt;&gt;&gt; expected data, but I&#39;m too uncomfortable with this layer to say<br>
+&gt;&gt;&gt; anything I&#39;m sure about).<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Tests have been done with several openmpi versions including 1.8.3, on<br>
+&gt;&gt;&gt; a debian wheezy (7.5) + OFED 2.3 cluster.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; It would be great if someone could tell me if he is able to reproduce<br>
+&gt;&gt;&gt; the bug, or tell me whether something which is done in this test case<br>
+&gt;&gt;&gt; is illegal in any respect. I&#39;d be glad to provide further information<br>
+&gt;&gt;&gt; which could be of any help.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Best regards,<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; E. Thomé.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt;&gt; Link to this post:<br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2014/11/25730.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/11/25730.php</a><br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; Link to this post:<br>
+&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2014/11/25732.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/11/25732.php</a><br>
+</div></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/11/25740.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/11/25740.php</a><br></blockquote></div><br></div>
+

@@ -1,0 +1,232 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">I suspect that valgrind doesn't recognize that MPI_Allgather will ensure that hostname_recv_buf is filled prior to calling strcmp. If you want to eliminate the warning, you should memset hostname_recv_buf to 0 so it has a guaranteed value.<div><br><div><div><div>On Jan 27, 2012, at 6:21 AM, Gabriele Fatigati wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">Hi Jeff,<div><br></div><div>yes, very stupid bug in a code, but also with the correction the problem with Valgrind in strcmp remains:</div><div><br></div><div><div>==21779== Conditional jump or move depends on uninitialised value(s)</div>
+<div>==21779== &nbsp; &nbsp;at 0x4A0898C: strcmp (mc_replace_strmem.c:711)</div><div>==21779== &nbsp; &nbsp;by 0x400BA8: main (all_gather.c:28)</div><div>==21779==</div><div>==21779== Conditional jump or move depends on uninitialised value(s)</div>
+<div>==21779== &nbsp; &nbsp;at 0x4A0899A: strcmp (mc_replace_strmem.c:711)</div><div>==21779== &nbsp; &nbsp;by 0x400BA8: main (all_gather.c:28)</div><div>==21779==</div><div>==21779== Conditional jump or move depends on uninitialised value(s)</div>
+<div>==21779== &nbsp; &nbsp;at 0x4A089BA: strcmp (mc_replace_strmem.c:711)</div><div>==21779== &nbsp; &nbsp;by 0x400BA8: main (all_gather.c:28)</div><div><br></div><div><br></div>Do you have the same warning with Valgrind? &nbsp;Localhost name is something like "node343" "node344" and so on.</div>
+<div><br></div><div><br><div class="gmail_quote">2012/1/27 Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I see one problem:<br>
+<br>
+ &nbsp; &nbsp;gethostname(local_hostname, sizeof(local_hostname));<br>
+<br>
+That should be:<br>
+<br>
+ &nbsp; &nbsp;gethostname(local_hostname, max_name_len);<br>
+<br>
+because sizeof(local_hostname) will be sizeof(void*).<br>
+<br>
+But if that's what you were intending, just to simulate a small hostname buffer, then be aware that gethostname() will not put a \0 after the string, because it'll copy in sizeof(local_hostname) characters and then stop.<br>
+
+<br>
+Specifically, the man page on OS X says:<br>
+<br>
+ &nbsp; &nbsp; The gethostname() function returns the standard host name for the current<br>
+ &nbsp; &nbsp; processor, as previously set by sethostname(). &nbsp;The namelen argument<br>
+ &nbsp; &nbsp; specifies the size of the name array. &nbsp;The returned name is null-termi-<br>
+ &nbsp; &nbsp; nated, unless insufficient space is provided.<br>
+<br>
+Hence, MPI is transmitting the entire 255 characters in your source array (regardless of content -- MPI is not looking for \0's; you gave it the explicit length of the buffer), but if they weren't filled with \0's, then the receiver's printf will have problems handling it.<br>
+
+<div><div class="h5"><br>
+<br>
+<br>
+On Jan 27, 2012, at 4:03 AM, Gabriele Fatigati wrote:<br>
+<br>
+&gt; Sorry,<br>
+&gt;<br>
+&gt; this is the right code.<br>
+&gt;<br>
+&gt; 2012/1/27 Gabriele Fatigati &lt;<a href="mailto:g.fatigati@cineca.it">g.fatigati@cineca.it</a>&gt;<br>
+&gt; Hi Jeff,<br>
+&gt;<br>
+&gt; The problem is when I use strcmp on ALLGather buffer and Valgrind that raise a warning.<br>
+&gt;<br>
+&gt; Please check if the attached code is right, where size(local_hostname) is very small.<br>
+&gt;<br>
+&gt; Valgrind is used as:<br>
+&gt;<br>
+&gt; mpirun valgrind --leak-check=full --tool=memcheck ./all_gather<br>
+&gt;<br>
+&gt; and openmpi/1.4.4 compiled with "-O0 -g"<br>
+&gt;<br>
+&gt; Thanks!<br>
+&gt;<br>
+&gt; 2012/1/26 Jeff Squyres &lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;<br>
+&gt; I'm not sure what you're asking.<br>
+&gt;<br>
+&gt; The entire contents of hostname[] will be sent -- from position 0 to position (MAX_STRING_LEN-1). &nbsp;If there's a \0 in there, it will be sent. &nbsp;If the \0 occurs after that, then it won't.<br>
+&gt;<br>
+&gt; Be aware that get_hostname(buf, size) will not put a \0 in the buffer if the hostname is exactly "size" bytes. &nbsp;So you might want to double check that your get_hostname() is returning a \0-terminated string.<br>
+
+&gt;<br>
+&gt; Does that make sense?<br>
+&gt;<br>
+&gt; Here's a sample I wrote to verify this:<br>
+&gt;<br>
+&gt; #include &lt;stdio.h&gt;<br>
+&gt; #include &lt;string.h&gt;<br>
+&gt; #include &lt;mpi.h&gt;<br>
+&gt; #include &lt;stdlib.h&gt;<br>
+&gt;<br>
+&gt; #define MAX_LEN 64<br>
+&gt;<br>
+&gt; static void where_null(char *ptr, int len, int rank)<br>
+&gt; {<br>
+&gt; &nbsp; &nbsp;int i;<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;for (i = 0; i &lt; len; ++i) {<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp;if ('\0' == ptr[i]) {<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;printf("Rank %d: Null found at position %d (string: %s)\n",<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; rank, i, ptr);<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;return;<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp;}<br>
+&gt; &nbsp; &nbsp;}<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;printf("Rank %d: Null not found! (string: ", rank);<br>
+&gt; &nbsp; &nbsp;for (i = 0; i &lt; len; ++i) putc(ptr[i], stdout);<br>
+&gt; &nbsp; &nbsp;putc('\n', stdout);<br>
+&gt; }<br>
+&gt;<br>
+&gt; int main()<br>
+&gt; {<br>
+&gt; &nbsp; &nbsp;int i;<br>
+&gt; &nbsp; &nbsp;char hostname[MAX_LEN];<br>
+&gt; &nbsp; &nbsp;char *hostname_recv_buf;<br>
+&gt; &nbsp; &nbsp;int rank, size;<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;MPI_Init(NULL, NULL);<br>
+&gt; &nbsp; &nbsp;MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+&gt; &nbsp; &nbsp;MPI_Comm_size(MPI_COMM_WORLD, &amp;size);<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;gethostname(hostname, MAX_LEN - 1);<br>
+&gt; &nbsp; &nbsp;where_null(hostname, MAX_LEN, rank);<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;hostname_recv_buf = calloc(size * (MAX_LEN), (sizeof(char)));<br>
+&gt; &nbsp; &nbsp;MPI_Allgather(hostname, MAX_LEN, MPI_CHAR,<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;hostname_recv_buf, MAX_LEN, MPI_CHAR, MPI_COMM_WORLD);<br>
+&gt; &nbsp; &nbsp;for (i = 0; i &lt; size; ++i) {<br>
+&gt; &nbsp; &nbsp; &nbsp; &nbsp;where_null(hostname_recv_buf + i * MAX_LEN, MAX_LEN, rank);<br>
+&gt; &nbsp; &nbsp;}<br>
+&gt;<br>
+&gt; &nbsp; &nbsp;MPI_Finalize();<br>
+&gt; &nbsp; &nbsp;return 0;<br>
+&gt; }<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; On Jan 13, 2012, at 2:32 AM, Gabriele Fatigati wrote:<br>
+&gt;<br>
+&gt; &gt; Dear OpenMPI,<br>
+&gt; &gt;<br>
+&gt; &gt; using MPI_Allgather with MPI_CHAR type, I have a doubt about null-terminated character. Imaging I want to spawn node names where my program is running on:<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; ----------------------------------------<br>
+&gt; &gt;<br>
+&gt; &gt; char hostname[MAX_LEN];<br>
+&gt; &gt;<br>
+&gt; &gt; char* hostname_recv_buf=(char*)calloc(num_procs*(MAX_STRING_LEN),(sizeof(char)));<br>
+&gt; &gt;<br>
+&gt; &gt; MPI_Allgather(hostname, MAX_STRING_LEN, MPI_CHAR, hostname_recv_buf, MAX_STRING_LEN, MPI_CHAR, MPI_COMM_WORLD);<br>
+&gt; &gt;<br>
+&gt; &gt; ----------------------------------------<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Now, is the null-terminated character of each local string included? Or I have to send and receive in MPI_Allgather MAX_STRING_LEN+1 elements?<br>
+&gt; &gt;<br>
+&gt; &gt; Using Valgrind, in a subsequent simple strcmp:<br>
+&gt; &gt;<br>
+&gt; &gt; for( i= 0; i&lt; num_procs; i++){<br>
+&gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; if(strcmp(&amp;hostname_recv_buf[MAX_STRING_LEN*i], local_hostname)==0){<br>
+&gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;... doing something....<br>
+&gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; }<br>
+&gt; &gt; &nbsp; &nbsp; &nbsp; &nbsp; }<br>
+&gt; &gt;<br>
+&gt; &gt; raise a warning:<br>
+&gt; &gt;<br>
+&gt; &gt; Conditional jump or move depends on uninitialised value(s)<br>
+&gt; &gt; ==19931== &nbsp; &nbsp;at 0x4A06E5C: strcmp (mc_replace_strmem.c:412)<br>
+&gt; &gt;<br>
+&gt; &gt; The same warning is not present if I use MAX_STRING_LEN+1 in MPI_Allgather.<br>
+&gt; &gt;<br>
+&gt; &gt;<br>
+&gt; &gt; Thanks in forward.<br>
+&gt; &gt;<br>
+&gt; &gt; --<br>
+&gt; &gt; Ing. Gabriele Fatigati<br>
+&gt; &gt;<br>
+&gt; &gt; HPC specialist<br>
+&gt; &gt;<br>
+&gt; &gt; SuperComputing Applications and Innovation Department<br>
+&gt; &gt;<br>
+&gt; &gt; Via Magnanelli 6/3, Casalecchio di Reno (BO) Italy<br>
+&gt; &gt;<br>
+&gt; &gt; <a href="http://www.cineca.it/" target="_blank">www.cineca.it</a> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Tel: &nbsp; <a href="tel:%2B39%20051%206171722" value="+390516171722">+39 051 6171722</a><br>
+&gt; &gt;<br>
+&gt; &gt; g.fatigati [AT] <a href="http://cineca.it/" target="_blank">cineca.it</a><br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; users mailing list<br>
+&gt; &gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Jeff Squyres<br>
+&gt; <a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+&gt; For corporate legal information go to:<br>
+&gt; <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Ing. Gabriele Fatigati<br>
+&gt;<br>
+&gt; HPC specialist<br>
+&gt;<br>
+&gt; SuperComputing Applications and Innovation Department<br>
+&gt;<br>
+&gt; Via Magnanelli 6/3, Casalecchio di Reno (BO) Italy<br>
+&gt;<br>
+&gt; <a href="http://www.cineca.it/" target="_blank">www.cineca.it</a> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Tel: &nbsp; <a href="tel:%2B39%20051%206171722" value="+390516171722">+39 051 6171722</a><br>
+&gt;<br>
+&gt; g.fatigati [AT] <a href="http://cineca.it/" target="_blank">cineca.it</a><br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; Ing. Gabriele Fatigati<br>
+&gt;<br>
+&gt; HPC specialist<br>
+&gt;<br>
+&gt; SuperComputing Applications and Innovation Department<br>
+&gt;<br>
+&gt; Via Magnanelli 6/3, Casalecchio di Reno (BO) Italy<br>
+&gt;<br>
+&gt; <a href="http://www.cineca.it/" target="_blank">www.cineca.it</a> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Tel: &nbsp; <a href="tel:%2B39%20051%206171722" value="+390516171722">+39 051 6171722</a><br>
+&gt;<br>
+&gt; g.fatigati [AT] <a href="http://cineca.it/" target="_blank">cineca.it</a><br>
+</div></div>&gt; &lt;all_gather.c&gt;_______________________________________________<br>
+<div class="HOEnZb"><div class="h5">&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+For corporate legal information go to:<br>
+<a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Ing. Gabriele Fatigati<br><br>HPC specialist<br><br>SuperComputing Applications and Innovation Department<br><br>Via Magnanelli 6/3, Casalecchio di Reno (BO) Italy<br>
+<br><a href="http://www.cineca.it/" target="_blank">www.cineca.it</a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Tel:&nbsp;&nbsp; +39 051 6171722<br><br>g.fatigati [AT] <a href="http://cineca.it/" target="_blank">cineca.it</a>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; <br>
+</div>
+<span>&lt;all_gather.c&gt;</span>_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/users</blockquote></div><br></div></div></body></html>

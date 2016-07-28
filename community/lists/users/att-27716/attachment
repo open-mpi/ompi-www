@@ -1,0 +1,96 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <br>
+    I've now run a few more tests and I think I can reasonably
+    confidently say that the read only mmap is a problem. Let me know if
+    you have a possible fix - I will gladly test it.<br>
+    <br>
+    Marcin<br>
+    <br>
+    <br>
+    <div class="moz-cite-prefix">On 09/29/2015 04:59 PM, Nathan Hjelm
+      wrote:<br>
+    </div>
+    <blockquote cite="mid:20150929145912.GE2128@pn1246003.lanl.gov"
+      type="cite">
+      <pre wrap="">
+We register the memory with the NIC for both read and write access. This
+may be the source of the slowdown. We recently added internal support to
+allow the point-to-point layer to specify the access flags but the
+openib btl does not yet make use of the new support. I plan to make the
+necessary changes before the 2.0.0 release. I should have them complete
+later this week. I can send you a note when they are ready if you would
+like to try it and see if it addresses the problem.
+
+-Nathan
+
+On Tue, Sep 29, 2015 at 10:51:38AM +0200, Marcin Krotkiewski wrote:
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Thanks, Dave.
+
+I have verified the memory locality and IB card locality, all's fine.
+
+Quite accidentally I have found that there is a huge penalty if I mmap the
+shm with PROT_READ only. Using PROT_READ | PROT_WRITE yields good results,
+although I must look at this further. I'll report when I am certain, in case
+sb finds this useful.
+
+Is this an OS feature, or is OpenMPI somehow working differently? I don't
+suspect you guys write to the send buffer, right? Even if you would there
+would be a segfault. So I guess this could be OS preventing any writes to
+the pointer that introduced the overhead?
+
+Marcin
+
+
+
+On 09/28/2015 09:44 PM, Dave Goodell (dgoodell) wrote:
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">On Sep 27, 2015, at 1:38 PM, marcin.krotkiewski <a class="moz-txt-link-rfc2396E" href="mailto:marcin.krotkiewski@gmail.com">&lt;marcin.krotkiewski@gmail.com&gt;</a> wrote:
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">Hello, everyone
+
+I am struggling a bit with IB performance when sending data from a POSIX shared memory region (/dev/shm). The memory is shared among many MPI processes within the same compute node. Essentially, I see a bit hectic performance, but it seems that my code it is roughly twice slower than when using a usual, malloced send buffer.
+</pre>
+          </blockquote>
+          <pre wrap="">It may have to do with NUMA effects and the way you're allocating/touching your shared memory vs. your private (malloced) memory.  If you have a multi-NUMA-domain system (i.e., any 2+ socket server, and even some single-socket servers) then you are likely to run into this sort of issue.  The PCI bus on which your IB HCA communicates is almost certainly closer to one NUMA domain than the others, and performance will usually be worse if you are sending/receiving from/to a "remote" NUMA domain.
+
+"lstopo" and other tools can sometimes help you get a handle on the situation, though I don't know if it knows how to show memory affinity.  I think you can find memory affinity for a process via "/proc/&lt;pid&gt;/numa_maps".  There's lots of info about NUMA affinity here: <a class="moz-txt-link-freetext" href="https://queue.acm.org/detail.cfm?id=2513149">https://queue.acm.org/detail.cfm?id=2513149</a>
+
+-Dave
+
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/09/27702.php">http://www.open-mpi.org/community/lists/users/2015/09/27702.php</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/09/27705.php">http://www.open-mpi.org/community/lists/users/2015/09/27705.php</a>
+</pre>
+        <br>
+        <fieldset class="mimeAttachmentHeader"></fieldset>
+        <br>
+        <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/09/27711.php">http://www.open-mpi.org/community/lists/users/2015/09/27711.php</a></pre>
+      </blockquote>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

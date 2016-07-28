@@ -1,0 +1,659 @@
+Good catch, George - thanks for the detailed explanation. I think what happened here was that we changed the ordering in MPI_Init a while back - we had always had a rule about when MPI components could access remote proc info, but had grown lax about it, so at least some of the BTLs had to be fixed at that time. Since nobody really uses SM coll, the fact that it also violated the sequencing rules went undetected.<div>
+<br></div><div>I&#39;ll work with Jeff to fix the initialization sequencing. I can&#39;t speak to your advice about use in production as you are definitely the expert in this area, but we should at least get it to work for those who want to play with it.</div>
+<div><br></div><div>Ralph</div><div><br><br><div class="gmail_quote">On Tue, Jul 3, 2012 at 6:59 PM, George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank">bosilca@eecs.utk.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word"><span style="font-family:monospace">Juan,</span><div style="font-family:monospace"><br>
+</div><div style="font-family:monospace">Something weird is going on there. The selection mechanism for the SM coll and SM BTL should be very similar. However, the SM BTL successfully select itself while the SM coll fails to determine that all processes are local.</div>
+<div style="font-family:monospace"><br></div><div style="font-family:monospace">In the coll SM the issue is that the remote procs do not have the LOCAL flag set, even when they are on the local node (however the ompi_proc_local() return has a special flag stating that all processes in the job are local). I compared the initialization of the SM BTL and the SM coll. It turns out that somehow the procs returned by ompi_proc_all() and the procs provided to the add_proc of the BTLs are not identical. The second have the local flag correctly set, so I went a little bit deeper.</div>
+<div style="font-family:monospace"><br></div><div style="font-family:monospace">Here is what I found while toying with gdb inside:</div><div style="font-family:monospace"><br></div><div><div><font face="monospace">breakpoint 1, mca_coll_sm_init_query (enable_progress_threads=false, enable_mpi_threads=false) at coll_sm_module.c:132</font></div>
+<div><font face="monospace"><br></font></div><div><font face="monospace">(gdb) p procs[0]</font></div><div><font face="monospace">$1 = (ompi_proc_t *) 0x109a1e8c0</font></div><div><font face="monospace">(gdb) p procs[1]</font></div>
+<div><font face="monospace">$2 = (ompi_proc_t *) 0x109a1e970</font></div><div><font face="monospace">(gdb) p procs[0]-&gt;proc_flags</font></div><div><font face="monospace">$3 = 0</font></div><div><font face="monospace">(gdb) p procs[1]-&gt;proc_flags</font></div>
+<div><font face="monospace">$4 = 4095</font></div><div><font face="monospace"><br></font></div></div><div><div><font face="monospace">Breakpoint 2, mca_btl_sm_add_procs (btl=0x109baa1c0, nprocs=2, procs=0x109a319e0, peers=0x109a319f0, reachability=0x7fff691378e8) at btl_sm.c:427</font></div>
+<div><span style="font-family:monospace"><br></span></div><div><span style="font-family:monospace">(gdb) p procs[0]</span></div><div><font face="monospace">$5 = (struct ompi_proc_t *) 0x109a1e8c0</font></div><div><font face="monospace">(gdb) p procs[1]</font></div>
+<div><font face="monospace">$6 = (struct ompi_proc_t *) 0x109a1e970</font></div><div><font face="monospace">(gdb) p procs[0]-&gt;proc_flags</font></div><div><font face="monospace">$7 = 1920</font></div><div><font face="monospace">(gdb) p procs[1]-&gt;proc_flags</font></div>
+<div><font face="monospace">$8 = 4095</font></div><div style="font-family:monospace"><br></div></div><div style="font-family:monospace">Thus the problem seems to come from the fact that during the initialization of the SM coll the flags are not correctly set. However, this is somehow expected … as the call to the initialization happens before the exchange of the business cards (and therefore there is no way to have any knowledge about the remote procs).</div>
+<div style="font-family:monospace"><br></div><div style="font-family:monospace">So, either something changed drastically in the way we set the flags for remote processes or we did not use the SM coll for the last 3 years. I think the culprit is r21967 (<a href="https://svn.open-mpi.org/trac/ompi/changeset/21967" target="_blank">https://svn.open-mpi.org/trac/ompi/changeset/21967</a>) who added a &quot;selection&quot; logic based on knowledge about remote procs in the coll SM initialization function. But this selection logic was way to early !!!</div>
+<div style="font-family:monospace"><br></div><div style="font-family:monospace">I would strongly encourage you not to use this SM collective component in anything related to production runs.</div><div style="font-family:monospace">
+<br></div><div style="font-family:monospace">  george.</div><div><br></div><div>PS: However, if you want to toy with the SM coll apply the following patch:</div><div><div>Index: coll_sm_module.c</div><div>===================================================================</div>
+<div>--- coll_sm_module.c<span style="white-space:pre-wrap">	</span>(revision 26737)</div><div>+++ coll_sm_module.c<span style="white-space:pre-wrap">	</span>(working copy)</div><div>@@ -128,6 +128,7 @@</div><div> int mca_coll_sm_init_query(bool enable_progress_threads,</div>
+<div>                            bool enable_mpi_threads)</div><div> {</div><div>+#if 0</div><div>     ompi_proc_t *my_proc, **procs;</div><div>     size_t i, size;</div><div> </div><div>@@ -158,7 +159,7 @@</div><div>                             &quot;coll:sm:init_query: no other local procs; disqualifying myself&quot;);</div>
+<div>         return OMPI_ERR_NOT_AVAILABLE;</div><div>     }</div><div>-</div><div>+#endif</div><div>     /* Don&#39;t do much here because we don&#39;t really want to allocate any</div><div>        shared memory until this component is selected to be used. */</div>
+<div>     opal_output_verbose(10, mca_coll_base_output,</div></div><div><div class="h5"><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><div>On Jul 4, 2012, at 02:05 , Ralph Castain wrote:</div>
+<br><blockquote type="cite">Okay, please try this again with r26739 or above. You can remove the rest of the &quot;verbose&quot; settings and the --display-map so we declutter the output. Please add &quot;-mca orte_nidmap_verbose 20&quot; to your cmd line.<div>
+
+<br></div><div>Thanks!</div><div>Ralph</div><div><br><br><div class="gmail_quote">On Tue, Jul 3, 2012 at 1:50 PM, Juan A. Rico <span dir="ltr">&lt;<a href="mailto:jarico@unex.es" target="_blank">jarico@unex.es</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Here is the output.<br>
+<br>
+[jarico@Metropolis-01 examples]$ /home/jarico/shared/packages/openmpi-cas-dbg/bin/mpiexec --bind-to-core --bynode --mca mca_base_verbose 100 --mca mca_coll_base_output 100  --mca coll_sm_priority 99 -mca hwloc_base_verbose 90 --display-map --mca mca_verbose 100 --mca mca_base_verbose 100 --mca coll_base_verbose 100 -n 2 -mca grpcomm_base_verbose 5 ./bmem<br>
+
+
+[Metropolis-01:24563] mca: base: components_open: Looking for hwloc components<br>
+[Metropolis-01:24563] mca: base: components_open: opening hwloc components<br>
+[Metropolis-01:24563] mca: base: components_open: found loaded component hwloc142<br>
+[Metropolis-01:24563] mca: base: components_open: component hwloc142 has no register function<br>
+[Metropolis-01:24563] mca: base: components_open: component hwloc142 has no open function<br>
+[Metropolis-01:24563] hwloc:base:get_topology<br>
+[Metropolis-01:24563] hwloc:base: no cpus specified - using root available cpuset<br>
+[Metropolis-01:24563] mca:base:select:(grpcomm) Querying component [bad]<br>
+[Metropolis-01:24563] mca:base:select:(grpcomm) Query of component [bad] set priority to 10<br>
+[Metropolis-01:24563] mca:base:select:(grpcomm) Selected component [bad]<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:receive start comm<br>
+--------------------------------------------------------------------------<br>
+WARNING: a request was made to bind a process. While the system<br>
+supports binding the process itself, at least one node does NOT<br>
+support binding memory to the process location.<br>
+<br>
+  Node:  Metropolis-01<br>
+<br>
+This is a warning only; your job will continue, though performance may<br>
+be degraded.<br>
+--------------------------------------------------------------------------<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24563] hwloc:base:get_nbojbs computed data 8 of Core:0<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24563] hwloc:base: get available cpus<br>
+[Metropolis-01:24563] hwloc:base:filter_cpus specified - already done<br>
+<div><br>
+ ========================   JOB MAP   ========================<br>
+<br>
+ Data for node: Metropolis-01   Num procs: 2<br>
+</div>        Process OMPI jobid: [36265,1] App: 0 Process rank: 0<br>
+        Process OMPI jobid: [36265,1] App: 0 Process rank: 1<br>
+<br>
+ =============================================================<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:bad:xcast sent to job [36265,0] tag 1<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:xcast:recv:send_relay<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:xcast updating daemon nidmap<br>
+[Metropolis-01:24563] [[36265,0],0] orte:daemon:send_relay - recipient list is empty!<br>
+[Metropolis-01:24564] mca: base: components_open: Looking for hwloc components<br>
+[Metropolis-01:24564] mca: base: components_open: opening hwloc components<br>
+[Metropolis-01:24564] mca: base: components_open: found loaded component hwloc142<br>
+[Metropolis-01:24564] mca: base: components_open: component hwloc142 has no register function<br>
+[Metropolis-01:24564] mca: base: components_open: component hwloc142 has no open function<br>
+[Metropolis-01:24565] mca: base: components_open: Looking for hwloc components<br>
+[Metropolis-01:24565] mca: base: components_open: opening hwloc components<br>
+[Metropolis-01:24565] mca: base: components_open: found loaded component hwloc142<br>
+[Metropolis-01:24565] mca: base: components_open: component hwloc142 has no register function<br>
+[Metropolis-01:24565] mca: base: components_open: component hwloc142 has no open function<br>
+[Metropolis-01:24564] mca:base:select:(grpcomm) Querying component [bad]<br>
+[Metropolis-01:24564] mca:base:select:(grpcomm) Query of component [bad] set priority to 10<br>
+[Metropolis-01:24564] mca:base:select:(grpcomm) Selected component [bad]<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:receive start comm<br>
+[Metropolis-01:24564] computing locality - getting object at level CORE, index 0<br>
+[Metropolis-01:24564] hwloc:base: get available cpus<br>
+[Metropolis-01:24564] hwloc:base:get_available_cpus first time - filtering cpus<br>
+[Metropolis-01:24564] hwloc:base: no cpus specified - using root available cpuset<br>
+[Metropolis-01:24564] computing locality - getting object at level CORE, index 1<br>
+[Metropolis-01:24564] hwloc:base: get available cpus<br>
+[Metropolis-01:24564] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24564] computing locality - shifting up from L1CACHE<br>
+[Metropolis-01:24564] computing locality - shifting up from L2CACHE<br>
+[Metropolis-01:24564] computing locality - shifting up from L3CACHE<br>
+[Metropolis-01:24564] computing locality - filling level SOCKET<br>
+[Metropolis-01:24564] computing locality - filling level NUMA<br>
+[Metropolis-01:24564] locality: CL:CU:N:B:Nu:S<br>
+[Metropolis-01:24565] mca:base:select:(grpcomm) Querying component [bad]<br>
+[Metropolis-01:24565] mca:base:select:(grpcomm) Query of component [bad] set priority to 10<br>
+[Metropolis-01:24565] mca:base:select:(grpcomm) Selected component [bad]<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:receive start comm<br>
+[Metropolis-01:24564] mca: base: components_open: Looking for coll components<br>
+[Metropolis-01:24564] mca: base: components_open: opening coll components<br>
+[Metropolis-01:24564] mca: base: components_open: found loaded component tuned<br>
+[Metropolis-01:24564] mca: base: components_open: component tuned has no register function<br>
+[Metropolis-01:24564] coll:tuned:component_open: done!<br>
+[Metropolis-01:24564] mca: base: components_open: component tuned open function successful<br>
+[Metropolis-01:24564] mca: base: components_open: found loaded component sm<br>
+[Metropolis-01:24564] mca: base: components_open: component sm register function successful<br>
+[Metropolis-01:24564] mca: base: components_open: component sm has no open function<br>
+[Metropolis-01:24564] mca: base: components_open: found loaded component libnbc<br>
+[Metropolis-01:24564] mca: base: components_open: component libnbc register function successful<br>
+[Metropolis-01:24564] mca: base: components_open: component libnbc open function successful<br>
+[Metropolis-01:24564] mca: base: components_open: found loaded component hierarch<br>
+[Metropolis-01:24564] mca: base: components_open: component hierarch has no register function<br>
+[Metropolis-01:24564] mca: base: components_open: component hierarch open function successful<br>
+[Metropolis-01:24564] mca: base: components_open: found loaded component basic<br>
+[Metropolis-01:24564] mca: base: components_open: component basic register function successful<br>
+[Metropolis-01:24564] mca: base: components_open: component basic has no open function<br>
+[Metropolis-01:24564] mca: base: components_open: found loaded component inter<br>
+[Metropolis-01:24564] mca: base: components_open: component inter has no register function<br>
+[Metropolis-01:24564] mca: base: components_open: component inter open function successful<br>
+[Metropolis-01:24564] mca: base: components_open: found loaded component self<br>
+[Metropolis-01:24564] mca: base: components_open: component self has no register function<br>
+[Metropolis-01:24564] mca: base: components_open: component self open function successful<br>
+[Metropolis-01:24565] computing locality - getting object at level CORE, index 1<br>
+[Metropolis-01:24565] hwloc:base: get available cpus<br>
+[Metropolis-01:24565] hwloc:base:get_available_cpus first time - filtering cpus<br>
+[Metropolis-01:24565] hwloc:base: no cpus specified - using root available cpuset<br>
+[Metropolis-01:24565] hwloc:base: get available cpus<br>
+[Metropolis-01:24565] hwloc:base:filter_cpus specified - already done<br>
+[Metropolis-01:24565] computing locality - getting object at level CORE, index 0<br>
+[Metropolis-01:24565] computing locality - shifting up from L1CACHE<br>
+[Metropolis-01:24565] computing locality - shifting up from L2CACHE<br>
+[Metropolis-01:24565] computing locality - shifting up from L3CACHE<br>
+[Metropolis-01:24565] computing locality - filling level SOCKET<br>
+[Metropolis-01:24565] computing locality - filling level NUMA<br>
+[Metropolis-01:24565] locality: CL:CU:N:B:Nu:S<br>
+[Metropolis-01:24563] [[36265,0],0] COLLECTIVE RECVD FROM [[36265,1],0]<br>
+[Metropolis-01:24563] [[36265,0],0] WORKING COLLECTIVE 0<br>
+[Metropolis-01:24563] [[36265,0],0] ADDING [[36265,1],WILDCARD] TO PARTICIPANTS<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLLECTIVE 0<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLL id 0<br>
+[Metropolis-01:24563] [[36265,0],0] ALL LOCAL PROCS CONTRIBUTE 2<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:modex: performing modex<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:pack_modex: reporting 4 entries<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:full:modex: executing allgather<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:bad entering allgather<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:bad allgather underway<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:modex: modex posted<br>
+[Metropolis-01:24565] mca: base: components_open: Looking for coll components<br>
+[Metropolis-01:24565] mca: base: components_open: opening coll components<br>
+[Metropolis-01:24565] mca: base: components_open: found loaded component tuned<br>
+[Metropolis-01:24565] mca: base: components_open: component tuned has no register function<br>
+[Metropolis-01:24565] coll:tuned:component_open: done!<br>
+[Metropolis-01:24565] mca: base: components_open: component tuned open function successful<br>
+[Metropolis-01:24565] mca: base: components_open: found loaded component sm<br>
+[Metropolis-01:24565] mca: base: components_open: component sm register function successful<br>
+[Metropolis-01:24565] mca: base: components_open: component sm has no open function<br>
+[Metropolis-01:24565] mca: base: components_open: found loaded component libnbc<br>
+[Metropolis-01:24565] mca: base: components_open: component libnbc register function successful<br>
+[Metropolis-01:24565] mca: base: components_open: component libnbc open function successful<br>
+[Metropolis-01:24565] mca: base: components_open: found loaded component hierarch<br>
+[Metropolis-01:24565] mca: base: components_open: component hierarch has no register function<br>
+[Metropolis-01:24565] mca: base: components_open: component hierarch open function successful<br>
+[Metropolis-01:24565] mca: base: components_open: found loaded component basic<br>
+[Metropolis-01:24565] mca: base: components_open: component basic register function successful<br>
+[Metropolis-01:24565] mca: base: components_open: component basic has no open function<br>
+[Metropolis-01:24565] mca: base: components_open: found loaded component inter<br>
+[Metropolis-01:24565] mca: base: components_open: component inter has no register function<br>
+[Metropolis-01:24565] mca: base: components_open: component inter open function successful<br>
+[Metropolis-01:24565] mca: base: components_open: found loaded component self<br>
+[Metropolis-01:24565] mca: base: components_open: component self has no register function<br>
+[Metropolis-01:24565] mca: base: components_open: component self open function successful<br>
+[Metropolis-01:24563] [[36265,0],0] COLLECTIVE RECVD FROM [[36265,1],1]<br>
+[Metropolis-01:24563] [[36265,0],0] WORKING COLLECTIVE 0<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLLECTIVE 0<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLL id 0<br>
+[Metropolis-01:24563] [[36265,0],0] ALL LOCAL PROCS CONTRIBUTE 2<br>
+[Metropolis-01:24563] [[36265,0],0] COLLECTIVE 0 LOCALLY COMPLETE - SENDING TO GLOBAL COLLECTIVE<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:daemon_coll: daemon collective recvd from [[36265,0],0]<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:daemon_coll: WORKING COLLECTIVE 0<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:daemon_coll: NUM CONTRIBS: 2<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:bad:xcast sent to job [36265,1] tag 30<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:xcast:recv:send_relay<br>
+[Metropolis-01:24563] [[36265,0],0] orte:daemon:send_relay - recipient list is empty!<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:modex: performing modex<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:pack_modex: reporting 4 entries<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:full:modex: executing allgather<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:bad entering allgather<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:bad allgather underway<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:modex: modex posted<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:receive processing collective return for id 0<br>
+[Metropolis-01:24564] [[36265,1],0] CHECKING COLL id 0<br>
+[Metropolis-01:24564] [[36265,1],0] STORING MODEX DATA<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:store_modex adding modex entry for proc [[36265,1],0]<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:receive processing collective return for id 0<br>
+[Metropolis-01:24565] [[36265,1],1] CHECKING COLL id 0<br>
+[Metropolis-01:24565] [[36265,1],1] STORING MODEX DATA<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:store_modex adding modex entry for proc [[36265,1],0]<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:update_modex_entries: adding 4 entries for proc [[36265,1],0]<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:store_modex adding modex entry for proc [[36265,1],1]<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:update_modex_entries: adding 4 entries for proc [[36265,1],1]<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:update_modex_entries: adding 4 entries for proc [[36265,1],0]<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:store_modex adding modex entry for proc [[36265,1],1]<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:update_modex_entries: adding 4 entries for proc [[36265,1],1]<br>
+[Metropolis-01:24564] coll:find_available: querying coll component tuned<br>
+[Metropolis-01:24564] coll:find_available: coll component tuned is available<br>
+[Metropolis-01:24565] coll:find_available: querying coll component tuned<br>
+[Metropolis-01:24565] coll:find_available: coll component tuned is available<br>
+[Metropolis-01:24565] coll:find_available: querying coll component sm<br>
+[Metropolis-01:24564] coll:find_available: querying coll component sm<br>
+[Metropolis-01:24564] coll:sm:init_query: no other local procs; disqualifying myself<br>
+[Metropolis-01:24564] coll:find_available: coll component sm is not available<br>
+[Metropolis-01:24564] coll:find_available: querying coll component libnbc<br>
+[Metropolis-01:24564] coll:find_available: coll component libnbc is available<br>
+[Metropolis-01:24564] coll:find_available: querying coll component hierarch<br>
+[Metropolis-01:24564] coll:find_available: coll component hierarch is available<br>
+[Metropolis-01:24564] coll:find_available: querying coll component basic<br>
+[Metropolis-01:24564] coll:find_available: coll component basic is available<br>
+[Metropolis-01:24565] coll:sm:init_query: no other local procs; disqualifying myself<br>
+[Metropolis-01:24565] coll:find_available: coll component sm is not available<br>
+[Metropolis-01:24565] coll:find_available: querying coll component libnbc<br>
+[Metropolis-01:24565] coll:find_available: coll component libnbc is available<br>
+[Metropolis-01:24565] coll:find_available: querying coll component hierarch<br>
+[Metropolis-01:24565] coll:find_available: coll component hierarch is available<br>
+[Metropolis-01:24565] coll:find_available: querying coll component basic<br>
+[Metropolis-01:24565] coll:find_available: coll component basic is available<br>
+[Metropolis-01:24564] coll:find_available: querying coll component inter<br>
+[Metropolis-01:24564] coll:find_available: coll component inter is available<br>
+[Metropolis-01:24564] coll:find_available: querying coll component self<br>
+[Metropolis-01:24564] coll:find_available: coll component self is available<br>
+[Metropolis-01:24565] coll:find_available: querying coll component inter<br>
+[Metropolis-01:24565] coll:find_available: coll component inter is available<br>
+[Metropolis-01:24565] coll:find_available: querying coll component self<br>
+[Metropolis-01:24565] coll:find_available: coll component self is available<br>
+[Metropolis-01:24565] hwloc:base:get_nbojbs computed data 0 of NUMANode:0<br>
+[Metropolis-01:24564] hwloc:base:get_nbojbs computed data 0 of NUMANode:0<br>
+[Metropolis-01:24563] [[36265,0],0] COLLECTIVE RECVD FROM [[36265,1],1]<br>
+[Metropolis-01:24563] [[36265,0],0] WORKING COLLECTIVE 1<br>
+[Metropolis-01:24563] [[36265,0],0] ADDING [[36265,1],WILDCARD] TO PARTICIPANTS<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLLECTIVE 1<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLL id 1<br>
+[Metropolis-01:24563] [[36265,0],0] ALL LOCAL PROCS CONTRIBUTE 2<br>
+[Metropolis-01:24563] [[36265,0],0] COLLECTIVE RECVD FROM [[36265,1],0]<br>
+[Metropolis-01:24563] [[36265,0],0] WORKING COLLECTIVE 1<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLLECTIVE 1<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLL id 1<br>
+[Metropolis-01:24563] [[36265,0],0] ALL LOCAL PROCS CONTRIBUTE 2<br>
+[Metropolis-01:24563] [[36265,0],0] COLLECTIVE 1 LOCALLY COMPLETE - SENDING TO GLOBAL COLLECTIVE<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:daemon_coll: daemon collective recvd from [[36265,0],0]<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:daemon_coll: WORKING COLLECTIVE 1<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:daemon_coll: NUM CONTRIBS: 2<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:bad:xcast sent to job [36265,1] tag 30<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:xcast:recv:send_relay<br>
+[Metropolis-01:24563] [[36265,0],0] orte:daemon:send_relay - recipient list is empty!<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:bad entering barrier<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:bad barrier underway<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:bad entering barrier<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:bad barrier underway<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:receive processing collective return for id 1<br>
+[Metropolis-01:24564] [[36265,1],0] CHECKING COLL id 1<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:receive processing collective return for id 1<br>
+[Metropolis-01:24565] [[36265,1],1] CHECKING COLL id 1<br>
+[Metropolis-01:24565] coll:base:comm_select: new communicator: MPI_COMM_WORLD (cid 0)<br>
+[Metropolis-01:24565] coll:base:comm_select: Checking all available modules<br>
+[Metropolis-01:24565] coll:tuned:module_tuned query called<br>
+[Metropolis-01:24565] coll:base:comm_select: component available: tuned, priority: 30<br>
+[Metropolis-01:24565] coll:base:comm_select: component available: libnbc, priority: 10<br>
+[Metropolis-01:24565] coll:base:comm_select: component not available: hierarch<br>
+[Metropolis-01:24565] coll:base:comm_select: component available: basic, priority: 10<br>
+[Metropolis-01:24565] coll:base:comm_select: component not available: inter<br>
+[Metropolis-01:24565] coll:base:comm_select: component not available: self<br>
+[Metropolis-01:24565] coll:tuned:module_init called.<br>
+[Metropolis-01:24565] coll:tuned:module_init Tuned is in use<br>
+[Metropolis-01:24565] coll:base:comm_select: new communicator: MPI_COMM_SELF (cid 1)<br>
+[Metropolis-01:24565] coll:base:comm_select: Checking all available modules<br>
+[Metropolis-01:24564] coll:base:comm_select: new communicator: MPI_COMM_WORLD (cid 0)<br>
+[Metropolis-01:24564] coll:base:comm_select: Checking all available modules<br>
+[Metropolis-01:24564] coll:tuned:module_tuned query called<br>
+[Metropolis-01:24564] coll:base:comm_select: component available: tuned, priority: 30<br>
+[Metropolis-01:24564] coll:base:comm_select: component available: libnbc, priority: 10<br>
+[Metropolis-01:24564] coll:base:comm_select: component not available: hierarch<br>
+[Metropolis-01:24564] coll:base:comm_select: component available: basic, priority: 10<br>
+[Metropolis-01:24564] coll:base:comm_select: component not available: inter<br>
+[Metropolis-01:24564] coll:base:comm_select: component not available: self<br>
+[Metropolis-01:24564] coll:tuned:module_init called.<br>
+[Metropolis-01:24565] coll:tuned:module_tuned query called<br>
+[Metropolis-01:24565] coll:base:comm_select: component not available: tuned<br>
+[Metropolis-01:24565] coll:base:comm_select: component available: libnbc, priority: 10<br>
+[Metropolis-01:24565] coll:base:comm_select: component not available: hierarch<br>
+[Metropolis-01:24565] coll:base:comm_select: component available: basic, priority: 10<br>
+[Metropolis-01:24565] coll:base:comm_select: component not available: inter<br>
+[Metropolis-01:24565] coll:base:comm_select: component available: self, priority: 75<br>
+[Metropolis-01:24564] coll:tuned:module_init Tuned is in use<br>
+[Metropolis-01:24564] coll:base:comm_select: new communicator: MPI_COMM_SELF (cid 1)<br>
+[Metropolis-01:24564] coll:base:comm_select: Checking all available modules<br>
+[Metropolis-01:24564] coll:tuned:module_tuned query called<br>
+[Metropolis-01:24564] coll:base:comm_select: component not available: tuned<br>
+[Metropolis-01:24564] coll:base:comm_select: component available: libnbc, priority: 10<br>
+[Metropolis-01:24564] coll:base:comm_select: component not available: hierarch<br>
+[Metropolis-01:24564] coll:base:comm_select: component available: basic, priority: 10<br>
+[Metropolis-01:24564] coll:base:comm_select: component not available: inter<br>
+[Metropolis-01:24564] coll:base:comm_select: component available: self, priority: 75<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:bad entering barrier<br>
+[Metropolis-01:24563] [[36265,0],0] COLLECTIVE RECVD FROM [[36265,1],1]<br>
+[Metropolis-01:24563] [[36265,0],0] WORKING COLLECTIVE 2<br>
+[Metropolis-01:24563] [[36265,0],0] ADDING [[36265,1],WILDCARD] TO PARTICIPANTS<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLLECTIVE 2<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLL id 2<br>
+[Metropolis-01:24563] [[36265,0],0] ALL LOCAL PROCS CONTRIBUTE 2<br>
+[Metropolis-01:24563] [[36265,0],0] COLLECTIVE RECVD FROM [[36265,1],0]<br>
+[Metropolis-01:24563] [[36265,0],0] WORKING COLLECTIVE 2<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLLECTIVE 2<br>
+[Metropolis-01:24563] [[36265,0],0] PROGRESSING COLL id 2<br>
+[Metropolis-01:24563] [[36265,0],0] ALL LOCAL PROCS CONTRIBUTE 2<br>
+[Metropolis-01:24563] [[36265,0],0] COLLECTIVE 2 LOCALLY COMPLETE - SENDING TO GLOBAL COLLECTIVE<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:daemon_coll: daemon collective recvd from [[36265,0],0]<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:daemon_coll: WORKING COLLECTIVE 2<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:base:daemon_coll: NUM CONTRIBS: 2<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:bad:xcast sent to job [36265,1] tag 30<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:xcast:recv:send_relay<br>
+[Metropolis-01:24563] [[36265,0],0] orte:daemon:send_relay - recipient list is empty!<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:bad entering barrier<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:bad barrier underway<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:receive processing collective return for id 2<br>
+[Metropolis-01:24564] [[36265,1],0] CHECKING COLL id 2<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:bad barrier underway<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:receive processing collective return for id 2<br>
+[Metropolis-01:24565] [[36265,1],1] CHECKING COLL id 2<br>
+[Metropolis-01:24565] coll:tuned:component_close: called<br>
+[Metropolis-01:24565] coll:tuned:component_close: done!<br>
+[Metropolis-01:24565] mca: base: close: component tuned closed<br>
+[Metropolis-01:24565] mca: base: close: unloading component tuned<br>
+[Metropolis-01:24565] mca: base: close: component libnbc closed<br>
+[Metropolis-01:24565] mca: base: close: unloading component libnbc<br>
+[Metropolis-01:24565] mca: base: close: unloading component hierarch<br>
+[Metropolis-01:24565] mca: base: close: unloading component basic<br>
+[Metropolis-01:24565] mca: base: close: unloading component inter<br>
+[Metropolis-01:24565] mca: base: close: unloading component self<br>
+[Metropolis-01:24565] [[36265,1],1] grpcomm:base:receive stop comm<br>
+[Metropolis-01:24564] coll:tuned:component_close: called<br>
+[Metropolis-01:24564] coll:tuned:component_close: done!<br>
+[Metropolis-01:24564] mca: base: close: component tuned closed<br>
+[Metropolis-01:24564] mca: base: close: unloading component tuned<br>
+[Metropolis-01:24564] mca: base: close: component libnbc closed<br>
+[Metropolis-01:24564] mca: base: close: unloading component libnbc<br>
+[Metropolis-01:24564] mca: base: close: unloading component hierarch<br>
+[Metropolis-01:24564] mca: base: close: unloading component basic<br>
+[Metropolis-01:24564] mca: base: close: unloading component inter<br>
+[Metropolis-01:24564] mca: base: close: unloading component self<br>
+[Metropolis-01:24564] [[36265,1],0] grpcomm:base:receive stop comm<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:bad:xcast sent to job [36265,0] tag 1<br>
+[Metropolis-01:24563] [[36265,0],0] grpcomm:xcast:recv:send_relay<br>
+[Metropolis-01:24563] [[36265,0],0] orte:daemon:send_relay - recipient list is empty!<br>
+[jarico@Metropolis-01 examples]$<br>
+<br>
+<br>
+<br>
+El 03/07/2012, a las 21:44, Ralph Castain escribió:<br>
+<br>
+&gt; Interesting - yes, coll sm doesn&#39;t think they are on the same node for some reason. Try adding -mca grpcomm_base_verbose 5 and let&#39;s see why<br>
+<div><div>&gt;<br>
+&gt;<br>
+&gt; On Jul 3, 2012, at 1:24 PM, Juan Antonio Rico Gallego wrote:<br>
+&gt;<br>
+&gt;&gt; The code I run is a simple broadcast.<br>
+&gt;&gt;<br>
+&gt;&gt; When I do not specify components to run, the output is (more verbose):<br>
+&gt;&gt;<br>
+&gt;&gt; [jarico@Metropolis-01 examples]$ /home/jarico/shared/packages/openmpi-cas-dbg/bin/mpiexec --mca mca_base_verbose 100 --mca mca_coll_base_output 100  --mca coll_sm_priority 99 -mca hwloc_base_verbose 90 --display-map --mca mca_verbose 100 --mca mca_base_verbose 100 --mca coll_base_verbose 100 -n 2 ./bmem<br>
+
+
+&gt;&gt; [Metropolis-01:24490] mca: base: components_open: Looking for hwloc components<br>
+&gt;&gt; [Metropolis-01:24490] mca: base: components_open: opening hwloc components<br>
+&gt;&gt; [Metropolis-01:24490] mca: base: components_open: found loaded component hwloc142<br>
+&gt;&gt; [Metropolis-01:24490] mca: base: components_open: component hwloc142 has no register function<br>
+&gt;&gt; [Metropolis-01:24490] mca: base: components_open: component hwloc142 has no open function<br>
+&gt;&gt; [Metropolis-01:24490] hwloc:base:get_topology<br>
+&gt;&gt; [Metropolis-01:24490] hwloc:base: no cpus specified - using root available cpuset<br>
+&gt;&gt;<br>
+&gt;&gt; ========================   JOB MAP   ========================<br>
+&gt;&gt;<br>
+&gt;&gt; Data for node: Metropolis-01 Num procs: 2<br>
+&gt;&gt;      Process OMPI jobid: [36336,1] App: 0 Process rank: 0<br>
+&gt;&gt;      Process OMPI jobid: [36336,1] App: 0 Process rank: 1<br>
+&gt;&gt;<br>
+&gt;&gt; =============================================================<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: Looking for hwloc components<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: opening hwloc components<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: found loaded component hwloc142<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component hwloc142 has no register function<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component hwloc142 has no open function<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: Looking for hwloc components<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: opening hwloc components<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: found loaded component hwloc142<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component hwloc142 has no register function<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component hwloc142 has no open function<br>
+&gt;&gt; [Metropolis-01:24491] locality: CL:CU:N:B<br>
+&gt;&gt; [Metropolis-01:24491] hwloc:base: get available cpus<br>
+&gt;&gt; [Metropolis-01:24491] hwloc:base:get_available_cpus first time - filtering cpus<br>
+&gt;&gt; [Metropolis-01:24491] hwloc:base: no cpus specified - using root available cpuset<br>
+&gt;&gt; [Metropolis-01:24491] hwloc:base:get_available_cpus root object<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: Looking for coll components<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: opening coll components<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: found loaded component tuned<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component tuned has no register function<br>
+&gt;&gt; [Metropolis-01:24491] coll:tuned:component_open: done!<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component tuned open function successful<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: found loaded component sm<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component sm register function successful<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component sm has no open function<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: found loaded component libnbc<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component libnbc register function successful<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component libnbc open function successful<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: found loaded component hierarch<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component hierarch has no register function<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component hierarch open function successful<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: found loaded component basic<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component basic register function successful<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component basic has no open function<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: found loaded component inter<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component inter has no register function<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component inter open function successful<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: found loaded component self<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component self has no register function<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: components_open: component self open function successful<br>
+&gt;&gt; [Metropolis-01:24492] locality: CL:CU:N:B<br>
+&gt;&gt; [Metropolis-01:24492] hwloc:base: get available cpus<br>
+&gt;&gt; [Metropolis-01:24492] hwloc:base:get_available_cpus first time - filtering cpus<br>
+&gt;&gt; [Metropolis-01:24492] hwloc:base: no cpus specified - using root available cpuset<br>
+&gt;&gt; [Metropolis-01:24492] hwloc:base:get_available_cpus root object<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: Looking for coll components<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: opening coll components<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: found loaded component tuned<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component tuned has no register function<br>
+&gt;&gt; [Metropolis-01:24492] coll:tuned:component_open: done!<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component tuned open function successful<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: found loaded component sm<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component sm register function successful<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component sm has no open function<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: found loaded component libnbc<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component libnbc register function successful<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component libnbc open function successful<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: found loaded component hierarch<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component hierarch has no register function<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component hierarch open function successful<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: found loaded component basic<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component basic register function successful<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component basic has no open function<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: found loaded component inter<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component inter has no register function<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component inter open function successful<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: found loaded component self<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component self has no register function<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: components_open: component self open function successful<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: querying coll component tuned<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: coll component tuned is available<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: querying coll component sm<br>
+&gt;&gt; [Metropolis-01:24491] coll:sm:init_query: no other local procs; disqualifying myself<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: coll component sm is not available<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: querying coll component libnbc<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: coll component libnbc is available<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: querying coll component hierarch<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: coll component hierarch is available<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: querying coll component basic<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: coll component basic is available<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: querying coll component inter<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: querying coll component tuned<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: coll component tuned is available<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: querying coll component sm<br>
+&gt;&gt; [Metropolis-01:24492] coll:sm:init_query: no other local procs; disqualifying myself<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: coll component sm is not available<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: querying coll component libnbc<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: coll component libnbc is available<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: querying coll component hierarch<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: coll component hierarch is available<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: querying coll component basic<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: coll component basic is available<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: querying coll component inter<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: coll component inter is available<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: querying coll component self<br>
+&gt;&gt; [Metropolis-01:24492] coll:find_available: coll component self is available<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: coll component inter is available<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: querying coll component self<br>
+&gt;&gt; [Metropolis-01:24491] coll:find_available: coll component self is available<br>
+&gt;&gt; [Metropolis-01:24492] hwloc:base:get_nbojbs computed data 0 of NUMANode:0<br>
+&gt;&gt; [Metropolis-01:24491] hwloc:base:get_nbojbs computed data 0 of NUMANode:0<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: new communicator: MPI_COMM_WORLD (cid 0)<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: Checking all available modules<br>
+&gt;&gt; [Metropolis-01:24491] coll:tuned:module_tuned query called<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component available: tuned, priority: 30<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component available: libnbc, priority: 10<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component not available: hierarch<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component available: basic, priority: 10<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component not available: inter<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component not available: self<br>
+&gt;&gt; [Metropolis-01:24491] coll:tuned:module_init called.<br>
+&gt;&gt; [Metropolis-01:24491] coll:tuned:module_init Tuned is in use<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: new communicator: MPI_COMM_SELF (cid 1)<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: Checking all available modules<br>
+&gt;&gt; [Metropolis-01:24491] coll:tuned:module_tuned query called<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component not available: tuned<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component available: libnbc, priority: 10<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component not available: hierarch<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component available: basic, priority: 10<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component not available: inter<br>
+&gt;&gt; [Metropolis-01:24491] coll:base:comm_select: component available: self, priority: 75<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: new communicator: MPI_COMM_WORLD (cid 0)<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: Checking all available modules<br>
+&gt;&gt; [Metropolis-01:24492] coll:tuned:module_tuned query called<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component available: tuned, priority: 30<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component available: libnbc, priority: 10<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component not available: hierarch<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component available: basic, priority: 10<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component not available: inter<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component not available: self<br>
+&gt;&gt; [Metropolis-01:24492] coll:tuned:module_init called.<br>
+&gt;&gt; [Metropolis-01:24492] coll:tuned:module_init Tuned is in use<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: new communicator: MPI_COMM_SELF (cid 1)<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: Checking all available modules<br>
+&gt;&gt; [Metropolis-01:24492] coll:tuned:module_tuned query called<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component not available: tuned<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component available: libnbc, priority: 10<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component not available: hierarch<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component available: basic, priority: 10<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component not available: inter<br>
+&gt;&gt; [Metropolis-01:24492] coll:base:comm_select: component available: self, priority: 75<br>
+&gt;&gt; [Metropolis-01:24491] coll:tuned:component_close: called<br>
+&gt;&gt; [Metropolis-01:24491] coll:tuned:component_close: done!<br>
+&gt;&gt; [Metropolis-01:24492] coll:tuned:component_close: called<br>
+&gt;&gt; [Metropolis-01:24492] coll:tuned:component_close: done!<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: close: component tuned closed<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: close: unloading component tuned<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: close: component libnbc closed<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: close: unloading component libnbc<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: close: unloading component hierarch<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: close: unloading component basic<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: close: unloading component inter<br>
+&gt;&gt; [Metropolis-01:24492] mca: base: close: unloading component self<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: close: component tuned closed<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: close: unloading component tuned<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: close: component libnbc closed<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: close: unloading component libnbc<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: close: unloading component hierarch<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: close: unloading component basic<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: close: unloading component inter<br>
+&gt;&gt; [Metropolis-01:24491] mca: base: close: unloading component self<br>
+&gt;&gt; [jarico@Metropolis-01 examples]$<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; SM is not load because it detects no other processes in the same machine:<br>
+&gt;&gt;<br>
+&gt;&gt; [Metropolis-01:24491] coll:sm:init_query: no other local procs; disqualifying myself<br>
+&gt;&gt;<br>
+&gt;&gt; The machine is a multicore machine with 8 cores.<br>
+&gt;&gt;<br>
+&gt;&gt; I need to run SM component code, and I suppose that raising priority it will be the component selected when problem is solved.<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; El 03/07/2012, a las 21:01, Jeff Squyres escribió:<br>
+&gt;&gt;<br>
+&gt;&gt;&gt; The issue is that the &quot;sm&quot; coll component only implements a few of the MPI collective operations.  It is usually mixed at run-time with other coll components to fill out the rest of the MPI collective operations.<br>
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; So what is happening is that OMPI is determining that it doesn&#39;t have implementations of all the MPI collective operations and aborting.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; You shouldn&#39;t need to manually select your coll module -- OMPI should automatically select the right collective module for you.  E.g., if all procs are local on a single machine and sm has a matching implementation for that MPI collective operation, it&#39;ll be used.<br>
+
+
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; On Jul 3, 2012, at 2:48 PM, Juan Antonio Rico Gallego wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Output is:<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15355] hwloc:base:get_topology<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15355] hwloc:base: no cpus specified - using root available cpuset<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; ========================   JOB MAP   ========================<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Data for node: Metropolis-01       Num procs: 2<br>
+&gt;&gt;&gt;&gt;    Process OMPI jobid: [59809,1] App: 0 Process rank: 0<br>
+&gt;&gt;&gt;&gt;    Process OMPI jobid: [59809,1] App: 0 Process rank: 1<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; =============================================================<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15356] locality: CL:CU:N:B<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15356] hwloc:base: get available cpus<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15356] hwloc:base:get_available_cpus first time - filtering cpus<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15356] hwloc:base: no cpus specified - using root available cpuset<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15356] hwloc:base:get_available_cpus root object<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15357] locality: CL:CU:N:B<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15357] hwloc:base: get available cpus<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15357] hwloc:base:get_available_cpus first time - filtering cpus<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15357] hwloc:base: no cpus specified - using root available cpuset<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15357] hwloc:base:get_available_cpus root object<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15356] hwloc:base:get_nbojbs computed data 0 of NUMANode:0<br>
+&gt;&gt;&gt;&gt; [Metropolis-01:15357] hwloc:base:get_nbojbs computed data 0 of NUMANode:0<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt;<br>
+&gt;&gt;&gt;&gt; Regards,<br>
+&gt;&gt;&gt;&gt; Juan A. Rico<br>
+&gt;&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; --<br>
+&gt;&gt;&gt; Jeff Squyres<br>
+&gt;&gt;&gt; <a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+&gt;&gt;&gt; For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; _______________________________________________<br>
+&gt;&gt;&gt; devel mailing list<br>
+&gt;&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; devel mailing list<br>
+&gt;&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt;&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br></div>
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+</div><br></div></div></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br></div>
+

@@ -1,0 +1,141 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; "><br><div><div>On Mar 25, 2012, at 10:57 AM, Júlio Hoffimann wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite">I forgot to mention, i tried to set the&nbsp;odls_base_sigkill_timeout as you told, even 5s was not sufficient for the root execute it's task, and most important, the kill was instantaneous, there is no 5s hang. My erroneous conclusion: SIGKILL was being sent instead of SIGTERM.</blockquote><div><br></div>Which version are you using? Could be a bug in there - I can take a look.</div><div><br><blockquote type="cite"><div>
+<br></div><div>About the man page, at least for me, the word "kill" is not clear. The SIGTERM+SIGKILL keywords would be unambiguous.</div></blockquote><div><br></div>I'll clarify it - thanks!</div><div><br><blockquote type="cite"><div><br></div><div>Regards,</div><div>Júlio.<br><div><br><div class="gmail_quote">
+2012/3/25 Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">
+<br><div><div class="im"><div>On Mar 25, 2012, at 7:19 AM, Júlio Hoffimann wrote:</div><br><blockquote type="cite">Dear Ralph,<div><br></div><div>Thank you for your prompt reply. I confirmed what you just said by reading the mpirun man page at the sections <b>Signal Propagation</b> and <b>Process Termination / Signal Handling</b>.</div>
+
+
+<div><br></div><div><div><font face="'times new roman', serif">"During the run of an MPI &nbsp;application, &nbsp;if &nbsp;any &nbsp;rank &nbsp;dies &nbsp;abnormally&nbsp;(either exiting before invoking MPI_FINALIZE, or dying as the result of&nbsp;a signal), mpirun will print out an error message and kill the rest &nbsp;of&nbsp;the MPI application."</font></div>
+
+
+</div><div><br></div><div>If i understood correctly, the SIGKILL signal is sent to every process on a premature death.</div></blockquote><div><br></div></div>Each process receives a SIGTERM, and then a SIGKILL if it doesn't exit within a specified time frame. I told you how to adjust that time period in the prior message.</div>
+<div><div class="im"><br><blockquote type="cite"><div> In my point of view, i consider this a bug. If OpenMPI allows handling signals such as SIGTERM, the other processes in the communicator should also have the opportunity to die&nbsp;prettily. Perhaps i'm missing something?</div>
+</blockquote><div><br></div></div>Yes, you are - you do get a SIGTERM first, but you are required to exit in a timely fashion. You are not allowed to continue running. This is required in order to ensure proper cleanup of the job, per the MPI standard.</div>
+<div><div class="im"><br><blockquote type="cite">
+
+<div><br></div><div>Supposing the described behaviour in the last paragraph, i think would be great to explicitly mention the SIGKILL in the man page, or even better, fix the implementation to send SIGTERM instead, making possible for the user cleanup all processes before exit.</div>
+</blockquote><div><br></div></div>We already do, as described above.</div><div><div class="h5"><div><br><blockquote type="cite">
+
+<div><br></div><div>I solved my particular problem by adding another flag <i>unexpected_error_on_slave</i>:</div><div><br></div><div><pre style="background-image:initial"><span style="color:rgb(128,0,0);font-weight:bold">volatile</span> <span style="color:rgb(96,48,0)">sig_atomic_t</span> unexpected_error_occurred <span style="color:rgb(128,128,48)">=</span> <span style="color:rgb(0,140,0)">0</span><span style="color:rgb(128,0,128)">;</span>
+<span style="color:rgb(128,0,0);font-weight:bold">int</span> unexpected_error_on_slave <span style="color:rgb(128,128,48)">=</span> <span style="color:rgb(0,140,0)">0</span><span style="color:rgb(128,0,128)">;</span>
+<span style="color:rgb(128,0,0);font-weight:bold">enum</span> tag <span style="color:rgb(128,0,128)">{</span> work_tag<span style="color:rgb(128,128,48)">,</span> die_tag <span style="color:rgb(128,0,128)">}</span>
+
+<span style="color:rgb(128,0,0);font-weight:bold">void</span> my_handler<span style="color:rgb(128,128,48)">(</span> <span style="color:rgb(128,0,0);font-weight:bold">int</span> sig <span style="color:rgb(128,128,48)">)</span>
+<span style="color:rgb(128,0,128)">{</span>
+    unexpected_error_occurred <span style="color:rgb(128,128,48)">=</span> <span style="color:rgb(0,140,0)">1</span><span style="color:rgb(128,0,128)">;</span>
+<span style="color:rgb(128,0,128)">}</span>
+
+<span style="color:rgb(105,105,105)">//</span>
+<span style="color:rgb(105,105,105)">// somewhere in the code...</span>
+<span style="color:rgb(105,105,105)">//</span>
+
+<span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> my_handler<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+
+<span style="color:rgb(128,0,0);font-weight:bold">if</span> <span style="color:rgb(128,128,48)">(</span>root process<span style="color:rgb(128,128,48)">)</span> <span style="color:rgb(128,0,128)">{</span>
+
+    <span style="color:rgb(105,105,105)">// do stuff</span>
+
+    world<span style="color:rgb(128,128,48)">.</span><span style="color:rgb(64,0,0)">recv</span><span style="color:rgb(128,128,48)">(</span>mpi<span style="color:rgb(128,0,128)">::</span>any_source<span style="color:rgb(128,128,48)">,</span> die_tag<span style="color:rgb(128,128,48)">,</span> unexpected_error_on_slave<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+    <span style="color:rgb(128,0,0);font-weight:bold">if</span> <span style="color:rgb(128,128,48)">(</span> unexpected_error_occurred <span style="color:rgb(128,128,48)">|</span><span style="color:rgb(128,128,48)">|</span> unexpected_error_on_slave <span style="color:rgb(128,128,48)">)</span> <span style="color:rgb(128,0,128)">{</span>
+
+        <span style="color:rgb(105,105,105)">// save something</span>
+
+        world<span style="color:rgb(128,128,48)">.</span><span style="color:rgb(96,48,0)">abort</span><span style="color:rgb(128,128,48)">(</span>SIGABRT<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+    <span style="color:rgb(128,0,128)">}</span>
+<span style="color:rgb(128,0,128)">}</span>
+<span style="color:rgb(128,0,0);font-weight:bold">else</span> <span style="color:rgb(128,0,128)">{</span> <span style="color:rgb(105,105,105)">// slave process</span>
+
+    <span style="color:rgb(105,105,105)">// do different stuff</span>
+
+    <span style="color:rgb(128,0,0);font-weight:bold">if</span> <span style="color:rgb(128,128,48)">(</span> unexpected_error_occurred <span style="color:rgb(128,128,48)">)</span> <span style="color:rgb(128,0,128)">{</span>
+
+        <span style="color:rgb(105,105,105)">// just communicate the problem to the root</span>
+        world<span style="color:rgb(128,128,48)">.</span><span style="color:rgb(64,0,0)">send</span><span style="color:rgb(128,128,48)">(</span>root<span style="color:rgb(128,128,48)">,</span>die_tag<span style="color:rgb(128,128,48)">,</span><span style="color:rgb(0,140,0)">1</span><span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+        <span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span>SIG_DFL<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+        <span style="color:rgb(128,0,0);font-weight:bold">while</span><span style="color:rgb(128,128,48)">(</span><span style="color:rgb(128,0,0);font-weight:bold">true</span><span style="color:rgb(128,128,48)">)</span>
+            <span style="color:rgb(128,0,128)">;</span> <span style="color:rgb(105,105,105)">// wait, master will take care of this</span>
+    <span style="color:rgb(128,0,128)">}</span>
+    world<span style="color:rgb(128,128,48)">.</span><span style="color:rgb(64,0,0)">send</span><span style="color:rgb(128,128,48)">(</span>root<span style="color:rgb(128,128,48)">,</span>die_tag<span style="color:rgb(128,128,48)">,</span><span style="color:rgb(0,140,0)">0</span><span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span> <span style="color:rgb(105,105,105)">// everything is fine</span>
+<span style="color:rgb(128,0,128)">}</span>
+
+<span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> SIG_DFL<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>                       <span style="color:rgb(105,105,105)">// reassign default handler</span>
+
+<span style="color:rgb(105,105,105)">// continues the code...</span></pre></div><div><br></div><div>Note the slave must hang for the store operation get executed&nbsp;at the root, otherwise we back for the previous scenario.&nbsp;It's theoretically unnecessary send MPI messages to accomplish the desired cleanup, and in more complex applications this can turn into a nightmare. As we know, asynchronous events are insane to debug.</div>
+
+
+<div><br></div><div>Best regards,</div><div>Júlio.</div><div><br></div><div>P.S.: MPI 1.4.3 from Ubuntu 11.10 repositories.</div><div><br><div class="gmail_quote">2012/3/23 Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span><br>
+
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">Well, yes and no. When a process abnormally terminates, OMPI will kill the job - this is done by first hitting each process with a SIGTERM, followed shortly thereafter by a SIGKILL. So you do have a short time on each process to attempt to cleanup.<div>
+
+
+<br></div><div>My guess is that your signal handler actually is getting called, but we then kill the process before you can detect that it was called.</div><div><br></div><div>You might try adjusting the time between sigterm and sigkill using the&nbsp;odls_base_sigkill_timeout MCA param:</div>
+
+
+<div><br></div><div>mpirun -mca&nbsp;odls_base_sigkill_timeout N</div><div><br></div><div>should cause it to wait for N seconds before issuing the sigkill. Not sure if that will help or not - it used to work for me, but I haven't tried it for awhile. What versions of OMPI are you using?</div>
+
+
+<div><br></div><div><br><div><div><div><div>On Mar 22, 2012, at 4:49 PM, Júlio Hoffimann wrote:</div><br></div></div><blockquote type="cite"><div><div>Dear all,<div><br></div><div>I'm trying to handle signals inside a MPI task farming model. Following is a pseudo-code of what i'm trying to achieve:</div>
+
+
+<div><br></div><div><pre style="background-image:initial"><span style="color:rgb(128,0,0);font-weight:bold">volatile</span> <span style="color:rgb(96,48,0)">sig_atomic_t</span> unexpected_error_occurred <span style="color:rgb(128,128,48)">=</span> <span style="color:rgb(0,140,0)">0</span><span style="color:rgb(128,0,128)">;</span>
+
+<span style="color:rgb(128,0,0);font-weight:bold">void</span> my_handler<span style="color:rgb(128,128,48)">(</span> <span style="color:rgb(128,0,0);font-weight:bold">int</span> sig <span style="color:rgb(128,128,48)">)</span>
+<span style="color:rgb(128,0,128)">{</span>
+    unexpected_error_occurred <span style="color:rgb(128,128,48)">=</span> <span style="color:rgb(0,140,0)">1</span><span style="color:rgb(128,0,128)">;</span>
+<span style="color:rgb(128,0,128)">}</span>
+
+<span style="color:rgb(105,105,105)">//</span>
+<span style="color:rgb(105,105,105)">// somewhere in the code...</span>
+<span style="color:rgb(105,105,105)">//</span>
+
+<span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> my_handler<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+
+<span style="color:rgb(128,0,0);font-weight:bold">if</span> <span style="color:rgb(128,128,48)">(</span>root process<span style="color:rgb(128,128,48)">)</span> <span style="color:rgb(128,0,128)">{</span>
+
+    <span style="color:rgb(105,105,105)">// do stuff</span>
+
+    <span style="color:rgb(128,0,0);font-weight:bold">if</span> <span style="color:rgb(128,128,48)">(</span> unexpected_error_occurred <span style="color:rgb(128,128,48)">)</span> <span style="color:rgb(128,0,128)">{</span>
+
+        <span style="color:rgb(105,105,105)">// save something</span>
+
+        <span style="color:rgb(105,105,105)">// reraise the SIGTERM again, but now with the default handler</span>
+        <span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> SIG_DFL<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+        <span style="color:rgb(96,48,0)">raise</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+    <span style="color:rgb(128,0,128)">}</span>
+<span style="color:rgb(128,0,128)">}</span>
+<span style="color:rgb(128,0,0);font-weight:bold">else</span> <span style="color:rgb(128,0,128)">{</span> <span style="color:rgb(105,105,105)">// slave process</span>
+
+    <span style="color:rgb(105,105,105)">// do different stuff</span>
+
+    <span style="color:rgb(128,0,0);font-weight:bold">if</span> <span style="color:rgb(128,128,48)">(</span> unexpected_error_occurred <span style="color:rgb(128,128,48)">)</span> <span style="color:rgb(128,0,128)">{</span>
+
+        <span style="color:rgb(105,105,105)">// just propragate the signal to the root</span>
+        <span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> SIG_DFL<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+        <span style="color:rgb(96,48,0)">raise</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>
+    <span style="color:rgb(128,0,128)">}</span>
+<span style="color:rgb(128,0,128)">}</span>
+
+<span style="color:rgb(96,48,0)">signal</span><span style="color:rgb(128,128,48)">(</span>SIGTERM<span style="color:rgb(128,128,48)">,</span> SIG_DFL<span style="color:rgb(128,128,48)">)</span><span style="color:rgb(128,0,128)">;</span>                       <span style="color:rgb(105,105,105)">// reassign default handler</span>
+
+<span style="color:rgb(105,105,105)">// continues the code...</span></pre></div><div><br></div><div>As can be seen, the signal handling is required for implementing a restart feature. All the problem resides in the assumption i made that all processes in the communicator will receive a SIGTERM as a side effect. Is it a valid assumption? How the actual MPI implementation deals with such scenarios?</div>
+
+
+
+<div><br></div><div>I also tried to replace all the raise() calls by MPI_Abort(), which according to the documentation (<a href="http://www.open-mpi.org/doc/v1.5/man3/MPI_Abort.3.php" target="_blank">http://www.open-mpi.org/doc/v1.5/man3/MPI_Abort.3.php</a>), sends a SIGTERM to all associated processes. The undesired behaviour persists: when killing a slave process, the save section in the root branch is not executed.</div>
+
+
+
+<div><br></div><div>Appreciate any help,</div><div>Júlio.</div></div></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+
+
+</div><br></div></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+</div><br></div></div></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br></div></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>http://www.open-mpi.org/mailman/listinfo.cgi/users</blockquote></div><br></body></html>

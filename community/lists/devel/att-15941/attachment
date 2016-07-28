@@ -1,0 +1,185 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">Nathan,<br>
+      <br>
+      here is a revision of the previously attached patch, and that
+      supports graph and dist graph.<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2014/09/30 0:05, Nathan Hjelm wrote:<br>
+    </div>
+    <blockquote cite="mid:20140929150512.GA32893@pn1246003.lanl.gov"
+      type="cite">
+      <pre wrap="">An equivalent change would need to be made for graph and dist graph as
+well. That will take a little more work. Also, I was avoiding changing
+anything in topo for 1.8.
+
+-Nathan
+
+On Mon, Sep 29, 2014 at 08:02:41PM +0900, Gilles Gouaillardet wrote:
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">   Nathan,
+
+   why not just make the topology information available at that point as you
+   described it ?
+
+   the attached patch does this, could you please review it ?
+
+   Cheers,
+
+   Gilles
+
+   On 2014/09/26 2:50, Nathan Hjelm wrote:
+
+ On Tue, Aug 26, 2014 at 07:03:24PM +0300, Lisandro Dalcin wrote:
+
+ I finally managed to track down some issues in mpi4py's test suite
+ using Open MPI 1.8+. The code below should be enough to reproduce the
+ problem. Run it under valgrind to make sense of my following
+ diagnostics.
+
+ In this code I'm creating a 2D, periodic Cartesian topology out of
+ COMM_SELF. In this case, the process in COMM_SELF has 4 logical in/out
+ links to itself. So we have size=1 but indegree=outdegree=4. However,
+ in ompi/mca/coll/basic/coll_basic_module.c, "size * 2" request are
+ being allocated to manage communication:
+
+     if (OMPI_COMM_IS_INTER(comm)) {
+         size = ompi_comm_remote_size(comm);
+     } else {
+         size = ompi_comm_size(comm);
+     }
+     basic_module-&gt;mccb_num_reqs = size * 2;
+     basic_module-&gt;mccb_reqs = (ompi_request_t**)
+         malloc(sizeof(ompi_request_t *) * basic_module-&gt;mccb_num_reqs);
+
+ I guess you have to also special-case for topologies and allocate
+ indegree+outdegree requests (not sure about this number, just
+ guessing).
+
+
+ I wish this was possible but the topology information is not available
+ at that point. We may be able to change that but I don't see the work
+ completing anytime soon. I committed an alternative fix as r32796 and
+ CMR'd it to 1.8.3. I can confirm that the attached reproducer no longer
+ produces a SEGV. Let me know if you run into any more issues.
+
+
+ -Nathan
+
+ _______________________________________________
+ devel mailing list
+ <a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+ Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+ Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/09/15915.php">http://www.open-mpi.org/community/lists/devel/2014/09/15915.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Index: ompi/mca/topo/base/topo_base_cart_create.c
+===================================================================
+--- ompi/mca/topo/base/topo_base_cart_create.c	(revision 32807)
++++ ompi/mca/topo/base/topo_base_cart_create.c	(working copy)
+@@ -163,10 +163,18 @@
+         return MPI_ERR_INTERN;
+     }
+ 
++    assert(NULL == new_comm-&gt;c_topo);
++    assert(!(new_comm-&gt;c_flags &amp; OMPI_COMM_CART));
++    new_comm-&gt;c_topo           = topo;
++    new_comm-&gt;c_topo-&gt;mtc.cart = cart;
++    new_comm-&gt;c_topo-&gt;reorder  = reorder;
++    new_comm-&gt;c_flags         |= OMPI_COMM_CART;
+     ret = ompi_comm_enable(old_comm, new_comm,
+                            new_rank, num_procs, topo_procs);
+     if (OMPI_SUCCESS != ret) {
+         /* something wrong happened during setting the communicator */
++        new_comm-&gt;c_topo = NULL;
++        new_comm-&gt;c_flags &amp;= ~OMPI_COMM_CART;
+         ompi_comm_free (&amp;new_comm);
+         free(topo_procs);
+         if(NULL != cart-&gt;periods) free(cart-&gt;periods);
+@@ -176,10 +184,6 @@
+         return ret;
+     }
+ 
+-    new_comm-&gt;c_topo           = topo;
+-    new_comm-&gt;c_topo-&gt;mtc.cart = cart;
+-    new_comm-&gt;c_topo-&gt;reorder  = reorder;
+-    new_comm-&gt;c_flags         |= OMPI_COMM_CART;
+     *comm_topo = new_comm;
+ 
+     if( MPI_UNDEFINED == new_rank ) {
+Index: ompi/mca/coll/basic/coll_basic_module.c
+===================================================================
+--- ompi/mca/coll/basic/coll_basic_module.c	(revision 32807)
++++ ompi/mca/coll/basic/coll_basic_module.c	(working copy)
+@@ -13,6 +13,8 @@
+  * Copyright (c) 2012      Sandia National Laboratories. All rights reserved.
+  * Copyright (c) 2013      Los Alamos National Security, LLC. All rights
+  *                         reserved.
++ * Copyright (c) 2014      Research Organization for Information Science
++ *                         and Technology (RIST). All rights reserved.
+  * $COPYRIGHT$
+  * 
+  * Additional copyrights may follow
+@@ -28,6 +30,7 @@
+ #include "mpi.h"
+ #include "ompi/mca/coll/coll.h"
+ #include "ompi/mca/coll/base/base.h"
++#include "ompi/mca/topo/topo.h"
+ #include "coll_basic.h"
+ 
+ 
+@@ -70,6 +73,15 @@
+     } else {
+         size = ompi_comm_size(comm);
+     }
++    if (comm-&gt;c_flags &amp; OMPI_COMM_CART) {
++        int cart_size;
++        assert (NULL != comm-&gt;c_topo);
++        comm-&gt;c_topo-&gt;topo.cart.cartdim_get(comm, &amp;cart_size);
++        cart_size *= 2;
++        if (cart_size &gt; size) {
++            size = cart_size;
++        }
++    }
+     basic_module-&gt;mccb_num_reqs = size * 2;
+     basic_module-&gt;mccb_reqs = (ompi_request_t**) 
+         malloc(sizeof(ompi_request_t *) * basic_module-&gt;mccb_num_reqs);
+</pre>
+      </blockquote>
+      <pre wrap="">
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/09/15929.php">http://www.open-mpi.org/community/lists/devel/2014/09/15929.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/09/15930.php">http://www.open-mpi.org/community/lists/devel/2014/09/15930.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

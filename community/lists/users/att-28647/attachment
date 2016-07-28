@@ -1,0 +1,1080 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Thanks George,<br>
+    <br>
+    is valgrind able to mark memory as read only ?<br>
+    <br>
+    i checked quickly but could not find such a feature<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <div class="moz-cite-prefix">On 3/7/2016 11:40 AM, George Bosilca
+      wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CAMJJpkV2GTfJrhNjmJtOtikBbbCr2Oxcv_fFZR2t+hDQ0fBiBA@mail.gmail.com"
+      type="cite">
+      <div dir="ltr">Gilles,
+        <div><br>
+        </div>
+        <div>memchecker is intended to be used together with some
+          suppression rules.</div>
+        <div><br>
+        </div>
+        <div>For the receive the rationale of making the buffer
+          unaccessible after the unpack was to ensure that nobody is
+          touching the memory until we return from the receive. The
+          buffer was supposed to be made available during the request
+          completion function.</div>
+        <div><br>
+        </div>
+        <div>For the send, the rationale is now obsolete as the MPI
+          Forum removed the access restriction on send buffer. We should
+          instead mark it in read-only mode to make sure it is never
+          modified.</div>
+        <div><br>
+        </div>
+        <div>  George.</div>
+        <div><br>
+        </div>
+      </div>
+      <div class="gmail_extra"><br>
+        <div class="gmail_quote">On Sun, Mar 6, 2016 at 9:28 PM, Gilles
+          Gouaillardet <span dir="ltr">&lt;<a moz-do-not-send="true"
+              href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span>
+          wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0
+            .8ex;border-left:1px #ccc solid;padding-left:1ex">Folks,<br>
+            <br>
+            Here is attached a simplified C only version of the test
+            program.<br>
+            it can be ran with two or one task.<br>
+            <br>
+            on rhel7, valgrind complains about an invalid read when
+            accessing the recv buffer after MPI_Recv.<br>
+            this is pretty odd since :<br>
+            - the buffer is initialized *before* MPI_Recv is invoked<br>
+            - MPI_Recv *do* write the buffer<br>
+            <br>
+            i added some trace, and OpenMPI told valgrind to mark the
+            buffer as non accessible<br>
+            (e.g. VALGRIND_MAKE_MEM_NOACCESS) *after* it marked it as
+            defined<br>
+            (e.g. VALGRIND_MAKE_MEM_DEFINED)<br>
+            <br>
+            the issue can be seen on both master and v1.10 when OpenMPI
+            is configure'd with<br>
+            --enable-memchecker --with-valgrind<br>
+            <br>
+            in mca_pml_ob1_recv_request_progress_match() from
+            ompi/mca/pml/ob1/pml_ob1_recvreq.c,<br>
+            what is the rationale for marking the buffer an unaccessable
+            after the unpack ?<br>
+            <br>
+                /*<br>
+                 *  Unpacking finished, make the user buffer
+            unaccessable again.<br>
+                 */<br>
+                MEMCHECKER(<br>
+            memchecker_call(&amp;opal_memchecker_base_mem_noaccess,<br>
+            recvreq-&gt;req_recv.req_base.req_addr,<br>
+            recvreq-&gt;req_recv.req_base.req_count,<br>
+            recvreq-&gt;req_recv.req_base.req_datatype);<br>
+                           );<br>
+            <br>
+            also, in MPI_Send (ompi/mpi/c/isend.c) what is the rationale
+            for marking the buffer as non accessible before calling the
+            PML isend ?<br>
+            if this is an attempt to track users modifying the buffer
+            after MPI_Isend(), should valgrind be invoked *after* the
+            PML is invoked ?<br>
+            <br>
+            if i #if out these two calls, then the test program runs
+            just fine<br>
+            <br>
+            fwiw :<br>
+            - MPI_Sendrecv do not issue any warning<br>
+            - MPI_Send/MPI_Recv issues one warning in the test code<br>
+            - MPI_Isend/MPI_Recv issues three warning, one in the test,
+            and two in OpenMPI<br>
+            i previously reported a very weird behaviour ... and the
+            root cause is one subroutine in<br>
+            the test program was called "send", which conflicts with the
+            send libc function ...<br>
+            <br>
+            <br>
+            Cheers,<br>
+            <br>
+            Gilles
+            <div class="HOEnZb">
+              <div class="h5"><br>
+                <br>
+                On 3/3/2016 9:43 PM, Jeff Squyres (jsquyres) wrote:<br>
+                <blockquote class="gmail_quote" style="margin:0 0 0
+                  .8ex;border-left:1px #ccc solid;padding-left:1ex">
+                  All of those valgrind reports below are from within
+                  your code -- not from within Open MPI.<br>
+                  <br>
+                  All Open MPI can do is pass the contents of your
+                  message properly; you can verify that it is being sent
+                  and received properly by checking the byte contents of
+                  your received array (e.g., assert that the string is
+                  there correctly and is \0-terminated).<br>
+                  <br>
+                  If cout or some other std:: thing is going beyond the
+                  end of your allocated buffer, that's a different
+                  problem -- perhaps you have a busted std::
+                  implementation...?<br>
+                  <br>
+                  <br>
+                  <blockquote class="gmail_quote" style="margin:0 0 0
+                    .8ex;border-left:1px #ccc solid;padding-left:1ex">
+                    On Mar 3, 2016, at 2:47 AM, Florian Lindner &lt;<a
+                      moz-do-not-send="true"
+                      href="mailto:mailinglists@xgm.de" target="_blank"><a class="moz-txt-link-abbreviated" href="mailto:mailinglists@xgm.de">mailinglists@xgm.de</a></a>&gt;
+                    wrote:<br>
+                    <br>
+                    I am still getting errors, even with your script.<br>
+                    <br>
+                    I will also try to modified build of openmpi that
+                    Jeff suggested.<br>
+                    <br>
+                    Best,<br>
+                    Florian<br>
+                    <br>
+                    % mpicxx -std=c++11 -g -O0 -Wall -Wextra
+                    -fno-builtin-strlen mpi_gilles.cpp &amp;&amp; mpirun
+                    -n 2 ./a.out<br>
+                    Stringlength = 64<br>
+123456789012345678901234567890123456789012345678901234567890123<br>
+                    <br>
+                    %
+                    LD_PRELOAD=/usr/lib/valgrind/libmpiwrap-amd64-linux.so
+                    mpirun -n 2 valgrind ./a.out<br>
+                    ==5324== Memcheck, a memory error detector<br>
+                    ==5324== Copyright (C) 2002-2015, and GNU GPL'd, by
+                    Julian Seward et al.<br>
+                    ==5324== Using Valgrind-3.12.0.SVN and LibVEX; rerun
+                    with -h for copyright info<br>
+                    ==5324== Command: ./a.out<br>
+                    ==5324==<br>
+                    ==5325== Memcheck, a memory error detector<br>
+                    ==5325== Copyright (C) 2002-2015, and GNU GPL'd, by
+                    Julian Seward et al.<br>
+                    ==5325== Using Valgrind-3.12.0.SVN and LibVEX; rerun
+                    with -h for copyright info<br>
+                    ==5325== Command: ./a.out<br>
+                    ==5325==<br>
+                    valgrind MPI wrappers  5324: Active for pid 5324<br>
+                    valgrind MPI wrappers  5324: Try MPIWRAP_DEBUG=help
+                    for possible options<br>
+                    valgrind MPI wrappers  5325: Active for pid 5325<br>
+                    valgrind MPI wrappers  5325: Try MPIWRAP_DEBUG=help
+                    for possible options<br>
+                    Stringlength = 64<br>
+                    ==5325== Invalid read of size 1<br>
+                    ==5325==    at 0x4C2D992: strlen (in
+                    /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                    ==5325==    by 0x56852D8: length (char_traits.h:267)<br>
+                    ==5325==    by 0x56852D8:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::operator&lt;&lt;
+                    &lt;std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*)
+                    (ostream:562)<br>
+                    ==5325==    by 0x408A45: receive()
+                    (mpi_gilles.cpp:22)<br>
+                    ==5325==    by 0x408B88: main (mpi_gilles.cpp:44)<br>
+                    ==5325==  Address 0xffefff800 is on thread 1's stack<br>
+                    ==5325==  in frame #2, created by receive()
+                    (mpi_gilles.cpp:8)<br>
+                    ==5325==<br>
+                    ==5325== Invalid read of size 1<br>
+                    ==5325==    at 0x4C2D9A4: strlen (in
+                    /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                    ==5325==    by 0x56852D8: length (char_traits.h:267)<br>
+                    ==5325==    by 0x56852D8:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::operator&lt;&lt;
+                    &lt;std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*)
+                    (ostream:562)<br>
+                    ==5325==    by 0x408A45: receive()
+                    (mpi_gilles.cpp:22)<br>
+                    ==5325==    by 0x408B88: main (mpi_gilles.cpp:44)<br>
+                    ==5325==  Address 0xffefff801 is on thread 1's stack<br>
+                    ==5325==  in frame #2, created by receive()
+                    (mpi_gilles.cpp:8)<br>
+                    ==5325==<br>
+                    ==5325== Invalid read of size 1<br>
+                    ==5325==    at 0x60A0FF1:
+                    _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x6096D1A: fwrite (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x5684F75: sputn (streambuf:451)<br>
+                    ==5325==    by 0x5684F75: __ostream_write&lt;char,
+                    std::char_traits&lt;char&gt; &gt;
+                    (ostream_insert.h:50)<br>
+                    ==5325==    by 0x5684F75:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::__ostream_insert&lt;char,
+                    std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*,
+                    long) (ostream_insert.h:101)<br>
+                    ==5325==    by 0x56852E6:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::operator&lt;&lt;
+                    &lt;std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*)
+                    (ostream:561)<br>
+                    ==5325==    by 0x408A45: receive()
+                    (mpi_gilles.cpp:22)<br>
+                    ==5325==    by 0x408B88: main (mpi_gilles.cpp:44)<br>
+                    ==5325==  Address 0xffefff83e is on thread 1's stack<br>
+                    ==5325==  in frame #4, created by receive()
+                    (mpi_gilles.cpp:8)<br>
+                    ==5325==<br>
+                    ==5325== Invalid read of size 1<br>
+                    ==5325==    at 0x60A100D:
+                    _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x6096D1A: fwrite (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x5684F75: sputn (streambuf:451)<br>
+                    ==5325==    by 0x5684F75: __ostream_write&lt;char,
+                    std::char_traits&lt;char&gt; &gt;
+                    (ostream_insert.h:50)<br>
+                    ==5325==    by 0x5684F75:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::__ostream_insert&lt;char,
+                    std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*,
+                    long) (ostream_insert.h:101)<br>
+                    ==5325==    by 0x56852E6:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::operator&lt;&lt;
+                    &lt;std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*)
+                    (ostream:561)<br>
+                    ==5325==    by 0x408A45: receive()
+                    (mpi_gilles.cpp:22)<br>
+                    ==5325==    by 0x408B88: main (mpi_gilles.cpp:44)<br>
+                    ==5325==  Address 0xffefff83d is on thread 1's stack<br>
+                    ==5325==  in frame #4, created by receive()
+                    (mpi_gilles.cpp:8)<br>
+                    ==5325==<br>
+                    ==5325== Invalid read of size 8<br>
+                    ==5325==    at 0x4C2F758: __GI_memcpy (in
+                    /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                    ==5325==    by 0x60A0F3A:
+                    _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x6096D1A: fwrite (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x5684F75: sputn (streambuf:451)<br>
+                    ==5325==    by 0x5684F75: __ostream_write&lt;char,
+                    std::char_traits&lt;char&gt; &gt;
+                    (ostream_insert.h:50)<br>
+                    ==5325==    by 0x5684F75:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::__ostream_insert&lt;char,
+                    std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*,
+                    long) (ostream_insert.h:101)<br>
+                    ==5325==    by 0x56852E6:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::operator&lt;&lt;
+                    &lt;std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*)
+                    (ostream:561)<br>
+                    ==5325==    by 0x408A45: receive()
+                    (mpi_gilles.cpp:22)<br>
+                    ==5325==    by 0x408B88: main (mpi_gilles.cpp:44)<br>
+                    ==5325==  Address 0xffefff800 is on thread 1's stack<br>
+                    ==5325==  in frame #5, created by receive()
+                    (mpi_gilles.cpp:8)<br>
+                    ==5325==<br>
+                    ==5325== Invalid read of size 8<br>
+                    ==5325==    at 0x4C2F766: __GI_memcpy (in
+                    /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                    ==5325==    by 0x60A0F3A:
+                    _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x6096D1A: fwrite (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x5684F75: sputn (streambuf:451)<br>
+                    ==5325==    by 0x5684F75: __ostream_write&lt;char,
+                    std::char_traits&lt;char&gt; &gt;
+                    (ostream_insert.h:50)<br>
+                    ==5325==    by 0x5684F75:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::__ostream_insert&lt;char,
+                    std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*,
+                    long) (ostream_insert.h:101)<br>
+                    ==5325==    by 0x56852E6:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::operator&lt;&lt;
+                    &lt;std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*)
+                    (ostream:561)<br>
+                    ==5325==    by 0x408A45: receive()
+                    (mpi_gilles.cpp:22)<br>
+                    ==5325==    by 0x408B88: main (mpi_gilles.cpp:44)<br>
+                    ==5325==  Address 0xffefff810 is on thread 1's stack<br>
+                    ==5325==  in frame #5, created by receive()
+                    (mpi_gilles.cpp:8)<br>
+                    ==5325==<br>
+                    ==5325== Invalid read of size 2<br>
+                    ==5325==    at 0x4C2F7B0: __GI_memcpy (in
+                    /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                    ==5325==    by 0x60A0F3A:
+                    _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x6096D1A: fwrite (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x5684F75: sputn (streambuf:451)<br>
+                    ==5325==    by 0x5684F75: __ostream_write&lt;char,
+                    std::char_traits&lt;char&gt; &gt;
+                    (ostream_insert.h:50)<br>
+                    ==5325==    by 0x5684F75:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::__ostream_insert&lt;char,
+                    std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*,
+                    long) (ostream_insert.h:101)<br>
+                    ==5325==    by 0x56852E6:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::operator&lt;&lt;
+                    &lt;std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*)
+                    (ostream:561)<br>
+                    ==5325==    by 0x408A45: receive()
+                    (mpi_gilles.cpp:22)<br>
+                    ==5325==    by 0x408B88: main (mpi_gilles.cpp:44)<br>
+                    ==5325==  Address 0xffefff838 is on thread 1's stack<br>
+                    ==5325==  in frame #5, created by receive()
+                    (mpi_gilles.cpp:8)<br>
+                    ==5325==<br>
+                    ==5325== Invalid read of size 2<br>
+                    ==5325==    at 0x4C2F7BE: __GI_memcpy (in
+                    /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                    ==5325==    by 0x60A0F3A:
+                    _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x6096D1A: fwrite (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x5684F75: sputn (streambuf:451)<br>
+                    ==5325==    by 0x5684F75: __ostream_write&lt;char,
+                    std::char_traits&lt;char&gt; &gt;
+                    (ostream_insert.h:50)<br>
+                    ==5325==    by 0x5684F75:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::__ostream_insert&lt;char,
+                    std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*,
+                    long) (ostream_insert.h:101)<br>
+                    ==5325==    by 0x56852E6:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::operator&lt;&lt;
+                    &lt;std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*)
+                    (ostream:561)<br>
+                    ==5325==    by 0x408A45: receive()
+                    (mpi_gilles.cpp:22)<br>
+                    ==5325==    by 0x408B88: main (mpi_gilles.cpp:44)<br>
+                    ==5325==  Address 0xffefff83c is on thread 1's stack<br>
+                    ==5325==  in frame #5, created by receive()
+                    (mpi_gilles.cpp:8)<br>
+                    ==5325==<br>
+                    ==5325== Invalid read of size 1<br>
+                    ==5325==    at 0x4C2F7E8: __GI_memcpy (in
+                    /usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                    ==5325==    by 0x60A0F3A:
+                    _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x6096D1A: fwrite (in /usr/lib/<a
+                      moz-do-not-send="true" href="http://libc-2.23.so"
+                      rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                    ==5325==    by 0x5684F75: sputn (streambuf:451)<br>
+                    ==5325==    by 0x5684F75: __ostream_write&lt;char,
+                    std::char_traits&lt;char&gt; &gt;
+                    (ostream_insert.h:50)<br>
+                    ==5325==    by 0x5684F75:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::__ostream_insert&lt;char,
+                    std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*,
+                    long) (ostream_insert.h:101)<br>
+                    ==5325==    by 0x56852E6:
+                    std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;
+                    std::operator&lt;&lt;
+                    &lt;std::char_traits&lt;char&gt;
+                    &gt;(std::basic_ostream&lt;char,
+                    std::char_traits&lt;char&gt; &gt;&amp;, char const*)
+                    (ostream:561)<br>
+                    ==5325==    by 0x408A45: receive()
+                    (mpi_gilles.cpp:22)<br>
+                    ==5325==    by 0x408B88: main (mpi_gilles.cpp:44)<br>
+                    ==5325==  Address 0xffefff83e is on thread 1's stack<br>
+                    ==5325==  in frame #5, created by receive()
+                    (mpi_gilles.cpp:8)<br>
+                    ==5325==<br>
+123456789012345678901234567890123456789012345678901234567890123<br>
+                    ==5325==<br>
+                    ==5325== HEAP SUMMARY:<br>
+                    ==5325==     in use at exit: 96,351 bytes in 247
+                    blocks<br>
+                    ==5325==   total heap usage: 15,007 allocs, 14,760
+                    frees, 13,362,050 bytes allocated<br>
+                    ==5325==<br>
+                    ==5325== LEAK SUMMARY:<br>
+                    ==5325==    definitely lost: 9,154 bytes in 39
+                    blocks<br>
+                    ==5325==    indirectly lost: 4,008 bytes in 22
+                    blocks<br>
+                    ==5325==      possibly lost: 0 bytes in 0 blocks<br>
+                    ==5325==    still reachable: 83,189 bytes in 186
+                    blocks<br>
+                    ==5325==         suppressed: 0 bytes in 0 blocks<br>
+                    ==5325== Rerun with --leak-check=full to see details
+                    of leaked memory<br>
+                    ==5325==<br>
+                    ==5325== For counts of detected and suppressed
+                    errors, rerun with: -v<br>
+                    ==5325== ERROR SUMMARY: 138 errors from 9 contexts
+                    (suppressed: 0 from 0)<br>
+                    ==5324==<br>
+                    ==5324== HEAP SUMMARY:<br>
+                    ==5324==     in use at exit: 96,351 bytes in 247
+                    blocks<br>
+                    ==5324==   total heap usage: 15,028 allocs, 14,781
+                    frees, 13,370,286 bytes allocated<br>
+                    ==5324==<br>
+                    ==5324== LEAK SUMMARY:<br>
+                    ==5324==    definitely lost: 9,154 bytes in 39
+                    blocks<br>
+                    ==5324==    indirectly lost: 4,008 bytes in 22
+                    blocks<br>
+                    ==5324==      possibly lost: 0 bytes in 0 blocks<br>
+                    ==5324==    still reachable: 83,189 bytes in 186
+                    blocks<br>
+                    ==5324==         suppressed: 0 bytes in 0 blocks<br>
+                    ==5324== Rerun with --leak-check=full to see details
+                    of leaked memory<br>
+                    ==5324==<br>
+                    ==5324== For counts of detected and suppressed
+                    errors, rerun with: -v<br>
+                    ==5324== ERROR SUMMARY: 0 errors from 0 contexts
+                    (suppressed: 0 from 0)<br>
+                    <br>
+                    <br>
+                    Am Donnerstag, 3. März 2016, 14:53:24 CET schrieb
+                    Gilles Gouaillardet:<br>
+                    <blockquote class="gmail_quote" style="margin:0 0 0
+                      .8ex;border-left:1px #ccc solid;padding-left:1ex">
+                      I was unable to reproduce this in my environment.<br>
+                      <br>
+                      here is a slightly modified version of your test
+                      program.<br>
+                      buffers are 64 bytes aligned and the string
+                      (including the null<br>
+                      terminator) is 64 bytes long,<br>
+                      hopefully, strlen will not complain any more.<br>
+                      <br>
+                      Cheers,<br>
+                      <br>
+                      Gilles<br>
+                      <br>
+                      On 3/3/2016 12:51 AM, Florian Lindner wrote:<br>
+                      <blockquote class="gmail_quote" style="margin:0 0
+                        0 .8ex;border-left:1px #ccc
+                        solid;padding-left:1ex">
+                        Hello Gilles,<br>
+                        <br>
+                        Am Mittwoch, 2. März 2016, 23:36:56 CET schrieb
+                        Gilles Gouaillardet:<br>
+                        <blockquote class="gmail_quote" style="margin:0
+                          0 0 .8ex;border-left:1px #ccc
+                          solid;padding-left:1ex">
+                          Florian,<br>
+                          <br>
+                          under the hood, strlen() can use vector
+                          instructions, and then read memory<br>
+                          above the end of the string. valgrind is
+                          extremely picky and does warn<br>
+                          about that.<br>
+                          iirc, there are some filter options not to
+                          issue these warnings, but I<br>
+                          forgot the details.<br>
+                        </blockquote>
+                        Ok, i'll try to research in that direction.<br>
+                        <br>
+                        <blockquote class="gmail_quote" style="margin:0
+                          0 0 .8ex;border-left:1px #ccc
+                          solid;padding-left:1ex">
+                          can you try to send "Bonjour" instead of
+                          "Halo" and see if the warning<br>
+                          disappear ?<br>
+                        </blockquote>
+                        They are still there. But, was this meant as a
+                        joke or didn't I understand?<br>
+                        <br>
+                        Best,<br>
+                        Florian<br>
+                        <br>
+                        <blockquote class="gmail_quote" style="margin:0
+                          0 0 .8ex;border-left:1px #ccc
+                          solid;padding-left:1ex">
+                          Cheers,<br>
+                          <br>
+                          Gilles<br>
+                          <br>
+                          PS if it works, do not jump to the erroneous
+                          conclusion valgrind likes<br>
+                          French and dislikes German ;-)<br>
+                          <br>
+                          On Wednesday, March 2, 2016, Florian Lindner
+                          &lt;<a moz-do-not-send="true"
+                            href="mailto:mailinglists@xgm.de"
+                            target="_blank">mailinglists@xgm.de</a>&gt;
+                          wrote:<br>
+                          <br>
+                          <blockquote class="gmail_quote"
+                            style="margin:0 0 0 .8ex;border-left:1px
+                            #ccc solid;padding-left:1ex">
+                            Hello,<br>
+                            <br>
+                            using OpenMPI 1.10.2 and valgrind 3.11.0 I
+                            try to use the code below to<br>
+                            send a c++ string.<br>
+                            <br>
+                            It works fine, but running through valgrind
+                            gives a lot of memory errors,<br>
+                            invalid read of size...<br>
+                            <br>
+                            What is going wrong there?<br>
+                            <br>
+                            Valgrind output, see below.<br>
+                            <br>
+                            Thanks!<br>
+                            Florian<br>
+                            <br>
+                            <br>
+                            // Compile with: mpicxx -std=c++11 -g -O0
+                            -Wall -Wextra mpi.cpp<br>
+                            #include &lt;mpi.h&gt;<br>
+                            #include &lt;iostream&gt;<br>
+                            #include &lt;string&gt;<br>
+                            <br>
+                            using namespace std;<br>
+                            <br>
+                            <br>
+                            void receive() {<br>
+                               int length = 0;<br>
+                               MPI_Status status;<br>
+                               MPI_Probe(MPI_ANY_SOURCE, 0,
+                            MPI_COMM_WORLD, &amp;status);<br>
+                               MPI_Get_count(&amp;status, MPI_CHAR,
+                            &amp;length);<br>
+                               cout &lt;&lt; "Stringlength = " &lt;&lt;
+                            length &lt;&lt; endl;<br>
+                               char cstr[length];<br>
+                               MPI_Recv(cstr,<br>
+                                        length,<br>
+                                        MPI_CHAR,<br>
+                                        MPI_ANY_SOURCE,<br>
+                                        MPI_ANY_TAG,<br>
+                                        MPI_COMM_WORLD,<br>
+                                        MPI_STATUS_IGNORE);<br>
+                               cout &lt;&lt; cstr &lt;&lt; endl;<br>
+                            }<br>
+                            <br>
+                            void send(int rankReceiver) {<br>
+                               std::string s = "Hallo";<br>
+                               MPI_Send(s.c_str(),<br>
+                                        s.size()+1,<br>
+                                        MPI_CHAR,<br>
+                                        rankReceiver,<br>
+                                        0,<br>
+                                        MPI_COMM_WORLD);<br>
+                            }<br>
+                            <br>
+                            int main(int argc, char* argv[])<br>
+                            {<br>
+                               int rank;<br>
+                               MPI_Init(&amp;argc, &amp;argv);<br>
+                            <br>
+                               MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+                               if (rank == 0)<br>
+                                 send(1);<br>
+                               else {<br>
+                                 receive();<br>
+                               }<br>
+                               MPI_Finalize();<br>
+                               return 0;<br>
+                            }<br>
+                            <br>
+                            <br>
+                            VALGRIND OUTPUT<br>
+                            <br>
+                            % mpicxx -std=c++11 -g -O0 -Wall -Wextra
+                            mpi.cpp &amp;&amp; mpirun -n 2 ./a.out<br>
+                            Stringlength = 6<br>
+                            Hallo<br>
+                            florian@asaru ~/scratch (git)-[master] %<br>
+                            LD_PRELOAD=/usr/lib/valgrind/libmpiwrap-amd64-linux.so
+                            mpirun -n 2 valgrind<br>
+                            ./a.out<br>
+                            ==9290== Memcheck, a memory error detector<br>
+                            ==9290== Copyright (C) 2002-2015, and GNU
+                            GPL'd, by Julian Seward et al.<br>
+                            ==9290== Using Valgrind-3.11.0 and LibVEX;
+                            rerun with -h for copyright info<br>
+                            ==9290== Command: ./a.out<br>
+                            ==9290==<br>
+                            ==9291== Memcheck, a memory error detector<br>
+                            ==9291== Copyright (C) 2002-2015, and GNU
+                            GPL'd, by Julian Seward et al.<br>
+                            ==9291== Using Valgrind-3.11.0 and LibVEX;
+                            rerun with -h for copyright info<br>
+                            ==9291== Command: ./a.out<br>
+                            ==9291==<br>
+                            valgrind MPI wrappers  9290: Active for pid
+                            9290<br>
+                            valgrind MPI wrappers  9291: Active for pid
+                            9291<br>
+                            valgrind MPI wrappers  9290: Try
+                            MPIWRAP_DEBUG=help for possible options<br>
+                            valgrind MPI wrappers  9291: Try
+                            MPIWRAP_DEBUG=help for possible options<br>
+                            Stringlength = 6<br>
+                            ==9291== Invalid read of size 1<br>
+                            ==9291==    at 0x4C2DBA2: strlen (in<br>
+/usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                            ==9291==    by 0x56852D8: length
+                            (char_traits.h:267)<br>
+                            ==9291==    by 0x56852D8:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::operator&lt;&lt;
+                              &lt;std::char_traits&lt;char&gt;
+                              &gt;(std::basic_ostream&lt;char,<br>
+                            </blockquote>
+                            std::char_traits&lt;char&gt; &gt;&amp;, char
+                            const*) (ostream:562)<br>
+                            ==9291==    by 0x408A39: receive()
+                            (mpi.cpp:22)<br>
+                            ==9291==    by 0x408B61: main (mpi.cpp:46)<br>
+                            ==9291==  Address 0xffefff870 is on thread
+                            1's stack<br>
+                            ==9291==  in frame #2, created by receive()
+                            (mpi.cpp:8)<br>
+                            ==9291==<br>
+                            ==9291== Invalid read of size 1<br>
+                            ==9291==    at 0x4C2DBB4: strlen (in<br>
+/usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                            ==9291==    by 0x56852D8: length
+                            (char_traits.h:267)<br>
+                            ==9291==    by 0x56852D8:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::operator&lt;&lt;
+                              &lt;std::char_traits&lt;char&gt;
+                              &gt;(std::basic_ostream&lt;char,<br>
+                            </blockquote>
+                            std::char_traits&lt;char&gt; &gt;&amp;, char
+                            const*) (ostream:562)<br>
+                            ==9291==    by 0x408A39: receive()
+                            (mpi.cpp:22)<br>
+                            ==9291==    by 0x408B61: main (mpi.cpp:46)<br>
+                            ==9291==  Address 0xffefff871 is on thread
+                            1's stack<br>
+                            ==9291==  in frame #2, created by receive()
+                            (mpi.cpp:8)<br>
+                            ==9291==<br>
+                            ==9291== Invalid read of size 1<br>
+                            ==9291==    at 0x60A0FF1:
+                            _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<br>
+                            <a moz-do-not-send="true"
+                              href="http://libc-2.23.so"
+                              rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                            ==9291==    by 0x6096D1A: fwrite (in
+                            /usr/lib/<a moz-do-not-send="true"
+                              href="http://libc-2.23.so"
+                              rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                            ==9291==    by 0x5684F75: sputn
+                            (streambuf:451)<br>
+                            ==9291==    by 0x5684F75:
+                            __ostream_write&lt;char,
+                            std::char_traits&lt;char&gt; &gt;<br>
+                            (ostream_insert.h:50)<br>
+                            ==9291==    by 0x5684F75:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::__ostream_insert&lt;char,
+                              std::char_traits&lt;char&gt;<br>
+                              (std::basic_ostream&lt;char,
+                              std::char_traits&lt;char&gt; &gt;&amp;,
+                              char const*, long)<br>
+                            </blockquote>
+                            (ostream_insert.h:101)<br>
+                            ==9291==    by 0x56852E6:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::operator&lt;&lt;
+                              &lt;std::char_traits&lt;char&gt;
+                              &gt;(std::basic_ostream&lt;char,<br>
+                            </blockquote>
+                            std::char_traits&lt;char&gt; &gt;&amp;, char
+                            const*) (ostream:561)<br>
+                            ==9291==    by 0x408A39: receive()
+                            (mpi.cpp:22)<br>
+                            ==9291==    by 0x408B61: main (mpi.cpp:46)<br>
+                            ==9291==  Address 0xffefff874 is on thread
+                            1's stack<br>
+                            ==9291==  in frame #4, created by receive()
+                            (mpi.cpp:8)<br>
+                            ==9291==<br>
+                            ==9291== Invalid read of size 1<br>
+                            ==9291==    at 0x60A100D:
+                            _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<br>
+                            <a moz-do-not-send="true"
+                              href="http://libc-2.23.so"
+                              rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                            ==9291==    by 0x6096D1A: fwrite (in
+                            /usr/lib/<a moz-do-not-send="true"
+                              href="http://libc-2.23.so"
+                              rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                            ==9291==    by 0x5684F75: sputn
+                            (streambuf:451)<br>
+                            ==9291==    by 0x5684F75:
+                            __ostream_write&lt;char,
+                            std::char_traits&lt;char&gt; &gt;<br>
+                            (ostream_insert.h:50)<br>
+                            ==9291==    by 0x5684F75:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::__ostream_insert&lt;char,
+                              std::char_traits&lt;char&gt;<br>
+                              (std::basic_ostream&lt;char,
+                              std::char_traits&lt;char&gt; &gt;&amp;,
+                              char const*, long)<br>
+                            </blockquote>
+                            (ostream_insert.h:101)<br>
+                            ==9291==    by 0x56852E6:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::operator&lt;&lt;
+                              &lt;std::char_traits&lt;char&gt;
+                              &gt;(std::basic_ostream&lt;char,<br>
+                            </blockquote>
+                            std::char_traits&lt;char&gt; &gt;&amp;, char
+                            const*) (ostream:561)<br>
+                            ==9291==    by 0x408A39: receive()
+                            (mpi.cpp:22)<br>
+                            ==9291==    by 0x408B61: main (mpi.cpp:46)<br>
+                            ==9291==  Address 0xffefff873 is on thread
+                            1's stack<br>
+                            ==9291==  in frame #4, created by receive()
+                            (mpi.cpp:8)<br>
+                            ==9291==<br>
+                            ==9291== Invalid read of size 2<br>
+                            ==9291==    at 0x4C2F9C0: __GI_memcpy (in<br>
+/usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                            ==9291==    by 0x60A0F3A:
+                            _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<br>
+                            <a moz-do-not-send="true"
+                              href="http://libc-2.23.so"
+                              rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                            ==9291==    by 0x6096D1A: fwrite (in
+                            /usr/lib/<a moz-do-not-send="true"
+                              href="http://libc-2.23.so"
+                              rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                            ==9291==    by 0x5684F75: sputn
+                            (streambuf:451)<br>
+                            ==9291==    by 0x5684F75:
+                            __ostream_write&lt;char,
+                            std::char_traits&lt;char&gt; &gt;<br>
+                            (ostream_insert.h:50)<br>
+                            ==9291==    by 0x5684F75:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::__ostream_insert&lt;char,
+                              std::char_traits&lt;char&gt;<br>
+                              (std::basic_ostream&lt;char,
+                              std::char_traits&lt;char&gt; &gt;&amp;,
+                              char const*, long)<br>
+                            </blockquote>
+                            (ostream_insert.h:101)<br>
+                            ==9291==    by 0x56852E6:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::operator&lt;&lt;
+                              &lt;std::char_traits&lt;char&gt;
+                              &gt;(std::basic_ostream&lt;char,<br>
+                            </blockquote>
+                            std::char_traits&lt;char&gt; &gt;&amp;, char
+                            const*) (ostream:561)<br>
+                            ==9291==    by 0x408A39: receive()
+                            (mpi.cpp:22)<br>
+                            ==9291==    by 0x408B61: main (mpi.cpp:46)<br>
+                            ==9291==  Address 0xffefff870 is on thread
+                            1's stack<br>
+                            ==9291==  in frame #5, created by receive()
+                            (mpi.cpp:8)<br>
+                            ==9291==<br>
+                            ==9291== Invalid read of size 1<br>
+                            ==9291==    at 0x4C2F9F8: __GI_memcpy (in<br>
+/usr/lib/valgrind/vgpreload_memcheck-amd64-linux.so)<br>
+                            ==9291==    by 0x60A0F3A:
+                            _IO_file_xsputn@@GLIBC_2.2.5 (in /usr/lib/<br>
+                            <a moz-do-not-send="true"
+                              href="http://libc-2.23.so"
+                              rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                            ==9291==    by 0x6096D1A: fwrite (in
+                            /usr/lib/<a moz-do-not-send="true"
+                              href="http://libc-2.23.so"
+                              rel="noreferrer" target="_blank">libc-2.23.so</a>)<br>
+                            ==9291==    by 0x5684F75: sputn
+                            (streambuf:451)<br>
+                            ==9291==    by 0x5684F75:
+                            __ostream_write&lt;char,
+                            std::char_traits&lt;char&gt; &gt;<br>
+                            (ostream_insert.h:50)<br>
+                            ==9291==    by 0x5684F75:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::__ostream_insert&lt;char,
+                              std::char_traits&lt;char&gt;<br>
+                              (std::basic_ostream&lt;char,
+                              std::char_traits&lt;char&gt; &gt;&amp;,
+                              char const*, long)<br>
+                            </blockquote>
+                            (ostream_insert.h:101)<br>
+                            ==9291==    by 0x56852E6:
+                            std::basic_ostream&lt;char,
+                            std::char_traits&lt;char&gt;<br>
+                            <blockquote class="gmail_quote"
+                              style="margin:0 0 0 .8ex;border-left:1px
+                              #ccc solid;padding-left:1ex">
+                              &amp; std::operator&lt;&lt;
+                              &lt;std::char_traits&lt;char&gt;
+                              &gt;(std::basic_ostream&lt;char,<br>
+                            </blockquote>
+                            std::char_traits&lt;char&gt; &gt;&amp;, char
+                            const*) (ostream:561)<br>
+                            ==9291==    by 0x408A39: receive()
+                            (mpi.cpp:22)<br>
+                            ==9291==    by 0x408B61: main (mpi.cpp:46)<br>
+                            ==9291==  Address 0xffefff874 is on thread
+                            1's stack<br>
+                            ==9291==  in frame #5, created by receive()
+                            (mpi.cpp:8)<br>
+                            ==9291==<br>
+                            Hallo<br>
+                            ==9291==<br>
+                            ==9291== HEAP SUMMARY:<br>
+                            ==9291==     in use at exit: 96,351 bytes in
+                            247 blocks<br>
+                            ==9291==   total heap usage: 15,020 allocs,
+                            14,773 frees, 13,362,383 bytes<br>
+                            allocated<br>
+                            ==9291==<br>
+                            ==9291== LEAK SUMMARY:<br>
+                            ==9291==    definitely lost: 9,154 bytes in
+                            39 blocks<br>
+                            ==9291==    indirectly lost: 4,008 bytes in
+                            22 blocks<br>
+                            ==9291==      possibly lost: 0 bytes in 0
+                            blocks<br>
+                            ==9291==    still reachable: 83,189 bytes in
+                            186 blocks<br>
+                            ==9291==         suppressed: 0 bytes in 0
+                            blocks<br>
+                            ==9291== Rerun with --leak-check=full to see
+                            details of leaked memory<br>
+                            ==9291==<br>
+                            ==9291== For counts of detected and
+                            suppressed errors, rerun with: -v<br>
+                            ==9291== ERROR SUMMARY: 14 errors from 6
+                            contexts (suppressed: 0 from 0)<br>
+                            ==9290==<br>
+                            ==9290== HEAP SUMMARY:<br>
+                            ==9290==     in use at exit: 96,351 bytes in
+                            247 blocks<br>
+                            ==9290==   total heap usage: 15,018 allocs,
+                            14,771 frees, 13,370,045 bytes<br>
+                            allocated<br>
+                            ==9290==<br>
+                            ==9290== LEAK SUMMARY:<br>
+                            ==9290==    definitely lost: 9,154 bytes in
+                            39 blocks<br>
+                            ==9290==    indirectly lost: 4,008 bytes in
+                            22 blocks<br>
+                            ==9290==      possibly lost: 0 bytes in 0
+                            blocks<br>
+                            ==9290==    still reachable: 83,189 bytes in
+                            186 blocks<br>
+                            ==9290==         suppressed: 0 bytes in 0
+                            blocks<br>
+                            ==9290== Rerun with --leak-check=full to see
+                            details of leaked memory<br>
+                            ==9290==<br>
+                            ==9290== For counts of detected and
+                            suppressed errors, rerun with: -v<br>
+                            ==9290== ERROR SUMMARY: 0 errors from 0
+                            contexts (suppressed: 0 from 0)<br>
+                            <br>
+_______________________________________________<br>
+                            users mailing list<br>
+                            <a moz-do-not-send="true"
+                              href="mailto:users@open-mpi.org"
+                              target="_blank">users@open-mpi.org</a>
+                            <a class="moz-txt-link-rfc2396E" href="javascript:;">&lt;javascript:;&gt;</a><br>
+                            Subscription: <a moz-do-not-send="true"
+                              href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+                              rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                            Link to this post:<br>
+                            <a moz-do-not-send="true"
+                              href="http://www.open-mpi.org/community/lists/users/2016/03/28617.php"
+                              rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/03/28617.php</a><br>
+                            <br>
+                          </blockquote>
+                        </blockquote>
+                        _______________________________________________<br>
+                        users mailing list<br>
+                        <a moz-do-not-send="true"
+                          href="mailto:users@open-mpi.org"
+                          target="_blank">users@open-mpi.org</a><br>
+                        Subscription: <a moz-do-not-send="true"
+                          href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+                          rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                        Link to this post: <a moz-do-not-send="true"
+                          href="http://www.open-mpi.org/community/lists/users/2016/03/28619.php"
+                          rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/03/28619.php</a><br>
+                        <br>
+                      </blockquote>
+                      <br>
+                    </blockquote>
+                    _______________________________________________<br>
+                    users mailing list<br>
+                    <a moz-do-not-send="true"
+                      href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+                    Subscription: <a moz-do-not-send="true"
+                      href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+                      rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                    Link to this post: <a moz-do-not-send="true"
+                      href="http://www.open-mpi.org/community/lists/users/2016/03/28623.php"
+                      rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/03/28623.php</a><br>
+                  </blockquote>
+                  <br>
+                </blockquote>
+                <br>
+              </div>
+            </div>
+            <br>
+            _______________________________________________<br>
+            users mailing list<br>
+            <a moz-do-not-send="true" href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+            Subscription: <a moz-do-not-send="true"
+              href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+              rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+            Link to this post: <a moz-do-not-send="true"
+              href="http://www.open-mpi.org/community/lists/users/2016/03/28645.php"
+              rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/03/28645.php</a><br>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28646.php">http://www.open-mpi.org/community/lists/users/2016/03/28646.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

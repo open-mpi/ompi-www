@@ -1,0 +1,182 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <br>
+    <br>
+    On 2/22/2012 8:53 PM, Jeffrey Squyres wrote:
+    <blockquote
+      cite="mid:0A978669-695D-49A5-8C4E-226B465F3DE9@cisco.com"
+      type="cite">
+      <pre wrap="">Terry / Eugene --
+
+Can you comment?
+</pre>
+    </blockquote>
+    Sorry I cannot.<br>
+    <br>
+    --td<br>
+    <blockquote
+      cite="mid:0A978669-695D-49A5-8C4E-226B465F3DE9@cisco.com"
+      type="cite">
+      <pre wrap="">
+
+On Feb 22, 2012, at 3:16 PM, Paul H. Hargrove wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">I think I have the beginning of a fix for this issue.
+
+I had not even noticed earlier that the error in event.h is from the C++ compiler, when compiling file.cxx in the c++ bindings.  That makes the vendor-specific addition of "-library=stlport4" to CXXFLAGS quite relevant to the problem/solution.
+
+It eventually occurred to me that when VT's sub-configure told me to add configure arguments, I could have used --with-contrib-vt-flags to pass that ONLY to VT and perhaps NOT mess with whatever karma was providing the definition of u_char.  However, when I tried that I was disappointed to find that the bit of configure logic that suggests/requires CXXFLAGS=-library=stlport4 (from ompi/contrib/vt/configure.m4) runs BEFORE the processing of --with-contrib-vt-flags.  So, that was a dead end.
+
+So, the next idea was to look for a fix specific to sltport.  I tried adding near the top of opal/event/event.h (after the WINDOWS equivalent):
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">#ifdef STLPORT
+typedef unsigned char u_char;
+#endif
+</pre>
+        </blockquote>
+        <pre wrap="">
+That managed to clear up the original problem w/ SS12.2.
+With SS12.3, things also built fine.
+This suggests the typedef is not "conflicting" with whatever other defn was present.
+I think the "safety" of this needs to be examined more widely before this can be adopted.
+My concern is that some system could "typedef char u_char" if it has char unsigned by default, leading to a conflict.
+Now that would, I suppose, only be a problem if STLPORT is also defined.
+So, maybe I am over thinking this.
+
+-Paul
+
+On 2/21/2012 11:10 PM, Paul H. Hargrove wrote:
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">More notes:
+
+I've tested ompi-1.5.4 and it has the same problem.  So, this is NOT a regression.
+
+Terry D. has observed that Ubuntu is NOT a supported platform for the Solaris Studio compilers.
+So, I've reproduced on a Scientific Linux 5.5 platform (Red Hat Enterprise Linux 5.5 clone, like CentOS) to be sure that was NOT the cause.
+
+When I configure for the SS12.x compilers, I've been passing  CXXFLAGS="-library=stlport4" as the VT sub-configure has informed me I should, due to something wrong the the default STL.  I tried dropping that from configure, and THE BUILD WAS SUCCESSFUL.
+
+So, one has 2 choices:
++ build w/ SS12.2 without VT
++ update to SS12.3 and have VT
+
+I don't think there is sufficient reason to delay 1.5.5 for this.
+
+-Paul
+
+On 2/21/2012 4:39 PM, Paul H. Hargrove wrote:
+</pre>
+          <blockquote type="cite">
+            <pre wrap="">A few things to note:
+
+1) This is NOT a problem w/ the SS12.3 compilers on the same machine.
+So, one could say "upgrade your compiler" (a free download) and not delay 1.5.5 for this issue.
+
+2) This is ONLY a problem on Linux, and not on Solaris (both SS12.2 and SS12.3 tested for x86, x86-64, Sparc/v9 and Sparc/v8plus)
+
+3) Testing the trunk I DON'T see the problem with either SS12.2 or SS12.3.
+This is interesting, because it probably means that a u_char definition is SOMEWHERE in the headers (because libevent *is* getting built).
+
+Whatever else may be done, I think this should be fixed "properly" (whatever that may equate to) for 1.6.
+The way I see it now, it feels like OMPI is getting a definition of u_char only "by accident".
+
+-Paul
+
+On 2/21/2012 12:16 PM, Paul H. Hargrove wrote:
+</pre>
+            <blockquote type="cite">
+              <pre wrap="">Building the v1.5 branch on Linux with the Solaris Studio 12.2 compilers I see the following failure:
+</pre>
+              <blockquote type="cite">
+                <pre wrap="">"[srcdir]/opal/event/event.h", line 797: Error: Type name expected instead of "u_char".
+"[srcdir]/opal/event/event.h", line 798: Error: Type name expected instead of "u_char".
+"[srcdir]/opal/event/event.h", line 1184: Error: "," expected instead of "*".
+</pre>
+              </blockquote>
+              <pre wrap="">Where line 1184 is a prototype containing "u_char *".
+
+As far as I can find, only several files below opal/event/ contain any use of "u_char".
+There is a typedef for u_char in hwloc, but no use that I could see.
+
+To the best of my knowledge u_char is NOT defined by any standard, and thus there is no particular header one can reliably find it in.
+The alternatives, of course are "unsigned char" or "uint8_t" (defined in stdint.h).
+
+I had a look at the trunk and VISUALLY is appears the same problem exists in:
+  opal/event/event.h
+  opal/mca/event/libevent2013/libevent/event.h
+However, my testing is currently confined to the v1.5 branch in the hopes of finally getting the next 1.5.5rc out the door.
+
+-Paul
+
+</pre>
+            </blockquote>
+            <pre wrap="">
+</pre>
+          </blockquote>
+          <pre wrap="">
+</pre>
+        </blockquote>
+        <pre wrap="">
+-- 
+Paul H. Hargrove                          <a class="moz-txt-link-abbreviated" href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>
+Future Technologies Group
+HPC Research Department                   Tel: +1-510-495-2352
+Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
+
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+
+</pre>
+    </blockquote>
+    <br>
+    <div class="moz-signature">-- <br>
+      <meta content="text/html; charset=ISO-8859-1"
+        http-equiv="Content-Type">
+      <div class="moz-signature">
+        <meta http-equiv="content-type" content="text/html;
+          charset=ISO-8859-1">
+        <title></title>
+        <div class="moz-signature">
+          <div class="moz-signature">
+            <div class="moz-signature">
+              <div class="moz-signature">Terry D. Dontje | Principal
+                Software Engineer<br>
+                <div class="moz-signature"><font size="2"
+                    color="#666666" face="Verdana">Developer
+                    Tools
+                    Engineering | +1.781.442.2631<br>
+                  </font>
+                  <font size="2" color="#ff0000" face="Verdana">Oracle
+                  </font><font size="2" color="#666666" face="Verdana"><b>
+                      - Performance
+                      Technologies</b></font><br>
+                  <font size="2" color="#666666" face="Verdana">
+                    95 Network Drive, Burlington, MA 01803<br>
+                    Email <a moz-do-not-send="true"
+                      href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+                  </font><br>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <br>
+    </div>
+  </body>
+</html>
+

@@ -1,0 +1,58 @@
+<p>What is the error that you are getting from compilation failure?</p><p></p><p>Lenny.<br></p><br><div><span class="gmail_quote">On 3/23/09, <b class="gmail_sendername">Timothy Hayes</b> &lt;<a href="mailto:hayesti@tcd.ie">hayesti@tcd.ie</a>&gt; wrote:</span><blockquote class="gmail_quote" style="margin:0;margin-left:0.8ex;border-left:1px #ccc solid;padding-left:1ex">
+That&#39;s a relief to know, although I&#39;m still a bit concerned. I&#39;m looking at the code for the OpenMPI 1.3 trunk and in the ob1 component I can see the following sequence:<br><br>mca_pml_ob1_recv_frag_callback_match -&gt; append_frag_to_list -&gt; MCA_PML_OB1_RECV_FRAG_ALLOC -&gt; OMPI_FREE_LIST_WAIT -&gt; __ompi_free_list_wait<br>
+
+<br>so I&#39;m guessing unless the deadlock issue has been resolved for that function, it will still fail non deterministically. I&#39;m quite eager to give it a try, but my component doesn&#39;t compile as is with the 1.3 source. Is it trivial to convert it?<br>
+
+<br>Or maybe you were suggesting that I go into the code of ob1 myself and manually change every _wait to _get?<br><br>Kind regards<br>Tim<br><br><div class="gmail_quote">2009/3/23 George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">bosilca@eecs.utk.edu</a>&gt;</span><div>
+<span class="e" id="q_12034881dea58061_1"><br>
+<blockquote class="gmail_quote" style="border-left:1px solid rgb(204, 204, 204);margin:0pt 0pt 0pt 0.8ex;padding-left:1ex">It is a known problem. When the freelist is empty going in the ompi_free_list_wait will block the process until at least one fragment became available. As a fragment can became available only when returned by the BTL, this can lead to deadlocks in some cases. The workaround is to ban the usage of the blocking _wait function, and replace it with the non-blocking version _get. The PML has all the required logic to deal with the cases where a fragment cannot be allocated. We changed most of the BTLs to use _get instead of _wait few months ago.<br>
+
+
+<br>
+  Thanks,<br><font color="#888888">
+    george.</font><div><div><br>
+<br>
+On Mar 23, 2009, at 11:58 , Timothy Hayes wrote:<br>
+<br>
+</div></div><blockquote class="gmail_quote" style="border-left:1px solid rgb(204, 204, 204);margin:0pt 0pt 0pt 0.8ex;padding-left:1ex"><div><div>
+Hello,<br>
+<br>
+I&#39;m working on an OpenMPI BTL component and am having a recurring problem, I was wondering if anyone could shed some light on it. I have a component that&#39;s quite straight forward, it uses a pair of lightweight sockets to take advantage of being in a virtualised environment (specifically Xen). My code is a bit messy and has lots of inefficiencies, but the logic seems sound enough. I&#39;ve been able to execute a few simple programs successfully using the component, and they work most of the time.<br>
+
+
+<br>
+The problem I&#39;m having is actually happening in higher layers, specifically in my asynchronous receive handler, when I call the callback function (cbfunc) that was set by the PML in the BTL initialisation phase. It seems to be getting stuck in an infinite loop at __ompi_free_list_wait(), in this function there is a condition variable which should get set eventually but just doesn&#39;t. I&#39;ve stepped through it with GDB and I get a backtrace of something like this:<br>
+
+
+<br>
+mca_btl_xen_endpoint_recv_handler -&gt; mca_btl_xen_endpoint_start_recv -&gt; mca_pml_ob1_recv_frag_callback -&gt; mca_pml_ob1_recv_frag_match -&gt; __ompi_free_list_wait -&gt; opal_condition_wait<br>
+<br>
+and from there it just loops. Although this is happening in higher levels, I haven&#39;t noticed something like this happening in any of the other BTL components so chances are there&#39;s something in my code that&#39;s causing this. I very much doubt that it&#39;s actually waiting for a list item to be returned since this infinite loop can occur non deterministically and sometimes even on the first receive callback.<br>
+
+
+<br>
+I&#39;m really not too sure what else to include with this e-mail. I could send my source code (a bit nasty right now) if it would be helpful, but I&#39;m hoping that someone might have noticed this problem before or something similar. Maybe I&#39;m making a common mistake. Any advice would be really appreciated!<br>
+
+
+<br>
+I&#39;m using OpenMPI 1.2.9 from the SVN tag repository.<br>
+<br>
+Kind regards<br>
+Tim Hayes<br></div></div><div>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></blockquote><div><div>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" onclick="return top.js.OpenExtLink(window,event,this)">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+<br>
+</div></div></blockquote></span></div></div><br>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a onclick="return top.js.OpenExtLink(window,event,this)" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a onclick="return top.js.OpenExtLink(window,event,this)" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br>
+

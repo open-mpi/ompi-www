@@ -1,0 +1,14 @@
+<div dir="ltr"><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div>Folks,<br><br></div>several mtt tests (ompi-trunk r31963) failed (SIGSEGV in mpirun) with a similar stack trace.<br><br>For example, you can refer to :<br>
+
+<a href="http://mtt.open-mpi.org/index.php?do_redir=2199" target="_blank">http://mtt.open-mpi.org/index.php?do_redir=2199</a><br><br></div>the issue is not related whatsoever to the init_thread_serialized test<br></div>(other tests failed with similar symptoms)<br>
+
+<br>so far i could find that :<br></div>- the issue is intermittent and can be hard to reproduce (1 failure over 1000 runs)<br></div>- per the mtt logs, it seems this is quite a recent failure<br></div>- a necessary condition is that MPI tasks exit with a non zero status after having called MPI_Finalize()<br>
+
+</div>- the crash occurs is in orte/mca/oob/base/oob_base_frame.c at line 89 when invoking<br></div>OBJ_RELEASE(value) ;<br></div>in some rare cases, value is NULL which causes the crash.<br></div>- though i cannot incriminate one changeset in particular, i highly suspect the changes that were made in order to address the issue(s) discussed at <a href="http://www.open-mpi.org/community/lists/devel/2014/05/14908.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/05/14908.php</a><br>
+
+<br></div>the attached a patch that works around this issue.<br></div>i did not commit it because i consider this as a work around and not as a fix :<br></div>the root cause might be a tricky race condition (&quot;abort&quot; after MPI_Finalize).<br>
+<br><br></div>
+as a side note, here is the definition of OBJ_RELEASE (opal/class/opal_object.h)<br>#if OPAL_ENABLE_DEBUG<br>#define OBJ_RELEASE(object)                                             \<br>    do {                                                                \<br>
+        assert(NULL != ((opal_object_t *) (object))-&gt;obj_class);        \<br>        assert(OPAL_OBJ_MAGIC_ID == ((opal_object_t *) (object))-&gt;obj_magic_id); \<br>    } while (0)<br>...<br>#else<br>...<br><br></div>
+should we add the following assert at the beginning ?<br>assert(NULL != object);<br><br><br></div>Thanks in advance for your comments,<br><br></div>Gilles<br></div>
+

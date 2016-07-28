@@ -1,0 +1,119 @@
+Thanks, that explains it :)<br><br><div class="gmail_quote">On Tue, Jan 19, 2010 at 15:01, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+
+<div style="word-wrap: break-word;">Shared memory doesn&#39;t extend between comm_spawn&#39;d parent/child processes in Open MPI. Perhaps someday it will, but not yet.<div><br></div><div><br><div><div><div></div><div class="h5">
+
+<div>On Jan 19, 2010, at 1:14 PM, Nicolas Bock wrote:</div><br></div></div><blockquote type="cite"><div><div></div><div class="h5">Hello list,<br><br>I think I understand better now what&#39;s happening, although I still don&#39;t know why. I have attached two small C codes that demonstrate the problem. The code in main.c uses MPI_Comm_spawn() to start the code in the second source, child.c. I can force the issue by running the main.c code with<br>
+
+
+
+<br>mpirun -mca btl self,sm -np 1 ./main<br><br>and get this error:<br><br><span style="font-family: courier new,monospace;">--------------------------------------------------------------------------</span><br style="font-family: courier new,monospace;">
+
+
+
+<span style="font-family: courier new,monospace;">At least one pair of MPI processes are unable to reach each other for</span><br style="font-family: courier new,monospace;"><span style="font-family: courier new,monospace;">MPI communications.  This means that no Open MPI device has indicated</span><br style="font-family: courier new,monospace;">
+
+
+
+<span style="font-family: courier new,monospace;">that it can be used to communicate between these processes.  This is</span><br style="font-family: courier new,monospace;"><span style="font-family: courier new,monospace;">an error; Open MPI requires that all MPI processes be able to reach</span><br style="font-family: courier new,monospace;">
+
+
+
+<span style="font-family: courier new,monospace;">each other.  This error can sometimes be the result of forgetting to</span><br style="font-family: courier new,monospace;"><span style="font-family: courier new,monospace;">specify the &quot;self&quot; BTL.</span><br style="font-family: courier new,monospace;">
+
+
+
+<br style="font-family: courier new,monospace;"><span style="font-family: courier new,monospace;">  Process 1 ([[26121,2],0]) is on host: mujo</span><br style="font-family: courier new,monospace;"><span style="font-family: courier new,monospace;">  Process 2 ([[26121,1],0]) is on host: mujo</span><br style="font-family: courier new,monospace;">
+
+
+
+<span style="font-family: courier new,monospace;">  BTLs attempted: self sm</span><br style="font-family: courier new,monospace;"><br style="font-family: courier new,monospace;"><span style="font-family: courier new,monospace;">Your MPI job is now going to abort; sorry.</span><br style="font-family: courier new,monospace;">
+
+
+
+<span style="font-family: courier new,monospace;">--------------------------------------------------------------------------</span><br><br>Is that because the spawned process is in a different group? They are still all running on the same host, so at least in principle they should be able to communicate with each other via shared memory.<br>
+
+
+
+<br>nick<br><br><br><br><div class="gmail_quote">On Fri, Jan 15, 2010 at 16:08, Eugene Loh <span dir="ltr">&lt;<a href="mailto:Eugene.Loh@sun.com" target="_blank">Eugene.Loh@sun.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+
+
+
+
+
+
+  
+  
+
+<div bgcolor="#ffffff" text="#000000">
+Dunno.  Do lower np values succeed?  If so, at what value of np does
+the job no longer start?<br>
+<br>
+Perhaps it&#39;s having a hard time creating the shared-memory backing file
+in /tmp.  I think this is a 64-Mbyte file.  If this is the case, try
+reducing the size of the shared area per this FAQ item: 
+<a href="http://www.open-mpi.org/faq/?category=sm#decrease-sm" target="_blank">http://www.open-mpi.org/faq/?category=sm#decrease-sm</a>  Most notably,
+reduce mpool_sm_min_size below 67108864.<br>
+<br>
+Also note trac ticket 2043, which describes problems with the sm BTL
+exposed by GCC 4.4.x compilers.  You need to get a sufficiently recent
+build to solve this.  But, those problems don&#39;t occur until you start
+passing messages, and here you&#39;re not even starting up.<div><div></div><div><br>
+<br>
+Nicolas Bock wrote:
+<blockquote cite="http://middcf611bd1001151448q8a48e5ctcea9fa30f2641911@mail.gmail.com" type="cite">Sorry, I forgot to give more details on what versions I am
+using:<br>
+  <br>
+OpenMPI 1.4<br>
+Ubuntu 9.10, kernel 2.6.31-16-generic #53-Ubuntu<br>
+gcc (Ubuntu 4.4.1-4ubuntu8) 4.4.1<br>
+  <br>
+  <div class="gmail_quote">On Fri, Jan 15, 2010 at 15:47, Nicolas Bock <span dir="ltr">&lt;<a href="mailto:nicolasbock@gmail.com" target="_blank">nicolasbock@gmail.com</a>&gt;</span>
+wrote:<br>
+  <blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Hello
+list,<br>
+    <br>
+I am running a job on a 4 quadcore AMD Opteron. This machine has 16
+cores, which I can verify by looking at /proc/cpuinfo. However, when I
+run a job with<br>
+    <br>
+mpirun -np 16 -mca btl self,sm job<br>
+    <br>
+I get this error:<br>
+    <br>
+--------------------------------------------------------------------------<br>
+At least one pair of MPI processes are unable to reach each other for<br>
+MPI communications.  This means that no Open MPI device has indicated<br>
+that it can be used to communicate between these processes.  This is<br>
+an error; Open MPI requires that all MPI processes be able to reach<br>
+each other.  This error can sometimes be the result of forgetting to<br>
+specify the &quot;self&quot; BTL.<br>
+    <br>
+  Process 1 ([[56972,2],0]) is on host: rust<br>
+  Process 2 ([[56972,1],0]) is on host: rust<br>
+  BTLs attempted: self sm<br>
+    <br>
+Your MPI job is now going to abort; sorry.<br>
+--------------------------------------------------------------------------<br>
+    <br>
+By adding the tcp btl I can run the job. I don&#39;t understand why openmpi
+claims that a pair of processes can not reach each other, all processor
+cores should have access to all memory after all. Do I need to set some
+other btl limit?<br>
+  </blockquote>
+  </div>
+</blockquote>
+</div></div></div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br>
+</div></div><span>&lt;main.c&gt;</span><span>&lt;child.c&gt;</span>_______________________________________________<div class="im"><br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></div></blockquote></div><br></div></div><br>_______________________________________________<br>
+
+
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br>
+

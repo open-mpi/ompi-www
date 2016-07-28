@@ -1,0 +1,111 @@
+Index: configure.ac
+===================================================================
+--- configure.ac	(revision 19845)
++++ configure.ac	(working copy)
+@@ -1071,6 +1076,12 @@
+ 
+ ompi_show_subtitle "Libtool configuration"
+ 
++# Use the undocumented solaris_use_stlport4 libtool variable to turn off any
++# Cstd/stlport4 linkage. This allows Open MPI to be C++ STL agnostic.
++if test "x$ompi_cv_c_compiler_vendor" = "xsun"; then
++    solaris_use_stlport4="yes"
++fi
++
+ dnl Not all versions of LT set the PACKAGE_VERSION
+ m4_ifdef([LT_PACKAGE_VERSION], [], [m4_define([LT_PACKAGE_VERSION], [1.5.22])])
+ 
+@@ -1356,3 +1367,10 @@
+     test/datatype/Makefile
+ ])
+ AC_OUTPUT
++
++# Fix libtool script bug that passes -Wl to f90, which Sun f90 does not understand.
++# (This can be removed if using Libtool 2.2.7 or higher)
++ompi_patch_libtool_for_sun_studio="config/patch-libtool-for-sun-studio.pl"
++if test "x$ompi_cv_c_compiler_vendor" = "xsun" -a -x "$ompi_patch_libtool_for_sun_studio"; then
++    $ompi_patch_libtool_for_sun_studio
++fi
+Index: config/patch-libtool-for-sun-studio.pl
+===================================================================
+--- config/patch-libtool-for-sun-studio.pl	(revision 0)
++++ config/patch-libtool-for-sun-studio.pl	(revision 0)
+@@ -0,0 +1,71 @@
++#!/usr/bin/env perl
++
++use strict;
++use File::Basename;
++use Data::Dumper;
++
++# Grab the name of this script
++my $program = basename($0);
++
++# Call the main subroutine and exit
++&update_libtool_script;
++exit;
++
++sub update_libtool_script {
++    my ($file) = @_;
++
++    # By default, patch the libtool script in the cwd
++    $file = "./libtool" if (! -e $file);
++
++    # Keep a backup copy of the file lying around for debugging
++    # purposes
++    my $cmd = "cp $file $file.orig\n";
++    system($cmd);
++
++    # Read in the libtool script file
++    my $contents = Read($file);
++    die("Couldn't Read $file!\n") if (!$contents);
++
++    # We need to patch libtool due to a bug in how it handles Sun Fortran:
++    #
++    #   http://www.open-mpi.org/community/lists/devel/2008/11/4920.php
++    #
++    my $bad_pattern1 ='(\n# ### BEGIN LIBTOOL TAG CONFIG: FC.*)\n(wl="-Wl,")';
++    my $good_pattern1 = "
++# $program has reassigned wl to \"\" because Sun Studio
++# f90 (for Linux) does not pass -Wl values to the GNU linker (/usr/bin/ld)
++wl=\"\"";
++
++    # Grab uname OS string
++    my $os = `uname -s`;
++    chomp $os;
++    if ($os =~ /Linux/i) {
++        print("   ++ patching for -Wl Sun Studio Fortran bug in libtool\n");
++        $contents =~ s/$bad_pattern1/$1\n# $2\n$good_pattern1/s;
++    }
++
++    # Write changed file out
++    Write($file, $contents);
++}
++
++sub Read {
++    my ($file) = @_;
++
++    my $contents;
++    open (INPUT, $file) or warn "Can't open $file: $!";
++    while (<INPUT>) {
++        $contents .= $_;
++    }
++    close(INPUT) or warn "Can't close $file: $!";
++    return $contents;
++}
++
++sub Write {
++    my ($filename, $body) = @_;
++
++    # Write out the file
++    die("Failed to write to file: $!") if (! open(FILE, "> $filename"));
++
++    print FILE $body;
++    close FILE;
++}
+
+Property changes on: config/patch-libtool-for-sun-studio.pl
+___________________________________________________________________
+Added: svn:executable
+   + *
+
+

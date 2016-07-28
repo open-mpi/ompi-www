@@ -1,0 +1,76 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META NAME="Generator" CONTENT="MS Exchange Server version 6.5.7226.0">
+<TITLE>MPI_Offset and C++ interface</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/plain format -->
+
+<P><FONT SIZE=2>Hi,<BR>
+<BR>
+I just compiled my library with version 1.0 of OpenMPI and I had two problems.<BR>
+<BR>
+First the MPI_Offset datatype is defined as a preprocessor macro as follow in mpi.h:<BR>
+<BR>
+&nbsp;&nbsp; /* Type of MPI_Offset */<BR>
+&nbsp;&nbsp; #define MPI_Offset long long<BR>
+<BR>
+This generate a syntax error when MPI_Offset is used in C++ for what Stroustrup call a value construction (e.g. type ( expr_list ) c.f. section 6.2 in The C++ programming language).<BR>
+<BR>
+For example the following code:<BR>
+<BR>
+&nbsp;&nbsp; MPI_Offset&nbsp;&nbsp; ofs,size;<BR>
+&nbsp;&nbsp; int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; nbr;<BR>
+<BR>
+&nbsp;&nbsp; // compute ofs, size and nbr.<BR>
+<BR>
+&nbsp;&nbsp; ofs +=&nbsp; MPI_Offset(nbr)*size;<BR>
+<BR>
+cannot compile if MPI_Offset is defined as it is currently.<BR>
+<BR>
+The obvious solution is to define MPI_Offset as a typedef as follow:<BR>
+<BR>
+&nbsp;&nbsp; /* Type of MPI_Offset */<BR>
+&nbsp;&nbsp; typedef long long MPI_Offset;<BR>
+<BR>
+Note that a similar typedef is used for MPI_Aint:<BR>
+<BR>
+&nbsp;&nbsp; typedef long MPI_Aint;<BR>
+<BR>
+<BR>
+The seccond problem is related to the C++ interface: it uses direct C-style type cast that remove constness. Since ISO/C++ have the const_cast operator especially for this situation, the compiler generates TONS of warnings (I use to compile my code with -Wall and many other warning activated) and this is really annoying.<BR>
+<BR>
+The solution to this problem is to replace C-style cast with const_cast operator. For example the MPI::Comm::Send method defined in openmpi/ompi/mpi/cxx/comm_inln.h as follow:<BR>
+<BR>
+&nbsp;&nbsp; inline void<BR>
+&nbsp;&nbsp; MPI::Comm::Send(const void *buf, int count,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const MPI::Datatype &amp; datatype, int dest, int tag) const<BR>
+&nbsp;&nbsp; {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp; (void)MPI_Send((void *)buf, count, datatype, dest, tag, mpi_comm);<BR>
+&nbsp;&nbsp; }<BR>
+<BR>
+becomes:<BR>
+<BR>
+&nbsp;&nbsp; inline void<BR>
+&nbsp;&nbsp; MPI::Comm::Send(const void *buf, int count,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; const MPI::Datatype &amp; datatype, int dest, int tag) const<BR>
+&nbsp;&nbsp; {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp; (void)MPI_Send(const_cast&lt;void *&gt;(buf), count, datatype, dest, tag, mpi_comm);<BR>
+&nbsp;&nbsp; }<BR>
+<BR>
+This fix the annoying warning problem because the const_cast operator is the intended method to remove constness.<BR>
+<BR>
+<BR>
+<BR>
+Martin Audet&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; E: matin.audet@imi.cnrc-nrc.gc.ca<BR>
+Research Officer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; T: 450-641-5034<BR>
+Industrial Material Institute<BR>
+National Research Council of Canada<BR>
+75 de Mortagne, Boucherville, QC, J4B 6Y4<BR>
+</FONT>
+</P>
+
+</BODY>
+</HTML>

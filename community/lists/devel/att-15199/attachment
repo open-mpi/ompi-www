@@ -1,0 +1,59 @@
+<div dir="ltr">1. If I remember correctly, this topic has already been raised in the Forum. And the decision was to maintain the current behavior (tools and MPI init/fini are independent/disconnected).<div><br></div><div>2. Having to manually set a global flag in order to correctly finalize a library is HORRIBLE by any reasonable CS standards.</div>
+
+<div><br></div><div>3. Let&#39;s not go in shadowy corners of the MPI_T usage, and stay mainstream. Here is a partial snippet of the most usual way the tool interface is supposed to be used.</div><div><br></div><div><div>
+
+    MPI_T_init_thread(MPI_THREAD_SINGLE, &amp;provided);</div><div>    ...</div><div>    MPI_Init(&amp;argc, &amp;argv);</div><div>    MPI_Finalize();</div><div>  </div></div><div>  With the proposed patch, we clean up all OPAL memory as soon as we reach the MPI_Finalize (aka. without the call to MPI_T_finalize).  All MPI_T calls after MPI_Finalize will trigger a segfault.</div>
+
+<div><br></div><div>  George.</div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Thu, Jul 17, 2014 at 10:55 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">As I said, I don&#39;t know which solution is the one to follow - they both have significant &quot;ick&quot; factors, though I wouldn&#39;t go so far as to characterize either of them as &quot;horrible&quot;. Not being &quot;clean&quot; after calling MPI_Finalize seems just as strange.<div>
+<br></div><div>Nathan and I did discuss the init-after-finalize issue, and he intends to raise it with the Forum as it doesn&#39;t seem a logical thing to do. So that issue may go away. Still leaves us pondering the right solution, and hopefully coming up with something better than either of the ones we have so far.</div>
+<div><br></div><div><br><div><div><div class="h5"><div>On Jul 17, 2014, at 7:48 PM, George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu" target="_blank">bosilca@icl.utk.edu</a>&gt; wrote:</div><br></div></div><blockquote type="cite">
+<div><div class="h5"><div dir="ltr">I think Case #1 is only a partial solution, as it only solves the example attached to the ticket. Based on my reading the the tool chapter calling MPI_T_init after MPI_Finalize is legit, and this case is not covered by the patch. But this is not the major issue I have with this patch. From a coding perspective, it makes the initialization of OPAL horribly unnatural, requiring any other layer using OPAL to make a horrible gymnastic just to tear it down correctly (setting opal_init_util_init_extra to the right value).<div>
+
+
+<br></div><div>  George.</div><div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, Jul 16, 2014 at 11:29 AM, Pritchard, Howard r <span dir="ltr">&lt;<a href="mailto:howardp@lanl.gov" target="_blank">howardp@lanl.gov</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">HI Folks,<br>
+<br>
+I vote for solution #1.  Doesn&#39;t change current behavior.  Doesn&#39;t open the door to becoming dependent on availability of<br>
+ctor/dtor feature in future toolchains.<br>
+<br>
+Howard<br>
+<div><br>
+<br>
+-----Original Message-----<br>
+From: devel [mailto:<a href="mailto:devel-bounces@open-mpi.org" target="_blank">devel-bounces@open-mpi.org</a>] On Behalf Of Nathan Hjelm<br>
+Sent: Wednesday, July 16, 2014 9:08 AM<br>
+To: Open MPI Developers<br>
+Subject: Re: [OMPI devel] RFC: Add an __attribute__((destructor)) function to opal<br>
+<br>
+</div><div><div>On Wed, Jul 16, 2014 at 07:59:14AM -0700, Ralph Castain wrote:<br>
+&gt; I discussed this over IM with Nathan to try and get a better understanding of the options. Basically, we have two approaches available to us:<br>
+&gt;<br>
+&gt; 1. my solution resolves the segv problem and eliminates leaks so long as the user calls MPI_Init/Finalize after calling the MPI_T init/finalize functions. This method will still leak memory if the user doesn&#39;t use MPI after calling the MPI_T functions, but does mean that all memory used by MPI will be released upon MPI_Finalize. So if the user program continues beyond MPI, they won&#39;t be carrying the MPI memory footprint with them. This continues our current behavior.<br>
+
+
+&gt;<br>
+&gt; 2. the destructor method, which release the MPI memory footprint upon final program termination instead of at MPI_Finalize. This also solves the segv and leak problems, and ensures that someone calling only the MPI_T init/finalize functions will be valgrind-clean, but means that a user program that runs beyond MPI will carry the MPI memory footprint with them. This is a change in our current behavior.<br>
+
+
+<br>
+Correct. Though the only thing we will carry around until termination is the memory associated with opal/mca/if, opal/mca/event, opal_net, opal_malloc, opal_show_help, opal_output, opal_dss, opal_datatype, and opal_class. Not sure how much memory this is.<br>
+
+
+<br>
+-Nathan<br>
+</div></div><div>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15172.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15172.php</a><br>
+</blockquote></div><br></div>
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15193.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15193.php</a></blockquote></div><br></div></div>
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/07/15194.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/07/15194.php</a><br></blockquote></div><br></div>
+

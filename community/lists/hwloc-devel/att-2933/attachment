@@ -1,0 +1,198 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+  </head>
+  <body bgcolor="#ffffff" text="#000000">
+    We'll have to check the compatiblity of this thing with the hwloc
+    membind API if/when it gets merged in the Linux kernel.<br>
+    Lee Schermerhorn's Migrate-on-Fault
+    is supposed to be hwloc_membind_nexttouch, that would be a very good
+    news.<br>
+    <br>
+    Brice<br>
+    <br>
+    <br>
+    -------- Message original --------
+    <table class="moz-email-headers-table" border="0" cellpadding="0"
+      cellspacing="0">
+      <tbody>
+        <tr>
+          <th align="RIGHT" nowrap="nowrap" valign="BASELINE">Sujet: </th>
+          <td>[RFC][PATCH 00/26] sched/numa</td>
+        </tr>
+        <tr>
+          <th align="RIGHT" nowrap="nowrap" valign="BASELINE">Date&nbsp;: </th>
+          <td>Fri, 16 Mar 2012 15:40:28 +0100</td>
+        </tr>
+        <tr>
+          <th align="RIGHT" nowrap="nowrap" valign="BASELINE">De&nbsp;: </th>
+          <td>Peter Zijlstra <a class="moz-txt-link-rfc2396E" href="mailto:a.p.zijlstra@chello.nl">&lt;a.p.zijlstra@chello.nl&gt;</a></td>
+        </tr>
+        <tr>
+          <th align="RIGHT" nowrap="nowrap" valign="BASELINE">Pour&nbsp;: </th>
+          <td>Linus Torvalds <a class="moz-txt-link-rfc2396E" href="mailto:torvalds@linux-foundation.org">&lt;torvalds@linux-foundation.org&gt;</a>,
+            Andrew Morton <a class="moz-txt-link-rfc2396E" href="mailto:akpm@linux-foundation.org">&lt;akpm@linux-foundation.org&gt;</a>, Thomas
+            Gleixner <a class="moz-txt-link-rfc2396E" href="mailto:tglx@linutronix.de">&lt;tglx@linutronix.de&gt;</a>, Ingo Molnar
+            <a class="moz-txt-link-rfc2396E" href="mailto:mingo@elte.hu">&lt;mingo@elte.hu&gt;</a>, Paul Turner <a class="moz-txt-link-rfc2396E" href="mailto:pjt@google.com">&lt;pjt@google.com&gt;</a>,
+            Suresh Siddha <a class="moz-txt-link-rfc2396E" href="mailto:suresh.b.siddha@intel.com">&lt;suresh.b.siddha@intel.com&gt;</a>, Mike
+            Galbraith <a class="moz-txt-link-rfc2396E" href="mailto:efault@gmx.de">&lt;efault@gmx.de&gt;</a>, "Paul E. McKenney"
+            <a class="moz-txt-link-rfc2396E" href="mailto:paulmck@linux.vnet.ibm.com">&lt;paulmck@linux.vnet.ibm.com&gt;</a>, Lai Jiangshan
+            <a class="moz-txt-link-rfc2396E" href="mailto:laijs@cn.fujitsu.com">&lt;laijs@cn.fujitsu.com&gt;</a>, Dan Smith
+            <a class="moz-txt-link-rfc2396E" href="mailto:danms@us.ibm.com">&lt;danms@us.ibm.com&gt;</a>, Bharata B Rao
+            <a class="moz-txt-link-rfc2396E" href="mailto:bharata.rao@gmail.com">&lt;bharata.rao@gmail.com&gt;</a>, Lee Schermerhorn
+            <a class="moz-txt-link-rfc2396E" href="mailto:Lee.Schermerhorn@hp.com">&lt;Lee.Schermerhorn@hp.com&gt;</a>, Andrea Arcangeli
+            <a class="moz-txt-link-rfc2396E" href="mailto:aarcange@redhat.com">&lt;aarcange@redhat.com&gt;</a>, Rik van Riel
+            <a class="moz-txt-link-rfc2396E" href="mailto:riel@redhat.com">&lt;riel@redhat.com&gt;</a>, Johannes Weiner
+            <a class="moz-txt-link-rfc2396E" href="mailto:hannes@cmpxchg.org">&lt;hannes@cmpxchg.org&gt;</a></td>
+        </tr>
+        <tr>
+          <th align="RIGHT" nowrap="nowrap" valign="BASELINE">Copie &agrave;&nbsp;:
+          </th>
+          <td><a class="moz-txt-link-abbreviated" href="mailto:linux-kernel@vger.kernel.org">linux-kernel@vger.kernel.org</a>, <a class="moz-txt-link-abbreviated" href="mailto:linux-mm@kvack.org">linux-mm@kvack.org</a></td>
+        </tr>
+      </tbody>
+    </table>
+    <br>
+    <br>
+    <pre>Hi All,
+
+While the current scheduler has knowledge of the machine topology, including
+NUMA (although there's room for improvement there as well [1]), it is
+completely insensitive to which nodes a task's memory actually is on.
+
+Current upstream task memory allocation prefers to use the node the task is
+currently running on (unless explicitly told otherwise, see
+mbind()/set_mempolicy()), and with the scheduler free to move the task about at
+will, the task's memory can end up being spread all over the machine's nodes.
+
+While the scheduler does a reasonable job of keeping short running tasks on a
+single node (by means of simply not doing the cross-node migration very often),
+it completely blows for long-running processes with a large memory footprint.
+
+This patch-set aims at improving this situation. It does so by assigning a
+preferred, or home, node to every process/thread_group. Memory allocation is
+then directed by this preference instead of the node the task might actually be
+running on momentarily. The load-balancer is also modified to prefer running
+the task on its home-node, although not at the cost of letting CPUs go idle or
+at the cost of execution fairness.
+
+On top of this a new NUMA balancer is introduced, which can change a process'
+home-node the hard way. This heavy process migration is driven by two factors:
+either tasks are running away from their home-node, or memory is being
+allocated away from the home-node. In either case, it tries to move processes
+around to make the 'problem' go away.
+
+The home-node migration handles both cpu and memory (anonymous only for now) in
+an integrated fashion. The memory migration uses migrate-on-fault to avoid
+doing a lot of work from the actual numa balancer kernl thread and only
+migrates the active memory.
+
+For processes that have more tasks than would fit on a node and which want to
+split their activity in a useful fashion, the patch-set introduces two new
+syscalls: sys_numa_tbind()/sys_numa_mbind(). These syscalls can be used to
+create {thread}x{vma} groups which are then scheduled as a unit instead of the
+entire process.
+
+That said, its still early days and there's lots of improvements to make.
+
+On to the actual patches...
+
+The first two are generic cleanups:
+
+  [01/26] mm, mpol: Re-implement check_*_range() using walk_page_range()
+  [02/26] mm, mpol: Remove NUMA_INTERLEAVE_HIT
+
+The second set is a rework of Lee Schermerhorn's Migrate-on-Fault patches [2]:
+
+  [03/26] mm, mpol: add MPOL_MF_LAZY ...
+  [04/26] mm, mpol: add MPOL_MF_NOOP
+  [05/26] mm, mpol: Check for misplaced page
+  [06/26] mm: Migrate misplaced page
+  [07/26] mm: Handle misplaced anon pages
+  [08/26] mm, mpol: Simplify do_mbind()
+
+The third set implements the basic numa balancing:
+
+  [09/26] sched, mm: Introduce tsk_home_node()
+  [10/26] mm, mpol: Make mempolicy home-node aware
+  [11/26] mm, mpol: Lazy migrate a process/vma
+  [12/26] sched, mm: sched_{fork,exec} node assignment
+  [13/26] sched: Implement home-node awareness
+  [14/26] sched, numa: Numa balancer
+  [15/26] sched, numa: Implement hotplug hooks
+  [16/26] sched, numa: Abstract the numa_entity
+
+The next three patches are a band-aid, Lai Jiangshan (and Paul McKenney) are
+doing a proper implementation.. the reverts are me being lazy about fwd porting
+my call_srcu() implementation.
+
+  [17/26] srcu: revert1
+  [18/26] srcu: revert2
+  [19/26] srcu: Implement call_srcu()
+
+The last bits implement the new syscalls:
+
+  [20/26] mm, mpol: Introduce vma_dup_policy()
+  [21/26] mm, mpol: Introduce vma_put_policy()
+  [22/26] mm, mpol: Split and explose some mempolicy functions
+  [23/26] sched, numa: Introduce sys_numa_{t,m}bind()
+  [24/26] mm, mpol: Implement numa_group RSS accounting
+  [25/26] sched, numa: Only migrate long-running entities
+  [26/26] sched, numa: A few debug bits
+
+
+And a few numbers...
+
+On my WSM-EP (2 nodes, 6 cores/node, 2 thread/core), running 48 stream
+benchmarks [3] (modified to use ~230MB and run long).
+
+Without these patches it degrades into 50-50 local/remote memory accesses:
+
+ Performance counter stats for 'sleep 2':
+
+       259,668,750 r01b7@500b:u 		[100.00%]
+       262,170,142 r01b7@200b:u                                                
+
+       2.010446121 seconds time elapsed
+
+With the patches there's a significant improvement in locality:
+
+ Performance counter stats for 'sleep 2':
+
+       496,860,345 r01b7@500b:u 		[100.00%]
+        78,292,565 r01b7@200b:u                                                
+
+       2.010707488 seconds time elapsed
+
+(the perf events are a bit magical and not supported in an actual perf
+ release -- but the first one is L3 misses to local dram, the second is
+ L3 misses to remote dram)
+
+If you look at those numbers you can also see that the sum is greater in the
+second case, this means that we can service L3 misses at a higher rate, which
+translates into a performance gain.
+
+These numbers also show that while there's a marked improvement, there's still
+some gain to be had. The current numa balancer is still somewhat fickle.
+
+ ~ Peter
+
+
+[1] - <a class="moz-txt-link-freetext" href="http://marc.info/?l=linux-kernel&amp;m=130218515520540">http://marc.info/?l=linux-kernel&amp;m=130218515520540</a>
+      now that we have SD_OVERLAP it should be fairly easy to do.
+
+[2] - <a class="moz-txt-link-freetext" href="http://markmail.org/message/mdwbcitql5ka4uws">http://markmail.org/message/mdwbcitql5ka4uws</a>
+
+[3] - <a class="moz-txt-link-freetext" href="https://asc.llnl.gov/computing_resources/purple/archive/benchmarks/memory/stream.tar">https://asc.llnl.gov/computing_resources/purple/archive/benchmarks/memory/stream.tar</a> 
+
+--
+To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+the body of a message to <a class="moz-txt-link-abbreviated" href="mailto:majordomo@vger.kernel.org">majordomo@vger.kernel.org</a>
+More majordomo info at  <a class="moz-txt-link-freetext" href="http://vger.kernel.org/majordomo-info.html">http://vger.kernel.org/majordomo-info.html</a>
+Please read the FAQ at  <a class="moz-txt-link-freetext" href="http://www.tux.org/lkml/">http://www.tux.org/lkml/</a>
+</pre>
+  </body>
+</html>
+

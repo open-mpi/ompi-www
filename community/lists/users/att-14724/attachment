@@ -1,0 +1,152 @@
+Have you double checked your firewall settings, TCP/IP settings, and SSH keys are all setup correctly for all machines including the host?<br><br><div class="gmail_quote">On Wed, Nov 10, 2010 at 2:57 AM, Grzegorz Maj <span dir="ltr">&lt;<a href="mailto:maju3@wp.pl">maju3@wp.pl</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin: 0pt 0pt 0pt 0.8ex; border-left: 1px solid rgb(204, 204, 204); padding-left: 1ex;">Hi all,<br>
+I&#39;ve got a problem with sending messages from one of my machines. It<br>
+appears during MPI_Send/MPI_Recv and MPI_Bcast. The simplest case I&#39;ve<br>
+found is two processes, rank 0 sending a simple message and rank 1<br>
+receiving this message. I execute these processes using mpirun with<br>
+-np 2.<br>
+- when both processes are executed on the host machine, it works fine;<br>
+- when both processes are executed on client machines (both on the<br>
+same or different machines), it works fine;<br>
+- when sender is executed on one of the client machines and receiver<br>
+on the host machine, it works fine;<br>
+- when sender is executed on the host machine and receiver on client<br>
+machine, it blocks.<br>
+<br>
+This last case is my problem. When adding option &#39;--mca<br>
+btl_base_verbose 30&#39; to mpirun, I get:<br>
+<br>
+----------<br>
+[host:28186] mca: base: components_open: Looking for btl components<br>
+[host:28186] mca: base: components_open: opening btl components<br>
+[host:28186] mca: base: components_open: found loaded component self<br>
+[host:28186] mca: base: components_open: component self has no register function<br>
+[host:28186] mca: base: components_open: component self open function successful<br>
+[host:28186] mca: base: components_open: found loaded component sm<br>
+[host:28186] mca: base: components_open: component sm has no register function<br>
+[host:28186] mca: base: components_open: component sm open function successful<br>
+[host:28186] mca: base: components_open: found loaded component tcp<br>
+[host:28186] mca: base: components_open: component tcp has no register function<br>
+[host:28186] mca: base: components_open: component tcp open function successful<br>
+[host:28186] select: initializing btl component self<br>
+[host:28186] select: init of component self returned success<br>
+[host:28186] select: initializing btl component sm<br>
+[host:28186] select: init of component sm returned success<br>
+[host:28186] select: initializing btl component tcp<br>
+[host:28186] select: init of component tcp returned success<br>
+[client01:19803] mca: base: components_open: Looking for btl components<br>
+[client01:19803] mca: base: components_open: opening btl components<br>
+[client01:19803] mca: base: components_open: found loaded component self<br>
+[client01:19803] mca: base: components_open: component self has no<br>
+register function<br>
+[client01:19803] mca: base: components_open: component self open<br>
+function successful<br>
+[client01:19803] mca: base: components_open: found loaded component sm<br>
+[client01:19803] mca: base: components_open: component sm has no<br>
+register function<br>
+[client01:19803] mca: base: components_open: component sm open<br>
+function successful<br>
+[client01:19803] mca: base: components_open: found loaded component tcp<br>
+[client01:19803] mca: base: components_open: component tcp has no<br>
+register function<br>
+[client01:19803] mca: base: components_open: component tcp open<br>
+function successful<br>
+[client01:19803] select: initializing btl component self<br>
+[client01:19803] select: init of component self returned success<br>
+[client01:19803] select: initializing btl component sm<br>
+[client01:19803] select: init of component sm returned success<br>
+[client01:19803] select: initializing btl component tcp<br>
+[client01:19803] select: init of component tcp returned success<br>
+00 of 2 host<br>
+[host:28186] btl: tcp: attempting to connect() to address 10.0.7.97 on<br>
+port 53255<br>
+01 of 2 client01<br>
+----------<br>
+<br>
+Where lines &quot;00 of 2 host&quot; and &quot;01 of 2 client01&quot; are just my debug<br>
+saying &quot;mpirank of comm_size hostname&quot;. The last but one line appears<br>
+in call to Send:<br>
+MPI::COMM_WORLD.Send(message, 5, MPI::CHAR, 1, 13);<br>
+<br>
+When executing the sender on host with strace, I get:<br>
+<br>
+----------<br>
+...<br>
+connect(10, {sa_family=AF_INET, sin_port=htons(1024),<br>
+sin_addr=inet_addr(&quot;10.0.7.97&quot;)}, 16) = -1 EINPROGRESS (Operation now<br>
+in progress)<br>
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,<br>
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9,<br>
+events=POLLIN}, {fd=10, events=POLLOUT}], 7, 0) = 0 (Timeout)<br>
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,<br>
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9,<br>
+events=POLLIN}, {fd=10, events=POLLOUT}], 7, 0) = 1 ([{fd=10,<br>
+revents=POLLOUT}])<br>
+getsockopt(10, SOL_SOCKET, SO_ERROR, [0], [4]) = 0<br>
+send(10, &quot;D\227\0\1\0\0\0\0&quot;, 8, 0)     = 8<br>
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,<br>
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9,<br>
+events=POLLIN}, {fd=10, events=POLLIN}], 7, 0) = 0 (Timeout)<br>
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,<br>
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9,<br>
+events=POLLIN}, {fd=10, events=POLLIN}], 7, 0) = 1 ([{fd=10,<br>
+revents=POLLIN}])<br>
+recv(10, &quot;&quot;, 8, 0)                      = 0<br>
+close(10)                               = 0<br>
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,<br>
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9,<br>
+events=POLLIN}], 6, 0) = 0 (Timeout)<br>
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,<br>
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9,<br>
+events=POLLIN}], 6, 0) = 0 (Timeout)<br>
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,<br>
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9,<br>
+events=POLLIN}], 6, 0) = 0 (Timeout)<br>
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,<br>
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9,<br>
+events=POLLIN}], 6, 0) = 0 (Timeout)<br>
+poll([{fd=4, events=POLLIN}, {fd=5, events=POLLIN}, {fd=6,<br>
+events=POLLIN}, {fd=7, events=POLLIN}, {fd=8, events=POLLIN}, {fd=9,<br>
+events=POLLIN}], 6, 0) = 0 (Timeout)<br>
+...<br>
+(forever)<br>
+...<br>
+----------<br>
+<br>
+For me it looks like the above connect is responsible for establishing<br>
+connection, but I&#39;m afraid I don&#39;t understand what those calls for<br>
+poll are supposed to do.<br>
+<br>
+Attaching gdb to the sender gives me:<br>
+<br>
+----------<br>
+(gdb) bt<br>
+#0  0xffffe410 in __kernel_vsyscall ()<br>
+#1  0x0064993b in poll () from /lib/libc.so.6<br>
+#2  0xf7df07b5 in poll_dispatch () from /home/gmaj/openmpi/lib/libopen-pal.so.0<br>
+#3  0xf7def8c3 in opal_event_base_loop () from<br>
+/home/gmaj/openmpi/lib/libopen-pal.so.0<br>
+#4  0xf7defbe7 in opal_event_loop () from<br>
+/home/gmaj/openmpi/lib/libopen-pal.so.0<br>
+#5  0xf7de323b in opal_progress () from /home/gmaj/openmpi/lib/libopen-pal.so.0<br>
+#6  0xf7c51455 in mca_pml_ob1_send () from<br>
+/home/gmaj/openmpi/lib/openmpi/mca_pml_ob1.so<br>
+#7  0xf7ed9c60 in PMPI_Send () from /home/gmaj/openmpi/lib/libmpi.so.0<br>
+#8  0x0804e900 in main ()<br>
+----------<br>
+<br>
+If anybody knows what may cause this problem or what may I do to find<br>
+the reason, any help is appreciated.<br>
+<br>
+My open-mpi is version 1.4.1.<br>
+<br>
+<br>
+Regards,<br>
+<font color="#888888">Grzegorz Maj<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</font></blockquote></div><br><br clear="all"><br>-- <br>David Zhang<br>University of California, San Diego<br>
+

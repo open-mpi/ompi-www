@@ -1,0 +1,189 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    More comments about individual changes below.<br>
+    <o:p> </o:p>
+    <blockquote
+cite="mid:E721F964DFCE0143863414635137A1C72076DF0D@CRSMSX101.amr.corp.intel.com"
+      type="cite">add-ifndef-guard-around-gnu-source.patch<br>
+      <div class="moz-text-plain" wrap="true" graphical-quote="true"
+        style="font-family: -moz-fixed; font-size: 12px;"
+        lang="x-western">
+        <pre wrap="">diff --git a/config/hwloc.m4 b/config/hwloc.m4
+index f249713..855244d 100644
+--- a/config/hwloc.m4
++++ b/config/hwloc.m4
+@@ -486,7 +486,9 @@ EOF])
+     # program_invocation_name and __progname may be available but not exported in headers
+     AC_MSG_CHECKING([for program_invocation_name])
+     AC_TRY_LINK([
+-		#define _GNU_SOURCE
++		#ifndef _GNU_SOURCE
++		# define _GNU_SOURCE
++		#endif
+ 		#include &lt;errno.h&gt;
+ 		#include &lt;stdio.h&gt;
+ 		extern char *program_invocation_name;
+[...]</pre>
+      </div>
+    </blockquote>
+    <br>
+    This one is applied (not pushed yet).<br>
+    <br>
+    <blockquote
+cite="mid:E721F964DFCE0143863414635137A1C72076DF0D@CRSMSX101.amr.corp.intel.com"
+      type="cite">use-ac-check-decl.patch<br>
+      <div class="moz-text-plain" wrap="true" graphical-quote="true"
+        style="font-family: -moz-fixed; font-size: 12px;"
+        lang="x-western">
+        <pre wrap="">diff --git a/config/hwloc.m4 b/config/hwloc.m4
+index 855244d..49955a6 100644
+--- a/config/hwloc.m4
++++ b/config/hwloc.m4
+@@ -367,7 +367,7 @@ EOF])
+     AC_CHECK_HEADERS([ctype.h])
+ 
+     AC_CHECK_FUNCS([strncasecmp], [
+-      _HWLOC_CHECK_DECL([strncasecmp], [
++      AC_CHECK_DECLS([strncasecmp], [
+ 	AC_DEFINE([HWLOC_HAVE_DECL_STRNCASECMP], [1], [Define to 1 if function `strncasecmp' is declared by system headers])
+       ])
+     ])
+[...]</pre>
+      </div>
+    </blockquote>
+    <br>
+    Samuel pushed a better fix (already in master, I'll backport to
+    v1.11.x after checking the configure logs on our regression
+    platform)<br>
+    <br>
+    <blockquote
+cite="mid:E721F964DFCE0143863414635137A1C72076DF0D@CRSMSX101.amr.corp.intel.com"
+      type="cite">windows-compatibility-changes.patch<br>
+      <div class="moz-text-plain" wrap="true" graphical-quote="true"
+        style="font-family: -moz-fixed; font-size: 12px;"
+        lang="x-western">
+        <pre wrap="">diff --git a/config/hwloc.m4 b/config/hwloc.m4
+index 49955a6..12230e1 100644
+--- a/config/hwloc.m4
++++ b/config/hwloc.m4
+@@ -362,7 +362,7 @@ EOF])
+     #
+ 
+     AC_CHECK_HEADERS([unistd.h])
+-    AC_CHECK_HEADERS([dirent.h])
++    AC_CHECK_HEADERS([dirent.h], [hwloc_have_dirent=yes])
+     AC_CHECK_HEADERS([strings.h])
+     AC_CHECK_HEADERS([ctype.h])
+</pre>
+      </div>
+    </blockquote>
+    <br>
+    I am dropping the dirent changes and just disabling hwloc-ps
+    entirely on Windows.<br>
+    <br>
+    <blockquote
+cite="mid:E721F964DFCE0143863414635137A1C72076DF0D@CRSMSX101.amr.corp.intel.com"
+      type="cite">
+      <div class="moz-text-plain" wrap="true" graphical-quote="true"
+        style="font-family: -moz-fixed; font-size: 12px;"
+        lang="x-western">
+        <pre wrap="">+    AC_CHECK_LIB([user32], [PostQuitMessage], [hwloc_have_user32="yes"])
+
+</pre>
+      </div>
+    </blockquote>
+    <br>
+    The user32 part is applied.<br>
+    <br>
+    <br>
+    <blockquote
+cite="mid:E721F964DFCE0143863414635137A1C72076DF0D@CRSMSX101.amr.corp.intel.com"
+      type="cite">
+      <div class="moz-text-plain" wrap="true" graphical-quote="true"
+        style="font-family: -moz-fixed; font-size: 12px;"
+        lang="x-western">
+        <pre wrap="">@@ -381,6 +381,21 @@ static __hwloc_inline int hwloc_strncasecmp(const char *s1, const char *s2, size
+ #endif
+ }
+ 
++static __hwloc_inline int hwloc_strcasecmp(const char *s1, const char *s2)
++{
++#ifdef HWLOC_HAVE_DECL_STRCASECMP
++  return strcasecmp(s1, s2);
++#else
++  while (1) {
++    char c1 = tolower(*s1), c2 = tolower(*s2);
++    if (!c1 || !c2 || c1 != c2)
++      return c1-c2;
++    s1++; s2++;
++  }
++  return 0;
++#endif
++}
++
+ static __hwloc_inline hwloc_obj_type_t hwloc_cache_type_by_depth_type(unsigned depth, hwloc_obj_cache_type_t type)
+ {
+   if (type == HWLOC_OBJ_CACHE_INSTRUCTION) {
+@@ -407,4 +422,25 @@ static __hwloc_inline int hwloc_obj_type_is_io (hwloc_obj_type_t type)
+   return type &gt;= HWLOC_OBJ_BRIDGE &amp;&amp; type &lt;= HWLOC_OBJ_OS_DEVICE;
+ }
+ 
++#ifdef HWLOC_WIN_SYS
++#  ifndef HAVE_SSIZE_T
++typedef SSIZE_T ssize_t;
++#  endif
++#  ifndef HAVE_SNPRINTF
++#    define snprintf hwloc_snprintf
++#  endif
++#  if !HAVE_DECL_STRTOULL &amp;&amp; !defined(HAVE_STRTOULL)
++#    define strtoull _strtoui64
++#  endif
++#  if !HAVE_DECL_S_ISREG
++#    define S_ISREG(mode) (mode &amp; _S_IFREG)
++#  endif
++#  if !HAVE_DECL_S_ISDIR
++#    define S_ISDIR(mode) (mode &amp; _S_IFDIR)
++#  endif
++#  ifndef HAVE_STRCASECMP
++#    define strcasecmp hwloc_strcasecmp
++#  endif
++#endif
++
+ #endif /* HWLOC_PRIVATE_MISC_H */</pre>
+      </div>
+    </blockquote>
+    <br>
+    Overall this looks OK.<br>
+    <br>
+    In the MSVC project under contrib/windows/, we use a hardwired
+    hwloc_config.h which says:<br>
+    typedef SSIZE_T ssize_t;<br>
+    #define snprintf _snprintf<br>
+    #define strcasecmp _stricmp<br>
+    #define strncasecmp _strnicmp<br>
+    #define strdup _strdup<br>
+    #define strtoull _strtoui64<br>
+    #define strtoll _strtoi64<br>
+    #define S_ISREG(m) ((m)&amp;_S_IFREG)<br>
+    #define S_ISDIR( m ) (((m) &amp; S_IFMT) == S_IFDIR)<br>
+    #define putenv _putenv<br>
+    <br>
+    strncasecmp and strtoll don't seem needed anymore.<br>
+    <br>
+    For strdup and putenv, my MSVC fails with "The POSIX name for this
+    item is deprecated. Instead use the ISO C++ conformant name: _foo."<br>
+    I wonder why you didn't have this problem?<br>
+    <br>
+    Is _stricmp() OK instead of your code for hwloc_strcasecmp() ?<br>
+    <br>
+    Don't you have S_IFMT and S_IFREG/DIR without _ prefix?<br>
+    <br>
+    Brice<br>
+    <br>
+  </body>
+</html>
+

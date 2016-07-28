@@ -1,0 +1,1357 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I don’t see that LD_PRELOAD showing up on the ssh path, Andy<div class=""><br class=""></div><div class=""><blockquote type="cite" class=""><div bgcolor="#FFFFFF" text="#000000" class="">/usr/bin/ssh mic1&nbsp;&nbsp;&nbsp;&nbsp; PATH=/home/ariebs/mic/mpi-nightly/bin:$PATH ; export PATH ; LD_LIBRARY_PATH=/home/ariebs/mic/mpi-nightly/lib:$LD_LIBRARY_PATH ; export LD_LIBRARY_PATH ; DYLD_LIBRARY_PATH=/home/ariebs/mic/mpi-nightly/lib:$DYLD_LIBRARY_PATH ; export DYLD_LIBRARY_PATH ;&nbsp;&nbsp; /home/ariebs/mic/mpi-nightly/bin/orted --hnp-topo-sig 0N:1S:0L3:61L2:61L1:61C:244H:k1om -mca ess "env" -mca orte_ess_jobid "1901330432" -mca orte_ess_vpid 1 -mca orte_ess_num_procs "2" -mca orte_hnp_uri "1901330432.0;usock;<a href="tcp://16.113.180.125,192.0.0.121:34249;ud://2359370.86.1" class="">tcp://16.113.180.125,192.0.0.121:34249;ud://2359370.86.1</a>" --tree-spawn --mca spml "yoda" --mca btl "sm,self,tcp" --mca plm_base_verbose "5" --mca memheap_base_verbose "100" -mca plm "rsh" -mca rmaps_ppr_n_pernode “2"</div></blockquote><div class=""><br class=""></div><div class="">The -x option doesn’t impact the ssh line - it only forwards the value to the application’s environment. You’ll need to include the path in your LD_LIBRARY_PATH</div><div class=""><br class=""></div><br class=""><div><blockquote type="cite" class=""><div class="">On Apr 13, 2015, at 1:06 PM, Andy Riebs &lt;<a href="mailto:andy.riebs@hp.com" class="">andy.riebs@hp.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class="">
+  
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type" class="">
+  
+  <div bgcolor="#FFFFFF" text="#000000" class="">
+    Progress!&nbsp; I can run my trivial program on the local PHI, but not
+    the other PHI, on the system. Here are the interesting parts:<br class="">
+    <br class="">
+    A pretty good recipe with last night's nightly master:<br class="">
+    <br class="">
+    $ ./configure --prefix=/home/ariebs/mic/mpi-nightly CC="icc -mmic"
+    CXX="icpc -mmic" \<br class="">
+    &nbsp;&nbsp;&nbsp; --build=x86_64-unknown-linux-gnu --host=x86_64-k1om-linux \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp; AR=x86_64-k1om-linux-ar RANLIB=x86_64-k1om-linux-ranlib&nbsp;
+    LD=x86_64-k1om-linux-ld \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp; --enable-mpirun-prefix-by-default --disable-io-romio
+    --disable-mpi-fortran \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp; --enable-orterun-prefix-by-default \<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp; --enable-debug<br class="">
+    $ make &amp;&amp; make install<br class="">
+    $ shmemrun -x SHMEM_SYMMETRIC_HEAP_SIZE=1M -H localhost -N 2 --mca
+    spml yoda --mca btl sm,self,tcp $PWD/mic.out<br class="">
+    Hello World from process 0 of 2<br class="">
+    Hello World from process 1 of 2<br class="">
+    $ shmemrun -x SHMEM_SYMMETRIC_HEAP_SIZE=1M -H localhost -N 2 --mca
+    spml yoda --mca btl openib,sm,self $PWD/mic.out<br class="">
+    Hello World from process 0 of 2<br class="">
+    Hello World from process 1 of 2<br class="">
+    $ <br class="">
+    <br class="">
+    However, I can't seem to cross the fabric. I can ssh freely back and
+    forth between mic0 and mic1. However, running the next 2 tests from
+    mic0, it&nbsp; certainly seems like the second one should work, too:<br class="">
+    <br class="">
+    $ shmemrun -x SHMEM_SYMMETRIC_HEAP_SIZE=1M -H mic0 -N 2 --mca spml
+    yoda --mca btl sm,self,tcp $PWD/mic.out<br class="">
+    Hello World from process 0 of 2<br class="">
+    Hello World from process 1 of 2<br class="">
+    $ shmemrun -x SHMEM_SYMMETRIC_HEAP_SIZE=1M -H mic1 -N 2 --mca spml
+    yoda --mca btl sm,self,tcp $PWD/mic.out<br class="">
+    /home/ariebs/mic/mpi-nightly/bin/orted:<b class=""> error while loading
+      shared libraries: libimf.so: cannot open shared object file: No
+      such file or directory</b><br class="">
+--------------------------------------------------------------------------<br class="">
+    ORTE was unable to reliably start one or more daemons.<br class="">
+    This usually is caused by:<br class="">
+    <br class="">
+    * not finding the required libraries and/or binaries on<br class="">
+    &nbsp; one or more nodes. Please check your PATH and LD_LIBRARY_PATH<br class="">
+    &nbsp; settings, or configure OMPI with
+    --enable-orterun-prefix-by-default<br class="">
+    <br class="">
+    * lack of authority to execute on one or more specified nodes.<br class="">
+    &nbsp; Please verify your allocation and authorities.<br class="">
+    <br class="">
+    * the inability to write startup files into /tmp
+    (--tmpdir/orte_tmpdir_base).<br class="">
+    &nbsp; Please check with your sys admin to determine the correct location
+    to use.<br class="">
+    <br class="">
+    *&nbsp; compilation of the orted with dynamic libraries when static are
+    required<br class="">
+    &nbsp; (e.g., on Cray). Please check your configure cmd line and consider
+    using<br class="">
+    &nbsp; one of the contrib/platform definitions for your system type.<br class="">
+    <br class="">
+    * an inability to create a connection back to mpirun due to a<br class="">
+    &nbsp; lack of common network interfaces and/or no route found between<br class="">
+    &nbsp; them. Please check network connectivity (including firewalls<br class="">
+    &nbsp; and network routing requirements).<br class="">
+    &nbsp;...<br class="">
+    $<br class="">
+    <br class="">
+    (Note that I get the same results with "--mca btl openib,sm,self"....)<br class="">
+    <br class="">
+    <br class="">
+    $ ssh mic1 file <b class="">/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic/libimf.so</b><br class="">
+    /opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic/libimf.so:
+    ELF 64-bit LSB shared object, Intel Xeon Phi coprocessor (k1om),
+    version 1 (SYSV), dynamically linked, not stripped<br class="">
+    $ shmemrun -x <b class="">
+LD_PRELOAD=/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic/libimf.so</b>
+    -H mic1 -N 2 --mca spml yoda --mca btl sm,self,tcp $PWD/mic.out<br class="">
+    /home/ariebs/mic/mpi-nightly/bin/orted: error while loading shared
+    libraries: libimf.so: cannot open shared object file: No such file
+    or directory<br class="">
+--------------------------------------------------------------------------<br class="">
+    ORTE was unable to reliably start one or more daemons.<br class="">
+    This usually is caused by:<br class="">
+    <br class="">
+    * not finding the required libraries and/or binaries on<br class="">
+    &nbsp; one or more nodes. Please check your PATH and LD_LIBRARY_PATH<br class="">
+    &nbsp; settings, or configure OMPI with
+    --enable-orterun-prefix-by-default<br class="">
+    <br class="">
+    * lack of authority to execute on one or more specified nodes.<br class="">
+    &nbsp; Please verify your allocation and authorities.<br class="">
+    <br class="">
+    * the inability to write startup files into /tmp
+    (--tmpdir/orte_tmpdir_base).<br class="">
+    &nbsp; Please check with your sys admin to determine the correct location
+    to use.<br class="">
+    <br class="">
+    *&nbsp; compilation of the orted with dynamic libraries when static are
+    required<br class="">
+    &nbsp; (e.g., on Cray). Please check your configure cmd line and consider
+    using<br class="">
+    &nbsp; one of the contrib/platform definitions for your system type.<br class="">
+    <br class="">
+    * an inability to create a connection back to mpirun due to a<br class="">
+    &nbsp; lack of common network interfaces and/or no route found between<br class="">
+    &nbsp; them. Please check network connectivity (including firewalls<br class="">
+    &nbsp; and network routing requirements).<br class="">
+    <br class="">
+    Following here is <br class="">
+    - IB information<br class="">
+    - Running the failing case with lots of debugging information. (As
+    you might imagine, I've tried 17 ways from Sunday to try to ensure
+    that libimf.so is found.)<br class="">
+    <br class="">
+    $ ibv_devices<br class="">
+    &nbsp;&nbsp;&nbsp; device&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; node GUID<br class="">
+    &nbsp;&nbsp;&nbsp; ------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ----------------<br class="">
+    &nbsp;&nbsp;&nbsp; mlx4_0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 24be05ffffa57160<br class="">
+    &nbsp;&nbsp;&nbsp; scif0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4c79bafffe4402b6<br class="">
+    $ ibv_devinfo<br class="">
+    hca_id: mlx4_0<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; transport:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; InfiniBand (0)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; fw_ver:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2.11.1250<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; node_guid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 24be:05ff:ffa5:7160<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sys_image_guid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 24be:05ff:ffa5:7163<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; vendor_id:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x02c9<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; vendor_part_id:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4099<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; hw_ver:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x0<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; phys_port_cnt:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port:&nbsp;&nbsp; 1<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; state:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PORT_ACTIVE (4)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; max_mtu:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2048 (4)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; active_mtu:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2048 (4)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sm_lid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 8<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port_lid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 86<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port_lmc:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x00<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; link_layer:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; InfiniBand<br class="">
+    <br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port:&nbsp;&nbsp; 2<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; state:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PORT_DOWN (1)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; max_mtu:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2048 (4)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; active_mtu:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2048 (4)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sm_lid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port_lid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port_lmc:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x00<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; link_layer:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; InfiniBand<br class="">
+    <br class="">
+    hca_id: scif0<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; transport:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SCIF (2)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; fw_ver:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.1<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; node_guid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4c79:baff:fe44:02b6<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sys_image_guid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4c79:baff:fe44:02b6<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; vendor_id:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x8086<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; vendor_part_id:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; hw_ver:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x1<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; phys_port_cnt:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port:&nbsp;&nbsp; 1<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; state:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; PORT_ACTIVE (4)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; max_mtu:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 (5)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; active_mtu:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4096 (5)<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; sm_lid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port_lid:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1001<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; port_lmc:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0x00<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; link_layer:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SCIF<br class="">
+    <br class="">
+    $ shmemrun -x
+    LD_PRELOAD=/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic/libimf.so
+    -H mic1 -N 2 --mca spml yoda --mca btl sm,self,tcp --mca
+    plm_base_verbose 5 --mca memheap_base_verbose 100 $PWD/mic.out<br class="">
+    [atl1-01-mic0:191024] mca:base:select:(&nbsp; plm) Querying component
+    [rsh]<br class="">
+    [atl1-01-mic0:191024] [[INVALID],INVALID] plm:rsh_lookup on agent
+    ssh : rsh path NULL<br class="">
+    [atl1-01-mic0:191024] mca:base:select:(&nbsp; plm) Query of component
+    [rsh] set priority to 10<br class="">
+    [atl1-01-mic0:191024] mca:base:select:(&nbsp; plm) Querying component
+    [isolated]<br class="">
+    [atl1-01-mic0:191024] mca:base:select:(&nbsp; plm) Query of component
+    [isolated] set priority to 0<br class="">
+    [atl1-01-mic0:191024] mca:base:select:(&nbsp; plm) Querying component
+    [slurm]<br class="">
+    [atl1-01-mic0:191024] mca:base:select:(&nbsp; plm) Skipping component
+    [slurm]. Query failed to return a module<br class="">
+    [atl1-01-mic0:191024] mca:base:select:(&nbsp; plm) Selected component
+    [rsh]<br class="">
+    [atl1-01-mic0:191024] plm:base:set_hnp_name: initial bias 191024
+    nodename hash 4121194178<br class="">
+    [atl1-01-mic0:191024] plm:base:set_hnp_name: final jobfam 29012<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh_setup on agent ssh : rsh
+    path NULL<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:base:receive start comm<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:base:setup_job<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:base:setup_vm<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:base:setup_vm creating map<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] setup:vm: working unmanaged
+    allocation<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] using dash_host<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] checking node mic1<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:base:setup_vm add new daemon
+    [[29012,0],1]<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:base:setup_vm assigning new
+    daemon [[29012,0],1] to node mic1<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh: launching vm<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh: local shell: 0 (bash)<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh: assuming same remote
+    shell as local shell<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh: remote shell: 0 (bash)<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh: final template argv:<br class="">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /usr/bin/ssh &lt;template&gt;&nbsp;&nbsp;&nbsp;&nbsp;
+    PATH=/home/ariebs/mic/mpi-nightly/bin:$PATH ; export PATH ;
+    LD_LIBRARY_PATH=/home/ariebs/mic/mpi-nightly/lib:$LD_LIBRARY_PATH ;
+    export LD_LIBRARY_PATH ;
+    DYLD_LIBRARY_PATH=/home/ariebs/mic/mpi-nightly/lib:$DYLD_LIBRARY_PATH
+    ; export DYLD_LIBRARY_PATH ;&nbsp;&nbsp;
+    /home/ariebs/mic/mpi-nightly/bin/orted --hnp-topo-sig
+    0N:1S:0L3:61L2:61L1:61C:244H:k1om -mca ess "env" -mca orte_ess_jobid
+    "1901330432" -mca orte_ess_vpid "&lt;template&gt;" -mca
+    orte_ess_num_procs "2" -mca orte_hnp_uri
+    "1901330432.0;usock;<a href="tcp://16.113.180.125,192.0.0.121:34249;ud://2359370.86.1" class="">tcp://16.113.180.125,192.0.0.121:34249;ud://2359370.86.1</a>"
+    --tree-spawn --mca spml "yoda" --mca btl "sm,self,tcp" --mca
+    plm_base_verbose "5" --mca memheap_base_verbose "100" -mca plm "rsh"
+    -mca rmaps_ppr_n_pernode "2"<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh:launch daemon 0 not a
+    child of mine<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh: adding node mic1 to
+    launch list<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh: activating launch event<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh: recording launch of
+    daemon [[29012,0],1]<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:rsh: executing:
+    (/usr/bin/ssh) [/usr/bin/ssh mic1&nbsp;&nbsp;&nbsp;&nbsp;
+    PATH=/home/ariebs/mic/mpi-nightly/bin:$PATH ; export PATH ;
+    LD_LIBRARY_PATH=/home/ariebs/mic/mpi-nightly/lib:$LD_LIBRARY_PATH ;
+    export LD_LIBRARY_PATH ;
+    DYLD_LIBRARY_PATH=/home/ariebs/mic/mpi-nightly/lib:$DYLD_LIBRARY_PATH
+    ; export DYLD_LIBRARY_PATH ;&nbsp;&nbsp;
+    /home/ariebs/mic/mpi-nightly/bin/orted --hnp-topo-sig
+    0N:1S:0L3:61L2:61L1:61C:244H:k1om -mca ess "env" -mca orte_ess_jobid
+    "1901330432" -mca orte_ess_vpid 1 -mca orte_ess_num_procs "2" -mca
+    orte_hnp_uri
+    "1901330432.0;usock;<a href="tcp://16.113.180.125,192.0.0.121:34249;ud://2359370.86.1" class="">tcp://16.113.180.125,192.0.0.121:34249;ud://2359370.86.1</a>"
+    --tree-spawn --mca spml "yoda" --mca btl "sm,self,tcp" --mca
+    plm_base_verbose "5" --mca memheap_base_verbose "100" -mca plm "rsh"
+    -mca rmaps_ppr_n_pernode "2"]<br class="">
+    /home/ariebs/mic/mpi-nightly/bin/orted: error while loading shared
+    libraries: libimf.so: cannot open shared object file: No such file
+    or directory<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] daemon 1 failed with status 127<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:base:orted_cmd sending
+    orted_exit commands<br class="">
+--------------------------------------------------------------------------<br class="">
+    ORTE was unable to reliably start one or more daemons.<br class="">
+    This usually is caused by:<br class="">
+    <br class="">
+    * not finding the required libraries and/or binaries on<br class="">
+    &nbsp; one or more nodes. Please check your PATH and LD_LIBRARY_PATH<br class="">
+    &nbsp; settings, or configure OMPI with
+    --enable-orterun-prefix-by-default<br class="">
+    <br class="">
+    * lack of authority to execute on one or more specified nodes.<br class="">
+    &nbsp; Please verify your allocation and authorities.<br class="">
+    <br class="">
+    * the inability to write startup files into /tmp
+    (--tmpdir/orte_tmpdir_base).<br class="">
+    &nbsp; Please check with your sys admin to determine the correct location
+    to use.<br class="">
+    <br class="">
+    *&nbsp; compilation of the orted with dynamic libraries when static are
+    required<br class="">
+    &nbsp; (e.g., on Cray). Please check your configure cmd line and consider
+    using<br class="">
+    &nbsp; one of the contrib/platform definitions for your system type.<br class="">
+    <br class="">
+    * an inability to create a connection back to mpirun due to a<br class="">
+    &nbsp; lack of common network interfaces and/or no route found between<br class="">
+    &nbsp; them. Please check network connectivity (including firewalls<br class="">
+    &nbsp; and network routing requirements).<br class="">
+--------------------------------------------------------------------------<br class="">
+    [atl1-01-mic0:191024] [[29012,0],0] plm:base:receive stop comm<br class="">
+    <br class="">
+    <br class="">
+    <br class="">
+    <div class="moz-cite-prefix">On 04/13/2015 08:50 AM, Andy Riebs
+      wrote:<br class="">
+    </div>
+    <blockquote cite="mid:552BBB79.2070409@hp.com" type="cite" class="">
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8" class="">
+      Hi Ralph,<br class="">
+      <br class="">
+      Here are the results with last night's "master" nightly,
+      openmpi-dev-1487-g9c6d452.tar.bz2, and adding the
+      memheap_base_verbose option (yes, it looks like the "ERROR_LOG"
+      problem has gone away):<br class="">
+      <br class="">
+      $ cat /proc/sys/kernel/shmmax<br class="">
+      33554432<br class="">
+      $ cat /proc/sys/kernel/shmall<br class="">
+      2097152<br class="">
+      $ cat /proc/sys/kernel/shmmni<br class="">
+      4096<br class="">
+      $ export SHMEM_SYMMETRIC_HEAP=1M<br class="">
+      $ shmemrun -H localhost -N 2 --mca sshmem mmap&nbsp; --mca
+      plm_base_verbose 5 --mca memheap_base_verbose 100 $PWD/mic.out<br class="">
+      [atl1-01-mic0:190439] mca:base:select:(&nbsp; plm) Querying component
+      [rsh]<br class="">
+      [atl1-01-mic0:190439] [[INVALID],INVALID] plm:rsh_lookup on agent
+      ssh : rsh path NULL<br class="">
+      [atl1-01-mic0:190439] mca:base:select:(&nbsp; plm) Query of component
+      [rsh] set priority to 10<br class="">
+      [atl1-01-mic0:190439] mca:base:select:(&nbsp; plm) Querying component
+      [isolated]<br class="">
+      [atl1-01-mic0:190439] mca:base:select:(&nbsp; plm) Query of component
+      [isolated] set priority to 0<br class="">
+      [atl1-01-mic0:190439] mca:base:select:(&nbsp; plm) Querying component
+      [slurm]<br class="">
+      [atl1-01-mic0:190439] mca:base:select:(&nbsp; plm) Skipping component
+      [slurm]. Query failed to return a module<br class="">
+      [atl1-01-mic0:190439] mca:base:select:(&nbsp; plm) Selected component
+      [rsh]<br class="">
+      [atl1-01-mic0:190439] plm:base:set_hnp_name: initial bias 190439
+      nodename hash 4121194178<br class="">
+      [atl1-01-mic0:190439] plm:base:set_hnp_name: final jobfam 31875<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:rsh_setup on agent ssh :
+      rsh path NULL<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:receive start comm<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:setup_job<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:setup_vm<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:setup_vm creating map<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] setup:vm: working unmanaged
+      allocation<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] using dash_host<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] checking node atl1-01-mic0<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] ignoring myself<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:setup_vm only HNP in
+      allocation<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] complete_setup on job
+      [31875,1]<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:launch_apps for job
+      [31875,1]<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:launch wiring up iof
+      for job [31875,1]<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:launch [31875,1]
+      registered<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:launch job [31875,1]
+      is not a dynamic spawn<br class="">
+      [atl1-01-mic0:190441] mca: base: components_register: registering
+      memheap components<br class="">
+      [atl1-01-mic0:190441] mca: base: components_register: found loaded
+      component buddy<br class="">
+      [atl1-01-mic0:190441] mca: base: components_register: component
+      buddy has no register or open function<br class="">
+      [atl1-01-mic0:190442] mca: base: components_register: registering
+      memheap components<br class="">
+      [atl1-01-mic0:190442] mca: base: components_register: found loaded
+      component buddy<br class="">
+      [atl1-01-mic0:190442] mca: base: components_register: component
+      buddy has no register or open function<br class="">
+      [atl1-01-mic0:190442] mca: base: components_register: found loaded
+      component ptmalloc<br class="">
+      [atl1-01-mic0:190442] mca: base: components_register: component
+      ptmalloc has no register or open function<br class="">
+      [atl1-01-mic0:190441] mca: base: components_register: found loaded
+      component ptmalloc<br class="">
+      [atl1-01-mic0:190441] mca: base: components_register: component
+      ptmalloc has no register or open function<br class="">
+      [atl1-01-mic0:190441] mca: base: components_open: opening memheap
+      components<br class="">
+      [atl1-01-mic0:190441] mca: base: components_open: found loaded
+      component buddy<br class="">
+      [atl1-01-mic0:190441] mca: base: components_open: component buddy
+      open function successful<br class="">
+      [atl1-01-mic0:190441] mca: base: components_open: found loaded
+      component ptmalloc<br class="">
+      [atl1-01-mic0:190441] mca: base: components_open: component
+      ptmalloc open function successful<br class="">
+      [atl1-01-mic0:190442] mca: base: components_open: opening memheap
+      components<br class="">
+      [atl1-01-mic0:190442] mca: base: components_open: found loaded
+      component buddy<br class="">
+      [atl1-01-mic0:190442] mca: base: components_open: component buddy
+      open function successful<br class="">
+      [atl1-01-mic0:190442] mca: base: components_open: found loaded
+      component ptmalloc<br class="">
+      [atl1-01-mic0:190442] mca: base: components_open: component
+      ptmalloc open function successful<br class="">
+      [atl1-01-mic0:190442] base/memheap_base_alloc.c:38 -
+      mca_memheap_base_alloc_init() Memheap alloc memory: 270532608
+      byte(s), 1 segments by method: 1<br class="">
+      [atl1-01-mic0:190441] base/memheap_base_alloc.c:38 -
+      mca_memheap_base_alloc_init() Memheap alloc memory: 270532608
+      byte(s), 1 segments by method: 1<br class="">
+      [atl1-01-mic0:190442] base/memheap_base_static.c:205 -
+      _load_segments() add: 00600000-00601000 rw-p 00000000 00:11
+      6029314&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      /home/ariebs/bench/hello/mic.out<br class="">
+      [atl1-01-mic0:190441] base/memheap_base_static.c:205 -
+      _load_segments() add: 00600000-00601000 rw-p 00000000 00:11
+      6029314&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      /home/ariebs/bench/hello/mic.out<br class="">
+      [atl1-01-mic0:190442] base/memheap_base_static.c:75 -
+      mca_memheap_base_static_init() Memheap static memory: 3824
+      byte(s), 2 segments<br class="">
+      [atl1-01-mic0:190442] base/memheap_base_register.c:39 -
+      mca_memheap_base_reg() register seg#00: 0x0xff000000 -
+      0x0x10f200000 270532608 bytes type=0x1 id=0xFFFFFFFF<br class="">
+      [atl1-01-mic0:190441] base/memheap_base_static.c:75 -
+      mca_memheap_base_static_init() Memheap static memory: 3824
+      byte(s), 2 segments<br class="">
+      [atl1-01-mic0:190441] base/memheap_base_register.c:39 -
+      mca_memheap_base_reg() register seg#00: 0x0xff000000 -
+      0x0x10f200000 270532608 bytes type=0x1 id=0xFFFFFFFF<br class="">
+      [atl1-01-mic0:190442] Error base/memheap_base_register.c:130 -
+      _reg_segment() Failed to register segment<br class="">
+      [atl1-01-mic0:190441] Error base/memheap_base_register.c:130 -
+      _reg_segment() Failed to register segment<br class="">
+      [atl1-01-mic0:190442] Error: pshmem_init.c:61 - shmem_init() SHMEM
+      failed to initialize - aborting<br class="">
+      [atl1-01-mic0:190441] Error: pshmem_init.c:61 - shmem_init() SHMEM
+      failed to initialize - aborting<br class="">
+--------------------------------------------------------------------------<br class="">
+      It looks like SHMEM_INIT failed for some reason; your parallel
+      process is<br class="">
+      likely to abort.&nbsp; There are many reasons that a parallel process
+      can<br class="">
+      fail during SHMEM_INIT; some of which are due to configuration or
+      environment<br class="">
+      problems.&nbsp; This failure appears to be an internal failure; here's
+      some<br class="">
+      additional information (which may only be relevant to an Open
+      SHMEM<br class="">
+      developer):<br class="">
+      <br class="">
+      &nbsp; mca_memheap_base_select() failed<br class="">
+      &nbsp; --&gt; Returned "Error" (-1) instead of "Success" (0)<br class="">
+--------------------------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+      SHMEM_ABORT was invoked on rank 0 (pid 190441, host=atl1-01-mic0)
+      with errorcode -1.<br class="">
+--------------------------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+      A SHMEM process is aborting at a time when it cannot guarantee
+      that all<br class="">
+      of its peer processes in the job will be killed properly.&nbsp; You
+      should<br class="">
+      double check that everything has shut down cleanly.<br class="">
+      <br class="">
+      Local host: atl1-01-mic0<br class="">
+      PID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 190441<br class="">
+--------------------------------------------------------------------------<br class="">
+      -------------------------------------------------------<br class="">
+      Primary job&nbsp; terminated normally, but 1 process returned<br class="">
+      a non-zero exit code.. Per user-direction, the job has been
+      aborted.<br class="">
+      -------------------------------------------------------<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:orted_cmd sending
+      orted_exit commands<br class="">
+--------------------------------------------------------------------------<br class="">
+      shmemrun detected that one or more processes exited with non-zero
+      status, thus causing<br class="">
+      the job to be terminated. The first process to do so was:<br class="">
+      <br class="">
+      &nbsp; Process name: [[31875,1],0]<br class="">
+      &nbsp; Exit code:&nbsp;&nbsp;&nbsp; 255<br class="">
+--------------------------------------------------------------------------<br class="">
+      [atl1-01-mic0:190439] 1 more process has sent help message
+      help-shmem-runtime.txt / shmem_init:startup:internal-failure<br class="">
+      [atl1-01-mic0:190439] Set MCA parameter "orte_base_help_aggregate"
+      to 0 to see all help / error messages<br class="">
+      [atl1-01-mic0:190439] 1 more process has sent help message
+      help-shmem-api.txt / shmem-abort<br class="">
+      [atl1-01-mic0:190439] 1 more process has sent help message
+      help-shmem-runtime.txt / oshmem shmem abort:cannot guarantee all
+      killed<br class="">
+      [atl1-01-mic0:190439] [[31875,0],0] plm:base:receive stop comm<br class="">
+      <br class="">
+      <br class="">
+      <br class="">
+      <div class="moz-cite-prefix">On 04/12/2015 03:09 PM, Ralph Castain
+        wrote:<br class="">
+      </div>
+      <blockquote cite="mid:510B2D56-F191-4514-AECB-A1BD7BD392CA@open-mpi.org" type="cite" class=""> Sorry about that - I hadn’t brought it over to the
+        1.8 branch yet. I’ve done so now, which means the ERROR_LOG
+        shouldn’t show up any more. It won’t fix the memheap problem,
+        though.
+        <div class=""><br class="">
+        </div>
+        <div class="">You might try adding “--mca memheap_base_verbose
+          100” to your cmd line so we can see why none of the memheap
+          components are being selected.</div>
+        <div class=""><br class="">
+        </div>
+        <div class=""><br class="">
+          <div class="">
+            <blockquote type="cite" class="">
+              <div class="">On Apr 12, 2015, at 11:30 AM, Andy Riebs
+                &lt;<a moz-do-not-send="true" href="mailto:andy.riebs@hp.com" class="">andy.riebs@hp.com</a>&gt;
+                wrote:</div>
+              <br class="Apple-interchange-newline">
+              <div class="">
+                <div bgcolor="#FFFFFF" text="#000000" class=""> Hi
+                  Ralph,<br class="">
+                  <br class="">
+                  Here's the output with <a moz-do-not-send="true" href="https://www.open-mpi.org/nightly/v1.8/openmpi-v1.8.4-202-gc2da6a5.tar.bz2" class="">openmpi-v1.8.4-202-gc2da6a5.tar.bz2</a>:<br class="">
+                  <br class="">
+                  $ shmemrun -H localhost -N 2 --mca sshmem mmap&nbsp; --mca
+                  plm_base_verbose 5 $PWD/mic.out<br class="">
+                  [atl1-01-mic0:190189] mca:base:select:(&nbsp; plm) Querying
+                  component [rsh]<br class="">
+                  [atl1-01-mic0:190189] [[INVALID],INVALID]
+                  plm:rsh_lookup on agent ssh : rsh path NULL<br class="">
+                  [atl1-01-mic0:190189] mca:base:select:(&nbsp; plm) Query of
+                  component [rsh] set priority to 10<br class="">
+                  [atl1-01-mic0:190189] mca:base:select:(&nbsp; plm) Querying
+                  component [isolated]<br class="">
+                  [atl1-01-mic0:190189] mca:base:select:(&nbsp; plm) Query of
+                  component [isolated] set priority to 0<br class="">
+                  [atl1-01-mic0:190189] mca:base:select:(&nbsp; plm) Querying
+                  component [slurm]<br class="">
+                  [atl1-01-mic0:190189] mca:base:select:(&nbsp; plm) Skipping
+                  component [slurm]. Query failed to return a module<br class="">
+                  [atl1-01-mic0:190189] mca:base:select:(&nbsp; plm) Selected
+                  component [rsh]<br class="">
+                  [atl1-01-mic0:190189] plm:base:set_hnp_name: initial
+                  bias 190189 nodename hash 4121194178<br class="">
+                  [atl1-01-mic0:190189] plm:base:set_hnp_name: final
+                  jobfam 32137<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:rsh_setup on
+                  agent ssh : rsh path NULL<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:receive
+                  start comm<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:setup_job<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:setup_vm<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:setup_vm
+                  creating map<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] setup:vm: working
+                  unmanaged allocation<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] using dash_host<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] checking node
+                  atl1-01-mic0<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] ignoring myself<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:setup_vm
+                  only HNP in allocation<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] complete_setup on
+                  job [32137,1]<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] ORTE_ERROR_LOG:
+                  Not found in file base/plm_base_launch_support.c at
+                  line 440<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0]
+                  plm:base:launch_apps for job [32137,1]<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:launch
+                  wiring up iof for job [32137,1]<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:launch
+                  [32137,1] registered<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:launch
+                  job [32137,1] is not a dynamic spawn<br class="">
+--------------------------------------------------------------------------<br class="">
+                  It looks like SHMEM_INIT failed for some reason; your
+                  parallel process is<br class="">
+                  likely to abort.&nbsp; There are many reasons that a
+                  parallel process can<br class="">
+                  fail during SHMEM_INIT; some of which are due to
+                  configuration or environment<br class="">
+                  problems.&nbsp; This failure appears to be an internal
+                  failure; here's some<br class="">
+                  additional information (which may only be relevant to
+                  an Open SHMEM<br class="">
+                  developer):<br class="">
+                  <br class="">
+                  &nbsp; mca_memheap_base_select() failed<br class="">
+                  &nbsp; --&gt; Returned "Error" (-1) instead of "Success"
+                  (0)<br class="">
+--------------------------------------------------------------------------<br class="">
+                  [atl1-01-mic0:190191] Error: pshmem_init.c:61 -
+                  shmem_init() SHMEM failed to initialize - aborting<br class="">
+                  [atl1-01-mic0:190192] Error: pshmem_init.c:61 -
+                  shmem_init() SHMEM failed to initialize - aborting<br class="">
+--------------------------------------------------------------------------<br class="">
+                  SHMEM_ABORT was invoked on rank 1 (pid 190192,
+                  host=atl1-01-mic0) with errorcode -1.<br class="">
+--------------------------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+                  A SHMEM process is aborting at a time when it cannot
+                  guarantee that all<br class="">
+                  of its peer processes in the job will be killed
+                  properly.&nbsp; You should<br class="">
+                  double check that everything has shut down cleanly.<br class="">
+                  <br class="">
+                  Local host: atl1-01-mic0<br class="">
+                  PID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 190192<br class="">
+--------------------------------------------------------------------------<br class="">
+-------------------------------------------------------<br class="">
+                  Primary job&nbsp; terminated normally, but 1 process
+                  returned<br class="">
+                  a non-zero exit code.. Per user-direction, the job has
+                  been aborted.<br class="">
+-------------------------------------------------------<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:orted_cmd
+                  sending orted_exit commands<br class="">
+--------------------------------------------------------------------------<br class="">
+                  shmemrun detected that one or more processes exited
+                  with non-zero status, thus causing<br class="">
+                  the job to be terminated. The first process to do so
+                  was:<br class="">
+                  <br class="">
+                  &nbsp; Process name: [[32137,1],0]<br class="">
+                  &nbsp; Exit code:&nbsp;&nbsp;&nbsp; 255<br class="">
+--------------------------------------------------------------------------<br class="">
+                  [atl1-01-mic0:190189] 1 more process has sent help
+                  message help-shmem-runtime.txt /
+                  shmem_init:startup:internal-failure<br class="">
+                  [atl1-01-mic0:190189] Set MCA parameter
+                  "orte_base_help_aggregate" to 0 to see all help /
+                  error messages<br class="">
+                  [atl1-01-mic0:190189] 1 more process has sent help
+                  message help-shmem-api.txt / shmem-abort<br class="">
+                  [atl1-01-mic0:190189] 1 more process has sent help
+                  message help-shmem-runtime.txt / oshmem shmem
+                  abort:cannot guarantee all killed<br class="">
+                  [atl1-01-mic0:190189] [[32137,0],0] plm:base:receive
+                  stop comm<br class="">
+                  <br class="">
+                  <br class="">
+                  <div class="moz-cite-prefix">On 04/11/2015 07:41 PM,
+                    Ralph Castain wrote:<br class="">
+                  </div>
+                  <blockquote cite="mid:0A4ECE92-D50F-4E2A-9380-C367B074766A@open-mpi.org" type="cite" class=""> Got it - thanks. I fixed that
+                    ERROR_LOG issue (I think- please verify). I suspect
+                    the memheap issue relates to something else, but I
+                    probably need to let the OSHMEM folks comment on it
+                    <div class=""><br class="">
+                    </div>
+                    <div class=""><br class="">
+                      <div class="">
+                        <blockquote type="cite" class="">
+                          <div class="">On Apr 11, 2015, at 9:52 AM,
+                            Andy Riebs &lt;<a moz-do-not-send="true" href="mailto:andy.riebs@hp.com" class="">andy.riebs@hp.com</a>&gt;
+
+                            wrote:</div>
+                          <br class="Apple-interchange-newline">
+                          <div class="">
+                            <div bgcolor="#FFFFFF" text="#000000" class=""> Everything is built on the Xeon
+                              side, with the icc "-mmic" switch. I then
+                              ssh into one of the PHIs, and run shmemrun
+                              from there.<br class="">
+                              <br class="">
+                              <br class="">
+                              <div class="moz-cite-prefix">On 04/11/2015
+                                12:00 PM, Ralph Castain wrote:<br class="">
+                              </div>
+                              <blockquote cite="mid:D448D6B8-E6D8-4A85-8835-AB2A3DA53FCC@open-mpi.org" type="cite" class=""> Let me try to
+                                understand the setup a little better.
+                                Are you running shmemrun on the PHI
+                                itself? Or is it running on the host
+                                processor, and you are trying to spawn a
+                                process onto the Phi?
+                                <div class=""><br class="">
+                                </div>
+                                <div class=""><br class="">
+                                  <div class="">
+                                    <blockquote type="cite" class="">
+                                      <div class="">On Apr 11, 2015, at
+                                        7:55 AM, Andy Riebs &lt;<a moz-do-not-send="true" href="mailto:andy.riebs@hp.com" class="">andy.riebs@hp.com</a>&gt;
+
+
+                                        wrote:</div>
+                                      <br class="Apple-interchange-newline">
+                                      <div class="">
+                                        <div bgcolor="#FFFFFF" text="#000000" class=""> Hi
+                                          Ralph,<br class="">
+                                          <br class="">
+                                          Yes, this is attempting to get
+                                          OSHMEM to run on the Phi.<br class="">
+                                          <br class="">
+                                          I grabbed
+                                          openmpi-dev-1484-g033418f.tar.bz2
+                                          and configured it with<br class="">
+                                          <br class="">
+                                          $ ./configure
+                                          --prefix=/home/ariebs/mic/mpi-nightly&nbsp;&nbsp;&nbsp;
+                                          CC=icc -mmic CXX=icpc -mmic&nbsp;&nbsp;&nbsp;
+                                          \<br class="">
+                                          &nbsp;&nbsp;&nbsp;
+                                          --build=x86_64-unknown-linux-gnu
+                                          --host=x86_64-k1om-linux&nbsp;&nbsp;&nbsp; \<br class="">
+                                          &nbsp;&nbsp;&nbsp;&nbsp; AR=x86_64-k1om-linux-ar
+                                          RANLIB=x86_64-k1om-linux-ranlib&nbsp;
+                                          LD=x86_64-k1om-linux-ld&nbsp;&nbsp; \<br class="">
+                                          &nbsp;&nbsp;&nbsp;&nbsp;
+                                          --enable-mpirun-prefix-by-default
+                                          --disable-io-romio&nbsp;&nbsp;&nbsp;&nbsp;
+                                          --disable-mpi-fortran&nbsp;&nbsp;&nbsp; \<br class="">
+                                          &nbsp;&nbsp;&nbsp;&nbsp; --enable-debug&nbsp;&nbsp;&nbsp;&nbsp;
+                                          --enable-mca-no-build=btl-usnic,btl-openib,common-verbs,oob-ud<br class="">
+                                          <br class="">
+                                          (Note that I had to add
+                                          "oob-ud" to the
+                                          "--enable-mca-no-build"
+                                          option, as the build
+                                          complained that mca oob/ud
+                                          needed mca common-verbs.)<br class="">
+                                          <br class="">
+                                          With that configuration, here
+                                          is what I am seeing now...<br class="">
+                                          <br class="">
+                                          $ export
+                                          SHMEM_SYMMETRIC_HEAP_SIZE=1G<br class="">
+                                          $ shmemrun -H localhost -N 2
+                                          --mca sshmem mmap&nbsp; --mca
+                                          plm_base_verbose 5
+                                          $PWD/mic.out<br class="">
+                                          [atl1-01-mic0:189895]
+                                          mca:base:select:(&nbsp; plm)
+                                          Querying component [rsh]<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[INVALID],INVALID]
+                                          plm:rsh_lookup on agent ssh :
+                                          rsh path NULL<br class="">
+                                          [atl1-01-mic0:189895]
+                                          mca:base:select:(&nbsp; plm) Query
+                                          of component [rsh] set
+                                          priority to 10<br class="">
+                                          [atl1-01-mic0:189895]
+                                          mca:base:select:(&nbsp; plm)
+                                          Querying component [isolated]<br class="">
+                                          [atl1-01-mic0:189895]
+                                          mca:base:select:(&nbsp; plm) Query
+                                          of component [isolated] set
+                                          priority to 0<br class="">
+                                          [atl1-01-mic0:189895]
+                                          mca:base:select:(&nbsp; plm)
+                                          Querying component [slurm]<br class="">
+                                          [atl1-01-mic0:189895]
+                                          mca:base:select:(&nbsp; plm)
+                                          Skipping component [slurm].
+                                          Query failed to return a
+                                          module<br class="">
+                                          [atl1-01-mic0:189895]
+                                          mca:base:select:(&nbsp; plm)
+                                          Selected component [rsh]<br class="">
+                                          [atl1-01-mic0:189895]
+                                          plm:base:set_hnp_name: initial
+                                          bias 189895 nodename hash
+                                          4121194178<br class="">
+                                          [atl1-01-mic0:189895]
+                                          plm:base:set_hnp_name: final
+                                          jobfam 32419<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] plm:rsh_setup on
+                                          agent ssh : rsh path NULL<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] plm:base:receive
+                                          start comm<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0]
+                                          plm:base:setup_job<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0]
+                                          plm:base:setup_vm<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0]
+                                          plm:base:setup_vm creating map<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] setup:vm:
+                                          working unmanaged allocation<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] using dash_host<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] checking node
+                                          atl1-01-mic0<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] ignoring myself<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0]
+                                          plm:base:setup_vm only HNP in
+                                          allocation<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] complete_setup
+                                          on job [32419,1]<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] ORTE_ERROR_LOG:
+                                          Not found in file
+                                          base/plm_base_launch_support.c
+                                          at line 440<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0]
+                                          plm:base:launch_apps for job
+                                          [32419,1]<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] plm:base:launch
+                                          wiring up iof for job
+                                          [32419,1]<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] plm:base:launch
+                                          [32419,1] registered<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] plm:base:launch
+                                          job [32419,1] is not a dynamic
+                                          spawn<br class="">
+                                          [atl1-01-mic0:189899] Error:
+                                          pshmem_init.c:61 -
+                                          shmem_init() SHMEM failed to
+                                          initialize - aborting<br class="">
+                                          [atl1-01-mic0:189898] Error:
+                                          pshmem_init.c:61 -
+                                          shmem_init() SHMEM failed to
+                                          initialize - aborting<br class="">
+--------------------------------------------------------------------------<br class="">
+                                          It looks like SHMEM_INIT
+                                          failed for some reason; your
+                                          parallel process is<br class="">
+                                          likely to abort.&nbsp; There are
+                                          many reasons that a parallel
+                                          process can<br class="">
+                                          fail during SHMEM_INIT; some
+                                          of which are due to
+                                          configuration or environment<br class="">
+                                          problems.&nbsp; This failure
+                                          appears to be an internal
+                                          failure; here's some<br class="">
+                                          additional information (which
+                                          may only be relevant to an
+                                          Open SHMEM<br class="">
+                                          developer):<br class="">
+                                          <br class="">
+                                          &nbsp; mca_memheap_base_select()
+                                          failed<br class="">
+                                          &nbsp; --&gt; Returned "Error" (-1)
+                                          instead of "Success" (0)<br class="">
+--------------------------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+                                          SHMEM_ABORT was invoked on
+                                          rank 1 (pid 189899,
+                                          host=atl1-01-mic0) with
+                                          errorcode -1.<br class="">
+--------------------------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+                                          A SHMEM process is aborting at
+                                          a time when it cannot
+                                          guarantee that all<br class="">
+                                          of its peer processes in the
+                                          job will be killed properly.&nbsp;
+                                          You should<br class="">
+                                          double check that everything
+                                          has shut down cleanly.<br class="">
+                                          <br class="">
+                                          Local host: atl1-01-mic0<br class="">
+                                          PID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 189899<br class="">
+--------------------------------------------------------------------------<br class="">
+-------------------------------------------------------<br class="">
+                                          Primary job&nbsp; terminated
+                                          normally, but 1 process
+                                          returned<br class="">
+                                          a non-zero exit code.. Per
+                                          user-direction, the job has
+                                          been aborted.<br class="">
+-------------------------------------------------------<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0]
+                                          plm:base:orted_cmd sending
+                                          orted_exit commands<br class="">
+--------------------------------------------------------------------------<br class="">
+                                          shmemrun detected that one or
+                                          more processes exited with
+                                          non-zero status, thus causing<br class="">
+                                          the job to be terminated. The
+                                          first process to do so was:<br class="">
+                                          <br class="">
+                                          &nbsp; Process name: [[32419,1],1]<br class="">
+                                          &nbsp; Exit code:&nbsp;&nbsp;&nbsp; 255<br class="">
+--------------------------------------------------------------------------<br class="">
+                                          [atl1-01-mic0:189895] 1 more
+                                          process has sent help message
+                                          help-shmem-runtime.txt /
+                                          shmem_init:startup:internal-failure<br class="">
+                                          [atl1-01-mic0:189895] Set MCA
+                                          parameter
+                                          "orte_base_help_aggregate" to
+                                          0 to see all help / error
+                                          messages<br class="">
+                                          [atl1-01-mic0:189895] 1 more
+                                          process has sent help message
+                                          help-shmem-api.txt /
+                                          shmem-abort<br class="">
+                                          [atl1-01-mic0:189895] 1 more
+                                          process has sent help message
+                                          help-shmem-runtime.txt /
+                                          oshmem shmem abort:cannot
+                                          guarantee all killed<br class="">
+                                          [atl1-01-mic0:189895]
+                                          [[32419,0],0] plm:base:receive
+                                          stop comm<br class="">
+                                          <br class="">
+                                          <br class="">
+                                          <br class="">
+                                          <br class="">
+                                          <div class="moz-cite-prefix">On
+
+                                            04/10/2015 06:37 PM, Ralph
+                                            Castain wrote:<br class="">
+                                          </div>
+                                          <blockquote cite="mid:2E13CA6E-9B06-472F-A315-827348668ECF@open-mpi.org" type="cite" class=""> Andy -
+                                            could you please try the
+                                            current 1.8.5 nightly
+                                            tarball and see if it helps?
+                                            The error log indicates that
+                                            it is failing to get the
+                                            topology from some daemon,
+                                            I�m assuming the one on the
+                                            Phi?
+                                            <div class=""><br class="">
+                                            </div>
+                                            <div class="">You might also
+                                              add �enable-debug to that
+                                              configure line and then
+                                              put -mca plm_base_verbose
+                                              on the shmemrun cmd to get
+                                              more help</div>
+                                            <div class=""><br class="">
+                                            </div>
+                                            <div class=""><br class="">
+                                              <div class="">
+                                                <blockquote type="cite" class="">
+                                                  <div class="">On Apr
+                                                    10, 2015, at 11:55
+                                                    AM, Andy Riebs &lt;<a moz-do-not-send="true" href="mailto:andy.riebs@hp.com" class="">andy.riebs@hp.com</a>&gt;
+
+                                                    wrote:</div>
+                                                  <br class="Apple-interchange-newline">
+                                                  <div class="">
+                                                    <div bgcolor="#FFFFFF" text="#000000" class=""> Summary:
+                                                      MPI jobs work
+                                                      fine, SHMEM jobs
+                                                      work just often
+                                                      enough to be
+                                                      tantalizing, on an
+                                                      Intel Xeon Phi/MIC
+                                                      system.<br class="">
+                                                      <br class="">
+                                                      Longer version<br class="">
+                                                      <br class="">
+                                                      Thanks to the
+                                                      excellent write-up
+                                                      last June (<a moz-do-not-send="true" class="moz-txt-link-rfc2396E" href="https://www.open-mpi.org/community/lists/users/2014/06/24711.php">&lt;https://www.open-mpi.org/community/lists/users/2014/06/24711.php&gt;</a>),
+
+
+
+
+
+                                                      I have been able
+                                                      to build a version
+                                                      of Open MPI for
+                                                      the Xeon Phi
+                                                      coprocessor that
+                                                      runs MPI jobs on
+                                                      the Phi
+                                                      coprocessor with
+                                                      no problem, but
+                                                      not SHMEM jobs.&nbsp;
+                                                      Just at the point
+                                                      where I was about
+                                                      to document the
+                                                      problems I was
+                                                      having with SHMEM,
+                                                      my trivial SHMEM
+                                                      job worked. And
+                                                      then failed when I
+                                                      tried to run it
+                                                      again, immediately
+                                                      afterwards. I have
+                                                      a feeling I may be
+                                                      in uncharted&nbsp;
+                                                      territory here.<br class="">
+                                                      <br class="">
+                                                      Environment<br class="">
+                                                      <ul class="">
+                                                        <li class="">RHEL
+
+                                                          6.5</li>
+                                                        <li class="">Intel
+
+                                                          Composer XE
+                                                          2015</li>
+                                                        <li class="">Xeon
+
+                                                          Phi/MIC</li>
+                                                      </ul>
+                                                      ----------------<br class="">
+                                                      <br class="">
+                                                      <br class="">
+                                                      Configuration<br class="">
+                                                      <br class="">
+                                                      $ export
+                                                      PATH=/usr/linux-k1om-4.7/bin/:$PATH<br class="">
+                                                      $ source
+                                                      /opt/intel/15.0/composer_xe_2015/bin/compilervars.sh
+                                                      intel64<br class="">
+                                                      $ ./configure
+                                                      --prefix=/home/ariebs/mic/mpi
+                                                      \<br class="">
+                                                      &nbsp;&nbsp; CC="icc -mmic"
+                                                      CXX="icpc -mmic" \<br class="">
+                                                      &nbsp;&nbsp;
+                                                      --build=x86_64-unknown-linux-gnu
+                                                      --host=x86_64-k1om-linux
+
+                                                      \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;
+                                                      AR=x86_64-k1om-linux-ar
+                                                      RANLIB=x86_64-k1om-linux-ranlib
+
+
+                                                      \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;
+                                                      LD=x86_64-k1om-linux-ld
+                                                      \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;
+                                                      --enable-mpirun-prefix-by-default
+                                                      --disable-io-romio
+                                                      \<br class="">
+                                                      &nbsp;&nbsp;&nbsp; --disable-vt
+                                                      --disable-mpi-fortran
+                                                      \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;
+                                                      --enable-mca-no-build=btl-usnic,btl-openib,common-verbs<br class="">
+                                                      $ make<br class="">
+                                                      $ make install<br class="">
+                                                      <br class="">
+                                                      ----------------<br class="">
+                                                      <br class="">
+                                                      Test program<br class="">
+                                                      <br class="">
+                                                      #include
+                                                      &lt;stdio.h&gt;<br class="">
+                                                      #include
+                                                      &lt;stdlib.h&gt;<br class="">
+                                                      #include
+                                                      &lt;shmem.h&gt;<br class="">
+                                                      int main(int argc,
+                                                      char **argv)<br class="">
+                                                      {<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; int me,
+                                                      num_pe;<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                                      shmem_init();<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; num_pe =
+                                                      num_pes();<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; me =
+                                                      my_pe();<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                                      printf("Hello
+                                                      World from process
+                                                      %ld of %ld\n", me,
+                                                      num_pe);<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; exit(0);<br class="">
+                                                      }<br class="">
+                                                      <br class="">
+                                                      ----------------<br class="">
+                                                      <br class="">
+                                                      Building the
+                                                      program<br class="">
+                                                      <br class="">
+                                                      export
+                                                      PATH=/home/ariebs/mic/mpi/bin:$PATH<br class="">
+                                                      export
+                                                      PATH=/usr/linux-k1om-4.7/bin/:$PATH<br class="">
+                                                      source
+                                                      /opt/intel/15.0/composer_xe_2015/bin/compilervars.sh
+                                                      intel64<br class="">
+                                                      export
+LD_LIBRARY_PATH=/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic:$LD_LIBRARY_PATH<br class="">
+                                                      <br class="">
+                                                      icc -mmic
+                                                      -std=gnu99
+                                                      -I/home/ariebs/mic/mpi/include
+                                                      -pthread \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -Wl,-rpath
+                                                      -Wl,/home/ariebs/mic/mpi/lib
+
+                                                      -Wl,--enable-new-dtags
+
+                                                      \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                                      -L/home/ariebs/mic/mpi/lib
+                                                      -loshmem -lmpi
+                                                      -lopen-rte
+                                                      -lopen-pal \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -lm -ldl
+                                                      -lutil \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -Wl,-rpath
+                                                      -Wl,/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic
+
+                                                      \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                                      -L/opt/intel/15.0/composer_xe_2015.2.164/compiler/lib/mic
+                                                      \<br class="">
+                                                      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -o
+                                                      mic.out&nbsp;
+                                                      shmem_hello.c<br class="">
+                                                      <br class="">
+                                                      ----------------<br class="">
+                                                      <br class="">
+                                                      Running the
+                                                      program<br class="">
+                                                      <br class="">
+                                                      (Note that the
+                                                      program had been
+                                                      consistently
+                                                      failing. Then,
+                                                      when I logged back
+                                                      into the system to
+                                                      capture the
+                                                      results, it worked
+                                                      once,&nbsp; and then
+                                                      immediately failed
+                                                      when I tried
+                                                      again, as shown
+                                                      below. Logging in
+                                                      and out isn't
+                                                      sufficient to
+                                                      correct the
+                                                      problem. Overall,
+                                                      I think I had 3
+                                                      successful runs in
+                                                      30-40 attempts.)<br class="">
+                                                      <br class="">
+                                                      $ shmemrun -H
+                                                      localhost -N 2
+                                                      --mca sshmem mmap
+                                                      ./mic.out<br class="">
+                                                      [atl1-01-mic0:189372]
+
+
+                                                      [[30936,0],0]
+                                                      ORTE_ERROR_LOG:
+                                                      Not found in file
+                                                      base/plm_base_launch_support.c
+
+                                                      at line 426<br class="">
+                                                      Hello World from
+                                                      process 0 of 2<br class="">
+                                                      Hello World from
+                                                      process 1 of 2<br class="">
+                                                      $ shmemrun -H
+                                                      localhost -N 2
+                                                      --mca sshmem mmap
+                                                      ./mic.out<br class="">
+                                                      [atl1-01-mic0:189381]
+
+
+                                                      [[30881,0],0]
+                                                      ORTE_ERROR_LOG:
+                                                      Not found in file
+                                                      base/plm_base_launch_support.c
+
+                                                      at line 426<br class="">
+                                                      [atl1-01-mic0:189383]
+
+                                                      Error:
+                                                      pshmem_init.c:61 -
+                                                      shmem_init() SHMEM
+                                                      failed to
+                                                      initialize -
+                                                      aborting<br class="">
+--------------------------------------------------------------------------<br class="">
+                                                      It looks like
+                                                      SHMEM_INIT failed
+                                                      for some reason;
+                                                      your parallel
+                                                      process is<br class="">
+                                                      likely to abort.&nbsp;
+                                                      There are many
+                                                      reasons that a
+                                                      parallel process
+                                                      can<br class="">
+                                                      fail during
+                                                      SHMEM_INIT; some
+                                                      of which are due
+                                                      to configuration
+                                                      or environment<br class="">
+                                                      problems.&nbsp; This
+                                                      failure appears to
+                                                      be an internal
+                                                      failure; here's
+                                                      some<br class="">
+                                                      additional
+                                                      information (which
+                                                      may only be
+                                                      relevant to an
+                                                      Open SHMEM<br class="">
+                                                      developer):<br class="">
+                                                      <br class="">
+                                                      &nbsp;
+                                                      mca_memheap_base_select()
+                                                      failed<br class="">
+                                                      &nbsp; --&gt; Returned
+                                                      "Error" (-1)
+                                                      instead of
+                                                      "Success" (0)<br class="">
+--------------------------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+                                                      SHMEM_ABORT was
+                                                      invoked on rank 0
+                                                      (pid 189383,
+                                                      host=atl1-01-mic0)
+                                                      with errorcode -1.<br class="">
+--------------------------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+                                                      A SHMEM process is
+                                                      aborting at a time
+                                                      when it cannot
+                                                      guarantee that all<br class="">
+                                                      of its peer
+                                                      processes in the
+                                                      job will be killed
+                                                      properly.&nbsp; You
+                                                      should<br class="">
+                                                      double check that
+                                                      everything has
+                                                      shut down cleanly.<br class="">
+                                                      <br class="">
+                                                      Local host:
+                                                      atl1-01-mic0<br class="">
+                                                      PID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 189383<br class="">
+--------------------------------------------------------------------------<br class="">
+-------------------------------------------------------<br class="">
+                                                      Primary job&nbsp;
+                                                      terminated
+                                                      normally, but 1
+                                                      process returned<br class="">
+                                                      a non-zero exit
+                                                      code.. Per
+                                                      user-direction,
+                                                      the job has been
+                                                      aborted.<br class="">
+-------------------------------------------------------<br class="">
+--------------------------------------------------------------------------<br class="">
+                                                      shmemrun detected
+                                                      that one or more
+                                                      processes exited
+                                                      with non-zero
+                                                      status, thus
+                                                      causing<br class="">
+                                                      the job to be
+                                                      terminated. The
+                                                      first process to
+                                                      do so was:<br class="">
+                                                      <br class="">
+                                                      &nbsp; Process name:
+                                                      [[30881,1],0]<br class="">
+                                                      &nbsp; Exit code:&nbsp;&nbsp;&nbsp;
+                                                      255<br class="">
+--------------------------------------------------------------------------<br class="">
+                                                      <br class="">
+                                                      Any thoughts about
+                                                      where to go from
+                                                      here?<br class="">
+                                                      <br class="">
+                                                      Andy<br class="">
+                                                      <br class="">
+                                                      <pre class="moz-signature" cols="72">-- 
+Andy Riebs
+Hewlett-Packard Company
+High Performance Computing
++1 404 648 9024
+My opinions are not necessarily those of HP
+</pre>
+                                                    </div>
+_______________________________________________<br class="">
+                                                    users mailing list<br class="">
+                                                    <a moz-do-not-send="true" href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">
+                                                    Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br class="">
+                                                    Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/04/26670.php">http://www.open-mpi.org/community/lists/users/2015/04/26670.php</a></div>
+                                                </blockquote>
+                                              </div>
+                                              <br class="">
+                                            </div>
+                                            <br class="">
+                                            <fieldset class="mimeAttachmentHeader"></fieldset>
+                                            <br class="">
+                                            <pre class="" wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/04/26676.php">http://www.open-mpi.org/community/lists/users/2015/04/26676.php</a></pre>
+                                          </blockquote>
+                                          <br class="">
+                                        </div>
+_______________________________________________<br class="">
+                                        users mailing list<br class="">
+                                        <a moz-do-not-send="true" href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">
+                                        Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br class="">
+                                        Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/04/26678.php">http://www.open-mpi.org/community/lists/users/2015/04/26678.php</a></div>
+                                    </blockquote>
+                                  </div>
+                                  <br class="">
+                                </div>
+                                <br class="">
+                                <fieldset class="mimeAttachmentHeader"></fieldset>
+                                <br class="">
+                                <pre class="" wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/04/26679.php">http://www.open-mpi.org/community/lists/users/2015/04/26679.php</a></pre>
+                              </blockquote>
+                              <br class="">
+                            </div>
+_______________________________________________<br class="">
+                            users mailing list<br class="">
+                            <a moz-do-not-send="true" href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">
+                            Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br class="">
+                            Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/04/26680.php">http://www.open-mpi.org/community/lists/users/2015/04/26680.php</a></div>
+                        </blockquote>
+                      </div>
+                      <br class="">
+                    </div>
+                    <br class="">
+                    <fieldset class="mimeAttachmentHeader"></fieldset>
+                    <br class="">
+                    <pre class="" wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/04/26682.php">http://www.open-mpi.org/community/lists/users/2015/04/26682.php</a></pre>
+                  </blockquote>
+                  <br class="">
+                </div>
+                _______________________________________________<br class="">
+                users mailing list<br class="">
+                <a moz-do-not-send="true" href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">
+                Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br class="">
+                Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/04/26683.php">http://www.open-mpi.org/community/lists/users/2015/04/26683.php</a></div>
+            </blockquote>
+          </div>
+          <br class="">
+        </div>
+        <br class="">
+        <fieldset class="mimeAttachmentHeader"></fieldset>
+        <br class="">
+        <pre wrap="" class="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/04/26684.php">http://www.open-mpi.org/community/lists/users/2015/04/26684.php</a></pre>
+      </blockquote>
+      <br class="">
+    </blockquote>
+    <br class="">
+  </div>
+
+_______________________________________________<br class="">users mailing list<br class=""><a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br class="">Link to this post: http://www.open-mpi.org/community/lists/users/2015/04/26697.php</div></blockquote></div><br class=""></div></body></html>

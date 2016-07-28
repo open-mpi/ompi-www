@@ -1,0 +1,310 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=us-ascii"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">CM is not being selected for TCP - you specified TCP for the BTLs, but that assumes that a BTL will be selected. You obviously have something in your system that is supported by an MTL, and that will always be selected before a BTL.<div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Apr 28, 2016, at 8:22 PM, dpchoudh . &lt;<a href="mailto:dpchoudh@gmail.com" class="">dpchoudh@gmail.com</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class=""><div class=""><div class=""><div class=""><div class="">Hello Gilles<br class=""><br class=""></div>You are absolutely right:<br class=""><br class=""></div>1. Adding --mca pml_base_verbose 100 does show that it is the cm PML that is being picked by default (even for TCP)<br class=""></div>2. Adding --mca pml ob1 does cause add_procs() and related BTL friends to be invoked.<br class=""><br class=""><br class=""></div><div class="">With a command line of<br class=""><br class=""><span style="font-family:monospace,monospace" class="">mpirun -np 2 -hostfile ~/hostfile -mca btl self,tcp&nbsp; -mca btl_base_verbose 100 -mca pml_base_verbose 100 ./mpitest</span><br class=""><br class=""></div><div class="">The output shows (among many other lines) the following:<br class=""><br class=""><span style="font-family:monospace,monospace" class="">[smallMPI:49178] select: init returned priority 30<br class="">[smallMPI:49178] select: initializing pml component ob1<br class="">[smallMPI:49178] select: init returned priority 20<br class="">[smallMPI:49178] select: component v not in the include list<br class="">[smallMPI:49178] selected cm best priority 30<br class=""><b class="">[smallMPI:49178] select: component ob1 not selected / finalized<br class="">[smallMPI:49178] select: component cm selected</b></span><br class=""><br class=""></div><div class="">Which shows that the cm PML was selected. Replacing 'tcp' above with 'openib' shows very similar results. (The openib BTL methods are not invoked, either)<br class=""><br class=""></div><div class="">However, I was under the impression that the CM PML can only handle MTLs (and ob1 can only handle BTLs). So why is cm being selected for TCP?<br class=""><br class=""></div><div class="">Thank you<br class=""></div><div class="">Durga<br class=""></div><div class=""><br class=""><br class=""></div></div><div class="gmail_extra"><br clear="all" class=""><div class=""><div class="gmail_signature"><div dir="ltr" class=""><div class=""><div dir="ltr" class="">The surgeon general advises you to eat right, exercise regularly and quit ageing.</div></div></div></div></div>
+<br class=""><div class="gmail_quote">On Thu, Apr 28, 2016 at 2:34 AM, Gilles Gouaillardet <span dir="ltr" class="">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank" class="">gilles@rist.or.jp</a>&gt;</span> wrote:<br class=""><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000" class=""><p class="">the add_procs subroutine of the btl should be called.</p><p class="">/* i added a printf in mca_btl_tcp_add_procs and it *is* invoked
+      */</p><p class="">can you try again with --mca pml ob1 --mca pml_base_verbose 100 ?</p><p class="">maybe the add_procs subroutine is not invoked because openmpi
+      uses cm instead of ob1</p><p class=""><br class="">
+    </p><p class="">Cheers,</p><p class=""><br class="">
+    </p><p class="">Gilles<br class="">
+    </p><div class=""><div class="h5">
+    <br class="">
+    <div class="">On 4/28/2016 3:07 PM, dpchoudh . wrote:<br class="">
+    </div>
+    </div></div><blockquote type="cite" class=""><div class=""><div class="h5">
+      <div dir="ltr" class="">
+        <div class="">
+          <div class="">
+            <div class="">
+              <div class="">Hello all<br class="">
+                <br class="">
+              </div>
+              I am struggling with this issue for last few days and
+              thought it would be prudent to ask for help from people
+              who have way more experience than I do.<br class="">
+              <br class="">
+            </div>
+            There are two questions, interrelated in my mind, but may
+            not be so in reality. Question 2 is the issue I am
+            struggling with, and question 1 sort of leads to it.<br class="">
+            <br class="">
+          </div>
+          1. I see that both in openib and tcp BTL (the two kind of
+          hardware I have access to) a modex send happens, but a
+          matching modex receive never happens. Is it because of some
+          kind of optimization? (In my case, both IP NICs are in the
+          same IP subnet and both IB NICs are in the same IB subnet) Or
+          am I not understanding something? How do the processes figure
+          out their peer information without a modex receive?<br class="">
+          <br class="">
+        </div>
+        The place in code where the modex receive is called is in
+        btl_add_procs(). However, it looks like in both the above BTLs,
+        this method is never called. Is that expected?<br class="">
+        <br class="">
+        <div class="">
+          <div class="">
+            <div class="">
+              <div class="">
+                <div class="">
+                  <div class="">
+                    <div class="">2. This is the real question is this:<br class="">
+                    </div>
+                    <div class="">I am writing a BTL for a proprietary RDMA NIC
+                      (named 'lf' in the code) that has no routing
+                      capability in protocol, and hence no concept of
+                      subnets. An HCA simply needs to be plugged in to
+                      the switch and it can see the whole network.
+                      However, there is a VLAN like partition (similar
+                      to IB partitions)<br class="">
+                    </div>
+                    <div class="">Given this (and as a first cut, every node is
+                      in the same partition, so even this complexity is
+                      eliminated), there is not much use for a modex
+                      exchange, but I added one anyway just with the
+                      partition key.<br class="">
+                      <br class="">
+                    </div>
+                    <div class="">What I see is that the component open, register
+                      and init are all successful, but r2 bml still does
+                      not choose this network and thus OMPI aborts
+                      because of lack of full reachability.<br class="">
+                      <br class="">
+                    </div>
+                    <div class="">This is my command line:<br class="">
+                      sudo /usr/local/bin/mpirun --allow-run-as-root
+                      -hostfile ~/hostfile -np 2 -mca btl self,lf -mca
+                      btl_base_verbose 100 -mca bml_base_verbose 100
+                      ./mpitest<br class="">
+                      <br class="">
+                    </div>
+                    <div class="">('mpitest' is a trivial 'hello world' program
+                      plus ONE MPI_Send()/MPI_Recv() to test in-band
+                      communication. The sudo is required because
+                      currently the driver requires root permission; I
+                      was told that this will be fixed. The hostfile has
+                      2 hosts, named b-2 and b-3, with back-to-back
+                      connection on this 'lf' HCA)<br class="">
+                      <br class="">
+                    </div>
+                    <div class="">The output of this command is as follows; I
+                      have added my comments to explain it a bit.<br class="">
+                      <br class="">
+                    </div>
+                    <div class="">&lt;Output from OMPI logging mechanism&gt;<br class="">
+                    </div>
+                    <div class=""><span style="font-family:monospace,monospace" class="">[b-2:21062]
+                        mca: base: components_register: registering
+                        framework bml components<br class="">
+                        [b-2:21062] mca: base: components_register:
+                        found loaded component r2<br class="">
+                        [b-2:21062] mca: base: components_register:
+                        component r2 register function successful<br class="">
+                        [b-2:21062] mca: base: components_open: opening
+                        bml components<br class="">
+                        [b-2:21062] mca: base: components_open: found
+                        loaded component r2<br class="">
+                        [b-2:21062] mca: base: components_open:
+                        component r2 open function successful<br class="">
+                        [b-2:21062] mca: base: components_register:
+                        registering framework btl components<br class="">
+                        [b-2:21062] mca: base: components_register:
+                        found loaded component self<br class="">
+                        [b-2:21062] mca: base: components_register:
+                        component self register function successful<br class="">
+                        [b-2:21062] mca: base: components_register:
+                        found loaded component lf<br class="">
+                        [b-2:21062] mca: base: components_register:
+                        component lf register function successful<br class="">
+                        [b-2:21062] mca: base: components_open: opening
+                        btl components<br class="">
+                        [b-2:21062] mca: base: components_open: found
+                        loaded component self<br class="">
+                        [b-2:21062] mca: base: components_open:
+                        component self open function successful<br class="">
+                        [b-2:21062] mca: base: components_open: found
+                        loaded component lf<br class="">
+                      </span></div>
+                    <div class=""><span style="font-family:arial,helvetica,sans-serif" class=""><br class="">
+                        &lt;Debugging output from the HCA driver&gt;</span><span style="font-family:monospace,monospace" class=""><br class="">
+                      </span></div>
+                    <div class=""><span style="font-family:monospace,monospace" class="">lf_group_lib.c:442:
+                        _lf_open: _lf_open("MPI_0",0x842,0x1b6,4096,0)</span><br class="">
+                      <br class="">
+                      &lt;Output from OMPI logging mechanism,
+                      continued&gt;<br class="">
+                      <span style="font-family:monospace,monospace" class="">[b-2:21062]
+                        mca: base: components_open: component lf open
+                        function successful<br class="">
+                        [b-2:21062] select: initializing btl component
+                        self<br class="">
+                        [b-2:21062] select: init of component self
+                        returned success<br class="">
+                        [b-2:21062] select: initializing btl component
+                        lf</span><br class="">
+                      <span style="font-family:arial,helvetica,sans-serif" class=""><br class="">
+                        &lt;Debugging output from the HCA driver&gt;<br class="">
+                      </span><span style="font-family:monospace,monospace" class="">Created
+                        group on b-2</span><br class="">
+                      <br class="">
+                      &lt;Output from OMPI logging mechanism,
+                      continued&gt;<br class="">
+                      <span style="font-family:monospace,monospace" class="">[b-2:21062]
+                        select: init of component lf returned success<br class="">
+                        [b-3:07672] mca: base: components_register:
+                        registering framework bml components<br class="">
+                        [b-3:07672] mca: base: components_register:
+                        found loaded component r2<br class="">
+                        [b-3:07672] mca: base: components_register:
+                        component r2 register function successful<br class="">
+                        [b-3:07672] mca: base: components_open: opening
+                        bml components<br class="">
+                        [b-3:07672] mca: base: components_open: found
+                        loaded component r2<br class="">
+                        [b-3:07672] mca: base: components_open:
+                        component r2 open function successful<br class="">
+                        [b-3:07672] mca: base: components_register:
+                        registering framework btl components<br class="">
+                        [b-3:07672] mca: base: components_register:
+                        found loaded component self<br class="">
+                        [b-3:07672] mca: base: components_register:
+                        component self register function successful<br class="">
+                        [b-3:07672] mca: base: components_register:
+                        found loaded component lf<br class="">
+                        [b-3:07672] mca: base: components_register:
+                        component lf register function successful<br class="">
+                        [b-3:07672] mca: base: components_open: opening
+                        btl components<br class="">
+                        [b-3:07672] mca: base: components_open: found
+                        loaded component self<br class="">
+                        [b-3:07672] mca: base: components_open:
+                        component self open function successful<br class="">
+                        [b-3:07672] mca: base: components_open: found
+                        loaded component lf<br class="">
+                        [b-3:07672] mca: base: components_open:
+                        component lf open function successful<br class="">
+                        [b-3:07672] select: initializing btl component
+                        self<br class="">
+                        [b-3:07672] select: init of component self
+                        returned success<br class="">
+                        [b-3:07672] select: initializing btl component
+                        lf<br class="">
+                      </span><br class="">
+                      <span style="font-family:arial,helvetica,sans-serif" class="">&lt;Debugging
+                        output from the HCA driver&gt;<br class="">
+                      </span><span style="font-family:monospace,monospace" class="">lf_group_lib.c:442:
+                        _lf_open: _lf_open("MPI_0",0x842,0x1b6,4096,0)<br class="">
+                        Created group on b-3</span><br class="">
+                      <br class="">
+                      &lt;Output from OMPI logging mechanism,
+                      continued&gt;<br class="">
+                      <span style="font-family:monospace,monospace" class="">[b-3:07672]
+                        select: init of component lf returned success<br class="">
+                        [b-2:21062] mca: bml: Using self btl for send to
+                        [[6866,1],0] on node b-2<br class="">
+                        [b-3:07672] mca: bml: Using self btl for send to
+                        [[6866,1],1] on node b-3</span><br class="">
+                      <br class="">
+                    </div>
+                    <div class="">&lt;Output from the 'mpitest' MPI program:
+                      out-of-band-I/O&gt;<br class="">
+                    </div>
+                    <div class=""><span style="font-family:monospace,monospace" class="">Hello
+                        from b-2<br class="">
+                        The world has 2 nodes<br class="">
+                        My rank is 0<br class="">
+                        Hello from b-3</span><br class="">
+                      <br class="">
+                    </div>
+                    <div class="">&lt;Output frm OMPI&gt;<br class="">
+                    </div>
+                    <div class=""><span style="font-family:monospace,monospace" class="">--------------------------------------------------------------------------<br class="">
+                        At least one pair of MPI processes are unable to
+                        reach each other for<br class="">
+                        MPI communications.&nbsp; This means that no Open MPI
+                        device has indicated<br class="">
+                        that it can be used to communicate between these
+                        processes.&nbsp; This is<br class="">
+                        an error; Open MPI requires that all MPI
+                        processes be able to reach<br class="">
+                        each other.&nbsp; This error can sometimes be the
+                        result of forgetting to<br class="">
+                        specify the "self" BTL.<br class="">
+                        <br class="">
+                        &nbsp; Process 1 ([[6866,1],0]) is on host: b-2<br class="">
+                        &nbsp; Process 2 ([[6866,1],1]) is on host:
+                        10.4.70.12<br class="">
+                        &nbsp; BTLs attempted: self<br class="">
+                        <br class="">
+                        Your MPI job is now going to abort; sorry.<br class="">
+--------------------------------------------------------------------------</span><br class="">
+                      <br class="">
+                      &lt;Output from the 'mpitest' MPI program:
+                      out-of-band-I/O, continued&gt;<br class="">
+                      <span style="font-family:monospace,monospace" class="">The
+                        world has 2 nodes<br class="">
+                        My rank is 1</span><br class="">
+                      <br class="">
+                      &lt;Output from OMPI logging mechanism,
+                      continued&gt;<br class="">
+                      <span style="font-family:monospace,monospace" class="">[b-2:21062]
+                        *** An error occurred in MPI_Send<br class="">
+                        [b-2:21062] *** reported by process
+                        [140385751007233,21474836480]<br class="">
+                        [b-2:21062] *** on communicator MPI_COMM_WORLD<br class="">
+                        [b-2:21062] *** MPI_ERR_INTERN: internal error<br class="">
+                        [b-2:21062] *** MPI_ERRORS_ARE_FATAL (processes
+                        in this communicator will now abort,<br class="">
+                        [b-2:21062] ***&nbsp;&nbsp;&nbsp; and potentially your MPI job)</span><br class="">
+                      [durga@b-2 ~]$<br class="">
+                      <br class="">
+                    </div>
+                    <div class="">As you can see, the lf network is not being
+                      chosen for communication. Without a modex
+                      exchange, how can that happen? Or, in a nutshell,
+                      what do I need to do?<br class="">
+                      <br class="">
+                    </div>
+                    <div class="">Thanks a lot in advance<br class="">
+                    </div>
+                    <div class="">Durga<br class="">
+                      <br class="">
+                    </div>
+                    <div class=""><br clear="all" class="">
+                      <div class="">
+                        <div class="">
+                          <div dir="ltr" class="">
+                            <div class="">1% of the executables have 99% of CPU
+                              privilege!<br class="">
+                            </div>
+                            Userspace code! Unite!! Occupy the kernel!!!<br class="">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br class="">
+      <fieldset class=""></fieldset>
+      <br class="">
+      </div></div><pre class="">_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank" class="">devel@open-mpi.org</a>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank" class="">https://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18827.php" target="_blank" class="">http://www.open-mpi.org/community/lists/devel/2016/04/18827.php</a></pre>
+    </blockquote>
+    <br class="">
+  </div>
+
+<br class="">_______________________________________________<br class="">
+devel mailing list<br class="">
+<a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/devel" rel="noreferrer" target="_blank" class="">https://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br class="">
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/04/18828.php" rel="noreferrer" target="_blank" class="">http://www.open-mpi.org/community/lists/devel/2016/04/18828.php</a><br class=""></blockquote></div><br class=""></div>
+_______________________________________________<br class="">devel mailing list<br class=""><a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">Subscription: https://www.open-mpi.org/mailman/listinfo.cgi/devel<br class="">Link to this post: http://www.open-mpi.org/community/lists/devel/2016/04/18835.php</div></blockquote></div><br class=""></div></body></html>

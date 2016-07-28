@@ -1,0 +1,40 @@
+<div class="gmail_quote">2011/11/18 George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@eecs.utk.edu">bosilca@eecs.utk.edu</a>&gt;</span><br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;">
+<div style="word-wrap:break-word"><br><div><div class="im"><div>On Nov 18, 2011, at 07:29 , Hugo Daniel Meyer wrote:</div><br><blockquote type="cite">Hello again.<div><br></div><div>I was doing some trace into de PML_OB1 files. I start to follow a MPI_Ssend() trying to find where a message is stored (in the sender) if it is not send until the receiver post the recv, but i didn&#39;t find that place. </div>
+</blockquote><div><br></div></div><div>Right, you can&#39;t find this as the message is not stored on the sender. The pointer to the send request is sent encapsulated in the matching header, and the receiver will provide it back once the message has been matched (this means the data is now ready to flow).</div>
+</div></div></blockquote><div><br></div><div>So, what you&#39;re saying is that the sender only sends the header, so when the receiver post the recv will send again the header so the sender starts with the data sent? am i getting it right?  If this is ok, the data stays in the sender, but where it is stored?</div>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div style="word-wrap:break-word"><div><div class="im"><br><blockquote type="cite">
+
+
+<div>I&#39;ve noticed that the message to be sent enters in <b>mca_pml_ob1_rndv_completion_request(</b>pml_ob1_sendreq.c<b>) </b>and  the <b>rc = send_request_pml_complete_check(sendreq) </b>returns false when the request hasn&#39;t been completed, but the execution never passes through <b>MCA_PML_OB1_PROGRESS_PENDING,</b> at least, none of the possible options is executed.</div>
+
+
+<div><br></div><div>So, re-orienting my question: where is stored this message until delivery? and if there any way to know that the receiver goes down? With this information i will be able to detect the failure of the receiver and will try to resend the message to another place.</div>
+</blockquote><div><br></div></div><div>If you want to track the send requests, you will have to implement your own way of tracking them, as we do not expose this in our PML. Eventually, writing your own PML, might be necessary.</div>
+<div><br></div><div>However, as a user I would find very disturbing that the MPI runtime decide to send the message to another peer on my behalf. I would rather prefer that the MPI_Send returns some kind of error, that allows the upper level algorithm to repost the send to another peer. Look at the proposals in the MPI Forum to get more information about what it is discussed regarding the MPI resilience.</div>
+<div><br></div></div></div></blockquote><div>Do you mean a fault tolerant algorithm made by the user? </div><div>What i&#39;m trying to do is a transparent fault tolerant system, where if a failure occurs the system avoid sending informartion to the user, and take actions by itself. For example, if the app tries to contact rank 1, but that rank has failed, so my system will restore the process with rank 1 in another place and make the send to the new location. That&#39;s why i need to detect this send failure, update my endpoint with the new location, and retry the send. My big problem right now is to detect this send failure, because i don&#39;t know how to obtain the status of a send, or the break of an endpoint (i really don&#39;t know what gets broken when a process dies, considering the send ).</div>
+<div><br></div><div>Right now, i&#39;ve an implementation that make independant checkpoints of the processes and if i kill one process it gets restarted in another node and continue with its execution. If a send to the restarted process is posted after the restart, there is no problem, because i&#39;ve already updated the endpoint with that process, but, if a send is posted before the restart, and the recv is posted in the receiver after the restart, i&#39;ve a problem. Any hellp with this?</div>
+<div><br></div><div>Thanks in advance.</div><div><br></div><div>Hugo</div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex;"><div style="word-wrap:break-word"><div><blockquote type="cite">
+<div class="im">
+
+<div><br></div><div>Thanks again.</div><div><br></div><div>Hugo Meyer<br><br><div class="gmail_quote">2011/11/17 Hugo Daniel Meyer <span dir="ltr">&lt;<a href="mailto:meyer.hugo@gmail.com" target="_blank">meyer.hugo@gmail.com</a>&gt;</span><br>
+
+
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hello @ll.<br><br>I&#39;m doing some changes in the communication framework. Right now i&#39;m working on a &quot;secure&quot; MPI_Send, this send needs to know when an endpoint goes down, and then retry the communication constructing a new endpoint, or at least, overwriting the data of the old endpoint with the new address of the receiver process. Overwriting the data of the endpoint is not a problem anymore, because i&#39;ve done that before.<br>
+
+
+
+
+<br>For example, if we consider a Master/Worker application, where the master sends data to the workers, and  workers start the computation, then, the master posts a send to the worker1 that fails and get restarted in another node and in his new location the worker1 posts the recv to the master&#39;s send. The problem here is that the master post the send when the process was residing in one node, but the process expects the message in another node. I need the sender to realize that the process is now in another node, and retries the communication with a modificated endpoint. Anyone could please tell me where in the send code i can obtain the status of a message that hasn&#39;t been send and resend it to a new location. Also i want to know, where can i obtain information about an endpoint fail?.<br>
+
+
+
+
+<br>Thanks in advance.<span><font color="#888888"><br><br>Hugo<br>
+</font></span></blockquote></div><br></div></div>
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+</div><br></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br>
+

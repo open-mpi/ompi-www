@@ -1,0 +1,171 @@
+<div dir="ltr">No surprise there - that&#39;s known behavior. As has been said, we hope to extend the thread-multiple support in the 1.9 series.<br><br></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Mon, Dec 2, 2013 at 6:33 PM, Eric Chamberland <span dir="ltr">&lt;<a href="mailto:Eric.Chamberland@giref.ulaval.ca" target="_blank">Eric.Chamberland@giref.ulaval.ca</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi,<br>
+<br>
+I just open a new &quot;chapter&quot; with the same subject. ;-)<br>
+<br>
+We are using OpenMPI 1.6.5 (compiled with --enable-thread-multiple) with Petsc 3.4.3 (on colosse supercomputer: <a href="http://www.calculquebec.ca/en/resources/compute-servers/colosse" target="_blank">http://www.calculquebec.ca/en/<u></u>resources/compute-servers/<u></u>colosse</a>). We observed a deadlock with threads within the openib btl.<br>
+
+<br>
+We successfully bypassed the deadlock by 2 different ways:<br>
+<br>
+#1- launching the code with &quot;--mca btl ^openib&quot;<br>
+<br>
+#2- compiling OpenMPI 1.6.5 *without* the &quot;--enable-thread-multiple&quot; option.<br>
+<br>
+When the code hangs, here are some backtraces (on different processes) that we got:<br>
+<br>
+#0  0x00007fb4a6a03795 in pthread_spin_lock () from /lib64/libpthread.so.0<br>
+#1  0x00007fb49db7ea7b in ?? () from /usr/lib64/libmlx4-rdmav2.so<br>
+#2  0x00007fb4a878d469 in ibv_poll_cq () at<br>
+/usr/include/infiniband/verbs.<u></u>h:884<br>
+#3  poll_device () at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/btl/openib/btl_<u></u>openib_component.c:3563 <br>
+#4  progress_one_device () at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/btl/openib/btl_<u></u>openib_component.c:3694 <br>
+#5  btl_openib_component_progress () at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/btl/openib/btl_<u></u>openib_component.c:3719 <br>
+#6  0x00007fb4a8973d32 in opal_progress () at<br>
+../../openmpi-1.6.5/opal/<u></u>runtime/opal_progress.c:207<br>
+#7  0x00007fb4a87404f0 in opal_condition_wait (count=25695904,<br>
+requests=0x100, statuses=0x7fff9b7f1320) at<br>
+../../openmpi-1.6.5/opal/<u></u>threads/condition.h:92<br>
+#8  ompi_request_default_wait_all (count=25695904, requests=0x100,<br>
+statuses=0x7fff9b7f1320) at ../../openmpi-1.6.5/ompi/<u></u>request/req_wait.c:263<br>
+<br>
+<br>
+<br>
+<br>
+#0  0x00007f731d1100b8 in pthread_mutex_unlock () from<br>
+/lib64/libpthread.so.0<br>
+#1  0x00007f731ee9b3b7 in opal_mutex_unlock () at<br>
+../../../../../openmpi-1.6.5/<u></u>opal/threads/mutex_unix.h:123<br>
+#2  progress_one_device () at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/btl/openib/btl_<u></u>openib_component.c:3688 <br>
+#3  btl_openib_component_progress () at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/btl/openib/btl_<u></u>openib_component.c:3719 <br>
+#4  0x00007f731f081d32 in opal_progress () at<br>
+../../openmpi-1.6.5/opal/<u></u>runtime/opal_progress.c:207<br>
+#5  0x00007f731ee4e4f0 in opal_condition_wait (count=25649104,<br>
+requests=0x0, statuses=0x1875fd0) at<br>
+../../openmpi-1.6.5/opal/<u></u>threads/condition.h:92<br>
+#6  ompi_request_default_wait_all (count=25649104, requests=0x0,<br>
+statuses=0x1875fd0) at ../../openmpi-1.6.5/ompi/<u></u>request/req_wait.c:263<br>
+#7  0x00007f731eec2644 in<br>
+ompi_coll_tuned_allreduce_<u></u>intra_recursivedoubling (sbuf=0x1875fd0,<br>
+rbuf=0x0, count=25649104, dtype=0x7f72ce8f80fc, op=0x1875fd0,<br>
+comm=0x5e80, module=0xca4ec20)<br>
+      at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/coll/tuned/coll_<u></u>tuned_allreduce.c:223<br>
+#8  0x00007f731eebe2ec in ompi_coll_tuned_allreduce_<u></u>intra_dec_fixed<br>
+(sbuf=0x1875fd0, rbuf=0x0, count=25649104, dtype=0x7f72ce8f80fc,<br>
+op=0x1875fd0, comm=0x5e80, module=0x159d8330)<br>
+      at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/coll/tuned/coll_<u></u>tuned_decision_fixed.c:61 <br>
+#9  0x00007f731ee5cad9 in PMPI_Allreduce (sendbuf=0x1875fd0,<br>
+recvbuf=0x0, count=25649104, datatype=0x7f72ce8f80fc, op=0x1875fd0,<br>
+comm=0x5e80) at pallreduce.c:105<br>
+<br>
+<br>
+<br>
+#0  opal_progress () at ../../openmpi-1.6.5/opal/<u></u>runtime/opal_progress.c:206<br>
+#1  0x00007f8e3d8844f0 in opal_condition_wait (count=0, requests=0x0,<br>
+statuses=0x7f8e3dde8a20) at ../../openmpi-1.6.5/opal/<u></u>threads/condition.h:92<br>
+#2  ompi_request_default_wait_all (count=0, requests=0x0,<br>
+statuses=0x7f8e3dde8a20) at ../../openmpi-1.6.5/ompi/<u></u>request/req_wait.c:263<br>
+#3  0x00007f8e3d8f8644 in<br>
+ompi_coll_tuned_allreduce_<u></u>intra_recursivedoubling (sbuf=0x0, rbuf=0x0,<br>
+count=1037994528, dtype=0x1, op=0x0, comm=0x60bb, module=0xcb86ce0)<br>
+      at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/coll/tuned/coll_<u></u>tuned_allreduce.c:223<br>
+#4  0x00007f8e3d8f42ec in ompi_coll_tuned_allreduce_<u></u>intra_dec_fixed<br>
+(sbuf=0x0, rbuf=0x0, count=1037994528, dtype=0x1, op=0x0, comm=0x60bb,<br>
+module=0x171d59a0)<br>
+      at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/coll/tuned/coll_<u></u>tuned_decision_fixed.c:61 <br>
+#5  0x00007f8e3d892ad9 in PMPI_Allreduce (sendbuf=0x0, recvbuf=0x0,<br>
+count=1037994528, datatype=0x1, op=0x0, comm=0x60bb) at pallreduce.c:105<br>
+<br>
+<br>
+<br>
+#0  0x00007f7ef7d0b258 in pthread_mutex_lock@plt () from<br>
+/software/MPI/openmpi/1.6.5_<u></u>intel/lib/libmpi.so.1<br>
+#1  0x00007f7ef7d72377 in opal_mutex_lock () at<br>
+../../../../../openmpi-1.6.5/<u></u>opal/threads/mutex_unix.h:109<br>
+#2  progress_one_device () at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/btl/openib/btl_<u></u>openib_component.c:3650 <br>
+#3  btl_openib_component_progress () at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/btl/openib/btl_<u></u>openib_component.c:3719 <br>
+#4  0x00007f7ef7f58d32 in opal_progress () at<br>
+../../openmpi-1.6.5/opal/<u></u>runtime/opal_progress.c:207<br>
+#5  0x00007f7ef7d254f0 in opal_condition_wait (count=25625488,<br>
+requests=0x0, statuses=0x7f7ef8324208) at<br>
+../../openmpi-1.6.5/opal/<u></u>threads/condition.h:92<br>
+#6  ompi_request_default_wait_all (count=25625488, requests=0x0,<br>
+statuses=0x7f7ef8324208) at ../../openmpi-1.6.5/ompi/<u></u>request/req_wait.c:263<br>
+#7  0x00007f7ef7d99644 in<br>
+ompi_coll_tuned_allreduce_<u></u>intra_recursivedoubling (sbuf=0x1870390,<br>
+rbuf=0x0, count=-130924024, dtype=0x0, op=0x1874cb0, comm=0x60bc,<br>
+module=0xca6a360)<br>
+      at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/coll/tuned/coll_<u></u>tuned_allreduce.c:223<br>
+#8  0x00007f7ef7d952ec in ompi_coll_tuned_allreduce_<u></u>intra_dec_fixed<br>
+(sbuf=0x1870390, rbuf=0x0, count=-130924024, dtype=0x0, op=0x1874cb0,<br>
+comm=0x60bc, module=0x14512a20)<br>
+      at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/coll/tuned/coll_<u></u>tuned_decision_fixed.c:61 <br>
+#9  0x00007f7ef7d33ad9 in PMPI_Allreduce (sendbuf=0x1870390,<br>
+recvbuf=0x0, count=-130924024, datatype=0x0, op=0x1874cb0, comm=0x60bc)<br>
+at pallreduce.c:105<br>
+<br>
+<br>
+<br>
+<br>
+#0  0x00007f1fe7bcd0b8 in pthread_mutex_unlock () from<br>
+/lib64/libpthread.so.0<br>
+#1  0x00007f1fe99583b7 in opal_mutex_unlock () at<br>
+../../../../../openmpi-1.6.5/<u></u>opal/threads/mutex_unix.h:123<br>
+#2  progress_one_device () at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/btl/openib/btl_<u></u>openib_component.c:3688 <br>
+#3  btl_openib_component_progress () at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/btl/openib/btl_<u></u>openib_component.c:3719 <br>
+#4  0x00007f1fe9b3ed32 in opal_progress () at<br>
+../../openmpi-1.6.5/opal/<u></u>runtime/opal_progress.c:207<br>
+#5  0x00007f1fe990b4f0 in opal_condition_wait (count=25659568,<br>
+requests=0x0, statuses=0x18788b0) at<br>
+../../openmpi-1.6.5/opal/<u></u>threads/condition.h:92<br>
+#6  ompi_request_default_wait_all (count=25659568, requests=0x0,<br>
+statuses=0x18788b0) at ../../openmpi-1.6.5/ompi/<u></u>request/req_wait.c:263<br>
+#7  0x00007f1fe997f644 in<br>
+ompi_coll_tuned_allreduce_<u></u>intra_recursivedoubling (sbuf=0x18788b0,<br>
+rbuf=0x0, count=25659568, dtype=0x7f1f9949727c, op=0x18788b0,<br>
+comm=0x3db6, module=0xccda900)<br>
+      at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/coll/tuned/coll_<u></u>tuned_allreduce.c:223<br>
+#8  0x00007f1fe997b2ec in ompi_coll_tuned_allreduce_<u></u>intra_dec_fixed<br>
+(sbuf=0x18788b0, rbuf=0x0, count=25659568, dtype=0x7f1f9949727c,<br>
+op=0x18788b0, comm=0x3db6, module=0x170dbf00)<br>
+      at<br>
+../../../../../openmpi-1.6.5/<u></u>ompi/mca/coll/tuned/coll_<u></u>tuned_decision_fixed.c:61 <br>
+#9  0x00007f1fe9919ad9 in PMPI_Allreduce (sendbuf=0x18788b0,<br>
+recvbuf=0x0, count=25659568, datatype=0x7f1f9949727c, op=0x18788b0,<br>
+comm=0x3db6) at pallreduce.c:105<br>
+<br>
+Attached, is &quot;ompi_info -all&quot; output.<br>
+<br>
+here is the command line:<br>
+<br>
+&quot;mpiexec -mca mpi_show_mca_params all -mca oob_tcp_peer_retries 1000  --output-filename PneuSurfaceLibre.out --timestamp-output --report-bindings -mca orte_num_sockets 2 -mca orte_num_cores 4 --bind-to-socket -npersocket 1 our_housecode_executable_<u></u>based_on_petsc_343    and_parameters...&quot;<br>
+
+<br>
+Hope it can help to debug!<br>
+<br>
+Thanks!<span class="HOEnZb"><font color="#888888"><br>
+<br>
+Eric<br>
+<br>
+<br>
+</font></span><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br></div>
+

@@ -1,0 +1,271 @@
+#======================================================================
+# Overall configuration
+#======================================================================
+
+[MTT]
+
+hostfile =
+hostlist =
+max_np = 
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# MPI get phase
+#======================================================================
+
+[MPI get: ompi-nightly-trunk]
+mpi_details = Open MPI
+
+module = OMPI_Snapshot
+ompi_snapshot_url = http://www.open-mpi.org/nightly/trunk
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Install MPI phase
+#======================================================================
+
+[MPI install: odin 64 bit gcc]
+mpi_get = ompi-nightly-trunk
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+vpath_mode = none
+
+make_all_arguments = -j 6
+make_check = 1
+
+compiler_name = gnu
+compiler_version = &shell("gcc --version | head -n 1 | awk '{ print \$3 }'")
+configure_arguments = \
+FCFLAGS=-m64 FFLAGS=-m64 CFLAGS=-m64 CXXFLAGS=-m64 \
+--with-wrapper-cflags=-m64 --with-wrapper-cxxflags=-m64 --with-wrapper-fflags=-m64 --with-wrapper-fcflags=-m64
+
+
+module = OMPI
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# MPI run details
+#======================================================================
+
+[MPI Details: Open MPI]
+exec = mpirun @hosts@ -mca btl tcp,sm,self -np &test_np() --prefix &test_prefix() &test_executable() &test_argv()
+
+# Yes, all these quotes are necessary.  Don't mess with them!
+hosts = &if(&have_hostfile(), "&join("--hostfile ", "&hostfile()")", \
+            "&if(&have_hostlist(), "&join("--host ", "&hostlist()")", "")")
+
+after_each_exec = <<EOT
+if test "$MTT_TEST_HOSTFILE" != ""; then
+    args="--hostfile $MTT_TEST_HOSTFILE"
+elif test "$MTT_TEST_HOSTLIST" != ""; then
+    args="--host $MTT_TEST_HOSTLIST"
+fi
+orterun $args -np $MTT_TEST_NP --prefix $MTT_TEST_PREFIX mtt_ompi_cleanup.pl
+EOT
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Test get phase
+#======================================================================
+
+[Test get: trivial]
+module = Trivial
+
+#----------------------------------------------------------------------
+
+[Test get: ibm]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/ibm
+svn_post_export = <<EOT
+./autogen.sh
+EOT
+
+#----------------------------------------------------------------------
+
+[Test get: intel]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/intel_tests
+
+#----------------------------------------------------------------------
+
+[Test get: imb]
+module = SVN
+svn_url = https://svn.open-mpi.org/svn/ompi-tests/trunk/IMB_2.3
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Test build phase
+#======================================================================
+
+[Test build: trivial]
+test_get = trivial
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = -1
+
+module = Trivial
+
+#----------------------------------------------------------------------
+
+[Test build: ibm]
+test_get = ibm
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = -1
+
+module = Shell
+shell_build_command = <<EOT
+./configure CC=mpicc CXX=mpic++ F77=mpif77
+make
+EOT
+
+#----------------------------------------------------------------------
+
+[Test build: intel]
+test_get = intel
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = -1
+
+module = Intel_OMPI_Tests
+intel_ompi_tests_buildfile = all_tests_no_perf
+# I am using the g77 compiler, which needs these flags.  Your fortran
+# compiler may need different flags.
+intel_ompi_tests_fflags = -Isrc -I.
+
+#----------------------------------------------------------------------
+
+[Test build: imb]
+test_get = imb
+save_stdout_on_success = 1
+merge_stdout_stderr = 1
+stderr_save_lines = -1
+
+module = Shell
+shell_build_command = <<EOT
+cd src
+make clean IMB-MPI1
+EOT
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Test Run phase
+#======================================================================
+
+[Test run: trivial]
+test_build = trivial
+pass = &eq(&test_exit_status(), 0)
+timeout = &multiply(2, test_np())
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+stdout_save_lines = 100
+np = &env_max_procs()
+
+module = Simple
+simple_only:tests = &find_executables(".")
+
+#----------------------------------------------------------------------
+
+[Test run: ibm]
+test_build = ibm
+pass = &or(&eq(&test_exit_status(), 0), &eq(&test_exit_status(), 77))
+timeout = &max(30, &multiply(5, &test_np()))
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+stdout_save_lines = 100
+np = &env_max_procs()
+
+module = Simple
+# Similar rationale to the intel test run section
+simple_first:tests = &find_executables("collective", "communicator", \
+                                       "datatype", "dynamic", "environment", \
+                                       "group", "info", "io", "onesided", \
+                                       "pt2pt", "topology")
+
+# Similar rationale to the intel test run section
+simple_fail:tests = environment/abort environment/final
+simple_fail:pass = &ne(&test_exit_status(), 0)
+simple_fail:exclusive = 1
+simple_fail:np = &env_max_procs()
+
+#----------------------------------------------------------------------
+
+[Test run: intel]
+test_build = intel
+pass = &or(&eq(&test_exit_status(), 0), &eq(&test_exit_status(), 77))
+#0.052u 0.034s 5:24.82 0.0%      0+0k 0+0io 0pf+0w
+
+timeout = &max(300, &multiply(50, &test_np()))
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+stdout_save_lines = 100
+# The intel tests have some hard limits at 64 processes
+np = &min(64, &env_max_procs())
+
+module = Simple
+# This group of tests uses the defaults from above and should all
+# return an exit status of 0
+simple_pass:tests = &find_executables("src")
+
+# This group of tests is from the "supposed_to_fail" fail, and is
+# exclusive from the other group (meaning that anything in this group
+# should be removed from the other group).  The programs in the group
+# should also have a nonzero exit status.
+simple_fail:tests = &find_executables("src/" . "&cat("supposed_to_fail")")
+simple_fail:np = &env_max_procs()
+simple_fail:pass = &ne(&test_exit_status(), 0)
+simple_fail:exclusive = 1
+
+#----------------------------------------------------------------------
+
+[Test run: imb]
+test_build = imb
+pass = &eq(&test_exit_status(), 0)
+timeout = &max(10000, &multiply(500, &test_np()))
+save_stdout_on_pass = 1
+merge_stdout_stderr = 1
+stdout_save_lines = 100
+np = &env_max_procs()
+
+module = Simple
+simple_only:tests = src/IMB-MPI1
+
+#----------------------------------------------------------------------
+
+#======================================================================
+# Reporter phase
+#======================================================================
+
+[Reporter: IU database]
+module = MTTDatabase
+
+mttdatabase_realm = OMPI
+mttdatabase_url = https://www.open-mpi.org/mtt/submit/
+# OMPI Core: Change this to be the username and password for your
+# submit user.  Get this from the OMPI MTT administrator.
+mttdatabase_username = iu
+mttdatabase_password = 1UbgR3d
+# OMPI Core: Change this to be some short string identifying your
+# cluster.
+mttdatabase_platform = IU Odin
+
+#----------------------------------------------------------------------
+
+# This is a backup for while debugging MTT; it also writes results to
+# a local text file
+[Reporter: text file backup]
+module = TextFile
+
+textfile_filename = mtt-debug-report-7-$phase-$section-$mpi_name-$mpi_version.txt
+textfile_separator = >>>>----------------------------------------------------------<<<<
+
+
+#----------------------------------------------------------------------
+
+

@@ -1,0 +1,279 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body text="#000000" bgcolor="#FFFFFF">
+    <div class="moz-cite-prefix">George,<br>
+      <br>
+      please disregard my previous comment.<br>
+      <br>
+      new_comm is passed to ompi_comm_enable (and *not* &amp;new_comm)<br>
+      so you are right, new_comm cannot be MPI_COMM_NULL at
+      topo_base_create.c:172<br>
+      <br>
+      that being said, ompi_comm_enable invokes ompi_comm_activate that
+      OBJ_RELEASE<br>
+      new_comm if an error occurs, so there is still an issue here<br>
+      /* e.g. cannot assign new_comm-&gt;c_topo, nor invoke
+      ompi_comm_free(&amp;new_comm) */<br>
+      <br>
+      i will think of a correct fix from now, and in the mean time, i
+      will welcome your advises :-)<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      On 2015/03/10 10:08, Gilles Gouaillardet wrote:<br>
+    </div>
+    <blockquote
+cite="mid:CAAkFZ5vPOj1RSvA1hwzKxvD_eUkE-zhchnHPHkoqinMNV5GAJQ@mail.gmail.com"
+      type="cite">
+      <pre wrap="">George,
+
+In topo_base_create.c at line 171, ompi_comm_enable ends up calling
+ompi_comm_activate which assigns MPI_COMM_NULL to new_comm when an error
+occurs
+( see bail_on_error label )
+
+So unless the correct fix is to change the behavior of ompi_comm_activate,
+I think the change is correct.
+
+Makes sense ?
+
+Cheers,
+
+Gilles
+
+
+
+
+On Tuesday, March 10, 2015, George Bosilca <a class="moz-txt-link-rfc2396E" href="mailto:bosilca@icl.utk.edu">&lt;bosilca@icl.utk.edu&gt;</a> wrote:
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Gilles,
+
+I might misread these commit, but the changes proposed here do not look
+correct to me. At no moment the new_comm can be equal to MPI_COMM_NULL in
+this code (especially not at line 172 in the too_base_cart_create.c).
+
+  George.
+
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">On Mar 9, 2015, at 02:26 , <a class="moz-txt-link-abbreviated" href="mailto:gitdub@crest.iu.edu">gitdub@crest.iu.edu</a> <a class="moz-txt-link-rfc2396E" href="javascript:;">&lt;javascript:;&gt;</a> wrote:
+
+This is an automated email from the git hooks/post-receive script. It was
+generated because a ref change was pushed to the repository containing
+the project "open-mpi/ompi".
+
+The branch, master has been updated
+      via  9107bf50776d540f50c29a1e263d5d40f16fe806 (commit)
+     from  a9044945fe4cedbcacd3415a2136aea470dade43 (commit)
+
+Those revisions listed above that are new to this repository have
+not appeared on any other notification email; so we list those
+revisions in full, below.
+
+- Log -----------------------------------------------------------------
+
+</pre>
+        </blockquote>
+        <pre wrap=""><a class="moz-txt-link-freetext" href="https://github.com/open-mpi/ompi/commit/9107bf50776d540f50c29a1e263d5d40f16fe806">https://github.com/open-mpi/ompi/commit/9107bf50776d540f50c29a1e263d5d40f16fe806</a>
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">
+commit 9107bf50776d540f50c29a1e263d5d40f16fe806
+Author: Gilles Gouaillardet &lt;<a class="moz-txt-link-abbreviated" href="mailto:gilles.gouaillardet@iferc.org">gilles.gouaillardet@iferc.org</a>
+</pre>
+        </blockquote>
+        <pre wrap=""><a class="moz-txt-link-rfc2396E" href="javascript:;">&lt;javascript:;&gt;</a>&gt;
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">Date:   Mon Mar 9 15:22:22 2015 +0900
+
+   ompi/topo: fix misc errors
+   as reported by Coverity with CIDs 1041232, 1041234, 1041235
+   1269789 and 1269996
+
+diff --git a/ompi/mca/topo/base/topo_base_cart_create.c
+</pre>
+        </blockquote>
+        <pre wrap="">b/ompi/mca/topo/base/topo_base_cart_create.c
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">index 6a678da..6d1c732 100644
+--- a/ompi/mca/topo/base/topo_base_cart_create.c
++++ b/ompi/mca/topo/base/topo_base_cart_create.c
+@@ -14,7 +14,7 @@
+ * Copyright (c) 2012-2013 Inria.  All rights reserved.
+ * Copyright (c) 2014      Los Alamos National Security, LLC. All right
+ *                         reserved.
+- * Copyright (c) 2014      Research Organization for Information Science
++ * Copyright (c) 2014-2015 Research Organization for Information Science
+ *                         and Technology (RIST). All rights reserved.
+ * $COPYRIGHT$
+ *
+@@ -91,7 +91,6 @@ int mca_topo_base_cart_create(mca_topo_base_module_t
+</pre>
+        </blockquote>
+        <pre wrap="">*topo,
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">
+    cart = OBJ_NEW(mca_topo_base_comm_cart_2_2_0_t);
+    if( NULL == cart ) {
+-        ompi_comm_free(&amp;new_comm);
+        return OMPI_ERR_OUT_OF_RESOURCE;
+    }
+    cart-&gt;ndims = ndims;
+@@ -172,11 +171,13 @@ int
+</pre>
+        </blockquote>
+        <pre wrap="">mca_topo_base_cart_create(mca_topo_base_module_t *topo,
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">                           new_rank, num_procs, topo_procs);
+    if (OMPI_SUCCESS != ret) {
+        /* something wrong happened during setting the communicator */
+-        new_comm-&gt;c_topo = NULL;
+-        new_comm-&gt;c_flags &amp;= ~OMPI_COMM_CART;
+        free(topo_procs);
+        OBJ_RELEASE(cart);
+-        ompi_comm_free (&amp;new_comm);
++        if (MPI_COMM_NULL != new_comm) {
++            new_comm-&gt;c_topo = NULL;
++            new_comm-&gt;c_flags &amp;= ~OMPI_COMM_CART;
++            ompi_comm_free (&amp;new_comm);
++        }
+        return ret;
+    }
+
+diff --git a/ompi/mca/topo/base/topo_base_dist_graph_create.c
+</pre>
+        </blockquote>
+        <pre wrap="">b/ompi/mca/topo/base/topo_base_dist_graph_create.c
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">index 43adf1a..dc676e3 100644
+--- a/ompi/mca/topo/base/topo_base_dist_graph_create.c
++++ b/ompi/mca/topo/base/topo_base_dist_graph_create.c
+@@ -8,7 +8,7 @@
+ *                         reserved.
+ * Copyright (c) 2011-2013 Inria.  All rights reserved.
+ * Copyright (c) 2011-2013 Universit&eacute; Bordeaux 1
+- * Copyright (c) 2014      Research Organization for Information Science
++ * Copyright (c) 2014-2015 Research Organization for Information Science
+ *                         and Technology (RIST). All rights reserved.
+ */
+
+@@ -347,12 +347,14 @@ int
+</pre>
+        </blockquote>
+        <pre wrap="">mca_topo_base_dist_graph_create(mca_topo_base_module_t* module,
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">        if ( NULL != topo-&gt;outw ) {
+            free(topo-&gt;outw);
+        }
++        if (MPI_COMM_NULL != new_comm) {
++            new_comm-&gt;c_topo-&gt;mtc.dist_graph = NULL;
++            new_comm-&gt;c_topo             = NULL;
++            new_comm-&gt;c_flags           &amp;= ~OMPI_COMM_DIST_GRAPH;
++            ompi_comm_free (&amp;new_comm);
++        }
+        free(topo);
+        free(topo_procs);
+-        new_comm-&gt;c_topo             = NULL;
+-        new_comm-&gt;c_flags           &amp;= ~OMPI_COMM_DIST_GRAPH;
+-        new_comm-&gt;c_topo-&gt;mtc.dist_graph = NULL;
+-        ompi_comm_free (&amp;new_comm);
+        return ret;
+    }
+    *newcomm = new_comm;
+diff --git a/ompi/mca/topo/base/topo_base_graph_create.c
+</pre>
+        </blockquote>
+        <pre wrap="">b/ompi/mca/topo/base/topo_base_graph_create.c
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">index 990ac72..77a1be6 100644
+--- a/ompi/mca/topo/base/topo_base_graph_create.c
++++ b/ompi/mca/topo/base/topo_base_graph_create.c
+@@ -11,7 +11,7 @@
+ *                         All rights reserved.
+ * Copyright (c) 2012-2013 Inria.  All rights reserved.
+ * Copyright (c) 2014      Cisco Systems, Inc.  All rights reserved.
+- * Copyright (c) 2014      Research Organization for Information Science
++ * Copyright (c) 2014-2015 Research Organization for Information Science
+ *                         and Technology (RIST). All rights reserved.
+ * $COPYRIGHT$
+ *
+@@ -131,11 +131,13 @@ int
+</pre>
+        </blockquote>
+        <pre wrap="">mca_topo_base_graph_create(mca_topo_base_module_t *topo,
+</pre>
+        <blockquote type="cite">
+          <pre wrap="">    ret = ompi_comm_enable(old_comm, new_comm,
+                           new_rank, num_procs, topo_procs);
+    if (OMPI_SUCCESS != ret) {
+-        new_comm-&gt;c_topo            = NULL;
+-        new_comm-&gt;c_flags          &amp;= ~OMPI_COMM_GRAPH;
+        free(topo_procs);
+        OBJ_RELEASE(graph);
+-        ompi_comm_free (&amp;new_comm);
++        if (MPI_COMM_NULL != new_comm) {
++            new_comm-&gt;c_topo            = NULL;
++            new_comm-&gt;c_flags          &amp;= ~OMPI_COMM_GRAPH;
++            ompi_comm_free (&amp;new_comm);
++        }
+        return ret;
+    }
+
+
+
+-----------------------------------------------------------------------
+
+Summary of changes:
+ompi/mca/topo/base/topo_base_cart_create.c       | 11 ++++++-----
+ompi/mca/topo/base/topo_base_dist_graph_create.c | 12 +++++++-----
+ompi/mca/topo/base/topo_base_graph_create.c      | 10 ++++++----
+3 files changed, 19 insertions(+), 14 deletions(-)
+
+
+hooks/post-receive
+--
+open-mpi/ompi
+_______________________________________________
+ompi-commits mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:ompi-commits@open-mpi.org">ompi-commits@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="javascript:;">&lt;javascript:;&gt;</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/ompi-commits">http://www.open-mpi.org/mailman/listinfo.cgi/ompi-commits</a>
+</pre>
+        </blockquote>
+        <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a> <a class="moz-txt-link-rfc2396E" href="javascript:;">&lt;javascript:;&gt;</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post:
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/03/17119.php">http://www.open-mpi.org/community/lists/devel/2015/03/17119.php</a>
+</pre>
+      </blockquote>
+      <pre wrap="">
+</pre>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/03/17122.php">http://www.open-mpi.org/community/lists/devel/2015/03/17122.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

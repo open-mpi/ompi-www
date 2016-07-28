@@ -1,0 +1,77 @@
+<div dir="ltr">using 2 HCAs on the same PCI-Exp bus (as well as 2 ports from the same HCA) will not improve performance, PCI-Exp is the bottleneck.<br><br><br><div class="gmail_quote">On Mon, Oct 20, 2008 at 2:28 AM, Mostyn Lewis <span dir="ltr">&lt;<a href="mailto:Mostyn.Lewis@sun.com">Mostyn.Lewis@sun.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Well, here&#39;s what I see with the IMB PingPong test using two ConnectX DDR cards<br>
+in each of 2 machines. I&#39;m just quoting the last line at 10 repetitions of<br>
+the 4194304 bytes.<br>
+<br>
+Scali_MPI_Connect-5.6.4-59151: (multi rail setup in /etc/dat.conf)<br>
+ &nbsp; &nbsp; &nbsp; #bytes #repetitions &nbsp; &nbsp; &nbsp;t[usec] &nbsp; Mbytes/sec<br>
+ &nbsp; &nbsp; &nbsp;4194304 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 10 &nbsp; &nbsp; &nbsp;2198.24 &nbsp; &nbsp; &nbsp;1819.63<br>
+mvapich2-1.2rc2: (MV2_NUM_HCAS=2 MV2_NUM_PORTS=1)<br>
+ &nbsp; &nbsp; &nbsp; #bytes #repetitions &nbsp; &nbsp; &nbsp;t[usec] &nbsp; Mbytes/sec<br>
+ &nbsp; &nbsp; &nbsp;4194304 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 10 &nbsp; &nbsp; &nbsp;2427.24 &nbsp; &nbsp; &nbsp;1647.96<br>
+OpenMPI SVN 19772:<br>
+ &nbsp; &nbsp; &nbsp; #bytes #repetitions &nbsp; &nbsp; &nbsp;t[usec] &nbsp; Mbytes/sec<br>
+ &nbsp; &nbsp; &nbsp;4194304 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 10 &nbsp; &nbsp; &nbsp;3676.35 &nbsp; &nbsp; &nbsp;1088.03<br>
+<br>
+Repeatable within bounds.<br>
+<br>
+This is OFED-1.3.1 and I peered at<br>
+/sys/class/infiniband/mlx4_0/ports/1/counters/port_rcv_packets<br>
+and<br>
+/sys/class/infiniband/mlx4_1/ports/1/counters/port_rcv_packets<br>
+on one of the 2 machines and looked at what happened for Scali<br>
+and OpenMPI.<br>
+<br>
+Scali packets:<br>
+HCA 0 port1 = 115116625 - 114903198 = 213427<br>
+HCA 1 port1 = &nbsp;78099566 - &nbsp;77886143 = 213423<br>
+--------------------------------------------<br>
+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;426850<br>
+OpenMPI packets:<br>
+HCA 0 port1 = 115233624 - 115116625 = 116999<br>
+HCA 1 port1 = &nbsp;78216425 - &nbsp;78099566 = 116859<br>
+--------------------------------------------<br>
+ &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;233858<br>
+<br>
+Scali is set up so that data larger than 8192 bytes is striped<br>
+across the 2 HCAs using 8192 bytes per HCA in a round robin fashion.<br>
+<br>
+So, it seems that OpenMPI is using both ports but strangley ends<br>
+up with a Mbytes/sec rate which is worse than a single HCA only.<br>
+If I use a --mca btl_openib_if_exclude mlx41:1, we get<br>
+ &nbsp; &nbsp; &nbsp; #bytes #repetitions &nbsp; &nbsp; &nbsp;t[usec] &nbsp; Mbytes/sec<br>
+ &nbsp; &nbsp; &nbsp;4194304 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 10 &nbsp; &nbsp; &nbsp;3080.59 &nbsp; &nbsp; &nbsp;1298.45<br>
+<br>
+So, what&#39;s taking so long? Is this a threading question?<br>
+<br>
+DM<div><div></div><div class="Wj3C7c"><br>
+<br>
+On Sun, 19 Oct 2008, Jeff Squyres wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+On Oct 18, 2008, at 9:19 PM, Mostyn Lewis wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Can OpenMPI do like Scali and MVAPICH2 and utilize 2 IB HCAs per machine<br>
+to approach double the bandwidth on simple tests such as IMB PingPong?<br>
+</blockquote>
+<br>
+<br>
+Yes. &nbsp;OMPI will automatically (and aggressively) use as many active ports as you have. &nbsp;So you shouldn&#39;t need to list devices+ports -- OMPI will simply use all ports that it finds in the active state. &nbsp;If your ports are on physically separate IB networks, then each IB network will require a different subnet ID so that OMPI can compute reachability properly.<br>
+
+<br>
+-- <br>
+Jeff Squyres<br>
+Cisco Systems<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</div></div></blockquote></div><br></div>
+

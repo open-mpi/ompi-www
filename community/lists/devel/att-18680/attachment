@@ -1,0 +1,205 @@
+<html><head></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space; ">Dave,<div><br></div><div>Both Gilles and Chris raise important points. &nbsp;You really cannot expect to mix modules from two different Fortran compilers in a single executable. &nbsp;There is no requirement placed on a compiler by the Fortran standard for what object language it should use, how the information in modules is made available across compilation units, or the procedure calling conventions. &nbsp;This makes me wonder, as you do, what the point is of the OMPI_CC and OMPI_FC environment variables? &nbsp;I do think that Intel has tried to make their objects interoperable with GCC objects. &nbsp;That is a link-time issue. &nbsp;You are encountering compile-time issues. &nbsp;Gilles says whatever mpif-sizeof.h was intended to define, it cannot be done in gfortran. &nbsp;Even if mpif-sizeof.h generated for an Intel compiler was standard-conforming (so the errors you encountered are not show stoppers), I'm not sure you would be able to get past the incompatibility between the internal formats used by each compiler to store module definitions and declarations for later USE by another compilation unit. &nbsp;I think your expectations cannot be fulfilled because of the compilers, not because of OpenMPI.</div><div><br><div>
+<span class="Apple-style-span" style="border-collapse: separate; color: rgb(0, 0, 0); font-family: 'Helvetica Neue'; font-style: normal; font-variant: normal; font-weight: normal; letter-spacing: normal; line-height: normal; orphans: 2; text-align: -webkit-auto; text-indent: 0px; text-transform: none; white-space: normal; widows: 2; word-spacing: 0px; -webkit-border-horizontal-spacing: 0px; -webkit-border-vertical-spacing: 0px; -webkit-text-decorations-in-effect: none; -webkit-text-size-adjust: auto; -webkit-text-stroke-width: 0px; font-size: medium; ">Larry Baker<br>US Geological Survey<br>650-329-5608<br><a href="mailto:baker@usgs.gov">baker@usgs.gov</a><br><br><br></span>
+</div>
+<br><div><div>On 3 Mar 2016, at 6:39 PM, Dave Turner wrote:</div><br class="Apple-interchange-newline"><blockquote type="cite"><div dir="ltr">Gilles,<div><br></div><div>&nbsp; &nbsp; I don't see the point of having the OMPI_CC and OMPI_FC environment</div><div>variables at all if you're saying that we shouldn't expect them to work.&nbsp; I&nbsp;</div><div>actually do think they work fine if you do a GNU build and use them to</div><div>specify the Intel compilers.&nbsp; I also think it works fine when you do an</div><div>Intel build and compile with gcc.&nbsp; So to me it just looks like that one</div><div>include file is the problem.</div><div><br></div><div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Dave</div></div><div class="gmail_extra"><br><div class="gmail_quote">On Thu, Mar 3, 2016 at 8:02 PM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles@rist.or.jp" target="_blank">gilles@rist.or.jp</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    Dave,<br>
+    <br>
+    you should not expect anything when mixing Fortran compilers<br>
+    (and to be on the safe side, you might not expect much when mixing
+    C/C++ compilers too,<br>
+    for example, if you built ompi with intel and use gcc for your app,
+    gcc might complain about unresolved symbols from the intel runtime)<br>
+    <br>
+    if you compile OpenMPI with gfortran 4.8.5, the automatically
+    generated mpif-sizeof.h contains<br>
+    <br>
+    ! Sad panda.<br>
+    !<br>
+    ! This compiler does not support the Right Stuff to enable
+    MPI_SIZEOF.<br>
+    ! Specifically: we need support for the INTERFACE keyword,<br>
+    ! ISO_FORTRAN_ENV, and the STORAGE_SIZE() intrinsic on all types.<br>
+    ! Apparently, this compiler does not support both of those things,
+    so<br>
+    ! this file will be (effecitvely) blank (i.e., we didn't bother<br>
+    ! generating the necessary stuff for MPI_SIZEOF because the compiler<br>
+    ! doesn't support<br>
+    ! it).<br>
+    !<br>
+    ! If you want support for MPI_SIZEOF, please use a different Fortran<br>
+    ! compiler to build Open MPI.<br>
+    <br>
+    intel fortran compilers have the right stuff, so mpif-sizeof.h is
+    usable, and you get something very different.<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<div><div class="h5"><br>
+    <br>
+    <div>On 3/4/2016 10:17 AM, Dave Turner
+      wrote:<br>
+    </div>
+    </div></div><blockquote type="cite"><div><div class="h5">
+      <div dir="ltr">
+        <div><br>
+        </div>
+        <div>&nbsp; &nbsp; &nbsp;My understanding is that OpenMPI built with either
+          Intel or</div>
+        <div>GNU compilers should be able to use the other compilers
+          using the</div>
+        <div>OMPI_CC and OMPI_FC environmental variables.</div>
+        <div>&nbsp; &nbsp; &nbsp;For OpenMPI-1.8.8 built with Intel compilers, if you
+          try to</div>
+        <div>compile any code that includes mpif.h using
+          OMPI_FC=gfortran it</div>
+        <div>fails.&nbsp; The Intel build creates mpi-sizeof.h that
+          dimensions</div>
+        <div>arrays to more than 6 dimensions which gfortran cannot
+          handle.</div>
+        <div>The example below illustrates this.</div>
+        <div>&nbsp; &nbsp; &nbsp;I wasn't able to find any other reports like this on
+          the</div>
+        <div>web, and I don't see any way of specifying a path to an
+          alternate</div>
+        <div>mpif.h include file.&nbsp; This looks to be a bug to me, but
+          please let</div>
+        <div>me know if I missed a config flag somewhere.</div>
+        <div><br>
+        </div>
+        <div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Dave Turner</div>
+        <div><br>
+        </div>
+        <div><br>
+        </div>
+        <div><br>
+        </div>
+        <div>Selene cat bugtest.F</div>
+        <div>! Program to illustrate bug when OpenMPI is compiled with
+          Intel</div>
+        <div>! &nbsp; &nbsp;compilers but run using OMPI_FC=gfortran.</div>
+        <div><br>
+        </div>
+        <div>&nbsp; &nbsp; &nbsp; PROGRAM BUGTEST</div>
+        <div><br>
+        </div>
+        <div>&nbsp; &nbsp; &nbsp; INCLUDE "mpif.h"</div>
+        <div><br>
+        </div>
+        <div>&nbsp; &nbsp; &nbsp; END</div>
+        <div>Selene cat go</div>
+        <div>#!/bin/bash</div>
+        <div><br>
+        </div>
+        <div><br>
+        </div>
+        <div>echo "Compile test using default ifort"</div>
+        <div><br>
+        </div>
+        <div>mpifort --version</div>
+        <div>mpifort bugtest.F -o bugtest_ifort</div>
+        <div><br>
+        </div>
+        <div><br>
+        </div>
+        <div>echo "Compile test using gfortan when OpenMPI was compiled
+          with ifort/icc"</div>
+        <div><br>
+        </div>
+        <div>export OMPI_FC=gfortran</div>
+        <div><br>
+        </div>
+        <div>mpifort --version</div>
+        <div>mpifort bugtest.F -o bugtest_gfortran</div>
+        <div><br>
+        </div>
+        <div><br>
+        </div>
+        <div>Selene ./go</div>
+        <div>Compile test using default ifort</div>
+        <div>ifort (IFORT) 15.0.3 20150407</div>
+        <div>Copyright (C) 1985-2015 Intel Corporation.&nbsp; All rights
+          reserved.</div>
+        <div><br>
+        </div>
+        <div>Compile test using gfortan when OpenMPI was compiled with
+          ifort/icc</div>
+        <div>GNU Fortran (Gentoo 4.9.3 p1.4, pie-0.6.4) 4.9.3</div>
+        <div>Copyright (C) 2015 Free Software Foundation, Inc.</div>
+        <div><br>
+        </div>
+        <div>GNU Fortran comes with NO WARRANTY, to the extent permitted
+          by law.</div>
+        <div>You may redistribute copies of GNU Fortran</div>
+        <div>under the terms of the GNU General Public License.</div>
+        <div>For more information about these matters, see the file
+          named COPYING</div>
+        <div><br>
+        </div>
+        <div>mpif-sizeof.h:75.48:</div>
+        <div>&nbsp; &nbsp; Included at mpif.h:61:</div>
+        <div>&nbsp; &nbsp; Included at bugtest.F:6:</div>
+        <div><br>
+        </div>
+        <div>&nbsp; &nbsp; &nbsp; COMPLEX(REAL128), DIMENSION(1,1,1,1,1,1,1,*)::x</div>
+        <div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1</div>
+        <div>Error: Array specification at (1) has more than 7
+          dimensions</div>
+        <div>mpif-sizeof.h:82.48:</div>
+        <div>&nbsp; &nbsp; Included at mpif.h:61:</div>
+        <div>&nbsp; &nbsp; Included at bugtest.F:6:</div>
+        <div><br>
+        </div>
+        <div>&nbsp; &nbsp; &nbsp; COMPLEX(REAL128), DIMENSION(1,1,1,1,1,1,1,1,*)::x</div>
+        <div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1</div>
+        <div>Error: Array specification at (1) has more than 7
+          dimensions</div>
+        <div>mpif-sizeof.h:89.48:</div>
+        <div>&nbsp; &nbsp; Included at mpif.h:61:</div>
+        <div>&nbsp; &nbsp; Included at bugtest.F:6:</div>
+        <div><br>
+        </div>
+        <div>&nbsp; &nbsp; &nbsp; COMPLEX(REAL128), DIMENSION(1,1,1,1,1,1,1,1,1,*)::x</div>
+        <div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 1</div>
+        <div>Error: Array specification at (1) has more than 7
+          dimensions</div>
+        <div><br>
+        </div>
+        <div>[ More of the same errors have been clipped ]</div>
+        <div><br>
+        </div>
+        <div><br>
+        </div>
+        -- <br>
+        <div>
+          <div dir="ltr">
+            <div>
+              <div dir="ltr">Work: &nbsp; &nbsp; <a href="mailto:DaveTurner@ksu.edu" target="_blank">DaveTurner@ksu.edu</a>
+                &nbsp; &nbsp; <a href="tel:%28785%29%20532-7791" value="+17855327791" target="_blank">(785) 532-7791</a>
+                <div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; 2219 Durland, Manhattan KS &nbsp;66502<br>
+                  Home: &nbsp;&nbsp; <a href="mailto:DrDaveTurner@gmail.com" target="_blank">DrDaveTurner@gmail.com</a><br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; cell: <a href="tel:%28785%29%20770-5929" value="+17857705929" target="_blank">(785) 770-5929</a><br>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      </div></div><span class=""><pre>_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2016/03/18671.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2016/03/18671.php</a></pre>
+    </span></blockquote>
+    <br>
+  </div>
+
+</blockquote></div><br><br clear="all"><div><br></div>-- <br><div class="gmail_signature"><div dir="ltr"><div><div dir="ltr">Work: &nbsp; &nbsp; <a href="mailto:DaveTurner@ksu.edu" target="_blank">DaveTurner@ksu.edu</a> &nbsp; &nbsp; (785) 532-7791<div>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; 2219 Durland, Manhattan KS &nbsp;66502<br>Home: &nbsp;&nbsp; <a href="mailto:DrDaveTurner@gmail.com" target="_blank">DrDaveTurner@gmail.com</a><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; cell: (785) 770-5929<br></div></div></div></div></div>
+</div>
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/devel<br>Link to this post: http://www.open-mpi.org/community/lists/devel/2016/03/18678.php</blockquote></div><br></div></body></html>

@@ -1,0 +1,86 @@
+<HTML>
+<HEAD>
+<TITLE>Re: [OMPI devel] shared-memory allocations</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>It has been a long time since I wrote the original code, and things have changed a fair amount since that time, so bear this in mind.<BR>
+<BR>
+The memory allocation is intended to take into account that two separate procs may be touching the same memory, so the intent is to reduce cache conflicts (false sharing) and put the memory close to the process that is using it. &nbsp;When the code first went in, there was no explicit memory affinity implemented, so first-touch was relied on to get the memory in the &#8220;correct&#8221; location.<BR>
+<BR>
+If I remember correctly, the head and the tail each are written to be a different process, and is where the pointers and counters used to manage the fifo are maintained. &nbsp;They need to be close to the writer, and on separate cache lines, to avoid false sharing. &nbsp;The queue itself is accessed most often by the reader, so it should be closer to the reader. &nbsp;I honestly don&#8217;t remember much about the wrapper &#8211; would have to go back to the code to look at it. &nbsp;If we no longer allow multiple fifo per pair, the wrapper layer can go away &#8211; it is there to manage multiple fifo&#8217;s per pair.<BR>
+<BR>
+As far as granularity of allocation &#8211; it needs to be large enough to accommodate the smallest shared memory hierarchy, so I suppose in the most general case this may be the tertiary cache ?<BR>
+<BR>
+No reason not to allocate objects that need to be associated with the same process on the same page, as long as one avoids false sharing. &nbsp;So seems like each process could have all of it&#8217;s receive fifo&#8217;s on the same page, and these could share the also with either the heads, or the tails of each queue.<BR>
+<BR>
+Make sense ?<BR>
+Rich<BR>
+<BR>
+<BR>
+On 12/10/08 1:11 PM, &quot;Eugene Loh&quot; &lt;<a href="Eugene.Loh@sun.com">Eugene.Loh@sun.com</a>&gt; wrote:<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Calibri, Verdana, Helvetica, Arial"><SPAN STYLE='font-size:11pt'>For shared memory communications, each on-node connection (non-self,<BR>
+sender-receiver pair) gets a circular buffer during MPI_Init(). &nbsp;Each CB<BR>
+requires the following allocations:<BR>
+<BR>
+*) ompi_cb_fifo_wrapper_t (roughly 64 bytes)<BR>
+*) ompi_cb_fifo_ctl_t head (roughly 12 bytes)<BR>
+*) ompi_cb_fifo_ctl_t tail (roughly 12 bytes)<BR>
+*) queue (roughly 1024 bytes)<BR>
+<BR>
+Importantly, the current code lays these four allocations out on three<BR>
+separate pages. &nbsp;(The tail and queue are aggregated together.) &nbsp;So, for<BR>
+example, that &quot;head&quot; allocation (12 bytes) ends up consuming a full page.<BR>
+<BR>
+As one goes to more and more on-node processes -- say, for a large SMP<BR>
+or a multicore system -- the number of non-self connections grows as<BR>
+n*(n-1). &nbsp;So, these circular-buffer allocations end up consuming a lot<BR>
+of shared memory.<BR>
+<BR>
+For example, for a 4K pagesize and n=512 on-node processes, the circular<BR>
+buffers consume 3 Gbyte of memory -- 90% of which is empty and simply<BR>
+used for page alignment.<BR>
+<BR>
+I'd like to aggregate more of these allocations so that:<BR>
+<BR>
+*) shared-memory consumption is reduced<BR>
+*) the number of allocations (and hence the degree of lock contention)<BR>
+during MPI_Init is reduced<BR>
+<BR>
+Any comments?<BR>
+<BR>
+I'd like to understand the original rationale for these page<BR>
+alignments. &nbsp;I expect this is related to memory placement of pages. &nbsp;So,<BR>
+I imagine three scenarios. &nbsp;Which is it?<BR>
+<BR>
+A) There really is a good reason for each allocation to have its own<BR>
+page and any attempt to aggregate is doomed.<BR>
+<BR>
+B) There is actual benefit for placing things carefully in memory, but<BR>
+substantial aggregation is still possible. &nbsp;That is, for n processes, we<BR>
+need at most n different allocations -- not 3*n*(n-1).<BR>
+<BR>
+C) There is no actual justification for having everything on different<BR>
+pages. &nbsp;That is, allowing different parts of a FIFO CB to be mapped<BR>
+differently to physical memory sounded to someone like a good idea at<BR>
+the time, but no one really did any performance measurements to justify<BR>
+this. &nbsp;Or, if they did, it was only on one platform and we have no<BR>
+evidence that the same behavior exists on all platforms. &nbsp;Personally,<BR>
+I've played with some simple experiments on one (or more?) platforms and<BR>
+found no performance variations due to placement of shared variables<BR>
+that two processes use for communication. &nbsp;I guess it's possible that<BR>
+data is moving cache-to-cache and doesn't care where the backing memory is.<BR>
+<BR>
+Note that I only want to reduce the number of page-aligned allocations. <BR>
+I'd preserve cacheline alignment. &nbsp;So, no worry about false sharing due<BR>
+to a sender thrashing on one end of a FIFO and a receiver on the other.<BR>
+_______________________________________________<BR>
+devel mailing list<BR>
+<a href="devel@open-mpi.org">devel@open-mpi.org</a><BR>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+<BR>
+</SPAN></FONT></BLOCKQUOTE>
+</BODY>
+</HTML>
+
+

@@ -1,0 +1,468 @@
+        -:    0:Source:/home/glebn/OpenMPI/ompi.stg/ompi/mca/pml/ob1/pml_ob1_recvfrag.c
+        -:    0:Graph:pml_ob1_recvfrag.gcno
+        -:    0:Data:pml_ob1_recvfrag.gcda
+        -:    0:Runs:8
+        -:    0:Programs:1
+        -:    0:Source is newer than graph
+        -:    1:/*
+        -:    2: * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
+        -:    3: *                         University Research and Technology
+        -:    4: *                         Corporation.  All rights reserved.
+        -:    5: * Copyright (c) 2004-2006 The University of Tennessee and The University
+        -:    6: *                         of Tennessee Research Foundation.  All rights
+        -:    7: *                         reserved.
+        -:    8: * Copyright (c) 2004-2007 High Performance Computing Center Stuttgart, 
+        -:    9: *                         University of Stuttgart.  All rights reserved.
+        -:   10: * Copyright (c) 2004-2005 The Regents of the University of California.
+        -:   11: *                         All rights reserved.
+        -:   12: * $COPYRIGHT$
+        -:   13: * 
+        -:   14: * Additional copyrights may follow
+        -:   15: * 
+        -:   16: * $HEADER$
+        -:   17: */
+        -:   18:
+        -:   19:/**
+        -:   20: * @file
+        -:   21: */
+        -:   22:
+        -:   23:#include "ompi_config.h"
+        -:   24:
+        -:   25:#include "opal/class/opal_list.h"
+        -:   26:#include "opal/threads/mutex.h"
+        -:   27:#include "opal/prefetch.h"
+        -:   28:#include "ompi/constants.h"
+        -:   29:#include "ompi/communicator/communicator.h"
+        -:   30:#include "ompi/mca/pml/pml.h"
+        -:   31:#include "pml_ob1.h"
+        -:   32:#include "pml_ob1_comm.h"
+        -:   33:#include "pml_ob1_recvfrag.h"
+        -:   34:#include "pml_ob1_recvreq.h"
+        -:   35:#include "pml_ob1_sendreq.h"
+        -:   36:#include "pml_ob1_hdr.h"
+        -:   37:#include "ompi/peruse/peruse-internal.h"
+        -:   38:
+        -:   39:OBJ_CLASS_INSTANCE( mca_pml_ob1_buffer_t,
+        -:   40:                    ompi_free_list_item_t,
+        -:   41:                    NULL,
+        -:   42:                    NULL );
+        -:   43:
+        -:   44:OBJ_CLASS_INSTANCE( mca_pml_ob1_recv_frag_t,
+        -:   45:                    opal_list_item_t,
+        -:   46:                    NULL,
+        -:   47:                    NULL );
+        -:   48:
+        -:   49:/**
+        -:   50: * Static functions.
+        -:   51: */
+        -:   52:
+        -:   53:/**
+        -:   54: * Match incoming recv_frags against posted receives.  
+        -:   55: * Supports out of order delivery.
+        -:   56: * 
+        -:   57: * @param frag_header (IN)          Header of received recv_frag.
+        -:   58: * @param frag_desc (IN)            Received recv_frag descriptor.
+        -:   59: * @param match_made (OUT)          Flag indicating wether a match was made.
+        -:   60: * @param additional_matches (OUT)  List of additional matches 
+        -:   61: * @return                          OMPI_SUCCESS or error status on failure.
+        -:   62: */
+        -:   63:static int mca_pml_ob1_recv_frag_match( mca_btl_base_module_t *btl, 
+        -:   64:                                        mca_pml_ob1_match_hdr_t *hdr,
+        -:   65:                                        mca_btl_base_segment_t* segments,
+        -:   66:                                        size_t num_segments );
+        -:   67:
+        -:   68:/**
+        -:   69: *  Callback from BTL on receive.
+        -:   70: */
+        -:   71:                                                                                                                      
+        -:   72:void mca_pml_ob1_recv_frag_callback( mca_btl_base_module_t* btl, 
+        -:   73:                                     mca_btl_base_tag_t tag,
+        -:   74:                                     mca_btl_base_descriptor_t* des,
+        -:   75:                                     void* cbdata )
+  1039984:   76:{
+  1039984:   77:    mca_btl_base_segment_t* segments = des->des_dst;
+  1039984:   78:    mca_pml_ob1_hdr_t* hdr = (mca_pml_ob1_hdr_t*)segments->seg_addr.pval;
+        -:   79:
+  1039984:   80:    if( OPAL_UNLIKELY(segments->seg_len < sizeof(mca_pml_ob1_common_hdr_t)) ) {
+    #####:   81:        return;
+        -:   82:    }
+        -:   83:
+        -:   84:    /* hdr_type and hdr_flags are uint8_t, so no endian problems */
+  1039984:   85:    switch(hdr->hdr_common.hdr_type) {
+        -:   86:    case MCA_PML_OB1_HDR_TYPE_MATCH:
+        -:   87:        {
+   699248:   88:            ob1_hdr_ntoh(hdr, MCA_PML_OB1_HDR_TYPE_MATCH);
+   699248:   89:            mca_pml_ob1_recv_frag_match(btl, &hdr->hdr_match, segments,des->des_dst_cnt);
+   699248:   90:            break;
+        -:   91:        }
+        -:   92:    case MCA_PML_OB1_HDR_TYPE_RNDV:
+        -:   93:        {
+    38016:   94:            ob1_hdr_ntoh(hdr, MCA_PML_OB1_HDR_TYPE_RNDV);
+    38016:   95:            mca_pml_ob1_recv_frag_match(btl, &hdr->hdr_match, segments,des->des_dst_cnt);
+    38016:   96:            break;
+        -:   97:        }
+        -:   98:    case MCA_PML_OB1_HDR_TYPE_RGET:
+        -:   99:        {
+    12672:  100:            ob1_hdr_ntoh(hdr, MCA_PML_OB1_HDR_TYPE_RGET);
+    12672:  101:            mca_pml_ob1_recv_frag_match(btl, &hdr->hdr_match, segments,des->des_dst_cnt);
+    12672:  102:            break;
+        -:  103:        }
+        -:  104:    case MCA_PML_OB1_HDR_TYPE_ACK:
+        -:  105:        {
+        -:  106:            mca_pml_ob1_send_request_t* sendreq;
+    12672:  107:            ob1_hdr_ntoh(hdr, MCA_PML_OB1_HDR_TYPE_ACK);
+    12672:  108:            sendreq = (mca_pml_ob1_send_request_t*)hdr->hdr_ack.hdr_src_req.pval;
+    12672:  109:            sendreq->req_recv = hdr->hdr_ack.hdr_dst_req;
+        -:  110:
+        -:  111:            /* if the request should be delivered entirely by copy in/out
+        -:  112:             * then throttle sends */
+    12672:  113:            if(sendreq->req_bytes_delivered == hdr->hdr_ack.hdr_send_offset)
+     5505:  114:                sendreq->req_throttle_sends = true;
+        -:  115:
+    12672:  116:            mca_pml_ob1_send_request_copy_in_out(sendreq,
+        -:  117:                    hdr->hdr_ack.hdr_send_offset,
+        -:  118:                    sendreq->req_send.req_bytes_packed -
+        -:  119:                    hdr->hdr_ack.hdr_send_offset);
+        -:  120:
+    12672:  121:            OPAL_THREAD_ADD32(&sendreq->req_state, -1);
+        -:  122:
+    12672:  123:            if(send_request_pml_complete_check(sendreq) == false)
+    12672:  124:                mca_pml_ob1_send_request_schedule(sendreq);
+        -:  125:                
+    12672:  126:            break;
+        -:  127:        }
+        -:  128:    case MCA_PML_OB1_HDR_TYPE_FRAG:
+        -:  129:        {
+        -:  130:            mca_pml_ob1_recv_request_t* recvreq;
+   206976:  131:            ob1_hdr_ntoh(hdr, MCA_PML_OB1_HDR_TYPE_FRAG);
+   206976:  132:            recvreq = (mca_pml_ob1_recv_request_t*)hdr->hdr_frag.hdr_dst_req.pval;
+   206976:  133:            mca_pml_ob1_recv_request_progress(recvreq,btl,segments,des->des_dst_cnt);
+   206976:  134:            break;
+        -:  135:        }
+        -:  136:    case MCA_PML_OB1_HDR_TYPE_PUT:
+        -:  137:        {
+        -:  138:            mca_pml_ob1_send_request_t* sendreq;
+     5632:  139:            ob1_hdr_ntoh(hdr, MCA_PML_OB1_HDR_TYPE_PUT);
+     5632:  140:            sendreq = (mca_pml_ob1_send_request_t*)hdr->hdr_rdma.hdr_req.pval;
+     5632:  141:            mca_pml_ob1_send_request_put(sendreq,btl,&hdr->hdr_rdma);
+     5632:  142:            break;
+        -:  143:        }
+        -:  144:    case MCA_PML_OB1_HDR_TYPE_FIN:
+        -:  145:        {
+        -:  146:            mca_btl_base_descriptor_t* rdma;
+    64768:  147:            ob1_hdr_ntoh(hdr, MCA_PML_OB1_HDR_TYPE_FIN);
+    64768:  148:            rdma = (mca_btl_base_descriptor_t*)hdr->hdr_fin.hdr_des.pval;
+    64768:  149:            rdma->des_cbfunc(btl, NULL, rdma,
+        -:  150:                    hdr->hdr_fin.hdr_fail ? OMPI_ERROR : OMPI_SUCCESS);
+        -:  151:            break;
+        -:  152:        }
+        -:  153:    default:
+        -:  154:        break;
+        -:  155:    }
+        -:  156:}
+        -:  157:
+        -:  158:#define PML_MAX_SEQ ~((mca_pml_sequence_t)0);
+        -:  159:
+        -:  160:static inline mca_pml_ob1_recv_request_t* get_posted_recv(opal_list_t *queue)
+  1499922:  161:{
+  1499922:  162:    if(opal_list_get_size(queue) == 0)
+   777555:  163:        return NULL;
+        -:  164:
+   722367:  165:    return (mca_pml_ob1_recv_request_t*)opal_list_get_first(queue);
+        -:  166:}
+        -:  167:
+        -:  168:static inline mca_pml_ob1_recv_request_t* get_next_posted_recv(
+        -:  169:        opal_list_t *queue,
+        -:  170:        mca_pml_ob1_recv_request_t* req)
+  5098869:  171:{
+  5098869:  172:    opal_list_item_t *i = opal_list_get_next((opal_list_item_t*)req);
+        -:  173:
+  5098869:  174:    if(opal_list_get_end(queue) == i)
+     1685:  175:        return NULL;
+        -:  176:
+  5097184:  177:    return (mca_pml_ob1_recv_request_t*)i;
+        -:  178:}
+        -:  179:
+        -:  180:static mca_pml_ob1_recv_request_t *match_incomming(
+        -:  181:        mca_pml_ob1_match_hdr_t *hdr, mca_pml_ob1_comm_t *comm,
+        -:  182:        mca_pml_ob1_comm_proc_t *proc)
+   749961:  183:{
+        -:  184:    mca_pml_ob1_recv_request_t *specific_recv, *wild_recv;
+        -:  185:    mca_pml_sequence_t wild_recv_seq, specific_recv_seq;
+   749961:  186:    int tag = hdr->hdr_tag;
+        -:  187:
+   749961:  188:    specific_recv = get_posted_recv(&proc->specific_receives);
+   749961:  189:    wild_recv = get_posted_recv(&comm->wild_receives);
+        -:  190:
+   749961:  191:    wild_recv_seq = wild_recv ?
+        -:  192:        wild_recv->req_recv.req_base.req_sequence : PML_MAX_SEQ;
+   749961:  193:    specific_recv_seq = specific_recv ?
+        -:  194:        specific_recv->req_recv.req_base.req_sequence : PML_MAX_SEQ;
+        -:  195:
+        -:  196:    /* they are equal only if both are PML_MAX_SEQ */
+  6598791:  197:    while(wild_recv_seq != specific_recv_seq) {
+        -:  198:        mca_pml_ob1_recv_request_t **match;
+        -:  199:        opal_list_t *queue;
+        -:  200:        int req_tag;
+        -:  201:        mca_pml_sequence_t *seq;
+        -:  202:
+  5750575:  203:        if (OPAL_UNLIKELY(wild_recv_seq < specific_recv_seq)) {
+  5233328:  204:            match = &wild_recv;
+  5233328:  205:            queue = &comm->wild_receives;
+  5233328:  206:            seq = &wild_recv_seq;
+        -:  207:        } else {
+   517247:  208:            match = &specific_recv;
+   517247:  209:            queue = &proc->specific_receives;
+   517247:  210:            seq = &specific_recv_seq;
+        -:  211:        }
+        -:  212:
+  5750575:  213:        req_tag = (*match)->req_recv.req_base.req_tag;
+  5750575:  214:        if(req_tag == tag || (req_tag == OMPI_ANY_TAG && tag >= 0)) {
+   651706:  215:            opal_list_remove_item(queue, (opal_list_item_t*)(*match));
+        -:  216:            PERUSE_TRACE_COMM_EVENT(PERUSE_COMM_REQ_REMOVE_FROM_POSTED_Q,
+        -:  217:                    &((*match)->req_recv.req_base), PERUSE_RECV);
+   651706:  218:            return *match;
+        -:  219:        }
+        -:  220:
+  5098869:  221:        *match = get_next_posted_recv(queue, *match);
+  5098869:  222:        *seq = (*match) ? (*match)->req_recv.req_base.req_sequence : PML_MAX_SEQ;
+        -:  223:    }
+        -:  224:
+    98255:  225:    return NULL;
+        -:  226:}
+        -:  227:
+        -:  228:static void append_frag_to_list(opal_list_t *queue, mca_btl_base_module_t *btl,
+        -:  229:        mca_pml_ob1_match_hdr_t *hdr, mca_btl_base_segment_t* segments,
+        -:  230:        size_t num_segments, mca_pml_ob1_recv_frag_t* frag)
+   431266:  231:{
+        -:  232:    int rc;
+        -:  233:
+   431266:  234:    if(NULL == frag) {
+   354934:  235:        MCA_PML_OB1_RECV_FRAG_ALLOC(frag, rc);
+   354934:  236:        MCA_PML_OB1_RECV_FRAG_INIT(frag, hdr, segments, num_segments, btl);
+        -:  237:    }
+   431266:  238:    opal_list_append(queue, (opal_list_item_t*)frag);
+   431266:  239:}
+        -:  240:
+        -:  241:static mca_pml_ob1_recv_request_t *match_one(mca_btl_base_module_t *btl,
+        -:  242:        mca_pml_ob1_match_hdr_t *hdr, mca_btl_base_segment_t* segments,
+        -:  243:        size_t num_segments, ompi_communicator_t *comm_ptr,
+        -:  244:        mca_pml_ob1_comm_proc_t *proc,
+        -:  245:        mca_pml_ob1_recv_frag_t* frag)
+   749936:  246:{
+        -:  247:    mca_pml_ob1_recv_request_t *match;
+   749936:  248:    mca_pml_ob1_comm_t *comm = (mca_pml_ob1_comm_t *)comm_ptr->c_pml_comm;
+        -:  249:
+        -:  250:    do {
+   749961:  251:        match = match_incomming(hdr, comm, proc);
+        -:  252:
+        -:  253:        /* if match found, process data */
+   749961:  254:        if(OPAL_UNLIKELY(NULL == match)) {
+        -:  255:            /* if no match found, place on unexpected queue */
+    98255:  256:            append_frag_to_list(&proc->unexpected_frags, btl, hdr, segments,
+        -:  257:                    num_segments, frag);
+        -:  258:            PERUSE_TRACE_MSG_EVENT(PERUSE_COMM_MSG_INSERT_IN_UNEX_Q, comm_ptr,
+        -:  259:                                hdr->hdr_src, hdr->hdr_tag, PERUSE_RECV);
+    98255:  260:            return NULL;
+        -:  261:        }
+        -:  262:
+   651706:  263:        match->req_recv.req_base.req_proc = proc->ompi_proc;
+        -:  264:
+   651706:  265:        if(MCA_PML_REQUEST_PROBE == match->req_recv.req_base.req_type) {
+        -:  266:            /* complete the probe */
+       25:  267:            mca_pml_ob1_recv_request_matched_probe(match, btl, segments,
+        -:  268:                    num_segments);
+        -:  269:            /* attempt to match actual request */
+        -:  270:            continue;
+        -:  271:        }
+        -:  272:
+        -:  273:        PERUSE_TRACE_COMM_EVENT(PERUSE_COMM_MSG_MATCH_POSTED_REQ,
+        -:  274:                &(match->req_recv.req_base), PERUSE_RECV);
+        -:  275:        break;
+       25:  276:    } while(true);
+        -:  277:
+   651681:  278:    return match;
+        -:  279:}
+        -:  280:
+        -:  281:static mca_pml_ob1_recv_frag_t *check_cantmatch_for_match(
+        -:  282:        mca_pml_ob1_comm_proc_t *proc)
+   437135:  283:{
+        -:  284:    /* local parameters */
+        -:  285:    mca_pml_ob1_recv_frag_t *frag;
+        -:  286:
+        -:  287:        /* search the list for a fragment from the send with sequence
+        -:  288:         * number next_msg_seq_expected
+        -:  289:         */
+        -:  290:    for(frag = (mca_pml_ob1_recv_frag_t *) 
+   437135:  291:            opal_list_get_first(&proc->frags_cant_match);
+129004349:  292:        frag != (mca_pml_ob1_recv_frag_t *)
+        -:  293:            opal_list_get_end(&proc->frags_cant_match);
+        -:  294:        frag = (mca_pml_ob1_recv_frag_t *) 
+128130079:  295:            opal_list_get_next(frag))
+        -:  296:    {
+128463090:  297:        mca_pml_ob1_match_hdr_t* hdr = &frag->hdr.hdr_match;
+        -:  298:        /*
+        -:  299:         * If the message has the next expected seq from that proc...
+        -:  300:         */
+128463090:  301:        if(hdr->hdr_seq != proc->expected_sequence)
+128130079:  302:            continue;
+        -:  303:
+        -:  304:
+   333011:  305:        opal_list_remove_item(&proc->frags_cant_match, (opal_list_item_t*)frag);
+   333011:  306:        return frag;
+        -:  307:    }
+        -:  308:
+   104124:  309:    return NULL;
+        -:  310:}
+        -:  311:
+        -:  312:/**
+        -:  313: * RCS/CTS receive side matching
+        -:  314: *
+        -:  315: * @param hdr list of parameters needed for matching
+        -:  316: *                    This list is also embeded in frag,
+        -:  317: *                    but this allows to save a memory copy when
+        -:  318: *                    a match is made in this routine. (IN)
+        -:  319: * @param frag   pointer to receive fragment which we want
+        -:  320: *                    to match (IN/OUT).  If a match is not made,
+        -:  321: *                    hdr is copied to frag.
+        -:  322: * @param match_made  parameter indicating if we matched frag/
+        -:  323: *                    hdr (OUT)
+        -:  324: * @param additional_matches  if a match is made with frag, we
+        -:  325: *                    may be able to match fragments that previously
+        -:  326: *                    have arrived out-of-order.  If this is the
+        -:  327: *                    case, the associated fragment descriptors are
+        -:  328: *                    put on this list for further processing. (OUT)
+        -:  329: *
+        -:  330: * @return OMPI error code
+        -:  331: *
+        -:  332: * This routine is used to try and match a newly arrived message fragment
+        -:  333: *   to pre-posted receives.  The following assumptions are made
+        -:  334: *   - fragments are received out of order
+        -:  335: *   - for long messages, e.g. more than one fragment, a RTS/CTS algorithm
+        -:  336: *       is used.
+        -:  337: *   - 2nd and greater fragments include a receive descriptor pointer
+        -:  338: *   - fragments may be dropped
+        -:  339: *   - fragments may be corrupt
+        -:  340: *   - this routine may be called simultaneously by more than one thread
+        -:  341: */
+        -:  342:static int mca_pml_ob1_recv_frag_match( mca_btl_base_module_t *btl, 
+        -:  343:                                        mca_pml_ob1_match_hdr_t *hdr,
+        -:  344:                                        mca_btl_base_segment_t* segments,
+        -:  345:                                        size_t num_segments )
+   749936:  346:{
+        -:  347:    /* local variables */
+        -:  348:    uint16_t next_msg_seq_expected, frag_msg_seq;
+        -:  349:    ompi_communicator_t *comm_ptr;
+   749936:  350:    mca_pml_ob1_recv_request_t *match = NULL;
+        -:  351:    mca_pml_ob1_comm_t *comm;
+        -:  352:    mca_pml_ob1_comm_proc_t *proc;
+   749936:  353:    mca_pml_ob1_recv_frag_t* frag = NULL;
+        -:  354:
+        -:  355:    /* communicator pointer */
+   749936:  356:    comm_ptr = ompi_comm_lookup(hdr->hdr_ctx);
+   749936:  357:    if(OPAL_UNLIKELY(NULL == comm_ptr)) {
+        -:  358:        /* This is a special case. A message for a not yet exiting communicator can
+        -:  359:         * happens, but right now we segfault. Instead, and until we find a better
+        -:  360:         * solution, just drop the message. However, in the near future we should
+        -:  361:         * store this fragment in a global list, and deliver it to the right
+        -:  362:         * communicator once it get created.
+        -:  363:         */
+    #####:  364:        opal_output( 0, "Dropped message for the non-existing communicator %d\n",
+        -:  365:                     (int)hdr->hdr_ctx );
+    #####:  366:        return OMPI_SUCCESS;
+        -:  367:    }
+   749936:  368:    comm = (mca_pml_ob1_comm_t *)comm_ptr->c_pml_comm;
+        -:  369:
+        -:  370:    /* source sequence number */
+   749936:  371:    frag_msg_seq = hdr->hdr_seq;
+   749936:  372:    proc = &comm->procs[hdr->hdr_src];
+        -:  373:
+        -:  374:    /**
+        -:  375:     * We generate the MSG_ARRIVED event as soon as the PML is aware of a matching
+        -:  376:     * fragment arrival. Independing if it is received on the correct order or not.
+        -:  377:     * This will allow the tools to figure out if the messages are not received in the
+        -:  378:     * correct order (if multiple network interfaces).
+        -:  379:     */
+        -:  380:    PERUSE_TRACE_MSG_EVENT(PERUSE_COMM_MSG_ARRIVED, comm_ptr,
+        -:  381:                            hdr->hdr_src, hdr->hdr_tag, PERUSE_RECV);
+        -:  382:
+        -:  383:    /* get next expected message sequence number - if threaded
+        -:  384:     * run, lock to make sure that if another thread is processing 
+        -:  385:     * a frag from the same message a match is made only once.
+        -:  386:     * Also, this prevents other posted receives (for a pair of
+        -:  387:     * end points) from being processed, and potentially "loosing"
+        -:  388:     * the fragment.
+        -:  389:     */
+        -:  390:    OPAL_THREAD_LOCK(&comm->matching_lock);
+        -:  391:
+        -:  392:    /* get sequence number of next message that can be processed */
+   749936:  393:    next_msg_seq_expected = (uint16_t)proc->expected_sequence;
+   749936:  394:    if(OPAL_UNLIKELY(frag_msg_seq != next_msg_seq_expected))
+   333011:  395:        goto wrong_seq;
+        -:  396:
+        -:  397:    /*
+        -:  398:     * This is the sequence number we were expecting,
+        -:  399:     * so we can try matching it to already posted
+        -:  400:     * receives.
+        -:  401:     */
+        -:  402:
+   749936:  403:out_of_order_match:
+        -:  404:    /* We're now expecting the next sequence number. */
+   749936:  405:    proc->expected_sequence++;
+        -:  406:
+        -:  407:    /**
+        -:  408:     * We generate the SEARCH_POSTED_QUEUE only when the message is received
+        -:  409:     * in the correct sequence. Otherwise, we delay the event generation until
+        -:  410:     * we reach the correct sequence number.
+        -:  411:     */
+        -:  412:    PERUSE_TRACE_MSG_EVENT(PERUSE_COMM_SEARCH_POSTED_Q_BEGIN, comm_ptr,
+        -:  413:                            hdr->hdr_src, hdr->hdr_tag, PERUSE_RECV);
+        -:  414:
+   749936:  415:    match = match_one(btl, hdr, segments, num_segments, comm_ptr, proc, frag);
+        -:  416:
+        -:  417:    /**
+        -:  418:     * The match is over. We generate the SEARCH_POSTED_Q_END here, before going
+        -:  419:     * into the mca_pml_ob1_check_cantmatch_for_match so we can make a difference
+        -:  420:     * for the searching time for all messages.
+        -:  421:     */
+        -:  422:    PERUSE_TRACE_MSG_EVENT(PERUSE_COMM_SEARCH_POSTED_Q_END, comm_ptr,
+        -:  423:                            hdr->hdr_src, hdr->hdr_tag, PERUSE_RECV);
+        -:  424:
+        -:  425:    /* release matching lock before processing fragment */
+        -:  426:    OPAL_THREAD_UNLOCK(&comm->matching_lock);
+        -:  427:
+   749936:  428:    if(OPAL_LIKELY(match)) {
+   651681:  429:        mca_pml_ob1_recv_request_progress(match, btl, segments, num_segments);
+   651681:  430:        if(OPAL_UNLIKELY(frag))
+   256679:  431:            MCA_PML_OB1_RECV_FRAG_RETURN(frag);
+        -:  432:    }
+        -:  433:
+        -:  434:    /* 
+        -:  435:     * Now that new message has arrived, check to see if
+        -:  436:     * any fragments on the c_c_frags_cant_match list
+        -:  437:     * may now be used to form new matchs
+        -:  438:     */
+   749936:  439:    if(OPAL_UNLIKELY(opal_list_get_size(&proc->frags_cant_match) > 0)) {
+        -:  440:        OPAL_THREAD_LOCK(&comm->matching_lock);
+   437135:  441:        if((frag = check_cantmatch_for_match(proc))) {
+   333011:  442:            hdr = &frag->hdr.hdr_match;
+   333011:  443:            segments = frag->segments;
+   333011:  444:            num_segments = frag->num_segments;
+   333011:  445:            btl = frag->btl;
+   333011:  446:            goto out_of_order_match;
+        -:  447:        }
+        -:  448:        OPAL_THREAD_UNLOCK(&comm->matching_lock);
+        -:  449:    }
+        -:  450:
+   416925:  451:    return OMPI_SUCCESS;
+   333011:  452:wrong_seq:
+        -:  453:    /*
+        -:  454:     * This message comes after the next expected, so it
+        -:  455:     * is ahead of sequence.  Save it for later.
+        -:  456:     */
+   333011:  457:    append_frag_to_list(&proc->frags_cant_match, btl, hdr, segments,
+        -:  458:            num_segments, NULL);
+        -:  459:    OPAL_THREAD_UNLOCK(&comm->matching_lock);
+   333011:  460:    return OMPI_SUCCESS;
+        -:  461:}
+

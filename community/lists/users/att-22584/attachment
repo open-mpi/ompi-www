@@ -1,0 +1,80 @@
+<div dir="ltr"><div class="gmail_extra">Hi George, </div><div class="gmail_extra"> </div><div class="gmail_extra">Thank you for your reply. Please see below. <br clear="all"></div><div class="gmail_extra"><div dir="ltr"><div>
+
+best regards,<br>Huangwei</div><div><span style="font-family:&quot;Monotype Corsiva&quot;;font-size:12pt"><br></span> </div></div></div><div class="gmail_extra">
+<br><br></div><div class="gmail_quote">On 1 September 2013 22:03, George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@icl.utk.edu" target="_blank">bosilca@icl.utk.edu</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-color:rgb(204,204,204);border-left-width:1px;border-left-style:solid">
+
+<div><br><div><div class="im"><div>On Aug 31, 2013, at 14:56 , Huangwei &lt;<a href="mailto:hz283@cam.ac.uk" target="_blank">hz283@cam.ac.uk</a>&gt; wrote:</div><br></div><blockquote type="cite"><div dir="ltr"><div class="im">
+
+<div>Hi All, </div><div> </div><div>I would like to send an array A, which has different dimensions in the processors. Then the root receive these As and puts them into another array globA. I know MPI_allgatherv can do this. However, there are still some implementation issues that are not very clear for me. Thank you very much if any of you can give me some suggestions and comments. The piece of code is as follows (I am not sure if it is completely correct):</div>
+
+
+
+<div> </div><div> </div><div><font color="#0000ff">!...calculate the total size for the total size of the globA, PROCASize(myidf) is the size of array A in each processor. </font></div><div><font color="#0000ff"> <br clear="all">
+
+
+
+         allocate(PROCASize(numprocs))<br>        PROCASize(myidf) = Asize<br>        call mpi_allreduce(PROCSize,PROCSize,numprocs,mpi_integer,mpi_sum,MPI_COMM_WORLD,ierr)<br>        globAsize = sum(PROCAsize)</font></div>
+
+
+
+<div><font color="#0000ff"></font> </div><div><font color="#0000ff">!...calculate the RECS and DISP for MPI_allgatherv</font></div><div><font color="#0000ff">        allocate(RECSASize(0:numprocs-1))<br>        allocate(DISP(0:numprocs-1))<br>
+
+
+
+         do i=1,numprocs<br>           RECSASize(i-1) = PROCASize(i)<br>        enddo</font></div><div><font color="#0000ff">        call mpi_type_extent(mpi_integer, extent, ierr)<br>        do i=1,numprocs<br>             DISP(i-1) = 1 + (i-1)*RECSASIze(i-1)*extent<br>
+
+
+
+         enddo</font></div><div><font color="#0000ff"></font> </div><div><font color="#0000ff">!...allocate the size of the array globA</font></div><div><font color="#0000ff">        allocate(globA(globASize*extent))</font></div>
+
+
+
+<div><font color="#0000ff">        call mpi_allgatherv(A,ASize,MPI_INTEGER,globA, RECSASIze, DISP,MPI_INTEGER,MPI_COMM_WORLD,ierr)</font></div><div> </div><div>My Questions:</div><div> </div></div><div>1, How to allocate the globA, i.e. the receive buff&#39;s size? Should I use <font color="#0000ff">globASize*extent <font>or just</font>globalize</font><span style="color:rgb(0,0,255)">?</span></div>
+
+</div></blockquote><div><br> </div>I don&#39;t understand what globASize is supposed to be as you do the reduction on PROCSize and then sum PROCAsize.</div></div></blockquote><div> </div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-color:rgb(204,204,204);border-left-width:1px;border-left-style:solid">
+
+<div><div><font color="#ff0000">Here I assume globASize is sum of the size of the array A in all the processors. For example, in proc 1, it is A(3), in proc 2, it is A(5), in proc 3 it is A(6). so  globSize =14. I aim to put these A arrays to globA which is sized as 14. All the data in A are aimed to be stored in globA consecutively based on rank number.   </font></div>
+
+</div></blockquote><div> </div><div> </div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-color:rgb(204,204,204);border-left-width:1px;border-left-style:solid"><div><div>Anyway, you should always allocate the memory for collective based on the total number of elements to receive times the extent of each element. In fact to be even more accurate, if we suppose that you correctly computed the DISP array, you should allocate globA as DISP(numprocs-1) + RECSASIze.<br>
+
+</div></div></blockquote><div>   <font color="#ff0000">If all the elements in all A arrays are integer or all are uniformly double precision, the size of globA should be 14 or 14*extent_integer?  </font></div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-color:rgb(204,204,204);border-left-width:1px;border-left-style:solid">
+
+<div><div><br> </div><div><div class="im"><blockquote type="cite"><div dir="ltr"><div><font color="#0000ff"></font> <br></div><div>2, about the displacements in globA, i.e. DISP(:), it is stand for the order of an array? like 1, 2, 3, ...., this corresponds to <font color="#0000ff">DISP(i-1) = 1 + (i-1)*RECSASIze(i-1)*extent. </font><font>Or this array&#39;s elements are the address at which the data from different processors will be stored in globA? </font></div>
+
+</div></blockquote><div><br></div></div><div>These are the displacement from the beginning of the array where the data from a peer is stored. The index in this array is the rank of the peer process in the communicator.</div>
+
+<div class="im"><br></div></div></div></blockquote><div><font color="#ff0000">Yes, I know. But I mean  the meaning of the elements of this array. Still use that example mentioned above. Is the following specification correct: DISP(1)=0, DISP(2)=3, DISP(3)=8 ? </font></div>
+
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-color:rgb(204,204,204);border-left-width:1px;border-left-style:solid"><div><div><div class="im"><blockquote type="cite"><div dir="ltr">
+
+
+
+<div><font color="#0000ff"></font> </div><div><font>3, should the arrays start from 0 to numprocs-1? or start from 1 to numprocs? This may be important when they work as arguments in mpi_allgatherv subroutine. </font></div>
+
+</div></blockquote><div><br></div></div><div>It doesn&#39;t matter how you allocate it (0:numprocs-1) or simple (numprocs) the compiler will do the right this when creating the call using the array.</div><div><br></div><div>
+
+  George.</div></div></div></blockquote><div> </div><div><font color="#ff0000">Additional Question is:</font></div><div><font color="#ff0000"></font> </div><div><font color="#ff0000">For fortran mpi, can the mpi subroutine send array with 0 size, i.e. in the example, A is A(0), and ASize =0:</font></div>
+
+<div><font color="#ff0000"></font> </div><div><font color="#ff0000">call mpi_allgatherv(A,ASize,MPI_</font><font color="#ff0000">INTEGER,globA, RECSASIze, DISP,MPI_INTEGER,MPI_COMM_</font><font color="#ff0000">WORLD,ierr)</font></div>
+
+<div><font color="#ff0000"></font> </div><div><font color="#ff0000">Is this valid in mpi calling? This case will appear in my work. </font></div><div><font color="#ff0000"></font> </div><div><font color="#ff0000"></font> </div>
+
+<div><font color="#ff0000">Thank you very much for your help! </font></div><div><font color="#ff0000"></font> </div><div><font color="#ff0000">Have a nice holiday!</font></div><div> </div><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;padding-left:1ex;border-left-color:rgb(204,204,204);border-left-width:1px;border-left-style:solid">
+
+<div><div><div> </div><blockquote type="cite"><div class="im"><div dir="ltr"><div><font color="#0000ff"></font> </div><div>These questions may be too simple for MPI professionals, but I do not have much experience on this. Thus I am sincerely eager to get some comments and suggestions from you. Thank you in advance!</div>
+
+
+
+<div><br></div><div><br></div><div>regards,<br>Huangwei</div><div><div dir="ltr"><div><span style="font-family:&quot;Monotype Corsiva&quot;;font-size:12pt"><br></span></div><div> </div><div><br> </div><span></span><span></span><span></span></div>
+
+
+
+</div>
+</div></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></blockquote>
+
+</div><br></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><div class="gmail_extra"><br></div></div>
+

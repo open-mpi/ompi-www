@@ -1,0 +1,96 @@
+commit c981b0f2ba7983ac2d8ca27a5d59c82e536ff376
+Author: Brice Goglin <Brice.Goglin@inria.fr>
+Date:   Thu Sep 10 23:51:11 2015 +0200
+
+    pci: workaround buggy bridge secondary-subordinate buses
+    
+    George Bosilca report a failed assertion
+      http://www.open-mpi.org/community/lists/devel/2015/09/17993.php
+    on a machine with a
+      Pericom Semiconductor PCI Express to PCI-XPI7C9X130 PCI-X Bridge
+    whose bus ID is 22:00.0 while primary/secondary/subordinate buses are 0
+    according to the config space.
+    
+    Primary bus bugs are not uncommon, we can workaround them by overwritting
+    with what's in the bus ID.
+    Secondary-subordinate bus bugs cannot be fixed, and they make cycles
+    in the insert algorithm.
+    
+    Add some basic checks for all these bus numbers and ignore the bridge
+    entirely if failed.
+    Ideally we would also check that [secondary-subordinate] is included
+    in parent [secondary+1:subordinate].
+
+diff --git a/include/hwloc/plugins.h b/include/hwloc/plugins.h
+index b5294b5..8ef0cd3 100644
+--- a/include/hwloc/plugins.h
++++ b/include/hwloc/plugins.h
+@@ -426,6 +426,8 @@ HWLOC_DECLSPEC int hwloc_pci_find_linkspeed(const unsigned char *config, unsigne
+ /** \brief Modify the PCI device object into a bridge and fill its attribute if a bridge is found in the PCI config space.
+  *
+  * This function requires 64 bytes of common configuration header at the beginning of config.
++ *
++ * Returns -1 and destroys /p obj if bridge fields are invalid.
+  */
+ HWLOC_DECLSPEC int hwloc_pci_prepare_bridge(hwloc_obj_t obj, const unsigned char *config);
+ 
+diff --git a/src/pci-common.c b/src/pci-common.c
+index 2154276..8756e81 100644
+--- a/src/pci-common.c
++++ b/src/pci-common.c
+@@ -6,6 +6,7 @@
+ #include <private/autogen/config.h>
+ #include <hwloc.h>
+ #include <hwloc/plugins.h>
++#include <private/private.h>
+ #include <private/debug.h>
+ 
+ #ifdef HWLOC_DEBUG
+@@ -510,5 +511,18 @@ hwloc_pci_prepare_bridge(hwloc_obj_t obj,
+   battr->downstream.pci.secondary_bus = config[HWLOC_PCI_SECONDARY_BUS];
+   battr->downstream.pci.subordinate_bus = config[HWLOC_PCI_SUBORDINATE_BUS];
+ 
++  if (battr->downstream.pci.secondary_bus <= pattr->bus
++      || battr->downstream.pci.subordinate_bus <= pattr->bus
++      || battr->downstream.pci.secondary_bus > battr->downstream.pci.subordinate_bus) {
++    hwloc_debug("  %04x:%02x:%02x.%01x bridge has invalid secondary-subordinate buses [%02x-%02x]\n",
++		pattr->domain, pattr->bus, pattr->dev, pattr->func,
++		battr->downstream.pci.secondary_bus, battr->downstream.pci.subordinate_bus);
++    hwloc_free_unlinked_object(obj);
++    return -1;
++  }
++  /* FIXME: Ideally we would also check that [secondary-subordinate] is included
++   * in the parent bridge [secondary+1:subordinate]
++   */
++
+   return 0;
+ }
+diff --git a/src/topology-linux.c b/src/topology-linux.c
+index 7f8430b..16bb04e 100644
+--- a/src/topology-linux.c
++++ b/src/topology-linux.c
+@@ -5147,7 +5147,8 @@ hwloc_look_linuxfs_pci(struct hwloc_backend *backend)
+       fclose(file);
+ 
+       /* is this a bridge? */
+-      hwloc_pci_prepare_bridge(obj, config_space_cache);
++      if (hwloc_pci_prepare_bridge(obj, config_space_cache) < 0)
++	continue;
+ 
+       /* get the revision */
+       attr->revision = config_space_cache[HWLOC_PCI_REVISION_ID];
+diff --git a/src/topology-pci.c b/src/topology-pci.c
+index 0f20e42..c6cd0c1 100644
+--- a/src/topology-pci.c
++++ b/src/topology-pci.c
+@@ -206,7 +206,8 @@ hwloc_look_pci(struct hwloc_backend *backend)
+     if (offset > 0 && offset + 20 /* size of PCI express block up to link status */ <= CONFIG_SPACE_CACHESIZE)
+       hwloc_pci_find_linkspeed(config_space_cache, offset, &obj->attr->pcidev.linkspeed);
+ 
+-    hwloc_pci_prepare_bridge(obj, config_space_cache);
++    if (hwloc_pci_prepare_bridge(obj, config_space_cache) < 0)
++      continue;
+ 
+     if (obj->type == HWLOC_OBJ_PCI_DEVICE) {
+       memcpy(&tmp16, &config_space_cache[PCI_SUBSYSTEM_VENDOR_ID], sizeof(tmp16));
+

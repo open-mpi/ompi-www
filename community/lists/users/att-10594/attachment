@@ -1,0 +1,101 @@
+Hi, <br>Sorry it took so long to respond - recompiling everything across the cluster took a while. Without the --with-threads config flag, it seems to work a little better - the limit still exists, there is still the same segfault, but now it&#39;s up around 21,000,000 characters, instead of 16,000,000.<br>
+<br>Any ideas?<br><br>-James<br><br><div class="gmail_quote">On Wed, Sep 2, 2009 at 12:55 AM, Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Can you try without the --with-threads configure argument?<div><div></div><div class="h5"><br>
+<br>
+On Aug 28, 2009, at 11:48 PM, James Gao wrote:<br>
+<br>
+</div></div><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div><div></div><div class="h5">
+Hi everyone, I&#39;ve been having a pretty odd issue with Slurm and<br>
+openmpi the last few days. I just set up a heterogeneous cluster with<br>
+Slurm consisting of P4 32 bit machines and a few new i7 64 bit<br>
+machines, all running the latest version of Ubuntu linux. I compiled<br>
+the latest OpenMPI 1.3.3 with the flags<br>
+<br>
+./configure --enable-heterogeneous --with-threads --with-slurm<br>
+--with-memory-manager --with-openib --without-udapl<br>
+--disable-openib-ibcm<br>
+<br>
+I also made a trivial test program:<br>
+#include &quot;mpi.h&quot;<br>
+#include &lt;stdio.h&gt;<br>
+#include &lt;stdlib.h&gt;<br>
+<br>
+#define LEN 12000000<br>
+<br>
+int main (int argc, char *argv[]) {<br>
+        int size, rank, i, len = LEN;<br>
+        MPI_Init(&amp;argc, &amp;argv);<br>
+        MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);<br>
+<br>
+        if (argc &gt; 1) len = atoi(argv[1]);<br>
+        printf(&quot;Size: %d, &quot;, len);<br>
+        char *greeting = malloc(sizeof(char)*len);<br>
+<br>
+        if (rank == 0) {<br>
+                for ( i = 0; i &lt; len-1; i++)<br>
+                        greeting[i] = &#39; &#39;;<br>
+                greeting[len-1] = &#39;\0&#39;;<br>
+        }<br>
+        MPI_Bcast(greeting, len, MPI_BYTE, 0, MPI_COMM_WORLD);<br>
+        printf(&quot;rank: %d\n&quot;, rank);<br>
+<br>
+        MPI_Finalize();<br>
+        free(greeting);<br>
+        return 0;<br>
+}<br>
+<br>
+I run this with salloc -n 28 mpirun -n 28 mpitest on my slurm cluster.<br>
+At 12,000,000 characters, this command works exactly as expected, no<br>
+issues at all. However, beyond a certain critical limit somewhere<br>
+around 16,000,000 characters, the program will consistently segfault<br>
+with this error message:<br>
+<br>
+salloc -n 28 -p all mpiexec -n 28 mpitest 16500000<br>
+salloc: Granted job allocation 234<br>
+[ibogaine:24883] *** Process received signal ***<br>
+[ibogaine:24883] Signal: Segmentation fault (11)<br>
+[ibogaine:24883] Signal code: Address not mapped (1)<br>
+[ibogaine:24883] Failing at address: 0x101a60f58<br>
+[ibogaine:24883] [ 0] /lib/libpthread.so.0 [0x7f6c00405080]<br>
+[ibogaine:24883] [ 1] /usr/local/lib/openmpi/mca_pml_ob1.so [0x7f6bfd9dff68]<br>
+[ibogaine:24883] [ 2] /usr/local/lib/openmpi/mca_btl_tcp.so [0x7f6bfcf3ec7c]<br>
+[ibogaine:24883] [ 3] /usr/local/lib/libopen-pal.so.0 [0x7f6c00ed5ee8]<br>
+[ibogaine:24883] [ 4]<br>
+/usr/local/lib/libopen-pal.so.0(opal_progress+0xa1) [0x7f6c00eca7b1]<br>
+[ibogaine:24883] [ 5] /usr/local/lib/libmpi.so.0 [0x7f6c013a185d]<br>
+[ibogaine:24883] [ 6] /usr/local/lib/openmpi/mca_coll_tuned.so [0x7f6bfc10c29c]<br>
+[ibogaine:24883] [ 7] /usr/local/lib/openmpi/mca_coll_tuned.so [0x7f6bfc10c9eb]<br>
+[ibogaine:24883] [ 8] /usr/local/lib/openmpi/mca_coll_tuned.so [0x7f6bfc10295c]<br>
+[ibogaine:24883] [ 9] /usr/local/lib/openmpi/mca_coll_sync.so [0x7f6bfc31b35a]<br>
+[ibogaine:24883] [10] /usr/local/lib/libmpi.so.0(MPI_Bcast+0xa3)<br>
+[0x7f6c013b78c3]<br>
+[ibogaine:24883] [11] mpitest(main+0xd4) [0x400bc0]<br>
+[ibogaine:24883] [12] /lib/libc.so.6(__libc_start_main+0xe6) [0x7f6c000a25a6]<br>
+[ibogaine:24883] [13] mpitest [0x400a29]<br>
+[ibogaine:24883] *** End of error message ***<br>
+<br>
+As far as I can tell, the segfault occurs on the root node doing the<br>
+broadcast. This error only occurs when I try to send across<br>
+heterogeneous sections. If I only communicate between homogeneous<br>
+subsets of the cluster, I can go as far as 120,000,000 characters<br>
+without issue. However, a hard &quot;limit&quot; seems to occur somewhere just<br>
+under 16,000,000 characters across the heterogeneous cluster. Any<br>
+ideas?<br></div></div>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<br>
+</blockquote>
+<br>
+<br>
+-- <br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br>
+

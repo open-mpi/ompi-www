@@ -1,0 +1,122 @@
+<html><body>
+<p>The program Jonathan offers as an example is valid use of MPI standard send.  With this message size it is fair to assume the implementation is doing standard send with an eager send. The MPI standard is explicit about how eager send, as a undercover option for standard send, must work.<br>
+<br>
+When the MPI_Recv side cannot keep up, the MPI implementation is required to provide a flow control that throttles (blocks) the MPI_Send before there is a failure due to resource exhaustion. In other words, it is the MPI implementation's job to make  an occasional MPI_Send() calls act like an MPI_Ssend(). The programmer should not need to guess how often to throw in an MPI_Ssend().<br>
+<br>
+<a href="http://www.mpi-forum.org/docs/mpi22-report/node54.htm#Node54"><u><font size="4" color="#0000FF">http://www.mpi-forum.org/docs/mpi22-report/node54.htm#Node54</font></u></a><font size="4"> </font><br>
+<br>
+says <br>
+<br>
+<font size="4" face="Times New Roman">A buffered send operation that cannot complete because of a lack of buffer space is erroneous. When such a situation is detected, an error is signalled that may cause the program to terminate abnormally. </font><b><font size="4" face="Times New Roman">On the other hand, a standard send operation that cannot complete because of lack of buffer space will merely block</font></b><font size="4" face="Times New Roman">, waiting for buffer space to become available or for a matching receive to be posted. This behavior is preferable in many situations. Consider a situation where a producer repeatedly produces new values and sends them to a consumer. Assume that the producer produces new values faster than the consumer can consume them. If buffered sends are used, then a buffer overflow will result. Additional synchronization has to be added to the program so as to prevent this from occurring. </font><b><font size="4" face="Times New Roman">If standard sends are used, then the producer will be automatically throttled</font></b><font size="4" face="Times New Roman">, as its send operations will block when buffer space is unavailable.</font><font size="4"> </font><br>
+<br>
+<font size="4">There are good reasons for an MPI implementation to prefer to ignore this requirement in the MPI standard but the requirement is there.</font><br>
+<br>
+<br>
+Dick Treumann  -  MPI Team           <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<tt>users-bounces@open-mpi.org wrote on 03/08/2010 06:22:10 AM:<br>
+<br>
+&gt; [image removed] </tt><br>
+<tt>&gt; <br>
+&gt; Re: [OMPI users] Why might MPI_Recv trip PSM_MQ_RECVREQS_MAX ?</tt><br>
+<tt>&gt; <br>
+&gt; Rainer Keller </tt><br>
+<tt>&gt; <br>
+&gt; to:</tt><br>
+<tt>&gt; <br>
+&gt; users</tt><br>
+<tt>&gt; <br>
+&gt; 03/08/2010 06:24 AM</tt><br>
+<tt>&gt; <br>
+&gt; Sent by:</tt><br>
+<tt>&gt; <br>
+&gt; users-bounces@open-mpi.org</tt><br>
+<tt>&gt; <br>
+&gt; Please respond to Open MPI Users</tt><br>
+<tt>&gt; <br>
+&gt; Hello Jonathan,<br>
+&gt; Your are using Infinipath's PSM library and the corresponding MTL/psm and <br>
+&gt; therefore the &nbsp;corresponding upper-layer PML/cm.<br>
+&gt; In fact, this _is_ calling into the psm's irecv() function, which <br>
+&gt; explains the <br>
+&gt; error triggered in the psm library.<br>
+&gt; <br>
+&gt; Not knowing the degree of parallelism of Your application otherwise, apart <br>
+&gt; from trying to increase the max. recv requests using the environmentvariable, <br>
+&gt; You might want to change some of the master send to synchronous MPI_Ssend().<br>
+&gt; <br>
+&gt; On the other hand, the example code You posted could be written differently, <br>
+&gt; e.g. collect multiple random numbers into one communication, or using <br>
+&gt; collective communication, here with sub-communicators containing the master <br>
+&gt; and sources and master and targets, all of which would reduce pressure on the <br>
+&gt; master.<br>
+&gt; <br>
+&gt; Hope this helps.<br>
+&gt; <br>
+&gt; Best regards,<br>
+&gt; Rainer<br>
+&gt; <br>
+&gt; <br>
+&gt; On Sunday 07 March 2010 04:17:33 pm Jonathan Wesley Stone wrote:<br>
+&gt; &gt; Hi,<br>
+&gt; &gt; <br>
+&gt; &gt; My supercomputer has OpenMPI 1.4. I am running into a frustrating<br>
+&gt; &gt; problem with my MPI program. I am using only the following calls,<br>
+&gt; &gt; which I expect to be blocking:<br>
+&gt; &gt; MPI_Wtime<br>
+&gt; &gt; MPI_Error_string<br>
+&gt; &gt; MPI_Abort<br>
+&gt; &gt; MPI_Send<br>
+&gt; &gt; MPI_Get_count<br>
+&gt; &gt; MPI_Recv<br>
+&gt; &gt; MPI_Probe<br>
+&gt; &gt; MPI_Init<br>
+&gt; &gt; MPI_Comm_rank<br>
+&gt; &gt; MPI_Comm_size<br>
+&gt; &gt; MPI_Finalize<br>
+&gt; &gt; <br>
+&gt; &gt; Somehow I am getting this error when I do a large number of sequential<br>
+&gt; &gt; communications: &quot;c002:2.0.Exhausted 1048576 MQ irecv request<br>
+&gt; &gt; descriptors, which usually indicates a user program error or<br>
+&gt; &gt; insufficient request descriptors (PSM_MQ_RECVREQS_MAX=1048576)&quot;<br>
+&gt; &gt; <br>
+&gt; &gt; This seems counter-intuitive to me because I don't think I should be<br>
+&gt; &gt; using irecvs since I am wanting specifically to rely on the documented<br>
+&gt; &gt; blocking behavior of MPI_Recv (not MPI_Irecv, which I am not using).<br>
+&gt; &gt; <br>
+&gt; &gt; My main program is quite large, however I have managed to replicate<br>
+&gt; &gt; the irritating behavior in this much smaller program, which executes a<br>
+&gt; &gt; number of MPI_Send or MPI_Recv calls in a loop. The program's default<br>
+&gt; &gt; behaviour is to run 2,000,000 iterations. When I turn it up to<br>
+&gt; &gt; 20,000,000, after a short time it generates the PSM_MQ_RECVREQS_MAX<br>
+&gt; &gt; exception.<br>
+&gt; &gt; <br>
+&gt; &gt; I would appreciate if anyone could advise why it might be happening in<br>
+&gt; &gt; this &quot;test&quot; case -- basically what is going on that causes my<br>
+&gt; &gt; presumably blocking MPI_Recv calls to &quot;accumulate&quot; such a large number<br>
+&gt; &gt; of &quot;irecv request descriptors&quot;, when I expect they should be blocking<br>
+&gt; &gt; and get immediately resolved and the count should go down when the<br>
+&gt; &gt; matching MPI_Send is posted.<br>
+&gt; &gt; <br>
+&gt; &gt; I appreciate your assistance. Thank you!<br>
+&gt; &gt; <br>
+&gt; &gt; Jonathan Stone<br>
+&gt; &gt; Research Assistant, U. Oklahoma<br>
+&gt; &gt; <br>
+&gt; <br>
+&gt; -- <br>
+&gt; ------------------------------------------------------------------------<br>
+&gt; Rainer Keller, PhD &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Tel: +1 (865) 241-6293<br>
+&gt; Oak Ridge National Lab &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Fax: +1 (865) 241-4811<br>
+&gt; PO Box 2008 MS 6164 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Email: keller@ornl.gov<br>
+&gt; Oak Ridge, TN 37831-2008 &nbsp; &nbsp;AIM/Skype: rusraink<br>
+&gt; <br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; users@open-mpi.org<br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</tt></body></html>

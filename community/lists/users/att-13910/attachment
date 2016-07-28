@@ -1,0 +1,24 @@
+Hello,<br><br>I&#39;am having an sigsegv error when using simple program compiled and link with openmpi.<br>I have reproduce the problem using really simple fortran code. It actually does not even use MPI, but just link with mpi shared libraries. (problem does not appear when I do not link with mpi libraries)<br>
+   % cat allocate.F90<br>   program test<br>   implicit none<br>
+       integer, dimension(:), allocatable :: z<br>       integer(kind=8) :: l<br><br>       write(*,*) &quot;l ?&quot;<br>       read(*,*) l<br>   <br>       ALLOCATE(z(l))<br>       z(1) = 111<br>       z(l) = 222<br>       DEALLOCATE(z)<br>
+
+<br>   end program test<br><br>I am using openmpi 1.4.2 and gfortran for my tests. Here is the compilation :<br><br>   % ./openmpi-1.4.2/build/bin/mpif90 --showme -g -o testallocate allocate.F90<br>   gfortran -g -o testallocate allocate.F90 -I/s0/scr1/TOMOT_19311_HAL_/openmpi-1.4.2/build/include -pthread -I/s0/scr1/TOMOT_19311_HAL_/openmpi-1.4.2/build/lib -L/s0/scr1/TOMOT_19311_HAL_/openmpi-1.4.2/build/lib -lmpi_f90 -lmpi_f77 -lmpi -lopen-rte -lopen-pal -ldl -Wl,--export-dynamic -lnsl -lutil -lm -ldl -pthread<br>
+
+<br>When I am running that test with different length, I sometimes get a &quot;Segmentation fault&quot; error. Here are two examples using two specific values, but error happens for many other values of length (I did not manage to find which values of lenght gives that error)<br>
+
+<br>   %  ./testallocate<br>    l ?<br>   1600000000<br>   Segmentation fault<br>   % ./testallocate<br>    l ?<br>   2000000000<br><br>I used debugger with re-compiled version of openmpi using debug flag. I got the folowing error in function sYSMALLOc<br>
+
+<br>   Program received signal SIGSEGV, Segmentation fault.<br>   0x00002aaaab70b3b3 in sYSMALLOc (nb=6400000016, av=0x2aaaab930200) at malloc.c:3239<br>   3239        set_head(remainder, remainder_size | PREV_INUSE);<br>
+
+   Current language:  auto; currently c<br>   (gdb) bt<br>   #0  0x00002aaaab70b3b3 in sYSMALLOc (nb=6400000016, av=0x2aaaab930200) at malloc.c:3239<br>   #1  0x00002aaaab70d0db in opal_memory_ptmalloc2_int_malloc (av=0x2aaaab930200, bytes=6400000000) at malloc.c:4322<br>
+
+   #2  0x00002aaaab70b773 in opal_memory_ptmalloc2_malloc (bytes=6400000000) at malloc.c:3435<br>   #3  0x00002aaaab70a665 in opal_memory_ptmalloc2_malloc_hook (sz=6400000000, caller=0x2aaaabf8534d) at hooks.c:667<br>   #4  0x00002aaaabf8534d in _gfortran_internal_free () from /usr/lib64/libgfortran.so.1<br>
+
+   #5  0x0000000000400bcc in MAIN__ () at allocate.F90:11<br>   #6  0x0000000000400c4e in main ()<br>   (gdb) display<br>   (gdb) list<br>   3234      if ((unsigned long)(size) &gt;= (unsigned long)(nb + MINSIZE)) {<br>   3235        remainder_size = size - nb;<br>
+
+   3236        remainder = chunk_at_offset(p, nb);<br>   3237        av-&gt;top = remainder;<br>   3238        set_head(p, nb | PREV_INUSE | (av != &amp;main_arena ? NON_MAIN_ARENA : 0));<br>   3239        set_head(remainder, remainder_size | PREV_INUSE);<br>
+
+   3240        check_malloced_chunk(av, p, nb);<br>   3241        return chunk2mem(p);<br>   3242      }<br>   3243<br><br><br>I also did the same test in C and I got the same problem. <br><br>Does someone has any idea that could help me understand what&#39;s going on ?<br>
+
+<br>Regards<br>Nicolas<br><br>
+

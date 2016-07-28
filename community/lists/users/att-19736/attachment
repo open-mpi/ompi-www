@@ -1,0 +1,234 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <div class="moz-cite-prefix">no idea of Rocks, but with PBS and
+      SLURM, I always do this directly in the job submission script.
+      Below is an example of an admittedly spaghetti-code script that
+      does this -- assuming proper (un)commenting --&nbsp; for PBS and SLURM
+      and OpenMPI and MPICH2, for one particular machine that I have
+      been toying around with lately ... <br>
+      <br>
+      Dominik<br>
+      <br>
+      #!/bin/bash<br>
+      <br>
+      #################### PBS<br>
+      #PBS -N feast<br>
+      #PBS -l nodes=25:ppn=2<br>
+      #PBS -q batch<br>
+      #PBS -l walltime=2:00:00<br>
+      #job should not rerun if it fails<br>
+      #PBS -r n<br>
+      <br>
+      ####### SLURM<br>
+      # @ job_name = feaststrong1<br>
+      # @ initialdir = .<br>
+      # @ output = feaststrong1_%j.out<br>
+      # @ error = feaststrong1_%j.err<br>
+      # @ total_tasks = 50<br>
+      # @ cpus_per_task = 1<br>
+      # @ wall_clock_limit = 2:00:00<br>
+      <br>
+      # modules<br>
+      module purge<br>
+      module load gcc/4.6.2<br>
+      module load openmpi/1.5.4<br>
+      #module load mpich2/1.4.1<br>
+      <br>
+      # cd into wdir<br>
+      cd $HOME/feast/feast/feast/applications/poisson_coproc<br>
+      <br>
+      <br>
+      ##### PBS with MPICH2<br>
+      # create machine files to isolate the master process<br>
+      #cat $PBS_NODEFILE &gt; nodes.txt<br>
+      ## extract slaves<br>
+      #sort -u&nbsp; nodes.txt &gt; temp.txt<br>
+      #lines=`wc -l temp.txt | awk '{print $1}'`<br>
+      #((lines=$lines - 1))<br>
+      #tail -n $lines temp.txt &gt; slavetemp.txt<br>
+      #cat slavetemp.txt | awk '{print $0 ":2"}' &gt; slaves.txt<br>
+      ## extract master<br>
+      #head -n 1 temp.txt &gt; mastertemp.txt<br>
+      #cat mastertemp.txt | awk '{print $0 ":1"}' &gt; master.txt<br>
+      ## merge into one dual nodefile<br>
+      #cat master.txt &gt; dual.hostfile<br>
+      #cat slaves.txt &gt;&gt; dual.hostfile <br>
+      ## same for single hostfile<br>
+      #tail -n $lines temp.txt &gt; slavetemp.txt<br>
+      #cat slavetemp.txt | awk '{print $0 ":1"}' &gt; slaves.txt<br>
+      ## extract master<br>
+      #head -n 1 temp.txt &gt; mastertemp.txt<br>
+      #cat mastertemp.txt | awk '{print $0 ":1"}' &gt; master.txt<br>
+      ## merge into one single nodefile<br>
+      #cat master.txt &gt; single.hostfile<br>
+      #cat slaves.txt &gt;&gt; single.hostfile<br>
+      ## and clean up<br>
+      #rm -f slavetemp.txt mastertemp.txt master.txt slaves.txt temp.txt
+      nodes.txt<br>
+      <br>
+      # 4 nodes<br>
+      #mpiexec -n 7 -f dual.hostfile ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np007.dat<br>
+      #mkdir arm-strongscaling-series1-L8-nodes04<br>
+      #mv feastlog.* arm-strongscaling-series1-L8-nodes04<br>
+      <br>
+      # 7 nodes<br>
+      #mpiexec -n 13 -f dual.hostfile ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np013.dat<br>
+      #mkdir arm-strongscaling-series1-L8-nodes07<br>
+      #mv feastlog.* arm-strongscaling-series1-L8-nodes07<br>
+      <br>
+      # 13 nodes<br>
+      #mpiexec -n 25 -f dual.hostfile ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np025.dat<br>
+      #mkdir arm-strongscaling-series1-L8-nodes13<br>
+      #mv feastlog.* arm-strongscaling-series1-L8-nodes13<br>
+      <br>
+      # 25 nodes<br>
+      #mpiexec -n 49 -f dual.hostfile ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np049.dat<br>
+      #mkdir arm-strongscaling-series1-L8-nodes25<br>
+      #mv feastlog.* arm-strongscaling-series1-L8-nodes25<br>
+      <br>
+      <br>
+      ############## SLURM<br>
+      <br>
+      # figure out which nodes we got<br>
+      srun /bin/hostname | sort &gt; availhosts3.txt<br>
+      <br>
+      lines=`wc -l availhosts3.txt | awk '{print $1}'`<br>
+      ((lines=$lines - 2))<br>
+      tail -n $lines availhosts3.txt &gt; slaves3.txt<br>
+      head -n 1 availhosts3.txt &gt; master3.txt<br>
+      cat master3.txt &gt; hostfile3.txt<br>
+      cat slaves3.txt &gt;&gt; hostfile3.txt<br>
+      # DGDG: SLURM -m arbitrary not supported by OpenMPI<br>
+      #export SLURM_HOSTFILE=./hostfile3.txt<br>
+      <br>
+      <br>
+      # 4 nodes<br>
+      #mpirun -np 7 --hostfile hostfile3.txt ./trace.sh ./feastgpu-ompi
+      master.dat.strongscaling.m6.L8.np007.dat<br>
+      mpirun -np 7 --hostfile hostfile3.txt ./feastgpu-ompi
+      master.dat.strongscaling.m6.L8.np007.dat<br>
+      #mpiexec -n 7 -f dual.hostfile ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np007.dat<br>
+      #srun -n 7 -m arbitrary ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np007.dat<br>
+      mkdir arm-strongscaling-series1-L8-nodes04<br>
+      mv feastlog.* arm-strongscaling-series1-L8-nodes04<br>
+      <br>
+      # 7 nodes<br>
+      #mpirun -np 13 --hostfile hostfile3.txt ./trace.sh ./feastgpu-ompi
+      master.dat.strongscaling.m6.L8.np013.dat<br>
+      mpirun -np 13 --hostfile hostfile3.txt ./feastgpu-ompi
+      master.dat.strongscaling.m6.L8.np013.dat<br>
+      #mpiexec -n 13 -f dual.hostfile ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np013.dat<br>
+      #srun -n 13 -m arbitrary ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np013.dat<br>
+      mkdir arm-strongscaling-series1-L8-nodes07<br>
+      mv feastlog.* arm-strongscaling-series1-L8-nodes07<br>
+      <br>
+      # 13 nodes<br>
+      #mpirun -np 25 --hostfile hostfile3.txt ./trace.sh ./feastgpu-ompi
+      master.dat.strongscaling.m6.L8.np025.dat<br>
+      mpirun -np 25 --hostfile hostfile3.txt ./feastgpu-ompi
+      master.dat.strongscaling.m6.L8.np025.dat<br>
+      #mpiexec -n 25 -f dual.hostfile ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np025.dat<br>
+      #srun -n 25 -m arbitrary ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np025.dat<br>
+      mkdir arm-strongscaling-series1-L8-nodes13<br>
+      mv feastlog.* arm-strongscaling-series1-L8-nodes13<br>
+      <br>
+      # 25 nodes<br>
+      #mpirun -np 49 --hostfile hostfile3.txt ./trace.sh ./feastgpu-ompi
+      master.dat.strongscaling.m6.L8.np049.dat<br>
+      mpirun -np 49 --hostfile hostfile3.txt ./feastgpu-ompi
+      master.dat.strongscaling.m6.L8.np049.dat<br>
+      #mpiexec -n 49 -f dual.hostfile ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np049.dat<br>
+      #srun -n 49 -m arbitrary ./feastgpu-mpich2
+      master.dat.strongscaling.m6.L8.np049.dat<br>
+      mkdir arm-strongscaling-series1-L8-nodes25<br>
+      mv feastlog.* arm-strongscaling-series1-L8-nodes25<br>
+      <br>
+      <br>
+      <br>
+      <br>
+      <br>
+      <br>
+      On 07/05/2012 12:10 AM, Hodgess, Erin wrote:<br>
+    </div>
+    <blockquote
+      cite="mid:586A4828D7AAA04CA9B258C50A28DA200BF59429@BALI.uhd.campus"
+      type="cite">
+      <meta http-equiv="Content-Type" content="text/html;
+        charset=ISO-8859-1">
+      <meta name="Generator" content="MS Exchange Server version
+        6.5.7654.12">
+      <title>automatically creating a machinefile</title>
+      <!-- Converted from text/plain format -->
+      <p><font size="2">Dear MPI people:<br>
+          <br>
+          Is there a way (a script) available to automatically generate
+          a machinefile, please?<br>
+          <br>
+          This would be on Rocks.<br>
+          <br>
+          &nbsp;ompi_info -v ompi full --parsable<br>
+          package:Open MPI <a class="moz-txt-link-abbreviated" href="mailto:root@vi-1.rocksclusters.org">root@vi-1.rocksclusters.org</a> Distribution<br>
+          ompi:version:full:1.3.2<br>
+          ompi:version:svn:r21054<br>
+          ompi:version:release_date:Apr 21, 2009<br>
+          orte:version:full:1.3.2<br>
+          orte:version:svn:r21054<br>
+          orte:version:release_date:Apr 21, 2009<br>
+          opal:version:full:1.3.2<br>
+          opal:version:svn:r21054<br>
+          opal:version:release_date:Apr 21, 2009<br>
+          ident:1.3.2<br>
+          <br>
+          Thanks,<br>
+          Erin<br>
+          <br>
+          <br>
+          <br>
+          Erin M. Hodgess, PhD<br>
+          Associate Professor<br>
+          Department of Computer and Mathematical Sciences<br>
+          University of Houston - Downtown<br>
+          mailto: <a class="moz-txt-link-abbreviated" href="mailto:hodgesse@uhd.edu">hodgesse@uhd.edu</a><br>
+          <br>
+        </font>
+      </p>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></pre>
+    </blockquote>
+    <br>
+    <br>
+    <pre class="moz-signature" cols="72">-- 
+Jun.-Prof. Dr. Dominik G&ouml;ddeke
+Hardware-orientierte Numerik f&uuml;r gro&szlig;e Systeme
+Institut f&uuml;r Angewandte Mathematik (LS III)
+Fakult&auml;t f&uuml;r Mathematik, Technische Universit&auml;t Dortmund
+<a class="moz-txt-link-freetext" href="http://www.mathematik.tu-dortmund.de/~goeddeke">http://www.mathematik.tu-dortmund.de/~goeddeke</a>
+Tel. +49-(0)231-755-7218  Fax +49-(0)231-755-5933
+
+
+
+
+</pre>
+  </body>
+</html>
+

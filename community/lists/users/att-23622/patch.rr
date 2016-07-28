@@ -1,0 +1,76 @@
+--- rmaps_rr_mappers.c.org	2014-02-19 20:36:26 +0900
++++ rmaps_rr_mappers.c	2014-02-19 21:37:40 +0900
+@@ -333,7 +333,7 @@
+                 if ((node->slots - node->slots_inuse) < (navg * orte_rmaps_base.cpus_per_rank)) {
+                     num_procs_to_assign = (node->slots - node->slots_inuse)/orte_rmaps_base.cpus_per_rank;
+                     /* update how many we are lagging behind */
+-                    lag += navg - num_procs_to_assign;
++                    lag += navg - num_procs_to_assign + extra_procs_to_assign;
+                 } else {
+                     /* take the avg plus as much of the "lag" as we can */
+                     delta = 0;
+@@ -344,10 +344,8 @@
+                         }
+                         lag -= delta;
+                     }
+-                    num_procs_to_assign = navg;
++                    num_procs_to_assign = navg + delta + extra_procs_to_assign;
+                 }
+-                /* add in the extras */
+-                num_procs_to_assign += extra_procs_to_assign;
+             }
+         }
+         for (j=0; j < num_procs_to_assign && nprocs_mapped < app->num_procs; j++) {
+@@ -381,6 +379,14 @@
+          0 < lag && item != opal_list_get_end(node_list);
+          item = opal_list_get_next(item)) {
+         node = (orte_node_t*)item;
++#if OPAL_HAVE_HWLOC
++        /* get the root object as we are not assigning
++         * locale except at the node level
++         */
++        if (NULL != node->topology) {
++            obj = hwloc_get_root_obj(node->topology);
++        }
++#endif
+         if (NULL == (proc = orte_rmaps_base_setup_proc(jdata, node, app->idx))) {
+             return ORTE_ERR_OUT_OF_RESOURCE;
+         }
+@@ -675,7 +681,7 @@
+      * do more because we don't know how many total objects exist
+      * across all the nodes
+      */
+-    if (num_slots < (int)app->num_procs) {
++    if (num_slots < (int)app->num_procs * orte_rmaps_base.cpus_per_rank) {
+         if (ORTE_MAPPING_NO_OVERSUBSCRIBE & ORTE_GET_MAPPING_DIRECTIVE(jdata->map->mapping)) {
+             orte_show_help("help-orte-rmaps-base.txt", "orte-rmaps-base:alloc-error",
+                            true, app->num_procs, app->app);
+@@ -778,15 +784,15 @@
+                 lag += navg;
+             } else {
+                 /* if slots < avg, then take all */
+-                if ((node->slots - node->slots_inuse) < navg) {
+-                    num_procs_to_assign = (node->slots - node->slots_inuse) + extra_procs_to_assign;
++                if ((node->slots - node->slots_inuse) < navg * orte_rmaps_base.cpus_per_rank) {
++                    num_procs_to_assign = (node->slots - node->slots_inuse) / orte_rmaps_base.cpus_per_rank;
+                     /* update how many we are lagging behind */
+-                    lag += navg - (node->slots - node->slots_inuse);
++                    lag += navg - (node->slots - node->slots_inuse) + extra_procs_to_assign;
+                 } else {
+                     /* take the avg plus as much of the "lag" as we can */
+                     delta = 0;
+                     if (0 < lag) {
+-                        delta = (node->slots - node->slots_inuse) - navg;
++                        delta = (node->slots - node->slots_inuse) / orte_rmaps_base.cpus_per_rank - navg;
+                         if (lag < delta) {
+                             delta = lag;
+                         }
+@@ -838,7 +844,7 @@
+         /* not all nodes are equal, so only set oversubscribed for
+          * this node if it is in that state
+          */
+-        if (node->slots < (int)node->num_procs) {
++        if (node->slots < (int)node->num_procs * orte_rmaps_base.cpus_per_rank) {
+             /* flag the node as oversubscribed so that sched-yield gets
+              * properly set
+              */

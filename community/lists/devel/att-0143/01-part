@@ -1,0 +1,238 @@
+Brian,
+
+    Sounds like I got off the call a bit too early ;-)
+
+       Can we choose to use  standard platform  libraries, or are we
+pinning 
+
+ourselves into a corner ?  I.e., is this optional ?
+
+  What sort of problems are we getting into playing with pre-load
+options ?  I would
+
+be VERY careful here, and do plenty of testing, especially with c++
+codes, before
+
+you decide to do this.  We used to use some of these tricks in LA-MPI,
+but backed
+
+off because of loader ordering issues.
+
+  As you can tell, I am VERY leery of these sort of tricks for a
+production grade
+
+bit of code.  If it is easy to decide at run-time if to use these
+tricks (w/o a performance
+
+penalty), this is a different question.
+
+
+Rich
+
+
+Begin forwarded message:
+
+
+<excerpt><bold><color><param>0000,0000,0000</param>From:
+</color></bold>Brian Barrett <<brbarret@open-mpi.org>
+
+<bold><color><param>0000,0000,0000</param>Date: </color></bold>August
+12, 2005 7:47:45 PM MDT
+
+<bold><color><param>0000,0000,0000</param>To: </color></bold>Open MPI
+Developers <<devel@open-mpi.org>
+
+<bold><color><param>0000,0000,0000</param>Subject: </color>[O-MPI
+devel] Memory manager changes
+
+<color><param>0000,0000,0000</param>Reply-To: </color></bold>Open MPI
+Developers <<devel@open-mpi.org>
+
+
+Hi all -
+
+
+For those not on the telecon Tuesday, we finally broke down and  
+
+decided we needed to do all the system nastiness to intercept free()  
+
+and munmap() and the like for high speed interconnects so that we can  
+
+do pinned page caching and not take the pinning performance hit on  
+
+applications like NetPIPE (and, to be fair, many user applications).   
+
+Unlike LAM, however, we're going to try to make this not be the  
+
+center of all pain and suffering ;).  While we'll support the  
+
+ptmalloc2 trick that LAM and MPICH-gm use, it will not be on by  
+
+default and we're trying to find better alternatives.  Below are your  
+
+current choices for intercepting memory releases back to the  
+
+operating system.  The default is malloc_hooks on platforms that  
+
+support it when threads aren't enabled.  Otherwise the current  
+
+default is "none".
+
+
+In all cases, in addition to dealing with free() and realloc(), we  
+
+provide intercepts for munmap() to catch the user doing his own  
+
+memory management.  We may also want to intercept SysV shared memory  
+
+functions.
+
+
+You can choose exactly which "memory manager" to use with the --with- 
+
+memory-manager=TYPE option to configure, where TYPE is one of  
+
+"ptmalloc2", "malloc_hooks", "darwin7", or "ldpreload".  Of course,  
+
+you can also use --without-memory-manager or --with-memory- 
+
+manager=none to completely disable the things.
+
+
+* PTMALLOC2
+
+
+   + Very fast implementation of the full malloc/free suite.
+
+     Directly used by glibc as their memory manager.
+
+   + Works properly in threaded environment
+
+   + Only call unpin callbacks when giving memory back to the
+
+     OS (ie, when sbrk() or munmap() are called)
+
+   - Does not work properly in some situations (abacus linker
+
+     tricks, for example) that appear to be within the
+
+     spirit of using the MPI library
+
+   - Does not work on many platforms (everywhere but linux, really)
+
+   - Feels massively icky
+
+
+* MALLOC_HOOKS
+
+
+   + Use the hooks proviced by ptmalloc2 (and therefore glibc)
+
+     to get callbacks when free(), realloc(), etc are called
+
+   + No "corner cases" that cause unexpected behavior like with
+
+     ptmalloc2
+
+   - Does not support threads (disables itself if either
+
+     progress or mpi threads are enabled)
+
+   - Have to call unpin callbacks when memory is free()d or
+
+     realloc()ed, not when giving back to OS
+
+   - Very low performance impact (1-2%) on calling free() when
+
+     there are no mpools registering callbacks
+
+
+* LDPRELOAD
+
+
+   + Thread safe
+
+   + No "corner cases" that cause unexpected behavior like with
+
+     ptmalloc2
+
+   + Should work on every platform that supports LD Preload and
+
+     dlsym()
+
+   - Requires doing ldpreload tricks
+
+   - On some platforms, have to call unpin callbacks when
+
+     memory is free()d or realloc()ed, not when giving back
+
+     to the OS
+
+   - Did I mention, it requires doing ldpreload?
+
+   + If LDPRELOAD doesn't succeed, opal can properly determine
+
+     this and will just say free() interception is unavailable
+
+
+* DARWIN7
+
+
+   + Thread safe
+
+   - Requires some nasty linker tricks to make work.  User
+
+     application must be linked with mpicc or a long list
+
+     of special flags
+
+   + If application is not linked with the special sauce,
+
+     opal should be able to properly determine this and just
+
+     say free() interception is unavailable.
+
+   - Total hack of linker tricks
+
+
+LD Preload is not yet implemented, but should be by the end of the  
+
+weekend.  The initial version will most likely only support making  
+
+callbacks every time free() / realloc() is called, rather than every  
+
+time memory is given back to the OS.  Not optimal, but better than  
+
+nothing.
+
+
+I'm going to talk with some Darwin developers about better ways to do  
+
+things on Darwin, but probably won't have any results on that front  
+
+until sometime middle of next week.
+
+
+
+Brian
+
+
+-- 
+
+   Brian Barrett
+
+   Open MPI developer
+
+   http://www.open-mpi.org/
+
+
+
+_______________________________________________
+
+devel mailing list
+
+devel@open-mpi.org
+
+http://www.open-mpi.org/mailman/listinfo.cgi/devel
+
+</excerpt>

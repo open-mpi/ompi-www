@@ -1,0 +1,84 @@
+Thanks for fast answer, Ralph.<div><br></div><div>In my example I use different collective objects. I mean in every mentioned block I call <span style="color:rgb(34,34,34);font-family:arial,sans-serif;font-size:13px;background-color:rgb(255,255,255)"> <i>coll = OBJ_NEW(orte_grpcomm_</i></span><i><span style="color:rgb(34,34,34);font-family:arial,sans-serif;font-size:13px;background-color:rgb(255,255,255)">collective_t);</span></i>  </div>
+<div>and <span style="background-color:rgb(255,255,255);color:rgb(34,34,34);font-family:arial,sans-serif;font-size:13px"><i>OBJ_RELEASE(coll);</i></span> , so all the grpcomm operations use unique collective object. </div>
+<div><br></div><div><br></div><div><div class="gmail_quote">On Thu, Dec 20, 2012 at 7:48 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<div style="word-wrap:break-word">Absolutely it will hang as the collective object passed into any grpcomm operation (modex or barrier) is only allowed to be used once - any attempt to reuse it will fail.<div><br></div><div>
+<br><div><div><div class="h5"><div>On Dec 20, 2012, at 6:57 AM, Victor Kocheganov &lt;<a href="mailto:victor.kocheganov@itseez.com" target="_blank">victor.kocheganov@itseez.com</a>&gt; wrote:</div><br></div></div><blockquote type="cite">
+<div><div class="h5">
+  
+
+    
+  
+  <div text="#000000" bgcolor="#FFFFFF">
+    <div lang="x-unicode"> Hi.<br>
+      <br>
+      I have an issue with understanding  <i>ompi_mpi_init() </i>logic.
+      Could you please tell me if you have any guesses about following
+      behavior.<br>
+      <br>
+      I wonder if I understand ringh, there is a block in <i>ompi_mpi_init()
+
+      </i>function for exchanging procs information between processes
+      (denote this block &#39;modex&#39;):<br>
+      <blockquote>    coll = OBJ_NEW(orte_grpcomm_collective_t);<br>
+            coll-&gt;id = orte_process_info.peer_modex;<br>
+            if (ORTE_SUCCESS != (ret = orte_grpcomm.modex(coll))) {<br>
+                error = &quot;orte_grpcomm_modex failed&quot;;<br>
+                goto error;<br>
+            }<br>
+            /* wait for modex to complete - this may be moved anywhere
+        in mpi_init<br>
+             * so long as it occurs prior to calling a function that
+        needs<br>
+             * the modex info!<br>
+             */<br>
+            while (coll-&gt;active) {<br>
+                opal_progress();  /* block in progress pending events */<br>
+            }<br>
+            OBJ_RELEASE(coll);<br>
+      </blockquote>
+      and several instructions after this there is a block for processes
+      synchronization (denote this block &#39;barrier&#39;):<br>
+      <blockquote>    coll = OBJ_NEW(orte_grpcomm_collective_t);<br>
+            coll-&gt;id = orte_process_info.peer_init_barrier;<br>
+            if (ORTE_SUCCESS != (ret = orte_grpcomm.barrier(coll))) {<br>
+                error = &quot;orte_grpcomm_barrier failed&quot;;<br>
+                goto error;<br>
+            }<br>
+            /* wait for barrier to complete */<br>
+            while (coll-&gt;active) {<br>
+                opal_progress();  /* block in progress pending events */<br>
+            }<br>
+            OBJ_RELEASE(coll);<br>
+      </blockquote>
+      So,<i> </i>initially<i> </i><i>ompi_mpi_init()</i> has following
+      structure:<br>
+      <blockquote>...<br>
+        &#39;modex&#39; block;<br>
+        ...<br>
+        &#39;barrier&#39; block;<br>
+        ...<br>
+      </blockquote>
+      I made several experiments with this code and the following one is
+      of interest: if I add sequence of two additional blocks, &#39;barrier&#39;
+      and &#39;modex&#39;, right after &#39;modex&#39; block, then<i> </i><i>ompi_mpi_init()
+
+      </i>hangs in <i>opal_progress()</i> of the last &#39;modex&#39; block.<br>
+      <blockquote>...<br>
+        &#39;modex&#39; block;<br>
+        &#39;barrier&#39; block;<br>
+        &#39;modex&#39; block; &lt;- hangs<br>
+        ...<br>
+        &#39;barrier&#39; block;<br>
+        ...<br>
+      </blockquote>
+      Thanks,<br>
+      Victor Kocheganov.<br>
+    </div>
+  </div></div></div>
+
+_______________________________________________<br>devel mailing list<br><a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+</div><br></div></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br></div>
+

@@ -1,0 +1,146 @@
+This patch (against r4884) fixes the issue on my system.  It moves the lstopo process to cpuset 0, which includes all the CPUs in the system.<div><br></div><div><div>--- r4884/hwloc-trunk.svn/tests/ports/topology-freebsd.c        2012-10-02 16:13:06.000000000 -0600</div>
+<div>+++ cpuset/hwloc-trunk.svn/tests/ports/topology-freebsd.c       2012-10-11 10:36:18.326408333 -0600</div><div>@@ -197,6 +197,7 @@</div><div> void</div><div> hwloc_set_freebsd_hooks(struct hwloc_topology *topology)</div>
+<div> {</div><div>+  cpuset_setid(CPU_WHICH_PID, -1, 0);</div><div> #if defined(HAVE_SYS_CPUSET_H) &amp;&amp; defined(HAVE_CPUSET_SETAFFINITY)</div><div>   topology-&gt;set_thisproc_cpubind = hwloc_freebsd_set_thisproc_cpubind;</div>
+<div>   topology-&gt;get_thisproc_cpubind = hwloc_freebsd_get_thisproc_cpubind;</div><div><br></div><div><br></div><br><div class="gmail_quote">On Thu, Oct 11, 2012 at 10:33 AM, Sebastian Kuzminsky <span dir="ltr">&lt;<a href="mailto:seb@lineratesystems.com" target="_blank">seb@lineratesystems.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="im HOEnZb"><span style="color:rgb(34,34,34);font-size:13px;font-family:arial,sans-serif">The modification of the default cpuset (to exclude CPUs 0-9) is done by our local installation.  I assume the vanilla FreeBSD 7.3 that we&#39;re based on does not monkey with the default cpuset.</span><div style="color:rgb(34,34,34);font-size:13px;font-family:arial,sans-serif">
+
+
+<br></div><div style="color:rgb(34,34,34);font-size:13px;font-family:arial,sans-serif">I believe modifying your own cpuset is not a privileged operation in FreeBSD.  The cpuset executable is not setuid root and is usable by regular users.<br>
+
+
+<br>I think you can move the lstopo process to cpuset 0 (which includes all CPUs) by calling cpuset_setid(), and that should take care of the issue.</div><div style="color:rgb(34,34,34);font-size:13px;font-family:arial,sans-serif">
+
+
+<br></div><br></div><div class="HOEnZb"><div class="h5"><div class="gmail_quote">On Thu, Oct 11, 2012 at 10:13 AM, Brice Goglin <span dir="ltr">&lt;<a href="mailto:Brice.Goglin@inria.fr" target="_blank">Brice.Goglin@inria.fr</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+
+  
+
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    (forwarding your mail to the list, and replying)<br>
+    <br>
+    Good to know that it works, thanks for testing. I released 1.5.1rc1
+    today, it should work fine as well.<br>
+    <br>
+    You say that the cpuset does not contain 0-9 by default on this
+    hardware. This is something specific to your installation, I guess?
+    Nothing that happens by default on a default FreeBSD install, right?<br>
+    <br>
+    Is the cpuset-modification a root-only operation on FreeBSD? If so
+    lstopo wouldn&#39;t be able to expand the cpuset at startup.<br>
+    <br>
+    lstopo has a --whole-system option to ignore such limitations.
+    Unfortunately the x86 backend that hwloc uses on FreeBSD requires
+    that we bind to each individual core to get its locality
+    information, so that won&#39;t help unless lstopo can indeed remove the
+    cpuset first.<br>
+    <br>
+    Brice<br>
+    <br>
+    <br>
+    <br>
+    -------- Message original --------
+    <table border="0" cellpadding="0" cellspacing="0">
+      <tbody>
+        <tr>
+          <th align="RIGHT" nowrap valign="BASELINE">Sujet: </th>
+          <td>Re: [hwloc-users] hwloc 1.5, freebsd and linux output on
+            the same hardware</td>
+        </tr>
+        <tr>
+          <th align="RIGHT" nowrap valign="BASELINE">Date : </th>
+          <td>Thu, 11 Oct 2012 10:02:55 -0600</td>
+        </tr>
+        <tr>
+          <th align="RIGHT" nowrap valign="BASELINE">De : </th>
+          <td>Sebastian Kuzminsky <a href="mailto:seb@lineratesystems.com" target="_blank">&lt;seb@lineratesystems.com&gt;</a></td>
+        </tr>
+        <tr>
+          <th align="RIGHT" nowrap valign="BASELINE">Pour : </th>
+          <td>Brice Goglin <a href="mailto:Brice.Goglin@inria.fr" target="_blank">&lt;Brice.Goglin@inria.fr&gt;</a></td>
+        </tr>
+      </tbody>
+    </table><div><div>
+    <br>
+    <br>
+    Ok, it&#39;s our fault, sort of.
+    <div><br>
+    </div>
+    <div>We use cpusets, and by default on this hardware CPUs 0-9 are
+      denied to most processes (including lstopo).  If I explicitly
+      change the cpuset of lstopo to include CPUs 0-9, it runs
+      correctly.</div>
+    <div><br>
+    </div>
+    <div>Maybe lstopo should expand its cpuset to be fully inclusive at
+      startup?  I&#39;ll be happy to test patches if you want.</div>
+    <div><br>
+    </div>
+    <div><br>
+      <br>
+      <br>
+      <div class="gmail_quote">On Thu, Oct 11, 2012 at 9:27 AM,
+        Sebastian Kuzminsky <span dir="ltr">&lt;<a href="mailto:seb@lineratesystems.com" target="_blank">seb@lineratesystems.com</a>&gt;</span>
+        wrote:<br>
+        <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+          <div>
+            <div class="gmail_quote">
+              <div>
+                <div>On Thu, Oct 11, 2012 at 2:39 AM, Brice
+                  Goglin <span dir="ltr">&lt;<a href="mailto:Brice.Goglin@inria.fr" target="_blank">Brice.Goglin@inria.fr</a>&gt;</span>
+                  wrote:<br>
+                  <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+                    Le 06/10/2012 01:03, Sebastian Kuzminsky a écrit :<br>
+                    <div>&gt; Hm.  It may be that we&#39;re doing something
+                      funny and reserving those<br>
+                      &gt; CPUs.  I&#39;ll run some tests on Monday and get
+                      back to you.<br>
+                      <br>
+                    </div>
+                    (replying outside of the hwloc mailing list)<br>
+                    <br>
+                    Did you have a chance to look at this?<br>
+                    I am about to release a hwloc 1.5.1rc1. It&#39;d be good
+                    to get your<br>
+                    feedback before we do the final 1.5.1 (likely next
+                    week).<br>
+                  </blockquote>
+                  <div><br>
+                  </div>
+                </div>
+              </div>
+              Oops, thanks for the reminder...  I got side tracked on
+              other stuff, but I have some time this morning to devote
+              to this. I&#39;ll get back to you soon.<span><font color="#888888">
+                  <div>
+                    <br>
+                  </div>
+                </font></span></div>
+            <span><font color="#888888">
+                <div><br>
+                </div>
+                -- <br>
+                Sebastian Kuzminsky
+                <div>Sr Software Engineer, Linerate Systems</div>
+                <br>
+              </font></span></div>
+        </blockquote>
+      </div>
+      <br>
+      <br clear="all">
+      <div><br>
+      </div>
+      -- <br>
+      Sebastian Kuzminsky
+      <div>Sr Software Engineer, Linerate Systems</div>
+      <br>
+    </div>
+  </div></div></div>
+
+</blockquote></div><br><br clear="all"><div><br></div>-- <br>Sebastian Kuzminsky<div>Sr Software Engineer, Linerate Systems</div><br>
+</div></div></blockquote></div><br><br clear="all"><div><br></div>-- <br>Sebastian Kuzminsky<div>Sr Software Engineer, Linerate Systems</div><br>
+</div>
+

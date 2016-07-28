@@ -1,0 +1,145 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title></title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Hi Dick,<br>
+<blockquote
+ cite="mid:OF70CAD125.3D194FA6-ON85257570.005DA642-85257571.0049B224@us.ibm.com"
+ type="cite">
+  <p>Jeff paraphrased an unnamed source as suggesting that<tt>: "any
+MPI program that relies on a barrier for correctness is an incorrect
+MPI application.</tt>" . That is probably too strong.<br>
+  <br>
+How about this assertion?<br>
+  <br>
+  <b>If there are no wildcard receives - every MPI_Barrier call is
+semantically irrelevant.</b><br>
+  </p>
+</blockquote>
+This depends on what 'semantically irrelevant' means.&nbsp; It is clear that
+one can write a wildcard-free program that will deadlock if you insert
+a barrier incorrectly, but that removing the barrier will avoid the
+deadlock. (Imagine P1 doing a Send; Barrier and P2 doing a Barrier;
+Receive(nonwildcard)).<br>
+<br>
+So a wildcard-free program may still deadlock (semantically noticeable
+effect) by having barriers. I'm sure you did not mean to include this
+degenerate nit-pick - but yes otherwise you are right!&nbsp; The proof
+exists in a Siegel paper (cited in our EuroPVM'08) for a subset of MPI.
+Our work takes that idea further and offers a complete checking
+algorithm&nbsp; for one test harness (data set) as now described. <br>
+<br>
+<br>
+The exact consideration for locating semantically irrelevant barriers
+(we call it Functionally Irrelevant Barriers in our paper) is given in
+our EuroPVM / MPI 2008 paper. The analysis involves ordering paths --
+IntraCB and InterCB. CB stands for Completes-before. <br>
+<br>
+What is IntraCB?&nbsp; Imagine two MPI sends from P1 to P2 in that order.
+MPI forces them to complete in program order. Now imagine P1 sending to
+P2 and then P1 sending to P3. These can complete out of program order.
+Why so? Because MPI guarantees only non-overtaking (point-to-point
+non-overtaking). It also makes sense practically: the first send may be
+shipping a gigabyte to P2 and the second shipping a byte to P3. <br>
+<br>
+IntraCB is a weak relation wrt program order. We have accurately
+defined IntraCB in our CAV 2008 paper (available on our website). The
+basic idea is simple: about 6-7 rules capture IntraCB (like in the
+above example).<br>
+<br>
+Now in our EuroPVM 2008 paper, we show how to lift IntraCB to InterCB
+by computing a "closure" thru barriers. This defines MPI ordering
+paths. This is again a simple idea.<br>
+<br>
+The gist of FIB is this: if an ordering path is affected by the removal
+of barriers, then that barrier is functionally relevant; else it is
+not. FIB does this analysis for all possible ordering paths.<br>
+<br>
+How are all ordering paths determined? Well for this, FIB needs help
+from our POE algorithm (CAV 2008) that generates the RELEVANT
+executions of an MPI program. Basically POE gives you the semantically
+minimal (close to minimal; slightly bloated is possible) set of
+interleavings of an MPI program.&nbsp; Here is the idea: if you write an MPI
+program with P1 sending to P2, P3 sending to P2, and P3 doing a
+wildcard receive from either P1 or P2, our POE algorithm generates two
+interleavings. These are sufficient. No need to consider all
+permutations of posting send1, send2, receive(*) in all orders.&nbsp; The
+POE algorithm is essential for FIB to work.<br>
+<br>
+In fact, thru a few mouse-clicks, you can do all this <br>
+<br>
+1) download ISP&nbsp; from&nbsp;
+<a class="moz-txt-link-freetext" href="http://www.cs.utah.edu/formal_verification/ISP-release">http://www.cs.utah.edu/formal_verification/ISP-release</a> <br>
+2) fire it up<br>
+3) If running under Linux, use the --fib flag; if running under
+Windows, the flag is on by default<br>
+4) ISP verifies the program for assert failures, MPI object leaks, and
+deadlocks<br>
+5) If ISP stops w/o deadlocks found (ie all goes well) it prints the
+list of FIBs.<br>
+<br>
+Please try - we will appreciate it greatly! We may have always
+overlooked something -- we will be very grateful if you could offer
+feedback to improve our ISP tool that contains the FIB algo
+implementation.<br>
+<br>
+As a bonus, if you read our EuroPVM / MPI 2008 paper, you will find, in
+its first 3-4 pages, some "brain teasers" that you can read, and see if
+you think those barriers could be removed. Next you can type those 3-4
+line examples into ISP and see what it says wrt the FIB status.<br>
+<br>
+I'm not fibbing... :-)<br>
+<br>
+Cheers,<br>
+<br>
+Ganesh<br>
+<br>
+p.s. I said that FIB does the analysis for one data set. As in our
+paper, we have shown that in many cases, a static analyzer can
+determine that a program is data independent. In that case, the FIB
+analysis holds for all inputs (input = test harness = data set).<br>
+<br>
+--<br>
+<br>
+<blockquote
+ cite="mid:OF70CAD125.3D194FA6-ON85257570.005DA642-85257571.0049B224@us.ibm.com"
+ type="cite">
+  <p><br>
+It is the exception that tests the rule. <br>
+  <br>
+If someone can provide an example of an MPI_Barrier that is required by
+an application based on MPI communication and that does not use
+wildcard receive I am interested in seeing it. I do not know of a
+counter example but also do not have proof of the assertion I place
+before the group.<br>
+  <br>
+No fair using examples with non-MPI interactions among tasks or with
+job steering by asynchronous triggers from outside the job. I can
+construct them myself. <br>
+  <br>
+MPI_WIN_FENCE is semantically required in some situations and examples
+that show a semantic need for MPI_WIN_FENCE do not count against the
+assertion.<br>
+  <br>
+I have appreciated the descriptions from Gus, Asjley and others of some
+non-symantic justifications for an MPI_Barrier.<br>
+  <br>
+  <br>
+Dick Treumann - MPI Team <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846 Fax (845) 433-8363<br>
+  </p>
+  <pre wrap="">
+<hr size="4" width="90%">
+_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></pre>
+</blockquote>
+</body>
+</html>
+

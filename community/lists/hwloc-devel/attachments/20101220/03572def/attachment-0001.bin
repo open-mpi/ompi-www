@@ -1,0 +1,201 @@
+commit 14ecc22a781c6a9d4f34422dfbc8f28693e8073c
+Author: Brice Goglin <bgoglin@inria.fr>
+Date:   Mon Dec 20 08:45:25 2010 +0100
+
+    Add a hwloc-gather-topology.1 manpage
+
+diff --git a/utils/Makefile.am b/utils/Makefile.am
+index b725d53..b1f6f45 100644
+--- a/utils/Makefile.am
++++ b/utils/Makefile.am
+@@ -43,6 +43,9 @@ endif HWLOC_BUILD_TESTS
+ # Only install man pages if we're building in standalone mode
+ if HWLOC_BUILD_UTILS
+ man1_pages = lstopo.1 hwloc-bind.1 hwloc-distrib.1 hwloc-calc.1 hwloc-ps.1
++if HWLOC_HAVE_LINUX
++man1_pages += hwloc-gather-topology.1
++endif HWLOC_HAVE_LINUX
+ man7_pages = hwloc.7
+ man_pages = $(man7_pages) $(man1_pages)
+ EXTRA_DIST += $(man1_pages:.1=.1in) $(man7_pages:.7=.7in)
+diff --git a/utils/hwloc-calc.1in b/utils/hwloc-calc.1in
+index 65d4801..5e6e638 100644
+--- a/utils/hwloc-calc.1in
++++ b/utils/hwloc-calc.1in
+@@ -71,7 +71,8 @@ option to be usable.
+ \fB\-i\fR <directory>, \fB\-\-input\fR <directory>
+ Read topology from the chroot specified by <directory> (instead of
+ discovering the topology on the local machine).  This option is
+-generally only available on Linux.
++generally only available on Linux.  The chroot was generally created
++after gathering another machine topology with hwloc-gather-topology.sh.
+ .TP
+ \fB\-i\fR <specification>, \fB\-\-input\fR <specification>
+ Simulate a fake hierarchy (instead of discovering the topology on the
+@@ -200,5 +201,5 @@ hwloc-calc will return nonzero if any kind of error occurs, such as
+ .SH SEE ALSO
+ .
+ .ft R
+-hwloc(7)
++hwloc(7), hwloc-gather-topology(1)
+ .sp
+diff --git a/utils/hwloc-distrib.1in b/utils/hwloc-distrib.1in
+index 1805bcc..f53b30a 100644
+--- a/utils/hwloc-distrib.1in
++++ b/utils/hwloc-distrib.1in
+@@ -36,7 +36,8 @@ option to be usable.
+ \fB\-i\fR <directory>, \fB\-\-input\fR <directory>
+ Read topology from the chroot specified by <directory> (instead of
+ discovering the topology on the local machine).  This option is
+-generally only available on Linux.
++generally only available on Linux.  The chroot was generally created
++after gathering another machine topology with hwloc-gather-topology.sh.
+ .TP
+ \fB\-i\fR <specification>, \fB\-\-input\fR <specification>
+ Simulate a fake hierarchy (instead of discovering the topology on the
+@@ -149,5 +150,5 @@ hwloc-distrib will return nonzero if any kind of error occurs, such as
+ .SH SEE ALSO
+ .
+ .ft R
+-hwloc(7)
++hwloc(7), hwloc-gather-topology(1)
+ .sp
+diff --git a/utils/hwloc-gather-topology.1in b/utils/hwloc-gather-topology.1in
+new file mode 100644
+index 0000000..d0ac360
+--- /dev/null
++++ b/utils/hwloc-gather-topology.1in
+@@ -0,0 +1,112 @@
++.\" -*- nroff -*-
++.\" Copyright © 2010 Jirka Hladky
++.\" Copyright © 2010 Brice Goglin
++.TH hwloc-gather-topology.sh "1" "#HWLOC_DATE#" "#PACKAGE_VERSION#" "#PACKAGE_NAME#"
++.SH NAME
++hwloc-gather-topology.sh \- Saves the relevant Linux topology files
++and the lstopo output for later (possibly offline) usage.
++.
++.\" **************************
++.\"    Synopsis Section
++.\" **************************
++.SH SYNOPSIS
++.
++.B hwloc-gather-topology.sh
++[\fIoptions\fR] \fI<path> \fR
++.
++.\" **************************
++.\"    Description Section
++.\" **************************
++.SH DESCRIPTION
++.
++hwloc-gather-topology.sh saves all the relevant topology files into an
++archive (\fB<path>.tar.bz2\fR) and the lstopo output (\fB<path>.output\fR).
++The utility for example stores the /proc/cpuinfo file and the entire
++/sys/devices/system/node/ directory tree.
++.
++.PP
++These files can be used later to explore the machine topology offline.
++Once the tarball has been extracted, it may for instance be given to
++some hwloc command-line utilities through their \fB\-\-input\fR option.
++It is also possible to override the default topology that the hwloc
++library will read by setting the extracted path in the \fBHWLOC_FSROOT\fR
++environment variable.
++.
++.PP
++Both archive and lstopo output may also be submitted to hwloc developers
++to debug issues remotely.
++.
++.PP
++.B NOTE:
++It is highly recommended that you read the hwloc(7) overview page
++before reading this man page.
++.
++.\" **************************
++.\"    Examples Section
++.\" **************************
++.SH EXAMPLES
++.PP
++To store topology information to be used later (possibly on
++a different host) please run:
++
++	hwloc-gather-topology.sh /tmp/myhost
++
++It will store all relevant topology files in the \fB/tmp/myhost.tar.bz2\fR
++archive and the lstopo output in the \fB/tmp/myhost.output\fR file.
++.
++These files can be transferred on another host for later/offline
++analysis and/or as the input to various hwloc utilities.
++.PP
++To use these data with hwloc utilities you have to unpack
++\fBmyhost.tar.bz2\fR archive first:
++
++	tar jxvf /tmp/myhost.tar.bz2
++
++A new directory named \fBmyhost\fR now contains all topology files.
++Then you ask various hwloc utilities to use this topology instead
++of the one of the real machine by passing \fB\-\-input myhost\fR.
++To display the topology just run:
++
++	lstopo --input ./myhost
++
++It is not necessary that the topology is extracted in the current
++directory, absolute or relative paths are also supported:
++
++	lstopo --input /path/to/remote/host/extracted/topology/
++
++To see how hwloc would distribute 8 parallel jobs on the original host:
++
++	hwloc-distrib --input myhost --single 8
++
++To get the corresponding physical indexes in the previous command:
++
++	hwloc-calc --input myhost --po --li --proclist $(hwloc-distrib --input myhost --single 8)
++
++Any program may actually override the default topology with a given
++archived one even if it does not have a \fB\-\-input\fR option.
++The \fBHWLOC_FSROOT\fR environment variable should be used to do so:
++
++	HWLOC_FSROOT=myhost hwloc-calc --po --li --proclist $(hwloc-distrib --single 8)
++
++All these commands will produce the same output as if executed
++directly on the host on which the topology information was
++originally gathered by the hwloc-gather-topology.sh script.
++.
++.\" **************************
++.\"    Return value section
++.\" **************************
++.SH RETURN VALUE
++Upon successful execution, hwloc-gather-topology.sh will exit with the code 0. 
++.
++.PP
++hwloc-gather-topology.sh will return nonzero exit status if any kind of error occurs,
++such as (but not limited to) failure to create the archive or output file.
++.
++.\" **************************
++.\"    See also section
++.\" **************************
++.SH SEE ALSO
++.
++.ft R
++hwloc(7), lstopo(1), hwloc-calc(1), hwloc-distrib(1)
++.sp
+diff --git a/utils/lstopo.1in b/utils/lstopo.1in
+index da9c7a0..50e70eb 100644
+--- a/utils/lstopo.1in
++++ b/utils/lstopo.1in
+@@ -35,7 +35,8 @@ option to be usable.
+ \fB\-i\fR <directory>, \fB\-\-input\fR <directory>
+ Read topology from the chroot specified by <directory> (instead of
+ discovering the topology on the local machine).  This option is
+-generally only available on Linux.
++generally only available on Linux.  The chroot was generally created
++after gathering another machine topology with hwloc-gather-topology.sh.
+ .TP
+ \fB\-i\fR <specification>, \fB\-\-input\fR <specification>
+ Simulate a fake hierarchy (instead of discovering the topology on the
+@@ -329,5 +330,5 @@ To count the number of logical processors in the system
+ .SH SEE ALSO
+ .
+ .ft R
+-hwloc-bind(1), hwloc-ps(1)
++hwloc-bind(1), hwloc-ps(1), hwloc-gather-topology(1)
+ .sp

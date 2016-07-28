@@ -1,0 +1,133 @@
+<div dir="ltr"><div style>Hi Brice, </div><div style><br></div><div style>thanks for testing this out.</div><div style><br></div><div style>How did you make sure that the pinned pages used by the I/O adapter mapped to the &quot;other&quot; socket&#39;s memory controller ? Is pining the MPI binary to a socket sufficient to pin the space used for MPI I/O as well to that socket? I think this is something done by and at the HCA device driver level. </div>
+<div style><br></div><div style>Anyways, as long as the memory performance difference is a the levels you mentioned then there is no &quot;big&quot; issue. Most likely the device driver get space from the same numa domain that of the socket the HCA is attached to. </div>
+<div style><br></div><div style>Thanks for trying it out</div><div style>Michael</div><div style><br></div><div style><br></div><div style><br></div><div style><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">
+On Mon, Jul 8, 2013 at 11:45 AM, Brice Goglin <span dir="ltr">&lt;<a href="mailto:Brice.Goglin@inria.fr" target="_blank">Brice.Goglin@inria.fr</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+
+  
+    
+  
+  <div bgcolor="#FFFFFF" text="#000000">
+    <div>On a dual E5 2650 machine with FDR
+      cards, I see the IMB Pingpong throughput drop from 6000 to
+      5700MB/s when the memory isn&#39;t allocated on the right socket (and
+      latency increases from 0.8 to 1.4us). Of course that&#39;s pingpong
+      only, things will be worse on a memory-overloaded machine. But I
+      don&#39;t expect things to be &quot;less worse&quot; if you do an intermediate
+      copy through the memory near the HCA: you would overload the QPI
+      link as much as here, and you would overload the CPU even more
+      because of the additional copies.<br>
+      <br>
+      Brice<br>
+      <br>
+      <br>
+      <br>
+      Le 08/07/2013 18:27, Michael Thomadakis a écrit :<br>
+    </div><div><div class="h5">
+    <blockquote type="cite">
+      <div dir="ltr">People have mentioned that they experience
+        unexpected slow downs in PCIe_gen3 I/O when the pages map to a
+        socket different from the one the HCA connects to. It is
+        speculated that the inter-socket QPI is not provisioned to
+        transfer more than 1GiB/sec for PCIe_gen 3 traffic. This
+        situation may not be in effect on all SandyBrige or IvyBridge
+        systems.
+        <div>
+          <br>
+        </div>
+        <div>Have you measured anything like this on you
+          systems as well? That would require using physical memory
+          mapped to the socket w/o HCA exclusively for MPI messaging.</div>
+        <div><br>
+        </div>
+        <div>Mike</div>
+      </div>
+      <div class="gmail_extra"><br>
+        <br>
+        <div class="gmail_quote">On Mon, Jul 8, 2013 at 10:52 AM, Jeff
+          Squyres (jsquyres) <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+            <div>On Jul 8, 2013, at 11:35 AM, Michael
+              Thomadakis &lt;<a href="mailto:drmichaelt7777@gmail.com" target="_blank">drmichaelt7777@gmail.com</a>&gt;
+              wrote:<br>
+              <br>
+              &gt; The issue is that when you read or write PCIe_gen 3
+              dat to a non-local NUMA memory, SandyBridge will use the
+              inter-socket QPIs to get this data across to the other
+              socket. I think there is considerable limitation in PCIe
+              I/O traffic data going over the inter-socket QPI. One way
+              to get around this is for reads to buffer all data into
+              memory space local to the same socket and then transfer
+              them by code across to the other socket&#39;s physical memory.
+              For writes the same approach can be used with intermediary
+              process copying data.<br>
+              <br>
+            </div>
+            Sure, you&#39;ll cause congestion across the QPI network when
+            you do non-local PCI reads/writes.  That&#39;s a given.<br>
+            <br>
+            But I&#39;m not aware of a hardware limitation on PCI-requested
+            traffic across QPI (I could be wrong, of course -- I&#39;m a
+            software guy, not a hardware guy).  A simple test would be
+            to bind an MPI process to a far NUMA node and run a simple
+            MPI bandwidth test and see if to get better/same/worse
+            bandwidth compared to binding an MPI process on a near NUMA
+            socket.<br>
+            <br>
+            But in terms of doing intermediate (pipelined) reads/writes
+            to local NUMA memory before reading/writing to PCI, no, Open
+            MPI does not do this.  Unless there is a PCI-QPI bandwidth
+            constraint that we&#39;re unaware of, I&#39;m not sure why you would
+            do this -- it would likely add considerable complexity to
+            the code and it would definitely lead to higher overall MPI
+            latency.<br>
+            <br>
+            Don&#39;t forget that the MPI paradigm is for the application to
+            provide the send/receive buffer.  Meaning: MPI doesn&#39;t
+            (always) control where the buffer is located (particularly
+            for large messages).<br>
+            <div><br>
+              &gt; I was wondering if OpenMPI does anything special
+              memory mapping to work around this.<br>
+              <br>
+            </div>
+            Just what I mentioned in the prior email.<br>
+            <div><br>
+              &gt; And if with Ivy Bridge (or Haswell) he situation has
+              improved.<br>
+              <br>
+            </div>
+            Open MPI doesn&#39;t treat these chips any different.<br>
+            <div>
+              <div><br>
+                --<br>
+                Jeff Squyres<br>
+                <a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+                For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+                <br>
+                <br>
+                _______________________________________________<br>
+                users mailing list<br>
+                <a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+                <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+              </div>
+            </div>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      <pre>_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></pre>
+    </blockquote>
+    <br>
+  </div></div></div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br></div>
+

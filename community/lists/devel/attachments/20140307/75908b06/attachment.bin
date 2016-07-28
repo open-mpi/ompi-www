@@ -1,0 +1,932 @@
+diff -Naur openmpi-1.6.5/orte/mca/plm/slurm/plm_slurm_module.c openmpi-1.6.5_new/orte/mca/plm/slurm/plm_slurm_module.c
+--- openmpi-1.6.5/orte/mca/plm/slurm/plm_slurm_module.c	2012-04-03 10:30:29.000000000 -0400
++++ openmpi-1.6.5_new/orte/mca/plm/slurm/plm_slurm_module.c	2014-03-07 08:54:12.878010513 -0500
+@@ -11,7 +11,7 @@
+  *                         All rights reserved.
+  * Copyright (c) 2006-2007 Cisco Systems, Inc.  All rights reserved.
+  * Copyright (c) 2007      Los Alamos National Security, LLC.  All rights
+- *                         reserved. 
++ *                         reserved.
+  * $COPYRIGHT$
+  *
+  * Additional copyrights may follow
+@@ -107,12 +107,26 @@
+ /*
+  * Local variables
+  */
+-static pid_t primary_srun_pid = 0;
+-static bool primary_pid_set = false;
++static pid_t *primary_srun_pids = NULL;
++static int primary_srun_pids_cnt = 0;
++static bool primary_pids_set = false;
+ static orte_jobid_t active_job = ORTE_JOBID_INVALID;
+ static bool launching_daemons;
+ static bool local_launch_available = false;
+ 
++struct pml_slurm_node_group_t {
++    char **nodelist;
++    unsigned int nodelist_size;
++    unsigned int cpus_per_node;
++};
++
++static int plm_slurm_group_nodes(orte_job_map_t *map,
++                                 struct pml_slurm_node_group_t **grpout,
++                                 int *grpcnt);
++static void plm_slurm_groups_free(struct pml_slurm_node_group_t **groups,
++                                  int grpcnt);
++
++
+ /**
+ * Init the module
+  */
+@@ -152,7 +166,7 @@
+     char *tmp;
+     char** env = NULL;
+     char* var;
+-    char *nodelist_flat;
++    char *nodelist_flat, *nodelist_full;
+     char **nodelist_argv;
+     char *name_string;
+     char **custom_strings;
+@@ -163,11 +177,14 @@
+     orte_jobid_t failed_job;
+     bool failed_launch=true;
+     bool using_regexp=false;
++    struct pml_slurm_node_group_t *groups = NULL;
++    int grpcnt, grpnum;
++    int vpid_offset = 0;
+ 
+     if (NULL == jdata) {
+-	/* just launching debugger daemons */
+-	active_job = ORTE_JOBID_INVALID;
+-	goto launch_apps;
++        /* just launching debugger daemons */
++        active_job = ORTE_JOBID_INVALID;
++        goto launch_apps;
+     }
+ 
+     if (jdata->controls & ORTE_JOB_CONTROL_DEBUGGER_DAEMON) {
+@@ -205,7 +222,7 @@
+             opal_output(0, "plm_slurm: could not obtain job start time");
+             launchstart.tv_sec = 0;
+             launchstart.tv_usec = 0;
+-        }        
++        }
+     }
+     
+     /* indicate the state of the launch */
+@@ -223,7 +240,7 @@
+                          ORTE_JOBID_PRINT(jdata->jobid)));
+     
+     /* set the active jobid */
+-     active_job = jdata->jobid;
++    active_job = jdata->jobid;
+     
+     /* Get the map for this job */
+     if (NULL == (map = orte_rmaps.get_job_map(active_job))) {
+@@ -233,7 +250,7 @@
+     }
+     apps = (orte_app_context_t**)jdata->apps->addr;
+     nodes = (orte_node_t**)map->nodes->addr;
+-        
++
+     if (0 == map->num_new_daemons) {
+         /* no new daemons required - just launch apps */
+         OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
+@@ -242,44 +259,12 @@
+         goto launch_apps;
+     }
+ 
++    
+     /* need integer value for command line parameter */
+     asprintf(&jobid_string, "%lu", (unsigned long) jdata->jobid);
+-
+-    /*
+-     * start building argv array
+-     */
+-    argv = NULL;
+-    argc = 0;
+-
+-    /*
+-     * SLURM srun OPTIONS
+-     */
+-
+-    /* add the srun command */
+-    opal_argv_append(&argc, &argv, "srun");
+-
+-    /* Append user defined arguments to srun */
+-    if ( NULL != mca_plm_slurm_component.custom_args ) {
+-        custom_strings = opal_argv_split(mca_plm_slurm_component.custom_args, ' ');
+-        num_args       = opal_argv_count(custom_strings);
+-        for (i = 0; i < num_args; ++i) {
+-            opal_argv_append(&argc, &argv, custom_strings[i]);
+-        }
+-        opal_argv_free(custom_strings);
+-    }
+-
+-    asprintf(&tmp, "--nodes=%lu", (unsigned long) map->num_new_daemons);
+-    opal_argv_append(&argc, &argv, tmp);
+-    free(tmp);
+-
+-    asprintf(&tmp, "--ntasks=%lu", (unsigned long) map->num_new_daemons);
+-    opal_argv_append(&argc, &argv, tmp);
+-    free(tmp);
+-
+-    /* alert us if any orteds die during startup */
+-    opal_argv_append(&argc, &argv, "--kill-on-bad-exit");
+-
+-    /* create nodelist */
++    
++    
++    // prepare full node list
+     nodelist_argv = NULL;
+ 
+     for (n=0; n < map->num_nodes; n++ ) {
+@@ -300,117 +285,192 @@
+         rc = ORTE_ERR_FAILED_TO_START;
+         goto cleanup;
+     }
+-    nodelist_flat = opal_argv_join(nodelist_argv, ',');
++    nodelist_full = opal_argv_join(nodelist_argv, ',');
+     opal_argv_free(nodelist_argv);
+-    asprintf(&tmp, "--nodelist=%s", nodelist_flat);
+-    opal_argv_append(&argc, &argv, tmp);
+-    free(tmp);
+-
+-    OPAL_OUTPUT_VERBOSE((2, orte_plm_globals.output,
+-                         "%s plm:slurm: launching on nodes %s",
+-                         ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), nodelist_flat));
+-    
++
++
+     /*
++     * start building argv array
++     */
++    if( rc = plm_slurm_group_nodes(map, &groups, &grpcnt) ){
++        goto cleanup;
++    }
++
++    argv = NULL;
++    argc = 0;
++    primary_srun_pids = malloc(sizeof(int)*grpcnt);
++    if( primary_srun_pids == NULL ){
++        ORTE_ERROR_LOG(ORTE_ERR_OUT_OF_RESOURCE);
++        rc = ORTE_ERR_OUT_OF_RESOURCE;
++        goto cleanup;
++    }
++
++    grpnum = 0;
++    vpid_offset = 0;
++    while( grpnum < grpcnt ){
++        /*
++         * SLURM srun OPTIONS
++         */
++
++        /* add the srun command */
++        opal_argv_append(&argc, &argv, "srun");
++
++        /* Append user defined arguments to srun */
++        if ( NULL != mca_plm_slurm_component.custom_args ) {
++            custom_strings = opal_argv_split(mca_plm_slurm_component.custom_args, ' ');
++            num_args       = opal_argv_count(custom_strings);
++            for (i = 0; i < num_args; ++i) {
++                opal_argv_append(&argc, &argv, custom_strings[i]);
++            }
++            opal_argv_free(custom_strings);
++        }
++
++        asprintf(&tmp, "--nodes=%lu", (unsigned long) groups[grpnum].nodelist_size);
++        opal_argv_append(&argc, &argv, tmp);
++        free(tmp);
++
++        asprintf(&tmp, "--ntasks=%lu", (unsigned long) groups[grpnum].nodelist_size);
++        opal_argv_append(&argc, &argv, tmp);
++        free(tmp);
++
++        if( groups[grpnum].cpus_per_node > 1 ){
++            asprintf(&tmp, "--cpus-per-task=%lu", (unsigned long) groups[grpnum].cpus_per_node);
++            opal_argv_append(&argc, &argv, tmp);
++            free(tmp);
++        }
++
++        /* alert us if any orteds die during startup */
++        opal_argv_append(&argc, &argv, "--kill-on-bad-exit");
++
++        /* create nodelist */
++        if (0 == groups[grpnum].nodelist_size ) {
++            orte_show_help("help-plm-slurm.txt", "no-hosts-in-list", true);
++            rc = ORTE_ERR_FAILED_TO_START;
++            goto cleanup;
++        }
++        nodelist_flat = opal_argv_join(groups[grpnum].nodelist, ',');
++        asprintf(&tmp, "--nodelist=%s", nodelist_flat);
++        opal_argv_append(&argc, &argv, tmp);
++        free(tmp);
++
++        OPAL_OUTPUT_VERBOSE((2, orte_plm_globals.output,
++                             "%s plm:slurm: launching on nodes %s",
++                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME), nodelist_flat));
++
++        /*
+      * ORTED OPTIONS
+      */
+ 
+-    /* add the daemon command (as specified by user) */
+-    orte_plm_base_setup_orted_cmd(&argc, &argv);
+-    
+-   /* Add basic orted command line options, including debug flags */
+-    orte_plm_base_orted_append_basic_args(&argc, &argv,
+-                                          "slurm", &proc_vpid_index,
+-                                          false, nodelist_flat);
+-    free(nodelist_flat);
++        /* add the daemon command (as specified by user) */
++        orte_plm_base_setup_orted_cmd(&argc, &argv);
+ 
+-    /* tell the new daemons the base of the name list so they can compute
++        /* Add basic orted command line options, including debug flags */
++        orte_plm_base_orted_append_basic_args(&argc, &argv,
++                                              "slurm", &proc_vpid_index,
++                                              false, nodelist_full);
++        free(nodelist_flat);
++
++        /* tell the new daemons the base of the name list so they can compute
+      * their own name on the other end
+      */
+-    rc = orte_util_convert_vpid_to_string(&name_string, map->daemon_vpid_start);
+-    if (ORTE_SUCCESS != rc) {
+-        opal_output(0, "plm_slurm: unable to get daemon vpid as string");
+-        goto cleanup;
+-    }
++        rc = orte_util_convert_vpid_to_string(&name_string, map->daemon_vpid_start + vpid_offset);
++        if (ORTE_SUCCESS != rc) {
++            opal_output(0, "plm_slurm: unable to get daemon vpid as string");
++            goto cleanup;
++        }
+ 
+-    free(argv[proc_vpid_index]);
+-    argv[proc_vpid_index] = strdup(name_string);
+-    free(name_string);
++        free(argv[proc_vpid_index]);
++        argv[proc_vpid_index] = strdup(name_string);
++        free(name_string);
+ 
+-    /* Copy the prefix-directory specified in the
++        /* Copy the prefix-directory specified in the
+        corresponding app_context.  If there are multiple,
+        different prefix's in the app context, complain (i.e., only
+        allow one --prefix option for the entire slurm run -- we
+        don't support different --prefix'es for different nodes in
+        the SLURM plm) */
+-    cur_prefix = NULL;
+-    for (n=0; n < jdata->num_apps; n++) {
+-        char * app_prefix_dir = apps[n]->prefix_dir;
+-         /* Check for already set cur_prefix_dir -- if different,
++        cur_prefix = NULL;
++        for (n=0; n < jdata->num_apps; n++) {
++            char * app_prefix_dir = apps[n]->prefix_dir;
++            /* Check for already set cur_prefix_dir -- if different,
+            complain */
+-        if (NULL != app_prefix_dir) {
+-            if (NULL != cur_prefix &&
+-                0 != strcmp (cur_prefix, app_prefix_dir)) {
+-                orte_show_help("help-plm-slurm.txt", "multiple-prefixes",
+-                               true, cur_prefix, app_prefix_dir);
+-                return ORTE_ERR_FATAL;
+-            }
++            if (NULL != app_prefix_dir) {
++                if (NULL != cur_prefix &&
++                        0 != strcmp (cur_prefix, app_prefix_dir)) {
++                    orte_show_help("help-plm-slurm.txt", "multiple-prefixes",
++                                   true, cur_prefix, app_prefix_dir);
++                    return ORTE_ERR_FATAL;
++                }
+ 
+-            /* If not yet set, copy it; iff set, then it's the
++                /* If not yet set, copy it; iff set, then it's the
+              * same anyway
+              */
+-            if (NULL == cur_prefix) {
+-                cur_prefix = strdup(app_prefix_dir);
+-                OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
+-                                     "%s plm:slurm: Set prefix:%s",
+-                                     ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+-                                     cur_prefix));
++                if (NULL == cur_prefix) {
++                    cur_prefix = strdup(app_prefix_dir);
++                    OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
++                                         "%s plm:slurm: Set prefix:%s",
++                                         ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
++                                         cur_prefix));
++                }
+             }
+         }
+-    }
+ 
+-    /* setup environment */
+-    env = opal_argv_copy(orte_launch_environ);
++        /* setup environment */
++        env = opal_argv_copy(orte_launch_environ);
+ 
+-    /* enable local launch by the orteds */
+-    var = mca_base_param_environ_variable("plm", NULL, NULL);
+-    opal_setenv(var, "rsh", true, &env);
+-    free(var);
+-    
+-    /* if we can do it, use the regexp to launch the apps - this
++        /* enable local launch by the orteds */
++        var = mca_base_param_environ_variable("plm", NULL, NULL);
++        opal_setenv(var, "rsh", true, &env);
++        free(var);
++
++        /* if we can do it, use the regexp to launch the apps - this
+      * requires that the user requested this mode, that we were
+      * provided with static ports, and that we only have one
+      * app_context
+      */
+-    if (orte_use_regexp && orte_static_ports && jdata->num_apps < 2) {
+-        char *regexp;
+-        regexp = orte_regex_encode_maps(jdata);
+-        opal_argv_append(&argc, &argv, "--launch");
+-        opal_argv_append(&argc, &argv, regexp);
+-        free(regexp);
+-        using_regexp = true;
+-    }
+-    
+-    if (0 < opal_output_get_verbosity(orte_plm_globals.output)) {
+-        param = opal_argv_join(argv, ' ');
+-        OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
+-                             "%s plm:slurm: final top-level argv:\n\t%s",
+-                             ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
+-                             (NULL == param) ? "NULL" : param));
+-        if (NULL != param) free(param);
+-    }
+-    
+-    /* exec the daemon(s) */
+-    if (ORTE_SUCCESS != (rc = plm_slurm_start_proc(argc, argv, env, cur_prefix))) {
+-        ORTE_ERROR_LOG(rc);
+-        goto cleanup;
++        if (orte_use_regexp && orte_static_ports && jdata->num_apps < 2) {
++            char *regexp;
++            regexp = orte_regex_encode_maps(jdata);
++            opal_argv_append(&argc, &argv, "--launch");
++            opal_argv_append(&argc, &argv, regexp);
++            free(regexp);
++            using_regexp = true;
++        }
++
++        if (0 < opal_output_get_verbosity(orte_plm_globals.output)) {
++            param = opal_argv_join(argv, ' ');
++            OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
++                                 "%s plm:slurm: final top-level argv:\n\t%s",
++                                 ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),
++                                 (NULL == param) ? "NULL" : param));
++            if (NULL != param) free(param);
++        }
++
++        //param = opal_argv_join(argv, ' ');
++        //printf("Final command line: %s\n",param);
++
++        /* exec the daemon(s) */
++        if (ORTE_SUCCESS != (rc = plm_slurm_start_proc(argc, argv, env, cur_prefix))) {
++            ORTE_ERROR_LOG(rc);
++            goto cleanup;
++        }
++
++        vpid_offset += groups[grpnum].nodelist_size;
++        grpnum++;
++        argc = 0;
++        opal_argv_free(argv);
++        argv = NULL;
+     }
++
++    primary_pids_set = true;
+     
+     /* do NOT wait for srun to complete. Srun only completes when the processes
+      * it starts - in this case, the orteds - complete. Instead, we'll catch
+      * any srun failures and deal with them elsewhere
+      */
+-    
++    //plm_affinity_free(classes);
+     /* wait for daemons to callback */
++
+     if (ORTE_SUCCESS != (rc = orte_plm_base_daemon_callback(map->num_new_daemons))) {
+         OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
+                              "%s plm:slurm: daemon launch failed for job %s on error %s",
+@@ -460,12 +520,12 @@
+     
+     if (orte_timing) {
+         if (0 != gettimeofday(&launchstop, NULL)) {
+-             opal_output(0, "plm_slurm: could not obtain stop time");
+-         } else {
+-             opal_output(0, "plm_slurm: total job launch time is %ld usec",
+-                         (launchstop.tv_sec - launchstart.tv_sec)*1000000 + 
+-                         (launchstop.tv_usec - launchstart.tv_usec));
+-         }
++            opal_output(0, "plm_slurm: could not obtain stop time");
++        } else {
++            opal_output(0, "plm_slurm: total job launch time is %ld usec",
++                        (launchstop.tv_sec - launchstart.tv_sec)*1000000 +
++                        (launchstop.tv_usec - launchstart.tv_usec));
++        }
+     }
+ 
+     if (ORTE_SUCCESS != rc) {
+@@ -474,6 +534,7 @@
+     }
+ 
+ cleanup:
++
+     if (NULL != argv) {
+         opal_argv_free(argv);
+     }
+@@ -485,6 +546,14 @@
+         free(jobid_string);
+     }
+     
++    if( NULL != primary_srun_pids ){
++        free(primary_srun_pids);
++    }
++
++    if( groups != NULL ){
++        plm_slurm_groups_free(&groups, grpcnt);
++    }
++    
+     /* check for failed launch - if so, force terminate */
+     if (failed_launch) {
+         orte_plm_base_launch_failed(failed_job, -1, ORTE_ERROR_DEFAULT_EXIT_CODE, ORTE_JOB_STATE_FAILED_TO_START);
+@@ -514,7 +583,7 @@
+      * not wait for a waitpid to fire and tell us it's okay to
+      * exit. Instead, we simply trigger an exit for ourselves
+      */
+-    if (!primary_pid_set) {
++    if (!primary_pids_set) {
+         OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
+                              "%s plm:slurm: primary daemons complete!",
+                              ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
+@@ -560,6 +629,7 @@
+ 
+ static void srun_wait_cb(pid_t pid, int status, void* cbdata){
+     orte_job_t *jdata;
++    int i;
+     
+     /* According to the SLURM folks, srun always returns the highest exit
+      code of our remote processes. Thus, a non-zero exit status doesn't
+@@ -602,18 +672,20 @@
+             orte_plm_base_launch_failed(ORTE_PROC_MY_NAME->jobid, -1, status, ORTE_JOB_STATE_ABORTED);
+         }
+         /* otherwise, check to see if this is the primary pid */
+-        if (primary_srun_pid == pid) {
+-            /* in this case, we just want to fire the proper trigger so
+-             * mpirun can exit
+-             */
+-            OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
+-                                 "%s plm:slurm: primary daemons complete!",
+-                                 ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
+-            jdata = orte_get_job_data_object(ORTE_PROC_MY_NAME->jobid);
+-            jdata->state = ORTE_JOB_STATE_TERMINATED;
+-            /* need to set the #terminated value to avoid an incorrect error msg */
+-            jdata->num_terminated = jdata->num_procs;
+-            orte_trigger_event(&orteds_exit);
++        for(i=0; i<primary_srun_pids_cnt; i++){
++            if (primary_srun_pids[i] == pid) {
++                /* in this case, we just want to fire the proper trigger so
++                 * mpirun can exit
++                 */
++                OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
++                                     "%s plm:slurm: primary daemons complete!",
++                                     ORTE_NAME_PRINT(ORTE_PROC_MY_NAME)));
++                jdata = orte_get_job_data_object(ORTE_PROC_MY_NAME->jobid);
++                jdata->state = ORTE_JOB_STATE_TERMINATED;
++                /* need to set the #terminated value to avoid an incorrect error msg */
++                jdata->num_terminated = jdata->num_procs;
++                orte_trigger_event(&orteds_exit);
++            }
+         }
+     }
+ }
+@@ -692,7 +764,7 @@
+          * EXCEPT if the user has requested that we leave sessions attached
+          */
+         if (0 >= opal_output_get_verbosity(orte_plm_globals.output) &&
+-            !orte_debug_daemons_flag && !orte_leave_session_attached) {
++                !orte_debug_daemons_flag && !orte_leave_session_attached) {
+             if (fd >= 0) {
+                 if (fd != 1) {
+                     dup2(fd,1);
+@@ -727,9 +799,8 @@
+         /* if this is the primary launch - i.e., not a comm_spawn of a
+          * child job - then save the pid
+          */
+-        if (!primary_pid_set) {
+-            primary_srun_pid = srun_pid;
+-            primary_pid_set = true;
++        if (!primary_pids_set) {
++            primary_srun_pids[ primary_srun_pids_cnt++] = srun_pid;
+         }
+         
+         /* setup the waitpid so we can find out if srun succeeds! */
+@@ -739,3 +810,136 @@
+ 
+     return ORTE_SUCCESS;
+ }
++
++
++static int plm_slurm_group_nodes(orte_job_map_t *map,
++                                 struct pml_slurm_node_group_t **grpout,
++                                 int *grpcnt)
++{
++    int estimsize = sizeof(int)*orte_node_pool->size;
++    int *grp_cpus, *grp_ncount;
++    int group_n = 0, groups_size;
++    orte_node_t **nodes = (orte_node_t**)map->nodes->addr;
++    int n,j;
++    struct pml_slurm_node_group_t *groups;
++    int *cur_grpcnt;
++
++    grp_cpus = malloc(estimsize);
++    grp_ncount = malloc(estimsize);
++    memset(grp_ncount, 0, estimsize);
++    if( grp_cpus == NULL || grp_ncount == NULL ){
++        ORTE_ERROR_LOG(ORTE_ERR_OUT_OF_RESOURCE);
++        return ORTE_ERR_OUT_OF_RESOURCE;
++    }
++
++    for (n=0; n < map->num_nodes; n++ ) {
++        int found = 0;
++        if (nodes[n]->daemon_launched) {
++            continue;
++        }
++        for(j=0; j<group_n; j++){
++            if( grp_cpus[j] == nodes[n]->cpus ) {
++                found = 1;
++                grp_ncount[j]++;
++                break;
++            }
++        }
++        if( found )
++            continue;
++        grp_cpus[group_n] = nodes[n]->cpus;
++        grp_ncount[group_n] = 1;
++        group_n++;
++    }
++/*
++    {
++        int i;
++        printf("\tclass_cnt = %d, class content is:\n",class_n);
++        for(i=0;i<class_n;i++){
++            printf("\t\tval = %d, count = %d\n",classval[i], classcnt[i]);
++        }
++    }
++*/
++    OPAL_OUTPUT_VERBOSE((1, orte_plm_globals.output,
++                         "%s plm:slurm: foud %d node groups",
++                         group_n));
++
++    groups_size = sizeof(struct pml_slurm_node_group_t)*group_n;
++    *grpout = groups = malloc(groups_size);
++    *grpcnt = group_n;
++    cur_grpcnt = malloc(sizeof(int)*group_n);
++    if( groups == NULL || cur_grpcnt == NULL )
++    {
++        ORTE_ERROR_LOG(ORTE_ERR_OUT_OF_RESOURCE);
++        return ORTE_ERR_OUT_OF_RESOURCE;
++    }
++    memset(groups, 0, groups_size);
++    memset(cur_grpcnt, 0, sizeof(int)*group_n);
++
++    //printf("\tStart classes fillup\n");
++    for (n=0; n < map->num_nodes; n++ ) {
++        int found = 0;
++        if (nodes[n]->daemon_launched) {
++            //printf("\tSkip %s\n",nodes[n]->name);
++            continue;
++        }
++        for(j=0; j<group_n; j++){
++            //printf("\tCompare classval[%d] = %d with nodes[%d]->cpus = %d\n",
++            //       j, classval[j], n, nodes[n]->cpus);
++            if( grp_cpus[j] == nodes[n]->cpus ) {
++                found = 1;
++                break;
++            }
++        }
++        if( !found ){
++            printf("Something is wrong, class for node %s with %d cpus not found\n",
++                   nodes[n]->name, nodes[n]->cpus);
++            return -1;
++        }
++        //printf("\tprocess %s, class #%d\n",nodes[n]->name, j);
++        if( cur_grpcnt[j] == 0 ){
++            int i, size = sizeof(char*)*(grp_ncount[j] + 1);
++            //printf("\t\tneed to initialize: nodes = %d, cpu per node = %d\n",
++            //       classcnt[j], classval[j]);
++            groups[j].cpus_per_node = grp_cpus[j];
++            groups[j].nodelist_size = grp_ncount[j];
++            // reserve 1 element for NULL
++            groups[j].nodelist = malloc( size );
++            for(i=0; i<(grp_ncount[j] + 1); i++){
++                groups[j].nodelist[i] = NULL;
++            }
++        }
++        groups[j].nodelist[cur_grpcnt[j]] = nodes[n]->name;
++        cur_grpcnt[j]++;
++    }
++/*
++    {
++        int i, j;
++        printf("\tclasses is filled!:\n");
++        for(i=0;i<class_n;i++){
++            printf("\t\tcpus per node = %d, nodes: ", classes[i].cpus_per_node);
++            j = 0;
++            while( classes[i].nodelist[j] != NULL ){
++                printf("%s ", classes[i].nodelist[j] );
++                j++;
++            }
++            printf("\n");
++        }
++    }
++*/
++    // Free temp data structures
++    free(grp_cpus);
++    free(grp_ncount);
++    free(cur_grpcnt);
++    return 0;
++}
++
++static void plm_slurm_groups_free(struct pml_slurm_node_group_t **groups,
++                                  int grpcnt)
++{
++    int i;
++    for(i=0; i < grpcnt; i++){
++        free( (*groups)[i].nodelist );
++    }
++    free(*groups);
++    *groups = NULL;
++}
+diff -Naur openmpi-1.6.5/orte/mca/ras/slurm/ras_slurm_module.c openmpi-1.6.5_new/orte/mca/ras/slurm/ras_slurm_module.c
+--- openmpi-1.6.5/orte/mca/ras/slurm/ras_slurm_module.c	2012-04-03 10:30:28.000000000 -0400
++++ openmpi-1.6.5_new/orte/mca/ras/slurm/ras_slurm_module.c	2014-03-07 08:25:45.187430530 -0500
+@@ -43,8 +43,8 @@
+ static int orte_ras_slurm_allocate(opal_list_t *nodes);
+ static int orte_ras_slurm_finalize(void);
+ 
+-static int orte_ras_slurm_discover(char *regexp, char* tasks_per_node,
+-                                   opal_list_t *nodelist);
++static int orte_ras_slurm_discover(char *regexp, char *tasks_per_node,
++                                   char *cpus_per_node, opal_list_t* nodelist);
+ static int orte_ras_slurm_parse_ranges(char *base, char *ranges, char ***nodelist);
+ static int orte_ras_slurm_parse_range(char *base, char *range, char ***nodelist);
+ 
+@@ -65,9 +65,10 @@
+  */
+ static int orte_ras_slurm_allocate(opal_list_t *nodes)
+ {
+-    int ret, cpus_per_task;
++    int ret;
+     char *slurm_node_str, *regexp;
+-    char *tasks_per_node, *node_tasks;
++    char *tasks_per_node, *cpus_per_node;
++    char *node_tasks, *node_cpus;
+     char * tmp;
+     char *slurm_jobid;
+     
+@@ -89,34 +90,22 @@
+     regexp = strdup(slurm_node_str);
+     
+     tasks_per_node = getenv("SLURM_TASKS_PER_NODE");
+-    if (NULL == tasks_per_node) {
++    cpus_per_node = getenv("SLURM_JOB_CPUS_PER_NODE");
++    if (NULL == tasks_per_node || NULL == cpus_per_node ) {
+         /* couldn't find any version - abort */
+         orte_show_help("help-ras-slurm.txt", "slurm-env-var-not-found", 1,
+-                       "SLURM_TASKS_PER_NODE");
++                       "SLURM_TASKS_PER_NODE or SLURM_JOB_CPUS_PER_NODE");
+         return ORTE_ERR_NOT_FOUND;
+     }
+     node_tasks = strdup(tasks_per_node);
++    node_cpus = strdup(cpus_per_node);
+ 
+-    if(NULL == regexp || NULL == node_tasks) {
++    if( NULL == regexp || NULL == node_tasks || NULL == node_cpus ) {
+         ORTE_ERROR_LOG(ORTE_ERR_OUT_OF_RESOURCE);
+         return ORTE_ERR_OUT_OF_RESOURCE;
+     }
+ 
+-    /* get the number of CPUs per task that the user provided to slurm */
+-    tmp = getenv("SLURM_CPUS_PER_TASK");
+-    if(NULL != tmp) {
+-        cpus_per_task = atoi(tmp);
+-        if(0 >= cpus_per_task) {
+-            opal_output(0, "ras:slurm:allocate: Got bad value from SLURM_CPUS_PER_TASK. "
+-                        "Variable was: %s\n", tmp);
+-            ORTE_ERROR_LOG(ORTE_ERROR);
+-            return ORTE_ERROR;
+-        }
+-    } else {
+-        cpus_per_task = 1;
+-    }
+- 
+-    ret = orte_ras_slurm_discover(regexp, node_tasks, nodes);
++    ret = orte_ras_slurm_discover(regexp, node_tasks, node_cpus, nodes);
+     free(regexp);
+     free(node_tasks);
+     if (ORTE_SUCCESS != ret) {
+@@ -153,6 +142,53 @@
+ }
+ 
+ 
++static int process_task_or_cpus(char *resource, int *elems, int num_nodes)
++{
++    char *begptr = resource, *endptr;
++    int reps, count;
++    int j = 0, i;
++
++    while (begptr) {
++        count = strtol(begptr, &endptr, 10);
++        if ((endptr[0] == '(') && (endptr[1] == 'x')) {
++            reps = strtol((endptr+2), &endptr, 10);
++            if (endptr[0] == ')') {
++                endptr++;
++            }
++        } else {
++            reps = 1;
++        }
++
++        /**
++     * TBP: it seems like it would be an error to have more slot
++     * descriptions than nodes. Turns out that this valid, and SLURM will
++     * return such a thing. For instance, if I did:
++     * srun -A -N 30 -w odin001
++     * I would get SLURM_NODELIST=odin001 SLURM_TASKS_PER_NODE=4(x30)
++     * That is, I am allocated 30 nodes, but since I only requested
++     * one specific node, that's what is in the nodelist.
++     * I'm not sure this is what users would expect, but I think it is
++     * more of a SLURM issue than a orte issue, since SLURM is OK with it,
++     * I'm ok with it
++     */
++        for (i = 0; i < reps && j < num_nodes; i++) {
++            elems[j++] = count;
++        }
++
++        if (*endptr == ',') {
++            begptr = endptr + 1;
++        } else if (*endptr == '\0' || j >= num_nodes) {
++            break;
++        } else {
++            orte_show_help("help-ras-slurm.txt", "slurm-env-var-bad-value", 1,
++                           resource, "SLURM_TASKS_PER_NODE or SLURM_JOB_CPUS_PER_NODE");
++            ORTE_ERROR_LOG(ORTE_ERR_BAD_PARAM);
++            return ORTE_ERR_BAD_PARAM;
++        }
++    }
++    return 0;
++}
++
+ /**
+  * Discover the available resources.
+  * 
+@@ -169,12 +205,13 @@
+  *                  the found nodes in
+  */
+ static int orte_ras_slurm_discover(char *regexp, char *tasks_per_node,
+-                                   opal_list_t* nodelist)
++                                   char *cpus_per_node, opal_list_t* nodelist)
+ {
+     int i, j, len, ret, count, reps, num_nodes;
+     char *base, **names = NULL;
+     char *begptr, *endptr, *orig;
+     int *slots;
++    int *cpus;
+     bool found_range = false;
+     bool more_to_come = false;
+     
+@@ -284,57 +321,68 @@
+     }
+     memset(slots, 0, sizeof(int) * num_nodes);
+     
+-    orig = begptr = strdup(tasks_per_node);
+-    if (NULL == begptr) {
++    orig = strdup(tasks_per_node);
++    if (NULL == orig) {
+         ORTE_ERROR_LOG(ORTE_ERR_OUT_OF_RESOURCE);
+         free(slots);
+         return ORTE_ERR_OUT_OF_RESOURCE;
+     }
+-    
+-    j = 0;
+-    while (begptr) {
+-        count = strtol(begptr, &endptr, 10);
+-        if ((endptr[0] == '(') && (endptr[1] == 'x')) {
+-            reps = strtol((endptr+2), &endptr, 10);
+-            if (endptr[0] == ')') {
+-                endptr++;
+-            }
+-        } else {
+-            reps = 1;
+-        }
+ 
+-        /**
+-         * TBP: it seems like it would be an error to have more slot 
+-         * descriptions than nodes. Turns out that this valid, and SLURM will
+-         * return such a thing. For instance, if I did:
+-         * srun -A -N 30 -w odin001
+-         * I would get SLURM_NODELIST=odin001 SLURM_TASKS_PER_NODE=4(x30)
+-         * That is, I am allocated 30 nodes, but since I only requested
+-         * one specific node, that's what is in the nodelist.
+-         * I'm not sure this is what users would expect, but I think it is
+-         * more of a SLURM issue than a orte issue, since SLURM is OK with it,
+-         * I'm ok with it
+-         */
+-        for (i = 0; i < reps && j < num_nodes; i++) {
+-            slots[j++] = count;
+-        }
+-            
+-        if (*endptr == ',') {
+-            begptr = endptr + 1;
+-        } else if (*endptr == '\0' || j >= num_nodes) {
+-            break;
+-        } else {
+-            orte_show_help("help-ras-slurm.txt", "slurm-env-var-bad-value", 1,
+-                           regexp, tasks_per_node, "SLURM_TASKS_PER_NODE");
+-            ORTE_ERROR_LOG(ORTE_ERR_BAD_PARAM);
+-            free(slots);
+-            free(orig);
+-            return ORTE_ERR_BAD_PARAM;
++    if( process_task_or_cpus(orig,slots,num_nodes) ){
++        free(orig);
++        free(slots);
++        orte_show_help("help-ras-slurm.txt", "slurm-env-var-bad-value", 1,
++                       slots, "SLURM_TASKS_PER_NODE");
++        ORTE_ERROR_LOG(ORTE_ERR_BAD_PARAM);
++        return ORTE_ERR_BAD_PARAM;
++    }
++    free(orig);
++/*
++    {
++        int i;
++        printf("orte_ras_slurm_discover: slots are processed:\n");
++        for(i=0;i<num_nodes;i++){
++            printf("\t%s, slots = %d\n",names[i],slots[i]);
+         }
+     }
++*/
++    /* Find the number of cpus per node */
++
++    cpus = malloc(sizeof(int) * num_nodes);
++    if (NULL == cpus) {
++        ORTE_ERROR_LOG(ORTE_ERR_OUT_OF_RESOURCE);
++        return ORTE_ERR_OUT_OF_RESOURCE;
++    }
++    memset(cpus, 0, sizeof(int) * num_nodes);
+ 
++    orig = strdup(cpus_per_node);
++    if (NULL == orig) {
++        ORTE_ERROR_LOG(ORTE_ERR_OUT_OF_RESOURCE);
++        free(slots);
++        return ORTE_ERR_OUT_OF_RESOURCE;
++    }
++
++    if( ret = process_task_or_cpus(orig,cpus,num_nodes) ){
++        free(orig);
++        free(slots);
++        free(cpus);
++        orte_show_help("help-ras-slurm.txt", "slurm-env-var-bad-value", 1,
++                       cpus, "SLURM_JOB_CPUS_PER_NODE");
++        ORTE_ERROR_LOG(ORTE_ERR_BAD_PARAM);
++        return ORTE_ERR_BAD_PARAM;
++        return ret;
++    }
+     free(orig);
+ 
++/*
++    {
++        int i;
++        printf("orte_ras_slurm_discover: cpus are processed:\n");
++        for(i=0;i<num_nodes;i++){
++            printf("\t%s, cpus = %d\n",names[i],cpus[i]);
++        }
++    }
++*/
+     /* Convert the argv of node names to a list of node_t's */
+ 
+     for (i = 0; NULL != names && NULL != names[i]; ++i) {
+@@ -356,6 +404,7 @@
+         node->slots_inuse = 0;
+         node->slots_max = 0;
+         node->slots = slots[i];
++        node->cpus = cpus[i];
+         opal_list_append(nodelist, &node->super);
+     }
+     free(slots);
+diff -Naur openmpi-1.6.5/orte/runtime/orte_globals.h openmpi-1.6.5_new/orte/runtime/orte_globals.h
+--- openmpi-1.6.5/orte/runtime/orte_globals.h	2012-09-07 11:48:03.000000000 -0400
++++ openmpi-1.6.5_new/orte/runtime/orte_globals.h	2014-03-07 08:24:51.439655951 -0500
+@@ -260,6 +260,9 @@
+         specified limit.  For example, if we have two processors, we
+         may want to allow up to four processes but no more. */
+     orte_std_cntr_t slots_max;
++    /** Number of allocated cpus on the node. Considers cpus per task
++     *  setting of srun and friends */
++    orte_std_cntr_t cpus;
+     /* number of physical boards in the node - defaults to 1 */
+     uint8_t boards;
+     /* number of sockets on each board - defaults to 1 */

@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 TRANSITIONAL//EN">
+<HTML>
+<HEAD>
+  <META HTTP-EQUIV="Content-Type" CONTENT="text/html; CHARSET=UTF-8">
+  <META NAME="GENERATOR" CONTENT="GtkHTML/3.28.3">
+</HEAD>
+<BODY>
+I just ran lstopo (1.4a1) --of xml on Scientific Linux 6.2 without a problem.<BR>
+<BR>
+On Mon, 2012-07-02 at 16:48 -0700, Carl Smith wrote:
+<BLOCKQUOTE TYPE=CITE>
+<PRE>
+	I happened to run &quot;lstopo --of xml&quot; as root on a RHEL6.1 system
+and was surprised with a core dump:
+
+
+...
+Looking for PCI devices
+
+Scanning PCI buses...
+...
+  0000:00:01.0 0604 8086:3408 Intel Corporation 5520/5500/X58 I/O Hub PCI Express Root Port 1
+  0000:00:00.0 0600 8086:3405 Intel Corporation 5520/5500/X58 I/O Hub to ESI Port
+*** glibc detected *** /tmp/hwloc-1.4.2/bin/lstopo: double free or corruption (!prev): 0x0000000001bfed50 ***
+
+
+which gdb reported as occurring here:
+
+
+(gdb) bt
+#0  0x0000003905e32905 in raise () from /lib64/libc.so.6
+#1  0x0000003905e340e5 in abort () from /lib64/libc.so.6
+#2  0x0000003905e6f827 in __libc_message () from /lib64/libc.so.6
+#3  0x0000003905e75146 in malloc_printerr () from /lib64/libc.so.6
+#4  0x00000035ace06bdf in ?? () from /lib64/libpci.so.3
+#5  0x00000035ace02c9e in pci_free_dev () from /lib64/libpci.so.3
+#6  0x00000035ace029e0 in pci_cleanup () from /lib64/libpci.so.3
+#7  0x00007f14fe211e5f in hwloc_look_libpci (topology=0x156c130)
+    at topology-libpci.c:751
+#8  0x00007f14fe1fccbd in hwloc_discover (topology=0x156c130)
+    at topology.c:2299
+#9  0x00007f14fe1fdde2 in hwloc_topology_load (topology=0x156c130)
+    at topology.c:2831
+#10 0x0000000000405112 in main (argc=1, argv=0x7fffac612d38) at lstopo.c:530
+
+
+Sure enough, when I fed the same command to valgrind, it told me
+
+
+# valgrind --tool=memcheck /tmp/hwloc-1.4.2/bin/lstopo --of xml
+...
+  0000:00:01.0 0604 8086:3408 Intel Corporation 5520/5500/X58 I/O Hub PCI Express Root Port 1
+  0000:00:00.0 0600 8086:3405 Intel Corporation 5520/5500/X58 I/O Hub to ESI Port
+==6531== Invalid read of size 8
+==6531==    at 0x35ACE06BDF: ??? (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE02C9D: pci_free_dev (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE029DF: pci_cleanup (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x4C2BE5E: hwloc_look_libpci (topology-libpci.c:751)
+==6531==    by 0x4C16CBC: hwloc_discover (topology.c:2299)
+==6531==    by 0x4C17DE1: hwloc_topology_load (topology.c:2831)
+==6531==    by 0x405111: main (lstopo.c:530)
+==6531==  Address 0x4eec440 is 144 bytes inside a block of size 200 free'd
+==6531==    at 0x4A0595D: free (vg_replace_malloc.c:366)
+==6531==    by 0x35ACE06BDE: ??? (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE02C9D: pci_free_dev (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE029DF: pci_cleanup (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x4C2BE5E: hwloc_look_libpci (topology-libpci.c:751)
+==6531==    by 0x4C16CBC: hwloc_discover (topology.c:2299)
+==6531==    by 0x4C17DE1: hwloc_topology_load (topology.c:2831)
+==6531==    by 0x405111: main (lstopo.c:530)
+==6531== 
+==6531== Invalid write of size 8
+==6531==    at 0x35ACE06BD0: ??? (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE02C9D: pci_free_dev (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE029DF: pci_cleanup (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x4C2BE5E: hwloc_look_libpci (topology-libpci.c:751)
+==6531==    by 0x4C16CBC: hwloc_discover (topology.c:2299)
+==6531==    by 0x4C17DE1: hwloc_topology_load (topology.c:2831)
+==6531==    by 0x405111: main (lstopo.c:530)
+==6531==  Address 0x4eec440 is 144 bytes inside a block of size 200 free'd
+==6531==    at 0x4A0595D: free (vg_replace_malloc.c:366)
+==6531==    by 0x35ACE06BDE: ??? (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE02C9D: pci_free_dev (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE029DF: pci_cleanup (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x4C2BE5E: hwloc_look_libpci (topology-libpci.c:751)
+==6531==    by 0x4C16CBC: hwloc_discover (topology.c:2299)
+==6531==    by 0x4C17DE1: hwloc_topology_load (topology.c:2831)
+==6531==    by 0x405111: main (lstopo.c:530)
+==6531== 
+==6531== Invalid free() / delete / delete[]
+==6531==    at 0x4A0595D: free (vg_replace_malloc.c:366)
+==6531==    by 0x35ACE06BDE: ??? (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE02C9D: pci_free_dev (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE029DF: pci_cleanup (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x4C2BE5E: hwloc_look_libpci (topology-libpci.c:751)
+==6531==    by 0x4C16CBC: hwloc_discover (topology.c:2299)
+==6531==    by 0x4C17DE1: hwloc_topology_load (topology.c:2831)
+==6531==    by 0x405111: main (lstopo.c:530)
+==6531==  Address 0x4eec3b0 is 0 bytes inside a block of size 200 free'd
+==6531==    at 0x4A0595D: free (vg_replace_malloc.c:366)
+==6531==    by 0x35ACE06BDE: ??? (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE02C9D: pci_free_dev (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x35ACE029DF: pci_cleanup (in /lib64/libpci.so.3.1.4)
+==6531==    by 0x4C2BE5E: hwloc_look_libpci (topology-libpci.c:751)
+==6531==    by 0x4C16CBC: hwloc_discover (topology.c:2299)
+==6531==    by 0x4C17DE1: hwloc_topology_load (topology.c:2831)
+==6531==    by 0x405111: main (lstopo.c:530)
+
+
+	This seems much more like a libpci problem than an hwloc one
+but I don't recall seeing it mentioned before, nor did I see anything
+obvious looking for &quot;pci core&quot; in the report tracking system.  Did I
+miss it?
+
+			Carl
+_______________________________________________
+hwloc-users mailing list
+<A HREF="mailto:hwloc-users@open-mpi.org">hwloc-users@open-mpi.org</A>
+<A HREF="http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users">http://www.open-mpi.org/mailman/listinfo.cgi/hwloc-users</A>
+</PRE>
+</BLOCKQUOTE>
+<BR>
+<TABLE CELLSPACING="0" CELLPADDING="0" WIDTH="100%">
+<TR>
+<TD>
+==============<BR>
+<B>Kenneth A. Lloyd, Jr.</B><BR>
+CEO - Director of Systems Science<BR>
+Watt Systems Technologies Inc.<BR>
+Albuquerque, NM US<BR>
+<BR>
+<TT><FONT SIZE="2"><FONT COLOR="#737373">This e-mail is covered by the Electronic Communications Privacy Act, 18 U.S.C. 2510-2521 and is intended only for the addressee named above. It may contain privileged or confidential information. If you are not the addressee you must not copy, distribute, disclose or use any of the information in it. If you have received it in error please delete it and immediately notify the sender.</FONT></FONT></TT><BR>
+<BR>
+<BR>
+</TD>
+</TR>
+</TABLE>
+</BODY>
+</HTML>
+

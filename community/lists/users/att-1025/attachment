@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML><HEAD><TITLE>Incorrect behavior for attributes attached to MPI_COMM_SELF.</TITLE>
+<META http-equiv=Content-Type content="text/html; charset=us-ascii">
+<META content="MSHTML 6.00.2900.2769" name=GENERATOR></HEAD>
+<BODY>
+<DIV dir=ltr align=left><SPAN class=234205413-11042006><FONT face=Arial 
+color=#0000ff size=2>Yoinks; I have no idea how we missed this.&nbsp; Thanks for 
+bringing it to our attention.</FONT></SPAN></DIV>
+<DIV dir=ltr align=left><SPAN class=234205413-11042006><FONT face=Arial 
+color=#0000ff size=2></FONT></SPAN><FONT face=Arial color=#0000ff 
+size=2></FONT>&nbsp;</DIV>
+<DIV dir=ltr align=left><FONT face=Arial color=#0000ff size=2><SPAN 
+class=234205413-11042006>There's a few subtleties involved in fixing this -- 
+we're internally debating the correct fix.&nbsp; I'll get back to you when we 
+come to a conclusion on the Right way to fix it.</SPAN></FONT></DIV>
+<DIV dir=ltr align=left><FONT face=Arial color=#0000ff size=2><SPAN 
+class=234205413-11042006></SPAN></FONT>&nbsp;</DIV>
+<BLOCKQUOTE dir=ltr 
+style="PADDING-LEFT: 5px; MARGIN-LEFT: 5px; BORDER-LEFT: #0000ff 2px solid; MARGIN-RIGHT: 0px">
+  <DIV class=OutlookMessageHeader lang=en-us dir=ltr align=left><SPAN 
+  class=234205413-11042006><FONT face=Arial color=#0000ff 
+  size=2>&nbsp;&nbsp;</FONT></SPAN>
+  <HR tabIndex=-1>
+  <FONT face=Tahoma size=2><B>From:</B> users-bounces@open-mpi.org 
+  [mailto:users-bounces@open-mpi.org] <B>On Behalf Of </B>Audet, 
+  Martin<BR><B>Sent:</B> Monday, April 10, 2006 6:34 PM<BR><B>To:</B> 
+  users@open-mpi.org<BR><B>Subject:</B> [OMPI users] Incorrect behavior for 
+  attributes attached toMPI_COMM_SELF.<BR></FONT><BR></DIV>
+  <DIV></DIV><!-- Converted from text/plain format -->
+  <P><FONT size=2>Hi,<BR><BR>It looks like there is a problem in OpenMPI 1.0.2 
+  with how MPI_COMM_SELF attributes callback functions are handled by 
+  MPI_Finalize().<BR><BR>The following C program register a callback function 
+  associated with the MPI_COMM_SELF communicator to be called during the first 
+  steps of MPI_Finalize(). As shown in this example, this can be used to make 
+  sure that global MPI_Datatype variables associated to global datatypes are 
+  freed by calling MPI_Type_free() before program exit (and thus preventing ugly 
+  memory leaks/outstanding allocations when run in valgrind for example). This 
+  mechanism is used by the library I'm working on as well as by PetSc 
+  library.<BR><BR>The program works by taking advantage of the MPI-2 Standard 
+  Section 4.8 "Allowing User Function at Process Termination". As it says, the 
+  MPI_Finalize() function calls the delete callback associated to the 
+  MPI_COMM_SELF attribute "before any other part of MPI are affected". It also 
+  says that "calling MPI_Finalized() will return false in any of these callback 
+  functions".<BR><BR>Section 4.9 of the MPI-2 Standard: "Determining Whether MPI 
+  Has Finished" moreover says that it can be determined if MPI is active by 
+  calling MPI_Finalized(). It also reaffirm that MPI is active in the callback 
+  functions invoked by MPI_Finalize().<BR><BR>I think that an "active" MPI 
+  library here means that basic MPI functions like MPI_Type_free() can be 
+  called.<BR><BR>The following small program therefore seems to conform to the 
+  MPI standard.<BR><BR>However where I run it (compiled with OpenMPI 1.0.2 
+  mpicc), I get the following message:<BR><BR>*** An error occurred in 
+  MPI_Type_free<BR>*** after MPI was finalized<BR>*** MPI_ERRORS_ARE_FATAL 
+  (goodbye)<BR><BR>Note that this program works well with mpich2.<BR><BR>Please 
+  have a look at this problem.<BR><BR>Thanks,<BR><BR>Martin 
+  Audet<BR><BR><BR><BR>#include &lt;assert.h&gt;<BR>#include 
+  &lt;stddef.h&gt;<BR><BR>#include &lt;mpi.h&gt;<BR><BR>static int 
+  attr_delete_function(MPI_Comm p_comm, int p_keyval, void *p_attribute_val, 
+  void * p_extra_state)<BR>{<BR>&nbsp;&nbsp; assert(p_attribute_val != 
+  NULL);<BR><BR>&nbsp;&nbsp; /* Get a reference on the datatype received. 
+  */<BR>&nbsp;&nbsp; MPI_Datatype *const cur_datatype = (MPI_Datatype 
+  *)(p_attribute_val);<BR><BR>&nbsp;&nbsp; /* Free it if non null.&nbsp; 
+  */<BR>&nbsp;&nbsp; if (*cur_datatype != MPI_DATATYPE_NULL) 
+  {<BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  MPI_Type_free(cur_datatype);&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  assert(*cur_datatype == MPI_DATATYPE_NULL);<BR>&nbsp;&nbsp; 
+  }<BR><BR>&nbsp;&nbsp; return MPI_SUCCESS;<BR>}<BR><BR><BR>/* If p_datatype 
+  refer to a non null MPI datatype, this function will register a 
+  callback&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<BR>/*&nbsp; function to free 
+  p_datatype and set it to MPI_DATATYPE_NULL. This callback will 
+  be&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<BR>/*&nbsp; called 
+  during the first steps of the MPI_Finalize() function when the state of the 
+  MPI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<BR>/*&nbsp; library still allows MPI 
+  functions to be called. This is done by associating 
+  an&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  */<BR>/*&nbsp; attribute to the MPI_COMM_SELF communicator as allowed by the 
+  MPI 2 standard (section 4.8). */<BR>static void 
+  add_type_free_callback(MPI_Datatype *p_datatype)<BR>{<BR>&nbsp;&nbsp; int 
+  keyval;<BR><BR>&nbsp;&nbsp; assert(p_datatype != NULL);<BR><BR>&nbsp;&nbsp; /* 
+  First create the 
+  keyval.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  */<BR>&nbsp;&nbsp; /*&nbsp; No callback function will be called when 
+  MPI_COMM_SELF is duplicated&nbsp; */<BR>&nbsp;&nbsp; /*&nbsp; and 
+  attr_delete_function() will be called when MPI_COMM_SELF 
+  is&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */<BR>&nbsp;&nbsp; /*&nbsp; freed (e.g. 
+  during 
+  MPI_Finalize()).&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  */<BR>&nbsp;&nbsp; /*&nbsp; Since many callback can be associated with 
+  MPI_COMM_SELF to free many */<BR>&nbsp;&nbsp; /*&nbsp; datatypes, a new keyval 
+  has to be created every 
+  time.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  */<BR>&nbsp;&nbsp; MPI_Keyval_create(MPI_NULL_COPY_FN, 
+  &amp;attr_delete_function, &amp;keyval, NULL);<BR><BR>&nbsp;&nbsp; /* Then 
+  associate this keyval to MPI_COMM_SELF and make sure the pointer&nbsp; 
+  */<BR>&nbsp;&nbsp; /* to the datatype p_datatype is passed to the 
+  callback.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  */<BR>&nbsp;&nbsp; MPI_Attr_put(MPI_COMM_SELF, keyval, 
+  p_datatype);<BR><BR>&nbsp;&nbsp; /* Free the keyval because it is no longer 
+  needed.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  */<BR>&nbsp;&nbsp; MPI_Keyval_free(&amp;keyval);<BR>}<BR><BR>typedef struct 
+  {<BR>&nbsp;&nbsp; short ss;<BR>&nbsp;&nbsp; int&nbsp;&nbsp; ii;<BR>} 
+  glb_struct_t;<BR><BR>MPI_Datatype glb_dtype = MPI_DATATYPE_NULL;<BR><BR>static 
+  void calc_glb_dtype(void)<BR>{<BR>&nbsp;&nbsp; const int NB_MEM = 
+  3;<BR>&nbsp;&nbsp; static 
+  int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; len_tbl[3]&nbsp; = { 
+  1,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  1,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  };<BR>&nbsp;&nbsp; static MPI_Aint&nbsp;&nbsp;&nbsp;&nbsp; disp_tbl[3] = { 
+  offsetof(glb_struct_t, ss), offsetof(glb_struct_t, ii), sizeof(glb_struct_t) 
+  };<BR>&nbsp;&nbsp; static MPI_Datatype type_tbl[3] = { 
+  MPI_SHORT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  MPI_INT,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  MPI_UB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  };<BR><BR>&nbsp;&nbsp; MPI_Type_struct(NB_MEM, len_tbl, disp_tbl, type_tbl, 
+  &amp;glb_dtype);<BR><BR>&nbsp;&nbsp; 
+  MPI_Type_commit(&amp;glb_dtype);<BR><BR>&nbsp;&nbsp; 
+  add_type_free_callback(&amp;glb_dtype);<BR>}<BR><BR>int main(int argc, char 
+  *argv[])<BR>{<BR>&nbsp;&nbsp; MPI_Init(&amp;argc, 
+  &amp;argv);<BR>&nbsp;&nbsp;<BR>&nbsp;&nbsp; 
+  calc_glb_dtype();<BR><BR>&nbsp;&nbsp; MPI_Finalize();<BR><BR>&nbsp;&nbsp; 
+  return 0;<BR>}</FONT> </P></BLOCKQUOTE></BODY></HTML>
+

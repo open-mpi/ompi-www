@@ -1,0 +1,141 @@
+<HTML>
+<HEAD>
+<TITLE>Re: [OMPI users] orterun --bynode/--byslot problem</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>Yes...it would indeed.<BR>
+<BR>
+<BR>
+On 7/23/07 9:03 AM, &quot;Kelley, Sean&quot; &lt;Sean.Kelley@solers.com&gt; wrote:<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><SPAN STYLE='font-size:12.0px'><FONT FACE="Arial">Would this logic be in the bproc pls component?<BR>
+Sean<BR>
+</FONT><FONT FACE="Verdana, Helvetica, Arial"><BR>
+<HR ALIGN=CENTER SIZE="3" WIDTH="100%"></FONT><FONT FACE="Tahoma"><B>From:</B> users-bounces@open-mpi.org on behalf of Ralph H Castain<BR>
+<B>Sent:</B> Mon 7/23/2007 9:18 AM<BR>
+<B>To:</B> Open MPI Users &lt;users@open-mpi.org&gt;<BR>
+<B>Subject:</B> Re: [OMPI users] orterun --bynode/--byslot problem<BR>
+</FONT><FONT FACE="Verdana, Helvetica, Arial"><BR>
+No, byslot appears to be working just fine on our bproc clusters (it is the<BR>
+default mode). As you probably know, bproc is a little strange in how we<BR>
+launch - we have to launch the procs in &quot;waves&quot; that correspond to the<BR>
+number of procs on a node.<BR>
+<BR>
+In other words, the first &quot;wave&quot; launches a proc on all nodes that have at<BR>
+least one proc on them. The second &quot;wave&quot; then launches another proc on all<BR>
+nodes that have at least two procs on them, but doesn't launch anything on<BR>
+any node that only has one proc on it.<BR>
+<BR>
+My guess here is that the system for some reason is insisting that your head<BR>
+node be involved in every wave. I confess that we have never tested (to my<BR>
+knowledge) a mapping that involves &quot;skipping&quot; a node somewhere in the<BR>
+allocation - we always just map from the beginning of the node list, with<BR>
+the maximum number of procs being placed on the first nodes in the list<BR>
+(since in our machines, the nodes are all the same, so who cares?). So it is<BR>
+possible that something in the code objects to skipping around nodes in the<BR>
+allocation.<BR>
+<BR>
+I will have to look and see where that dependency might lie - will try to<BR>
+get to it this week.<BR>
+<BR>
+BTW: that patch I sent you for head node operations will be in 1.2.4.<BR>
+<BR>
+Ralph<BR>
+<BR>
+<BR>
+<BR>
+On 7/23/07 7:04 AM, &quot;Kelley, Sean&quot; &lt;Sean.Kelley@solers.com&gt; wrote:<BR>
+<BR>
+&gt; Hi,<BR>
+&gt; <BR>
+&gt; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;We are experiencing a problem with the process allocation on our Open MPI<BR>
+&gt; cluster. We are using Scyld 4.1 (BPROC), the OFED 1.2 Topspin Infiniband<BR>
+&gt; drivers, Open MPI 1.2.3 + patch (to run processes on the head node). The<BR>
+&gt; hardware consists of a head node and N blades on private ethernet and<BR>
+&gt; infiniband networks.<BR>
+&gt; <BR>
+&gt; The command run for these tests is a simple MPI program (called 'hn') which<BR>
+&gt; prints out the rank and the hostname. The hostname for the head node is 'head'<BR>
+&gt; and the compute nodes are '.0' ... '.9'.<BR>
+&gt; <BR>
+&gt; We are using the following hostfiles for this example:<BR>
+&gt; <BR>
+&gt; hostfile7<BR>
+&gt; -1 max_slots=1<BR>
+&gt; 0 max_slots=3<BR>
+&gt; 1 max_slots=3<BR>
+&gt; <BR>
+&gt; hostfile8<BR>
+&gt; -1 max_slots=2<BR>
+&gt; 0 max_slots=3<BR>
+&gt; 1 max_slots=3<BR>
+&gt; <BR>
+&gt; hostfile9<BR>
+&gt; -1 max_slots=3<BR>
+&gt; 0 max_slots=3<BR>
+&gt; 1 max_slots=3<BR>
+&gt; <BR>
+&gt; running the following commands:<BR>
+&gt; <BR>
+&gt; orterun --hostfile hostfile7 -np 7 ./hn<BR>
+&gt; orterun --hostfile hostfile8 -np 8 ./hn<BR>
+&gt; orterun --byslot --hostfile hostfile7 -np 7 ./hn<BR>
+&gt; orterun --byslot --hostfile hostfile8 -np 8 ./hn<BR>
+&gt; <BR>
+&gt; causes orterun to crash. However,<BR>
+&gt; <BR>
+&gt; orterun --hostfile hostfile9 -np 9 ./hn<BR>
+&gt; ortetrun --byslot --hostfile hostfile9 -np 9 ./hn<BR>
+&gt; <BR>
+&gt; works outputing the following:<BR>
+&gt; <BR>
+&gt; 0 head<BR>
+&gt; 1 head<BR>
+&gt; 2 head<BR>
+&gt; 3 .0<BR>
+&gt; 4 .0<BR>
+&gt; 5 .0<BR>
+&gt; 6 .0<BR>
+&gt; 7 .0<BR>
+&gt; 8 .0<BR>
+&gt; <BR>
+&gt; However, running the following:<BR>
+&gt; <BR>
+&gt; orterun --bynode --hostfile hostfile7 -np 7 ./hn<BR>
+&gt; <BR>
+&gt; works, outputing the following<BR>
+&gt; <BR>
+&gt; 0 head<BR>
+&gt; 1 .0<BR>
+&gt; 2 .1<BR>
+&gt; 3 .0<BR>
+&gt; 4 .1<BR>
+&gt; 5 .0<BR>
+&gt; 6 .1<BR>
+&gt; <BR>
+&gt; Is the '--byslot' crash a known problem? Does it have something to do with<BR>
+&gt; BPROC? Thanks in advance for any assistance!<BR>
+&gt; <BR>
+&gt; Sean<BR>
+&gt; <BR>
+&gt; _______________________________________________<BR>
+&gt; users mailing list<BR>
+&gt; users@open-mpi.org<BR>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><BR>
+<BR>
+<BR>
+_______________________________________________<BR>
+users mailing list<BR>
+users@open-mpi.org<BR>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><BR>
+<BR>
+<HR ALIGN=CENTER SIZE="3" WIDTH="95%"></FONT><FONT FACE="Monaco, Courier New">_______________________________________________<BR>
+users mailing list<BR>
+users@open-mpi.org<BR>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><BR>
+</FONT></SPAN></BLOCKQUOTE><SPAN STYLE='font-size:12.0px'><FONT FACE="Monaco, Courier New"><BR>
+</FONT></SPAN>
+</BODY>
+</HTML>
+
+

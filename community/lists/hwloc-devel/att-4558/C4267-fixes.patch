@@ -1,0 +1,259 @@
+# HG changeset patch
+# User Barry Tannenbaum <barry.m.tannenbaum@intel.com>
+# Date 1439843155 14400
+#      Mon Aug 17 16:25:55 2015 -0400
+# Node ID b2543356706a6a2cae518dd562612a0c9239113e
+# Parent  3d143caa414e20b2ea82450503d7350cd757e608
+Fixed all instances of C4267 warnings
+
+diff --git a/src/base64.c b/src/base64.c
+--- a/src/base64.c
++++ b/src/base64.c
+@@ -178,7 +178,7 @@
+ 	if (datalength >= targsize)
+ 		return (-1);
+ 	target[datalength] = '\0';	/* Returned value doesn't count \0. */
+-	return (datalength);
++	return (int)(datalength);
+ }
+ 
+ /* skips all whitespace anywhere.
+diff --git a/src/bitmap.c b/src/bitmap.c
+--- a/src/bitmap.c
++++ b/src/bitmap.c
+@@ -620,7 +620,7 @@
+   }
+   /* we know there are other characters now */
+ 
+-  chars = strlen(current);
++  chars = (int)strlen(current);
+   count = (chars * 4 + HWLOC_BITS_PER_LONG - 1) / HWLOC_BITS_PER_LONG;
+ 
+   hwloc_bitmap_reset_by_ulongs(set, count);
+diff --git a/src/topology-synthetic.c b/src/topology-synthetic.c
+--- a/src/topology-synthetic.c
++++ b/src/topology-synthetic.c
+@@ -60,7 +60,7 @@
+   unsigned long length = curlevel->index_string_length;
+   unsigned *array = NULL;
+   struct hwloc_synthetic_intlv_loop_s * loops = NULL;
+-  unsigned long i;
++  size_t i;
+ 
+   if (!attr)
+     return;
+@@ -198,7 +198,7 @@
+ 	      && cachetypeattr != (hwloc_obj_cache_type_t) -1
+ 	      && cachetypeattr != data->level[i].cachetype)
+ 	    continue;
+-	  loops[cur_loop].level_depth = i;
++	  loops[cur_loop].level_depth = (unsigned)i;
+ 	  break;
+ 	}
+ 	if (i == curleveldepth) {
+@@ -326,7 +326,7 @@
+   const char *next_pos;
+   hwloc_uint64_t memorysize = 0;
+   const char *index_string = NULL;
+-  unsigned long index_string_length = 0;
++  size_t index_string_length = 0;
+ 
+   next_pos = (const char *) strchr(attrs, ')');
+   if (!next_pos) {
+@@ -368,7 +368,7 @@
+ 
+   curlevel->memorysize = memorysize;
+   curlevel->index_string = index_string;
+-  curlevel->index_string_length = index_string_length;
++  curlevel->index_string_length = (unsigned long)index_string_length;
+   *next_posp = next_pos+1;
+   return 0;
+ }
+diff --git a/src/topology-windows.c b/src/topology-windows.c
+--- a/src/topology-windows.c
++++ b/src/topology-windows.c
+@@ -433,7 +433,7 @@
+   page_size = SystemInfo.dwPageSize;
+ 
+   start = (((uintptr_t) addr) / page_size) * page_size;
+-  nb = (((uintptr_t) addr + len - start) + page_size - 1) / page_size;
++  nb = (unsigned)(((uintptr_t) addr + len - start) + page_size - 1) / page_size;
+ 
+   if (!nb)
+     nb = 1;
+diff --git a/src/topology-xml-nolibxml.c b/src/topology-xml-nolibxml.c
+--- a/src/topology-xml-nolibxml.c
++++ b/src/topology-xml-nolibxml.c
+@@ -48,7 +48,7 @@
+ hwloc__nolibxml_import_next_attr(hwloc__xml_import_state_t state, char **namep, char **valuep)
+ {
+   hwloc__nolibxml_import_state_data_t nstate = (void*) state->data;
+-  int namelen;
++  size_t namelen;
+   size_t len, escaped;
+   char *buffer, *value, *end;
+ 
+@@ -116,7 +116,7 @@
+   hwloc__nolibxml_import_state_data_t nchildstate = (void*) childstate->data;
+   char *buffer = nstate->tagbuffer;
+   char *end;
+-  int namelen;
++  size_t namelen;
+ 
+   childstate->parent = state;
+   childstate->global = state->global;
+@@ -502,7 +502,7 @@
+   if (res >= 0) {
+     ndata->written += res;
+     if (res >= (int) ndata->remaining)
+-      res = ndata->remaining>0 ? ndata->remaining-1 : 0;
++      res = ndata->remaining>0 ? (int)(ndata->remaining-1) : 0;
+     ndata->buffer += res;
+     ndata->remaining -= res;
+   }
+@@ -511,7 +511,7 @@
+ static char *
+ hwloc__nolibxml_export_escape_string(const char *src)
+ {
+-  int fulllen, sublen;
++  size_t fulllen, sublen;
+   char *escaped, *dst;
+ 
+   fulllen = strlen(src);
+@@ -675,15 +675,15 @@
+ 
+   bufferlen = 16384; /* random guess for large enough default */
+   buffer = malloc(bufferlen);
+-  res = hwloc___nolibxml_prepare_export(topology, buffer, bufferlen);
++  res = hwloc___nolibxml_prepare_export(topology, buffer, (int)bufferlen);
+ 
+   if (res > bufferlen) {
+     buffer = realloc(buffer, res);
+-    hwloc___nolibxml_prepare_export(topology, buffer, res);
++    hwloc___nolibxml_prepare_export(topology, buffer, (int)res);
+   }
+ 
+   *bufferp = buffer;
+-  *buflenp = res;
++  *buflenp = (int)res;
+   return 0;
+ }
+ 
+@@ -709,7 +709,7 @@
+     }
+   }
+ 
+-  ret = fwrite(buffer, 1, bufferlen-1 /* don't write the ending \0 */, file);
++  ret = (int)fwrite(buffer, 1, bufferlen-1 /* don't write the ending \0 */, file);
+   if (ret == bufferlen-1) {
+     ret = 0;
+   } else {
+@@ -767,15 +767,15 @@
+ 
+   bufferlen = 16384; /* random guess for large enough default */
+   buffer = malloc(bufferlen);
+-  res = hwloc___nolibxml_prepare_export_diff(diff, refname, buffer, bufferlen);
++  res = hwloc___nolibxml_prepare_export_diff(diff, refname, buffer, (int)bufferlen);
+ 
+   if (res > bufferlen) {
+     buffer = realloc(buffer, res);
+-    hwloc___nolibxml_prepare_export_diff(diff, refname, buffer, res);
++    hwloc___nolibxml_prepare_export_diff(diff, refname, buffer, (int)res);
+   }
+ 
+   *bufferp = buffer;
+-  *buflenp = res;
++  *buflenp = (int)res;
+   return 0;
+ }
+ 
+@@ -801,7 +801,7 @@
+     }
+   }
+ 
+-  ret = fwrite(buffer, 1, bufferlen-1 /* don't write the ending \0 */, file);
++  ret = (int)fwrite(buffer, 1, bufferlen-1 /* don't write the ending \0 */, file);
+   if (ret == bufferlen-1) {
+     ret = 0;
+   } else {
+diff --git a/src/traversal.c b/src/traversal.c
+--- a/src/traversal.c
++++ b/src/traversal.c
+@@ -261,7 +261,7 @@
+     }
+ 
+   } else if (!hwloc_strncasecmp(string, "group", 2)) {
+-    int length;
++    size_t length;
+     type = HWLOC_OBJ_GROUP;
+     length = strcspn(string, "0123456789");
+     if (length <= 5 && !hwloc_strncasecmp(string, "group", length)
+diff --git a/utils/hwloc/hwloc-calc.c b/utils/hwloc/hwloc-calc.c
+--- a/utils/hwloc/hwloc-calc.c
++++ b/utils/hwloc/hwloc-calc.c
+@@ -465,7 +465,7 @@
+       char *current, *tmpline;
+ 
+       /* stop if line is empty */
+-      if (!fgets(line, len, stdin))
++      if (!fgets(line, (int)len, stdin))
+ 	break;
+ 
+       /* keep reading until we get EOL */
+@@ -473,7 +473,7 @@
+       while (!strchr(tmpline, '\n')) {
+ 	line = realloc(line, len*2);
+ 	tmpline = line + len-1;
+-	if (!fgets(tmpline, len+1, stdin))
++	if (!fgets(tmpline, (int)(len+1), stdin))
+ 	  break;
+ 	len *= 2;
+       }
+diff --git a/utils/hwloc/hwloc-patch.c b/utils/hwloc/hwloc-patch.c
+--- a/utils/hwloc/hwloc-patch.c
++++ b/utils/hwloc/hwloc-patch.c
+@@ -48,7 +48,7 @@
+ 		readlen = buflen/2;
+ 	}
+ 
+-	err = hwloc_topology_diff_load_xmlbuffer(topo, buffer, offset+1, firstdiffp, refnamep);
++	err = hwloc_topology_diff_load_xmlbuffer(topo, buffer, (int)(offset+1), firstdiffp, refnamep);
+ 	free(buffer);
+ 	return err;
+ 
+diff --git a/utils/lstopo/lstopo-draw.c b/utils/lstopo/lstopo-draw.c
+--- a/utils/lstopo/lstopo-draw.c
++++ b/utils/lstopo/lstopo-draw.c
+@@ -771,7 +771,7 @@
+     n = lstopo_obj_snprintf(text, sizeof(text), level, logical);
+     textwidth = get_textwidth(output, methods, text, n, fontsize, gridsize);
+     for(i=0; i<nmorelines; i++) {
+-      int nn = strlen(morelines[i]);
++      unsigned int nn = (unsigned int)strlen(morelines[i]);
+       int ntextwidth = get_textwidth(output, methods, morelines[i], nn, fontsize, gridsize);
+       if (ntextwidth > textwidth)
+ 	textwidth = ntextwidth;
+diff --git a/utils/lstopo/lstopo-fig.c b/utils/lstopo/lstopo-fig.c
+--- a/utils/lstopo/lstopo-fig.c
++++ b/utils/lstopo/lstopo-fig.c
+@@ -103,7 +103,7 @@
+ {
+   struct lstopo_output *loutput = loutput_;
+   FILE *file = loutput->file;
+-  unsigned len = strlen(text);
++  size_t len = strlen(text);
+   int color = rgb_to_fig(r, g, b);
+   x *= FIG_FACTOR;
+   y *= FIG_FACTOR;
+diff --git a/utils/lstopo/lstopo-windows.c b/utils/lstopo/lstopo-windows.c
+--- a/utils/lstopo/lstopo-windows.c
++++ b/utils/lstopo/lstopo-windows.c
+@@ -352,7 +352,7 @@
+     return;
+ 
+   SetTextColor(ps->hdc, RGB(r, g, b));
+-  TextOut(ps->hdc, x - x_delta, y - y_delta, text, strlen(text));
++  TextOut(ps->hdc, x - x_delta, y - y_delta, text, (int)strlen(text));
+ }
+ 
+ static void

@@ -1,0 +1,163 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Eric,<br>
+    <br>
+    my short answer is no.<br>
+    <br>
+    long answer is :<br>
+    <br>
+    - from MPI_Register_datarep()<br>
+    <br>
+       /* The io framework is only initialized lazily.  If it hasn't<br>
+           already been initialized, do so now (note that MPI_FILE_OPEN<br>
+           and MPI_FILE_DELETE are the only two places that it will be<br>
+           initialized). */<br>
+    <br>
+    - from mca_io_base_register_datarep()<br>
+        /* Find the maximum additional number of bytes required by all
+    io<br>
+           components for requests and make that the request size */<br>
+    <br>
+        OPAL_LIST_FOREACH(cli,
+    &amp;ompi_io_base_framework.framework_components,
+    mca_base_component_list_item_t) {<br>
+    ...<br>
+    }<br>
+    <br>
+    in your case, since nor MPI_File_open nor MPI_File_delete is
+    invoked, the ompio component could be disabled.<br>
+    but that would mean the io component selection is also based on the
+    fact that MPI_Register_datarep() has<br>
+    been invoked or not before. i can foresee users complaining about IO
+    performance discrepancies just because<br>
+    of one line (e.g. MPI_Register_datarep invokation) in their code.<br>
+    <br>
+    now if MPI_File_open is invoked first, that means that
+    MPI_Register_datarep will fail or success based on the selected io
+    component (and iirc, that could be file(system) dependent within the
+    same application).<br>
+    <br>
+    i am open to suggestions, but so far, i do not see a better one
+    (other than implementing this in OMPIO)<br>
+    the patch for v1.10 can be downloaded at
+<a class="moz-txt-link-freetext" href="https://github.com/ggouaillardet/ompi-release/commit/1589278200d9fb363d61fa20fb39a4c2fa78c942.patch">https://github.com/ggouaillardet/ompi-release/commit/1589278200d9fb363d61fa20fb39a4c2fa78c942.patch</a><br>
+    application will not crash, but fail "nicely" on
+    MPI_Register_datarep<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <div class="moz-cite-prefix">On 3/11/2016 12:11 PM, Éric Chamberland
+      wrote:<br>
+    </div>
+    <blockquote cite="mid:56E23765.5090508@giref.ulaval.ca" type="cite">
+      <meta content="text/html; charset=windows-1252"
+        http-equiv="Content-Type">
+      Thanks Gilles!<br>
+      <br>
+      it works... I will continue my tests with that command line...<br>
+      <br>
+      Until OMPIO supports this, is there a way to put a call into the
+      code to disable ompio the same way --mca io ^ompio does?<br>
+      <br>
+      Thanks,<br>
+      <br>
+      Eric<br>
+      <br>
+      <div class="moz-cite-prefix">Le 16-03-10 20:13, Gilles
+        Gouaillardet a écrit :<br>
+      </div>
+      <blockquote cite="mid:56E21BCE.4030200@rist.or.jp" type="cite">
+        <meta content="text/html; charset=windows-1252"
+          http-equiv="Content-Type">
+        Eric,<br>
+        <br>
+        I will fix the crash (fwiw, it is already fixed in v2.x and
+        master)<br>
+        <br>
+        note this program cannot currently run "as is".<br>
+        by default, there are two frameworks for io : ROMIO and OMPIO.<br>
+        MPI_Register_datarep does try to register the datarep into all
+        frameworks,<br>
+        and successes only if datarep was successfully registered into
+        all frameworks.<br>
+        <br>
+        OMPIO does not currently support this<br>
+        (and the stub is missing in v1.10 so the app does not crash)<br>
+        <br>
+        your test is successful if you blacklist ompio :<br>
+        <br>
+        mpirun --mca io ^ompio ./int64<br>
+        or<br>
+        OMPI_MCA_io=^romio ./int64<br>
+        <br>
+        and you do not even need a patch for that :-)<br>
+        <div class="moz-cite-prefix"><br>
+          <br>
+          Cheers,<br>
+          <br>
+          Gilles<br>
+          <br>
+          On 3/11/2016 4:47 AM, Éric Chamberland wrote:<br>
+        </div>
+        <blockquote cite="mid:56E1CF5E.5060107@giref.ulaval.ca"
+          type="cite">Hi, <br>
+          <br>
+          I have a segfault while trying to use MPI_Register_datarep
+          with openmpi-1.10.2: <br>
+          <br>
+          mpic++ -g -o int64 int64.cc <br>
+          ./int64 <br>
+          [melkor:24426] *** Process received signal *** <br>
+          [melkor:24426] Signal: Segmentation fault (11) <br>
+          [melkor:24426] Signal code: Address not mapped (1) <br>
+          [melkor:24426] Failing at address: (nil) <br>
+          [melkor:24426] [ 0]
+          /lib64/libpthread.so.0(+0xf1f0)[0x7f66cfb731f0] <br>
+          [melkor:24426] *** End of error message *** <br>
+          Segmentation fault (core dumped) <br>
+          <br>
+          I have attached the beginning of a test program that use this
+          function. <br>
+          <br>
+          (and btw a totally different error occur with mpich: <a
+            moz-do-not-send="true" class="moz-txt-link-freetext"
+            href="http://lists.mpich.org/pipermail/discuss/2016-March/004586.html"><a class="moz-txt-link-freetext" href="http://lists.mpich.org/pipermail/discuss/2016-March/004586.html">http://lists.mpich.org/pipermail/discuss/2016-March/004586.html</a></a>)
+          <br>
+          <br>
+          Can someone help me? <br>
+          <br>
+          Thanks, <br>
+          <br>
+          Eric <br>
+          <br>
+          <br>
+          <fieldset class="mimeAttachmentHeader"></fieldset>
+          <br>
+          <pre wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28677.php">http://www.open-mpi.org/community/lists/users/2016/03/28677.php</a></pre>
+        </blockquote>
+        <br>
+      </blockquote>
+      <br>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/03/28680.php">http://www.open-mpi.org/community/lists/users/2016/03/28680.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

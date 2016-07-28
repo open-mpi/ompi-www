@@ -1,0 +1,160 @@
+diff -r 287add548d08 -r ace994b1dd57 ompi/attribute/attribute.c
+--- a/ompi/attribute/attribute.c	Sat Jan 19 14:48:31 2013 +0000
++++ b/ompi/attribute/attribute.c	Thu Jan 24 20:02:59 2013 +0900
+@@ -353,10 +353,12 @@
+  */
+ typedef struct attribute_value_t {
+     opal_object_t super;
++    int av_key;
+     void *av_value;
+     MPI_Aint *av_address_kind_pointer;
+     MPI_Fint *av_integer_pointer;
+     int av_set_from;
++    int av_sequence;
+ } attribute_value_t;
+ 
+ 
+@@ -375,6 +377,7 @@
+ static void *translate_to_c(attribute_value_t *val);
+ static MPI_Fint translate_to_fortran_mpi1(attribute_value_t *val);
+ static MPI_Aint translate_to_fortran_mpi2(attribute_value_t *val);
++static int compare_attr_sequence(const void *attr1, const void *attr2);
+ 
+ 
+ /*
+@@ -401,6 +404,7 @@
+ 
+ static opal_hash_table_t *keyval_hash;
+ static opal_bitmap_t *key_bitmap;
++static int attr_sequence;
+ static unsigned int int_pos = 12345;
+ 
+ /*
+@@ -427,9 +431,11 @@
+  */
+ static void attribute_value_construct(attribute_value_t *item)
+ {
++    item->av_key = MPI_KEYVAL_INVALID;
+     item->av_address_kind_pointer = (MPI_Aint*) &item->av_value;
+     item->av_integer_pointer = &(((MPI_Fint*) &item->av_value)[int_pos]);
+     item->av_set_from = 0;
++    item->av_sequence = -1;
+ }
+ 
+ 
+@@ -983,52 +989,60 @@
+ int ompi_attr_delete_all(ompi_attribute_type_t type, void *object, 
+                          opal_hash_table_t *attr_hash)
+ {
+-    int key_ret, del_ret;
+-    uint32_t key, oldkey;
+-    void *node, *in_node, *old_attr;
++    int ret, i, num_attrs;
++    uint32_t key;
++    void *node, *in_node, *attr;
++    attribute_value_t **attrs;
+ 
+     /* Ensure that the table is not empty */
+ 
+     if (NULL == attr_hash) {
+         return MPI_SUCCESS;
+     }
+-        
+-    /* Lock this whole sequence of events -- don't let any other
+-       thread modify the structure of the attribute hash or bitmap
+-       while we're traversing it */
+ 
+     OPAL_THREAD_LOCK(&attr_hash_lock);
+-    /* Get the first key in local object's hash  */
+-    key_ret = opal_hash_table_get_first_key_uint32(attr_hash,
+-                                               &key, &old_attr,
+-                                               &node);
++
++    /* Make an array that contains all attributes in local object's hash */
++
++    num_attrs = opal_hash_table_get_size(attr_hash);
++    if (0 == num_attrs) {
++        OPAL_THREAD_UNLOCK(&attr_hash_lock);
++        return MPI_SUCCESS;
++    }
++
++    attrs = malloc(sizeof(attribute_value_t *) * num_attrs);
++    if (NULL == attrs) {
++        OPAL_THREAD_UNLOCK(&attr_hash_lock);
++        return MPI_ERR_SYSRESOURCE;
++    }
++
++    ret = opal_hash_table_get_first_key_uint32(attr_hash, &key, &attr, &node);
++    for (i = 0; OMPI_SUCCESS == ret; i++) {
++        attrs[i] = attr;
++        in_node = node;
++        ret = opal_hash_table_get_next_key_uint32(attr_hash, &key, &attr,
++                                                  in_node, &node);
++    }
++
+     OPAL_THREAD_UNLOCK(&attr_hash_lock);
+ 
+-    del_ret = OMPI_SUCCESS;
+-    while (OMPI_SUCCESS == key_ret && OMPI_SUCCESS == del_ret) {
++    /* Sort attributes in the order that they were set */
++    qsort(attrs, num_attrs, sizeof(attribute_value_t *), compare_attr_sequence);
+ 
+-        /* Save this node info for deletion, before we move onto the
+-           next node */
+-
+-        in_node = node;
+-        oldkey = key;
+-        
+-        /* Move to the next node */
+-
+-	OPAL_THREAD_LOCK(&attr_hash_lock);
+-        key_ret = opal_hash_table_get_next_key_uint32(attr_hash,
+-                                                      &key, &old_attr, 
+-                                                      in_node, &node);
+-	OPAL_THREAD_UNLOCK(&attr_hash_lock);
+-
+-        /* Now delete this attribute */
+-
+-        del_ret = ompi_attr_delete(type, object, attr_hash, oldkey, true);
++    /* Delete attributes in the reverse order that they were set.
++       Actually this ordering is required only for MPI_COMM_SELF, as specified
++       in MPI-2.2: 8.7.1 Allowing User Functions at Process Termination. */
++    for (i = num_attrs - 1; i >= 0; i--) {
++        ret = ompi_attr_delete(type, object, attr_hash, attrs[i]->av_key, true);
++        if (OMPI_SUCCESS != ret) {
++            break;
++        }
+     }
+ 
+     /* All done */
+ 
+-    return del_ret;
++    free(attrs);
++    return ret;
+ }
+ 
+ /*************************************************************************/
+@@ -1108,6 +1122,9 @@
+ 	return OMPI_ERR_BAD_PARAM;
+     }
+ 
++    new_attr->av_key = key;
++    new_attr->av_sequence = attr_sequence++;
++
+     OPAL_THREAD_LOCK(&attr_hash_lock);
+     ret = opal_hash_table_set_value_uint32(*attr_hash, key, new_attr);
+     OPAL_THREAD_UNLOCK(&attr_hash_lock);
+@@ -1272,3 +1289,12 @@
+         return 0;
+     }
+ }
++
++/*
++ * Comparator for qsort() to sort attributes in the order that they were set.
++ */
++static int compare_attr_sequence(const void *attr1, const void *attr2)
++{
++    return (*(attribute_value_t **)attr1)->av_sequence -
++           (*(attribute_value_t **)attr2)->av_sequence;
++}
+

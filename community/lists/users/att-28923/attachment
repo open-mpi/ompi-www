@@ -1,0 +1,218 @@
+<html>
+  <head>
+    <meta content="text/html; charset=windows-1252"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    Stefan,<br>
+    <br>
+    which version of OpenMPI are you using ?<br>
+    <br>
+    when does the error occur ?<br>
+    is it before MPI_Init() completes ?<br>
+    is it in the middle of the job ? if yes, are you sure no task
+    invoked MPI_Abort() ?<br>
+    <br>
+    also, you might want to check the system logs and make sure there
+    was no OOM (Out Of Memory).<br>
+    a possible explanation could be some tasks caused OOM, and the OOM
+    killer chose to kill orted instead of a.out<br>
+    <br>
+    if you cannot access your system log, you can try with a large
+    number of nodes, and one mpi task per node, and then increase the
+    number of tasks per node and see if problem starts happening.<br>
+    <br>
+    of course, you can try<br>
+    mpirun --mca oob_tcp_if_include eth0 ...<br>
+    to be on the safe side<br>
+    <br>
+    you can also try to run your application over TCP and see if it
+    helps<br>
+    (note, the issue might be hidden since TCP is much slower than
+    native PSM)<br>
+    <br>
+    mpirun --mca btl tcp,vader,self --mca btl_tcp_if_include eth0 ...<br>
+    or<br>
+    mpirun --mca btl tcp,vader,self --mca btl_tcp_if_include ib0 ...<br>
+    <br>
+    /* feel free to replace vader with sm, if vader is not available on
+    your system */<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <br>
+    <div class="moz-cite-prefix">On 4/12/2016 4:37 PM, Stefan Friedel
+      wrote:<br>
+    </div>
+    <blockquote cite="mid:20160412073704.GY1487@woyzeck" type="cite">Good
+      Morning List,
+      <br>
+      we have a problem on our cluster with bigger jobs (~&gt; 200
+      nodes) -
+      <br>
+      almost every job ends with a message like:
+      <br>
+      <br>
+      ###################
+      <br>
+      Starting at Mon Apr 11 15:54:06 CEST 2016
+      <br>
+      Running on hosts:
+      stek[034-086,088-201,203-247,249-344,346-379,381-388]
+      <br>
+      Running on 350 nodes.
+      <br>
+      Current working directory is /export/homelocal/sfriedel/beff
+      <br>
+--------------------------------------------------------------------------
+      <br>
+      ORTE has lost communication with its daemon located on node:
+      <br>
+      <br>
+       hostname:  stek346=20
+      <br>
+      <br>
+      This is usually due to either a failure of the TCP network
+      <br>
+      connection to the node, or possibly an internal failure of
+      <br>
+      the daemon itself. We cannot recover from this failure, and
+      <br>
+      therefore will terminate the job.
+      <br>
+      <br>
+--------------------------------------------------------------------------
+      <br>
+--------------------------------------------------------------------------
+      <br>
+      An ORTE daemon has unexpectedly failed after launch and before
+      <br>
+      communicating back to mpirun. This could be caused by a number
+      <br>
+      of factors, including an inability to create a connection back
+      <br>
+      to mpirun due to a lack of common network interfaces and/or no
+      <br>
+      route found between them. Please check network connectivity
+      <br>
+      (including firewalls and network routing requirements).
+      <br>
+--------------------------------------------------------------------------
+      <br>
+      Program finished with exit code 0 at: Mon Apr 11 15:54:41 CEST
+      2016
+      <br>
+      ##########################
+      <br>
+      <br>
+      I found a similar question on the list by Emyr James (2015-10-01)
+      but
+      <br>
+      nobody answered until now.
+      <br>
+      <br>
+      Cluster: Dual-Intel Xeon E5-2630 v3 Haswell, Intel/Qlogic
+      Truescale IB QDR,
+      <br>
+      Debian Jessie 3.16.0-4-amd64 #1 SMP Debian 3.16.7-ckt11-1+deb8u2,
+      <br>
+      openmpi-1.10.2, slurm-15.08.9; homes mounted via NFS/RDMA/ipoib,
+      mpi messages
+      <br>
+      over psm/IB + 1G Ethernet (Mgmt, pxe boot, ssh, openmpi tcp
+      network etc.)
+      <br>
+      <br>
+      Jobs are started via slurm sbatch/script (mpirun --mca mtl psm
+      ~/path/to/binary)
+      <br>
+      <br>
+      Already tested:
+      <br>
+      *several mca settings (in ...many... combinations)
+      <br>
+      mtl_psm_connect_timeout 600
+      <br>
+      oob_tcp_keepalive_time 600
+      <br>
+      oob_tcp_if_include eth0
+      <br>
+      oob_tcp_listen_mode listen_thread=20
+      <br>
+      oob_tcp_keepalive_time 600
+      <br>
+      <br>
+      *several network/sysctl settings (in ...many... combinations)
+      <br>
+      /sbin/sysctl -w net.core.somaxconn=3D20000
+      <br>
+      /sbin/sysctl -w net.core.netdev_max_backlog=3D200000
+      <br>
+      /sbin/sysctl -w net.ipv4.tcp_max_syn_backlog=3D102400
+      <br>
+      /sbin/sysctl -w net.ipv4.ip_local_port_range=3D"15000 61000"
+      <br>
+      /sbin/sysctl -w net.ipv4.tcp_fin_timeout=3D10
+      <br>
+      /sbin/sysctl -w net.ipv4.tcp_tw_recycle=3D1
+      <br>
+      /sbin/sysctl -w net.ipv4.tcp_tw_reuse=3D1
+      <br>
+      /sbin/sysctl -w net.ipv4.tcp_mem=3D"383865   511820   2303190"
+      <br>
+      echo 20000500 &gt; /proc/sys/fs/nr_open
+      <br>
+      <br>
+      *ulimit stuff
+      <br>
+      <br>
+      Routing on the nodes: two private networks 10.203.0.0/22 eth0 and
+      10.203.40.0/22
+      <br>
+      ib0, both with their routes, no default route.
+      <br>
+      <br>
+      If I start the job with debugging/logging (--mca oob_tcp_debug 5
+      --mca
+      <br>
+      oob_base_verbose 8) it takes much longer until the error occurs
+      and the job is
+      <br>
+      starting on the nodes (producing some timesteps of output) but it
+      will fail at
+      <br>
+      some later point.
+      <br>
+      <br>
+      Any hint? PSM? Some kernel number must be increased?  Wrong
+      network/routing
+      <br>
+      (should not happen with --mca oob_tcp_if_include eth0)??
+      <br>
+      <br>
+      MfG/Sincerely
+      <br>
+      Stefan Friedel
+      <br>
+      --
+      <br>
+      IWR * 4.317 * INF205 * 69120 Heidelberg
+      <br>
+      T +49 6221 5414404 * F +49 6221 5414427
+      <br>
+      <a class="moz-txt-link-abbreviated" href="mailto:stefan.friedel@iwr.uni-heidelberg.de">stefan.friedel@iwr.uni-heidelberg.de</a>
+      <br>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2016/04/28922.php">http://www.open-mpi.org/community/lists/users/2016/04/28922.php</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

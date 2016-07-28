@@ -1,0 +1,58 @@
+Ralph,<div><br></div><div>based on the source code (ompi_mpi_params.c:91) I was expecting a Boolean ompi_mpi_param_check</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Saturday, July 18, 2015, Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div style="word-wrap:break-word">Yep, I checked:<div><br></div><div><div style="margin:0px;font-size:11px;font-family:Menlo;background-color:rgb(254,244,156)">     MPI parameter check: runtime</div><div><br></div><div><br></div><div><br></div><div><blockquote type="cite"><div>On Jul 17, 2015, at 8:00 PM, Gilles Gouaillardet &lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;gilles.gouaillardet@gmail.com&#39;);" target="_blank">gilles.gouaillardet@gmail.com</a>&gt; wrote:</div><br><div>Ralph,<div><br></div><div>I will try to reproduce this.</div><div>I guess you already checked the output of ompi_info to confirm params are checked at runtime.</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Saturday, July 18, 2015, Ralph Castain &lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;rhc@open-mpi.org&#39;);" target="_blank">rhc@open-mpi.org</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi folks<br>
+<br>
+I keep getting segfault errors when testing 1.10, while others say the tests are passing for them. The tests are in the onesided area, but I don’t believe they necessarily are a onesided issue.<br>
+<br>
+Specifically, the tests (e.g., test_start1.c) call MPI_Win_set_errhandler with a NULL argument for the first parameter (MPI_win). Looking at the code for that function, I see this:<br>
+<br>
+int MPI_Win_set_errhandler(MPI_Win win, MPI_Errhandler errhandler)<br>
+{<br>
+    MPI_Errhandler tmp;<br>
+<br>
+    OPAL_CR_NOOP_PROGRESS();<br>
+<br>
+    if (MPI_PARAM_CHECK) {<br>
+        OMPI_ERR_INIT_FINALIZE(FUNC_NAME);<br>
+<br>
+        if (ompi_win_invalid(win)) {<br>
+            return OMPI_ERRHANDLER_INVOKE(MPI_COMM_WORLD, MPI_ERR_WIN,<br>
+                                          FUNC_NAME);<br>
+        } else if (NULL == errhandler ||<br>
+                   MPI_ERRHANDLER_NULL == errhandler ||<br>
+                   (OMPI_ERRHANDLER_TYPE_WIN != errhandler-&gt;eh_mpi_object_type &amp;&amp;<br>
+                    OMPI_ERRHANDLER_TYPE_PREDEFINED != errhandler-&gt;eh_mpi_object_type) ) {<br>
+            return OMPI_ERRHANDLER_INVOKE(win, MPI_ERR_ARG, FUNC_NAME);<br>
+        }<br>
+    }<br>
+<br>
+    /* Prepare the new error handler */<br>
+    OBJ_RETAIN(errhandler);<br>
+<br>
+    /* Ditch the old errhandler, and decrement its refcount.  On 64<br>
+       bits environments we have to make sure the reading of the<br>
+       error_handler became atomic. */<br>
+    do {<br>
+        tmp = win-&gt;error_handler;<br>
+    } while (!OPAL_ATOMIC_CMPSET(&amp;(win-&gt;error_handler), tmp, errhandler));<br>
+    OBJ_RELEASE(tmp);<br>
+<br>
+    /* All done */<br>
+    return MPI_SUCCESS;<br>
+}<br>
+<br>
+If someone built with —with-mpi-param-check=always or runtime, then this function will return an error when given the NULL argument. Otherwise, it will definitely segfault. According to the configure output, this option is supposed to default to “runtime”. I don’t set it in my configury, so I would have thought this was the case. And when I look at the config.log, I see:<br>
+<br>
+configure:10401: checking if want run-time MPI parameter checking<br>
+configure:10425: result: runtime<br>
+<br>
+<br>
+However, what I’m seeing implies that this is *not* the case - i.e., we aren’t checking MPI params, and hence I am crashing. Does anyone have any thoughts on what could be going on? Is this test itself even correct?<br>
+<br>
+Ralph<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a>devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/07/17656.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/07/17656.php</a></blockquote></div>
+_______________________________________________<br>devel mailing list<br><a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;devel@open-mpi.org&#39;);" target="_blank">devel@open-mpi.org</a><br>Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/07/17661.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2015/07/17661.php</a></div></blockquote></div><br></div></div></blockquote></div>
+

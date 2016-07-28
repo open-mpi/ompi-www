@@ -1,0 +1,174 @@
+<div dir="ltr"><div><div>Hello <span name="Gilles Gouaillardet" class="">Gilles<br><br></span></div><span name="Gilles Gouaillardet" class="">Thank you for the advice. However, that did not seem to make any difference. Here is what I did (on the cluster that generates .btr files for core dumps):<br><br><span style="font-family:monospace,monospace">[durga@smallMPI git]$ ompi_info --all | grep opal_signal<br>           MCA opal base: parameter &quot;opal_signal&quot; (current value: &quot;6,7,8,11&quot;, data source: default, level: 3 user/all, type: string)<br>[durga@smallMPI git]$ </span><br><br><br></span></div><span name="Gilles Gouaillardet" class="">According to &lt;bits/signum.h&gt;, signals 6.7,8,11 are this:<br><br><span style="font-family:monospace,monospace">#define    SIGABRT        6    /* Abort (ANSI).  */<br>#define    SIGBUS        7    /* BUS error (4.2 BSD).  */<br>#define    SIGFPE        8    /* Floating-point exception (ANSI).  */<br>#define    SIGSEGV        11    /* Segmentation violation (ANSI).  */</span><br></span><div><span name="Gilles Gouaillardet" class=""><br></span><div><div class="gmail_extra">And thus I added the following just after MPI_Init()<br><br>    <span style="font-family:monospace,monospace">MPI_Init(&amp;argc, &amp;argv);<br>    signal(SIGABRT, SIG_DFL);<br>    signal(SIGBUS, SIG_DFL);<br>    signal(SIGFPE, SIG_DFL);<br>    signal(SIGSEGV, SIG_DFL);<br>    signal(SIGTERM, SIG_DFL);</span><br><br></div><div class="gmail_extra">(I added the &#39;SIGTERM&#39; part later, just in case it would make a difference; i didn&#39;t)<br><br></div><div class="gmail_extra">The resulting code still generates .btr files instead of core files.<br><br></div><div class="gmail_extra">It looks like the &#39;execinfo&#39; MCA component is being used as the backtrace mechanism:<br><br><span style="font-family:monospace,monospace">[durga@smallMPI git]$ ompi_info | grep backtrace<br>           MCA backtrace: execinfo (MCA v2.1.0, API v2.0.0, Component v3.0.0)</span><br><br></div><div class="gmail_extra">However, I could not find any way to choose &#39;none&#39; instead of &#39;execinfo&#39;<br></div><div class="gmail_extra"><br></div><div class="gmail_extra">And the strange thing is, on the cluster where regular core dump is happening, the output of <br><span style="font-family:monospace,monospace">$ ompi_info | grep backtrace</span><br></div><div class="gmail_extra">is identical to the above. (Which kind of makes sense because they were created from the same source with the same configure options.)<br></div><div class="gmail_extra"><br></div><div class="gmail_extra">Sorry to harp on this, but without a core file it is hard to debug the application (e.g. examine stack variables).<br><br></div><div class="gmail_extra">Thank you<br></div><div class="gmail_extra">Durga<br><br></div><div class="gmail_extra"><br clear="all"></div><div class="gmail_extra"><div><div class="gmail_signature"><div dir="ltr"><div><div dir="ltr">The surgeon general advises you to eat right, exercise regularly and quit ageing.</div></div></div></div></div>
+<br><div class="gmail_quote">On Wed, May 11, 2016 at 3:37 AM, Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@gmail.com" target="_blank">gilles.gouaillardet@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">Durga,<br>
+<br>
+you might wanna try to restore the signal handler for other signals as well<br>
+(SIGSEGV, SIGBUS, ...)<br>
+ompi_info --all | grep opal_signal<br>
+does list the signal you should restore the handler<br>
+<br>
+<br>
+only one backtrace component is built (out of several candidates :<br>
+execinfo, none, printstack)<br>
+nm -l libopen-pal.so | grep backtrace<br>
+will hint you which component was built<br>
+<br>
+your two similar distros might have different backtrace component<br>
+<br>
+<br>
+<br>
+Gus,<br>
+<br>
+btr is a plain text file with a back trace &quot;ala&quot; gdb<br>
+<br>
+<br>
+<br>
+Nathan,<br>
+<br>
+i did a &#39;grep btr&#39; and could not find anything :-(<br>
+opal_backtrace_buffer and opal_backtrace_print are only used with stderr.<br>
+so i am puzzled who creates the tracefile name and where ...<br>
+also, no stack is printed by default unless opal_abort_print_stack is true<br>
+<br>
+Cheers,<br>
+<br>
+Gilles<br>
+<br>
+<br>
+On Wed, May 11, 2016 at 3:43 PM, dpchoudh . &lt;<a href="mailto:dpchoudh@gmail.com">dpchoudh@gmail.com</a>&gt; wrote:<br>
+&gt; Hello Nathan<br>
+&gt;<br>
+&gt; Thank you for your response. Could you please be more specific? Adding the<br>
+&gt; following after MPI_Init() does not seem to make a difference.<br>
+&gt;<br>
+&gt;     MPI_Init(&amp;argc, &amp;argv);<br>
+&gt;   signal(SIGABRT, SIG_DFL);<br>
+&gt;   signal(SIGTERM, SIG_DFL);<br>
+&gt;<br>
+&gt; I also find it puzzling that nearly identical OMPI distro running on a<br>
+&gt; different machine shows different behaviour.<br>
+&gt;<br>
+&gt; Best regards<br>
+&gt; Durga<br>
+&gt;<br>
+&gt; The surgeon general advises you to eat right, exercise regularly and quit<br>
+&gt; ageing.<br>
+&gt;<br>
+&gt; On Tue, May 10, 2016 at 10:02 AM, Hjelm, Nathan Thomas &lt;<a href="mailto:hjelmn@lanl.gov">hjelmn@lanl.gov</a>&gt;<br>
+&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; btr files are indeed created by open mpi&#39;s backtrace mechanism. I think we<br>
+&gt;&gt; should revisit it at some point but for now the only effective way i have<br>
+&gt;&gt; found to prevent it is to restore the default signal handlers after<br>
+&gt;&gt; MPI_Init.<br>
+&gt;&gt;<br>
+&gt;&gt; Excuse the quoting style. Good sucks.<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; ________________________________________<br>
+&gt;&gt; From: users on behalf of dpchoudh .<br>
+&gt;&gt; Sent: Monday, May 09, 2016 2:59:37 PM<br>
+&gt;&gt; To: Open MPI Users<br>
+&gt;&gt; Subject: Re: [OMPI users] No core dump in some cases<br>
+&gt;&gt;<br>
+&gt;&gt; Hi Gus<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks for your suggestion. But I am not using any resource manager (i.e.<br>
+&gt;&gt; I am launching mpirun from the bash shell.). In fact, both of the two<br>
+&gt;&gt; clusters I talked about run CentOS 7 and I launch the job the same way on<br>
+&gt;&gt; both of these, yet one of them creates standard core files and the other<br>
+&gt;&gt; creates the &#39;btr; files. Strange thing is, I could not find anything on the<br>
+&gt;&gt; .btr (= Backtrace?) files on Google, which is any I asked on this forum.<br>
+&gt;&gt;<br>
+&gt;&gt; Best regards<br>
+&gt;&gt; Durga<br>
+&gt;&gt;<br>
+&gt;&gt; The surgeon general advises you to eat right, exercise regularly and quit<br>
+&gt;&gt; ageing.<br>
+&gt;&gt;<br>
+&gt;&gt; On Mon, May 9, 2016 at 12:04 PM, Gus Correa<br>
+&gt;&gt; &lt;<a href="mailto:gus@ldeo.columbia.edu">gus@ldeo.columbia.edu</a>&lt;mailto:<a href="mailto:gus@ldeo.columbia.edu">gus@ldeo.columbia.edu</a>&gt;&gt; wrote:<br>
+&gt;&gt; Hi Durga<br>
+&gt;&gt;<br>
+&gt;&gt; Just in case ...<br>
+&gt;&gt; If you&#39;re using a resource manager to start the jobs (Torque, etc),<br>
+&gt;&gt; you need to have them set the limits (for coredump size, stacksize, locked<br>
+&gt;&gt; memory size, etc).<br>
+&gt;&gt; This way the jobs will inherit the limits from the<br>
+&gt;&gt; resource manager daemon.<br>
+&gt;&gt; On Torque (which I use) I do this on the pbs_mom daemon<br>
+&gt;&gt; init script (I am still before the systemd era, that lovely POS).<br>
+&gt;&gt; And set the hard/soft limits on /etc/security/limits.conf as well.<br>
+&gt;&gt;<br>
+&gt;&gt; I hope this helps,<br>
+&gt;&gt; Gus Correa<br>
+&gt;&gt;<br>
+&gt;&gt; On 05/07/2016 12:27 PM, Jeff Squyres (jsquyres) wrote:<br>
+&gt;&gt; I&#39;m afraid I don&#39;t know what a .btr file is -- that is not something that<br>
+&gt;&gt; is controlled by Open MPI.<br>
+&gt;&gt;<br>
+&gt;&gt; You might want to look into your OS settings to see if it has some kind of<br>
+&gt;&gt; alternate corefile mechanism...?<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; On May 6, 2016, at 8:58 PM, dpchoudh .<br>
+&gt;&gt; &lt;<a href="mailto:dpchoudh@gmail.com">dpchoudh@gmail.com</a>&lt;mailto:<a href="mailto:dpchoudh@gmail.com">dpchoudh@gmail.com</a>&gt;&gt; wrote:<br>
+&gt;&gt;<br>
+&gt;&gt; Hello all<br>
+&gt;&gt;<br>
+&gt;&gt; I run MPI jobs (for test purpose only) on two different &#39;clusters&#39;. Both<br>
+&gt;&gt; &#39;clusters&#39; have two nodes only, connected back-to-back. The two are very<br>
+&gt;&gt; similar, but not identical, both software and hardware wise.<br>
+&gt;&gt;<br>
+&gt;&gt; Both have ulimit -c set to unlimited. However, only one of the two creates<br>
+&gt;&gt; core files when an MPI job crashes. The other creates a text file named<br>
+&gt;&gt; something like<br>
+&gt;&gt;<br>
+&gt;&gt; &lt;program_name_that_crashed&gt;.80s-&lt;a-number-that-looks-like-a-PID&gt;,&lt;hostname-where-the-crash-happened&gt;.btr<br>
+&gt;&gt;<br>
+&gt;&gt; I&#39;d much prefer a core file because that allows me to debug with a lot<br>
+&gt;&gt; more options than a static text file with addresses. How do I get a core<br>
+&gt;&gt; file in all situations? I am using MPI source from the master branch.<br>
+&gt;&gt;<br>
+&gt;&gt; Thanks in advance<br>
+&gt;&gt; Durga<br>
+&gt;&gt;<br>
+&gt;&gt; The surgeon general advises you to eat right, exercise regularly and quit<br>
+&gt;&gt; ageing.<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a>&lt;mailto:<a href="mailto:users@open-mpi.org">users@open-mpi.org</a>&gt;<br>
+&gt;&gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; Link to this post:<br>
+&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2016/05/29124.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29124.php</a><br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a>&lt;mailto:<a href="mailto:users@open-mpi.org">users@open-mpi.org</a>&gt;<br>
+&gt;&gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; Link to this post:<br>
+&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2016/05/29141.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29141.php</a><br>
+&gt;&gt;<br>
+&gt;&gt; _______________________________________________<br>
+&gt;&gt; users mailing list<br>
+&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt;&gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt;&gt; Link to this post:<br>
+&gt;&gt; <a href="http://www.open-mpi.org/community/lists/users/2016/05/29154.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29154.php</a><br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; Link to this post:<br>
+&gt; <a href="http://www.open-mpi.org/community/lists/users/2016/05/29169.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29169.php</a><br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="https://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">https://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2016/05/29170.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2016/05/29170.php</a><br>
+</blockquote></div><br></div></div></div></div>
+

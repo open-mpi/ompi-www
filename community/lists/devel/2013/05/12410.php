@@ -1,0 +1,250 @@
+<?
+$subject_val = "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers";
+include("../../include/msg-header.inc");
+?>
+<!-- received="Wed May 22 12:35:39 2013" -->
+<!-- isoreceived="20130522163539" -->
+<!-- sent="Wed, 22 May 2013 09:35:28 -0700" -->
+<!-- isosent="20130522163528" -->
+<!-- name="Ralph Castain" -->
+<!-- email="rhc_at_[hidden]" -->
+<!-- subject="Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers" -->
+<!-- id="38D790B1-E26F-4B7C-9BB8-500DDC5383B3_at_open-mpi.org" -->
+<!-- charset="iso-8859-1" -->
+<!-- inreplyto="CAANzjE=rTF1YSfy_XRMRmPUBF8Qe_MgMpie2EG+w+U5eXjp_hA_at_mail.gmail.com" -->
+<!-- expires="-1" -->
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<p class="headers">
+<strong>Subject:</strong> Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers<br>
+<strong>From:</strong> Ralph Castain (<em>rhc_at_[hidden]</em>)<br>
+<strong>Date:</strong> 2013-05-22 12:35:28
+</p>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="12411.php">Barrett, Brian W: "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers"</a>
+<li><strong>Previous message:</strong> <a href="12409.php">Jeff Squyres (jsquyres): "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran	wrappers"</a>
+<li><strong>In reply to:</strong> <a href="12408.php">Josh Hursey: "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="12411.php">Barrett, Brian W: "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers"</a>
+<li><strong>Reply:</strong> <a href="12411.php">Barrett, Brian W: "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers"</a>
+<!-- reply="end" -->
+</ul>
+<hr>
+<!-- body="start" -->
+<p>
+Good question - I haven't gone that far into it either.
+<br>
+<p>As for Jeff's other questions:
+<br>
+<p>* python packaging. I don't know if/where it comes standard. I typically add it to CentOS when I install, but that is always a selection option. I don't know if it has some basic level of python support included as I've never checked - I always select the python lib options.
+<br>
+<p>* I have no issue with scripting the Fortran support at build time, but I still think we should stick to some limit on language requirements. Not a rock-hard position, but a preference. Even if python is distributed now, you still have the version level issues we see with the configure stuff. We've managed to keep that out of the user-level build code, but this introduces it there. In fairness, I imagine we also have that with perl, though I think there is less issue with backward compatibility in that language? At least, we've never hit an issue.
+<br>
+<p>* this isn't about Craig and his abilities - this is a more general requirements discussion. I personally wouldn't change my comments if it was Jeff or Brian making the request - the issue remains the same. Introducing another language requirement on the user-level build isn't a minor issue. Just because someone knows a language seems a weak argument - I had to learn perl to work on the build system too. The differences aren't that huge, and the barrier isn't that high.
+<br>
+<p>Like I said, I don't have a rock-hard position on this - just question the rationale provided so far.
+<br>
+<p>On May 22, 2013, at 9:18 AM, Josh Hursey &lt;jjhursey_at_[hidden]&gt; wrote:
+<br>
+<p><span class="quotelev1">&gt; Is this Python 2.x or 3.x? I ask because they are not 100% compatible due to changes in the language syntax. Meaning not all 2.x compilant Python programs work with a 3.x interpreter. IIRC there is a way to write a 2.x compliant Python program so that it is also 3.x compliant, but my Python knowledge does not go deep enough to tell you exactly how to do that.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; If we are going to require Python in the build path, we should be specific on this point and check in the configure script.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; -- Josh 
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; On Wed, May 22, 2013 at 11:03 AM, Jeff Squyres (jsquyres) &lt;jsquyres_at_[hidden]&gt; wrote:
+</span><br>
+<span class="quotelev1">&gt; On May 22, 2013, at 10:00 AM, &quot;Barrett, Brian W&quot; &lt;bwbarre_at_[hidden]&gt; wrote:
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; Hmmm...the issue is that perl usually is included in the distro, but
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; python often is not - you have to add that module.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; This seems to be a key argument, but I'm not sure it's still true.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; I'm a RHEL guy; I see that RHEL has installed python by default since RHEL4 (i.e., many, many years ago).  Are there other Linux distros that really don't install Python by default?  This would surprise me.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; I see python on my OS X Lion, and apparently in every OS X since (at least) Leopard (Tony at Absoft checked for me).
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; I don't know about Python+Solaris, but I don't know if we (OMPI) care, either.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; IIRC, that was the
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; rationale for allowing perl. Others (e.g., me) had played with using
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; python before, but switched to perl (a) for the prior rationale, and (b)
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; to avoid proliferating language requirements.
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt;
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; I happen to like python myself, but believe there is some value in
+</span><br>
+<span class="quotelev3">&gt; &gt;&gt; avoiding adding yet another language to our list of requirements.
+</span><br>
+<span class="quotelev2">&gt; &gt;
+</span><br>
+<span class="quotelev2">&gt; &gt; I (strongly) agree with Ralph.  We made a decision (way back in the 1.0
+</span><br>
+<span class="quotelev2">&gt; &gt; timeframe) that we would use perl for a scripting language when absolutely
+</span><br>
+<span class="quotelev2">&gt; &gt; necessary.  And even at that, I believe we only require Perl for developer
+</span><br>
+<span class="quotelev2">&gt; &gt; builds or distribution builds where an assembly file doesn't already exist
+</span><br>
+<span class="quotelev2">&gt; &gt; for that compiler.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; I believe that that is still true -- that's one of the reasons I sent around this RFC (because introducing python at end-user &quot;make&quot; time is a Big Change).
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; I have no problem with the change to generated bindings from a single
+</span><br>
+<span class="quotelev2">&gt; &gt; configuration file/set of files, a bit of a problem with that happening at
+</span><br>
+<span class="quotelev2">&gt; &gt; at configure / build time on a release distribution (we don't require
+</span><br>
+<span class="quotelev2">&gt; &gt; anything other than /bin/sh at configure / build time right now),
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; FWIW: the current Bourne shell scripts that generate the use mpi bindings are pretty... horrible.  We have no intention of continuing to use Bourne shell scripts for future code generation.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; A little more rationale for scripting/generating at &quot;make&quot; time in general: the problem is that Fortran compiler support is literally all over the map; it's really not feasible to maintain a single .F90 file with preprocessor macros to cover all the differences, because some differences require different coding approaches (e.g., inline in a module vs. separate/individual .F90 files -- the contents of these two are quite different).
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; That being said, we *could* pre-generate all possibilities and ship them all in a tarball (i.e., only invoke a generator script at developer/make dist time).  Note that that would lead to a bit more complexity, and could lead to even more than 7 copies in the tarball (7 is pretty much the minimum -- and that's with very heavy use of preprocessor macros).
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; Hence, in a perfect world, we could generate at &quot;make&quot; time only exactly what the user's Fortran compiler needed.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev2">&gt; &gt; and a
+</span><br>
+<span class="quotelev2">&gt; &gt; strong problem with using Python instead of the Perl that we've previously
+</span><br>
+<span class="quotelev2">&gt; &gt; agreed we'd use when all other options are unavoidable.
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; I'm asking because:
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; - the contributor (Craig) has been around for years; he has a proven track record of maintaining what he has contributed
+</span><br>
+<span class="quotelev1">&gt; - the contributor wants to fundamentally advance our Fortran support
+</span><br>
+<span class="quotelev1">&gt; - the contributor has a strong preference for Python
+</span><br>
+<span class="quotelev1">&gt; - from my anecdotal evidence, Python is pretty ubiquitous these days (is that wrong?)
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; --
+</span><br>
+<span class="quotelev1">&gt; Jeff Squyres
+</span><br>
+<span class="quotelev1">&gt; jsquyres_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/">http://www.cisco.com/web/about/doing_business/legal/cri/</a>
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; devel mailing list
+</span><br>
+<span class="quotelev1">&gt; devel_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; 
+</span><br>
+<span class="quotelev1">&gt; -- 
+</span><br>
+<span class="quotelev1">&gt; Joshua Hursey
+</span><br>
+<span class="quotelev1">&gt; Assistant Professor of Computer Science
+</span><br>
+<span class="quotelev1">&gt; University of Wisconsin-La Crosse
+</span><br>
+<span class="quotelev1">&gt; <a href="http://cs.uwlax.edu/~jjhursey">http://cs.uwlax.edu/~jjhursey</a> _______________________________________________
+</span><br>
+<span class="quotelev1">&gt; devel mailing list
+</span><br>
+<span class="quotelev1">&gt; devel_at_[hidden]
+</span><br>
+<span class="quotelev1">&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+</span><br>
+<p><p><hr>
+<ul>
+<li>text/html attachment: <a href="http://www.open-mpi.org/community/lists/devel/att-12410/attachment">attachment</a>
+</ul>
+<!-- attachment="attachment" -->
+<!-- body="end" -->
+<hr>
+<ul class="links">
+<!-- next="start" -->
+<li><strong>Next message:</strong> <a href="12411.php">Barrett, Brian W: "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers"</a>
+<li><strong>Previous message:</strong> <a href="12409.php">Jeff Squyres (jsquyres): "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran	wrappers"</a>
+<li><strong>In reply to:</strong> <a href="12408.php">Josh Hursey: "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers"</a>
+<!-- nextthread="start" -->
+<li><strong>Next in thread:</strong> <a href="12411.php">Barrett, Brian W: "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers"</a>
+<li><strong>Reply:</strong> <a href="12411.php">Barrett, Brian W: "Re: [OMPI devel] [EXTERNAL] Re: RFC: Python-generated Fortran wrappers"</a>
+<!-- reply="end" -->
+</ul>
+<div class="center">
+<table border="2" width="100%" class="links">
+<tr>
+<th><a href="date.php">Date view</a></th>
+<th><a href="index.php">Thread view</a></th>
+<th><a href="subject.php">Subject view</a></th>
+<th><a href="author.php">Author view</a></th>
+</tr>
+</table>
+</div>
+<!-- trailer="footer" -->
+<? include("../../include/msg-footer.inc") ?>

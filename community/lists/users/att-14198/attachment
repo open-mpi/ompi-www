@@ -1,0 +1,121 @@
+
+<br><font size=2 face="sans-serif">Ashley's observation may apply to an
+application that iterates on many to one communication patterns. If the
+only collective used is MPI_Reduce, some non-root tasks can get ahead and
+keep pushing iteration results at tasks that are nearer the root. This
+could overload them and cause some extra slow down. &nbsp;</font>
+<br>
+<br><font size=2 face="sans-serif">In most parallel applications, there
+is some web of interdependency across tasks between iterations that keeps
+them roughly in step. &nbsp;I find it hare to believe that there are many
+programs that need semantically redundant MPI_Barriers.</font>
+<br>
+<br><font size=2 face="sans-serif">For example -</font>
+<br>
+<br><font size=2 face="sans-serif">In a program that does neighbor communication,
+no task can get very far ahead of its neighbors. &nbsp;It is possible for
+a task at one corner to be a a few steps ahead of one at the opposite corner
+but only a few steps. In this case though, the distant neighbor is not
+being affected by that task that is out ahead anyway. It is only affected
+by its immediate neighbors,</font>
+<br>
+<br><font size=2 face="sans-serif">In a program that does an MPI_Bcast
+from root and an MPI_Reduce to root in each iteration, No task gets far
+ahead because the task that finished the Bcast early, just wait longer
+at the Reduce.</font>
+<br>
+<br><font size=2 face="sans-serif">An program that makes a call to a non-rooted
+collective every iteration will stay in pretty tight synch.</font>
+<br>
+<br><font size=2 face="sans-serif">Think carefully before tossing in either
+MPI_Barrier or some non-blocking barrier. &nbsp;Unless MPI_Bcast or MPI_Reduce
+is the only collective you call, your problem is likely not progress skew..</font>
+<br>
+<br>
+<br><font size=2 face="sans-serif">Dick Treumann &nbsp;- &nbsp;MPI Team
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846 &nbsp; &nbsp; &nbsp; &nbsp; Fax (845) 433-8363<br>
+</font>
+<br>
+<br>
+<br>
+<table width=100%>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">From:</font>
+<td><font size=1 face="sans-serif">Ashley Pittman &lt;ashley@pittman.co.uk&gt;</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">To:</font>
+<td><font size=1 face="sans-serif">Open MPI Users &lt;users@open-mpi.org&gt;</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">Date:</font>
+<td><font size=1 face="sans-serif">09/09/2010 03:53 AM</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">Subject:</font>
+<td><font size=1 face="sans-serif">Re: [OMPI users] MPI_Reduce performance</font>
+<tr valign=top>
+<td><font size=1 color=#5f5f5f face="sans-serif">Sent by:</font>
+<td><font size=1 face="sans-serif">users-bounces@open-mpi.org</font></table>
+<br>
+<hr noshade>
+<br>
+<br>
+<br><tt><font size=2><br>
+On 9 Sep 2010, at 08:31, Terry Frankcombe wrote:<br>
+<br>
+&gt; On Thu, 2010-09-09 at 01:24 -0600, Ralph Castain wrote:<br>
+&gt;&gt; As people have said, these time values are to be expected. All
+they<br>
+&gt;&gt; reflect is the time difference spent in reduce waiting for the
+slowest<br>
+&gt;&gt; process to catch up to everyone else. The barrier removes that
+factor<br>
+&gt;&gt; by forcing all processes to start from the same place.<br>
+&gt;&gt; <br>
+&gt;&gt; <br>
+&gt;&gt; No mystery here - just a reflection of the fact that your processes<br>
+&gt;&gt; arrive at the MPI_Reduce calls at different times.<br>
+&gt; <br>
+&gt; <br>
+&gt; Yes, however, it seems Gabriele is saying the total execution time<br>
+&gt; *drops* by ~500 s when the barrier is put *in*. &nbsp;(Is that the
+right way<br>
+&gt; around, Gabriele?)<br>
+&gt; <br>
+&gt; That's harder to explain as a sync issue.<br>
+<br>
+Not really, you need some way of keeping processes in sync or else the
+slow ones get slower and the fast ones stay fast. &nbsp;If you have an
+un-balanced algorithm then you can end up swamping certain ranks and when
+they get behind they get even slower and performance goes off a cliff edge.<br>
+<br>
+Adding sporadic barriers keeps everything in sync and running nicely, if
+things are performing well then the barrier only slows things down but
+if there is a problem it'll bring all process back together and destroy
+the positive feedback cycle. &nbsp;This is why you often only need a synchronisation
+point every so often, I'm also a huge fan of asyncronous barriers as a
+full sync is a blunt and slow operation, using asyncronous barriers you
+can allow small differences in timing but prevent them from getting too
+large with very little overhead in the common case where processes are
+synced already. &nbsp;I'm thinking specifically of starting a sync-barrier
+on iteration N, waiting for it on N+25 and immediately starting another
+one, again waiting for it 25 steps later.<br>
+<br>
+Ashley.<br>
+<br>
+-- <br>
+<br>
+Ashley Pittman, Bath, UK.<br>
+<br>
+Padb - A parallel job inspection tool for cluster computing<br>
+</font></tt><a href=http://padb.pittman.org.uk/><tt><font size=2>http://padb.pittman.org.uk</font></tt></a><tt><font size=2><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+users@open-mpi.org<br>
+</font></tt><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users"><tt><font size=2>http://www.open-mpi.org/mailman/listinfo.cgi/users</font></tt></a><tt><font size=2><br>
+</font></tt>
+<br>
+<br>

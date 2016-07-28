@@ -1,0 +1,124 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    I've poked enough at the ompi configure magic to *think* I
+    understand the source of the problem I've seen w/ both trunk and
+    1.5.x on the Altix.<br>
+    <br>
+    The problem appears to be that both timer/altix/configure.m4 and
+    timer/linux/configure.m4 are setting the value of
+    $timer_base_include and the LAST one "wins".&nbsp; Meanwhile, only the
+    FIRST one is getting added to $static_components ("there can be only
+    one").&nbsp; So, I suspect the difference I saw between trunk and 1.5 was
+    just a matter of which configure probe ran first.<br>
+    <br>
+    The result of having FIRST and LAST "win" in different settings is a
+    mismatch.<br>
+    <br>
+    <blockquote type="cite">$ grep -e timer:linux -e timer:altix
+      configure.out<br>
+      --- MCA component timer:linux (m4 configuration macro, priority
+      30)<br>
+      checking for MCA component timer:linux compile mode... static<br>
+      checking if MCA component timer:linux can compile... yes<br>
+      --- MCA component timer:altix (m4 configuration macro, priority
+      30)<br>
+      checking for MCA component timer:altix compile mode... static<br>
+      checking if MCA component timer:altix can compile... no</blockquote>
+    <br>
+    which picks timer:linux and rejects timer:altix, as compared to:<br>
+    <br>
+    <blockquote type="cite">$ grep -e '"MCA_opal_timer_[SD]' -e
+      MCA_timer_ config.status<br>
+      S["MCA_opal_timer_DSO_SUBDIRS"]=""<br>
+      S["MCA_opal_timer_STATIC_SUBDIRS"]=" mca/timer/linux"<br>
+      S["MCA_opal_timer_STATIC_LTLIBS"]="mca/timer/linux/libmca_timer_linux.la
+      "<br>
+      S["MCA_opal_timer_DSO_COMPONENTS"]=""<br>
+      S["MCA_opal_timer_STATIC_COMPONENTS"]=" linux"<br>
+      D["MCA_timer_IMPLEMENTATION_HEADER"]="
+      \"opal/mca/timer/altix/timer_altix.h\""</blockquote>
+    <br>
+    Which will build timer:linux but has improperly picked up the
+    timer:altix HEADER!<br>
+    <br>
+    <br>
+    For the present, an explicit --with-timer=altix works-around the
+    problem in either branch.<br>
+    However, the setting of the header variable by a NON-selected
+    component is ERRONEOUS and should get fixed.<br>
+    In trunk, it may also make sense to raise the priority of
+    timer:altix above that of timer:linux.<br>
+    <br>
+    -Paul<br>
+    <br>
+    On 2/15/2012 12:41 AM, Paul Hargrove wrote:
+    <blockquote
+cite="mid:CAAvDA16O2ub=ZhE9JSJLF2WN4uhamO8TJEZPXkgx=4c4H1zWyA@mail.gmail.com"
+      type="cite">
+      <div>I've configured the ompi trunk (nightly tarball&nbsp;1.7a1r25927)
+        on an SGI Altix.</div>
+      <div>I used no special arguments indicating that this is an Altix,
+        and there does not appear to be an altix-specific file in
+        contrib/platform.</div>
+      <div><br>
+      </div>
+      <div>My build fails as follows:</div>
+      <div><br>
+      </div>
+      <div>
+        <blockquote class="gmail_quote"
+style="margin-top:0px;margin-right:0px;margin-bottom:0px;margin-left:0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">make:
+          Entering directory
+`/mnt/home/c_phargrov/OMPI/openmpi-trunk-linux-ia64/BLD/opal/tools/wrappers'<br>
+          &nbsp; CC &nbsp; &nbsp; opal_wrapper.o<br>
+          &nbsp; CCLD &nbsp; opal_wrapper<br>
+          ../../../opal/.libs/libopen-pal.so: undefined reference to
+          `opal_timer_altix_mmdev_timer_addr'<br>
+          ../../../opal/.libs/libopen-pal.so: undefined reference to
+          `opal_timer_altix_freq'<br>
+          collect2: ld returned 1 exit status</blockquote>
+      </div>
+      <div><br>
+      </div>
+      <div><br>
+      </div>
+      The configure-generated opal_config.h contains
+      <div>#define MCA_timer_IMPLEMENTATION_HEADER
+        "opal/mca/timer/altix/timer_altix.h"</div>
+      <div><br>
+      </div>
+      <div>Nothing appears to have been built in
+        BUILDDIR/opal/mca/timer/altix.</div>
+      <div>However, BUILDDIR/opal/mca/timer/linux has been built.</div>
+      <div><br>
+      </div>
+      <div>-Paul<br clear="all">
+        <div><br>
+        </div>
+        -- <br>
+        Paul H. Hargrove&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <a
+          moz-do-not-send="true" href="mailto:PHHargrove@lbl.gov"
+          target="_blank">PHHargrove@lbl.gov</a><br>
+        Future Technologies Group<br>
+        HPC Research Department&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; Tel: <a
+          moz-do-not-send="true" href="tel:%2B1-510-495-2352"
+          value="+15104952352" target="_blank">+1-510-495-2352</a><br>
+        Lawrence Berkeley National Laboratory&nbsp; &nbsp;&nbsp; Fax: <a
+          moz-do-not-send="true" href="tel:%2B1-510-486-6900"
+          value="+15104866900" target="_blank">+1-510-486-6900</a><br>
+      </div>
+    </blockquote>
+    <br>
+    <pre class="moz-signature" cols="72">-- 
+Paul H. Hargrove                          <a class="moz-txt-link-abbreviated" href="mailto:PHHargrove@lbl.gov">PHHargrove@lbl.gov</a>
+Future Technologies Group
+HPC Research Department                   Tel: +1-510-495-2352
+Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900
+</pre>
+  </body>
+</html>
+

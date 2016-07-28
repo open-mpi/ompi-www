@@ -1,0 +1,80 @@
+#!/bin/tcsh
+cat << EOS > pgma.f
+      program main
+      implicit none
+      include 'mpif.h'
+      integer lm, ln
+      integer i, j
+      integer rank, size, ierr
+      parameter (lm=10,ln=4)
+      integer iarray_of_sizes(2)
+      integer iarray_of_subsizes(2)
+      integer iarray_of_starts(2)
+      integer icoord(2), nproc(2), ndims
+      integer ifh
+      integer offset
+      integer status(MPI_STATUS_SIZE)
+      real Alocal(lm,ln)
+      double precision t0, t1
+C
+      call MPI_INIT( ierr )
+      call MPI_COMM_RANK( MPI_COMM_WORLD, rank, ierr )
+      call MPI_COMM_SIZE( MPI_COMM_WORLD, size, ierr )
+
+      if (size .ne. 4) then 
+         print *, 'This example requires 6 processes'
+         call MPI_ABORT( MPI_COMM_WORLD, 1, ierr )
+      endif
+      
+      nproc(1) = 2
+      nproc(2) = 2
+
+      icoord(1) = rank / nproc(2)
+      icoord(2) = mod(rank,nproc(2))
+
+      iarray_of_sizes(1)    = lm * nproc(1)
+      iarray_of_sizes(2)    = ln * nproc(2)
+      iarray_of_subsizes(1) = lm
+      iarray_of_subsizes(2) = ln
+C
+C Note that starts are 0-origin, even in Fortran
+      iarray_of_starts(1) = icoord(1) * iarray_of_subsizes(1)
+      iarray_of_starts(2) = icoord(2) * iarray_of_subsizes(2)
+      ndims = 2
+C
+C Initialize Alocal with the order values in Global numbering
+      do 10 j=1,ln
+         do 10 i=1,lm
+            Alocal(i,j) = i + iarray_of_starts(1) + (j - 1 +
+     &           iarray_of_starts(2)) * iarray_of_sizes(1)
+ 10      continue
+C
+C Do the file operations
+C
+      call MPI_FILE_OPEN(MPI_COMM_WORLD, 'testa', MPI_MODE_CREATE +
+     &     MPI_MODE_RDWR, MPI_INFO_NULL, ifh, ierr) 
+      call MPI_BARRIER( MPI_COMM_WORLD, ierr )
+      t0 = MPI_WTIME()
+      do 20 j=1, ln
+         offset = iarray_of_starts(1) + (j-1 + iarray_of_starts(2))
+     &        * iarray_of_sizes(1)
+         offset = offset * 4
+         call MPI_FILE_SEEK( ifh, offset, MPI_SEEK_SET, ierr )
+         call MPI_FILE_WRITE_ALL( ifh, Alocal(1,j), lm,
+     &        MPI_REAL, status, ierr ) 
+ 20   continue
+      call MPI_BARRIER( MPI_COMM_WORLD, ierr )
+      t1 = MPI_WTIME() - t0
+      if (rank .eq. 0) then
+         print *, 'Write Aglobal in ', t1, ' seconds'
+      endif
+
+      call MPI_FILE_CLOSE(ifh, ierr)
+
+      call MPI_FINALIZE( ierr )
+      end
+EOS
+#
+mpif90 pgma.f
+mpirun -np 4 a.out
+

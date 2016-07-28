@@ -1,0 +1,202 @@
+Cristian,<div><br></div><div>one more thing...</div><div>two containers on the same host cannot communicate with the sm btl.</div><div>you might want to mpirun with --mca btl tcp,self on one physical machine without container,</div><div>in order to asses the performance degradation due to using tcp btl and without any containerization effect.</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><div><br>On Friday, July 24, 2015, Harald Servat &lt;<a href="mailto:harald.servat@bsc.es">harald.servat@bsc.es</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Dear Cristian,<br>
+<br>
+  according to your configuration:<br>
+<br>
+  a) - 8 Linux containers on the same machine configured with 2 cores<br>
+  b) - 8 physical machines<br>
+  c) - 1 physical machine<br>
+<br>
+  a) and c) have exactly the same physical computational resources despite the fact that a) is being virtualized and the processors are oversubscribed (2 virtual cores per physical core). I&#39;m not an expert on virtualization, but since a) and c) are exactly the same hardware (in terms of core and memory hierarchy), and your application seems memory bounded, I&#39;d expect to see what you tabulated and b) is faster because you have 8 times the memory cache.<br>
+<br>
+Regards<br>
+PS Your name in the mail is different, maybe you&#39;d like to fix it.<br>
+<br>
+On 22/07/15 10:42, Crisitan RUIZ wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Thank you for your answer Harald<br>
+<br>
+Actually I was already using TAU before but it seems that it is not<br>
+maintained any more and there are problems when instrumenting<br>
+applications with the version 1.8.5 of OpenMPI.<br>
+<br>
+I was using the OpenMPI 1.6.5 before to test the execution of HPC<br>
+application on Linux containers. I tested the performance of NAS<br>
+benchmarks in three different configurations:<br>
+<br>
+- 8 Linux containers on the same machine configured with 2 cores<br>
+- 8 physical machines<br>
+- 1 physical machine<br>
+<br>
+So, as I already described it, each machine counts with 2 processors (8<br>
+cores each). I instrumented and run all NAS benchmark in these three<br>
+configurations and I got the results that I attached in this email.<br>
+In the table &quot;native&quot; corresponds to using 8 physical machines and &quot;SM&quot;<br>
+corresponds to 1 physical machine using the sm module, time is given in<br>
+miliseconds.<br>
+<br>
+What surprise me in the results is that using containers in the worse<br>
+case have equal communication time than just using plain mpi processes.<br>
+Even though the containers use virtual network interfaces to communicate<br>
+between them. Probably this behaviour is due to process binding and<br>
+locality, I wanted to redo the test using OpenMPI version 1.8.5 but<br>
+unfourtunately I couldn&#39;t sucessfully instrument the applications. I was<br>
+looking for another MPI profiler but I couldn&#39;t find any. HPCToolkit<br>
+looks like it is not maintain anymore, Vampir does not maintain any more<br>
+the tool that instrument the application.  I will probably give a try to<br>
+Paraver.<br>
+<br>
+<br>
+<br>
+Best regards,<br>
+<br>
+Cristian Ruiz<br>
+<br>
+<br>
+<br>
+On 07/22/2015 09:44 AM, Harald Servat wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+Cristian,<br>
+<br>
+  you might observe super-speedup heres because in 8 nodes you have 8<br>
+times the cache you have in only 1 node. You can also validate that by<br>
+checking for cache miss activity using the tools that I mentioned in<br>
+my other email.<br>
+<br>
+Best regards.<br>
+<br>
+On 22/07/15 09:42, Crisitan RUIZ wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Sorry, I&#39;ve just discovered that I was using the wrong command to run on<br>
+8 machines. I have to get rid of the &quot;-np 8&quot;<br>
+<br>
+So, I corrected the command and I used:<br>
+<br>
+mpirun --machinefile machine_mpi_bug.txt --mca btl self,sm,tcp<br>
+--allow-run-as-root mg.C.8<br>
+<br>
+And got these results<br>
+<br>
+8 cores:<br>
+<br>
+Mop/s total     =                 19368.43<br>
+<br>
+<br>
+8 machines<br>
+<br>
+Mop/s total     =                 96094.35<br>
+<br>
+<br>
+Why is the performance of mult-node almost 4 times better than<br>
+multi-core? Is this normal behavior?<br>
+<br>
+On 07/22/2015 09:19 AM, Crisitan RUIZ wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+ Hello,<br>
+<br>
+I&#39;m running OpenMPI 1.8.5 on a cluster with the following<br>
+characteristics:<br>
+<br>
+Each node is equipped with two Intel Xeon E5-2630v3 processors (with 8<br>
+cores each), 128 GB of RAM and a 10 Gigabit Ethernet adapter.<br>
+<br>
+When I run the NAS benchmarks using 8 cores in the same machine, I&#39;m<br>
+getting almost the same performance as using 8 machines running a mpi<br>
+process per machine.<br>
+<br>
+I used the following commands:<br>
+<br>
+for running multi-node:<br>
+<br>
+mpirun -np 8 --machinefile machine_file.txt --mca btl self,sm,tcp<br>
+--allow-run-as-root mg.C.8<br>
+<br>
+for running in with 8 cores:<br>
+<br>
+mpirun -np 8  --mca btl self,sm,tcp --allow-run-as-root mg.C.8<br>
+<br>
+<br>
+I got the following results:<br>
+<br>
+8 cores:<br>
+<br>
+ Mop/s total     =                 19368.43<br>
+<br>
+8 machines:<br>
+<br>
+Mop/s total     =                 19326.60<br>
+<br>
+<br>
+The results are similar for other benchmarks. Is this behavior normal?<br>
+I was expecting to see a better behavior using 8 cores given that they<br>
+use directly the memory to communicate.<br>
+<br>
+Thank you,<br>
+<br>
+Cristian<br>
+_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post:<br>
+<a href="http://www.open-mpi.org/community/lists/users/2015/07/27295.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/07/27295.php</a><br>
+</blockquote>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post:<br>
+<a href="http://www.open-mpi.org/community/lists/users/2015/07/27297.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/07/27297.php</a><br>
+</blockquote>
+<br>
+<br>
+WARNING / LEGAL TEXT: This message is intended only for the use of the<br>
+individual or entity to which it is addressed and may contain<br>
+information which is privileged, confidential, proprietary, or exempt<br>
+from disclosure under applicable law. If you are not the intended<br>
+recipient or the person responsible for delivering the message to the<br>
+intended recipient, you are strictly prohibited from disclosing,<br>
+distributing, copying, or in any way using this message. If you have<br>
+received this communication in error, please notify the sender and<br>
+destroy and delete any copies you may have received.<br>
+<br>
+<a href="http://www.bsc.es/disclaimer" target="_blank">http://www.bsc.es/disclaimer</a><br>
+_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post:<br>
+<a href="http://www.open-mpi.org/community/lists/users/2015/07/27298.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/07/27298.php</a><br>
+</blockquote>
+<br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/07/27300.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/07/27300.php</a><br>
+<br>
+</blockquote>
+<br>
+<br>
+WARNING / LEGAL TEXT: This message is intended only for the use of the<br>
+individual or entity to which it is addressed and may contain<br>
+information which is privileged, confidential, proprietary, or exempt<br>
+from disclosure under applicable law. If you are not the intended<br>
+recipient or the person responsible for delivering the message to the<br>
+intended recipient, you are strictly prohibited from disclosing,<br>
+distributing, copying, or in any way using this message. If you have<br>
+received this communication in error, please notify the sender and<br>
+destroy and delete any copies you may have received.<br>
+<br>
+<a href="http://www.bsc.es/disclaimer" target="_blank">http://www.bsc.es/disclaimer</a><br>
+_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/07/27320.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/07/27320.php</a><br>
+</blockquote></div></div>
+

@@ -1,0 +1,37 @@
+commit c9c5d4011bf6ea1ade1a5bd9b6a77f02157dc774
+Author: Gilles Gouaillardet <gilles.gouaillardet@iferc.org>
+Date:   Wed Oct 15 17:19:13 2014 +0900
+
+    Fix heterogeneous support
+    
+    * correctly send OPAL_DSTORE_ARCH key
+
+diff --git a/ompi/proc/proc.c b/ompi/proc/proc.c
+index d30182f..12b781e 100644
+--- a/ompi/proc/proc.c
++++ b/ompi/proc/proc.c
+@@ -107,6 +107,7 @@ int ompi_proc_init(void)
+         OMPI_CAST_RTE_NAME(&proc->super.proc_name)->vpid = i;
+ 
+         if (i == OMPI_PROC_MY_NAME->vpid) {
++            opal_value_t kv;
+             ompi_proc_local_proc = proc;
+             proc->super.proc_flags = OPAL_PROC_ALL_LOCAL;
+             proc->super.proc_hostname = strdup(ompi_process_info.nodename);
+@@ -115,8 +116,13 @@ int ompi_proc_init(void)
+             opal_proc_local_set(&proc->super);
+ #if OPAL_ENABLE_HETEROGENEOUS_SUPPORT
+             /* add our arch to the modex */
+-            OPAL_MODEX_SEND_STRING(ret, PMIX_SYNC_REQD, PMIX_REMOTE, OPAL_DSTORE_ARCH,
+-                                   &proc->super.proc_arch, OPAL_UINT32);
++            OBJ_CONSTRUCT(&kv, opal_value_t);
++            kv.key = strdup(OPAL_DSTORE_ARCH);
++            kv.type = OPAL_UINT32;
++            kv.data.uint32 = opal_local_arch;
++            ret = opal_pmix.put(PMIX_REMOTE, &kv);
++            OBJ_DESTRUCT(&kv);
++
+             if (OPAL_SUCCESS != ret) {
+                 return ret;
+             }
+

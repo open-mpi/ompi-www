@@ -1,0 +1,158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+</head>
+<body bgcolor="#ffffff" text="#000000">
+Nadia Derbey wrote:
+<blockquote
+ cite="mid:1270824438.2561.305.camel@frecb014522.frec.bull.fr"
+ type="cite">
+  <pre wrap="">On Fri, 2010-04-09 at 08:41 -0600, Ralph Castain wrote:
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">Just to check: is this with the latest trunk? Brad and Terry have been making changes to this section of code, including modifying the PROCESS_IS_BOUND test...
+
+
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+Well, it was on the v1.5. But I just checked: looks like
+  1. the call to OPAL_PAFFINITY_PROCESS_IS_BOUND is still there in
+     odls_default_fork_local_proc()
+  2. OPAL_PAFFINITY_PROCESS_IS_BOUND() is defined the same way
+
+But, I'll give it a try with the latest trunk.
+
+Regards,
+Nadia
+
+  </pre>
+</blockquote>
+The changes, I've done do not touch OPAL_PAFFINITY_PROCESS_IS_BOUND at
+all.&nbsp; Also, I am only touching code related to the "bind-to-core"
+option so I really doubt if my changes are causing issues here.<br>
+<br>
+--td<br>
+<blockquote
+ cite="mid:1270824438.2561.305.camel@frecb014522.frec.bull.fr"
+ type="cite">
+  <pre wrap=""></pre>
+  <blockquote type="cite">
+    <pre wrap="">On Apr 9, 2010, at 3:39 AM, Nadia Derbey wrote:
+
+    </pre>
+    <blockquote type="cite">
+      <pre wrap="">Hi,
+
+I am facing a problem with a test that runs fine on some nodes, and
+fails on others.
+
+I have a heterogenous cluster, with 3 types of nodes:
+1) Single socket , 4 cores
+2) 2 sockets, 4cores per socket
+3) 2 sockets, 6 cores/socket
+
+I am using:
+. salloc to allocate the nodes,
+. mpirun binding/mapping options "-bind-to-socket -bysocket"
+
+# salloc -N 1 mpirun -n 4 -bind-to-socket -bysocket sleep 900
+
+This command fails if the allocated node is of type #1 (single socket/4
+cpus).
+BTW, in that case orte_show_help is referencing a tag
+("could-not-bind-to-socket") that does not exist in
+help-odls-default.txt.
+
+While it succeeds when run on nodes of type #2 or 3.
+I think a "bind to socket" should not return an error on a single socket
+machine, but rather be a noop.
+
+The problem comes from the test
+OPAL_PAFFINITY_PROCESS_IS_BOUND(mask, &amp;bound);
+called in odls_default_fork_local_proc() after the binding to the
+processors socket has been done:
+========
+   &lt;snip&gt;
+   OPAL_PAFFINITY_CPU_ZERO(mask);
+   for (n=0; n &lt; orte_default_num_cores_per_socket; n++) {
+       &lt;snip&gt;
+       OPAL_PAFFINITY_CPU_SET(phys_cpu, mask);
+   }
+   /* if we did not bind it anywhere, then that is an error */
+   OPAL_PAFFINITY_PROCESS_IS_BOUND(mask, &amp;bound);
+   if (!bound) {
+       orte_show_help("help-odls-default.txt",
+                      "odls-default:could-not-bind-to-socket", true);
+       ORTE_ODLS_ERROR_OUT(ORTE_ERR_FATAL);
+   }
+========
+OPAL_PAFFINITY_PROCESS_IS_BOUND() will return true if there bits set in
+the mask *AND* the number of bits set is lesser than the number of cpus
+on the machine. Thus on a single socket, 4 cores machine the test will
+fail. While on other the kinds of machines it will succeed.
+
+Again, I think the problem could be solved by changing the alogrithm,
+and assuming that ORTE_BIND_TO_SOCKET, on a single socket machine =
+noop.
+
+Another solution could be to call the test
+OPAL_PAFFINITY_PROCESS_IS_BOUND() at the end of the loop only if we are
+bound (orte_odls_globals.bound). Actually that is the only case where I
+see a justification to this test (see attached patch).
+
+And may be both solutions could be mixed.
+
+Regards,
+Nadia
+
+
+-- 
+Nadia Derbey <a class="moz-txt-link-rfc2396E" href="mailto:Nadia.Derbey@bull.net">&lt;Nadia.Derbey@bull.net&gt;</a>
+&lt;001_fix_process_binding_test.patch&gt;_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+      </pre>
+    </blockquote>
+    <pre wrap="">
+_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+
+    </pre>
+  </blockquote>
+</blockquote>
+<br>
+<br>
+<div class="moz-signature">-- <br>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<title></title>
+<img moz-do-not-send="false"
+ src="cid:part1.03040201.06090405@oracle.com" alt="Oracle"><br>
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">
+<div class="moz-signature">Terry D. Dontje | Principal Software Engineer<br>
+<div class="moz-signature"><font color="#666666" face="Verdana" size="2">Developer
+Tools
+Engineering | +1.650.633.7054<br>
+</font>
+<font color="#ff0000" face="Verdana" size="2">Oracle
+</font><font color="#666666" face="Verdana" size="2"><b> - Performance
+Technologies</b></font><br>
+<font color="#666666" face="Verdana" size="2">
+95 Network Drive, Burlington, MA 01803<br>
+Email <a href="mailto:terry.dontje@oracle.com">terry.dontje@oracle.com</a><br>
+</font><br>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
+

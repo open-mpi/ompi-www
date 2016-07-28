@@ -1,0 +1,376 @@
+I can add x86-64/Linux/SS12.3 to the NOT-showing-the-problem list.<div><br></div><div>-Paul<br><br><div class="gmail_quote">On Fri, Aug 24, 2012 at 6:47 PM, Eugene Loh <span dir="ltr">&lt;<a href="mailto:eugene.loh@oracle.com" target="_blank">eugene.loh@oracle.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><u></u>
+
+  
+    
+  
+  <div bgcolor="#ffffff" text="#000000">
+    Indeed.  Sorry to jump late back into the melee.  I did reproduce
+    the problem on a second SPARC system, to answer Ralph&#39;s earlier
+    question;  I don&#39;t know how interesting that is given that it&#39;s very
+    similar to the original system.  And, to corroborate Paul&#39;s AMD
+    observation, we have an x86/Solaris/Studio system that is *not*
+    seeing the problem.  Thanks to Paul for identifying the likely cause
+    of the problem.<br>
+    <br>
+    On 8/24/2012 6:32 PM, Ralph Castain wrote:
+    <blockquote type="cite">
+      
+      Thanks Paul!! That is very helpful - hopefully the ORNL folks can
+      now fix the problem.
+      <div><br>
+        <div>
+          <div>On Aug 24, 2012, at 6:29 PM, Paul Hargrove &lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;
+            wrote:</div>
+          <br>
+          <blockquote type="cite">
+            <div>I *can* reproduce the problem on SPARC/Solaris-10 with
+              the SS12.3 compiler and an ALMOST vanilla configure:</div>
+            <div>
+              <div>$ [path_to]configure \</div>
+              <div>       --prefix=[blah]  CC=cc CXX=CC F77=f77 FC=f90 \</div>
+              <div>
+                       CFLAGS=&quot;-m64&quot;  --with-wrapper-cflags=&quot;-m64&quot;
+                 CXXFLAGS=&quot;-m64&quot;  --with-wrapper-cxxflags=&quot;-m64&quot; \</div>
+              <div>       FFLAGS=&quot;-m64&quot;  --with-wrapper-fflags=&quot;-m64&quot;
+                 FCFLAGS=&quot;-m64&quot;  --with-wrapper-fcflags=&quot;-m64&quot; \</div>
+              <div>       CXXFLAGS=&quot;-m64 -library=stlport4&quot;</div>
+            </div>
+            <div><br>
+            </div>
+            <div>I did NOT manage to reproduce on AMD64/Solaris-11,
+              which completed a build w/ VT disabled.</div>
+            <div>Unfortunately I have neither SPARC/Solaris-11 nor
+              AMD64/Solaris-10 readily available to disambiguate the key
+              factor.</div>
+            <div>Hopefully it is enough to know that the problem
+              is reproducible w/o Oracle&#39;s massive configure
+              commandline.</div>
+            <div><br>
+            </div>
+            <div><br>
+            </div>
+            <div>The build isn&#39;t complete, but I can already see that
+              the symbol has &quot;leaked&quot; into libmpi:</div>
+            <div><br>
+            </div>
+            <div>$ grep -arl mca_coll_ml_memsync_intra BLD/
+              <div>BLD/ompi/mca/bcol/.libs/libmca_bcol.a</div>
+              <div>BLD/ompi/mca/bcol/base/.libs/bcol_base_open.o</div>
+              <div>BLD/ompi/.libs/libmpi.so.0.0.0</div>
+              <div>BLD/ompi/.libs/libmpi.so</div>
+              <div>BLD/ompi/.libs/libmpi.so.0</div>
+              <div><br>
+              </div>
+              <div>It is referenced
+                by mca_coll_ml_generic_collectives_launcher:</div>
+              <div><br>
+              </div>
+              <div>$ nm BLD/ompi/.libs/libmpi.so.0.0.0 | grep -B1
+                mca_coll_ml_memsync_intra</div>
+              <div>00000000006a6088 t
+                mca_coll_ml_generic_collectives_launcher</div>
+              <div>                 U mca_coll_ml_memsync_intra</div>
+            </div>
+            <div><br>
+            </div>
+            <div>This is coming from libmca_bcol.a:</div>
+            <div>
+              <div>$ nm BLD/ompi/mca/bcol/.libs/libmca_bcol.a | grep -B1
+                mca_coll_ml_memsync_intra</div>
+              <div>0000000000005248 t
+                mca_coll_ml_generic_collectives_launcher</div>
+              <div>                 U mca_coll_ml_memsync_intra</div>
+            </div>
+            <div><br>
+            </div>
+            <div><br>
+            </div>
+            <div>This appears to be via the following chain of calls
+              within coll_ml.h:</div>
+            <div><br>
+            </div>
+            <div>mca_coll_ml_generic_collectives_launcher
+            </div>
+            <div>   mca_coll_ml_task_completion_processing</div>
+            <div>      coll_ml_fragment_completion_processing</div>
+            <div>         mca_coll_ml_buffer_recycling</div>
+            <div>             mca_coll_ml_memsync_intra</div>
+            <div><br>
+            </div>
+            <div>All of which are marked as &quot;static
+              inline __opal_attribute_always_inline__&quot;.</div>
+            <div><br>
+            </div>
+            <div>-Paul</div>
+            <div><br>
+            </div>
+            <br>
+            <div class="gmail_quote">On Fri, Aug 24, 2012 at 4:55 PM,
+              Paul Hargrove <span dir="ltr">&lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;</span>
+              wrote:<br>
+              <blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">OK, I have a vanilla configure+make
+                running on both SPARC/Solaris-10 and AMD64/Solaris-11.
+                <div>I am using the 12.3 Oracle compilers in both cases
+                  to match the original report.<br>
+                  <div>I&#39;ll post the results when they complete.</div>
+                  <div><br>
+                  </div>
+                  <div>In the meantime, I took a quick look at the code
+                    and have a pretty reasonable guess as to the cause.</div>
+                  <div>Looking at ompi/mca/coll/ml/coll_ml.h I see:</div>
+                  <div><br>
+                  </div>
+                  <div>   827  int
+                    mca_coll_ml_memsync_intra(mca_coll_ml_module_t
+                    *module, int bank_index);</div>
+                  <div>[...]</div>
+                  <div>
+                    <div>   996  static inline
+                      __opal_attribute_always_inline__</div>
+                    <div>   997          int
+                      mca_coll_ml_buffer_recycling(mca_coll_ml_collective_operation_progress_t
+                      *ml_request)</div>
+                    <div>   998  {</div>
+                  </div>
+                  <div>[...]</div>
+                  <div>  1023                  rc =
+                    mca_coll_ml_memsync_intra(ml_module,
+                    ml_memblock-&gt;memsync_counter);</div>
+                  <div>[...]</div>
+                  <div>  1041  }</div>
+                  <div><br>
+                  </div>
+                  <div>Based on past experience w/ the Sun/Oracle
+                    compilers on another project (See <a href="http://bugzilla.hcs.ufl.edu/cgi-bin/bugzilla3/show_bug.cgi?id=193" target="_blank">http://bugzilla.hcs.ufl.edu/cgi-bin/bugzilla3/show_bug.cgi?id=193</a> ),
+                    I suspect that this static-inline-always function is
+                    being emitted by the compiler in every object which
+                    includes this header even if they don&#39;t call it..
+                     The call on line 1023 then results in the undefined
+                    reference to mca_coll_ml_memsync_intra.  Basically
+                    it is not safe for an inline function in a header to
+                    call an extern function that isn&#39;t available to
+                    every object that includes the header REGARDLESS of
+                    whether the object invokes the inline function or
+                    not.</div>
+                  <div><br>
+                  </div>
+                  <div>-Paul</div>
+                  <div><br>
+                  </div>
+                  <div><br>
+                    <br>
+                    <div class="gmail_quote">On Fri, Aug 24, 2012 at
+                      4:40 PM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span>
+                      wrote:<br>
+                      <blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+                        <div style="word-wrap:break-word">Oracle uses
+                          an abysmally complicated configure line, but
+                          nearly all of it is irrelevant to the problem
+                          here. For this, I would suggest just doing a
+                          vanilla ./configure - if the component gets
+                          pulled into libmpi, then we know there is a
+                          problem.
+                          <div>
+                            <br>
+                          </div>
+                          <div>Thanks!</div>
+                          <div><br>
+                          </div>
+                          <div>Just FYI: here is there actual configure
+                            line, just in case you spot something
+                            problematic:</div>
+                          <div><br>
+                          </div>
+                          <div>
+                            <pre>CC=cc CXX=CC F77=f77 FC=f90  --with-openib  --enable-openib-connectx-xrc  --without-udapl 
+--disable-openib-ibcm  --enable-btl-openib-failover   --without-dtrace  --enable-heterogeneous
+--enable-cxx-exceptions --enable-shared --enable-orterun-prefix-by-default --with-sge
+--enable-mpi-f90 --with-mpi-f90-size=small  --disable-peruse --disable-state 
+--disable-mpi-thread-multiple   --disable-debug  --disable-mem-debug  --disable-mem-profile 
+CFLAGS=&quot;-xtarget=ultra3 -m32 -xarch=sparcvis2 -xprefetch -xprefetch_level=2 -xvector=lib -Qoption
+cg -xregs=no%appl -xdepend=yes -xbuiltin=%all -xO5&quot;  CXXFLAGS=&quot;-xtarget=ultra3 -m32
+-xarch=sparcvis2 -xprefetch -xprefetch_level=2 -xvector=lib -Qoption cg -xregs=no%appl -xdepend=yes
+-xbuiltin=%all -xO5 -Bstatic -lCrun -lCstd -Bdynamic&quot;  FFLAGS=&quot;-xtarget=ultra3 -m32 -xarch=sparcvis2
+-xprefetch -xprefetch_level=2 -xvector=lib -Qoption cg -xregs=no%appl -stackvar -xO5&quot; 
+FCFLAGS=&quot;-xtarget=ultra3 -m32 -xarch=sparcvis2 -xprefetch -xprefetch_level=2 -xvector=lib -Qoption
+cg -xregs=no%appl -stackvar -xO5&quot;  
+--prefix=/workspace/euloh/hpc/mtt-scratch/burl-ct-t2k-3/ompi-tarball-testing/installs/JA08/install 
+--mandir=${prefix}/man  --bindir=${prefix}/bin  --libdir=${prefix}/lib 
+--includedir=${prefix}/include   --with-tm=/ws/ompi-tools/orte/torque/current/shared-install32 
+--enable-contrib-no-build=vt --with-package-string=&quot;Oracle Message Passing Toolkit &quot;
+--with-ident-string=&quot;@(#)RELEASE VERSION 1.9openmpi-1.5.4-r1.9a1r27092&quot;</pre>
+                            <div><br>
+                            </div>
+                            <div>and the error he gets is:</div>
+                            <div><br>
+                            </div>
+                            <div>
+                              <pre>make[2]: Entering directory
+`/workspace/euloh/hpc/mtt-scratch/burl-ct-t2k-3/ompi-tarball-testing/mpi-install/s3rI/src/openmpi-1.9a1r27092/ompi/tools/ompi_info&#39;
+  CCLD     ompi_info
+Undefined			first referenced
+ symbol  			    in file
+mca_coll_ml_memsync_intra           ../../../ompi/.libs/libmpi.so
+ld: fatal: symbol referencing errors. No output written to .libs/ompi_info
+make[2]: *** [ompi_info] Error 2
+make[2]: Leaving directory
+`/workspace/euloh/hpc/mtt-scratch/burl-ct-t2k-3/ompi-tarball-testing/mpi-install/s3rI/src/openmpi-1.9a1r27092/ompi/tools/ompi_info&#39;
+make[1]: *** [install-recursive] Error 1
+make[1]: Leaving directory
+`/workspace/euloh/hpc/mtt-scratch/burl-ct-t2k-3/ompi-tarball-testing/mpi-install/s3rI/src/openmpi-1.9a1r27092/ompi&#39;
+make: *** [install-recursive] Error 1
+</pre>
+                              <div><br>
+                              </div>
+                            </div>
+                            <div>On Aug 24, 2012, at 4:30 PM, Paul
+                              Hargrove &lt;<a href="mailto:phhargrove@lbl.gov" target="_blank">phhargrove@lbl.gov</a>&gt;
+                              wrote:</div>
+                            <div><br>
+                              <blockquote type="cite">I have access to a
+                                few different Solaris machines and can
+                                offer to build the trunk if somebody
+                                tells me what configure flags are
+                                desired.
+                                <div>
+                                  <br>
+                                </div>
+                                <div>-Paul<br>
+                                  <br>
+                                  <div class="gmail_quote">On Fri, Aug
+                                    24, 2012 at 8:54 AM, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span>
+                                    wrote:<br>
+                                    <blockquote class="gmail_quote" style="margin:0pt 0pt 0pt 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">Eugene
+                                      - can you confirm that this is
+                                      only happening on the one Solaris
+                                      system? In other words, is this a
+                                      general issue or something
+                                      specific to that one machine?<br>
+                                      <br>
+                                      I&#39;m wondering because if it is
+                                      just the one machine, then it
+                                      might be something strange about
+                                      how it is setup - perhaps the
+                                      version of Solaris, or it is
+                                      configuring --enable-static, or...<br>
+                                      <br>
+                                      Just trying to assess how general
+                                      a problem this might be, and thus
+                                      if this should be a blocker or
+                                      not.<br>
+                                      <br>
+                                      On Aug 24, 2012, at 8:00 AM,
+                                      Eugene Loh &lt;<a href="mailto:eugene.loh@oracle.com" target="_blank">eugene.loh@oracle.com</a>&gt;
+                                      wrote:<br>
+                                      <br>
+                                      &gt; On 08/24/12 09:54, Shamis,
+                                      Pavel wrote:<br>
+                                      &gt;&gt; Maybe there is a chance
+                                      to get direct access to this
+                                      system ?<br>
+                                      &gt; No.<br>
+                                      &gt;<br>
+                                      &gt; But I&#39;m attaching compressed
+                                      log files from configure/make.<br>
+                                      &gt;<br>
+                                      &gt;
+&lt;tarball-of-log-files.tar.bz2&gt;_______________________________________________<br>
+                                      &gt; devel mailing list<br>
+                                      &gt; <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+                                      &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+                                      <br>
+                                      <br>
+_______________________________________________<br>
+                                      devel mailing list<br>
+                                      <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+                                      <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+                                    </blockquote>
+                                  </div>
+                                  <br>
+                                  <br clear="all">
+                                  <span><font color="#888888">
+                                      <div><br>
+                                      </div>
+                                      -- <br>
+                                      <font face="courier new,
+                                        monospace">
+                                        <div>Paul H. Hargrove          
+                                                         <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+                                        <div>Future Technologies Group</div>
+                                        <div>Computer and Data Sciences
+                                          Department     Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div>
+                                        <div>Lawrence Berkeley National
+                                          Laboratory     Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+                                      </font><br>
+                                    </font></span></div>
+                                <span><font color="#888888">
+_______________________________________________<br>
+                                    devel mailing list<br>
+                                    <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+                                    <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></font></span></blockquote>
+                            </div>
+                            <br>
+                          </div>
+                        </div>
+                        <br>
+                        _______________________________________________<br>
+                        devel mailing list<br>
+                        <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+                        <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><span><font color="#888888"><br>
+                          </font></span></blockquote>
+                    </div>
+                    <span><font color="#888888"><br>
+                        <br clear="all">
+                        <div><br>
+                        </div>
+                        -- <br>
+                        <font face="courier new, monospace">
+                          <div>
+                            Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+                          <div>Future Technologies Group</div>
+                          <div>Computer and Data Sciences Department    
+                            Tel: <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div>
+                          <div>Lawrence Berkeley National Laboratory    
+                            Fax: <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+                        </font><br>
+                      </font></span></div>
+                </div>
+              </blockquote>
+            </div>
+            <br>
+            <br clear="all">
+            <div><br>
+            </div>
+            -- <br>
+            <font face="courier new, monospace">
+              <div>Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div>
+              <div>Future Technologies Group</div>
+              <div>Computer and Data Sciences Department     Tel:
+                <a href="tel:%2B1-510-495-2352" value="+15104952352" target="_blank">+1-510-495-2352</a></div>
+              <div>Lawrence Berkeley National Laboratory     Fax:
+                <a href="tel:%2B1-510-486-6900" value="+15104866900" target="_blank">+1-510-486-6900</a></div>
+            </font><br>
+            _______________________________________________<br>
+            devel mailing list<br>
+            <a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+            <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></blockquote>
+        </div>
+        <br>
+      </div>
+      <pre><fieldset></fieldset>
+_______________________________________________
+devel mailing list
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></pre>
+    </blockquote>
+  </div>
+
+<br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br></blockquote></div><br><br clear="all"><div><br></div>-- <br><font face="courier new, monospace"><div>
+Paul H. Hargrove                          <a href="mailto:PHHargrove@lbl.gov" target="_blank">PHHargrove@lbl.gov</a></div><div>Future Technologies Group</div><div>Computer and Data Sciences Department     Tel: +1-510-495-2352</div>
+<div>Lawrence Berkeley National Laboratory     Fax: +1-510-486-6900</div></font><br>
+</div>
+

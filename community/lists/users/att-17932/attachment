@@ -1,0 +1,115 @@
+<html>
+  <head>
+
+    <meta http-equiv="content-type" content="text/html; charset=ISO-8859-15">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    I've got a strange problem with Fortran90 and MPI_BCAST call on a
+    large application. I've isolated the problem in this short program
+    samples.<br>
+    With fortran we can use subarrays in functions calls. Example, with
+    passing a subarray to the "change" procedure:<br>
+    <br>
+    <small>MODULE mymod<br>
+      IMPLICIT NONE<br>
+      CONTAINS<br>
+        SUBROUTINE change(tab,i)<br>
+          IMPLICIT NONE<br>
+          INTEGER, INTENT(INOUT),DIMENSION(:)::tab<br>
+          INTEGER, INTENT(IN) :: i<br>
+          tab(:)=i<br>
+        END SUBROUTINE change<br>
+      END MODULE mymod<br>
+      <br>
+      PROGRAM toto<br>
+        USE mymod<br>
+        IMPLICIT NONE<br>
+        INTEGER, PARAMETER::nx=6, ny=4<br>
+        INTEGER, DIMENSION(nx,ny):: tab<br>
+        INTEGER::i<br>
+      <br>
+        tab=-1<br>
+        DO i=1,nx<br>
+          CALL change(tab(i,:),i)<br>
+        ENDDO<br>
+        PRINT*,tab<br>
+      END PROGRAM toto</small><br>
+    <br>
+    But If I use subarrays with MPI_BCAST() like in this example:<br>
+    <br>
+    <small>PROGRAM bide<br>
+      USE mpi<br>
+         IMPLICIT NONE<br>
+         INTEGER :: nbcpus<br>
+         INTEGER :: my_rank<br>
+         INTEGER :: ierr,i,buf<br>
+         INTEGER, ALLOCATABLE:: tab(:,:)<br>
+      <br>
+          CALL MPI_INIT(ierr)<br>
+          CALL MPI_COMM_RANK(MPI_COMM_WORLD,my_rank,ierr)<br>
+          CALL MPI_COMM_SIZE(MPI_COMM_WORLD,nbcpus,ierr)<br>
+      <br>
+          ALLOCATE (tab(0:nbcpus-1,4))<br>
+      <br>
+          tab(:,:)=-1<br>
+          tab(my_rank,:)=my_rank<br>
+          DO i=0,nbcpus-1<br>
+             CALL
+      MPI_BCAST(tab(i,:),4,MPI_INTEGER,i,MPI_COMM_WORLD,ierr)<br>
+          ENDDO<br>
+          IF (my_rank .EQ. 0) print*,tab<br>
+          CALL MPI_FINALIZE(ierr)<br>
+      <br>
+      END PROGRAM bide</small><br>
+    <br>
+    It doesn't work! With openMPI 1.2.8 (OpenSuse 11.4 X86_64) I have
+    random segfault: it works sometime, with few cpus (2, 4, 8...) and
+    does'nt work sometime with a larger number of cpus (32, 48, 64...).
+    With OpenMPI 1.4.4 (build from sources) it hangs (most of the array
+    tab remains at the -1 initialization value). <br>
+    Such procedure calls are allowed with fortran90 so I do not
+    understand why they fail here. I have to use a buffer array (called
+    tabl in the following program) to solve the problem.<br>
+    <br>
+    <small>PROGRAM bide<br>
+      USE mpi<br>
+         IMPLICIT NONE<br>
+         INTEGER :: nbcpus<br>
+         INTEGER :: my_rank<br>
+         INTEGER :: ierr,i,buf<br>
+         INTEGER, ALLOCATABLE:: tab(:,:)<br>
+         INTEGER::tab1(4)<br>
+      <br>
+          CALL MPI_INIT(ierr)<br>
+          CALL MPI_COMM_RANK(MPI_COMM_WORLD,my_rank,ierr)<br>
+          CALL MPI_COMM_SIZE(MPI_COMM_WORLD,nbcpus,ierr)<br>
+      <br>
+          ALLOCATE (tab(0:nbcpus-1,4))<br>
+      <br>
+          tab=-1<br>
+          tab1=-1<br>
+          DO i=0,nbcpus-1<br>
+             IF(my_rank.EQ.i) tab1=my_rank<br>
+             CALL MPI_BCAST(tab1,4,MPI_INTEGER,i,MPI_COMM_WORLD,ierr)<br>
+             tab(i,:)=tab1<br>
+          ENDDO<br>
+          IF (my_rank .EQ. 0) print*,tab<br>
+          CALL MPI_FINALIZE(ierr)<br>
+      <br>
+      END PROGRAM bide</small><br>
+    <br>
+    Any idea about this behavior ?<br>
+    <br>
+    Patrick<br>
+    <pre class="moz-signature" cols="80">-- 
+===============================================================
+|  Equipe M.O.S.T.         | <a class="moz-txt-link-freetext" href="http://most.hmg.inpg.fr">http://most.hmg.inpg.fr</a>          |
+|  Patrick BEGOU           |       ------------               |
+|  LEGI                    | <a class="moz-txt-link-freetext" href="mailto:Patrick.Begou@hmg.inpg.fr">mailto:Patrick.Begou@hmg.inpg.fr</a> |
+|  BP 53 X                 | Tel 04 76 82 51 35               |
+|  38041 GRENOBLE CEDEX    | Fax 04 76 82 52 71               |
+===============================================================
+</pre>
+  </body>
+</html>
+

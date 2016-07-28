@@ -1,0 +1,73 @@
+<div dir="ltr">As an aside, with Slurm you can use:<div><br></div><div>sbatch  --ntasks-per-socket=&lt;N&gt;</div><div><br></div><div>I would hazard a guess that this uses the OpenMPI syntax as above to perform the binding to core!</div></div><div class="gmail_extra"><br><div class="gmail_quote">On 27 July 2015 at 09:47, Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">As you say, it all depends on your kernel  :-)<br>
+<br>
+If the numactl libraries are available, we will explicitly set the memory policy to follow the bindings we apply. So doing as I suggested will cause the first process to have its memory “bound” to the first socket, even thought the process will also be using a core from the other region. If your process spawns a few threads to ensure that core exercises the memory, you’ll get plenty of cross-NUMA behavior to test against.<br>
+<br>
+Which is why we recommend that users “don’t do that” :-)<br>
+<span class=""><br>
+<br>
+&gt; On Jul 27, 2015, at 1:25 AM, Davide Cesari &lt;<a href="mailto:dcesari@arpa.emr.it">dcesari@arpa.emr.it</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Hi Bill and Ralph,<br>
+&gt;       well the Linux kernel does all its best to allocate memory on the local NUMA node if it&#39;s available, so it is difficult to convince it to do something harmful in this sense. I think that a way to test such a situation would be to start mpi processes on a node in an usual way -reasonably the processes will be bound to a socket or a core-, wait for the processes to allocate their working memory, then either migrate the processes on the other NUMA node (usually ==socket) or migrate its memory pages, the command-line tools distributed with the numactl package (numactl or migratepages) can probably allow to perform such a vandalism; this would put your system into a worst-case scenario from the NUMA point of view.<br>
+&gt;       In our system, I noticed in the past some strong slowdowns related to NUMA in parallel processes when a single MPI process doing much more I/O than the others tended to occupy all the local memory as disk cache, then the processes on that NUMA node were forced to allocate memory on the other NUMA node rather than reclaiming cache memory on the local node. I solved this in a brutal way by cleaning the disk cache regularly on the computing nodes. In my view this is the only case where (recent) Linux kernel does not have a NUMA-aware behavior, I wonder whether there are HPC-optimized patches or something has changed in this direction in recent kernel development.<br>
+&gt;<br>
+&gt;       Best regards, Davide<br>
+&gt;<br>
+&gt;&gt; Date: Fri, 24 Jul 2015 13:36:55 -0700<br>
+</span>&gt;&gt; From: Ralph Castain &lt;<a href="mailto:rhc@open-mpi.org">rhc@open-mpi.org</a>&gt;<br>
+&gt;&gt; To: Open MPI Users &lt;<a href="mailto:users@open-mpi.org">users@open-mpi.org</a>&gt;<br>
+<span class="">&gt;&gt; Subject: Re: [OMPI users] NUMA: Non-local memory access and<br>
+&gt;&gt;      performance     effects on OpenMPI<br>
+&gt;&gt; Hi Bill<br>
+&gt;&gt;<br>
+&gt;&gt; You actually can get OMPI to split a process across sockets. Let?s say there are 4 cores/socket and 2 sockets/node. You could run two procs on the same node, one split across sockets, by:<br>
+&gt;&gt;<br>
+&gt;&gt; mpirun -n 1 ?map-by core:pe=5 ./app : -n 1 ?map-by core:pe=3 ./app<br>
+&gt;&gt;<br>
+&gt;&gt; The first proc will run on all cores of the 1st socket plus the 1st core of the 2nd socket. The second proc will run on the remaining 3 cores of the 2nd socket.<br>
+&gt;&gt;<br>
+&gt;&gt; HTH<br>
+&gt;&gt; Ralph<br>
+&gt;&gt;<br>
+&gt;&gt;<br>
+</span><span class="">&gt;&gt;&gt; On Jul 24, 2015, at 12:48 PM, Lane, William &lt;<a href="mailto:William.Lane@cshs.org">William.Lane@cshs.org</a>&gt; wrote:<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I&#39;m just curious, if we run an OpenMPI job and it makes use of non-local memory<br>
+&gt;&gt;&gt; (i.e. memory tied to another socket) what kind of effects are seen on performance?<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; How would you go about testing the above? I can&#39;t think of any command line parameter that<br>
+&gt;&gt;&gt; would allow one to split an OpenMPI process across sockets.<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; I&#39;d imagine it would be pretty bad since you can&#39;t cache non-local memory locally,<br>
+&gt;&gt;&gt; the fact both the request and data have to flow through an IOH, the local CPU would<br>
+&gt;&gt;&gt; have to compete w/the non-local CPU for access to its own memory and that doing this<br>
+&gt;&gt;&gt; would have to implemented w/some sort of software semaphore locks (which would add<br>
+&gt;&gt;&gt; even more overhead).<br>
+&gt;&gt;&gt;<br>
+&gt;&gt;&gt; Bill L.<br>
+&gt;&gt;&gt; IMPORTANT WARNING: This message is intended for the use of the person or entity to which it is addressed and may contain information that is privileged and confidential, the disclosure of which is governed by applicable law. If the reader of this message is not the intended recipient, or the employee or agent responsible for delivering it to the intended recipient, you are hereby notified that any dissemination, distribution or copying of this information is strictly prohibited. Thank you for your cooperation. _______________________________________________<br>
+&gt;&gt;&gt; users mailing list<br>
+</span>&gt;&gt;&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a> &lt;mailto:<a href="mailto:users@open-mpi.org">users@open-mpi.org</a>&gt;<br>
+<span class="">&gt;&gt;&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a> &lt;<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>&gt;<br>
+</span>&gt;&gt;&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/07/27322.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/07/27322.php</a> &lt;<a href="http://www.open-mpi.org/community/lists/users/2015/07/27322.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/07/27322.php</a>&gt;<br>
+<span class="">&gt;<br>
+&gt;<br>
+&gt; --<br>
+&gt; ============================= Davide Cesari ============================<br>
+&gt; Dott**(0.5) Davide Cesari<br>
+&gt; ARPA-Emilia Romagna, Servizio IdroMeteoClima<br>
+&gt; NWP modelling - Modellistica numerica previsionale<br>
+</span>&gt; Tel. <a href="tel:%2B39%20051525926" value="+39051525926">+39 051525926</a><br>
+<span class="">&gt; ========================================================================<br>
+&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+</span>&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<span class="">&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/07/27331.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/07/27331.php</a><br>
+<br>
+</span>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/07/27332.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/07/27332.php</a></blockquote></div><br></div>
+

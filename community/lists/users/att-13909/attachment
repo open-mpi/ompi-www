@@ -1,0 +1,57 @@
+Hi All,<br>I am new to openmpi and have encountered an issue using pre-release 1.5rc5, for a simple mpi code (see attached).  In this test, nodes 1 to n sends out a random number to node 0, node 0 sums all numbers received.<br>
+
+<br>This code works fine on 1 machine with any number of nodes, and on 3 machines running 10 nodes per machine, but when we try to run 11 nodes per machine this warning appears:<br>
+<br>[wgsg0:29074] Warning -- mutex was double locked from errmgr_hnp.c:772<br><br>And node 0 (master summing node) hangs on receiving plus another random node hangs on sending indefinitely.  Below are the back traces:<br>
+
+
+<br>(gdb) bt<br>#0  0x00007f0c5f109cd3 in epoll_wait () from 
+/lib/libc.so.6<br>#1  0x00007f0c6052db53 in epoll_dispatch 
+(base=0x2310bf0, arg=0x22f91f0, tv=0x7fff90f623e0) at epoll.c:215<br>#2 
+ 0x00007f0c6053ae58 in opal_event_base_loop (base=0x2310bf0, flags=2) at
+ event.c:838<br>
+#3  0x00007f0c6053ac27 in opal_event_loop (flags=2) at event.c:766<br>#4 
+ 0x00007f0c604ebb5a in opal_progress () at runtime/opal_progress.c:189<br>#5 
+ 0x00007f0c59b79cb1 in opal_condition_wait (c=0x7f0c608003a0, 
+m=0x7f0c60800400) at ../../../../opal/threads/<div id=":1ku">condition.h:99<br>
+#6  0x00007f0c59b79dff in ompi_request_wait_completion (req=0x2538d80) 
+at ../../../../ompi/request/request.h:377<br>#7  0x00007f0c59b7a8d7
+ in mca_pml_ob1_recv (addr=0x7fff90f626a0, count=1, datatype=0x612600, 
+src=45, tag=100, comm=0x7f0c607f2b40, <br>
+    status=0x7fff90f62668) at pml_ob1_irecv.c:104<br>#8  
+0x00007f0c60425dbc in PMPI_Recv (buf=0x7fff90f626a0, count=1, 
+type=0x612600, source=45, tag=100, comm=0x7f0c607f2b40, 
+status=0x7fff90f62668)<br>    at precv.c:78<br>
+#9  0x000000000040ae14 in MPI::Comm::Recv (this=0x612800, 
+buf=0x7fff90f626a0, count=1, datatype=..., source=45, tag=100, 
+status=...)<br>    at /wg/stor5/wgsim/hsu/projects/cturtle/wg-ros-pkg-unreleased/stacks/mpi/openmpi_devel/include/openmpi/ompi/mpi/cxx/comm_inln.h:36<br>
+#10 0x0000000000409a27 in main (argc=1, argv=0x7fff90f628c8)<br>    at 
+/wg/stor5/wgsim/hsu/projects/cturtle/wg-ros-pkg-unreleased/stacks/mpi/mpi_test/src/mpi_test.cpp:30<br>(gdb)<br><br>and
+ for sender is:<br><br>(gdb) bt<br>
+#0  0x00007fedb919fcd3 in epoll_wait () from /lib/libc.so.6<br>#1  
+0x00007fedba5e0a93 in epoll_dispatch (base=0x2171880, arg=0x216c6e0, 
+tv=0x7ffffa8a4130) at epoll.c:215<br>#2  0x00007fedba5edde0 in 
+opal_event_base_loop (base=0x2171880, flags=2) at event.c:838<br>
+#3  0x00007fedba5edbaf in opal_event_loop (flags=2) at event.c:766<br>#4 
+ 0x00007fedba59c43a in opal_progress () at runtime/opal_progress.c:189<br>#5 
+ 0x00007fedb2796f97 in opal_condition_wait (c=0x7fedba8ba6e0, 
+m=0x7fedba8ba740)<br>
+    at ../../../../opal/threads/condition.h:99<br>#6  
+0x00007fedb279742e in ompi_request_wait_completion (req=0x2392d80) at 
+../../../../ompi/request/request.h:377<br>#7  0x00007fedb2798e0c in
+ mca_pml_ob1_send (buf=0x23b6210, count=100, datatype=0x612600, dst=0, 
+tag=100, <br>
+    sendmode=MCA_PML_BASE_SEND_STANDARD, comm=0x7fedba8ace80) at 
+pml_ob1_isend.c:125<br>#8  0x00007fedba4c9a08 in PMPI_Send 
+(buf=0x23b6210, count=100, type=0x612600, dest=0, tag=100, 
+comm=0x7fedba8ace80)<br>    at psend.c:75<br>
+#9  0x000000000040ae52 in MPI::Comm::Send (this=0x612800, buf=0x23b6210,
+ count=100, datatype=..., dest=0, tag=100)<br>    at 
+/wg/stor5/wgsim/hsu/projects/cturtle/wg-ros-pkg-unreleased/stacks/mpi/openmpi_devel/include/openmpi/ompi/mpi/cxx/comm_inln.h:29<br>
+#10 0x0000000000409bec in main (argc=1, argv=0x7ffffa8a4658)<br>    at 
+/wg/stor5/wgsim/hsu/projects/cturtle/wg-ros-pkg-unreleased/stacks/mpi/mpi_test/src/mpi_test.cpp:42<br>(gdb)<br></div><br>The &quot;deadlock&quot; appears to be a machine dependent race condition, different machines fails with different combinations of nodes / machine.<br>
+
+<br>Below is my command line for reference:<br><br>$ ../openmpi_devel/bin/mpirun -x PATH -hostfile hostfiles/hostfile.wgsgX -npernode 11 -mca btl tcp,sm,self -mca orte_base_help_aggregate 0 -mca opal_debug_locks 1  ./bin/mpi_test<br>
+
+<br>The problem does not exist in release 1.4.2 or earlier.  We are testing unreleased codes for potential knem benefits, but 
+can fall back to 1.4.2 if necessary.<br><br>My apologies in advance if I&#39;ve missed something basic, thanks for any help :)<br><br>regards,<br>John<br>
+

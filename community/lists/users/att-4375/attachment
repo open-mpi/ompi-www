@@ -1,0 +1,35 @@
+<span style="color: rgb(0, 0, 153);">Hi again,<br><br>Let me clarify the context of the
+problem. I&#39;m implementing a MPI piggyback mechanism that should allow
+for attaching extra data to any MPI message. The idea is to wrap MPI
+communication calls with PMPI interface (or with dynamic
+instrumentation or whatsoever) and add/receive extra data in a non
+expensive way. The best solution I have found so far is dynamic
+datatype wrapping. That is when a user calls MPI_Send (datatype, count)
+I create dynamically a new structure type that contains an array
+[count] of datatype and extra data. To avoid copying the original send
+buffer I use absolute addresses to define displacaments in the
+structure. This works fine for all P2P calls and MPI_Bcast. And
+definitely it has performance benefits when compared to copying
+bufferers or sending an additional message in a different communicator.
+Or would you expect something different?<br>
+<br>
+The only problem are collective calls like MPI_Gather when a root
+process receives an array of data items. There is no problem to wrap
+the message on the sender side (for each task), but the question is how
+to define a datatype that points both to original receive buffer and
+extra buffer for piggybacked data AND has an adecuate extent to work as
+an array element. <br><br>The real problem is that a structure datatype { original data, extra data} does not have a constant displacement between the original data and extra data. Eg. consider original data = receive buffer in MPI_Gather and extra data is an array of ints somewhere in memory). So it cannot be directly used as an array datatype.
+<br><br>Any solution? It could be complex, I don&#39;t mind ;)<br><br><br>
+</span><div><span class="gmail_quote">On 11/1/07, <b class="gmail_sendername">George Bosilca</b> &lt;<a href="mailto:bosilca@eecs.utk.edu">bosilca@eecs.utk.edu</a>&gt; wrote:</span><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+The MPI standard defines the upper bound and the upper bound for<br>similar problems. However, even with all the functions in the MPI<br>standard we cannot describe all types of data. There is always a<br>solution, but sometimes one has to ask if the performance gain is
+<br>worth the complexity introduced.</blockquote><div><span style="color: rgb(0, 0, 153);"><br></span></div><br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+As I said there is always a solution. In fact there are 2 solution,<br>one somehow optimal the other ... as bad as you can imagine.<br><br>The bad approach:<br>&nbsp;&nbsp;1. Use an MPI_Type_struct to create exactly what you want, element
+<br>by element (i.e single pair). This can work in all cases.</blockquote><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">&nbsp;&nbsp;2. If the sizeof(int) == sizeof(double) then the displacement inside
+<br>each tuple (double_i, int_i) is constant. Therefore, you can start by<br>creating one &quot;single element&quot; type and then use for each send the<br>correct displacement in the array (added to the send buffer,<br>respectively to the receive one).
+<br><br>&nbsp;&nbsp; george.<br><br>On Oct 31, 2007, at 1:40 PM, Oleg Morajko wrote:<br><br>&gt; Hello,<br>&gt;<br>&gt; I have the following problem. There areI two arrays somewere in the<br>&gt; program:<br>&gt;<br>&gt; double weights [MAX_SIZE];
+<br>&gt; ...<br>&gt; int&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; values [MAX_SIZE];<br>&gt; ...<br>&gt;<br>&gt; I need to be able to send a single pair { weights [i], values [i] }<br>&gt; with a single MPI_Send call Or receive it directly into both arrays
+<br>&gt; at at given index i. How can I define a datatype that spans this<br>&gt; pair over both arrays?<br>&gt;<br>&gt; The only additional constraint it the fact that the memory location<br>&gt; of both arrays is fixed and cannot be changed and I should avoid
+<br>&gt; extra copies.<br>&gt;<br>&gt; Is it possible?<br>&gt;<br>&gt; Any help welcome,<br>&gt; Oleg Morajko<br>&gt;<br>&gt;<br>&gt; _______________________________________________<br>&gt; users mailing list<br>&gt; <a href="mailto:users@open-mpi.org">
+users@open-mpi.org</a><br>&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br><br><br>_______________________________________________<br>users mailing list
+<br><a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br><a href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br><br></blockquote></div><br>
+

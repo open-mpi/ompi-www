@@ -1,0 +1,433 @@
+diff --git a/doc/hwloc.doxy b/doc/hwloc.doxy
+index e3684df..989a33c 100644
+--- a/doc/hwloc.doxy
++++ b/doc/hwloc.doxy
+@@ -1053,10 +1053,9 @@ as a child of the corresponding hwloc socket object.
+ These new objects have neither CPU sets nor node sets (NULL pointers) because
+ they are not directly usable by the user applications.
+ Moreover I/O hierarchies may be highly complex (asymmetric trees of bridges).
+-So I/O objects are not placed in a level with a well-defined depth as
+-regular objects do.
+-Hence, they have no notion of cousins and their list may not be traversed with
+-helpers such as hwloc_get_next_obj_by_depth() or hwloc_get_next_obj_by_type().
++So I/O objects are placed in specific levels with custom depth.
++Their lists may still be traversed with regular helpers such as
++hwloc_get_next_obj_by_type().
+ However, hwloc offers some dedicated helpers such as hwloc_get_next_pcidev()
+ and hwloc_get_next_osdev() for convenience (see \ref hwlocality_iodev and
+ \ref hwlocality_advanced_io).
+diff --git a/include/hwloc.h b/include/hwloc.h
+index 0da9ecb..b8c2874 100644
+--- a/include/hwloc.h
++++ b/include/hwloc.h
+@@ -195,20 +195,17 @@ typedef enum {
+   HWLOC_OBJ_BRIDGE,	/**< \brief Bridge.
+ 			  * Any bridge that connects the host or an I/O bus,
+ 			  * to another I/O bus.
+-			  * Bridge objects have neither CPU sets, nor node sets,
+-			  * nor any level depth.
++			  * Bridge objects have neither CPU sets nor node sets.
+ 			  * They are not added to the topology unless I/O discovery
+ 			  * is enabled with hwloc_topology_set_flags().
+ 			  */
+   HWLOC_OBJ_PCI_DEVICE,	/**< \brief PCI device.
+-			  * These objects have neither CPU sets, nor node sets,
+-			  * nor any level depth.
++			  * These objects have neither CPU sets nor node sets.
+ 			  * They are not added to the topology unless I/O discovery
+ 			  * is enabled with hwloc_topology_set_flags().
+ 			  */
+   HWLOC_OBJ_OS_DEVICE,	/**< \brief Operating system device.
+-			  * These objects have neither CPU sets, nor node sets,
+-			  * nor any level depth.
++			  * These objects have neither CPU sets nor node sets.
+ 			  * They are not added to the topology unless I/O discovery
+ 			  * is enabled with hwloc_topology_set_flags().
+ 			  */
+@@ -960,16 +957,17 @@ HWLOC_DECLSPEC unsigned hwloc_topology_get_depth(hwloc_topology_t __hwloc_restri
+  * If some objects of the given type exist in different levels, for instance
+  * L1 and L2 caches, the function returns HWLOC_TYPE_DEPTH_MULTIPLE.
+  *
+- * If an I/O object type is given, the function returns HWLOC_TYPE_DEPTH_UNKNOWN
+- * because I/O objects are not stored in levels as other CPU-related objects do.
+- * If you ever need to traverse the list of PCI or OS devices, you should use
+- * hwloc_get_next_pcidev() or hwloc_get_next_osdev().
++ * If an I/O object type is given, the function returns a special value
++ * because I/O objects are stored in special levels that are not CPU-related.
+  */
+ HWLOC_DECLSPEC int hwloc_get_type_depth (hwloc_topology_t topology, hwloc_obj_type_t type);
+ 
+ enum hwloc_get_type_depth_e {
+     HWLOC_TYPE_DEPTH_UNKNOWN = -1, /**< \brief No object of given type exists in the topology. \hideinitializer */
+-    HWLOC_TYPE_DEPTH_MULTIPLE = -2 /**< \brief Objects of given type exist at different depth in the topology. \hideinitializer */
++    HWLOC_TYPE_DEPTH_MULTIPLE = -2, /**< \brief Objects of given type exist at different depth in the topology. \hideinitializer */
++    HWLOC_TYPE_DEPTH_BRIDGE = -3, /**< \brief Virtual depth for bridge object level. \hideinitializer */
++    HWLOC_TYPE_DEPTH_PCI_DEVICE = -4, /**< \brief Virtual depth for PCI device object level. \hideinitializer */
++    HWLOC_TYPE_DEPTH_OS_DEVICE = -5 /**< \brief Virtual depth for software device object level. \hideinitializer */
+ };
+ 
+ /** \brief Returns the type of objects at depth \p depth.
+@@ -1828,32 +1826,6 @@ HWLOC_DECLSPEC int hwloc_free(hwloc_topology_t topology, void *addr, size_t len)
+ 
+ 
+ 
+-/** \defgroup hwlocality_iodev Basic I/O Device Management
+- * @{
+- */
+-
+-/** \brief Get the next PCI device in the system.
+- *
+- * This is useful for enumerating PCI device objects because
+- * those are not available through a common level or depth.
+- *
+- * \return the first PCI device if \p prev is \c NULL.
+- */
+-HWLOC_DECLSPEC struct hwloc_obj * hwloc_get_next_pcidev(struct hwloc_topology *topology, struct hwloc_obj *prev);
+-
+-/** \brief Get the next OS device in the system.
+- *
+- * This is useful for enumerating OS device objects because
+- * those are not available through a common level or depth.
+- *
+- * \return the first OS device if \p prev is \c NULL.
+- */
+-HWLOC_DECLSPEC struct hwloc_obj * hwloc_get_next_osdev(struct hwloc_topology *topology, struct hwloc_obj *prev);
+-
+-/** @} */
+-
+-
+-
+ #ifdef __cplusplus
+ } /* extern "C" */
+ #endif
+diff --git a/include/hwloc/helper.h b/include/hwloc/helper.h
+index 1052484..07d316d 100644
+--- a/include/hwloc/helper.h
++++ b/include/hwloc/helper.h
+@@ -518,10 +518,12 @@ hwloc_get_shared_cache_covering_obj (hwloc_topology_t topology __hwloc_attribute
+ 
+ /** \brief Do a depth-first traversal of the topology to find and sort
+  *
+- *  all objects that are at the same depth than \p src.
+- *  Report in \p objs up to \p max physically closest ones to \p src.
++ * all objects that are at the same depth than \p src.
++ * Report in \p objs up to \p max physically closest ones to \p src.
+  *
+- *  \return the number of objects returned in \p objs.
++ * \return the number of objects returned in \p objs.
++ *
++ * \return 0 if \p src is an I/O object.
+  */
+ /* TODO: rather provide an iterator? Provide a way to know how much should be allocated? By returning the total number of objects instead? */
+ HWLOC_DECLSPEC unsigned hwloc_get_closest_objs (hwloc_topology_t topology, hwloc_obj_t src, hwloc_obj_t * __hwloc_restrict objs, unsigned max);
+@@ -1079,6 +1081,16 @@ hwloc_get_latency(hwloc_topology_t topology,
+  * @{
+  */
+ 
++/** \brief Get the next PCI device in the system.
++ *
++ * \return the first PCI device if \p prev is \c NULL.
++ */
++static __inline hwloc_obj_t
++hwloc_get_next_pcidev(hwloc_topology_t topology, hwloc_obj_t prev)
++{
++  return hwloc_get_next_obj_by_type(topology, HWLOC_OBJ_PCI_DEVICE, prev);
++}
++
+ /** \brief Find the PCI device object matching the PCI bus id
+  * given domain, bus device and function PCI bus id.
+  */
+@@ -1115,6 +1127,16 @@ hwloc_get_pcidev_by_busidstring(hwloc_topology_t topology, const char *busid)
+   return hwloc_get_pcidev_by_busid(topology, domain, bus, dev, func);
+ }
+ 
++/** \brief Get the next OS device in the system.
++ *
++ * \return the first OS device if \p prev is \c NULL.
++ */
++static __inline hwloc_obj_t
++hwloc_get_next_osdev(hwloc_topology_t topology, hwloc_obj_t prev)
++{
++  return hwloc_get_next_obj_by_type(topology, HWLOC_OBJ_OS_DEVICE, prev);
++}
++
+ /** @} */
+ 
+ 
+diff --git a/include/hwloc/rename.h b/include/hwloc/rename.h
+index e6e0067..2f7ca82 100644
+--- a/include/hwloc/rename.h
++++ b/include/hwloc/rename.h
+@@ -215,9 +215,9 @@ extern "C" {
+ #define hwloc_free HWLOC_NAME(free)
+ 
+ #define hwloc_get_next_pcidev HWLOC_NAME(get_next_pcidev)
+-#define hwloc_get_next_osdev HWLOC_NAME(get_next_osdev)
+ #define hwloc_get_pcidev_by_busid HWLOC_NAME(get_pcidev_by_busid)
+ #define hwloc_get_pcidev_by_busidstring HWLOC_NAME(get_pcidev_by_busidstring)
++#define hwloc_get_next_osdev HWLOC_NAME(get_next_osdev)
+ 
+ /* hwloc/bitmap.h */
+ 
+diff --git a/include/private/private.h b/include/private/private.h
+index 8187b52..70c9c0a 100644
+--- a/include/private/private.h
++++ b/include/private/private.h
+@@ -67,7 +67,15 @@ struct hwloc_topology {
+   int is_loaded;
+   hwloc_pid_t pid;                                      /* Process ID the topology is view from, 0 for self */
+ 
+-  struct hwloc_obj *first_pcidev, *last_pcidev, *first_osdev, *last_osdev;
++  unsigned bridge_nbobjects;
++  struct hwloc_obj **bridge_level;
++  struct hwloc_obj *first_bridge, *last_bridge;
++  unsigned pcidev_nbobjects;
++  struct hwloc_obj **pcidev_level;
++  struct hwloc_obj *first_pcidev, *last_pcidev;
++  unsigned osdev_nbobjects;
++  struct hwloc_obj **osdev_level;
++  struct hwloc_obj *first_osdev, *last_osdev;
+ 
+   int (*set_thisproc_cpubind)(hwloc_topology_t topology, hwloc_const_cpuset_t set, int flags);
+   int (*get_thisproc_cpubind)(hwloc_topology_t topology, hwloc_cpuset_t set, int flags);
+diff --git a/src/topology.c b/src/topology.c
+index 27c28c7..445bd41 100644
+--- a/src/topology.c
++++ b/src/topology.c
+@@ -810,7 +810,16 @@ append_iodevs(hwloc_topology_t topology, hwloc_obj_t obj)
+ {
+   hwloc_obj_t child, *temp;
+ 
+-  if (obj->type == HWLOC_OBJ_PCI_DEVICE) {
++  if (obj->type == HWLOC_OBJ_BRIDGE) {
++    /* Insert in the main bridge list */
++    if (topology->first_bridge) {
++      obj->prev_cousin = topology->last_bridge;
++      obj->prev_cousin->next_cousin = obj;
++      topology->last_bridge = obj;
++    } else {
++      topology->first_bridge = topology->last_bridge = obj;
++    }
++  } else if (obj->type == HWLOC_OBJ_PCI_DEVICE) {
+     /* Insert in the main pcidev list */
+     if (topology->first_pcidev) {
+       obj->prev_cousin = topology->last_pcidev;
+@@ -1519,6 +1528,33 @@ hwloc_level_take_objects(hwloc_topology_t topology,
+   return new_i;
+ }
+ 
++static unsigned
++hwloc_build_level_from_list(struct hwloc_obj *first, struct hwloc_obj ***levelp)
++{
++  unsigned i, nb;
++  struct hwloc_obj * obj;
++
++  /* count */
++  obj = first;
++  i = 0;
++  while (obj) {
++    i++;
++    obj = obj->next_cousin;
++  }
++  nb = i;
++
++  /* allocate and fill level */
++  *levelp = malloc(nb * sizeof(struct hwloc_obj *));
++  obj = first;
++  i = 0;
++  while (obj) {
++    (*levelp)[i++] = obj;
++    obj = obj->next_cousin;
++  }
++
++  return nb;
++}
++
+ /*
+  * Do the remaining work that hwloc_connect_children() did not do earlier.
+  */
+@@ -1540,11 +1576,25 @@ hwloc_connect_levels(hwloc_topology_t topology)
+   /* initialize all depth to unknown */
+   for (l = HWLOC_OBJ_SYSTEM; l < HWLOC_OBJ_TYPE_MAX; l++)
+     topology->type_depth[l] = HWLOC_TYPE_DEPTH_UNKNOWN;
++  /* initialize root type depth */
+   topology->type_depth[topology->levels[0][0]->type] = 0;
+ 
+-  /* initialize special I/O device levels */
++  /* initialize I/O special levels */
++  free(topology->bridge_level);
++  topology->bridge_level = NULL;
++  topology->bridge_nbobjects = 0;
++  topology->first_bridge = topology->last_bridge = NULL;
++  topology->type_depth[HWLOC_OBJ_BRIDGE] = HWLOC_TYPE_DEPTH_BRIDGE;
++  free(topology->pcidev_level);
++  topology->pcidev_level = NULL;
++  topology->pcidev_nbobjects = 0;
+   topology->first_pcidev = topology->last_pcidev = NULL;
++  topology->type_depth[HWLOC_OBJ_PCI_DEVICE] = HWLOC_TYPE_DEPTH_PCI_DEVICE;
++  free(topology->osdev_level);
++  topology->osdev_level = NULL;
++  topology->osdev_nbobjects = 0;
+   topology->first_osdev = topology->last_osdev = NULL;
++  topology->type_depth[HWLOC_OBJ_OS_DEVICE] = HWLOC_TYPE_DEPTH_OS_DEVICE;
+ 
+   /* Start with children of the whole system.  */
+   l = 0;
+@@ -1652,6 +1702,10 @@ hwloc_connect_levels(hwloc_topology_t topology)
+   /* It's empty now.  */
+   free(objs);
+ 
++  topology->bridge_nbobjects = hwloc_build_level_from_list(topology->first_bridge, &topology->bridge_level);
++  topology->pcidev_nbobjects = hwloc_build_level_from_list(topology->first_pcidev, &topology->pcidev_level);
++  topology->osdev_nbobjects = hwloc_build_level_from_list(topology->first_osdev, &topology->osdev_level);
++
+   return 0;
+ }
+ 
+@@ -2165,6 +2219,12 @@ hwloc_topology_setup_defaults(struct hwloc_topology *topology)
+   topology->level_nbobjects[0] = 1;
+   /* NULLify other levels so that we can detect and free old ones in hwloc_connect_levels() if needed */
+   memset(topology->levels+1, 0, (HWLOC_DEPTH_MAX-1)*sizeof(*topology->levels));
++  topology->bridge_level = NULL;
++  topology->pcidev_level = NULL;
++  topology->osdev_level = NULL;
++  topology->first_bridge = topology->last_bridge = NULL;
++  topology->first_pcidev = topology->last_pcidev = NULL;
++  topology->first_osdev = topology->last_osdev = NULL;
+ 
+   /* Create the actual machine object, but don't touch its attributes yet
+    * since the OS backend may still change the object into something else
+@@ -2175,9 +2235,6 @@ hwloc_topology_setup_defaults(struct hwloc_topology *topology)
+   root_obj->logical_index = 0;
+   root_obj->sibling_rank = 0;
+   topology->levels[0][0] = root_obj;
+-
+-  topology->first_pcidev = topology->last_pcidev = NULL;
+-  topology->first_osdev = topology->last_osdev = NULL;
+ }
+ 
+ int
+@@ -2391,6 +2448,9 @@ hwloc_topology_clear (struct hwloc_topology *topology)
+   hwloc_topology_clear_tree (topology, topology->levels[0][0]);
+   for (l=0; l<topology->nb_levels; l++)
+     free(topology->levels[l]);
++  free(topology->bridge_level);
++  free(topology->pcidev_level);
++  free(topology->osdev_level);
+ }
+ 
+ void
+diff --git a/src/traversal.c b/src/traversal.c
+index 166bbe0..b0793cf 100644
+--- a/src/traversal.c
++++ b/src/traversal.c
+@@ -22,7 +22,16 @@ hwloc_obj_type_t
+ hwloc_get_depth_type (hwloc_topology_t topology, unsigned depth)
+ {
+   if (depth >= topology->nb_levels)
+-    return (hwloc_obj_type_t) -1;
++    switch (depth) {
++    case HWLOC_TYPE_DEPTH_BRIDGE:
++      return HWLOC_OBJ_BRIDGE;
++    case HWLOC_TYPE_DEPTH_PCI_DEVICE:
++      return HWLOC_OBJ_PCI_DEVICE;
++    case HWLOC_TYPE_DEPTH_OS_DEVICE:
++      return HWLOC_OBJ_OS_DEVICE;
++    default:
++      return (hwloc_obj_type_t) -1;
++    }
+   return topology->levels[depth][0]->type;
+ }
+ 
+@@ -30,7 +39,16 @@ unsigned
+ hwloc_get_nbobjs_by_depth (struct hwloc_topology *topology, unsigned depth)
+ {
+   if (depth >= topology->nb_levels)
+-    return 0;
++    switch (depth) {
++    case HWLOC_TYPE_DEPTH_BRIDGE:
++      return topology->bridge_nbobjects;
++    case HWLOC_TYPE_DEPTH_PCI_DEVICE:
++      return topology->pcidev_nbobjects;
++    case HWLOC_TYPE_DEPTH_OS_DEVICE:
++      return topology->osdev_nbobjects;
++    default:
++      return 0;
++    }
+   return topology->level_nbobjects[depth];
+ }
+ 
+@@ -38,36 +56,21 @@ struct hwloc_obj *
+ hwloc_get_obj_by_depth (struct hwloc_topology *topology, unsigned depth, unsigned idx)
+ {
+   if (depth >= topology->nb_levels)
+-    return NULL;
++    switch (depth) {
++    case HWLOC_TYPE_DEPTH_BRIDGE:
++      return idx < topology->bridge_nbobjects ? topology->bridge_level[idx] : NULL;
++    case HWLOC_TYPE_DEPTH_PCI_DEVICE:
++      return idx < topology->pcidev_nbobjects ? topology->pcidev_level[idx] : NULL;
++    case HWLOC_TYPE_DEPTH_OS_DEVICE:
++      return idx < topology->osdev_nbobjects ? topology->osdev_level[idx] : NULL;
++    default:
++      return NULL;
++    }
+   if (idx >= topology->level_nbobjects[depth])
+     return NULL;
+   return topology->levels[depth][idx];
+ }
+ 
+-struct hwloc_obj *
+-hwloc_get_next_pcidev(struct hwloc_topology *topology, struct hwloc_obj *prev)
+-{
+-  if (prev) {
+-    if (prev->type != HWLOC_OBJ_PCI_DEVICE)
+-      return NULL;
+-    return prev->next_cousin;
+-  } else {
+-    return topology->first_pcidev;
+-  }
+-}
+-
+-struct hwloc_obj *
+-hwloc_get_next_osdev(struct hwloc_topology *topology, struct hwloc_obj *prev)
+-{
+-  if (prev) {
+-    if (prev->type != HWLOC_OBJ_OS_DEVICE)
+-      return NULL;
+-    return prev->next_cousin;
+-  } else {
+-    return topology->first_osdev;
+-  }
+-}
+-
+ unsigned hwloc_get_closest_objs (struct hwloc_topology *topology, struct hwloc_obj *src, struct hwloc_obj **objs, unsigned max)
+ {
+   struct hwloc_obj *parent, *nextparent, **src_objs;
+@@ -77,9 +80,6 @@ unsigned hwloc_get_closest_objs (struct hwloc_topology *topology, struct hwloc_o
+   if (!src->cpuset)
+     return 0;
+ 
+-  src_nbobjects = topology->level_nbobjects[src->depth];
+-  src_objs = topology->levels[src->depth];
+-
+   parent = src;
+   while (stored < max) {
+     while (1) {
+diff --git a/tests/hwloc_iodevs.c b/tests/hwloc_iodevs.c
+index 6560b1c..65e3285 100644
+--- a/tests/hwloc_iodevs.c
++++ b/tests/hwloc_iodevs.c
+@@ -37,9 +37,9 @@ int main(void)
+     printf("Found OS device %s subtype %d\n", obj->name, obj->attr->osdev.type);
+   }
+ 
+-  assert(HWLOC_TYPE_DEPTH_UNKNOWN == hwloc_get_type_depth(topology, HWLOC_OBJ_BRIDGE));
+-  assert(HWLOC_TYPE_DEPTH_UNKNOWN == hwloc_get_type_depth(topology, HWLOC_OBJ_PCI_DEVICE));
+-  assert(HWLOC_TYPE_DEPTH_UNKNOWN == hwloc_get_type_depth(topology, HWLOC_OBJ_OS_DEVICE));
++  assert(HWLOC_TYPE_DEPTH_BRIDGE == hwloc_get_type_depth(topology, HWLOC_OBJ_BRIDGE));
++  assert(HWLOC_TYPE_DEPTH_PCI_DEVICE == hwloc_get_type_depth(topology, HWLOC_OBJ_PCI_DEVICE));
++  assert(HWLOC_TYPE_DEPTH_OS_DEVICE == hwloc_get_type_depth(topology, HWLOC_OBJ_OS_DEVICE));
+   assert(hwloc_compare_types(HWLOC_OBJ_BRIDGE, HWLOC_OBJ_PCI_DEVICE) < 0);
+   assert(hwloc_compare_types(HWLOC_OBJ_BRIDGE, HWLOC_OBJ_OS_DEVICE) < 0);
+   assert(hwloc_compare_types(HWLOC_OBJ_PCI_DEVICE, HWLOC_OBJ_OS_DEVICE) < 0);

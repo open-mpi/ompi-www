@@ -1,0 +1,369 @@
+<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8"></head><body dir="auto"><div>Thanks, Gilles.</div><div><br></div><div>We are addressing this.</div><div><br></div><div>Josh<br><br>Sent from my iPhone</div><div><br>On Jun 25, 2015, at 11:03 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles@rist.or.jp">gilles@rist.or.jp</a>&gt; wrote:<br><br></div><blockquote type="cite"><div>
+  
+    <meta content="text/html; charset=windows-1252" http-equiv="Content-Type">
+  
+  
+    Folks,<br>
+    <br>
+    this is a followup on an issue reported by Daniel on the users
+    mailing list :<br>
+    OpenMPI is built with hcoll from Mellanox.<br>
+    the coll ml module has default priority zero.<br>
+    <br>
+    on my cluster, it works just fine<br>
+    on Daniel's cluster, it crashes.<br>
+    <br>
+    i was able to reproduce the crash by tweaking
+    mca_base_component_path and ensure<br>
+    the coll ml module is loaded first.<br>
+    <br>
+    basically, i found two issues :<br>
+    1) libhcoll.so (vendor lib provided by Mellanox, i tested
+    hpcx-v1.3.336-gcc-OFED-1.5.4.1-redhat6.2-x86_64) seems to include
+    its own coll ml, since there are some *public* symbols that are
+    common to this module (ml_open, ml_coll_hier_barrier_setup, ...)<br>
+    2) coll ml priority is zero, and even if the library is dlclose'd,
+    it seems this is uneffective<br>
+    (nothing changed in /proc/xxx/maps before and after dlclose)<br>
+    <br>
+    <br>
+    there are two workarounds :<br>
+    mpirun --mca coll ^ml<br>
+    or<br>
+    mpirun --mca coll ^hcoll ... (probably not what is needed though
+    ...)<br>
+    <br>
+    is it expected the library is not unloaded after dlclose ?<br>
+    <br>
+    Mellanox folks,<br>
+    can you please double check how libhcoll is built ?<br>
+    i guess it would work if the ml_ symbols were private to the
+    library.<br>
+    if not, the only workaround is to mpirun --mca coll ^ml<br>
+    otherwise, it might crash (if coll_ml is loaded before coll_hcoll,
+    which is really system dependent)<br>
+    <br>
+    Cheers,<br>
+    <br>
+    Gilles<br>
+    <div class="moz-cite-prefix">On 6/25/2015 10:46 AM, Gilles
+      Gouaillardet wrote:<br>
+    </div>
+    <blockquote cite="mid:558B5D82.6020805@rist.or.jp" type="cite">
+      <meta content="text/html; charset=windows-1252" http-equiv="Content-Type">
+      Daniel,<br>
+      <br>
+      thanks for the logs.<br>
+      <br>
+      an other workaround is to<br>
+      mpirun --mca coll ^hcoll ...<br>
+      <br>
+      i was able to reproduce the issue, and it surprisingly occurs only
+      if the coll_ml module is loaded *before* the hcoll module.<br>
+      /* this is not the case on my system, so i had to hack my
+      mca_base_component_path in order to reproduce the issue */<br>
+      <br>
+      as far as i understand, libhcoll is a proprietary software, so i
+      cannot dig into it.<br>
+      that being said, i noticed libhcoll defines some symbols (such as
+      ml_coll_hier_barrier_setup) that are also defined by the coll_ml
+      module, so it is likely hcoll coll_ml and openmpi coll_ml are not
+      binary compatible hence the error.<br>
+      <br>
+      i will dig a bit more and see if this is even supposed to happen
+      (since coll_ml_priority is zero, why is the module still loaded ?)<br>
+      <br>
+      as far as i am concerned, you *have to* mpirun --mca coll ^ml or
+      update your user/system wide config file to blacklist the coll_ml
+      module to ensure this is working.<br>
+      <br>
+      Mike and Mellanox folks, could you please comment on that ?<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<br>
+      <br>
+      <br>
+      <br>
+      <div class="moz-cite-prefix">On 6/24/2015 5:23 PM, Daniel Letai
+        wrote:<br>
+      </div>
+      <blockquote cite="mid:558A68EA.5020907@letai.org.il" type="cite">
+        <meta content="text/html; charset=windows-1252" http-equiv="Content-Type">
+        Gilles,<br>
+        <br>
+        Attached the two output logs.<br>
+        <br>
+        Thanks,<br>
+        Daniel<br>
+        <br>
+        <div class="moz-cite-prefix">On 06/22/2015 08:08 AM, Gilles
+          Gouaillardet wrote:<br>
+        </div>
+        <blockquote cite="mid:55879852.5000607@rist.or.jp" type="cite">
+          <meta content="text/html; charset=windows-1252" http-equiv="Content-Type">
+          Daniel,<br>
+          <br>
+          i double checked this and i cannot make any sense with these
+          logs.<br>
+          <br>
+          if coll_ml_priority is zero, then i do not any way how
+          ml_coll_hier_barrier_setup can be invoked.<br>
+          <br>
+          could you please run again with --mca coll_base_verbose 100<br>
+          with and without --mca coll ^ml<br>
+          <br>
+          Cheers,<br>
+          <br>
+          Gilles<br>
+          <br>
+          <div class="moz-cite-prefix">On 6/22/2015 12:08 AM, Gilles
+            Gouaillardet wrote:<br>
+          </div>
+          <blockquote cite="mid:CAAkFZ5tMjS+WEgPZsLsmTaJCAAtQNGSp6MNtVbCRD==ms6XiNg@mail.gmail.com" type="cite">Daniel,
+            <div><br>
+            </div>
+            <div>ok, thanks</div>
+            <div><br>
+            </div>
+            <div>it seems that even if priority is zero, some code gets
+              executed</div>
+            <div>I will confirm this tomorrow and send you a patch to
+              work around the issue if&nbsp;that if my guess is proven right</div>
+            <div><br>
+            </div>
+            <div>Cheers,</div>
+            <div><br>
+            </div>
+            <div>Gilles<br>
+              <br>
+              On Sunday, June 21, 2015, Daniel Letai &lt;<a moz-do-not-send="true" href="mailto:dani@letai.org.il">dani@letai.org.il</a>&gt;
+
+
+
+              wrote:<br>
+              <blockquote class="gmail_quote" style="margin:0 0 0
+                .8ex;border-left:1px #ccc solid;padding-left:1ex">
+                <div bgcolor="#FFFFFF" text="#000000"> MCA coll:
+                  parameter "coll_ml_priority" (current value: "0", data
+                  source: default, level: 9 dev/all, type: int)<br>
+                  <br>
+                  Not sure how to read this, but for any n&gt;1 mpirun
+                  only works with --mca coll ^ml<br>
+                  <br>
+                  Thanks for helping<br>
+                  <br>
+                  <div>On 06/18/2015 04:36 PM, Gilles Gouaillardet
+                    wrote:<br>
+                  </div>
+                  <blockquote type="cite">This is really odd...
+                    <div><br>
+                    </div>
+                    <div>you can run</div>
+                    <div>ompi_info --all&nbsp;</div>
+                    <div>and search coll_ml_priority</div>
+                    <div><br>
+                    </div>
+                    <div>it will display the current value and the
+                      origin</div>
+                    <div>(e.g. default, system wide config, user config,
+                      cli, environment variable)</div>
+                    <div><br>
+                    </div>
+                    <div>Cheers,</div>
+                    <div><br>
+                    </div>
+                    <div>Gilles<br>
+                      <br>
+                      On Thursday, June 18, 2015, Daniel Letai &lt;<a moz-do-not-send="true" href="javascript:_e(%7B%7D,'cvml','dani@letai.org.il');" target="_blank">dani@letai.org.il</a>&gt; wrote:<br>
+                      <blockquote class="gmail_quote" style="margin:0 0
+                        0 .8ex;border-left:1px #ccc
+                        solid;padding-left:1ex">
+                        <div bgcolor="#FFFFFF" text="#000000"> No,
+                          that's the issue.<br>
+                          I had to disable it to get things working.<br>
+                          <br>
+                          That's why I included my config settings - I
+                          couldn't figure out which option enabled it,
+                          so I could remove it from the configuration...<br>
+                          <br>
+                          <div>On 06/18/2015 02:43 PM, Gilles
+                            Gouaillardet wrote:<br>
+                          </div>
+                          <blockquote type="cite">Daniel,
+                            <div><br>
+                            </div>
+                            <div>ML module is not ready for production
+                              and is disabled by default.</div>
+                            <div><br>
+                            </div>
+                            <div>Did you explicitly enable this module ?</div>
+                            <div>If yes, I encourage you to disable it</div>
+                            <div><br>
+                            </div>
+                            <div>Cheers,</div>
+                            <div><br>
+                            </div>
+                            <div>Gilles<br>
+                              <br>
+                              On Thursday, June 18, 2015, Daniel Letai
+                              &lt;<a moz-do-not-send="true">dani@letai.org.il</a>&gt;
+
+
+
+                              wrote:<br>
+                              <blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px
+                                #ccc solid;padding-left:1ex">given a
+                                simple hello.c:<br>
+                                <br>
+                                #include &lt;stdio.h&gt;<br>
+                                #include &lt;mpi.h&gt;<br>
+                                <br>
+                                int main(int argc, char* argv[])<br>
+                                {<br>
+                                &nbsp; &nbsp; &nbsp; &nbsp; int size, rank, len;<br>
+                                &nbsp; &nbsp; &nbsp; &nbsp; char
+                                name[MPI_MAX_PROCESSOR_NAME];<br>
+                                <br>
+                                &nbsp; &nbsp; &nbsp; &nbsp; MPI_Init(&amp;argc, &amp;argv);<br>
+                                &nbsp; &nbsp; &nbsp; &nbsp; MPI_Comm_size(MPI_COMM_WORLD,
+                                &amp;size);<br>
+                                &nbsp; &nbsp; &nbsp; &nbsp; MPI_Comm_rank(MPI_COMM_WORLD,
+                                &amp;rank);<br>
+                                &nbsp; &nbsp; &nbsp; &nbsp; MPI_Get_processor_name(name,
+                                &amp;len);<br>
+                                <br>
+                                &nbsp; &nbsp; &nbsp; &nbsp; printf("%s: Process %d out of
+                                %d\n", name, rank, size);<br>
+                                <br>
+                                &nbsp; &nbsp; &nbsp; &nbsp; MPI_Finalize();ffff<br>
+                                }<br>
+                                <br>
+                                for n=1<br>
+                                mpirun -n 1 ./hello<br>
+                                it works correctly.<br>
+                                <br>
+                                for n&gt;1 it segfaults with signal 11<br>
+                                used gdb to trace the problem to ml
+                                coll:<br>
+                                <br>
+                                Program received signal SIGSEGV,
+                                Segmentation fault.<br>
+                                0x00007ffff6750845 in
+                                ml_coll_hier_barrier_setup()<br>
+                                &nbsp; &nbsp; from &lt;path to openmpi
+                                1.8.5&gt;/lib/openmpi/mca_coll_ml.so<br>
+                                <br>
+                                running with<br>
+                                mpirun -n 2 --mca coll ^ml ./hello<br>
+                                works correctly<br>
+                                <br>
+                                using mellanox ofed
+                                2.3-2.0.5-rhel6.4-x86_64, if it's at all
+                                relevant.<br>
+                                openmpi 1.8.5 was built with following
+                                options:<br>
+                                rpmbuild --rebuild --define
+                                'configure_options --with-verbs=/usr
+                                --with-verbs-libdir=/usr/lib64 CC=gcc
+                                CXX=g++ FC=gfortran CFLAGS="-g -O3"
+                                --enable-mpirun-prefix-by-default
+                                --enable-orterun-prefix-by-default
+                                --disable-debug
+                                --with-knem=/opt/knem-1.1.1.90mlnx
+                                --with-platform=optimized
+                                --without-mpi-param-check
+                                --with-contrib-vt-flags=--disable-iotrace
+                                --enable-builtin-atomics
+                                --enable-cxx-exceptions
+                                --enable-sparse-groups
+                                --enable-mpi-thread-multiple
+                                --enable-memchecker
+                                --enable-btl-openib-failover
+                                --with-hwloc=internal --with-verbs
+                                --with-x --with-slurm
+                                --with-pmi=/opt/slurm
+                                --with-fca=/opt/mellanox/fca
+                                --with-mxm=/opt/mellanox/mxm
+                                --with-hcoll=/opt/mellanox/hcoll'
+                                openmpi-1.8.5-1.src.rpm<br>
+                                <br>
+                                gcc version 5.1.1<br>
+                                <br>
+                                Thanks in advance<br>
+_______________________________________________<br>
+                                users mailing list<br>
+                                <a moz-do-not-send="true">users@open-mpi.org</a><br>
+                                Subscription: <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+                                Link to this post: <a moz-do-not-send="true" href="http://www.open-mpi.org/community/lists/users/2015/06/27154.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27154.php</a><br>
+                              </blockquote>
+                            </div>
+                            <br>
+                            <fieldset></fieldset>
+                            <br>
+                            <pre>_______________________________________________
+users mailing list
+<a moz-do-not-send="true">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" href="http://www.open-mpi.org/community/lists/users/2015/06/27155.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27155.php</a></pre>
+                          </blockquote>
+                          <br>
+                        </div>
+                      </blockquote>
+                    </div>
+                    <br>
+                    <fieldset></fieldset>
+                    <br>
+                    <pre>_______________________________________________
+users mailing list
+<a moz-do-not-send="true" href="javascript:_e(%7B%7D,'cvml','users@open-mpi.org');" target="_blank">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" href="http://www.open-mpi.org/community/lists/users/2015/06/27157.php" target="_blank">http://www.open-mpi.org/community/lists/users/2015/06/27157.php</a></pre>
+                  </blockquote>
+                  <br>
+                </div>
+              </blockquote>
+            </div>
+            <br>
+            <fieldset class="mimeAttachmentHeader"></fieldset>
+            <br>
+            <pre wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/06/27169.php">http://www.open-mpi.org/community/lists/users/2015/06/27169.php</a></pre>
+          </blockquote>
+          <br>
+          <br>
+          <fieldset class="mimeAttachmentHeader"></fieldset>
+          <br>
+          <pre wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/06/27170.php">http://www.open-mpi.org/community/lists/users/2015/06/27170.php</a></pre>
+        </blockquote>
+        <br>
+        <br>
+        <fieldset class="mimeAttachmentHeader"></fieldset>
+        <br>
+        <pre wrap="">_______________________________________________
+users mailing list
+<a moz-do-not-send="true" class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+Subscription: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a moz-do-not-send="true" class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/users/2015/06/27183.php">http://www.open-mpi.org/community/lists/users/2015/06/27183.php</a></pre>
+      </blockquote>
+      <br>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2015/06/17528.php">http://www.open-mpi.org/community/lists/devel/2015/06/17528.php</a></pre>
+    </blockquote>
+    <br>
+  
+
+</div></blockquote><blockquote type="cite"><div><span>_______________________________________________</span><br><span>devel mailing list</span><br><span><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a></span><br><span>Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></span><br><span>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2015/06/17529.php">http://www.open-mpi.org/community/lists/devel/2015/06/17529.php</a></span></div></blockquote></body></html>

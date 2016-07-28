@@ -1,0 +1,267 @@
+--- crcp_bkmrk_pml.c_orig	2009-12-09 05:36:26.000000000 +0900
++++ crcp_bkmrk_pml.c	2010-03-23 17:59:48.412809557 +0900
+@@ -175,7 +175,10 @@
+                                 opal_list_t * to_list,
+                                 ompi_crcp_bkmrk_pml_traffic_message_ref_t **new_msg_ref,
+                                 bool keep_active, /* If you have to create a new context, should it be initialized to active? */
+-                                bool remove); /* Remove the original? - false = copy() */
++                                bool remove
++,int tag  /* seki : for Q5 */
++,int rank /* seki : for Q5 */
++); /* Remove the original? - false = copy() */
+ 
+ /*
+  * Traffic Message: Strip off the first matching request
+@@ -829,6 +832,9 @@
+     msg_ref->tag        = 0;
+     msg_ref->rank       = 0;
+     msg_ref->comm       = NULL;
++msg_ref->c_contextid = 0; /* seki  : for Q4 */
++msg_ref->c_my_rank   = 0; /* seki  : for Q4 */
++msg_ref->c_flags     = 0; /* seki  : for Q4 */
+ 
+     OBJ_CONSTRUCT(&msg_ref->msg_contents, opal_list_t);
+ 
+@@ -853,6 +859,9 @@
+     msg_ref->tag        = 0;
+     msg_ref->rank       = 0;
+     msg_ref->comm       = NULL;
++msg_ref->c_contextid = 0; /* seki  : for Q4 */
++msg_ref->c_my_rank   = 0; /* seki  : for Q4 */
++msg_ref->c_flags     = 0; /* seki  : for Q4 */
+ 
+     while( NULL != (item = opal_list_remove_first(&(msg_ref->msg_contents)) ) ) {
+         HOKE_CONTENT_REF_RETURN(item);
+@@ -917,6 +926,9 @@
+     msg_ref->tag        = 0;
+     msg_ref->rank       = 0;
+     msg_ref->comm       = NULL;
++msg_ref->c_contextid = 0; /* seki  : for Q4 */
++msg_ref->c_my_rank   = 0; /* seki  : for Q4 */
++msg_ref->c_flags     = 0; /* seki  : for Q4 */
+ 
+     while( NULL != (item = opal_list_remove_first(&(msg_ref->msg_contents)) ) ) {
+         HOKE_CONTENT_REF_RETURN(item);
+@@ -1019,6 +1031,8 @@
+    msg_ref->tag     = v_tag;                                     \
+    msg_ref->rank    = v_rank;                                    \
+    msg_ref->comm    = v_comm;                                    \
++msg_ref->c_contextid = v_comm->c_contextid; /* seki : for Q4 */\
++msg_ref->c_my_rank   = v_comm->c_my_rank;   /* seki : for Q4 */\
+                                                                  \
+    msg_ref->proc_name.jobid  = p_jobid;                          \
+    msg_ref->proc_name.vpid   = p_vpid;                           \
+@@ -1047,6 +1061,8 @@
+    msg_ref->tag     = v_tag;                                     \
+    msg_ref->rank    = v_rank;                                    \
+    msg_ref->comm    = v_comm;                                    \
++msg_ref->c_contextid = v_comm->c_contextid; /* seki : for Q4 */\
++msg_ref->c_my_rank   = v_comm->c_my_rank;   /* seki : for Q4 */\
+                                                                  \
+    msg_ref->proc_name.jobid  = p_jobid;                          \
+    msg_ref->proc_name.vpid   = p_vpid;                           \
+@@ -2313,7 +2329,10 @@
+                                  peer_ref, &(peer_ref->recv_init_list),
+                                  &new_msg_ref,
+                                  true,
+-                                 false);
++                                 false
++,(int)request->req_status.MPI_TAG    /* seki for Q5 */
++,(int)request->req_status.MPI_SOURCE /* seki for Q5 */
++);
+             msg_ref = new_msg_ref;
+         }
+     }
+@@ -2558,7 +2577,10 @@
+                                  peer_ref, &(peer_ref->irecv_list),
+                                  &new_msg_ref,
+                                  true,
+-                                 true);
++                                 true
++,(int)request->req_status.MPI_TAG    /* seki : for Q5 */
++,(int)request->req_status.MPI_SOURCE /* seki : for Q5 */
++);
+             msg_ref = new_msg_ref;
+         }
+     }
+@@ -2735,7 +2757,10 @@
+                                  peer_ref, &(peer_ref->recv_list),
+                                  &new_msg_ref,
+                                  false,
+-                                 true);
++                                 true
++,(int)status->MPI_TAG
++,(int)status->MPI_SOURCE
++);
+             new_msg_ref->done++;
+             new_msg_ref->active--;
+         } else {
+@@ -3269,12 +3294,16 @@
+                                 opal_list_t * to_list,
+                                 ompi_crcp_bkmrk_pml_traffic_message_ref_t **new_msg_ref,
+                                 bool keep_active,
+-                                bool remove)
++                                bool remove
++,int work_tag  /* seki : for Q5 */
++,int work_rank /* seki : for Q5 */
++)
+ {
+     int ret, exit_status = ORTE_SUCCESS;
+     ompi_crcp_bkmrk_pml_message_content_ref_t *new_content = NULL, *prev_content = NULL;
+     ompi_request_t *request = NULL;
+     bool loc_already_drained = false;
++int temp_tag,temp_rank; /* seki : for Q5 */
+ 
+     /* Append to the to_peer_ref */
+     if( COORD_MSG_TYPE_B_RECV != msg_type ) {
+@@ -3289,13 +3318,15 @@
+         }
+     }
+ 
++temp_tag  = (old_msg_ref->tag == MPI_ANY_TAG)     ? work_tag  : old_msg_ref->tag; /* seki : for Q5 */
++temp_rank = (old_msg_ref->rank == MPI_ANY_SOURCE) ? work_rank : old_msg_ref->rank; /* seki : for Q5 */
+     ret = traffic_message_append(to_peer_ref, to_list,
+                                  old_msg_ref->msg_type,
+                                  old_msg_ref->count,
+                                  NULL,
+                                  old_msg_ref->ddt_size,
+-                                 old_msg_ref->tag,
+-                                 old_msg_ref->rank,
++                                 temp_tag,   /* seki : for Q5 */
++                                 temp_rank,  /* seki : for Q5 */
+                                  old_msg_ref->comm,
+                                  new_msg_ref);
+ 
+@@ -3713,7 +3744,7 @@
+         }
+ 
+         if(msg_ref->count == count  &&
+-           (NULL != msg_ref->comm && msg_ref->comm->c_contextid == comm_id) && 
++(msg_ref->c_contextid == comm_id) && /* seki : for Q4 */
+            (msg_ref->tag  == MPI_ANY_TAG || msg_ref->tag  == tag)   &&
+            (peer          == INVALID_INT || msg_ref->rank == peer)  &&
+            msg_ref->ddt_size == ddt_size) {
+@@ -4036,6 +4067,7 @@
+ 
+     memcpy(&(content_ref->status), &drain_content_ref->status, sizeof(ompi_status_public_t)); 
+ 
++#if 0 /* seki */
+     if( 0 != (ret = ompi_ddt_copy_content_same_ddt(drain_msg_ref->datatype,
+                                                    drain_msg_ref->count,
+                                                    content_ref->buffer,
+@@ -4045,6 +4077,10 @@
+                      ret);
+         exit_status = ret;
+     }
++#else
++/* seki : for Q2 : it is CONTIGUOUS message only! */
++memcpy((char *)content_ref->buffer,(char *)drain_content_ref->buffer,drain_msg_ref->ddt_size);
++#endif
+ 
+     /* Remove the message from the list */
+     drain_content_ref->request = NULL;
+@@ -4081,7 +4117,7 @@
+     }
+ 
+     /* The buffer could be NULL - More likely when doing a count=0 type of message (e.g., Barrier) */
+-    if( OPAL_LIKELY(NULL != buf) ) {
++    if( OPAL_LIKELY(NULL != buf) && (count != 0) ) { /* seki : for Q10 */
+         if( 0 != (ret = ompi_ddt_copy_content_same_ddt(datatype, count,
+                                                        (void*)buf, drain_content_ref->buffer) ) ) {
+             opal_output( mca_crcp_bkmrk_component.super.output_handle,
+@@ -4332,8 +4368,8 @@
+         }
+ 
+         /* Clear send_init_list */
+-        for(rm_item  = opal_list_get_last(&peer_ref->send_list);
+-            rm_item != opal_list_get_begin(&peer_ref->send_list);
++        for(rm_item  = opal_list_get_last(&peer_ref->send_init_list); /* seki : for Q1 */
++            rm_item != opal_list_get_begin(&peer_ref->send_init_list); /* seki : for Q1 */
+             rm_item  = opal_list_get_prev(rm_item) ) {
+             msg_ref = (ompi_crcp_bkmrk_pml_traffic_message_ref_t*)rm_item;
+             msg_ref->matched = 0;
+@@ -4370,8 +4406,8 @@
+         }
+ 
+         /* Clear recv_init_list */
+-        for(rm_item  = opal_list_get_last(&peer_ref->recv_list);
+-            rm_item != opal_list_get_begin(&peer_ref->recv_list);
++        for(rm_item  = opal_list_get_last(&peer_ref->recv_init_list); /* seki : for Q1 */
++            rm_item != opal_list_get_begin(&peer_ref->recv_init_list); /* seki : for Q1 */
+             rm_item  = opal_list_get_prev(rm_item) ) {
+             msg_ref = (ompi_crcp_bkmrk_pml_traffic_message_ref_t*)rm_item;
+             msg_ref->matched = 0;
+@@ -5523,9 +5559,9 @@
+      * - Communicator Context ID
+      * - My Rank in Communicator
+      */
+-    comm_my_rank  = ompi_comm_rank(msg_ref->comm);
++comm_my_rank  = msg_ref->c_my_rank; /* seki : for Q4 */
+ 
+-    PACK_BUFFER(buffer, msg_ref->comm->c_contextid, 1, OPAL_UINT32,
++    PACK_BUFFER(buffer, msg_ref->c_contextid, 1, OPAL_UINT32, /* seki : for Q4 */
+                 "crcp:bkmrk: send_msg_details: Unable to pack communicator ID");
+     PACK_BUFFER(buffer, comm_my_rank, 1, OPAL_INT,
+                 "crcp:bkmrk: send_msg_details: Unable to pack comm rank ID");
+@@ -5794,6 +5830,14 @@
+     return exit_status;
+ }
+ 
++/* seki : for Q3 This fix may be not correct. */
++#define WORK_GET_UNRES(n_l_u,d,m)       \
++{                                       \
++work1 = (n_l_u < (d-m)) ? n_l_u : (d-m);\
++if (work1 < 0) { work1=0; }             \
++  m     += work1;                       \
++  n_l_u -= work1;                       \
++}
+ static int do_recv_msg_detail_check_drain(ompi_crcp_bkmrk_pml_peer_ref_t *peer_ref,
+                                     int rank, uint32_t comm_id, int tag,
+                                     size_t count, size_t datatype_size,
+@@ -5813,6 +5857,7 @@
+     int num_still_active = 0;
+     /* Number of drain messages posted */
+     int num_posted = 0;
++int work1; /* seki : for Q3 This fix may be not correct. */
+ 
+     *num_resolved = 0;
+     num_left_unresolved = p_num_sent;
+@@ -5865,28 +5910,28 @@
+      * First pass: Count all 'done'
+      */
+     if( NULL != posted_recv_msg_ref ) {
+-        posted_recv_msg_ref->matched += posted_recv_msg_ref->done;
+-        num_left_unresolved          -= posted_recv_msg_ref->done;
++/* seki : for Q3 This fix may be not correct. */
++WORK_GET_UNRES(num_left_unresolved,posted_recv_msg_ref->done,posted_recv_msg_ref->matched)
+         TRAFFIC_MSG_DUMP_MSG_INDV(11, (posted_recv_msg_ref, "Ck.  Recv", true));
+     }
+     if( NULL != posted_irecv_msg_ref ) {
+-        posted_irecv_msg_ref->matched += posted_irecv_msg_ref->done;
+-        num_left_unresolved           -= posted_irecv_msg_ref->done;
++/* seki : for Q3 This fix may be not correct. */
++WORK_GET_UNRES(num_left_unresolved,posted_irecv_msg_ref->done,posted_irecv_msg_ref->matched)
+         TRAFFIC_MSG_DUMP_MSG_INDV(11, (posted_irecv_msg_ref, "Ck. iRecv", true));
+     }
+     if( NULL != posted_precv_msg_ref ) {
+-        posted_precv_msg_ref->matched += posted_precv_msg_ref->done;
+-        num_left_unresolved           -= posted_precv_msg_ref->done;
++/* seki : for Q3 This fix may be not correct. */
++WORK_GET_UNRES(num_left_unresolved,posted_precv_msg_ref->done,posted_precv_msg_ref->matched)
+         TRAFFIC_MSG_DUMP_MSG_INDV(11, (posted_precv_msg_ref, "Ck. pRecv", true));
+     }
+     if( NULL != posted_unknown_recv_msg_ref ) {
+-        posted_unknown_recv_msg_ref->matched += posted_unknown_recv_msg_ref->done;
+-        num_left_unresolved                  -= posted_unknown_recv_msg_ref->done;
++/* seki : for Q3 This fix may be not correct. */
++WORK_GET_UNRES(num_left_unresolved,posted_unknown_recv_msg_ref->done,posted_unknown_recv_msg_ref->matched)
+         TRAFFIC_MSG_DUMP_MSG_INDV(11, (posted_unknown_recv_msg_ref, "Ck. uRecv", true));
+     }
+     if( NULL != posted_unknown_precv_msg_ref ) {
+-        posted_unknown_precv_msg_ref->matched += posted_unknown_precv_msg_ref->done;
+-        num_left_unresolved                   -= posted_unknown_precv_msg_ref->done;
++/* seki : for Q3 This fix may be not correct. */
++WORK_GET_UNRES(num_left_unresolved,posted_unknown_precv_msg_ref->done,posted_unknown_precv_msg_ref->matched)
+         TRAFFIC_MSG_DUMP_MSG_INDV(11, (posted_unknown_precv_msg_ref, "Ck. upRecv", true));
+     }
+ 

@@ -1,0 +1,111 @@
+>From 26323ffa43df197dd88e9dfe0dbc4c6c44a08a37 Mon Sep 17 00:00:00 2001
+From: Igor Ivanov <Igor.Ivanov@itseez.com>
+Date: Thu, 19 Dec 2013 17:24:56 +0400
+Subject: [PATCH] bml initialization is moved into ompi_init
+
+Change-Id: I3b9a8dd13b88445f55de46089375c910c7320470
+---
+ ompi/runtime/ompi_mpi_finalize.c           |  5 +++++
+ ompi/runtime/ompi_mpi_init.c               | 13 +++++++++++++
+ oshmem/mca/spml/yoda/spml_yoda_component.c | 10 +++-------
+ 3 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/ompi/runtime/ompi_mpi_finalize.c b/ompi/runtime/ompi_mpi_finalize.c
+index 1685019..44ef6f1 100644
+--- a/ompi/runtime/ompi_mpi_finalize.c
++++ b/ompi/runtime/ompi_mpi_finalize.c
+@@ -60,7 +60,9 @@
+ #include "ompi/runtime/mpiruntime.h"
+ #include "ompi/attribute/attribute.h"
+ #include "ompi/mca/pml/pml.h"
++#include "ompi/mca/bml/bml.h"
+ #include "ompi/mca/pml/base/base.h"
++#include "ompi/mca/bml/base/base.h"
+ #include "ompi/mca/osc/base/base.h"
+ #include "ompi/mca/coll/base/base.h"
+ #include "ompi/mca/rte/rte.h"
+@@ -393,6 +395,9 @@ int ompi_mpi_finalize(void)
+     if (OMPI_SUCCESS != (ret = mca_base_framework_close(&ompi_coll_base_framework))) {
+         return ret;
+     }
++    if (OMPI_SUCCESS != (ret = mca_base_framework_close(&ompi_bml_base_framework))) {
++        return ret;
++    }
+     if (OMPI_SUCCESS != (ret = mca_base_framework_close(&ompi_mpool_base_framework))) {
+         return ret;
+     }
+diff --git a/ompi/runtime/ompi_mpi_init.c b/ompi/runtime/ompi_mpi_init.c
+index b908dea..1f8c2d8 100644
+--- a/ompi/runtime/ompi_mpi_init.c
++++ b/ompi/runtime/ompi_mpi_init.c
+@@ -72,7 +72,9 @@
+ #include "ompi/mca/rcache/rcache.h"
+ #include "ompi/mca/mpool/base/base.h"
+ #include "ompi/mca/pml/pml.h"
++#include "ompi/mca/bml/bml.h"
+ #include "ompi/mca/pml/base/base.h"
++#include "ompi/mca/bml/base/base.h"
+ #include "ompi/mca/osc/base/base.h"
+ #include "ompi/mca/coll/base/base.h"
+ #include "ompi/mca/io/io.h"
+@@ -562,6 +564,10 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided)
+         error = "mca_mpool_base_open() failed";
+         goto error;
+     }
++    if (OMPI_SUCCESS != (ret = mca_base_framework_open(&ompi_bml_base_framework, 0))) {
++        error = "mca_bml_base_open() failed";
++        goto error;
++    }
+     if (OMPI_SUCCESS != (ret = mca_base_framework_open(&ompi_pml_base_framework, 0))) {
+         error = "mca_pml_base_open() failed";
+         goto error;
+@@ -599,6 +605,13 @@ int ompi_mpi_init(int argc, char **argv, int requested, int *provided)
+     }
+ 
+     if (OMPI_SUCCESS != 
++        (ret = mca_bml_base_init(OMPI_ENABLE_PROGRESS_THREADS,
++                                 OMPI_ENABLE_THREAD_MULTIPLE))) {
++        error = "mca_bml_base_init() failed";
++        goto error;
++    }
++
++    if (OMPI_SUCCESS != 
+         (ret = mca_pml_base_select(OMPI_ENABLE_PROGRESS_THREADS,
+                                    OMPI_ENABLE_THREAD_MULTIPLE))) {
+         error = "mca_pml_base_select() failed";
+diff --git a/oshmem/mca/spml/yoda/spml_yoda_component.c b/oshmem/mca/spml/yoda/spml_yoda_component.c
+index 39ccafe..4829ce9 100644
+--- a/oshmem/mca/spml/yoda/spml_yoda_component.c
++++ b/oshmem/mca/spml/yoda/spml_yoda_component.c
+@@ -11,7 +11,6 @@
+ #include "oshmem_config.h"
+ #include "oshmem/runtime/params.h"
+ #include "oshmem/mca/spml/spml.h"
+-#include "ompi/mca/bml/base/base.h"
+ #include "spml_yoda_component.h"
+ #include "oshmem/mca/spml/yoda/spml_yoda_rdmafrag.h"
+ #include "oshmem/mca/spml/yoda/spml_yoda_putreq.h"
+@@ -86,16 +85,13 @@ static int mca_spml_yoda_component_register(void)
+     return OSHMEM_SUCCESS;
+ }
+ 
+-static int mca_spml_yoda_component_open(void) {
+-    return mca_base_framework_open(&ompi_bml_base_framework, MCA_BASE_OPEN_DEFAULT);
++static int mca_spml_yoda_component_open(void)
++{
++    return OSHMEM_SUCCESS;
+ }
+ 
+ static int mca_spml_yoda_component_close(void)
+ {
+-    int rc;
+-    if (OMPI_SUCCESS != (rc = mca_base_framework_close(&ompi_bml_base_framework))) {
+-        return rc;
+-    }
+     return OSHMEM_SUCCESS;
+ }
+ 
+-- 
+1.7.11.3
+
+

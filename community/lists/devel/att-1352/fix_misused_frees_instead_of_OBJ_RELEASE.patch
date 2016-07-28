@@ -1,0 +1,81 @@
+---
+
+ ompi/mca/btl/base/btl_base_close.c        |    2 +-
+ opal/mca/base/mca_base_components_close.c |    2 +-
+ opal/util/if.c                            |    5 ++++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --quilt old/opal/mca/base/mca_base_components_close.c new/opal/mca/base/mca_base_components_close.c
+--- old/opal/mca/base/mca_base_components_close.c
++++ new/opal/mca/base/mca_base_components_close.c
+@@ -60,11 +60,11 @@ int mca_base_components_close(int output
+ 
+       opal_output_verbose(10, output_id, 
+                           "mca: base: close: unloading component %s",
+                          component->mca_component_name);
+       mca_base_component_repository_release((mca_base_component_t *) component);
+-      free(pcli);
++      OBJ_RELEASE(pcli);
+     } else {
+       skipped_pcli = pcli;
+     }
+   }
+ 
+diff --quilt old/ompi/mca/btl/base/btl_base_close.c new/ompi/mca/btl/base/btl_base_close.c
+--- old/ompi/mca/btl/base/btl_base_close.c
++++ new/ompi/mca/btl/base/btl_base_close.c
+@@ -48,11 +48,11 @@ int mca_btl_base_close(void)
+     /* Blatebtly ignore the return code (what would we do to recover,
+        anyway?  This component is going away, so errors don't matter
+        anymore) */
+ 
+     sm->btl_module->btl_finalize(sm->btl_module);
+-    free(sm);
++    OBJ_RELEASE(sm);
+   }
+ 
+   /* Close all remaining opened components (may be one if this is a
+      OMPI RTE program, or [possibly] multiple if this is ompi_info) */
+   
+diff --quilt old/opal/util/if.c new/opal/util/if.c
+--- old/opal/util/if.c
++++ new/opal/util/if.c
+@@ -298,10 +298,11 @@ static int opal_ifinit(void) 
+         if(intf_ptr == 0) {
+             opal_output(0, "opal_ifinit: unable to allocated %lu bytes\n", (unsigned long)sizeof(opal_if_t));
+             return OPAL_ERR_OUT_OF_RESOURCE;
+         }
+         memcpy(intf_ptr, &intf, sizeof(intf));
++        OBJ_DESTRUCT(&intf);
+         opal_list_append(&opal_if_list, (opal_list_item_t*)intf_ptr);
+     }
+     free(ifconf.ifc_req);
+     close(sd);
+     
+@@ -396,10 +397,11 @@ static int opal_ifinit(void) 
+                 opal_output (0,"opal_ifinit: Unable to malloc %d bytes",sizeof(opal_list_t));
+                 return OPAL_ERR_OUT_OF_RESOURCE;
+             }
+ 
+             memcpy (intf_ptr, &intf, sizeof(intf));
++            OBJ_DESTRUCT(&intf);
+             opal_list_append(&opal_if_list, (opal_list_item_t *)intf_ptr);
+         }
+     }
+     
+ #endif
+@@ -417,11 +419,12 @@ int opal_iffinalize(void) 
+ #ifndef __WINDOWS__
+         opal_if_t *intf_ptr;
+     
+         while (NULL != 
+                (intf_ptr = (opal_if_t*)opal_list_remove_first(&opal_if_list))) {
+-            OBJ_RELEASE(intf_ptr);
++            /* The elements in this list are self malloc()ed */
++            free(intf_ptr);
+         }
+         OBJ_DESTRUCT(&opal_if_list);
+ #endif
+         already_done = false;
+     }
+

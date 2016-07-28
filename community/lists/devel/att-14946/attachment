@@ -1,0 +1,192 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+</head>
+<body dir="auto">
+<div>I'm AFK but let me reply about the IB thing: double ports/multi rail is a good thing. It's not a good thing if they're on the same subnet.&nbsp;</div>
+<div><br>
+</div>
+<div>Check the FAQ -&nbsp;<a href="http://www.open-mpi.org/faq/?category=openfabrics">http://www.open-mpi.org/faq/?category=openfabrics</a> - I can't see it well enough on the small screen of my phone, but I think there's a q on there about how multi rail destinations
+ are chosen.&nbsp;</div>
+<div><br>
+</div>
+<div>Spoiler: put your ports in different subnets so that OMPI makes deterministic choices.&nbsp;<br>
+<br>
+Sent from my phone.<span class="Apple-style-span" style="-webkit-tap-highlight-color: rgba(26, 26, 26, 0.292969); -webkit-composition-fill-color: rgba(175, 192, 227, 0.230469); -webkit-composition-frame-color: rgba(77, 128, 180, 0.230469); ">&nbsp;No type good.&nbsp;</span></div>
+<div><br>
+On Jun 2, 2014, at 6:55 AM, &quot;Gilles Gouaillardet&quot; &lt;<a href="mailto:gilles.gouaillardet@gmail.com">gilles.gouaillardet@gmail.com</a>&gt; wrote:<br>
+<br>
+</div>
+<blockquote type="cite">
+<div>
+<div dir="ltr">Jeff,<br>
+<div>
+<div class="gmail_extra"><br>
+<div class="gmail_quote">On Mon, Jun 2, 2014 at 7:26 PM, Jeff Squyres (jsquyres) <span dir="ltr">
+&lt;<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+<div class="">On Jun 2, 2014, at 5:03 AM, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@gmail.com">gilles.gouaillardet@gmail.com</a>&gt; wrote:<br>
+<br>
+&gt; i faced a bit different problem, but that is 100% reproductible :<br>
+&gt; - i launch mpirun (no batch manager) from a node with one IB port<br>
+&gt; - i use -host node01,node02 where node01 and node02 both have two IB port on the<br>
+&gt; &nbsp; same subnet<br>
+<br>
+</div>
+FWIW: 2 IB ports on the same subnet? &nbsp;That's not a good idea.<br>
+<div class=""><br>
+</div>
+</blockquote>
+<div>could you please elaborate a bit ?<br>
+</div>
+<div>from what i saw, this basically doubles the bandwidth (imb PingPong benchmark) between two nodes (!) which is a not a bad thing.<br>
+</div>
+<div>i can only guess this might not scale (e.g. if 16 tasks is running on each host, the overhead associated with the use of two ports might void the extra bandwidth)<br>
+&nbsp;<br>
+</div>
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+<div class="">&gt; by default, this will hang.<br>
+<br>
+</div>
+...but it still shouldn't hang. &nbsp;I wonder if it's somehow related to <a href="https://svn.open-mpi.org/trac/ompi/ticket/4442.." target="_blank">
+https://svn.open-mpi.org/trac/ompi/ticket/4442..</a>.?<br>
+<div class=""><br>
+</div>
+</blockquote>
+<div>&nbsp;i doubt it ...<br>
+<br>
+</div>
+<div>here is my command line (from node0)<br>
+`which mpirun` -np 2 -host node1,node2 --mca rtc_freq_priority 0 --mca btl openib,self --mca btl_openib_if_include mlx4_0 ./abort<br>
+</div>
+<div>on top of that, the usnic btl is not built (nor installed)<br>
+<br>
+<br>
+</div>
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+<div class="">&gt; if this is a &quot;feature&quot; (e.g. openmpi does not support this kind of configuration) i am fine with it.<br>
+&gt;<br>
+&gt; when i run mpirun --mca btl_openib_if_exclude mlx4_1, then if the application is a success, then it works just fine.<br>
+&gt;<br>
+&gt; if the application calls MPI_Abort() /* and even if all tasks call MPI_Abort() */ then it will hang 100% of the time.<br>
+&gt; i do not see that as a feature but as a bug.<br>
+<br>
+</div>
+Yes, OMPI should never hang upon a call to MPI_Abort.<br>
+<br>
+Can you get some stack traces to show where the hung process(es) are stuck? &nbsp;That would help Ralph pin down where things aren't working down in ORTE.<br>
+</blockquote>
+<div><br>
+</div>
+<div>on node0 :<br>
+<br>
+&nbsp; \_ -bash<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_ /.../local/ompi-trunk/bin/mpirun -np 2 -host node1,node2 --mca rtc_freq_priority 0 --mc<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_ /usr/bin/ssh -x node1 &nbsp;&nbsp;&nbsp; PATH=/.../local/ompi-trunk/bin:$PATH ; export PATH ; LD_LIBRAR<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_ /usr/bin/ssh -x node2 &nbsp;&nbsp;&nbsp; PATH=/.../local/ompi-trunk/bin:$PATH ; export PATH ; LD_LIBRAR<br>
+<br>
+&nbsp;<br>
+</div>
+<div>pstack (mpirun) :<br>
+$ pstack 10913<br>
+Thread 2 (Thread 0x7f0ecad35700 (LWP 10914)):<br>
+#0&nbsp; 0x0000003ba66e15e3 in select () from /lib64/libc.so.6<br>
+#1&nbsp; 0x00007f0ecad4391e in listen_thread () from /.../local/ompi-trunk/lib/openmpi/mca_oob_tcp.so<br>
+#2&nbsp; 0x0000003ba72079d1 in start_thread () from /lib64/libpthread.so.0<br>
+#3&nbsp; 0x0000003ba66e8b6d in clone () from /lib64/libc.so.6<br>
+Thread 1 (Thread 0x7f0ecc601700 (LWP 10913)):<br>
+#0&nbsp; 0x0000003ba66df343 in poll () from /lib64/libc.so.6<br>
+#1&nbsp; 0x00007f0ecc6b1a05 in poll_dispatch () from /.../local/ompi-trunk/lib/libopen-pal.so.0<br>
+#2&nbsp; 0x00007f0ecc6a641c in opal_libevent2021_event_base_loop () from /.../local/ompi-trunk/lib/libopen-pal.so.0<br>
+#3&nbsp; 0x00000000004056a1 in orterun ()<br>
+#4&nbsp; 0x00000000004039f4 in main ()<br>
+<br>
+<br>
+</div>
+<div>on node 1 :<br>
+</div>
+<div><br>
+&nbsp;sshd: gouaillardet@notty<br>
+&nbsp; \_ bash -c&nbsp;&nbsp;&nbsp;&nbsp; PATH=/.../local/ompi-trunk/bin:$PATH ; export PATH ; LD_LIBRARY_PATH=/...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_ /.../local/ompi-trunk/bin/orted -mca ess env -mca orte_ess_jobid 3459448832 -mca orte_ess_vpid<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_ [abort] &lt;defunct&gt;<br>
+<br>
+$ pstack (orted)<br>
+#0&nbsp; 0x00007fe0ba6a0566 in vfprintf () from /lib64/libc.so.6<br>
+#1&nbsp; 0x00007fe0ba6c9a52 in vsnprintf () from /lib64/libc.so.6<br>
+#2&nbsp; 0x00007fe0ba6a9523 in snprintf () from /lib64/libc.so.6<br>
+#3&nbsp; 0x00007fe0bbc019b6 in orte_util_print_jobids () from /.../local/ompi-trunk/lib/libopen-rte.so.0<br>
+#4&nbsp; 0x00007fe0bbc01791 in orte_util_print_name_args () from /.../local/ompi-trunk/lib/libopen-rte.so.0<br>
+#5&nbsp; 0x00007fe0b8e16a8b in mca_oob_tcp_component_hop_unknown () from /.../local/ompi-trunk/lib/openmpi/mca_oob_tcp.so<br>
+#6&nbsp; 0x00007fe0bb94ab7a in event_process_active_single_queue () from /.../local/ompi-trunk/lib/libopen-pal.so.0<br>
+#7&nbsp; 0x00007fe0bb94adf2 in event_process_active () from /.../local/ompi-trunk/lib/libopen-pal.so.0<br>
+#8&nbsp; 0x00007fe0bb94b470 in opal_libevent2021_event_base_loop () from /.../local/ompi-trunk/lib/libopen-pal.so.0<br>
+#9&nbsp; 0x00007fe0bbc1fa7b in orte_daemon () from /.../local/ompi-trunk/lib/libopen-rte.so.0<br>
+#10 0x000000000040093a in main ()<br>
+<br>
+<br>
+</div>
+<div>on node 2 :<br>
+<br>
+&nbsp;sshd: gouaillardet@notty<br>
+&nbsp; \_ bash -c&nbsp;&nbsp;&nbsp;&nbsp; PATH=/.../local/ompi-trunk/bin:$PATH ; export PATH ; LD_LIBRARY_PATH=/...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_ /.../local/ompi-trunk/bin/orted -mca ess env -mca orte_ess_jobid 3459448832 -mca orte_ess_vpid<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; \_ [abort] &lt;defunct&gt;<br>
+<br>
+$ pstack (orted)<br>
+#0&nbsp; 0x00007fe8fc435e39 in strchrnul () from /lib64/libc.so.6<br>
+#1&nbsp; 0x00007fe8fc3ef8f5 in vfprintf () from /lib64/libc.so.6<br>
+#2&nbsp; 0x00007fe8fc41aa52 in vsnprintf () from /lib64/libc.so.6<br>
+#3&nbsp; 0x00007fe8fc3fa523 in snprintf () from /lib64/libc.so.6<br>
+#4&nbsp; 0x00007fe8fd9529b6 in orte_util_print_jobids () from /.../local/ompi-trunk/lib/libopen-rte.so.0<br>
+#5&nbsp; 0x00007fe8fd952791 in orte_util_print_name_args () from /.../local/ompi-trunk/lib/libopen-rte.so.0<br>
+#6&nbsp; 0x00007fe8fab6c1b5 in resend () from /.../local/ompi-trunk/lib/openmpi/mca_oob_tcp.so<br>
+#7&nbsp; 0x00007fe8fab67ce3 in mca_oob_tcp_component_hop_unknown () from /.../local/ompi-trunk/lib/openmpi/mca_oob_tcp.so<br>
+#8&nbsp; 0x00007fe8fd69bb7a in event_process_active_single_queue () from /.../local/ompi-trunk/lib/libopen-pal.so.0<br>
+#9&nbsp; 0x00007fe8fd69bdf2 in event_process_active () from /.../local/ompi-trunk/lib/libopen-pal.so.0<br>
+#10 0x00007fe8fd69c470 in opal_libevent2021_event_base_loop () from /.../local/ompi-trunk/lib/libopen-pal.so.0<br>
+#11 0x00007fe8fd970a7b in orte_daemon () from /...t/local/ompi-trunk/lib/libopen-rte.so.0<br>
+#12 0x000000000040093a in main ()<br>
+<br>
+<br>
+</div>
+<div>orted processes loop forever in event_process_active_single_queue<br>
+</div>
+<div>mca_oob_tcp_component_hop_unknown gets called again and again<br>
+mca_oob_tcp_component_hop_unknown (fd=-1, args=4, cbdata=0x99dc50) at ../../../../../../src/ompi-trunk/orte/mca/oob/tcp/oob_tcp_component.c:1369<br>
+</div>
+<blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex">
+<div class=""><br>
+&gt; in an other thread, Jeff mentionned that the usnic btl is doing stuff even if there is no usnic hardware (this will be fixed shortly).<br>
+&gt; Do you still see intermittent hang without listing usnic as a btl ?<br>
+<br>
+</div>
+Yeah, there's a definite race in the usnic BTL ATM. &nbsp;If you care, here's what's happening:<br>
+</blockquote>
+<div><br>
+</div>
+<div>thanks for the insights :-)<br>
+<br>
+</div>
+<div>Cheers,<br>
+<br>
+Gilles<br>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</blockquote>
+<blockquote type="cite">
+<div><span>_______________________________________________</span><br>
+<span>devel mailing list</span><br>
+<span><a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a></span><br>
+<span>Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">
+http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></span><br>
+<span>Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/06/14943.php">
+http://www.open-mpi.org/community/lists/devel/2014/06/14943.php</a></span></div>
+</blockquote>
+</body>
+</html>
+

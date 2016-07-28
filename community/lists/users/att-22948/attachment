@@ -1,0 +1,167 @@
+<div dir="ltr"><div><div><div>I tried the following code without CUDA, the error is still there:<br><br>#include &quot;mpi.h&quot;<br>#include &lt;cstdlib&gt;<br>#include &lt;cstring&gt;<br>#include &lt;cmath&gt;<br><br>int main(int argc, char **argv)<br>
+
+{<br>    // override command line arguments to make sure cudaengine get the correct one<br>    char **argv_new = new char*[ argc + 2 ];<br>    for( int i = 0 ; i &lt; argc ; i++ )<br>    {<br>        argv_new[i] = new char[ strlen( argv[i] ) + 1 ];<br>
+
+        strcpy( argv_new[i], argv[i] );<br>    }<br>    argv_new[ argc   ] = new char[ 32 ];<br>    argv_new[ argc+1 ] = new char[ 32 ];<br>    strcpy( argv_new[argc],   &quot;-device&quot; );<br>    sprintf( argv_new[argc+1], &quot;%d&quot;, 0 );<br>
+
+    argc += 2;<br>    argv = argv_new;<br><br>    MPI_Init(&amp;argc,&amp;argv);<br><br>    // do something...<br><br>    MPI_Finalize();<br><br>    for( int i = 0 ; i &lt; argc ; i++ ) delete [] argv[i];<br>    delete [] argv;<br>
+
+}<br><br></div>At the end of the program the pointer stored in argv is exactly that of argv_new so this should not be a problem. Manually inserting printf tells me that the fault occured at MPI_Init. The code works fine if I use MPI_Init(NULL,NULL) instead. The same code also compiles and runs without a problem on my laptop with mpich2-1.4.<br>
+
+<br></div>Best,<br></div>Yu-Hang<br><div><div><div><br></div></div></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Tue, Nov 12, 2013 at 11:18 AM, Matthieu Brucher <span dir="ltr">&lt;<a href="mailto:matthieu.brucher@gmail.com" target="_blank">matthieu.brucher@gmail.com</a>&gt;</span> wrote:<br>
+
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Hi,<br>
+<br>
+Are you sure this is the correct code? This seems strange and not a good idea:<br>
+<br>
+   MPI_Init(&amp;argc,&amp;argv);<br>
+<br>
+    // do something...<br>
+<div class="im"><br>
+    for( int i = 0 ; i &lt; argc ; i++ ) delete [] argv[i];<br>
+    delete [] argv;<br>
+<br>
+</div>Did you mean argc_new and argv_new instead?<br>
+Do you have the same error without CUDA?<br>
+<br>
+Cheers,<br>
+<br>
+Matthieu<br>
+<br>
+<br>
+2013/11/12 Tang, Yu-Hang &lt;<a href="mailto:yuhang_tang@brown.edu">yuhang_tang@brown.edu</a>&gt;:<br>
+<div><div class="h5">&gt; Hi,<br>
+&gt;<br>
+&gt; I tried to augment the command line argument list by allocating my own list<br>
+&gt; of strings and passing them to MPI_Init, yet I got a segmentation fault for<br>
+&gt; both OpenMPI 1.6.3 and 1.7.2, while the code works fine with MPICH2. The<br>
+&gt; code is:<br>
+&gt;<br>
+&gt; #include &quot;mpi.h&quot;<br>
+&gt; #include &quot;cuda_runtime.h&quot;<br>
+&gt; #include &lt;cstdlib&gt;<br>
+&gt; #include &lt;cstring&gt;<br>
+&gt; #include &lt;cmath&gt;<br>
+&gt;<br>
+&gt; int main(int argc, char **argv)<br>
+&gt; {<br>
+&gt;     int device = 0;<br>
+&gt;     int skip = 0;<br>
+&gt;     bool skipmode = false;<br>
+&gt;     bool specified = false;<br>
+&gt;     for( int i = 0 ; i &lt; argc ; i++ )<br>
+&gt;     {<br>
+&gt;         if ( strcmp( argv[i], &quot;-device&quot; ) == 0 )<br>
+&gt;         {<br>
+&gt;             i++;<br>
+&gt;             if ( argv[i][0] == &#39;-&#39; )<br>
+&gt;             {<br>
+&gt;                 skipmode = true;<br>
+&gt;                 skip = fabs( atoi( argv[i] ) );<br>
+&gt;             }<br>
+&gt;             else<br>
+&gt;             {<br>
+&gt;                 skipmode = false;<br>
+&gt;                 device = atoi( argv[i] );<br>
+&gt;             }<br>
+&gt;             specified = true;<br>
+&gt;         }<br>
+&gt;     }<br>
+&gt;<br>
+&gt;     if ( !specified || skipmode )<br>
+&gt;     {<br>
+&gt;         char* var;<br>
+&gt;         int dev_count, local_rank = 0;<br>
+&gt;         if ( (var = getenv(&quot;SLURM_LOCALID&quot;)) != NULL) local_rank =<br>
+&gt; atoi(var);<br>
+&gt;         else if( (var = getenv(&quot;MV2_COMM_WORLD_LOCAL_RANK&quot;))  != NULL)<br>
+&gt; local_rank = atoi(var);<br>
+&gt;         else if( (var = getenv(&quot;OMPI_COMM_WORLD_LOCAL_RANK&quot;)) != NULL)<br>
+&gt; local_rank = atoi(var);<br>
+&gt;         cudaGetDeviceCount( &amp;dev_count );<br>
+&gt;         if ( skipmode )<br>
+&gt;         {<br>
+&gt;             device = 0;<br>
+&gt;             if ( device == skip ) local_rank++;<br>
+&gt;             while( local_rank-- &gt; 0 )<br>
+&gt;             {<br>
+&gt;                 device = (++device) % dev_count;<br>
+&gt;                 if ( device == skip ) local_rank++;<br>
+&gt;             }<br>
+&gt;         }<br>
+&gt;         else device = local_rank % dev_count;<br>
+&gt;     }<br>
+&gt;<br>
+&gt;     // override command line arguments to make sure cudaengine get the<br>
+&gt; correct one<br>
+&gt;     char **argv_new = new char*[ argc + 2 ];<br>
+&gt;     for( int i = 0 ; i &lt; argc ; i++ )<br>
+&gt;     {<br>
+&gt;         argv_new[i] = new char[ strlen( argv[i] ) + 1 ];<br>
+&gt;         strcpy( argv_new[i], argv[i] );<br>
+&gt;     }<br>
+&gt;     argv_new[ argc   ] = new char[ 32 ];<br>
+&gt;     argv_new[ argc+1 ] = new char[ 32 ];<br>
+&gt;     strcpy( argv_new[argc],   &quot;-device&quot; );<br>
+&gt;     sprintf( argv_new[argc+1], &quot;%d&quot;, device );<br>
+&gt;     argc += 2;<br>
+&gt;     argv = argv_new;<br>
+&gt;<br>
+&gt;     cudaSetDevice( device );<br>
+&gt;<br>
+&gt;     MPI_Init(&amp;argc,&amp;argv);<br>
+&gt;<br>
+&gt;     // do something...<br>
+&gt;<br>
+&gt;     MPI_Finalize();<br>
+&gt;<br>
+&gt;     cudaDeviceReset();<br>
+&gt;     for( int i = 0 ; i &lt; argc ; i++ ) delete [] argv[i];<br>
+&gt;     delete [] argv;<br>
+&gt; }<br>
+&gt;<br>
+&gt; When compiled using nvcc -ccbin mpic++, The error I got was:<br>
+&gt;<br>
+&gt; [jueying:16317] *** Process received signal ***<br>
+&gt; [jueying:16317] Signal: Segmentation fault (11)<br>
+&gt; [jueying:16317] Signal code: Address not mapped (1)<br>
+&gt; [jueying:16317] Failing at address: 0x21<br>
+&gt; [jueying:16317] [ 0] /usr/lib64/libpthread.so.0() [0x39e5e0f000]<br>
+&gt; [jueying:16317] [ 1] /usr/lib64/libc.so.6() [0x39e5760551]<br>
+&gt; [jueying:16317] [ 2]<br>
+&gt; /opt/openmpi/1.7.2/lib/libopen-pal.so.5(opal_argv_join+0x39)<br>
+&gt; [0x7f460b993079]<br>
+&gt; [jueying:16317] [ 3] /opt/openmpi/1.7.2/lib/libmpi.so.1(ompi_mpi_init+0x347)<br>
+&gt; [0x7f460c106a57]<br>
+&gt; [jueying:16317] [ 4] /opt/openmpi/1.7.2/lib/libmpi.so.1(MPI_Init+0x16b)<br>
+&gt; [0x7f460c12523b]<br>
+&gt; [jueying:16317] [ 5] ./lmp_jueying() [0x40c035]<br>
+&gt; [jueying:16317] [ 6] /usr/lib64/libc.so.6(__libc_start_main+0xf5)<br>
+&gt; [0x39e5621a05]<br>
+&gt; [jueying:16317] [ 7] ./lmp_jueying() [0x40dd21]<br>
+&gt; [jueying:16317] *** End of error message ***<br>
+&gt;<br>
+&gt; Thanks for the help.<br>
+&gt;<br>
+&gt; Best regards,<br>
+&gt; Yu-Hang Tang<br>
+&gt;<br>
+</div></div>&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+<span class="HOEnZb"><font color="#888888"><br>
+<br>
+<br>
+--<br>
+Information System Engineer, Ph.D.<br>
+Blog: <a href="http://matt.eifelle.com" target="_blank">http://matt.eifelle.com</a><br>
+LinkedIn: <a href="http://www.linkedin.com/in/matthieubrucher" target="_blank">http://www.linkedin.com/in/matthieubrucher</a><br>
+Music band: <a href="http://liliejay.com/" target="_blank">http://liliejay.com/</a><br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</font></span></blockquote></div><br><br clear="all"><br>-- <br><div dir="ltr">Yu-Hang Tang<br>Room 105, 37 Manning St<br>Division of Applied Mathematics, Brown University<br>Providence, RI 02912<br></div>
+</div>
+

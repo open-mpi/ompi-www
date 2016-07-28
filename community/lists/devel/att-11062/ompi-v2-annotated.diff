@@ -1,0 +1,790 @@
+--- openmpi-1.7a1r26501/ompi/include/mpi.h.in	2012-05-28 05:20:51.000000000 +0300
++++ ompi-trunk/ompi/include/mpi.h.in	2012-05-29 17:18:04.030283709 +0300
+@@ -210,6 +210,45 @@
+ 
+ #endif /* #ifndef OMPI_CONFIG_H */
+ 
++#if defined(__has_attribute)
++#  if __has_attribute(pointer_with_type_tag) && \
++      __has_attribute(type_tag_for_datatype)
++#    define OMPI_ATTR_POINTER_WITH_TYPE_TAG(buffer_idx, type_idx)  __attribute__((pointer_with_type_tag(MPI,buffer_idx,type_idx)))
++#    define OMPI_ATTR_TYPE_TAG(type)                               __attribute__((type_tag_for_datatype(MPI,type)))
++#    define OMPI_ATTR_TYPE_TAG_LAYOUT_COMPATIBLE(type)             __attribute__((type_tag_for_datatype(MPI,type,layout_compatible)))
++#    define OMPI_ATTR_TYPE_TAG_MUST_BE_NULL()                      __attribute__((type_tag_for_datatype(MPI,void,must_be_null)))
+
+*** JMS What do the 3-argument forms of type_tag_for_datatype() do?
+    They aren't described in
+    http://lists.cs.uiuc.edu/pipermail/cfe-commits/Week-of-Mon-20120521/057992.html
+
+*** JMS What happens if the argument type is (void*)?  Does that match
+    the tag type?  E.g.:
+
+    char recvbuf;
+    void *foo = &recvbuf;
+    MPI_Send(foo, 1, MPI_CHAR, ...)
+
+*** JMS What if I deliberately want to receive into the wrong type
+    (and for some reason, I know it's ok)?  Is casting ok enough to
+    defeat the tag testing?  E.g.:
+
+    char recvbuf[100];
+    MPI_Recv((int*) recvbuf, 1, MPI_INT, ...);
+
++#    if defined(__cplusplus)
++#      include <complex>
++#    endif
++#  endif
++#endif
++
++#if !defined(OMPI_ATTR_POINTER_WITH_TYPE_TAG)
++#  define OMPI_ATTR_POINTER_WITH_TYPE_TAG(buffer_idx, type_idx)
++#  define OMPI_ATTR_TYPE_TAG(type)
++#  define OMPI_ATTR_TYPE_TAG_LAYOUT_COMPATIBLE(type)
++#  define OMPI_ATTR_TYPE_TAG_MUST_BE_NULL()
++#endif
++
++#if defined(INT8_C)
++/* stdint.h was included, so we can annotate these types */
++#  define OMPI_ATTR_TYPE_TAG_STDINT(type) OMPI_ATTR_TYPE_TAG(type)
++#else
++#  define OMPI_ATTR_TYPE_TAG_STDINT(type)
++#endif
++
++#if __STDC_VERSION__ >= 199901
++#  define OMPI_ATTR_TYPE_TAG_C99(type) OMPI_ATTR_TYPE_TAG(type)
++#else
++#  define OMPI_ATTR_TYPE_TAG_C99(type)
++#endif
++
++#if defined(__cplusplus)
++#  define OMPI_ATTR_TYPE_TAG_CPP(type) OMPI_ATTR_TYPE_TAG(type)
++#else
++#  define OMPI_ATTR_TYPE_TAG_CPP(type)
+
+*** JMS Random suggestion: how about CXX instead of CPP?  CPP could
+    also mean C preprocessor.
+
++#endif
++
+ /* @OMPI_END_CONFIGURE_SECTION@ */
+ 
+ /* include for ptrdiff_t */
+@@ -784,35 +823,35 @@
+ OMPI_DECLSPEC extern struct ompi_predefined_op_t ompi_mpi_op_replace;
+ 
+ 
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_datatype_null;
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_datatype_null OMPI_ATTR_TYPE_TAG_MUST_BE_NULL();
+ 
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_lb __mpi_interface_deprecated__("MPI_LB is deprecated in MPI-2.0");
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_ub __mpi_interface_deprecated__("MPI_UB is deprecated in MPI-2.0");
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_char;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_signed_char;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned_char;
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_char           OMPI_ATTR_TYPE_TAG(char);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_signed_char    OMPI_ATTR_TYPE_TAG(signed char);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned_char  OMPI_ATTR_TYPE_TAG(unsigned char);
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_byte;
+
+*** JMS Why doesn't ompi_mpi_byte have an attribute?  And what does it
+    mean to not have an attribute?  Will the type checking be silently
+    ignored at compile-time if there's no matching (MPI,foo)
+    type_tag_for_datatype?  (same question applies to other instances
+    with no tags, like ompi_mpi_packed, but I won't bother repeating
+    it everywhere)
+
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_short;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned_short;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_long;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned_long;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_long_long_int;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned_long_long;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_float;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_double;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_long_double;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_wchar;
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_short          OMPI_ATTR_TYPE_TAG(signed short int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned_short OMPI_ATTR_TYPE_TAG(unsigned short int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int            OMPI_ATTR_TYPE_TAG(signed int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned       OMPI_ATTR_TYPE_TAG(unsigned int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_long           OMPI_ATTR_TYPE_TAG(signed long int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned_long  OMPI_ATTR_TYPE_TAG(unsigned long int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_long_long_int  OMPI_ATTR_TYPE_TAG(long long int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_unsigned_long_long OMPI_ATTR_TYPE_TAG(unsigned long long int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_float          OMPI_ATTR_TYPE_TAG(float);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_double         OMPI_ATTR_TYPE_TAG(double);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_long_double    OMPI_ATTR_TYPE_TAG(long double);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_wchar          OMPI_ATTR_TYPE_TAG(wchar_t);
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_packed;
+
+ /*
+  * Following are the C++/C99 datatypes
+  */
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_cxx_bool;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_cxx_cplex;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_cxx_dblcplex;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_cxx_ldblcplex;
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_cxx_bool      OMPI_ATTR_TYPE_TAG_CPP(bool);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_cxx_cplex     OMPI_ATTR_TYPE_TAG_CPP(std::complex<float>);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_cxx_dblcplex  OMPI_ATTR_TYPE_TAG_CPP(std::complex<double>);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_cxx_ldblcplex OMPI_ATTR_TYPE_TAG_CPP(std::complex<long double>);
+ 
+*** What happens if we're compiling C and std::complex<foo> isn't
+    defined?  I see that <complex> is only defined above #if __cplusplus.
+
+ /*
+  * Following are the Fortran datatypes
+@@ -827,18 +866,24 @@
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_ldblcplex;
+ 
+ /* Aggregate struct datatypes are not const */
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_2int;
++struct ompi_struct_mpi_2int { int i1; int i2; };
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_2int OMPI_ATTR_TYPE_TAG_LAYOUT_COMPATIBLE(struct ompi_struct_mpi_2int);
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_2integer;
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_2real;
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_2dblprec;
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_2cplex;
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_2dblcplex;
+ 
+*** JMS I'm a bit confused as to why 2int got a tag, but the others
+    did not.  We do have C equivalents for all types -- do you need a
+    listing of the configure results where we figured out all the C
+    equivalents?  (i.e., I can look them up for you -- our configury
+    is a bit... deep :-) )
+
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_float_int;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_double_int;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_longdbl_int;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_short_int;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_long_int;
++struct ompi_struct_mpi_float_int   { float f; int i; };
++struct ompi_struct_mpi_double_int  { double d; int i; };
++struct ompi_struct_mpi_longdbl_int { long double ld; int i; };
++struct ompi_struct_mpi_short_int   { short s; int i; };
++struct ompi_struct_mpi_long_int    { long l; int i; };
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_float_int   OMPI_ATTR_TYPE_TAG_LAYOUT_COMPATIBLE(struct ompi_struct_mpi_float_int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_double_int  OMPI_ATTR_TYPE_TAG(struct ompi_struct_mpi_double_int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_longdbl_int OMPI_ATTR_TYPE_TAG(struct ompi_struct_mpi_longdbl_int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_short_int   OMPI_ATTR_TYPE_TAG(struct ompi_struct_mpi_short_int);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_long_int    OMPI_ATTR_TYPE_TAG(struct ompi_struct_mpi_long_int);
+ 
+ /* Optional MPI2 datatypes, always declared and defined, but not "exported" as MPI_LOGICAL1 */
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_logical1;
+@@ -859,21 +904,21 @@
+ OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_complex32;
+ 
+ /* New datatypes from the MPI 2.2 standard */
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int8_t;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_uint8_t;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int16_t;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_uint16_t;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int32_t;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_uint32_t;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int64_t;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_uint64_t;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_aint;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_offset;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_bool;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_complex;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_float_complex;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_double_complex;
+-OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_long_double_complex;
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int8_t    OMPI_ATTR_TYPE_TAG_STDINT(int8_t);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_uint8_t   OMPI_ATTR_TYPE_TAG_STDINT(uint8_t);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int16_t   OMPI_ATTR_TYPE_TAG_STDINT(int16_t);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_uint16_t  OMPI_ATTR_TYPE_TAG_STDINT(uint16_t);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int32_t   OMPI_ATTR_TYPE_TAG_STDINT(int32_t);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_uint32_t  OMPI_ATTR_TYPE_TAG_STDINT(uint32_t);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_int64_t   OMPI_ATTR_TYPE_TAG_STDINT(int64_t);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_uint64_t  OMPI_ATTR_TYPE_TAG_STDINT(uint64_t);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_aint      OMPI_ATTR_TYPE_TAG(MPI_Aint);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_offset    OMPI_ATTR_TYPE_TAG(MPI_Offset);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_bool    OMPI_ATTR_TYPE_TAG_C99(_Bool);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_complex OMPI_ATTR_TYPE_TAG_C99(float _Complex);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_float_complex       OMPI_ATTR_TYPE_TAG_C99(float _Complex);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_double_complex      OMPI_ATTR_TYPE_TAG_C99(double _Complex);
++OMPI_DECLSPEC extern struct ompi_predefined_datatype_t ompi_mpi_c_long_double_complex OMPI_ATTR_TYPE_TAG_C99(long double _Complex);
+ 
+ OMPI_DECLSPEC extern struct ompi_predefined_errhandler_t ompi_mpi_errhandler_null;
+ OMPI_DECLSPEC extern struct ompi_predefined_errhandler_t ompi_mpi_errors_are_fatal;
+@@ -1040,7 +1085,8 @@
+ OMPI_DECLSPEC  int MPI_Abort(MPI_Comm comm, int errorcode);
+ OMPI_DECLSPEC  int MPI_Accumulate(void *origin_addr, int origin_count, MPI_Datatype origin_datatype,
+                                   int target_rank, MPI_Aint target_disp, int target_count,
+-                                  MPI_Datatype target_datatype, MPI_Op op, MPI_Win win);
++                                  MPI_Datatype target_datatype, MPI_Op op, MPI_Win win)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Add_error_class(int *errorclass);
+ OMPI_DECLSPEC  int MPI_Add_error_code(int errorclass, int *errorcode);
+ OMPI_DECLSPEC  int MPI_Add_error_string(int errorcode, char *string);
+@@ -1048,20 +1094,30 @@
+                                __mpi_interface_deprecated__("MPI_Address is superseded by MPI_Get_address in MPI-2.0");
+ OMPI_DECLSPEC  int MPI_Allgather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                  void *recvbuf, int recvcount,
+-                                 MPI_Datatype recvtype, MPI_Comm comm);
++                                 MPI_Datatype recvtype, MPI_Comm comm)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int MPI_Allgatherv(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                   void *recvbuf, int *recvcounts,
+-                                  int *displs, MPI_Datatype recvtype, MPI_Comm comm);
++                                  int *displs, MPI_Datatype recvtype, MPI_Comm comm)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,7);
+ OMPI_DECLSPEC  int MPI_Alloc_mem(MPI_Aint size, MPI_Info info,
+                                  void *baseptr);
+ OMPI_DECLSPEC  int MPI_Allreduce(void *sendbuf, void *recvbuf, int count,
+-                                 MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
++                                 MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int MPI_Alltoall(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                 void *recvbuf, int recvcount,
+-                                MPI_Datatype recvtype, MPI_Comm comm);
++                                MPI_Datatype recvtype, MPI_Comm comm)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int MPI_Alltoallv(void *sendbuf, int *sendcounts, int *sdispls,
+                                  MPI_Datatype sendtype, void *recvbuf, int *recvcounts,
+-                                 int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
++                                 int *rdispls, MPI_Datatype recvtype, MPI_Comm comm)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(5,8);
+ OMPI_DECLSPEC  int MPI_Alltoallw(void *sendbuf, int *sendcounts, int *sdispls, MPI_Datatype *sendtypes,
+                                  void *recvbuf, int *recvcounts, int *rdispls, MPI_Datatype *recvtypes,
+                                  MPI_Comm comm);
+
+*** JMS Shouldn't alltoallw have
+
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(5,8);
+
+*** JMS I ask because you have these on PMPI_Alltoallw... but I'm not
+    quite sure how that works with arrays of datatypes...
+
+@@ -1073,11 +1129,14 @@
+                                 __mpi_interface_deprecated__("MPI_Attr_put is superseded by MPI_Comm_set_attr in MPI-2.0");
+ OMPI_DECLSPEC  int MPI_Barrier(MPI_Comm comm);
+ OMPI_DECLSPEC  int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype,
+-                             int root, MPI_Comm comm);
++                             int root, MPI_Comm comm)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Bsend(void *buf, int count, MPI_Datatype datatype,
+-                             int dest, int tag, MPI_Comm comm);
++                             int dest, int tag, MPI_Comm comm)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Bsend_init(void *buf, int count, MPI_Datatype datatype,
+-                                  int dest, int tag, MPI_Comm comm, MPI_Request *request);
++                                  int dest, int tag, MPI_Comm comm, MPI_Request *request)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Buffer_attach(void *buffer, int size);
+ OMPI_DECLSPEC  int MPI_Buffer_detach(void *buffer, int *size);
+ OMPI_DECLSPEC  int MPI_Cancel(MPI_Request *request);
+@@ -1151,7 +1210,9 @@
+ OMPI_DECLSPEC  int MPI_Error_class(int errorcode, int *errorclass);
+ OMPI_DECLSPEC  int MPI_Error_string(int errorcode, char *string, int *resultlen);
+ OMPI_DECLSPEC  int MPI_Exscan(void *sendbuf, void *recvbuf, int count,
+-                              MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
++                              MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ #if OMPI_PROVIDE_MPI_FILE_INTERFACE
+ OMPI_DECLSPEC  MPI_Fint MPI_File_c2f(MPI_File file);
+ OMPI_DECLSPEC  MPI_File MPI_File_f2c(MPI_Fint file);
+@@ -1247,17 +1308,22 @@
+ OMPI_DECLSPEC  int MPI_Free_mem(void *base);
+ OMPI_DECLSPEC  int MPI_Gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                               void *recvbuf, int recvcount, MPI_Datatype recvtype,
+-                              int root, MPI_Comm comm);
++                              int root, MPI_Comm comm)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int MPI_Gatherv(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                void *recvbuf, int *recvcounts, int *displs,
+-                               MPI_Datatype recvtype, int root, MPI_Comm comm);
++                               MPI_Datatype recvtype, int root, MPI_Comm comm)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,7);
+ OMPI_DECLSPEC  int MPI_Get_address(void *location, MPI_Aint *address);
+ OMPI_DECLSPEC  int MPI_Get_count(MPI_Status *status, MPI_Datatype datatype, int *count);
+ OMPI_DECLSPEC  int MPI_Get_elements(MPI_Status *status, MPI_Datatype datatype, int *count);
+ OMPI_DECLSPEC  int MPI_Get(void *origin_addr, int origin_count,
+                            MPI_Datatype origin_datatype, int target_rank,
+                            MPI_Aint target_disp, int target_count,
+-                           MPI_Datatype target_datatype, MPI_Win win);
++                           MPI_Datatype target_datatype, MPI_Win win)
++                           OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Get_library_version(char *version, int *resultlen);
+ OMPI_DECLSPEC  int MPI_Get_processor_name(char *name, int *resultlen);
+ OMPI_DECLSPEC  int MPI_Get_version(int *version, int *subversion);
+@@ -1299,12 +1365,14 @@
+ OMPI_DECLSPEC  int MPI_Group_union(MPI_Group group1, MPI_Group group2,
+                                    MPI_Group *newgroup);
+ OMPI_DECLSPEC  int MPI_Ibsend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                              int tag, MPI_Comm comm, MPI_Request *request);
++                              int tag, MPI_Comm comm, MPI_Request *request)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Improbe(int source, int tag, MPI_Comm comm,
+                                int *flag, MPI_Message *message,
+                                MPI_Status *status);
+ OMPI_DECLSPEC  int MPI_Imrecv(void *buf, int count, MPI_Datatype type,
+-                              MPI_Message *message, MPI_Request *request);
++                              MPI_Message *message, MPI_Request *request)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  MPI_Fint MPI_Info_c2f(MPI_Info info);
+ OMPI_DECLSPEC  int MPI_Info_create(MPI_Info *info);
+ OMPI_DECLSPEC  int MPI_Info_delete(MPI_Info info, char *key);
+@@ -1330,13 +1398,17 @@
+ OMPI_DECLSPEC  int MPI_Iprobe(int source, int tag, MPI_Comm comm, int *flag,
+                               MPI_Status *status);
+ OMPI_DECLSPEC  int MPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source,
+-                             int tag, MPI_Comm comm, MPI_Request *request);
++                             int tag, MPI_Comm comm, MPI_Request *request)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Irsend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                              int tag, MPI_Comm comm, MPI_Request *request);
++                              int tag, MPI_Comm comm, MPI_Request *request)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Isend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                             int tag, MPI_Comm comm, MPI_Request *request);
++                             int tag, MPI_Comm comm, MPI_Request *request)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Issend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                              int tag, MPI_Comm comm, MPI_Request *request);
++                              int tag, MPI_Comm comm, MPI_Request *request)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Is_thread_main(int *flag);
+ OMPI_DECLSPEC  int MPI_Keyval_create(MPI_Copy_function *copy_fn,
+                                      MPI_Delete_function *delete_fn,
+@@ -1351,7 +1423,8 @@
+                                MPI_Message *message,
+                                MPI_Status *status);
+ OMPI_DECLSPEC  int MPI_Mrecv(void *buf, int count, MPI_Datatype type,
+-                             MPI_Message *message, MPI_Status *status);
++                             MPI_Message *message, MPI_Status *status)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  MPI_Fint MPI_Op_c2f(MPI_Op op); 
+ OMPI_DECLSPEC  int MPI_Op_commutative(MPI_Op op, int *commute);
+ OMPI_DECLSPEC  int MPI_Op_create(MPI_User_function *function, int commute, MPI_Op *op);
+@@ -1360,11 +1433,13 @@
+ OMPI_DECLSPEC  int MPI_Op_free(MPI_Op *op);
+ OMPI_DECLSPEC  int MPI_Pack_external(char *datarep, void *inbuf, int incount,
+                                      MPI_Datatype datatype, void *outbuf,
+-                                     MPI_Aint outsize, MPI_Aint *position);
++                                     MPI_Aint outsize, MPI_Aint *position)
++                                     OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int MPI_Pack_external_size(char *datarep, int incount,
+                                           MPI_Datatype datatype, MPI_Aint *size);
+ OMPI_DECLSPEC  int MPI_Pack(void *inbuf, int incount, MPI_Datatype datatype,
+-                            void *outbuf, int outsize, int *position, MPI_Comm comm);
++                            void *outbuf, int outsize, int *position, MPI_Comm comm)
++                            OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Pack_size(int incount, MPI_Datatype datatype, MPI_Comm comm,
+                                  int *size);
+ OMPI_DECLSPEC  int MPI_Pcontrol(const int level, ...);
+@@ -1373,18 +1448,27 @@
+                                     char *port_name);
+ OMPI_DECLSPEC  int MPI_Put(void *origin_addr, int origin_count, MPI_Datatype origin_datatype,
+                            int target_rank, MPI_Aint target_disp, int target_count,
+-                           MPI_Datatype target_datatype, MPI_Win win);
++                           MPI_Datatype target_datatype, MPI_Win win)
++                           OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Query_thread(int *provided);
+ OMPI_DECLSPEC  int MPI_Recv_init(void *buf, int count, MPI_Datatype datatype, int source,
+-                                 int tag, MPI_Comm comm, MPI_Request *request);
++                                 int tag, MPI_Comm comm, MPI_Request *request)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source,
+-                            int tag, MPI_Comm comm, MPI_Status *status);
++                            int tag, MPI_Comm comm, MPI_Status *status)
++                            OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Reduce(void *sendbuf, void *recvbuf, int count,
+-                              MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm);
++                              MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int MPI_Reduce_local(void *inbuf, void *inoutbuf, int count,
+-                                    MPI_Datatype datatype, MPI_Op op);
++                                    MPI_Datatype datatype, MPI_Op op)
++                                    OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                    OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int MPI_Reduce_scatter(void *sendbuf, void *recvbuf, int *recvcounts,
+-                                      MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
++                                      MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
++                                      OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                      OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int MPI_Register_datarep(char *datarep,
+                                         MPI_Datarep_conversion_function *read_conversion_fn,
+                                         MPI_Datarep_conversion_function *write_conversion_fn,
+@@ -1396,35 +1480,50 @@
+ OMPI_DECLSPEC  int MPI_Request_get_status(MPI_Request request, int *flag,
+                                           MPI_Status *status);
+ OMPI_DECLSPEC  int MPI_Rsend(void *ibuf, int count, MPI_Datatype datatype, int dest,
+-                             int tag, MPI_Comm comm);
++                             int tag, MPI_Comm comm)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Rsend_init(void *buf, int count, MPI_Datatype datatype,
+                                   int dest, int tag, MPI_Comm comm,
+-                                  MPI_Request *request);
++                                  MPI_Request *request)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Scan(void *sendbuf, void *recvbuf, int count,
+-                            MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
++                            MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
++                            OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                            OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int MPI_Scatter(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                void *recvbuf, int recvcount, MPI_Datatype recvtype,
+-                               int root, MPI_Comm comm);
++                               int root, MPI_Comm comm)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int MPI_Scatterv(void *sendbuf, int *sendcounts, int *displs,
+                                 MPI_Datatype sendtype, void *recvbuf, int recvcount,
+-                                MPI_Datatype recvtype, int root, MPI_Comm comm);
++                                MPI_Datatype recvtype, int root, MPI_Comm comm)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(5,7);
+ OMPI_DECLSPEC  int MPI_Send_init(void *buf, int count, MPI_Datatype datatype,
+                                  int dest, int tag, MPI_Comm comm,
+-                                 MPI_Request *request);
++                                 MPI_Request *request)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Send(void *buf, int count, MPI_Datatype datatype, int dest,
+-                            int tag, MPI_Comm comm);
++                            int tag, MPI_Comm comm)
++                            OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Sendrecv(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                 int dest, int sendtag, void *recvbuf, int recvcount,
+                                 MPI_Datatype recvtype, int source, int recvtag,
+-                                MPI_Comm comm,  MPI_Status *status);
++                                MPI_Comm comm,  MPI_Status *status)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(6,8);
+ OMPI_DECLSPEC  int MPI_Sendrecv_replace(void * buf, int count, MPI_Datatype datatype,
+                                         int dest, int sendtag, int source, int recvtag,
+-                                        MPI_Comm comm, MPI_Status *status);
++                                        MPI_Comm comm, MPI_Status *status)
++                                        OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Ssend_init(void *buf, int count, MPI_Datatype datatype,
+                                   int dest, int tag, MPI_Comm comm,
+-                                  MPI_Request *request);
++                                  MPI_Request *request)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Ssend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                             int tag, MPI_Comm comm);
++                             int tag, MPI_Comm comm)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int MPI_Start(MPI_Request *request);
+ OMPI_DECLSPEC  int MPI_Startall(int count, MPI_Request *array_of_requests);
+ OMPI_DECLSPEC  int MPI_Status_c2f(MPI_Status *c_status, MPI_Fint *f_status);
+@@ -1528,11 +1627,13 @@
+                                    MPI_Datatype oldtype, MPI_Datatype *newtype);
+ OMPI_DECLSPEC  int MPI_Unpack(void *inbuf, int insize, int *position,
+                               void *outbuf, int outcount, MPI_Datatype datatype,
+-                              MPI_Comm comm);
++                              MPI_Comm comm)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int MPI_Unpublish_name(char *service_name, MPI_Info info, char *port_name);
+ OMPI_DECLSPEC  int MPI_Unpack_external (char *datarep, void *inbuf, MPI_Aint insize,
+                                         MPI_Aint *position, void *outbuf, int outcount,
+-                                        MPI_Datatype datatype);
++                                        MPI_Datatype datatype)
++                                        OMPI_ATTR_POINTER_WITH_TYPE_TAG(5,7);
+ OMPI_DECLSPEC  int MPI_Waitall(int count, MPI_Request *array_of_requests,
+                                MPI_Status *array_of_statuses);
+ OMPI_DECLSPEC  int MPI_Waitany(int count, MPI_Request *array_of_requests,
+@@ -1580,7 +1681,8 @@
+ OMPI_DECLSPEC  int PMPI_Abort(MPI_Comm comm, int errorcode);
+ OMPI_DECLSPEC  int PMPI_Accumulate(void *origin_addr, int origin_count, MPI_Datatype origin_datatype,
+                                    int target_rank, MPI_Aint target_disp, int target_count,
+-                                   MPI_Datatype target_datatype, MPI_Op op, MPI_Win win);
++                                   MPI_Datatype target_datatype, MPI_Op op, MPI_Win win)
++                                   OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Add_error_class(int *errorclass);
+ OMPI_DECLSPEC  int PMPI_Add_error_code(int errorclass, int *errorcode);
+ OMPI_DECLSPEC  int PMPI_Add_error_string(int errorcode, char *string);
+@@ -1588,23 +1690,35 @@
+                                 __mpi_interface_deprecated__("MPI_Address is superseded by MPI_Get_address in MPI-2.0");
+ OMPI_DECLSPEC  int PMPI_Allgather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                   void *recvbuf, int recvcount,
+-                                  MPI_Datatype recvtype, MPI_Comm comm);
++                                  MPI_Datatype recvtype, MPI_Comm comm)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int PMPI_Allgatherv(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                    void *recvbuf, int *recvcounts,
+-                                   int *displs, MPI_Datatype recvtype, MPI_Comm comm);
++                                   int *displs, MPI_Datatype recvtype, MPI_Comm comm)
++                                   OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                   OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,7);
+ OMPI_DECLSPEC  int PMPI_Alloc_mem(MPI_Aint size, MPI_Info info,
+                                   void *baseptr);
+ OMPI_DECLSPEC  int PMPI_Allreduce(void *sendbuf, void *recvbuf, int count,
+-                                  MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
++                                  MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int PMPI_Alltoall(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                  void *recvbuf, int recvcount,
+-                                 MPI_Datatype recvtype, MPI_Comm comm);
++                                 MPI_Datatype recvtype, MPI_Comm comm)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int PMPI_Alltoallv(void *sendbuf, int *sendcounts, int *sdispls,
+                                   MPI_Datatype sendtype, void *recvbuf, int *recvcounts,
+-                                  int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
++                                  int *rdispls, MPI_Datatype recvtype, MPI_Comm comm)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(5,8);
+ OMPI_DECLSPEC  int PMPI_Alltoallw(void *sendbuf, int *sendcounts, int *sdispls, MPI_Datatype *sendtypes,
+                                   void *recvbuf, int *recvcounts, int *rdispls, MPI_Datatype *recvtypes,
+-                                  MPI_Comm comm);
++                                  MPI_Comm comm)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(5,8);
+
+*** JMS Per my question on MPI_Alltoallw, I'm not quite sure how these
+    tags work with arrays of datatypes...?
+
+ OMPI_DECLSPEC  int PMPI_Attr_delete(MPI_Comm comm, int keyval)
+                                     __mpi_interface_deprecated__("MPI_Attr_delete is superseded by MPI_Comm_delete_attr in MPI-2.0");
+ OMPI_DECLSPEC  int PMPI_Attr_get(MPI_Comm comm, int keyval, void *attribute_val, int *flag)
+@@ -1613,11 +1727,14 @@
+                                  __mpi_interface_deprecated__("MPI_Attr_put is superseded by MPI_Comm_set_attr in MPI-2.0");
+ OMPI_DECLSPEC  int PMPI_Barrier(MPI_Comm comm);
+ OMPI_DECLSPEC  int PMPI_Bcast(void *buffer, int count, MPI_Datatype datatype,
+-                              int root, MPI_Comm comm);
++                              int root, MPI_Comm comm)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Bsend(void *buf, int count, MPI_Datatype datatype,
+-                              int dest, int tag, MPI_Comm comm);
++                              int dest, int tag, MPI_Comm comm)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Bsend_init(void *buf, int count, MPI_Datatype datatype,
+-                                   int dest, int tag, MPI_Comm comm, MPI_Request *request);
++                                   int dest, int tag, MPI_Comm comm, MPI_Request *request)
++                                   OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Buffer_attach(void *buffer, int size);
+ OMPI_DECLSPEC  int PMPI_Buffer_detach(void *buffer, int *size);
+ OMPI_DECLSPEC  int PMPI_Cancel(MPI_Request *request);
+@@ -1691,7 +1808,9 @@
+ OMPI_DECLSPEC  int PMPI_Error_class(int errorcode, int *errorclass);
+ OMPI_DECLSPEC  int PMPI_Error_string(int errorcode, char *string, int *resultlen);
+ OMPI_DECLSPEC  int PMPI_Exscan(void *sendbuf, void *recvbuf, int count,
+-                               MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
++                               MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ #if OMPI_PROVIDE_MPI_FILE_INTERFACE
+ OMPI_DECLSPEC  MPI_Fint PMPI_File_c2f(MPI_File file);
+ OMPI_DECLSPEC  MPI_File PMPI_File_f2c(MPI_Fint file);
+@@ -1787,10 +1906,14 @@
+ OMPI_DECLSPEC  int PMPI_Free_mem(void *base);
+ OMPI_DECLSPEC  int PMPI_Gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                void *recvbuf, int recvcount, MPI_Datatype recvtype,
+-                               int root, MPI_Comm comm);
++                               int root, MPI_Comm comm)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int PMPI_Gatherv(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                 void *recvbuf, int *recvcounts, int *displs,
+-                                MPI_Datatype recvtype, int root, MPI_Comm comm);
++                                MPI_Datatype recvtype, int root, MPI_Comm comm)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,7);
+ OMPI_DECLSPEC  int PMPI_Get_address(void *location, MPI_Aint *address);
+ OMPI_DECLSPEC  int PMPI_Get_count(MPI_Status *status, MPI_Datatype datatype, int *count);
+ OMPI_DECLSPEC  int PMPI_Get_elements(MPI_Status *status, MPI_Datatype datatype,
+@@ -1798,7 +1921,8 @@
+ OMPI_DECLSPEC  int PMPI_Get(void *origin_addr, int origin_count,
+                             MPI_Datatype origin_datatype, int target_rank,
+                             MPI_Aint target_disp, int target_count,
+-                            MPI_Datatype target_datatype, MPI_Win win);
++                            MPI_Datatype target_datatype, MPI_Win win)
++                            OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Get_library_version(char *version, int *resultlen);
+ OMPI_DECLSPEC  int PMPI_Get_processor_name(char *name, int *resultlen);
+ OMPI_DECLSPEC  int PMPI_Get_version(int *version, int *subversion);
+@@ -1840,12 +1964,14 @@
+ OMPI_DECLSPEC  int PMPI_Group_union(MPI_Group group1, MPI_Group group2,
+                                     MPI_Group *newgroup);
+ OMPI_DECLSPEC  int PMPI_Ibsend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                               int tag, MPI_Comm comm, MPI_Request *request);
++                               int tag, MPI_Comm comm, MPI_Request *request)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Improbe(int source, int tag, MPI_Comm comm,
+                                 int *flag, MPI_Message *message,
+                                 MPI_Status *status);
+ OMPI_DECLSPEC  int PMPI_Imrecv(void *buf, int count, MPI_Datatype type,
+-                               MPI_Message *message, MPI_Request *request);
++                               MPI_Message *message, MPI_Request *request)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  MPI_Fint PMPI_Info_c2f(MPI_Info info);
+ OMPI_DECLSPEC  int PMPI_Info_create(MPI_Info *info);
+ OMPI_DECLSPEC  int PMPI_Info_delete(MPI_Info info, char *key);
+@@ -1871,13 +1997,17 @@
+ OMPI_DECLSPEC  int PMPI_Iprobe(int source, int tag, MPI_Comm comm, int *flag,
+                                MPI_Status *status);
+ OMPI_DECLSPEC  int PMPI_Irecv(void *buf, int count, MPI_Datatype datatype, int source,
+-                              int tag, MPI_Comm comm, MPI_Request *request);
++                              int tag, MPI_Comm comm, MPI_Request *request)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Irsend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                               int tag, MPI_Comm comm, MPI_Request *request);
++                               int tag, MPI_Comm comm, MPI_Request *request)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Isend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                              int tag, MPI_Comm comm, MPI_Request *request);
++                              int tag, MPI_Comm comm, MPI_Request *request)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Issend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                               int tag, MPI_Comm comm, MPI_Request *request);
++                               int tag, MPI_Comm comm, MPI_Request *request)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Is_thread_main(int *flag);
+ OMPI_DECLSPEC  int PMPI_Keyval_create(MPI_Copy_function *copy_fn,
+                                       MPI_Delete_function *delete_fn,
+@@ -1892,7 +2022,8 @@
+                                MPI_Message *message,
+                                MPI_Status *status);
+ OMPI_DECLSPEC  int PMPI_Mrecv(void *buf, int count, MPI_Datatype type,
+-                              MPI_Message *message, MPI_Status *status);
++                              MPI_Message *message, MPI_Status *status)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  MPI_Fint PMPI_Op_c2f(MPI_Op op);
+ OMPI_DECLSPEC  int PMPI_Op_commutative(MPI_Op op, int *commute);
+ OMPI_DECLSPEC  int PMPI_Op_create(MPI_User_function *function, int commute, MPI_Op *op);
+@@ -1901,11 +2032,13 @@
+ OMPI_DECLSPEC  int PMPI_Op_free(MPI_Op *op);
+ OMPI_DECLSPEC  int PMPI_Pack_external(char *datarep, void *inbuf, int incount,
+                                       MPI_Datatype datatype, void *outbuf,
+-                                      MPI_Aint outsize, MPI_Aint *position);
++                                      MPI_Aint outsize, MPI_Aint *position)
++                                      OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int PMPI_Pack_external_size(char *datarep, int incount,
+                                            MPI_Datatype datatype, MPI_Aint *size);
+ OMPI_DECLSPEC  int PMPI_Pack(void *inbuf, int incount, MPI_Datatype datatype,
+-                             void *outbuf, int outsize, int *position, MPI_Comm comm);
++                             void *outbuf, int outsize, int *position, MPI_Comm comm)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Pack_size(int incount, MPI_Datatype datatype, MPI_Comm comm,
+                                   int *size);
+ OMPI_DECLSPEC  int PMPI_Pcontrol(const int level, ...);
+@@ -1914,18 +2047,27 @@
+                                      char *port_name);
+ OMPI_DECLSPEC  int PMPI_Put(void *origin_addr, int origin_count, MPI_Datatype origin_datatype,
+                             int target_rank, MPI_Aint target_disp, int target_count,
+-                            MPI_Datatype target_datatype, MPI_Win win);
++                            MPI_Datatype target_datatype, MPI_Win win)
++                            OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Query_thread(int *provided);
+ OMPI_DECLSPEC  int PMPI_Recv_init(void *buf, int count, MPI_Datatype datatype, int source,
+-                                  int tag, MPI_Comm comm, MPI_Request *request);
++                                  int tag, MPI_Comm comm, MPI_Request *request)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Recv(void *buf, int count, MPI_Datatype datatype, int source,
+-                             int tag, MPI_Comm comm, MPI_Status *status);
++                             int tag, MPI_Comm comm, MPI_Status *status)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Reduce(void *sendbuf, void *recvbuf, int count,
+-                               MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm);
++                               MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int PMPI_Reduce_local(void *inbuf, void *inoutbuf, int count,
+-                                     MPI_Datatype datatype, MPI_Op);
++                                     MPI_Datatype datatype, MPI_Op)
++                                     OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                     OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int PMPI_Reduce_scatter(void *sendbuf, void *recvbuf, int *recvcounts,
+-                                       MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
++                                       MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
++                                       OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                       OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int PMPI_Register_datarep(char *datarep,
+                                          MPI_Datarep_conversion_function *read_conversion_fn,
+                                          MPI_Datarep_conversion_function *write_conversion_fn,
+@@ -1937,35 +2079,50 @@
+ OMPI_DECLSPEC  int PMPI_Request_get_status(MPI_Request request, int *flag,
+                                            MPI_Status *status);
+ OMPI_DECLSPEC  int PMPI_Rsend(void *ibuf, int count, MPI_Datatype datatype, int dest,
+-                              int tag, MPI_Comm comm);
++                              int tag, MPI_Comm comm)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Rsend_init(void *buf, int count, MPI_Datatype datatype,
+                                    int dest, int tag, MPI_Comm comm,
+-                                   MPI_Request *request);
++                                   MPI_Request *request)
++                                   OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Scan(void *sendbuf, void *recvbuf, int count,
+-                             MPI_Datatype datatype, MPI_Op op, MPI_Comm comm);
++                             MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(2,4);
+ OMPI_DECLSPEC  int PMPI_Scatter(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                 void *recvbuf, int recvcount, MPI_Datatype recvtype,
+-                                int root, MPI_Comm comm);
++                                int root, MPI_Comm comm)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int PMPI_Scatterv(void *sendbuf, int *sendcounts, int *displs,
+                                  MPI_Datatype sendtype, void *recvbuf, int recvcount,
+-                                 MPI_Datatype recvtype, int root, MPI_Comm comm);
++                                 MPI_Datatype recvtype, int root, MPI_Comm comm)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,4)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(5,7);
+ OMPI_DECLSPEC  int PMPI_Send_init(void *buf, int count, MPI_Datatype datatype,
+                                   int dest, int tag, MPI_Comm comm,
+-                                  MPI_Request *request);
++                                  MPI_Request *request)
++                                  OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Send(void *buf, int count, MPI_Datatype datatype, int dest,
+-                             int tag, MPI_Comm comm);
++                             int tag, MPI_Comm comm)
++                             OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Sendrecv(void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                                  int dest, int sendtag, void *recvbuf, int recvcount,
+                                  MPI_Datatype recvtype, int source, int recvtag,
+-                                 MPI_Comm comm,  MPI_Status *status);
++                                 MPI_Comm comm,  MPI_Status *status)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3)
++                                 OMPI_ATTR_POINTER_WITH_TYPE_TAG(6,8);
+ OMPI_DECLSPEC  int PMPI_Sendrecv_replace(void * buf, int count, MPI_Datatype datatype,
+                                          int dest, int sendtag, int source, int recvtag,
+-                                         MPI_Comm comm, MPI_Status *status);
++                                         MPI_Comm comm, MPI_Status *status)
++                                         OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Ssend_init(void *buf, int count, MPI_Datatype datatype,
+                                    int dest, int tag, MPI_Comm comm,
+-                                   MPI_Request *request);
++                                   MPI_Request *request)
++                                   OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Ssend(void *buf, int count, MPI_Datatype datatype, int dest,
+-                              int tag, MPI_Comm comm);
++                              int tag, MPI_Comm comm)
++                              OMPI_ATTR_POINTER_WITH_TYPE_TAG(1,3);
+ OMPI_DECLSPEC  int PMPI_Start(MPI_Request *request);
+ OMPI_DECLSPEC  int PMPI_Startall(int count, MPI_Request *array_of_requests);
+ OMPI_DECLSPEC  int PMPI_Status_c2f(MPI_Status *c_status, MPI_Fint *f_status);
+@@ -2068,12 +2225,14 @@
+                                     MPI_Datatype oldtype, MPI_Datatype *newtype);
+ OMPI_DECLSPEC  int PMPI_Unpack(void *inbuf, int insize, int *position,
+                                void *outbuf, int outcount, MPI_Datatype datatype,
+-                               MPI_Comm comm);
++                               MPI_Comm comm)
++                               OMPI_ATTR_POINTER_WITH_TYPE_TAG(4,6);
+ OMPI_DECLSPEC  int PMPI_Unpublish_name(char *service_name, MPI_Info info,
+                                        char *port_name);
+ OMPI_DECLSPEC  int PMPI_Unpack_external (char *datarep, void *inbuf, MPI_Aint insize,
+                                          MPI_Aint *position, void *outbuf, int outcount,
+-                                         MPI_Datatype datatype);
++                                         MPI_Datatype datatype)
++                                         OMPI_ATTR_POINTER_WITH_TYPE_TAG(5,7);
+ OMPI_DECLSPEC  int PMPI_Waitall(int count, MPI_Request *array_of_requests,
+                                 MPI_Status *array_of_statuses);
+ OMPI_DECLSPEC  int PMPI_Waitany(int count, MPI_Request *array_of_requests,
+

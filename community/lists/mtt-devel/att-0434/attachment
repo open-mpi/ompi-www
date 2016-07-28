@@ -1,0 +1,92 @@
+<div dir="ltr">Hey Jeff,<br><br><div class="gmail_quote">On Thu, Sep 24, 2009 at 4:02 PM, Jeff Squyres <span dir="ltr">&lt;<a href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+The DoCommand.pm sub added &quot;:\n&quot; to the beginning to force the Bourne shell interpreter.  This is necessary for some cases where an interpreter is not otherwise specified.<br></blockquote><div><br>Im not familiar with :\n semantics, how does it force Bourne shell and what it actually does :)? (seems like leftovers from 1960....) <br>
+I think when interpreter is not explicitly specified - the default user`s shell is used.<br>see in the DoCommand::Cmd() ..... it check the buffer`s  first line for #!/... semantic and if found - saves buffer to file, adds +x perm,  and just executes it as a regular script. <br>
+<br>When I passed a buffer with shell commands but 1st line was not #!/bin/sh - it  failed with syntax errors.<br><br> </div><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+
+<br>
+I see why you did it -- you want the ability to add your own interpreter in &amp;shell_script().  Why not either make a parameter to add the &quot;:\n&quot; or not, or better yet, have DoCommand.pm analyze the beginning of the string and if it contains &quot;^:\n&quot; or &quot;^#!&quot;, then don&#39;t add anything.  But if it doesn&#39;t contain either of those, then prefix it with &quot;:\n&quot;. </blockquote>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<br>
+How does that sound?<br></blockquote><div>sounds good! <br></div><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<br>
+Also, is &quot;&amp;shell_script()&quot; a good name?  If you can specify your own interpreter, it might not be a shell script.  How about &amp;executable()?<div><div></div><div class="h5"><br>
+<br></div></div></blockquote><div>ok - &amp;executable() it will be!<br> <br><br>regards<br><br>Mike<br></div><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+<div><div class="h5">
+<br>
+On Sep 24, 2009, at 8:06 AM, <a href="mailto:miked@osl.iu.edu" target="_blank">miked@osl.iu.edu</a> wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Author: miked<br>
+Date: 2009-09-24 08:06:04 EDT (Thu, 24 Sep 2009)<br>
+New Revision: 1319<br>
+URL: <a href="https://svn.open-mpi.org/trac/mtt/changeset/1319" target="_blank">https://svn.open-mpi.org/trac/mtt/changeset/1319</a><br>
+<br>
+Log:<br>
+bug fix: CmdScript() - no need to add extra chars &quot;\n:&quot; to the start of shell script file<br>
+new funclet: shell_script(section,param)<br>
+<br>
+<br>
+Text files modified:<br>
+  trunk/lib/MTT/DoCommand.pm        |     2 +-<br>
+  trunk/lib/MTT/Values/Functions.pm |    19 +++++++++++++++++++<br>
+  2 files changed, 20 insertions(+), 1 deletions(-)<br>
+<br>
+Modified: trunk/lib/MTT/DoCommand.pm<br>
+==============================================================================<br>
+--- trunk/lib/MTT/DoCommand.pm  (original)<br>
++++ trunk/lib/MTT/DoCommand.pm  2009-09-24 08:06:04 EDT (Thu, 24 Sep 2009)<br>
+@@ -797,7 +797,7 @@<br>
+    $cmds =~ s/\&quot;$//<br>
+        if ($cmds =~ s/^\&quot;//);<br>
+<br>
+-    print $fh &quot;:\n$cmds\n&quot;;<br>
++    print $fh &quot;$cmds\n&quot;;<br>
+    close($fh);<br>
+    chmod(0700, $filename);<br>
+<br>
+<br>
+Modified: trunk/lib/MTT/Values/Functions.pm<br>
+==============================================================================<br>
+--- trunk/lib/MTT/Values/Functions.pm   (original)<br>
++++ trunk/lib/MTT/Values/Functions.pm   2009-09-24 08:06:04 EDT (Thu, 24 Sep 2009)<br>
+@@ -3026,4 +3026,23 @@<br>
+    return md5_hex($str);<br>
+}<br>
+<br>
++# Run shell commands as a script, i.e<br>
++#<br>
++# [mtt]<br>
++# myscript=&lt;&lt;EOT<br>
++# #!/bin/sh<br>
++# pwd<br>
++# ls<br>
++# EOT<br>
++# on_stop=&amp;shell_script(&quot;mtt&quot;,myscript)<br>
++#<br>
++#<br>
++<br>
++sub shell_script {<br>
++       my ($cmd_section, $cmd_param) = @_;<br>
++       my $cmd = &amp;get_ini_val($cmd_section, $cmd_param);<br>
++       my $x = MTT::DoCommand::CmdScript(1, $cmd);<br>
++       return $x-&gt;{result_stdout};<br>
++}<br>
++<br>
+1;<br>
+_______________________________________________<br>
+mtt-svn mailing list<br>
+<a href="mailto:mtt-svn@open-mpi.org" target="_blank">mtt-svn@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/mtt-svn" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/mtt-svn</a><br>
+</blockquote>
+<br>
+<br></div></div><font color="#888888">
+-- <br>
+Jeff Squyres<br>
+<a href="mailto:jsquyres@cisco.com" target="_blank">jsquyres@cisco.com</a><br>
+<br>
+_______________________________________________<br>
+mtt-devel mailing list<br>
+<a href="mailto:mtt-devel@open-mpi.org" target="_blank">mtt-devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/mtt-devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/mtt-devel</a><br>
+</font></blockquote></div><br></div>
+

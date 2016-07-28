@@ -1,0 +1,67 @@
+Yes, but look at orte/mca/plm/rsh/plm_rsh_module.c:<br><br>    <br>    /* ensure that only the ssh plm is selected on the remote daemon */<br>    var = mca_base_param_environ_variable(&quot;plm&quot;, NULL, NULL);<br>    opal_setenv(var, &quot;rsh&quot;, true, &amp;env);<br>
+    free(var);<br>    <br>This is done in &quot;ssh_child&quot;, right before we fork_exec the ssh command to launch the remote daemon. This is why slave spawn works, for example.<br><br>I agree that tree_spawn doesn&#39;t seem to work right now, but it is not due to the plm not being selected. There are other factors involved.<br>
+<br>Ralph<br><br><br><br><div class="gmail_quote">On Mon, Jun 22, 2009 at 9:58 AM, Iain Bason <span dir="ltr">&lt;<a href="mailto:Iain.Bason@sun.com">Iain.Bason@sun.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+Ralph Castain wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+I&#39;m sorry, but this change is incorrect.<br>
+<br>
+If you look in orte/mca/ess/base/ess_base_std_orted.c, you will see that -all- orteds, regardless of how they are launched, open and select the PLM.<br>
+</blockquote>
+<br>
+I believe you are mistaken.  Look in plm_base_launch_support.c:<br>
+<br>
+           /* The daemon will attempt to open the PLM on the remote<br>
+            * end. Only a few environments allow this, so the daemon<br>
+            * only opens the PLM -if- it is specifically told to do<br>
+            * so by giving it a specific PLM module. To ensure we avoid<br>
+            * confusion, do not include any directives here<br>
+            */<br>
+           if (0 == strcmp(orted_cmd_line[i+1], &quot;plm&quot;)) {<br>
+               continue;<br>
+           }<br>
+<br>
+That code strips out anything like &quot;-mca plm rsh&quot; from the command<br>
+line passed to a remote daemon.<br>
+<br>
+Meanwhile, over in ess_base_std_orted.c:<br>
+<br>
+   /* some environments allow remote launches - e.g., ssh - so<br>
+    * open the PLM and select something -only- if we are given<br>
+    * a specific module to use<br>
+    */<br>
+   mca_base_param_reg_string_name(&quot;plm&quot;, NULL,<br>
+                                  &quot;Which plm component to use (empty = none)&quot;,<br>
+                                  false, false,<br>
+                                  NULL, &amp;plm_to_use);<br>
+     if (NULL == plm_to_use) {<br>
+       plm_in_use = false;<br>
+   } else {<br>
+       plm_in_use = true;<br>
+             if (ORTE_SUCCESS != (ret = orte_plm_base_open())) {<br>
+           ORTE_ERROR_LOG(ret);<br>
+           error = &quot;orte_plm_base_open&quot;;<br>
+           goto error;<br>
+       }<br>
+             if (ORTE_SUCCESS != (ret = orte_plm_base_select())) {<br>
+           ORTE_ERROR_LOG(ret);<br>
+           error = &quot;orte_plm_base_select&quot;;<br>
+           goto error;<br>
+       }<br>
+   }<br>
+<br>
+So a PLM is loaded only if specified with &quot;-mca plm foo&quot;, but that -mca<br>
+flag is stripped out when launching the remote daemon.<br>
+<br>
+I also ran into this issue with tree spawning.  (I didn&#39;t putback a fix because<br>
+I couldn&#39;t get tree spawning actually to improve performance.  My fix was<br>
+not to strip out the &quot;-mca plm foo&quot; parameters if tree spawning had been<br>
+requested.)<br>
+<br>
+Iain<br>
+<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote></div><br>
+

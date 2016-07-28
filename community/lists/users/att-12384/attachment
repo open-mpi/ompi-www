@@ -1,0 +1,91 @@
+<html>
+<head>
+<style><!--
+.hmmessage P
+{
+margin:0px;
+padding:0px
+}
+body.hmmessage
+{
+font-size: 10pt;
+font-family:Verdana
+}
+--></style>
+</head>
+<body class='hmmessage'>
+Thank you again for your kind replies.<br>With your help I'm tantalisingly close to getting it working.<br><br>I have successfully implemented MPI_COMM_SPAWN into my program, and it launches the external program. Returning from the external program however is proving problematic, which I think may be linked to the MPI_FINALIZE command in the child.<br><br>The following portion of the code launches the child:<br><br>----------------------------<br>INCLUDE 'mpif.h'<br>INTEGER :: info, ierr, child_comm<br>INTEGER :: errorcode_array(1)<br><br><br>WRITE(crank,'(I4)') irank<br><br>CALL MPI_INFO_CREATE(info, ierr) ! Prepare MPI INFO field<br>CALL MPI_INFO_SET(info, "wdir", "/home01/user/path/" // dir, ierr) ! Set the working directory for the external simulation<br>CALL MPI_COMM_SPAWN("/home01/user/Execute/DLPOLY-intel-4-openmpi.X",MPI_ARGV_NULL,1,info,irank,MPI_COMM_WORLD,child_comm,errorcode_array,ierr)<br><br>CALL MPI_COMM_DISCONNECT(child_comm,ierr)<br><br>&lt;&gt; Loop to check if files exist indicating that the above simulation has finished - the loop is then exited when these files exist &lt;&gt;<br>-------------------------------------------<br><br>The checking loop includes bash "sleep" commands, which seems to allow the child to use much of the CPU.<br><br>The situation is that there are multiple passes of this subroutine by each process. The first pass of this subroutine is with a long child (~30s) and then subsequent passes are with short childs (~1s).<br><br>Without the inclusion of the DISCONNECT command, a strange error occurs in the child process - it tries to write a file to the "/" directory (and gets "permission denied" of course) when this file is usually written to the directory set by wdir in INFO_SET. I have never ever had this problem before in any other situation. This doesn't occur on the first pass, but only after about 20-40 passes.<br><br>With the inclusion of the DISCONNECT command, the parent processes ramp back up to 100% CPU after completion of their respective childs, but nothing happens. No error messages or anything - they are just running the CPUs at 100% without seeming to do anything. This happens on the 1st pass.<br><br>I included the&nbsp; DISCONNECT in an attempt to prevent a FINALIZE command in the child from causing an error, as Dick suggested.<br><br>If anyone can help with this last step I'd really appreciate it. I think this is the last chance now; after this, I have no other ideas on how to get it working.<br><br>Thank you very much.<br><br>By the way, related to the comment about the processes being connected, a test of MPI_BARRIER across the child and parent was unsuccessful: the child and parent did not wait for each other with the following commands:<br>CALL MPI_BARRIER(MPI_COMM_WORLD,ierr) ! in parent<br>CALL MPI_BARRIER(MPI_COMM_WORLD,ierr) ! in child<br><br><br><br><hr id="stopSpelling">To: users@open-mpi.org<br>From: treumann@us.ibm.com<br>Date: Wed, 17 Mar 2010 13:25:03 -0400<br>Subject: Re: [OMPI users] running externalprogram	on	same	processor	(Fortran)<br><br>
+abc def<br>
+<br>
+When the parent does a spawn call, it presumably blocks until the child  tasks have called MPI_Init.  The standard allows some flexibility on this but at least after spawn, the spawn side must be able to issue communication calls involving the children and expect them to work.<br>
+<br>
+What you seem to be missing is that when a parent has spawned a set of children, the parent tasks and child tasks are connected. If you want the children to do an MPI_Finalize and actually finish before the parent calls MPI_Finalize, you must use MPI_Comm_disconnect on the intercommunicator between the spawn side and the children.<br>
+<br>
+The MPI standard makes MPI_Finalize collective across all currently connected processes so you cannot assume the children will return from MPI_Finalize until the parent process have entered MPI_Finalize.<br>
+<br>
+MPI_Comm_disconnect makes the parent and children independent so an MPI_Finalize by the children can return and the processes end, even though the parent continues on.<br>
+<br>
+In your example, perhaps the best approach is to have the children call MPI_Barrier after the file is written and have the parent call MPI_Barrier before the file is read. Have both parent and children call MPI_Comm_disconnect before the parent does another spawn so the children can finalize and go away.<br>
+ <br>
+<br>
+Dick Treumann  -  MPI Team           <br>
+IBM Systems &amp; Technology Group<br>
+Dept X2ZA / MS P963 -- 2455 South Road -- Poughkeepsie, NY 12601<br>
+Tele (845) 433-7846         Fax (845) 433-8363<br>
+<br>
+<br>
+<img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="Inactive hide details for Jeff Squyres ---03/17/2010 12:21:20 PM---On Mar 16, 2010, at 5:12 AM, abc def wrote: &gt; 1. Since Spawn" border="0" height="16" width="16"><font color="#424282">Jeff Squyres ---03/17/2010 12:21:20 PM---On Mar 16, 2010, at 5:12 AM, abc def wrote: &gt; 1. Since Spawn is non-blocking, but I need the parent</font><br>
+<br>
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+<tbody><tr valign="top"><td width="1%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="96"><br>
+<font color="#5f5f5f" size="2">From:</font></td><td width="100%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="1"><br>
+<font size="2">Jeff Squyres &lt;jsquyres@cisco.com&gt;</font></td></tr>
+
+<tr valign="top"><td width="1%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="96"><br>
+<font color="#5f5f5f" size="2">To:</font></td><td width="100%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="1"><br>
+<font size="2">"Open MPI Users" &lt;users@open-mpi.org&gt;</font></td></tr>
+
+<tr valign="top"><td width="1%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="96"><br>
+<font color="#5f5f5f" size="2">Date:</font></td><td width="100%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="1"><br>
+<font size="2">03/17/2010 12:21 PM</font></td></tr>
+
+<tr valign="top"><td width="1%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="96"><br>
+<font color="#5f5f5f" size="2">Subject:</font></td><td width="100%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="1"><br>
+<font size="2">Re: [OMPI users] running externalprogram	on	same	processor	(Fortran)</font></td></tr>
+
+<tr valign="top"><td width="1%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="96"><br>
+<font color="#5f5f5f" size="2">Sent by:</font></td><td width="100%"><img src="http://gfx2.hotmail.com/mail/w4/pr01/ltr/i_safe.gif" alt="" border="0" height="1" width="1"><br>
+<font size="2">users-bounces@open-mpi.org</font></td></tr>
+</tbody></table>
+<BR><hr style="color: rgb(128, 145, 165);" align="left" noshade="noshade" size="2" width="100%"><br>
+<br>
+<br>
+<tt>On Mar 16, 2010, at 5:12 AM, abc def wrote:<br>
+<br>
+&gt; 1. Since Spawn is non-blocking, but I need the parent to wait until the child completes, I am thinking there must be a way to pass a variable from the child to the parent just prior to the FINALIZE command in the child, to signal that the parent can pick up the output files from the child. Am I right in assuming that the message from the child to the parent will go to the correct parent process? The value of "parent" in "CALL MPI_COMM_GET_PARENT(parent, ierr)" is the same in all spawned processes, which is why I ask this question.<br>
+<br>
+Yes, you can MPI_SEND (etc.) between the parents and children, just like you would expect. &nbsp;Just be aware that the communicator between the parents and children is an *inter*communicator -- so you need to express the source/destination in terms of the "other" group. &nbsp;Check out the MPI spec for a description of intercommunicators.<br>
+<br>
+&gt; 2. By launching the parent with the "--mca mpi_yield_when_idle 1" option, the child should be able to take CPU power from any blocked parent process, thus avoiding the busy-poll problem mentioned below.<br>
+<br>
+Somewhat. &nbsp;Note that the parents aren't blocked -- they *are* busy polling, but they call yield() in every pool loop. &nbsp;<br>
+<br>
+&gt; If each host has 4 processors and I'm running on 2 hosts (ie, 8 processors in total), then I also assume that the spawned child will launch on the same host as the associated parent?<br>
+<br>
+If you have told Open MPI about 8 process slots and are using all of them, then spawned processes will start overlaying the original process slots -- effectively in the same order.<br>
+<br>
+-- <br>
+Jeff Squyres<br>
+jsquyres@cisco.com<br>
+For corporate legal information go to:<br>
+</tt><tt><a>http://www.cisco.com/web/about/doing_business/legal/cri/</a></tt><tt><br>
+<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+users@open-mpi.org<br>
+</tt><tt><a>http://www.open-mpi.org/mailman/listinfo.cgi/users</a></tt><tt><br>
+</tt><br>
+<br> 		 	   		  <br /><hr />Not got a Hotmail account? <a href='http://clk.atdmt.com/UKM/go/197222280/direct/01/' target='_new'>Sign-up now - Free</a></body>
+</html>

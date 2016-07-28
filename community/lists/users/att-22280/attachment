@@ -1,0 +1,139 @@
+<html>
+  <head>
+    <meta content="text/html; charset=ISO-8859-1"
+      http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <div class="moz-cite-prefix">On a dual E5 2650 machine with FDR
+      cards, I see the IMB Pingpong throughput drop from 6000 to
+      5700MB/s when the memory isn't allocated on the right socket (and
+      latency increases from 0.8 to 1.4us). Of course that's pingpong
+      only, things will be worse on a memory-overloaded machine. But I
+      don't expect things to be "less worse" if you do an intermediate
+      copy through the memory near the HCA: you would overload the QPI
+      link as much as here, and you would overload the CPU even more
+      because of the additional copies.<br>
+      <br>
+      Brice<br>
+      <br>
+      <br>
+      <br>
+      Le 08/07/2013 18:27, Michael Thomadakis a &eacute;crit&nbsp;:<br>
+    </div>
+    <blockquote
+cite="mid:CA+OO3AXWYEK_EhH6g6vD4XpPBU24VEyyQR9=dE_K7W5Qn6J=Yg@mail.gmail.com"
+      type="cite">
+      <div dir="ltr">People have mentioned that they experience
+        unexpected slow downs in PCIe_gen3 I/O when the pages map to a
+        socket different from the one the HCA connects to. It is
+        speculated that the inter-socket QPI is not provisioned to
+        transfer more than 1GiB/sec for PCIe_gen 3 traffic. This
+        situation may not be in effect on all SandyBrige or IvyBridge
+        systems.
+        <div>
+          <br>
+        </div>
+        <div style="">Have you measured anything like this on you
+          systems as well? That would require using physical memory
+          mapped to the socket w/o HCA exclusively for MPI messaging.</div>
+        <div style=""><br>
+        </div>
+        <div style="">Mike</div>
+      </div>
+      <div class="gmail_extra"><br>
+        <br>
+        <div class="gmail_quote">On Mon, Jul 8, 2013 at 10:52 AM, Jeff
+          Squyres (jsquyres) <span dir="ltr">&lt;<a
+              moz-do-not-send="true" href="mailto:jsquyres@cisco.com"
+              target="_blank">jsquyres@cisco.com</a>&gt;</span> wrote:<br>
+          <blockquote class="gmail_quote" style="margin:0 0 0
+            .8ex;border-left:1px #ccc solid;padding-left:1ex">
+            <div class="im">On Jul 8, 2013, at 11:35 AM, Michael
+              Thomadakis &lt;<a moz-do-not-send="true"
+                href="mailto:drmichaelt7777@gmail.com">drmichaelt7777@gmail.com</a>&gt;
+              wrote:<br>
+              <br>
+              &gt; The issue is that when you read or write PCIe_gen 3
+              dat to a non-local NUMA memory, SandyBridge will use the
+              inter-socket QPIs to get this data across to the other
+              socket. I think there is considerable limitation in PCIe
+              I/O traffic data going over the inter-socket QPI. One way
+              to get around this is for reads to buffer all data into
+              memory space local to the same socket and then transfer
+              them by code across to the other socket's physical memory.
+              For writes the same approach can be used with intermediary
+              process copying data.<br>
+              <br>
+            </div>
+            Sure, you'll cause congestion across the QPI network when
+            you do non-local PCI reads/writes. &nbsp;That's a given.<br>
+            <br>
+            But I'm not aware of a hardware limitation on PCI-requested
+            traffic across QPI (I could be wrong, of course -- I'm a
+            software guy, not a hardware guy). &nbsp;A simple test would be
+            to bind an MPI process to a far NUMA node and run a simple
+            MPI bandwidth test and see if to get better/same/worse
+            bandwidth compared to binding an MPI process on a near NUMA
+            socket.<br>
+            <br>
+            But in terms of doing intermediate (pipelined) reads/writes
+            to local NUMA memory before reading/writing to PCI, no, Open
+            MPI does not do this. &nbsp;Unless there is a PCI-QPI bandwidth
+            constraint that we're unaware of, I'm not sure why you would
+            do this -- it would likely add considerable complexity to
+            the code and it would definitely lead to higher overall MPI
+            latency.<br>
+            <br>
+            Don't forget that the MPI paradigm is for the application to
+            provide the send/receive buffer. &nbsp;Meaning: MPI doesn't
+            (always) control where the buffer is located (particularly
+            for large messages).<br>
+            <div class="im"><br>
+              &gt; I was wondering if OpenMPI does anything special
+              memory mapping to work around this.<br>
+              <br>
+            </div>
+            Just what I mentioned in the prior email.<br>
+            <div class="im"><br>
+              &gt; And if with Ivy Bridge (or Haswell) he situation has
+              improved.<br>
+              <br>
+            </div>
+            Open MPI doesn't treat these chips any different.<br>
+            <div class="HOEnZb">
+              <div class="h5"><br>
+                --<br>
+                Jeff Squyres<br>
+                <a moz-do-not-send="true"
+                  href="mailto:jsquyres@cisco.com">jsquyres@cisco.com</a><br>
+                For corporate legal information go to: <a
+                  moz-do-not-send="true"
+                  href="http://www.cisco.com/web/about/doing_business/legal/cri/"
+                  target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+                <br>
+                <br>
+                _______________________________________________<br>
+                users mailing list<br>
+                <a moz-do-not-send="true"
+                  href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+                <a moz-do-not-send="true"
+                  href="http://www.open-mpi.org/mailman/listinfo.cgi/users"
+                  target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+              </div>
+            </div>
+          </blockquote>
+        </div>
+        <br>
+      </div>
+      <br>
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br>
+      <pre wrap="">_______________________________________________
+users mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:users@open-mpi.org">users@open-mpi.org</a>
+<a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/users">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></pre>
+    </blockquote>
+    <br>
+  </body>
+</html>
+

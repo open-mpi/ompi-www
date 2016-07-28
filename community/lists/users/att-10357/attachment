@@ -1,0 +1,102 @@
+<br><br><div class="gmail_quote">On Fri, Aug 14, 2009 at 1:32 AM, Eugene Loh <span dir="ltr">&lt;<a href="mailto:Eugene.Loh@sun.com">Eugene.Loh@sun.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+
+
+
+  
+  
+
+<div bgcolor="#ffffff" text="#000000"><div><div></div><div class="h5">
+amjad ali wrote:
+<blockquote cite="http://mid428810f20908131221o48dc6d2cx858b35539aef2ba0@mail.gmail.com" type="cite">
+  
+  
+  
+  
+  
+  
+  <p>I am parallelizing a CFD 2D code in
+FORTRAN+OPENMPI. Suppose
+that the grid (all triangles) is partitioned among 8 processes using
+METIS.
+Each process has different number of neighboring processes. Suppose
+each
+process has n elements/faces whose data it needs to sends to
+corresponding
+neighboring processes, and it has m number of elements/faces on which
+it needs
+to get data from corresponding neighboring processes. Values of n and m
+are
+different for each process. Another aim is to hide the communication
+behind
+computation. For this I do the following for each process:</p>
+  <p> </p>
+  <p>DO j = 1 to n</p>
+  <p>CALL MPI_ISEND (send_data, num, type, dest(j),
+tag, <span>MPI_COMM_WORLD, ireq(j), ierr)</span></p>
+  <p><span>ENDDO</span></p>
+  <p><span> </span></p>
+  <p>DO k = 1 to m</p>
+  <p>CALL MPI_RECV(recv_data, num, type, source(k),
+tag, <span>MPI_COMM_WORLD, status, ierr)</span></p>
+  <p><span>ENDDO</span></p>
+  <p><span> </span></p>
+  <p><span> This solves my
+problem. But it gives memory leakage; Ram gets filled after few
+thousands of
+iteration. What is the solution/remedy? How should I tackle this?</span></p>
+  <p><span> </span></p>
+  <p><span>In another CFD code
+I removed this problem of memory-filling by following (in that code
+n=m) : </span></p>
+  <p><span> </span></p>
+  <p>DO j = 1 to n</p>
+  <p>CALL MPI_ISEND (send_data, num, type, dest(j),
+tag, <span>MPI_COMM_WORLD, ireq(j), ierr)</span></p>
+  <p><span>ENDDO</span></p>
+  <p><span> </span></p>
+  <p><span>CALL
+MPI_WAITALL(n,ireq,status,ierr)</span></p>
+  <p><span> </span></p>
+  <p>DO k = 1 to n</p>
+  <p>CALL MPI_RECV(recv_data, num, type, source(k),
+tag, <span>MPI_COMM_WORLD, status, ierr)</span></p>
+  <p><span>ENDDO</span></p>
+  <p><span> </span></p>
+  <p><span>But this is not
+working in current code; and the previous code was not giving correct
+results
+with large number of processes.</span></p>
+</blockquote></div></div>
+I don&#39;t know how literally to read the code you sent.  Maybe your
+actual code &quot;does the right thing&quot;, but just to confirm I think the
+correct code should look like this:<br>
+<br>
+DO J=1, N<br>
+   CALL MPI_ISEND(...)<br>
+END DO<br>
+<br>
+DO K=1, M<br>
+   CALL MPI_RECV(...)<br>
+END DO<br>
+<br>
+CALL MPI_WAITALL(...)<br>
+<br>
+That is, you start all non-blocking sends.  Then you perform receives. 
+Then you complete the sends.  More commonly, one would post all
+receives first using non-blocking calls (MPI_IRECV), then perform all
+sends (MPI_SEND), then complete the receives with MPI_WAITALL.<br>
+<br>
+Yet another option is to post non-blocking receives, then non-blocking
+sends, then complete all sends and receives with a WAITALL call that
+has M+N requests.<br>
+<br>
+Sorry if you already knew all this and I&#39;m just overreacting to the
+simplified code you sent out.</div></blockquote><div><br>No its OK; your sayings are really fine. <br><br>Please tell me that if have multiple such ISEND-RECV squrntially for sending receiving data then DO we need to declare separate status(MPI_STATUS_SIZE) with for example status1, status2, ....; or a single declaration of it will work for all??<br>
+<br>Regards,<br>Amjad Ali.<br></div><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;"><div bgcolor="#ffffff" text="#000000"><br>
+</div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></blockquote></div><br>
+

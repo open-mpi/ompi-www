@@ -1,0 +1,140 @@
+<html xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.microsoft.com/office/2004/12/omml" xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=us-ascii">
+<meta name=Generator content="Microsoft Word 12 (filtered medium)">
+<style>
+<!--
+ /* Font Definitions */
+ @font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+ /* Style Definitions */
+ p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0cm;
+	margin-bottom:.0001pt;
+	font-size:11.0pt;
+	font-family:"Calibri","sans-serif";}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+p
+	{mso-style-priority:99;
+	mso-margin-top-alt:auto;
+	margin-right:0cm;
+	mso-margin-bottom-alt:auto;
+	margin-left:0cm;
+	font-size:12.0pt;
+	font-family:"Times New Roman","serif";}
+span.EmailStyle18
+	{mso-style-type:personal-compose;
+	font-family:"Calibri","sans-serif";
+	color:windowtext;}
+.MsoChpDefault
+	{mso-style-type:export-only;
+	font-size:10.0pt;}
+@page Section1
+	{size:612.0pt 792.0pt;
+	margin:72.0pt 72.0pt 72.0pt 72.0pt;}
+div.Section1
+	{page:Section1;}
+-->
+</style>
+<!--[if gte mso 9]><xml>
+ <o:shapedefaults v:ext="edit" spidmax="1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <o:shapelayout v:ext="edit">
+  <o:idmap v:ext="edit" data="1" />
+ </o:shapelayout></xml><![endif]-->
+</head>
+
+<body lang=DE-CH link=blue vlink=purple>
+
+<div class=Section1>
+
+<p class=MsoNormal style='text-autospace:none'><span lang=EN-US>Dear Open-MPI
+Developers,<br>
+<br>
+investigations on the segmentation fault (see previous postings &quot;Signal:
+Segmentation fault (11) Problem&quot;) lets us suspect that Open-MPI allows
+only a limited number of elements in the description of user-defined
+MPI_Datatypes.<br>
+<br>
+Our application segmentation-faults when a large user-defined data structure is
+passed to MPI_Send.<br>
+<br>
+The segmentation fault happens in the function ompi_generic_simple_pack in
+datatype_pack.c when trying to access pElem (Bad address). The structure pElem
+is set in line 276, where it is retrieved as<br>
+<br>
+276: pElem = &amp;(description[pos_desc]);<br>
+<br>
+pos_desc is of type uint32_t with the value 0xffff929f (4294939295), which
+itself is set on line 271 by a variable of type int16_t and value -1. This
+leads to the indexing of the description structure at position -1, producing
+the segmentation fault. The origin of the pos_desc can be faund in the same
+function at line 271:<br>
+<br>
+271: pos_desc = pStack-&gt;index;<br>
+<br>
+The structure to which pStack is pointing is of type dt_stack, defined in
+ompi/datatype/convertor.h starting at line 65, where index is and int16_t and
+&nbsp;commented with &#8220;index in the element description&#8221;:<o:p></o:p></span></p>
+
+<p class=MsoNormal style='text-autospace:none'><span lang=EN-US><br>
+</span><span lang=EN-US style='font-size:10.0pt;font-family:"Courier New"'>typedef
+struct dt_stack {<o:p></o:p></span></p>
+
+<p class=MsoNormal style='text-autospace:none'><span lang=EN-US
+style='font-size:10.0pt;font-family:"Courier New"'>&nbsp;&nbsp;&nbsp;
+int16_t&nbsp;&nbsp; index;&nbsp;&nbsp;&nbsp; /**&lt; index in the element
+description */<o:p></o:p></span></p>
+
+<p class=MsoNormal style='text-autospace:none'><span lang=EN-US
+style='font-size:10.0pt;font-family:"Courier New"'>&nbsp;&nbsp;&nbsp;
+int16_t&nbsp;&nbsp; type;&nbsp;&nbsp;&nbsp;&nbsp; /**&lt; the type used for the
+last pack/unpack (original or DT_BYTE) */<o:p></o:p></span></p>
+
+<p class=MsoNormal style='text-autospace:none'><span lang=EN-US
+style='font-size:10.0pt;font-family:"Courier New"'>&nbsp;&nbsp;&nbsp;
+size_t&nbsp;&nbsp;&nbsp; count;&nbsp;&nbsp;&nbsp; /**&lt; number of times we
+still have to do it */<o:p></o:p></span></p>
+
+<p class=MsoNormal style='text-autospace:none'><span lang=EN-US
+style='font-size:10.0pt;font-family:"Courier New"'>&nbsp;&nbsp;&nbsp; ptrdiff_t
+disp;&nbsp;&nbsp;&nbsp;&nbsp; /**&lt; actual displacement depending on the
+count field */<o:p></o:p></span></p>
+
+<p class=MsoNormal style='text-autospace:none'><span lang=EN-US
+style='font-size:10.0pt;font-family:"Courier New"'>} dt_stack_t;<o:p></o:p></span></p>
+
+<p style='margin-bottom:12.0pt'><span lang=EN-US><br>
+We therefore conclude that MPI_Datatypes, which are constructed with Open-MPI
+(in the release of 1.2.1a of April 10th 2007) <br>
+have the limitation of containing a maximum of 32&#8217;768 separate entries.<br>
+<br>
+Although changing the type of the index to int32_t solves the problem of the
+segmentation fault, I would be happy if the author / maintainer of the code
+could have a look at it and decide if this is viable fix. Having spent a lot of
+time in hunting down the issue into the Open-MPI code, I would be glad to see
+the issue fixed in upcoming releases.<br>
+<br>
+Thanx and regards, <br>
+Michael Gauckler<o:p></o:p></span></p>
+
+<p class=MsoNormal><span lang=EN-US><o:p>&nbsp;</o:p></span></p>
+
+</div>
+
+</body>
+
+</html>
+

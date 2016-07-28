@@ -1,0 +1,85 @@
+<div dir="ltr"><div><div>Thanks! That&#39;s precisely where I was going to look when I had time :-)<br><br></div>I&#39;ll update tomorrow.<br></div>Ralph<br><br><div><div><br></div></div></div><div class="gmail_extra"><br>
+<br><div class="gmail_quote">On Sun, Nov 17, 2013 at 7:01 PM,  <span dir="ltr">&lt;<a href="mailto:tmishima@jcity.maeda.co.jp" target="_blank">tmishima@jcity.maeda.co.jp</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+<br>
+Hi Ralph,<br>
+<br>
+This is the continuous story of &quot;Segmentation fault in oob_tcp.c of<br>
+openmpi-1.7.4a1r29646&quot;.<br>
+<br>
+I found the cause.<br>
+<br>
+Firstly, I noticed that your hostfile can work and mine can not.<br>
+<br>
+Your host file:<br>
+cat hosts<br>
+bend001 slots=12<br>
+<br>
+My host file:<br>
+cat hosts<br>
+node08<br>
+node08<br>
+...(total 8 lines)<br>
+<br>
+I modified my script file to add &quot;slots=1&quot; to each line of my hostfile<br>
+just before launching mpirun. Then it worked.<br>
+<br>
+My host file(modified):<br>
+cat hosts<br>
+node08 slots=1<br>
+node08 slots=1<br>
+...(total 8 lines)<br>
+<br>
+Secondary, I confirmed that there&#39;s a slight difference between<br>
+orte/util/hostfile/hostfile.c of 1.7.3 and that of 1.7.4a1r29646.<br>
+<br>
+$ diff<br>
+<a href="http://hostfile.c.org" target="_blank">hostfile.c.org</a> ../../../../openmpi-1.7.3/orte/util/hostfile/hostfile.c<br>
+394,401c394,399<br>
+&lt;     if (got_count) {<br>
+&lt;         node-&gt;slots_given = true;<br>
+&lt;     } else if (got_max) {<br>
+&lt;         node-&gt;slots = node-&gt;slots_max;<br>
+&lt;         node-&gt;slots_given = true;<br>
+&lt;     } else {<br>
+&lt;         /* should be set by obj_new, but just to be clear */<br>
+&lt;         node-&gt;slots_given = false;<br>
+---<br>
+&gt;     if (!got_count) {<br>
+&gt;         if (got_max) {<br>
+&gt;             node-&gt;slots = node-&gt;slots_max;<br>
+&gt;         } else {<br>
+&gt;             ++node-&gt;slots;<br>
+&gt;         }<br>
+....<br>
+<br>
+Finally, I added the line 402 below just as a tentative trial.<br>
+Then, it worked.<br>
+<br>
+cat -n orte/util/hostfile/hostfile.c:<br>
+   ...<br>
+   394      if (got_count) {<br>
+   395          node-&gt;slots_given = true;<br>
+   396      } else if (got_max) {<br>
+   397          node-&gt;slots = node-&gt;slots_max;<br>
+   398          node-&gt;slots_given = true;<br>
+   399      } else {<br>
+   400          /* should be set by obj_new, but just to be clear */<br>
+   401          node-&gt;slots_given = false;<br>
+   402          ++node-&gt;slots; /* added by tmishima */<br>
+   403      }<br>
+   ...<br>
+<br>
+Please fix the problem properly, because it&#39;s just based on my<br>
+random guess. It&#39;s related to the treatment of hostfile where slots<br>
+information is not given.<br>
+<br>
+Regards,<br>
+Tetsuya Mishima<br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+</blockquote></div><br></div>
+

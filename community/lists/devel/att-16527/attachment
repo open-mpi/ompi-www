@@ -1,0 +1,146 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=iso-8859-1"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I honestly think it has to be a selected interface, Gilles, else we will fail to connect.<div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On Dec 11, 2014, at 8:26 PM, Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@iferc.org" class="">gilles.gouaillardet@iferc.org</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class="">
+  
+    <meta content="text/html; charset=ISO-8859-1" http-equiv="Content-Type" class="">
+  
+  <div text="#000000" bgcolor="#FFFFFF" class="">
+    <div class="moz-cite-prefix">Paul,<br class="">
+      <br class="">
+      about the five warnings :<br class="">
+      can you confirm you are running mpirun *not* on n15 nor n16 ?<br class="">
+      if my guess is correct, then you can get up to 5 warnings : mpirun
+      + 2 orted + 2 mpi tasks<br class="">
+      <br class="">
+      do you have any oob_tcp_if_include or oob_tcp_if_exclude settings
+      in your openmpi-mca-params.conf ?<br class="">
+      <br class="">
+      here is attached a patch to fix this issue.<br class="">
+      what we really want is test there is a loopback interface, period.<br class="">
+      the current code (my bad for not having reviewed in a timely
+      manner) seems to check<br class="">
+      there is a *selected* loopback interface.<br class="">
+      <br class="">
+      Cheers,<br class="">
+      <br class="">
+      Gilles<br class="">
+      <br class="">
+      On 2014/12/12 13:15, Paul Hargrove wrote:<br class="">
+    </div>
+    <blockquote cite="mid:CAAvDA14uoU91H-BGY8-FBLnFMSN3XCG1UmaC+yNkULT3ZXCYCg@mail.gmail.com" type="cite" class="">
+      <pre wrap="" class="">Ralph,
+
+Sorry to be the bearer of more bad news.
+The "good" news is I've seen the new warning regarding the lack of a
+loopback interface.
+The BAD news is that it is occurring on a Linux cluster that I'ver verified
+DOES have 'lo' configured on the front-end and compute nodes (UP and
+RUNNING according to ifconfig).
+
+Though run with "-np 2" the warning appears FIVE times.
+ADDITIONALLY, there is a SEGV at exit!
+
+Unfortunately, despite configuring with --enable-debug, I didn't get line
+numbers from the core (and there was no backtrace printed).
+
+All of this appears below (and no, "-mca mtl psm" is not a typo or a joke).
+
+Let me know what tracing flags to apply to gather the info needed to debug
+this.
+
+-Paul
+
+
+$ mpirun -mca btl sm,self -np 2 -host n15,n16 -mca mtl psm examples/ring_c
+--------------------------------------------------------------------------
+WARNING: No loopback interface was found. This can cause problems
+when we spawn processes as they are likely to be unable to connect
+back to their host daemon. Sadly, it may take awhile for the connect
+attempt to fail, so you may experience a significant hang time.
+
+You may wish to ctrl-c out of your job and activate loopback support
+on at least one interface before trying again.
+
+--------------------------------------------------------------------------
+[... above message FOUR more times ...]
+Process 1 exiting
+Process 0 sending 10 to 1, tag 201 (2 processes in ring)
+Process 0 sent to 1
+Process 0 decremented value: 9
+Process 0 decremented value: 8
+Process 0 decremented value: 7
+Process 0 decremented value: 6
+Process 0 decremented value: 5
+Process 0 decremented value: 4
+Process 0 decremented value: 3
+Process 0 decremented value: 2
+Process 0 decremented value: 1
+Process 0 decremented value: 0
+Process 0 exiting
+--------------------------------------------------------------------------
+mpirun noticed that process rank 0 with PID 0 on node n15 exited on signal
+11 (Segmentation fault).
+--------------------------------------------------------------------------
+
+$ /sbin/ifconfig lo
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+          RX packets:481228 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:481228 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:81039065 (77.2 MiB)  TX bytes:81039065 (77.2 MiB)
+
+$ ssh n15 /sbin/ifconfig lo
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+          RX packets:24885 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:24885 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:1509940 (1.4 MiB)  TX bytes:1509940 (1.4 MiB)
+
+$ ssh n16 /sbin/ifconfig lo
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+          RX packets:24938 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:24938 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:1543408 (1.4 MiB)  TX bytes:1543408 (1.4 MiB)
+
+$ gdb examples/ring_c core.29728
+[...]
+(gdb) where
+#0  0x0000002a97a19980 in ?? ()
+#1  &lt;signal handler called&gt;
+#2  0x0000003a6d40607c in _Unwind_FindEnclosingFunction () from
+/lib64/libgcc_s.so.1
+#3  0x0000003a6d406b57 in _Unwind_RaiseException () from
+/lib64/libgcc_s.so.1
+#4  0x0000003a6d406c4c in _Unwind_ForcedUnwind () from /lib64/libgcc_s.so.1
+#5  0x0000003a6c30ac50 in __pthread_unwind () from
+/lib64/tls/libpthread.so.0
+#6  0x0000003a6c305202 in sigcancel_handler () from
+/lib64/tls/libpthread.so.0
+#7  &lt;signal handler called&gt;
+#8  0x0000003a6b6bd9a2 in poll () from /lib64/tls/libc.so.6
+#9  0x0000002a978f8f7d in ?? ()
+#10 0x002000010000000e in ?? ()
+#11 0x0000000000000000 in ?? ()
+
+</pre>
+      <br class="">
+      <fieldset class="mimeAttachmentHeader"></fieldset>
+      <br class="">
+      <pre wrap="" class="">_______________________________________________
+devel mailing list
+<a class="moz-txt-link-abbreviated" href="mailto:devel@open-mpi.org">devel@open-mpi.org</a>
+Subscription: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a>
+Link to this post: <a class="moz-txt-link-freetext" href="http://www.open-mpi.org/community/lists/devel/2014/12/16525.php">http://www.open-mpi.org/community/lists/devel/2014/12/16525.php</a></pre>
+    </blockquote>
+    <br class="">
+  </div>
+
+<span id="cid:7F923F05-534D-4F7B-A62A-341FBA27DD85">&lt;loopback.diff&gt;</span>_______________________________________________<br class="">devel mailing list<br class=""><a href="mailto:devel@open-mpi.org" class="">devel@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/devel<br class="">Link to this post: http://www.open-mpi.org/community/lists/devel/2014/12/16526.php</div></blockquote></div><br class=""></div></body></html>

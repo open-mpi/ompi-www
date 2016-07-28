@@ -1,0 +1,347 @@
+--- client/mtt	Mon Nov 09 14:38:09 2009 -0500
++++ client/mtt	Fri Mar 05 14:02:39 2010 -0500
+@@ -498,6 +498,15 @@
+     # execute on_start callback if exists
+ 	_do_step($ini, "mtt", "before_mtt_start_exec");
+ 
++    # Process setenv, unsetenv, prepend_path, and append_path
++
++    my $config;
++    $config->{setenv} = Value($ini, "mtt", "setenv");
++    $config->{unsetenv} = Value($ini, "mtt", "unsetenv");
++    $config->{prepend_path} = Value($ini, "mtt", "prepend_path");
++    $config->{append_path} = Value($ini, "mtt", "append_path");
++    my @save_env;
++    ProcessEnvKeys($config, \@save_env);
+ 
+     # Set the logfile, if specified
+ 
+--- lib/MTT/Defaults.pm	Mon Nov 09 14:38:09 2009 -0500
++++ lib/MTT/Defaults.pm	Fri Mar 05 14:02:39 2010 -0500
+@@ -42,7 +42,7 @@
+ 
+     known_compiler_names => [ "gnu", "pgi", "ibm", "intel", "kai", "absoft",
+                               "pathscale", "sun", "microsoft", "none", "unknown" ],
+-    known_resource_manager_names => [ "slurm", "tm", "loadleveler", "n1ge",
++    known_resource_manager_names => [ "slurm", "tm", "loadleveler", "sge",
+                                       "alps", "none", "unknown" ],
+     known_network_names => [ "tcp", "udp", "ethernet", "gm", "mx", "verbs",
+                              "udapl", "psm", "elan", "portals", "shmem",
+--- lib/MTT/MPI.pm	Mon Nov 09 14:38:09 2009 -0500
++++ lib/MTT/MPI.pm	Fri Mar 05 14:02:39 2010 -0500
+@@ -16,6 +16,8 @@
+ 
+ use strict;
+ use MTT::Files;
++use MTT::Messages;
++use MTT::Util;
+ 
+ #--------------------------------------------------------------------------
+ 
+@@ -28,10 +30,13 @@
+ #--------------------------------------------------------------------------
+ 
+ # Filename where list of MPI sources is kept
+-my $sources_data_filename = "mpi_sources.dump";
++my $sources_data_filename = "mpi_sources";
+ 
+ # Filename where list of MPI installs is kept
+-my $installs_data_filename = "mpi_installs.dump";
++my $installs_data_filename = "mpi_installs";
++
++# Filename extension for all the Dumper data files
++my $data_filename_extension = "dump";
+ 
+ #--------------------------------------------------------------------------
+ 
+@@ -42,10 +47,15 @@
+     # Explicitly delete anything that was there
+     $MTT::MPI::sources = undef;
+ 
+-    # If the file exists, read it in
+-    my $data;
+-    MTT::Files::load_dumpfile("$dir/$sources_data_filename", \$data);
+-    $MTT::MPI::sources = $data->{VAR1};
++    my @dumpfiles = glob("$dir/$sources_data_filename-*.$data_filename_extension");
++    foreach my $dumpfile (@dumpfiles) {
++
++        # If the file exists, read it in
++        my $data;
++        MTT::Files::load_dumpfile($dumpfile, \$data);
++        $MTT::MPI::sources = MTT::Util::merge_hashes($MTT::MPI::sources, $data->{VAR1});
++
++    }
+ 
+     # Rebuild the refcounts
+     foreach my $get_key (keys(%{$MTT::MPI::sources})) {
+@@ -62,9 +72,14 @@
+ #--------------------------------------------------------------------------
+ 
+ sub SaveSources {
+-    my ($dir) = @_;
++    my ($dir, $name) = @_;
+ 
+-    MTT::Files::save_dumpfile("$dir/$sources_data_filename", 
++    # We write the entire MPI::sources hash to file, even
++    # though the filename indicates a single INI section
++    # MTT::Util::hashes_merge will take care of duplicate
++    # hash keys. The reason for splitting up the .dump files
++    # is to keep them read and write safe across INI sections
++    MTT::Files::save_dumpfile("$dir/$sources_data_filename-$name.$data_filename_extension", 
+                               $MTT::MPI::sources);
+ }
+ 
+@@ -76,10 +91,14 @@
+     # Explicitly delete anything that was there
+     $MTT::MPI::installs = undef;
+ 
+-    # If the file exists, read it in
+-    my $data;
+-    MTT::Files::load_dumpfile("$dir/$installs_data_filename", \$data);
+-    $MTT::MPI::installs = $data->{VAR1};
++    my @dumpfiles = glob("$dir/$installs_data_filename-*.$data_filename_extension");
++    foreach my $dumpfile (@dumpfiles) {
++
++        # If the file exists, read it in
++        my $data;
++        MTT::Files::load_dumpfile($dumpfile, \$data);
++        $MTT::MPI::installs = MTT::Util::merge_hashes($MTT::MPI::installs, $data->{VAR1});
++    }
+ 
+     # Rebuild the refcounts
+     foreach my $get_key (keys(%{$MTT::MPI::installs})) {
+@@ -106,9 +125,14 @@
+ #--------------------------------------------------------------------------
+ 
+ sub SaveInstalls {
+-    my ($dir) = @_;
++    my ($dir, $name) = @_;
+ 
+-    MTT::Files::save_dumpfile("$dir/$installs_data_filename", 
++    # We write the entire MPI::installs hash to file, even
++    # though the filename indicates a single INI section.
++    # MTT::Util::hashes_merge will take care of duplicate
++    # hash keys. The reason for splitting up the .dump files
++    # is to keep them read and write safe across INI sections
++    MTT::Files::save_dumpfile("$dir/$installs_data_filename-$name.$data_filename_extension", 
+                               $MTT::MPI::installs);
+ }
+ 
+--- lib/MTT/MPI/Get.pm	Mon Nov 09 14:38:09 2009 -0500
++++ lib/MTT/MPI/Get.pm	Fri Mar 05 14:02:39 2010 -0500
+@@ -187,7 +187,7 @@
+             $MTT::MPI::sources->{$simple_section}->{$ret->{version}} = $ret;
+ 
+             # Save the data file recording all the sources
+-            MTT::MPI::SaveSources($source_dir);
++            MTT::MPI::SaveSources($source_dir, $MTT::Globals::Internals->{mpi_get_name});
+         } else {
+             Verbose("   No new MPI sources\n");
+         }
+--- lib/MTT/MPI/Install.pm	Mon Nov 09 14:38:09 2009 -0500
++++ lib/MTT/MPI/Install.pm	Fri Mar 05 14:02:39 2010 -0500
+@@ -794,7 +794,9 @@
+             $ret->{$k} = $serials->{$module}->{$k};
+         }
+ 
+-        MTT::MPI::SaveInstalls($install_base);
++        MTT::MPI::SaveInstalls($install_base,
++            $MTT::Globals::Internals->{mpi_get_name} . "." .
++            $MTT::Globals::Internals->{mpi_install_name});
+ 
+         # Successful build?
+         if (MTT::Values::PASS == $ret->{test_result}) {
+--- lib/MTT/Messages.pm	Mon Nov 09 14:38:09 2009 -0500
++++ lib/MTT/Messages.pm	Fri Mar 05 14:02:39 2010 -0500
+@@ -174,7 +174,7 @@
+     $lev = 0 if (! defined($lev));
+     my @called = caller($lev);
+ 
+-    my $s = wrap("", "   ", (join(":", map { &_relative_path($_) } @called[1..2]), @_));
++    my $s = (join(":", map { &_relative_path($_) } @called[1..2]), @_);
+     print $s;
+     print $LOGFILE $s
+         if (defined($LOGFILE));
+--- lib/MTT/Test.pm	Mon Nov 09 14:38:09 2009 -0500
++++ lib/MTT/Test.pm	Fri Mar 05 14:02:39 2010 -0500
+@@ -17,6 +17,7 @@
+ use MTT::Files;
+ use MTT::Messages;
+ use MTT::DoCommand;
++use MTT::Util;
+ use Data::Dumper;
+ 
+ #--------------------------------------------------------------------------
+@@ -33,17 +34,20 @@
+ 
+ #--------------------------------------------------------------------------
+ 
++# Filename extension for all the Dumper data files
++my $data_filename_extension = "dump";
++
+ # Filename where list of test sources information is kept
+-my $sources_data_filename = "test_sources.dump";
++my $sources_data_filename = "test_sources";
+ 
+ # Filename where list of test build information is kept
+-my $builds_data_filename = "test_builds.dump";
++my $builds_data_filename = "test_builds";
+ 
+ # Subdir where test runs are kept
+ my $runs_subdir = "test_runs";
+ 
+ # Filename where list of test run information is kept
+-my $runs_data_filename = "test_runs.dump";
++my $runs_data_filename = "test_runs.$data_filename_extension";
+ 
+ # Helper variable for when we're loading test run data
+ my $load_run_file_start_dir;
+@@ -56,11 +60,14 @@
+     # Explicitly delete anything that was there
+     $MTT::Test::sources = undef;
+ 
+-    # If the file exists, read it in
+-    my $data;
+-    MTT::Files::load_dumpfile("$dir/$sources_data_filename", \$data);
+-    $MTT::Test::sources = $data->{VAR1};
++    my @dumpfiles = glob("$dir/$sources_data_filename-*.$data_filename_extension");
++    foreach my $dumpfile (@dumpfiles) {
+ 
++        # If the file exists, read it in
++        my $data;
++        MTT::Files::load_dumpfile($dumpfile, \$data);
++        $MTT::Test::sources = MTT::Util::merge_hashes($MTT::Test::sources, $data->{VAR1});
++    }
+ 
+     # Rebuild the refcounts
+     foreach my $test_key (keys(%{$MTT::Test::sources})) {
+@@ -74,9 +81,14 @@
+ #--------------------------------------------------------------------------
+ 
+ sub SaveSources {
+-    my ($dir) = @_;
++    my ($dir, $name) = @_;
+ 
+-    MTT::Files::save_dumpfile("$dir/$sources_data_filename", 
++    # We write the entire Test::sources hash to file, even
++    # though the filename indicates a single INI section
++    # MTT::Util::hashes_merge will take care of duplicate
++    # hash keys. The reason for splitting up the .dump files
++    # is to keep them read and write safe across INI sections
++    MTT::Files::save_dumpfile("$dir/$sources_data_filename-$name.$data_filename_extension", 
+                               $MTT::Test::sources);
+ }
+ 
+@@ -88,10 +100,14 @@
+     # Explicitly delete anything that was there
+     $MTT::Test::builds = undef;
+ 
+-    # If the file exists, read it in
+-    my $data;
+-    MTT::Files::load_dumpfile("$dir/$builds_data_filename", \$data);
+-    $MTT::Test::builds = $data->{VAR1};
++    my @dumpfiles = glob("$dir/$builds_data_filename-*.$data_filename_extension");
++    foreach my $dumpfile (@dumpfiles) {
++
++        # If the file exists, read it in
++        my $data;
++        MTT::Files::load_dumpfile($dumpfile, \$data);
++        $MTT::Test::builds = MTT::Util::merge_hashes($MTT::Test::builds, $data->{VAR1});
++    }
+ 
+     # Rebuild the refcounts
+     foreach my $get_key (keys(%{$MTT::Test::builds})) {
+@@ -129,9 +145,14 @@
+ #--------------------------------------------------------------------------
+ 
+ sub SaveBuilds {
+-    my ($dir) = @_;
++    my ($dir, $name) = @_;
+ 
+-    MTT::Files::save_dumpfile("$dir/$builds_data_filename", 
++    # We write the entire Test::builds hash to file, even
++    # though the filename indicates a single INI section
++    # MTT::Util::hashes_merge will take care of duplicate
++    # hash keys. The reason for splitting up the .dump files
++    # is to keep them read and write safe across INI sections
++    MTT::Files::save_dumpfile("$dir/$builds_data_filename-$name.$data_filename_extension", 
+                               $MTT::Test::builds);
+ }
+ 
+--- lib/MTT/Test/Build.pm	Mon Nov 09 14:38:09 2009 -0500
++++ lib/MTT/Test/Build.pm	Fri Mar 05 14:02:39 2010 -0500
+@@ -552,10 +552,15 @@
+         # memory...
+         delete $ret->{result_stdout};
+         delete $ret->{result_stderr};
+-        
++
+         # Save it
+         $MTT::Test::builds->{$mpi_install->{mpi_get_simple_section_name}}->{$mpi_install->{mpi_version}}->{$mpi_install->{simple_section_name}}->{$simple_section} = $ret;
+-        MTT::Test::SaveBuilds($build_base);
++        MTT::Test::SaveBuilds($build_base,
++            $MTT::Globals::Internals->{mpi_get_name} . "." .
++            $MTT::Globals::Internals->{mpi_install_name} . "." .
++            $MTT::Globals::Internals->{test_get_name} . "." .
++            $MTT::Globals::Internals->{test_build_name}
++        );
+         
+         # Print
+         if (MTT::Values::PASS == $ret->{test_result}) {
+--- lib/MTT/Test/Get.pm	Mon Nov 09 14:38:09 2009 -0500
++++ lib/MTT/Test/Get.pm	Fri Mar 05 14:02:39 2010 -0500
+@@ -129,7 +129,7 @@
+             $MTT::Test::sources->{$simple_section} = $ret;
+             
+             # Save the data file recording all the sources
+-            MTT::Test::SaveSources($source_dir);
++            MTT::Test::SaveSources($source_dir, $MTT::Globals::Internals->{test_get_name});
+         } else {
+             Verbose("   No new test sources\n");
+         }
+--- lib/MTT/Util.pm	Mon Nov 09 14:38:09 2009 -0500
++++ lib/MTT/Util.pm	Fri Mar 05 14:02:39 2010 -0500
+@@ -27,6 +27,7 @@
+              delete_matches_from_array
+              parse_time_to_seconds
+              get_array_ref
++             merge_hashes
+ );
+ 
+ use MTT::Globals;
+@@ -388,4 +389,34 @@
+     }
+ }
+ 
++# Recursively merge two hashes
++sub merge_hashes {
++    my ($x, $y) = @_;
++
++    no strict;
++    foreach my $k (keys %$y) {
++
++        # Abort and notify the user if they attempt to have two MTT clients run 
++        # the same INI section out of the same scratch directory (since doing so
++        # would entail overwriting the .dump file of one of the MTT clients)
++        if (($k eq "full_section_name") and 
++            ($x->{$k} eq $y->{$k}) and 
++            ($x->{"start_timestamp"} ne $y->{"start_timestamp"})) {
++            Abort
++                "\nThis MTT client has detected another MTT client attempting to " .
++                "\nrun [$x->{$k}] out of this scratch directory. Two MTT clients can run out of " .
++                "\nthe same scratch directory, but they must not run the same INI section, or the " .
++                "\nmetadata could get corrupted\n";
++        }
++
++        if (!defined($x->{$k})) {
++            $x->{$k} = $y->{$k};
++        } else {
++            $x->{$k} = merge_hashes($x->{$k}, $y->{$k});
++        }
++    }
++    use strict;
++    return $x;
++}
++
+ 1;
+

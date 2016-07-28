@@ -1,0 +1,165 @@
+<p>Hello again.</p>
+<p>I&#39;ve found where the connection with the event logger takes places. I&#39;ve some doubts about the next section of code:<br></p>
+<blockquote><p><i>rc = ompi_dpm.connect_accept(MPI_COMM_SELF, 0, port, true, el_comm);</i></p>
+<p><i>    if(OMPI_SUCCESS != rc) {</i></p>
+<p><i>        ORTE_ERROR_LOG(rc);</i></p>
+<p><i>    }</i><br></p>
+<p><i>    /* Send Rank, receive max buffer size and max_clock back */</i></p>
+<p><i>    MPI_Comm_rank(MPI_COMM_WORLD, &amp;rank);</i></p>
+<p><i>    rc = mca_pml_v.host_pml.pml_send(&amp;rank, 1, MPI_INTEGER, 0,</i></p>
+<p><i>                                     VPROTOCOL_PESSIMIST_EVENTLOG_NEW_CLIENT_CMD,</i></p>
+<p><i>                                     MCA_PML_BASE_SEND_STANDARD,</i></p>
+<p><i>                                     mca_vprotocol_receiver.el_comm);</i></p>
+<p><i>    if(OPAL_UNLIKELY(MPI_SUCCESS != rc))</i></p>
+<p><i>        OMPI_ERRHANDLER_INVOKE(mca_vprotocol_receiver.el_comm, rc,</i></p>
+<p><i>                               __FILE__ &quot;: failed sending event logger handshake&quot;);</i></p>
+<p><i>    rc = mca_pml_v.host_pml.pml_recv(&amp;connect_info, 2, MPI_UNSIGNED_LONG_LONG,</i></p>
+<p><i>                                     0, VPROTOCOL_PESSIMIST_EVENTLOG_NEW_CLIENT_CMD,</i></p>
+<p><i>                                     mca_vprotocol_receiver.el_comm, MPI_STATUS_IGNORE);</i></p>
+<p><i>    if(OPAL_UNLIKELY(MPI_SUCCESS != rc))                                  \</i></p>
+<p><i>        OMPI_ERRHANDLER_INVOKE(mca_vprotocol_receiver.el_comm, rc,       \</i></p>
+<p><i>                               __FILE__ &quot;: failed receiving event logger handshake&quot;);</i></p>
+</blockquote>
+<p><br>
+I understand that you make a connection using the dpm framework between the process 0 (the logger) and yourself (MPI_COMM_SELF). But then, you send and receive messages with pml. My question is: ¿Where is posted the recv of the event_logger? I didn&#39;t find where in the code the event_logger receives the rank, and answer the handshake.<br>
+</p>
+<p>Thanks for your help.<br></p>
+<p>Hugo Meyer<br></p>
+<p>2012/1/30 Hugo Daniel Meyer &lt;<a href="mailto:meyer.hugo@gmail.com">meyer.hugo@gmail.com</a>&gt;</p>
+<blockquote><p>Hello Aurelien.</p>
+<p>2012/1/27 Aurélien Bouteiller &lt;<a href="mailto:bouteill@eecs.utk.edu">bouteill@eecs.utk.edu</a>&gt;</p>
+</blockquote>
+<blockquote><blockquote><p>Hugo,</p>
+<p>It seems you want to implement some sort of remote pessimistic logging -a la MPICH-V1- ?<br>
+MPICH-V: Toward a Scalable Fault Tolerant MPI for Volatile Nodes -- George Bosilca, Aurélien Bouteiller, Franck Cappello, Samir Djilali, Gilles Fédak, Cécile Germain, Thomas Hérault, Pierre Lemarinier, Oleg Lodygensky, Frédéric Magniette, Vincent Néri, Anton Selikhov -- In proceedings of The IEEE/ACM SC2002 Conference, Baltimore USA, November 2002<br>
+
+</p>
+</blockquote>
+</blockquote>
+<blockquote><p></p>
+<p> We could say that is similar because i use a distributed logging mechanism, but is a little diferent because my Memory Channels and Checkpoint Servers are the processing nodes, i don&#39;t have specials nodes to take care of the message log and checkpoints. </p>
+
+</blockquote>
+<blockquote><blockquote><p><br>
+In the PML-V, unlike older designs, the payload of messages and the non-deterministic events follow a different path. The payload of messages is logged on the sender&#39;s volatile memory, while the non-deterministic events are sent to a stable event logger, before allowing the process to impact the state of others (the code you have found in the previous email). The best depiction of this distinction can be read in this paper<br>
+
+@inproceedings{DBLP:conf/europar/BouteillerHBD11,<br>
+ author    = {Aurelien Bouteiller and<br>
+              Thomas H{\&#39;e}rault and<br>
+              George Bosilca and<br>
+              Jack J. Dongarra},<br>
+ title     = {Correlated Set Coordination in Fault Tolerant Message Logging<br>
+              Protocols},<br>
+ booktitle = {Euro-Par 2011 Parallel Processing - 17th International Conference, Proceedings, Part II},<br>
+ month         = {September},<br>
+ year      = {2011},<br>
+ pages     = {51-64},<br>
+ publisher = {Springer},<br>
+ series    = {Lecture Notes in Computer Science},<br>
+ volume    = {6853},<br>
+ year      = {2011},<br>
+ isbn      = {978-3-642-23396-8},<br>
+ doi       = {<a href="http://dx.doi.org/10.1007/978-3-642-23397-5_6">http://dx.doi.org/10.1007/978-3-642-23397-5_6</a>},<br>
+</p>
+</blockquote>
+</blockquote>
+<blockquote><p></p>
+<p>I will take a look to this paper to clarify this distinction.</p>
+</blockquote>
+<blockquote><blockquote><p> <br>
+</p>
+</blockquote>
+</blockquote>
+<blockquote><p><br>
+</p>
+</blockquote>
+<blockquote><blockquote><p>If you intend to store both payload and message log on a remote node, I suggest you look at the &quot;sender-based&quot; hooks, as this is where the message payload is managed, and adapt from here. The event loggers can already manage a subset only of the processes (if you launch as many EL as processes, you get a 1-1 mapping), but they never handle message payload; you&#39;ll have to add all this yourself is it so pleases you.<br>
+
+</p>
+</blockquote>
+</blockquote>
+<blockquote><p></p>
+<p> Yes, i need to store every message, not only the non-deterministics one. In my case every node is an event logger. Let&#39;s say that i have 16 processes in four nodes (four by node), so the messages received by all processes residing in node0 need to be stored in node1, and the received messages received by all processes residing in node1, need to be stored in node2, and so on. </p>
+
+<p>If i understand correctly, i have to modify the behavior in ompi/mca/vprotocol/pessimist, to manage the message payload. And another question, is there a way to launch ELs in every node? or i will have to modify this too?<br>
+</p>
+<p>Thanks a lot for your help Aurélien.<br></p>
+<p>Hugo</p>
+</blockquote>
+<blockquote><blockquote><p><br><br></p>
+<p>Le 27 janv. 2012 à 11:19, Hugo Daniel Meyer a écrit :<br></p>
+<p>&gt; Hello Aurélien.<br>
+&gt;<br>
+&gt; Thanks for the clarification. Considering what you&#39;ve mentioned i will have to make some adaptations, because to me, every single message has to be logged. So, a sender not only will be sending messages to the receiver, but also to an event logger. Is there any considerations that i&#39;ve to take into account when modifying the code?. My initial idea is to use the el_comm with a group of event loggers (because every node uses a different event logger in my approach), and then send the messages to them as you do when using MPI_ANY_SOURCE.<br>
+
+&gt;<br>
+&gt; Thanks for your help.<br>
+&gt;<br>
+&gt; Hugo Meyer<br>
+&gt;<br>
+&gt; 2012/1/27 Aurélien Bouteiller &lt;<a href="mailto:bouteill@eecs.utk.edu">bouteill@eecs.utk.edu</a>&gt;<br>
+&gt; Hugo,<br>
+&gt;<br>
+&gt; Your program does not have non-deterministic events. Therefore, there are no events to log. If you add MPI_ANY_SOURCE, you should see this code being called. Please contact me again if you need more help.<br>
+&gt;<br>
+&gt; Aurelien<br>
+&gt;<br>
+&gt;<br>
+&gt; Le 27 janv. 2012 à 10:21, Hugo Daniel Meyer a écrit :<br>
+&gt;<br>
+&gt; &gt; Hello @ll.<br>
+&gt; &gt;<br>
+&gt; &gt; George, i&#39;m using some pieces of the pessimist vprotocol. I&#39;ve observed that when you do a send, you call vprotocol_receiver_event_flush and here the macro __VPROTOCOL_RECEIVER_SEND_BUFFER is called. I&#39;ve noticed that here you try send a copy of the message to process 0 using the el_comm. This section of code is never executed, at least in my examples. So, the message is never sent to the Event Logger, am i correct with this?  I think that this is happening because the mca_vprotocol_pessimist.event_buffer_length is always 0.<br>
+
+&gt; &gt;<br>
+&gt; &gt; Is there something that i&#39;ve got to turn on, or i will have to modify this behavior manually to connect and send messages to the EL?<br>
+&gt; &gt;<br>
+&gt; &gt; Thanks in advance.<br>
+&gt; &gt;<br>
+&gt; &gt; Hugo Meyer<br>
+&gt; &gt; _______________________________________________<br>
+&gt; &gt; devel mailing list<br>
+&gt; &gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; &gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt; --<br>
+&gt; * Dr. Aurélien Bouteiller<br>
+&gt; * Researcher at Innovative Computing Laboratory<br>
+&gt; * University of Tennessee<br>
+&gt; * 1122 Volunteer Boulevard, suite 350<br>
+&gt; * Knoxville, TN 37996<br>
+&gt; * <a href="tel:865%20974%206321">865 974 6321</a><br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+&gt;<br>
+&gt; _______________________________________________<br>
+&gt; devel mailing list<br>
+&gt; <a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+&gt; <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a></p>
+<p>--<br>
+* Dr. Aurélien Bouteiller<br>
+* Researcher at Innovative Computing Laboratory<br>
+* University of Tennessee<br>
+* 1122 Volunteer Boulevard, suite 350<br>
+* Knoxville, TN 37996<br>
+* <a href="tel:865%20974%206321">865 974 6321</a><br><br><br><br><br></p>
+<p>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</p>
+</blockquote>
+</blockquote>
+<blockquote><p><br>
+</p>
+</blockquote>
+<p></p>
+

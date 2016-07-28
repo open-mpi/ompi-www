@@ -1,0 +1,77 @@
+<div dir="ltr">thanks for patch, we will review it next week.<div><br></div><div>Also, you can select different shmem collectives at runtime:</div><div><br></div><div>-mca scoll_mpi_enable 1 (to select MPI collectives for shmem)</div>
+<div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Sat, May 10, 2014 at 7:08 PM, Bert Wesarg <span dir="ltr">&lt;<a href="mailto:Bert.Wesarg@tu-dresden.de" target="_blank">Bert.Wesarg@tu-dresden.de</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div class="">On 05/10/2014 02:46 PM, Bert Wesarg wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+Hi,<br>
+<br>
+I get a deadlock when using the shmem_collect32() routine and any of the<br>
+non-root PEs pass 0 as the number of elements. It looks like the<br>
+algorithm in _algorithm_central_collector() does use 0 as a special<br>
+value, and thus does not break out of the loop.<br>
+</blockquote>
+<br></div>
+This seems to fix it for me:<br>
+<br>
+diff --git i/oshmem/mca/scoll/basic/<u></u>scoll_basic_collect.c w/oshmem/mca/scoll/basic/<u></u>scoll_basic_collect.c<br>
+index aa81fac..6bba7d1 100644 oshmem/mca/scoll/basic/scoll_<u></u>basic_collect.c<br>
+--- i/oshmem/mca/scoll/basic/<u></u>scoll_basic_collect.c<br>
++++ w/oshmem/mca/scoll/basic/<u></u>scoll_basic_collect.c<br>
+@@ -553,7 +553,7 @@ static int _algorithm_central_collector(<u></u>struct oshmem_group_t *group,<br>
+         wait_pe_array = malloc(sizeof(*wait_pe_array) * wait_pe_count);<br>
+         if (wait_pe_array) {<br>
+             memset((void*) wait_pe_array,<br>
+-                   0,<br>
++                   0xff,<br>
+                    sizeof(*wait_pe_array) * wait_pe_count);<br>
+             wait_pe_array[0] = nlong;<br>
+             wait_pe_count--;<br>
+@@ -564,13 +564,13 @@ static int _algorithm_central_collector(<u></u>struct oshmem_group_t *group,<br>
+                               group-&gt;my_pe);<br>
+                 for (i = 1; (i &lt; group-&gt;proc_count) &amp;&amp; (rc == OSHMEM_SUCCESS);<br>
+                         i++) {<br>
+-                    if (wait_pe_array[i] == 0) {<br>
++                    if (wait_pe_array[i] == (size_t)-1) {<br>
+                         pe_cur = oshmem_proc_pe(group-&gt;proc_<u></u>array[i]);<br>
+                         value = 0;<br>
+                         rc = MCA_SPML_CALL(get((void*)<u></u>pSync, sizeof(value), (void*)&amp;value, pe_cur));<br>
+                         if ((rc == OSHMEM_SUCCESS)<br>
+                                 &amp;&amp; (value != _SHMEM_SYNC_VALUE)<br>
+-                                &amp;&amp; (value &gt; 0)) {<br>
++                                &amp;&amp; (value &gt;= 0)) {<br>
+                             wait_pe_array[i] = (size_t) value;<br>
+                             wait_pe_count--;<br>
+                             SCOLL_VERBOSE(14,<br>
+@@ -588,6 +588,9 @@ static int _algorithm_central_collector(<u></u>struct oshmem_group_t *group,<br>
+<br>
+             for (i = 1; (i &lt; group-&gt;proc_count) &amp;&amp; (rc == OSHMEM_SUCCESS);<br>
+                     i++) {<br>
++                if (!wait_pe_array[i])<br>
++                    continue;<br>
++<br>
+                 /* Get PE ID of a peer from the group */<br>
+                 pe_cur = oshmem_proc_pe(group-&gt;proc_<u></u>array[i]);<br>
+<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+Kind regards,<br>
+Bert Wesarg<br>
+<br>
+</blockquote><div class="HOEnZb"><div class="h5">
+<br>
+-- <br>
+Dipl.-Inf. Bert Wesarg<br>
+wiss. Mitarbeiter<br>
+<br>
+Technische Universität Dresden<br>
+Zentrum für Informationsdienste und Hochleistungsrechnen (ZIH)<br>
+01062 Dresden<br>
+Tel.: <a href="tel:%2B49%20%28351%29%20463-42451" value="+4935146342451" target="_blank">+49 (351) 463-42451</a><br>
+Fax: <a href="tel:%2B49%20%28351%29%20463-37773" value="+4935146337773" target="_blank">+49 (351) 463-37773</a><br>
+E-Mail: <a href="mailto:Bert.Wesarg@tu-dresden.de" target="_blank">Bert.Wesarg@tu-dresden.de</a><br>
+<br>
+</div></div><br>_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/05/14768.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/05/14768.php</a><br></blockquote></div><br></div>
+

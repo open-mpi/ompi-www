@@ -1,0 +1,78 @@
+Index: opal/util/if.c
+===================================================================
+--- opal/util/if.c	(revision 28673)
++++ opal/util/if.c	(working copy)
+@@ -981,6 +981,7 @@
+     struct hostent *h;
+ #endif
+ 
++    opal_output(0, "=== Called opal_ifaddrtoname with if_addr=%s", if_addr);
+     rc = opal_ifinit();
+     if (OPAL_SUCCESS != rc) {
+         return rc;
+@@ -988,6 +989,7 @@
+ 
+     /* if the user asked us not to resolve interfaces, then just return */
+     if (do_not_resolve) {
++        opal_output(0, "=== opal_ifaddrtoname: do not resolve!");
+         /* return not found so ifislocal will declare
+          * the node to be non-local
+          */
+@@ -1039,21 +1041,49 @@
+     inaddr = inet_addr(if_addr);
+ 
+     if (INADDR_NONE == inaddr) {
++        opal_output(0, "=== opal_ifaddrtoname: inet_addr failed; calling gethostbyname");
+         h = gethostbyname(if_addr);
+         if (0 == h) {
+             return OPAL_ERR_NOT_FOUND;
+         }
+         memcpy(&inaddr, h->h_addr, sizeof(inaddr));
++        {
++            int i;
++            char address[256];
++
++            if (NULL == h->h_aliases[0]) {
++                opal_output(0, "=== opal_ifaddrtoname: gethostbyname got no aliases");
++            } else {
++                char *aliases = opal_argv_join(h->h_aliases, ',');
++                opal_output(0, "=== opal_ifaddrtoname: gethostbyname got aliases: %s", aliases);
++                free(aliases);
++            }
++
++            for (i = 0; NULL != h->h_addr_list[i]; ++i) {
++                memset(address, 0, sizeof(address));
++                inet_ntop(h->h_addrtype, h->h_addr_list[i], address, sizeof(address));
++                opal_output(0, "=== opal_ifaddrtoname: gethostbyname got address: %s", address);
++            }
++        }
+     }
+ 
+     for (intf =  (opal_if_t*)opal_list_get_first(&opal_if_list);
+         intf != (opal_if_t*)opal_list_get_end(&opal_if_list);
+         intf =  (opal_if_t*)opal_list_get_next(intf)) {
++        {
++            char address1[256], address2[256];
++            inet_ntop(AF_INET, &inaddr, address1, sizeof(address1));
++            inet_ntop(AF_INET, &(((struct sockaddr_in*) &intf->if_addr)->sin_addr.s_addr), address2, sizeof(address2));
++            opal_output(0, "=== opal_ifaddrtoname: comparing %s <--> %s",
++                        address1, address2);
++        }
+         if (((struct sockaddr_in*) &intf->if_addr)->sin_addr.s_addr == inaddr) {
+             strncpy(if_name, intf->if_name, length);
++            opal_output(0, "=== opal_ifaddrtoname: FOUND MATCH!");
+             return OPAL_SUCCESS;
+         }
+     }
++    opal_output(0, "=== opal_ifaddrtoname: did not find match");
+ #endif
+     return OPAL_ERR_NOT_FOUND;
+ }
+@@ -1252,6 +1282,7 @@
+     char addrname[ADDRLEN + 1];
+ #endif
+ 
++    opal_output(0, "=== Called opal_ifislocal with hostname=%s", hostname);
+     ret = opal_ifaddrtoname(hostname, addrname, ADDRLEN);
+ 
+     return (OPAL_SUCCESS == ret) ? true : false;

@@ -1,0 +1,162 @@
+Yo George<br><br>This commit is going to break non-rsh launchers. While it is true that the rsh launcher may handle multi-word options by putting them in quotes, we specifically avoided it here because it breaks SLURM, Torque, and others.<br>
+<br>This is why we specifically put the inclusion of multi-word options in the rsh plm module, and not here. Would you please move it back there?<br><br>Thanks<br>Ralph<br><br><br><div class="gmail_quote">On Wed, Jun 24, 2009 at 1:51 PM,  <span dir="ltr">&lt;<a href="mailto:bosilca@osl.iu.edu">bosilca@osl.iu.edu</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">Author: bosilca<br>
+Date: 2009-06-24 15:51:52 EDT (Wed, 24 Jun 2009)<br>
+New Revision: 21513<br>
+URL: <a href="https://svn.open-mpi.org/trac/ompi/changeset/21513" target="_blank">https://svn.open-mpi.org/trac/ompi/changeset/21513</a><br>
+<br>
+Log:<br>
+When we get a report from an orted about its state, don&#39;t use the sender of<br>
+the message to update the structures, but instead use the information from<br>
+the URI. The reason is that even the launch report messages can get routed.<br>
+<br>
+Deal with the orted_cmd_line in a single location.<br>
+<br>
+Text files modified:<br>
+   trunk/orte/mca/plm/base/plm_base_launch_support.c |    69 +++++++++++++++++++++++----------------<br>
+   1 files changed, 41 insertions(+), 28 deletions(-)<br>
+<br>
+Modified: trunk/orte/mca/plm/base/plm_base_launch_support.c<br>
+==============================================================================<br>
+--- trunk/orte/mca/plm/base/plm_base_launch_support.c   (original)<br>
++++ trunk/orte/mca/plm/base/plm_base_launch_support.c   2009-06-24 15:51:52 EDT (Wed, 24 Jun 2009)<br>
+@@ -433,7 +433,8 @@<br>
+ {<br>
+     orte_message_event_t *mev = (orte_message_event_t*)data;<br>
+     opal_buffer_t *buffer = mev-&gt;buffer;<br>
+-    char *rml_uri;<br>
++    orte_process_name_t peer;<br>
++    char *rml_uri = NULL;<br>
+     int rc, idx;<br>
+     int32_t arch;<br>
+     orte_node_t **nodes;<br>
+@@ -442,19 +443,11 @@<br>
+     int64_t setupsec, setupusec;<br>
+     int64_t startsec, startusec;<br>
+<br>
+-    OPAL_OUTPUT_VERBOSE((5, orte_plm_globals.output,<br>
+-                         &quot;%s plm:base:orted_report_launch from daemon %s&quot;,<br>
+-                         ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),<br>
+-                         ORTE_NAME_PRINT(&amp;mev-&gt;sender)));<br>
+-<br>
+     /* see if we need to timestamp this receipt */<br>
+     if (orte_timing) {<br>
+         gettimeofday(&amp;recvtime, NULL);<br>
+     }<br>
+<br>
+-    /* update state */<br>
+-    pdatorted[mev-&gt;sender.vpid]-&gt;state = ORTE_PROC_STATE_RUNNING;<br>
+-<br>
+     /* unpack its contact info */<br>
+     idx = 1;<br>
+     if (ORTE_SUCCESS != (rc = opal_dss.unpack(buffer, &amp;rml_uri, &amp;idx, OPAL_STRING))) {<br>
+@@ -466,13 +459,26 @@<br>
+     /* set the contact info into the hash table */<br>
+     if (ORTE_SUCCESS != (rc = orte_rml.set_contact_info(rml_uri))) {<br>
+         ORTE_ERROR_LOG(rc);<br>
+-        free(rml_uri);<br>
+         orted_failed_launch = true;<br>
+         goto CLEANUP;<br>
+     }<br>
+-    /* lookup and record this daemon&#39;s contact info */<br>
+-    pdatorted[mev-&gt;sender.vpid]-&gt;rml_uri = strdup(rml_uri);<br>
+-    free(rml_uri);<br>
++<br>
++    rc = orte_rml_base_parse_uris(rml_uri, &amp;peer, NULL );<br>
++    if( ORTE_SUCCESS != rc ) {<br>
++        ORTE_ERROR_LOG(rc);<br>
++        orted_failed_launch = true;<br>
++        goto CLEANUP;<br>
++    }<br>
++<br>
++    OPAL_OUTPUT_VERBOSE((5, orte_plm_globals.output,<br>
++                         &quot;%s plm:base:orted_report_launch from daemon %s via %s&quot;,<br>
++                         ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),<br>
++                         ORTE_NAME_PRINT(&amp;peer),<br>
++                         ORTE_NAME_PRINT(&amp;mev-&gt;sender)));<br>
++<br>
++    /* update state and record for this daemon contact info */<br>
++    pdatorted[peer.vpid]-&gt;state = ORTE_PROC_STATE_RUNNING;<br>
++    pdatorted[peer.vpid]-&gt;rml_uri = rml_uri;<br>
+<br>
+     /* get the remote arch */<br>
+     idx = 1;<br>
+@@ -555,31 +561,33 @@<br>
+<br>
+     /* lookup the node */<br>
+     nodes = (orte_node_t**)orte_node_pool-&gt;addr;<br>
+-    if (NULL == nodes[mev-&gt;sender.vpid]) {<br>
++    if (NULL == nodes[peer.vpid]) {<br>
+         ORTE_ERROR_LOG(ORTE_ERR_NOT_FOUND);<br>
+         orted_failed_launch = true;<br>
+         goto CLEANUP;<br>
+     }<br>
+     /* store the arch */<br>
+-    nodes[mev-&gt;sender.vpid]-&gt;arch = arch;<br>
++    nodes[peer.vpid]-&gt;arch = arch;<br>
+<br>
+     /* if a tree-launch is underway, send the cmd back */<br>
+     if (NULL != orte_tree_launch_cmd) {<br>
+-        orte_rml.send_buffer(&amp;mev-&gt;sender, orte_tree_launch_cmd, ORTE_RML_TAG_DAEMON, 0);<br>
++        orte_rml.send_buffer(&amp;peer, orte_tree_launch_cmd, ORTE_RML_TAG_DAEMON, 0);<br>
+     }<br>
+<br>
+ CLEANUP:<br>
+<br>
+     OPAL_OUTPUT_VERBOSE((5, orte_plm_globals.output,<br>
+-                         &quot;%s plm:base:orted_report_launch %s for daemon %s at contact %s&quot;,<br>
++                         &quot;%s plm:base:orted_report_launch %s for daemon %s (via %s) at contact %s&quot;,<br>
+                          ORTE_NAME_PRINT(ORTE_PROC_MY_NAME),<br>
+                          orted_failed_launch ? &quot;failed&quot; : &quot;completed&quot;,<br>
+-                         ORTE_NAME_PRINT(&amp;mev-&gt;sender), pdatorted[mev-&gt;sender.vpid]-&gt;rml_uri));<br>
++                         ORTE_NAME_PRINT(&amp;peer),<br>
++                         ORTE_NAME_PRINT(&amp;mev-&gt;sender), pdatorted[peer.vpid]-&gt;rml_uri));<br>
+<br>
+     /* release the message */<br>
+     OBJ_RELEASE(mev);<br>
+<br>
+     if (orted_failed_launch) {<br>
++        if( NULL != rml_uri ) free(rml_uri);<br>
+         orte_errmgr.incomplete_start(ORTE_PROC_MY_NAME-&gt;jobid, ORTE_ERROR_DEFAULT_EXIT_CODE);<br>
+     } else {<br>
+         orted_num_callback++;<br>
+@@ -1133,18 +1141,23 @@<br>
+      * being sure to &quot;purge&quot; any that would cause problems<br>
+      * on backend nodes<br>
+      */<br>
+-    if (ORTE_PROC_IS_HNP) {<br>
++    if (ORTE_PROC_IS_HNP || ORTE_PROC_IS_DAEMON) {<br>
+         cnt = opal_argv_count(orted_cmd_line);<br>
+         for (i=0; i &lt; cnt; i+=3) {<br>
+-            /* if the specified option is more than one word, we don&#39;t<br>
+-             * have a generic way of passing it as some environments ignore<br>
+-             * any quotes we add, while others don&#39;t - so we ignore any<br>
+-             * such options. In most cases, this won&#39;t be a problem as<br>
+-             * they typically only apply to things of interest to the HNP.<br>
+-             * Individual environments can add these back into the cmd line<br>
+-             * as they know if it can be supported<br>
+-             */<br>
+-            if (NULL != strchr(orted_cmd_line[i+2], &#39; &#39;)) {<br>
++             /* in the rsh environment, we can append multi-word arguments<br>
++              * by enclosing them in quotes. Check for any multi-word<br>
++              * mca params passed to mpirun and include them<br>
++              */<br>
++             if (NULL != strchr(orted_cmd_line[i+2], &#39; &#39;)) {<br>
++                char* param;<br>
++<br>
++                /* must add quotes around it */<br>
++                asprintf(&amp;param, &quot;\&quot;%s\&quot;&quot;, orted_cmd_line[i+2]);<br>
++                /* now pass it along */<br>
++                opal_argv_append(argc, argv, orted_cmd_line[i]);<br>
++                opal_argv_append(argc, argv, orted_cmd_line[i+1]);<br>
++                opal_argv_append(argc, argv, param);<br>
++                free(param);<br>
+                 continue;<br>
+             }<br>
+             /* The daemon will attempt to open the PLM on the remote<br>
+_______________________________________________<br>
+svn mailing list<br>
+<a href="mailto:svn@open-mpi.org">svn@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/svn" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/svn</a><br>
+</blockquote></div><br>
+

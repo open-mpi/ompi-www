@@ -1,0 +1,20 @@
+<div dir="ltr"><div><div><div><div><div><div>Hi,<br><br>I&#39;m testing the non-blocking collective of OpenMPI-1.8.<br><br>I have two nodes with Infiniband to perform allgather on totally 128MB data.<br><br>I split the 128MB data into eight pieces, and perform computation and MPI_Iallgatherv() on one piece of data each iteration, hoping that the MPI_Iallgatherv() of last iteration can be overlapped with computation of current iteration. A MPI_Wait() is called at the end of last iteration.<br>
+
+<br>However, the total communication time (including the final wait time) is similar with that of the traditional blocking MPI_Allgatherv, even slightly higher.<br><br><br>Following is the test pseudo-code, the source code are attached.<br>
+
+<br>===========================<br><br>Using MPI_Allgatherv:<br><br>for( i=0; i&lt;8; i++ )<br>{<br>  // computation<br>    mytime( t_begin );<br>    computation;<br>    mytime( t_end );<br>    comp_time += (t_end - t_begin);<br>
+
+  <br>  // communication<br>    t_begin = t_end;<br>    MPI_Allgatherv();<br>    mytime( t_end );<br>    comm_time += (t_end - t_begin);<br>}<br>--------------------------------------------<br><br>Using MPI_Iallgatherv:<br>
+
+<br>for( i=0; i&lt;8; i++ )<br>{<br>  // computation<br>    mytime( t_begin );<br>    computation;<br>    mytime( t_end );<br>    comp_time += (t_end - t_begin);<br>  <br>  // communication<br>    t_begin = t_end;<br>    MPI_Iallgatherv();<br>
+
+    mytime( t_end );<br>    comm_time += (t_end - t_begin);<br>}<br><br>// wait for non-blocking allgather to complete<br>mytime( t_begin );<br>for( i=0; i&lt;8; i++ )<br>    MPI_Wait;<br>mytime( t_end );<br>wait_time = t_end - t_begin;<br>
+
+<br>==============================<br><br></div>The results of Allgatherv is:<br>[cmy@gnode102 test_nbc]$ /home3/cmy/czh/opt/ompi-1.8/bin/mpirun -n 2 --host gnode102,gnode103 ./Allgatherv 128 2 | grep time<br>Computation time  :     8481279 us<br>
+
+Communication time:     319803 us<br><br></div>The results of Iallgatherv is:<br></div>[cmy@gnode102 test_nbc]$ /home3/cmy/czh/opt/ompi-1.8/bin/mpirun -n 2 --host gnode102,gnode103 ./Iallgatherv 128 2 | grep time<br>Computation time  :     8479177 us<br>
+
+Communication time:     199046 us<br>Wait time:              139841 us<br><br><br></div>So, does this mean that current OpenMPI implementation of MPI_Iallgatherv doesn&#39;t support offloading of collective communication to dedicated cores or network interface?<br>
+
+<br></div>Best regards, <br></div>Zehan<br><div><div><div><br><br><div><div><div><br><br></div></div></div></div></div></div></div>
+

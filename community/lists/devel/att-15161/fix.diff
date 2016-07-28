@@ -1,0 +1,83 @@
+Index: contrib/platform/intel/bend/mac
+===================================================================
+--- contrib/platform/intel/bend/mac	(revision 32232)
++++ contrib/platform/intel/bend/mac	(working copy)
+@@ -24,8 +24,3 @@
+ with_devel_headers=yes
+ with_xgrid=no
+ with_slurm=no
+-if [ -n "$JAVA_HOME" ]; then
+-    with_jdk_bindir=$JAVA_HOME/bin
+-    with_jdk_headers=$JAVA_HOME/include
+-    enable_mpi_java=yes
+-fi
+Index: ompi/mpi/tool/finalize.c
+===================================================================
+--- ompi/mpi/tool/finalize.c	(revision 32232)
++++ ompi/mpi/tool/finalize.c	(working copy)
+@@ -34,10 +34,6 @@
+         return MPI_T_ERR_NOT_INITIALIZED;
+     }
+ 
+-    if (0 == --mpit_init_count) {
+-        (void) opal_finalize_util ();
+-    }
+-
+     mpit_unlock ();
+ 
+     return MPI_SUCCESS;
+Index: ompi/mpi/tool/init_thread.c
+===================================================================
+--- ompi/mpi/tool/init_thread.c	(revision 32232)
++++ ompi/mpi/tool/init_thread.c	(working copy)
+@@ -57,6 +57,8 @@
+             rc = MPI_ERR_OTHER;
+             break;
+         }
++        /* mark that we initialized the MCA system */
++        opal_init_util_init_extra = true;
+ 
+         /* register all parameters */
+         rc = ompi_info_register_framework_params (NULL);
+Index: opal/runtime/opal.h
+===================================================================
+--- opal/runtime/opal.h	(revision 32232)
++++ opal/runtime/opal.h	(working copy)
+@@ -27,6 +27,8 @@
+ 
+ BEGIN_C_DECLS
+ 
++OPAL_DECLSPEC extern bool opal_init_util_init_extra;
++
+ /** version string of opal */
+ OPAL_DECLSPEC extern const char opal_version_string[];
+ 
+Index: opal/runtime/opal_finalize.c
+===================================================================
+--- opal/runtime/opal_finalize.c	(revision 32232)
++++ opal/runtime/opal_finalize.c	(working copy)
+@@ -165,6 +165,10 @@
+     /* finalize util code */
+     opal_finalize_util();
+ 
++    if (opal_init_util_init_extra) {
++        opal_finalize_util();
++    }
++
+     return OPAL_SUCCESS;
+ }
+ 
+Index: opal/runtime/opal_init.c
+===================================================================
+--- opal/runtime/opal_init.c	(revision 32232)
++++ opal/runtime/opal_init.c	(working copy)
+@@ -76,6 +76,8 @@
+    hwloc data is loaded. */
+ int opal_cache_line_size = 128;
+ 
++bool opal_init_util_init_extra = false;
++
+ static int
+ opal_err2str(int errnum, const char **errmsg)
+ {
+

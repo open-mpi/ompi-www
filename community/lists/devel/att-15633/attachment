@@ -1,0 +1,77 @@
+<div dir="ltr">Fixed - just a lingering free that should have been removed<div><br></div></div><div class="gmail_extra"><br><br><div class="gmail_quote">On Wed, Aug 13, 2014 at 8:21 AM, Rolf vandeVaart <span dir="ltr">&lt;<a href="mailto:rvandevaart@nvidia.com" target="_blank">rvandevaart@nvidia.com</a>&gt;</span> wrote:<br>
+<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">I noticed MTT failures from last night and then reproduced this morning on 1.8 branch.  Looks like maybe a double free.  I assume it is related to fixes for aborting programs. Maybe related to <a href="https://svn.open-mpi.org/trac/ompi/changeset/32508" target="_blank">https://svn.open-mpi.org/trac/ompi/changeset/32508</a> but not sure.<br>
+
+<br>
+[rvandevaart@drossetti-ivy0 environment]$ pwd<br>
+/ivylogin/home/rvandevaart/tests/ompi-tests/trunk/ibm/environment<br>
+[rvandevaart@drossetti-ivy0 environment]$ mpirun --mca odls_base_verbose 20 -np 2 abort<br>
+[...stuff deleted...]<br>
+[<a href="http://drossetti-ivy0.nvidia.com:14953" target="_blank">drossetti-ivy0.nvidia.com:14953</a>] [[58714,0],0] odls: sending message to tag 30 on child [[58714,1],0]<br>
+[<a href="http://drossetti-ivy0.nvidia.com:14953" target="_blank">drossetti-ivy0.nvidia.com:14953</a>] [[58714,0],0] odls: sending message to tag 30 on child [[58714,1],1]<br>
+[<a href="http://drossetti-ivy0.nvidia.com:14953" target="_blank">drossetti-ivy0.nvidia.com:14953</a>] [[58714,0],0] odls: sending message to tag 30 on child [[58714,1],0]<br>
+[<a href="http://drossetti-ivy0.nvidia.com:14953" target="_blank">drossetti-ivy0.nvidia.com:14953</a>] [[58714,0],0] odls: sending message to tag 30 on child [[58714,1],1]<br>
+**************************************************************************<br>
+This program tests MPI_ABORT and generates error messages<br>
+ERRORS ARE EXPECTED AND NORMAL IN THIS PROGRAM!!<br>
+**************************************************************************<br>
+--------------------------------------------------------------------------<br>
+MPI_ABORT was invoked on rank 0 in communicator MPI_COMM_WORLD<br>
+with errorcode 3.<br>
+<br>
+NOTE: invoking MPI_ABORT causes Open MPI to kill all MPI processes.<br>
+You may or may not see output from other processes, depending on<br>
+exactly when Open MPI kills them.<br>
+--------------------------------------------------------------------------<br>
+[<a href="http://drossetti-ivy0.nvidia.com:14953" target="_blank">drossetti-ivy0.nvidia.com:14953</a>] [[58714,0],0] odls:wait_local_proc child process [[58714,1],0] pid 14955 terminated<br>
+[<a href="http://drossetti-ivy0.nvidia.com:14953" target="_blank">drossetti-ivy0.nvidia.com:14953</a>] [[58714,0],0] odls:waitpid_fired child [[58714,1],0] exit code 3<br>
+[<a href="http://drossetti-ivy0.nvidia.com:14953" target="_blank">drossetti-ivy0.nvidia.com:14953</a>] [[58714,0],0] odls:waitpid_fired checking abort file /tmp/openmpi-sessions-rvandevaart@drossetti-ivy0_0/58714/1/0/aborted for child [[58714,1],0]<br>
+
+[<a href="http://drossetti-ivy0.nvidia.com:14953" target="_blank">drossetti-ivy0.nvidia.com:14953</a>] [[58714,0],0] odls:waitpid_fired child [[58714,1],0] died by call to abort<br>
+*** glibc detected *** mpirun: double free or corruption (fasttop): 0x000000000130e210 ***<br>
+<br>
+>From gdb:<br>
+gdb) where<br>
+#0  0x00007f75ede138e5 in raise () from /lib64/libc.so.6<br>
+#1  0x00007f75ede1504d in abort () from /lib64/libc.so.6<br>
+#2  0x00007f75ede517f7 in __libc_message () from /lib64/libc.so.6<br>
+#3  0x00007f75ede57126 in malloc_printerr () from /lib64/libc.so.6<br>
+#4  0x00007f75eef9eac4 in odls_base_default_wait_local_proc (pid=14955, status=768, cbdata=0x0)<br>
+    at ../../../../orte/mca/odls/base/odls_base_default_fns.c:2007<br>
+#5  0x00007f75eef60a78 in do_waitall (options=0) at ../../orte/runtime/orte_wait.c:554<br>
+#6  0x00007f75eef60712 in orte_wait_signal_callback (fd=17, event=8, arg=0x7f75ef201400) at ../../orte/runtime/orte_wait.c:421<br>
+#7  0x00007f75eecaecbe in event_signal_closure (base=0x1278370, ev=0x7f75ef201400)<br>
+    at ../../../../../../opal/mca/event/libevent2021/libevent/event.c:1081<br>
+#8  0x00007f75eecaf7e0 in event_process_active_single_queue (base=0x1278370, activeq=0x12788f0)<br>
+    at ../../../../../../opal/mca/event/libevent2021/libevent/event.c:1359<br>
+#9  0x00007f75eecafaca in event_process_active (base=0x1278370)<br>
+    at ../../../../../../opal/mca/event/libevent2021/libevent/event.c:1437<br>
+#10 0x00007f75eecb0148 in opal_libevent2021_event_base_loop (base=0x1278370, flags=1)<br>
+    at ../../../../../../opal/mca/event/libevent2021/libevent/event.c:1645<br>
+#11 0x0000000000405572 in orterun (argc=7, argv=0x7fffbdf1dd08) at ../../../../orte/tools/orterun/orterun.c:1078<br>
+#12 0x0000000000403904 in main (argc=7, argv=0x7fffbdf1dd08) at ../../../../orte/tools/orterun/main.c:13<br>
+(gdb) up<br>
+#1  0x00007f75ede1504d in abort () from /lib64/libc.so.6<br>
+(gdb) up<br>
+#2  0x00007f75ede517f7 in __libc_message () from /lib64/libc.so.6<br>
+(gdb) up<br>
+#3  0x00007f75ede57126 in malloc_printerr () from /lib64/libc.so.6<br>
+(gdb) up<br>
+#4  0x00007f75eef9eac4 in odls_base_default_wait_local_proc (pid=14955, status=768, cbdata=0x0)<br>
+    at ../../../../orte/mca/odls/base/odls_base_default_fns.c:2007<br>
+2007                free(abortfile);<br>
+(gdb) print abortfile<br>
+$1 = 0x130e210 &quot;&quot;<br>
+(gdb)<br>
+-----------------------------------------------------------------------------------<br>
+This email message is for the sole use of the intended recipient(s) and may contain<br>
+confidential information.  Any unauthorized review, use, disclosure or distribution<br>
+is prohibited.  If you are not the intended recipient, please contact the sender by<br>
+reply email and destroy all copies of the original message.<br>
+-----------------------------------------------------------------------------------<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org">devel@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/devel/2014/08/15632.php" target="_blank">http://www.open-mpi.org/community/lists/devel/2014/08/15632.php</a><br>
+</blockquote></div><br></div>
+

@@ -1,0 +1,122 @@
+<html><head><meta http-equiv="Content-Type" content="text/html charset=utf-8"></head><body style="word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;" class="">I found the problem - someone had a typo in btl_openib_mca.c. The threshold need to be set to the module eager limit as that is the only thing defined at that point.<div class=""><br class=""></div><div class="">Thanks for bringing it to our attention! I’ll set it up to go into 1.8.6</div><div class=""><br class=""></div><div class=""><br class=""><div><blockquote type="cite" class=""><div class="">On May 25, 2015, at 3:04 AM, Xavier Besseron &lt;<a href="mailto:xavier.besseron@uni.lu" class="">xavier.besseron@uni.lu</a>&gt; wrote:</div><br class="Apple-interchange-newline"><div class=""><div dir="ltr" class=""><div class=""><font face="arial, helvetica, sans-serif" class="">Hi,</font></div><div class=""><font face="arial, helvetica, sans-serif" class=""><br class=""></font></div><div class=""><font face="arial, helvetica, sans-serif" class="">Thanks for your reply Ralph.</font></div><div class=""><font face="arial, helvetica, sans-serif" class=""><br class=""></font></div><div class=""><font face="arial, helvetica, sans-serif" class="">The option only I'm using when configuring OpenMPI is '</font><font face="monospace, monospace" class="">--prefix</font><font face="arial, helvetica, sans-serif" class="">'.</font></div><div class=""><font face="arial, helvetica, sans-serif" class="">When checking the config.log file, I see&nbsp;</font></div><div class=""><font face="arial, helvetica, sans-serif" class=""><br class=""></font></div><div class=""><font face="monospace, monospace" class="">configure:208504: checking whether the openib BTL will use malloc hooks</font></div><div class=""><font face="monospace, monospace" class="">configure:208510: result: yes</font></div><div class=""><font face="arial, helvetica, sans-serif" class=""><br class=""></font></div><div class=""><font face="arial, helvetica, sans-serif" class="">so I guess it is properly enabled (full config.log in attachment of this email).</font></div><div class=""><font face="arial, helvetica, sans-serif" class=""><br class=""></font></div><div class=""><font face="arial, helvetica, sans-serif" class=""><br class=""></font></div><div class=""><font face="arial, helvetica, sans-serif" class=""><br class=""></font></div><div class=""><font face="arial, helvetica, sans-serif" class="">However, I think I have the reason of the bug (lines refer to source code of OpenMPI 1.8.5):</font></div><div class=""><font face="arial, helvetica, sans-serif" class=""><br class=""></font></div><div class=""><font face="arial, helvetica, sans-serif" class="">The default value of&nbsp;</font><font face="monospace, monospace" class="">memalign_threshold</font><font face="arial, helvetica, sans-serif" class="">&nbsp;is taken from </font><font face="monospace, monospace" class="">eager_limit</font><font face="arial, helvetica, sans-serif" class=""> in function&nbsp;</font><font face="monospace, monospace" class="">btl_openib_register_mca_params()</font><font face="arial, helvetica, sans-serif" class=""> in </font><font face="monospace, monospace" class="">btl_openib_mca.c</font><font face="arial, helvetica, sans-serif" class=""> line 717.</font></div><div class=""><font face="arial, helvetica, sans-serif" class="">But the default value is&nbsp;</font><font face="monospace, monospace" class="">eager_limit</font><font face="arial, helvetica, sans-serif" class=""> is set in&nbsp;</font><font face="monospace, monospace" class="">btl_openib_component.c</font><font face="arial, helvetica, sans-serif" class=""> at line 193 right after the call to&nbsp;</font><font face="monospace, monospace" class="">btl_openib_register_mca_params()</font><font face="arial, helvetica, sans-serif" class="">.</font></div><div class=""><font face="arial, helvetica, sans-serif" class=""><br class=""></font></div><div class=""><font face="arial, helvetica, sans-serif" class="">To summarize,&nbsp;</font><font face="monospace, monospace" class="">memalign_threshold</font><font face="arial, helvetica, sans-serif" class=""> gets its value from&nbsp;</font><font face="monospace, monospace" class="">eager_limit</font><font face="arial, helvetica, sans-serif" class=""> before this one gets its value assigned.</font></div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">Best regards,</div><div class=""><br class=""></div><div class="">Xavier</div><div class=""><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div><div class="">&nbsp;</div><div class=""><font face="monospace, monospace" class=""><br class=""></font></div><div class=""><font face="monospace, monospace" class=""><br class=""></font></div><div class=""><font face="monospace, monospace" class=""><br class=""></font></div><div class="gmail_extra"><br class=""><div class="gmail_quote">On Mon, May 25, 2015 at 2:27 AM, Ralph Castain <span dir="ltr" class="">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank" class="">rhc@open-mpi.org</a>&gt;</span> wrote:<br class=""><blockquote class="gmail_quote" style="margin:0px 0px 0px 0.8ex;border-left-width:1px;border-left-color:rgb(204,204,204);border-left-style:solid;padding-left:1ex">
+
+
+
+<div style="word-wrap:break-word" class="">
+Looking at the code, we do in fact set the memalign_threshold = eager_limit by default, but only if you configured with —enable-btl-openib-malloc-alignment AND/OR we found the malloc hook functions were available.
+<div class=""><br class="">
+</div>
+<div class="">You might check config.log to see if the openib malloc hooks were enabled. My guess is that they weren’t, for some reason.
+<div class=""><br class="">
+</div>
+<div class=""><br class="">
+<div class="">
+<blockquote type="cite" class=""><div class=""><div class="h5">
+<div class="">On May 24, 2015, at 9:07 AM, Xavier Besseron &lt;<a href="mailto:xavier.besseron@uni.lu" target="_blank" class="">xavier.besseron@uni.lu</a>&gt; wrote:</div>
+<br class="">
+</div></div><div class=""><div class=""><div class="h5">
+<div dir="ltr" class="">
+<div class="gmail_quote">
+<div class="">
+<div class="">
+<div dir="ltr" class="">
+<div class="gmail_quote">
+<div dir="ltr" class="">Dear OpenMPI developers / users,<br class="">
+<br class="">
+This is much more a comment than a question since I believe I have already solved my issue. But I would like to report it.
+<div class=""><br class="">
+I have noticed my code performed very badly with OpenMPI when Infinand is enabled, sometime +50% or even +100% overhead.<br class="">
+I also have this slowdown when running with one thread and one process. In such case, there is no other MPI call than
+<font face="monospace, monospace" class="">MPI_Init()</font> and <font face="monospace, monospace" class="">
+MPI_Finalize()</font>.<br class="">
+This overhead disappears if I disable at runtime the openib btl, ie with '<font face="monospace, monospace" class="">--mca btl ^openib</font>'.<br class="">
+After further investigation, I figured out it comes from the memory allocator which is aligning every memory allocation when Infiniband is used.
+<div class="">This makes sense because my code is a large irregular C++ code creating and deleting many objects.</div>
+<div class=""><br class="">
+Just below is the documentation of the relevant MCA parameters coming <font face="monospace, monospace" class="">
+ompi_info</font>:<br class="">
+<br class="">
+<font face="monospace, monospace" class="">MCA btl: parameter "<b class="">btl_openib_memalign</b>" (current value: "32", data source: default, level: 9 dev/all, type: int)<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;[64 | 32 | 0] - Enable (64bit or 32bit)/Disable(0) memoryalignment for all malloc calls if btl openib is used.<br class="">
+<br class="">
+MCA btl: parameter "<b class="">btl_openib_memalign_threshold</b>" (current value: "<b class="">0</b>", data source: default, level: 9 dev/all, type: size_t)<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Allocating memory more than btl_openib_memalign_threshholdbytes will automatically be algined to the value of btl_openib_memalign bytes.<b class="">memalign_threshhold defaults to the same value as mca_btl_openib_eager_limit</b>.<br class="">
+<br class="">
+MCA btl: parameter "<b class="">btl_openib_eager_limit</b>" (current value: "<b class="">12288</b>", data source: default, level: 4 tuner/basic, type: size_t)<br class="">
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp;Maximum size (in bytes, including header) of "short" messages (must be &gt;= 1).</font><br class="">
+<br class="">
+<br class="">
+In the end, the problem is that the&nbsp;default value for <font face="monospace, monospace" class="">
+btl_openib_memalign_threshold</font> is 0, which means that <b class="">all</b> memory allocations are aligned to 32 bits.</div>
+<div class="">The documentation says that the default value of&nbsp;<font face="monospace, monospace" class="">btl_openib_memalign_threshold</font> should be the the same as&nbsp;<font face="monospace, monospace" class="">btl_openib_eager_limit</font><font face="arial, helvetica, sans-serif" class="">,
+ ie 12288 instead of 0.</font></div>
+<div class=""><br class="">
+</div>
+<div class=""><font face="arial, helvetica, sans-serif" class="">On my side, changing&nbsp;</font><span style="font-family:monospace,monospace" class="">btl_openib_memalign_threshold</span><font face="arial, helvetica, sans-serif" class=""> to 12288 fixes my performance
+ issue.</font></div>
+<div class=""><font face="arial, helvetica, sans-serif" class="">However, I believe that the default value of&nbsp;</font><span style="font-family:monospace,monospace" class="">btl_openib_memalign_threshold</span><font face="arial, helvetica, sans-serif" class="">
+ should be fixed in the OpenMPI code (or at least the documentation should be fixed).</font></div>
+<div class=""><font face="arial, helvetica, sans-serif" class=""><br class="">
+</font></div>
+<div class="">
+<div class="">I tried OpenMPI 1.8.5, 1.7.3 and 1.6.4 and it's all the same.<br class="">
+</div>
+</div>
+<div class=""><br class="">
+</div>
+<div class=""><font face="arial, helvetica, sans-serif" class=""><br class="">
+</font></div>
+<div class=""><font face="arial, helvetica, sans-serif" class="">Bonus question:</font></div>
+<div class=""><font face="arial, helvetica, sans-serif" class="">As this issue might impact other users, I'm considering applying a global fix on our clusters by setting this default value&nbsp;</font><font face="monospace, monospace" class="">etc/openmpi-mca-params.conf</font><span style="font-family:arial,helvetica,sans-serif" class="">.</span></div>
+<div class=""><span style="font-family:arial,helvetica,sans-serif" class="">Do you see any good reason not doing it?</span></div>
+<div class=""><span style="font-family:arial,helvetica,sans-serif" class=""><br class="">
+</span></div>
+<div class=""><span style="font-family:arial,helvetica,sans-serif" class="">Thank you for your comments.</span><br class="">
+</div>
+<div class=""><span style="font-family:arial,helvetica,sans-serif" class=""><br class="">
+</span></div>
+<div class=""><span style="font-family:arial,helvetica,sans-serif" class="">Best regards,</span></div>
+<div class=""><span style="font-family:arial,helvetica,sans-serif" class=""><br class="">
+</span></div>
+<div class=""><span style="font-family:arial,helvetica,sans-serif" class="">Xavier</span></div>
+<span class=""><font color="#888888" class="">
+<div class=""><br class="">
+</div>
+<div class=""><br class="">
+</div>
+</font></span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+-- <br class="">
+<div class="">
+<div dir="ltr" class="">Dr Xavier BESSERON<br class="">
+Research associate<br class="">
+FSTC, University of Luxembourg<br class="">
+Campus Kirchberg, Office E-007<br class="">
+Phone: <a href="tel:%2B352%2046%2066%2044%205418" value="+3524666445418" target="_blank" class="">+352 46 66 44 5418</a><br class="">
+<div class=""><a href="http://luxdem.uni.lu/" target="_blank" class="">http://luxdem.uni.lu/</a><br class="">
+</div>
+<div class=""><br class="">
+</div>
+</div>
+</div>
+</div></div></div>
+_______________________________________________<br class="">
+users mailing list<br class="">
+<a href="mailto:users@open-mpi.org" target="_blank" class="">users@open-mpi.org</a><br class="">
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank" class="">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br class="">
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/05/26913.php" target="_blank" class="">http://www.open-mpi.org/community/lists/users/2015/05/26913.php</a></div>
+</blockquote>
+</div>
+<br class="">
+</div>
+</div>
+</div>
+
+</blockquote></div><br class=""><br clear="all" class=""><div class=""><br class=""></div>-- <br class=""><div class="gmail_signature"><div dir="ltr" class="">Dr Xavier BESSERON<br class="">Research associate<br class="">FSTC, University of Luxembourg<br class="">Campus Kirchberg, Office E-007<br class="">Phone: +352 46 66 44 5418<br class=""><div class=""><a href="http://luxdem.uni.lu/" target="_blank" class="">http://luxdem.uni.lu/</a><br class=""></div><div class=""><br class=""></div><div class=""><br class=""></div></div></div>
+</div></div>
+_______________________________________________<br class="">users mailing list<br class=""><a href="mailto:users@open-mpi.org" class="">users@open-mpi.org</a><br class="">Subscription: http://www.open-mpi.org/mailman/listinfo.cgi/users<br class="">Link to this post: http://www.open-mpi.org/community/lists/users/2015/05/26915.php</div></blockquote></div><br class=""></div></body></html>

@@ -1,0 +1,130 @@
+<HTML>
+<HEAD>
+<TITLE>Re: [OMPI devel] [RFC] Sparse group implementation</TITLE>
+</HEAD>
+<BODY>
+<FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>This is good work, so I am happy to see it come over. &nbsp;My initial understanding was that<BR>
+&nbsp;there would be compile time protection for this. &nbsp;In the absence of this, I think we need<BR>
+&nbsp;to see performance data on a variety of communication substrates. &nbsp;It seems like a latency<BR>
+&nbsp;measurement is, perhaps, the most sensitive measurement, and should be sufficient to<BR>
+&nbsp;see the impact on the critical path.<BR>
+<BR>
+Rich<BR>
+<BR>
+<BR>
+On 7/25/07 9:04 AM, &quot;Jeff Squyres&quot; &lt;jsquyres@cisco.com&gt; wrote:<BR>
+<BR>
+</SPAN></FONT><BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'>WHAT: &nbsp;&nbsp;&nbsp;Merge the sparse groups work to the trunk; get the community's<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opinion on one remaining issue.<BR>
+WHY: &nbsp;&nbsp;&nbsp;&nbsp;For large MPI jobs, it can be memory-prohibitive to fully<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;represent dense groups; you can save a lot of space by having<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;sparse&quot; representations of groups that are (for example)<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;derived from MPI_COMM_WORLD.<BR>
+WHERE: &nbsp;&nbsp;Main changes are (might have missed a few in this analysis,<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;but this is 99% of it):<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Big changes in ompi/group<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Moderate changes in ompi/comm<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Trivial changes in ompi/mpi/c, ompi/mca/pml/[dr|ob1],<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ompi/mca/comm/sm<BR>
+WHEN: &nbsp;&nbsp;&nbsp;The code is ready now in /tmp/sparse-groups (it is passing<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;all Intel and IBM tests; see below).<BR>
+TIMEOUT: We'll merge all the work to the trunk and enable the<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;possibility of using sparse groups (dense will still be the<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;default, of course) if no one objects by COB Tuesday, 31 Aug<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2007.<BR>
+<BR>
+========================================================================<BR>
+===<BR>
+<BR>
+The sparse groups work from U. Houston is ready to be brought into the<BR>
+trunk. &nbsp;It is built on the premise that for very large MPI jobs, you<BR>
+don't want to fully represent MPI groups in memory if you don't have<BR>
+to. &nbsp;Specifically, you can save memory for communicators/groups that<BR>
+are derived from MPI_COMM_WORLD by representing them in a sparse<BR>
+storage format.<BR>
+<BR>
+The sparse groups work introduces 3 new ompi_group_t storage formats:<BR>
+<BR>
+* dense (i.e., what it is today -- an array of ompi_proc_t pointers)<BR>
+* sparse, where the current group's contents are based on the group<BR>
+&nbsp;&nbsp;&nbsp;from which the child was derived:<BR>
+&nbsp;&nbsp;&nbsp;1. range: a series of (offset,length) tuples<BR>
+&nbsp;&nbsp;&nbsp;2. stride: a single (first,stride,last) tuple<BR>
+&nbsp;&nbsp;&nbsp;3. bitmap: a bitmap<BR>
+<BR>
+Currently, all the sparse groups code must be enabled by configuring<BR>
+with --enable-sparse-groups. &nbsp;If sparse groups are enabled, each MPI<BR>
+group that is created will automatically use the storage format that<BR>
+takes the least amount of space.<BR>
+<BR>
+The Big Issue with the sparse groups is that getting a pointer to an<BR>
+ompi_proc_t may no longer be an O(1) operation -- you can't just<BR>
+access it via comm-&gt;group-&gt;procs[i]. &nbsp;Instead, you have to call a<BR>
+macro. &nbsp;If sparse groups are enabled, this will call a function to do<BR>
+the resolution and return the proc pointer. &nbsp;If sparse groups are not<BR>
+enabled, the macro currently resolves to group-&gt;procs[i].<BR>
+<BR>
+When sparse groups are enabled, looking up a proc pointer is an<BR>
+iterative process; you have to traverse up through one or more parent<BR>
+groups until you reach a &quot;dense&quot; group to get the pointer. &nbsp;So the<BR>
+time to lookup the proc pointer (essentially) depends on the group and<BR>
+how many times it has been derived from a parent group (there are<BR>
+corner cases where the lookup time is shorter). &nbsp;Lookup times in<BR>
+MPI_COMM_WORLD are O(1) because it is dense, but it now requires an<BR>
+inline function call rather than directly accessing the data<BR>
+structure (see below).<BR>
+<BR>
+Note that the code in /tmp/sparse-groups is currently out-of-date with<BR>
+respect to the orte and opal trees due to SVN merge mistakes and<BR>
+problems. &nbsp;Testing has occurred by copying full orte/opal branches<BR>
+from a trunk checkout into the sparse group tree, so we're confident<BR>
+that it's compatible with the trunk. &nbsp;Full integration will occur<BR>
+before commiting to the trunk, of course.<BR>
+<BR>
+The proposal we have for the community is as follows:<BR>
+<BR>
+1. Remove the --enable-sparse-groups configure option<BR>
+2. Default to use only dense groups (i.e., same as today)<BR>
+3. If the new MCA parameter &quot;mpi_use_sparse_groups&quot; is enabled, enable<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;the use of sparse groups<BR>
+4. Eliminate the current macro used for group proc lookups and instead<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;use an inline function of the form:<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;static inline ompi_proc_t lookup_group(ompi_group_t *group, int <BR>
+index) {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (group_is_dense(group)) {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return group-&gt;procs[index];<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;} else {<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return sparse_group_lookup(group, index);<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;}<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;*** NOTE: This design adds a single &quot;if&quot; in some<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;performance-critical paths. &nbsp;If the group is sparse, it will<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;add a function call and the overhead to do the lookup.<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If the group is dense (which will be the default), the proc<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;will be returned directly from the inline function.<BR>
+<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;The rationale is that adding a single &quot;if&quot; (perhaps with<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;OPAL_[UN]LIKELY?) in a few code paths will not be a big deal.<BR>
+<BR>
+5. Bring all these changes into the OMPI trunk and therefore into<BR>
+&nbsp;&nbsp;&nbsp;&nbsp;v1.3.<BR>
+<BR>
+Comments?<BR>
+<BR>
+--<BR>
+Jeff Squyres<BR>
+Cisco Systems<BR>
+<BR>
+_______________________________________________<BR>
+devel mailing list<BR>
+devel@open-mpi.org<BR>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><BR>
+<BR>
+</SPAN></FONT></BLOCKQUOTE><FONT FACE="Verdana, Helvetica, Arial"><SPAN STYLE='font-size:12.0px'><BR>
+</SPAN></FONT>
+</BODY>
+</HTML>
+
+

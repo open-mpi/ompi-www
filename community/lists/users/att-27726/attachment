@@ -1,0 +1,66 @@
+Diego,<div><br></div><div>if you invoke 3 times Isend with three different send__request() and sane thing for Irecv, then you do not have to worry about MPI_REQUEST_NULL</div><div><br></div><div>Based on your snippet, there could be an issue on ranks 0 and n-1,</div><div>also the index of send_request is MPIdata%rank+1</div><div>if MPIdata%rank is MPi_Comm_rank, that makes no sense to me, and your indexes should likely be hard coded from 1 to 3</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<br><br>On Wednesday, September 30, 2015, Diego Avesani &lt;<a href="javascript:_e(%7B%7D,&#39;cvml&#39;,&#39;diego.avesani@gmail.com&#39;);" target="_blank">diego.avesani@gmail.com</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">Dear Gilles, Dear All,<div><br></div><div>What do you mean that the <span style="font-size:12.8px">array of requests has to be initialize </span><span style="font-size:12.8px">via MPI_Isend or MPI_Irecv?</span></div><div><span style="font-size:12.8px"><br></span></div><div><span style="font-size:12.8px">In my code I use three times </span><span style="font-size:12.8px">MPI_Isend and MPI_Irecv so I have a send_request(3).  According to this, do I have to use </span><span style="font-size:12.8px">MPI_REQUEST_NULL?</span></div><div><span style="font-size:12.8px"><br></span></div><div><span style="font-size:12.8px">In the meantime I check my code</span></div><div><span style="font-size:12.8px"><br></span></div><div><span style="font-size:12.8px">Thanks</span></div></div><div class="gmail_extra"><br clear="all"><div><div>Diego<br><br></div></div>
+<br><div class="gmail_quote">On 29 September 2015 at 16:33, Gilles Gouaillardet <span dir="ltr">&lt;<a>gilles.gouaillardet@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Diego,<div><br></div><div>if you invoke MPI_Waitall on three requests, and some of them have not been initialized</div><div>(manually, or via MPI_Isend or MPI_Irecv), then the behavior of your program is undetermined.</div><div><br></div><div>if you want to use array of requests (because it make the program simple) but you know not all of them are actually used, then you have to initialize them with MPI_REQUEST_NULL</div><div>(it might be zero on ompi, but you cannot take this for granted)</div><div><br></div><div>Cheers,</div><div><br></div><div>Gilles<div><div><br><br>On Tuesday, September 29, 2015, Diego Avesani &lt;<a>diego.avesani@gmail.com</a>&gt; wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">dear Jeff, dear all,<div>I have notice that if I initialize the variables, I do not have the error anymore:</div><div>!</div><div><div>  ALLOCATE(SEND_REQUEST(nMsg),RECV_REQUEST(nMsg))</div><div>  SEND_REQUEST=0</div><div>  RECV_REQUEST=0</div></div><div>!</div><div><br></div><div>Could you please explain me why?</div><div>Thanks</div><div> </div></div><div class="gmail_extra"><br clear="all"><div><div>Diego<br><br></div></div>
+<br><div class="gmail_quote">On 29 September 2015 at 16:08, Diego Avesani <span dir="ltr">&lt;<a>diego.avesani@gmail.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">Dear Jeff, Dear all,<div>the code is very long, here something. I hope that this could help.</div><div><br></div><div>What do you think?</div><div><br></div><div>SUBROUTINE MATOPQN<br></div><div><div>USE VARS_COMMON,ONLY:COMM_CART,send_messageR,recv_messageL,nMsg</div><div>USE MPI</div><div>INTEGER :: send_request(nMsg), recv_request(nMsg)</div></div><div><div>INTEGER :: send_status_list(MPI_STATUS_SIZE,nMsg),recv_status_list(MPI_STATUS_SIZE,nMsg)</div></div><div><br></div><div><div> !send message to right CPU</div><div>    IF(MPIdata%rank.NE.MPIdata%nCPU-1)THEN</div><div>        MsgLength = MPIdata%jmaxN</div><div>        DO icount=1,MPIdata%jmaxN</div><div>            iNode = MPIdata%nodeList2right(icount)</div><div>            send_messageR(icount) = RIS_2(iNode)</div><div>        ENDDO</div><div><br></div><div>        CALL MPI_ISEND(send_messageR, MsgLength, MPI_DOUBLE_COMPLEX, MPIdata%rank+1, MPIdata%rank+1, MPI_COMM_WORLD, send_request(MPIdata%rank+1), MPIdata%iErr)</div><div><br></div><div>    ENDIF</div><div>    !</div><div><br></div><div><br></div><div>    !recive message FROM left CPU</div><div>    IF(MPIdata%rank.NE.0)THEN</div><div>        MsgLength = MPIdata%jmaxN</div><div><br></div><div>        CALL MPI_IRECV(recv_messageL, MsgLength, MPI_DOUBLE_COMPLEX, MPIdata%rank-1, MPIdata%rank, MPI_COMM_WORLD, recv_request(MPIdata%rank), MPIdata%iErr)</div><div><br></div><div>        write(*,*) MPIdata%rank-1</div><div>    ENDIF</div><div>    !</div><div>    !</div><div>    CALL MPI_WAITALL(nMsg,send_request,send_status_list,MPIdata%iErr)</div><div>    CALL MPI_WAITALL(nMsg,recv_request,recv_status_list,MPIdata%iErr)</div></div></div><div class="gmail_extra"><span><font color="#888888"><br clear="all"><div><div>Diego<br><br></div></div></font></span><div><div>
+<br><div class="gmail_quote">On 29 September 2015 at 00:15, Jeff Squyres (jsquyres) <span dir="ltr">&lt;<a>jsquyres@cisco.com</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Can you send a small reproducer program?<br>
+<div><div><br>
+&gt; On Sep 28, 2015, at 4:45 PM, Diego Avesani &lt;<a>diego.avesani@gmail.com</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Dear all,<br>
+&gt;<br>
+&gt; I have to use a send_request in a MPI_WAITALL.<br>
+&gt; Here the strange things:<br>
+&gt;<br>
+&gt; If I use at the begging of the SUBROUTINE:<br>
+&gt;<br>
+&gt; INTEGER :: send_request(3), recv_request(3)<br>
+&gt;<br>
+&gt; I have no problem, but if I use<br>
+&gt;<br>
+&gt; USE COMONVARS,ONLY : nMsg<br>
+&gt; with nMsg=3<br>
+&gt;<br>
+&gt; and after that I declare<br>
+&gt;<br>
+&gt; INTEGER :: send_request(nMsg), recv_request(nMsg), I get the following error:<br>
+&gt;<br>
+&gt; [Lap] *** An error occurred in MPI_Waitall<br>
+&gt; [Lap] *** reported by process [139726485585921,0]<br>
+&gt; [Lap] *** on communicator MPI_COMM_WORLD<br>
+&gt; [Lap] *** MPI_ERR_REQUEST: invalid request<br>
+&gt; [Lap] *** MPI_ERRORS_ARE_FATAL (processes in this communicator will now abort,<br>
+&gt; [Lap] ***    and potentially your MPI job)<br>
+&gt; forrtl: error (78): process killed (SIGTERM)<br>
+&gt;<br>
+&gt; Someone could please explain to me where I am wrong?<br>
+&gt;<br>
+&gt; Thanks<br>
+&gt;<br>
+&gt; Diego<br>
+&gt;<br>
+</div></div>&gt; _______________________________________________<br>
+&gt; users mailing list<br>
+&gt; <a>users@open-mpi.org</a><br>
+&gt; Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+&gt; Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/09/27703.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/09/27703.php</a><br>
+<span><font color="#888888"><br>
+<br>
+--<br>
+Jeff Squyres<br>
+<a>jsquyres@cisco.com</a><br>
+For corporate legal information go to: <a href="http://www.cisco.com/web/about/doing_business/legal/cri/" rel="noreferrer" target="_blank">http://www.cisco.com/web/about/doing_business/legal/cri/</a><br>
+<br>
+_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/09/27704.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/09/27704.php</a><br>
+</font></span></blockquote></div><br></div></div></div>
+</blockquote></div><br></div>
+</blockquote></div></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a>users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" rel="noreferrer" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2015/09/27710.php" rel="noreferrer" target="_blank">http://www.open-mpi.org/community/lists/users/2015/09/27710.php</a><br></blockquote></div><br></div>
+</blockquote></div>
+

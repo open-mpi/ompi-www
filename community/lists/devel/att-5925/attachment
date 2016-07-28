@@ -1,0 +1,61 @@
+As an FYI the code runs just fine using OMPI 1.2.x - it is only 1.3.x where the problem arises.<br><br>So it is definitely something that changed in the 1.3 series<br>
+<br><br>O<br><br><div class="gmail_quote">On Thu, Apr 30, 2009 at 12:36 PM, Brian W. Barrett <span dir="ltr">&lt;<a href="mailto:brbarret@open-mpi.org">brbarret@open-mpi.org</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+When we added the CM PML, we added a pml_max_contextid field to the PML structure, which is the max size cid the PML can handle (because the matching interfaces don&#39;t allow 32 bits to be used for the cid.  At the same time, the max cid for OB1 was shrunk significantly, so that the header on a short message would be packed tightly with no alignment padding.<br>
+
+<br>
+At the time, we believed 32k simultaneous communicators was plenty, and that CIDs were reused (we checked, I&#39;m pretty sure).  It sounds like someone removed the CID reuse code, which seems rather bad to me.  There have to be unused CIDs in Ralph&#39;s example - is there a way to fallback out of the block algorithm when it can&#39;t find a new CID and find one it can reuse?  Other than setting the multi-threaded case back on, that is?<br>
+<font color="#888888">
+<br>
+Brian</font><div><div></div><div class="h5"><br>
+<br>
+On Thu, 30 Apr 2009, Edgar Gabriel wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+cid&#39;s are in fact not recycled in the block algorithm. The problem is that comm_free is not collective, so you can not make any assumptions whether other procs have also released that communicator.<br>
+<br>
+<br>
+But nevertheless, a cid in the communicator structure is a uint32_t, so it should not hit the 16k limit there yet. this is not new, so if there is a discrepancy between what the comm structure assumes that a cid is and what the pml assumes, than this was in the code since the very first days of Open MPI...<br>
+
+<br>
+Thanks<br>
+Edgar<br>
+<br>
+Brian W. Barrett wrote:<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+On Thu, 30 Apr 2009, Ralph Castain wrote:<br>
+<br>
+<blockquote class="gmail_quote" style="border-left: 1px solid rgb(204, 204, 204); margin: 0pt 0pt 0pt 0.8ex; padding-left: 1ex;">
+We seem to have hit a problem here - it looks like we are seeing a<br>
+built-in limit on the number of communicators one can create in a<br>
+program. The program basically does a loop, calling MPI_Comm_split each<br>
+time through the loop to create a sub-communicator, does a reduce<br>
+operation on the members of the sub-communicator, and then calls<br>
+MPI_Comm_free to release it (this is a minimized reproducer for the real<br>
+code). After 64k times through the loop, the program fails.<br>
+<br>
+This looks remarkably like a 16-bit index that hits a max value and then<br>
+blocks.<br>
+<br>
+I have looked at the communicator code, but I don&#39;t immediately see such<br>
+a field. Is anyone aware of some other place where we would have a limit<br>
+that would cause this problem?<br>
+</blockquote>
+<br>
+There&#39;s a maximum of 32768 communicator ids when using OB1 (each PML can set the max contextid, although the communicator code is the part that actually assigns a cid).  Assuming that comm_free is actually properly called, there should be plenty of cids available for that pattern. However, I&#39;m not sure I understand the block algorithm someone added to cid allocation - I&#39;d have to guess that there&#39;s something funny with that routine and cids aren&#39;t being recycled properly.<br>
+
+<br>
+Brian<br>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</blockquote>
+<br>
+<br>
+</blockquote>
+_______________________________________________<br>
+devel mailing list<br>
+<a href="mailto:devel@open-mpi.org" target="_blank">devel@open-mpi.org</a><br>
+<a href="http://www.open-mpi.org/mailman/listinfo.cgi/devel" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/devel</a><br>
+</div></div></blockquote></div><br>
+

@@ -1,0 +1,270 @@
+<div dir="ltr"><div><div><div><div><div><div>The option system(&quot;env -i ...&quot;) has been tested earlier by me and it does<br></div>work. There is doubt though it would work along with a job scheduler.<br></div>I will reserve this as a last resort solution.<br><br></div>mpi_comm_spawn(&quot;/bin/sh&quot;,&quot;-c&quot;,&quot;siesta &lt; infile&quot;,..) definitely  does not work.<br><br></div>Patching siesta to start as &quot;siesta -in infile&quot; sounds very promissing.<br></div><div>That option as well as a &quot;-o outfile&quot; option should be there to start with. <br>I can bring that to the attention of the siesta developers. But then we have<br>this other app &quot;dftb+&quot;, and this other one &quot;Gaussian&quot; (just to mention a few).<br></div><div>Some of them might already act like that, others don&#39;t. So, having<br></div><div>mpi_comm_spawn working with i/o redirection would be in fact more<br></div><div>simpler.<br></div><div><br>Perhaps a shell script &quot;siesta_alt&quot; could be written to convert <br></div>&quot;siesta_alt infile outfile&quot; into &quot;siesta &lt; infile &gt; outfile&quot; and then<br>do mpi_comm_spawn(&quot;siesta_alt&quot;,&quot;infile&quot;,&quot;outfile&quot;,...). But I am not<br></div><div>sure if the spawn on siesta_alt would actually lead to a spawn on siesta<br></div><div>as expected...<br><br></div><div>Alex<br></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-17 22:35 GMT-02:00 Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@gmail.com" target="_blank">gilles.gouaillardet@gmail.com</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Alex,<br><br>You do not want to spawn mpirun.<br>Or if this is really what you want, then just use system(&quot;env -i ...&quot;)<br><br>I think what you need is spawn a shell that do the redirection and then invoke your app.<br>This is something like<br>MPI_Comm_spawn(&quot;/bin/sh&quot;, &quot;-c&quot;, &quot;siesta &lt; infile&quot;)<br><br>That being said, i strongly recommend you patch siesta so it can be invoked like this<br>siesta -in infile<br>(plus the MPI_Comm_disconnect call explained by George)<br>That would make everything so much easier<br><br>Cheers,<br><br>Gilles<br><br>&quot;Alex A. Schmidt&quot; &lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt; wrote:<br><div dir="ltr">Let me rephrase the previous message:<br><br><div dir="ltr"><div>Putting &quot;/bin/sh&quot; in command with info key &quot;ompi_non_mpi&quot;  set to  &quot;.true.&quot; <br>(if command is empty, mpi_comm_spawn tries to execute &#39; &#39;) of <br>mpi_comm_spawn and &quot;-c&quot; &quot;<span style="font-size:12.8px">mpirun -n 1 myapp&quot; in args results in <br>this message:<br><br>**********************************************************<br><br>Open MPI does not support recursive calls of mpirun<br><br>**********************************************************<br><br></span></div><div><span style="font-size:12.8px">Putting a single string in args as </span>&quot;-c <span style="font-size:12.8px">mpirun -n 1 myapp&quot; or  </span><span style="font-size:12.8px"></span>&quot;-c <span style="font-size:12.8px">&#39;mpirun -n 1 myapp&#39; &quot;<br></span></div><div><span style="font-size:12.8px">returns<br><br>/usr/bin/sh: - : invalid option<br><br></span></div><div><span style="font-size:12.8px">Alex<br></span></div></div><br><br></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-17 21:47 GMT-02:00 Alex A. Schmidt <span dir="ltr">&lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div>Putting &quot;/bin/sh&quot; in command with info key &quot;ompi_non_mpi&quot;  set to  &quot;.true.&quot; <br>(if command is empty, mpi_comm_spawn tries to execute &#39; &#39;) of <br>mpi_comm_spawn and &quot;-c&quot; &quot;<span style="font-size:12.8px">mpirun -n 1 myapp&quot; in args results in <br>this message:<br><br>/usr/bin/sh: -c: option requires an argument<br><br></span></div><div><span style="font-size:12.8px">Putting a single string in args as </span>&quot;-c <span style="font-size:12.8px">mpirun -n 1 myapp&quot; or  </span><span style="font-size:12.8px"></span>&quot;-c <span style="font-size:12.8px">&#39;mpirun -n 1 myapp&#39; &quot;<br></span></div><div><span style="font-size:12.8px">returns<br><br>/usr/bin/sh: - : invalid option<br><br></span></div><div><span style="font-size:12.8px">Alex<br></span></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-17 20:17 GMT-02:00 George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@icl.utk.edu" target="_blank">bosilca@icl.utk.edu</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div><div dir="ltr">I don&#39;t think this has any chance of working. The redirection is something interpreted by the shell, and when Open MPI &quot;fork-exec&quot; a process it does not behave as the shell.<div><br></div><div>Thus a potentially non-portable solution would be to instead of launching the mpirun directly to launch it through a shell. Maybe something like &quot;/bin/sh&quot;, &quot;-c&quot;, <span style="font-size:12.8000001907349px">&quot;mpirun -n 1 myapp&quot;. </span><br><div><br></div><div>  George.</div><div><br></div></div></div><div class="gmail_extra"><br><div class="gmail_quote"><div><div>On Wed, Dec 17, 2014 at 5:02 PM, Alex A. Schmidt <span dir="ltr">&lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt;</span> wrote:<br></div></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div><div dir="ltr"><div><div>Ralph,<br><br></div>Sorry, &quot;&lt;&quot; as an element of argv to mpi_comm_spawn is interpreted just the<br></div><div>same, as another parameter by the spawnee process.<br><br></div><div>But I am confused: wouldn&#39;t it be redundant to put &quot;mpirun&quot; &quot;-n&quot; &quot;1&quot; &quot;myapp&quot; <br>as elements of argv, considering role of the other parameters of mpi_comm_spawn<br></div><div>like the 1st and 3rd ?<br></div><div><br></div><div>Imho, it seems to me that stdin and stdout should be keys to &quot;info&quot; and the<br></div><div>respective filenames the values of those keys, if that is possible to implement...<br><br></div><div>Alex<br></div><div><br><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-17 15:16 GMT-02:00 Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div><div dir="ltr">Have you tried putting the &quot;&lt;&quot; as a separate parameter? In other words, since you are specifying the argv, you have to specify each of them separately. So it looks more like:<div><br></div><div>&quot;mpirun&quot;, &quot;-n&quot;, &quot;1&quot;, &quot;myapp&quot;, &quot;&lt;&quot;, &quot;stdinfile&quot;</div><div><br></div><div>Does that work?</div><div>Ralph</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote"><div><div>On Wed, Dec 17, 2014 at 8:07 AM, Alex A. Schmidt <span dir="ltr">&lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt;</span> wrote:</div></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div><div dir="ltr"><div><div><div><div><div><div><div><div>Ralph,<br><br></div>I am afraid I will have to insist on i/o redirection matter <br>for the spawnee process. <br><br>I have a &quot;child&quot; mpi code that do just 2 things: read the 3 parameters<br></div></div>passed to it and print them, and then read data from stdin and show it. <br>So, if &quot;stdin_file&quot; is a text file with two lines, say:<br></div><br>10<br>20<br><br></div>executing &quot;mpirun -n 1 child A B &lt; stdin_file&quot; wiil ouput two lines:<br><br></div>[A]  [B]  []  <br>10  20<br><br></div>On the other hand , calling &quot;child&quot; from MPI_Comm_spawn(&quot;child&quot;,args,...)<br></div><div>where<br><br></div><div>args(1) = &quot;A&quot;<br></div><div>args(2) = &quot;B&quot;<br></div><div>args(3) =&quot;&lt; stdin_file&quot;<br></div><div>args(4) = &quot; &quot;<br><br></div><div>will make &quot;child&quot; outputs only 1 line<br><br></div><div>[A] [B] [&lt; stdin_file]<br><br></div><div>and then fails because there is not stdin data to read from. <br><br>Please, note that surprisingly the whole string &quot;&lt; stdin_file&quot; is interpreted <br>as a third parameter to &quot;child&quot; and not a stdin...<br><br></div><div>Alex<br></div><div><br><br></div><div><br></div><div><br></div><div><br></div><br></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-15 17:26 GMT-02:00 Alex A. Schmidt <span dir="ltr">&lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt;</span>:<div><div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">Ralph, <br><br>I guess you mean &quot;call mpi_comm_spawn( &#39;siesta&#39;, &#39;&lt; infile&#39; , 2 ,...)&quot;<br><br>to execute &#39;mpirun -n 2 siesta &lt; infile&#39; on the spawnee side. That was <br>my first choice. Well, siesta behaves as if no stdin file was present...<br><br>Alex<br><br></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-15 17:07 GMT-02:00 Ralph Castain <span dir="ltr">&lt;<a href="mailto:rhc@open-mpi.org" target="_blank">rhc@open-mpi.org</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div><div dir="ltr">You should be able to just include that in your argv that you pass to the Comm_spawn API.<div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote"><div><div>On Mon, Dec 15, 2014 at 9:27 AM, Alex A. Schmidt <span dir="ltr">&lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt;</span> wrote:</div></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div><div dir="ltr"><div><div><div><div>George,<br><br></div>Thanks for the tip. In fact, calling <span>mpi</span>_comm_spawn right away with <span>MPI</span>_COMM_SELF<br></div>has worked for me just as well -- no subgroups needed at all.<br><br></div>I am testing this <span>openmpi</span> app named &quot;siesta&quot; in parallel. The source code is available,<br>so making it &quot;spawn ready&quot; by adding the pair <span>mpi</span>_comm_get_parent + <span>mpi</span>_comm_disconnect <br>into the main code can be done.  If it works, maybe the siesta&#39;s developers can be convinced <br>to add this feature in a future release.<br></div><div><br></div>However, siesta is <span>launched</span> only by specifying input/output files with i/o redirection like <br><br><span>mpirun</span> -n &lt;<i>some number</i>&gt;  siesta &lt; <span>infile</span> &gt; <span>outfile</span><br><div><br>So far, I could not find anything about how to set an stdin file for an spawnee process. <br>Specifiyng it in a app context file doesn&#39;t seem to work. Can it be done? Maybe through <br>an MCA parameter?<br></div><div><br></div><div>Alex<br></div><div><span></span><br></div><div><br><div><div><div><br><br></div></div></div></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-15 2:43 GMT-02:00 George Bosilca <span dir="ltr">&lt;<a href="mailto:bosilca@icl.utk.edu" target="_blank">bosilca@icl.utk.edu</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div><div dir="ltr">Alex,<div><br></div><div>The code looks good, and is 100% MPI standard accurate.</div><div><br></div><div>I would change the way you create the subcoms in the parent. You do a lot of useless operations, as you can achieve exactly the same outcome (one communicator per node), either by duplicating MPI_COMM_SELF or doing an MPI_Comm_split with the color equal to your rank.</div><div><br></div><div>  George.</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote"><div><div>On Sun, Dec 14, 2014 at 2:20 AM, Alex A. Schmidt <span dir="ltr">&lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt;</span> wrote:<br></div></div><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div><div dir="ltr"><div><div>Hi,<br><br></div>Sorry, guys. I don&#39;t think the newbie here can follow any discussion <br>beyond basic mpi... <br><br>Anyway, if I add the pair     <br><br>call MPI_COMM_GET_PARENT(mpi_comm_parent,ierror)<br>call MPI_COMM_DISCONNECT(mpi_comm_parent,ierror)<br><br></div><div>on the spawnee side I get the proper response in the spawning processes.<br><br></div><div>Please, take a look at the attached toy codes parent.F and child.F <br>I&#39;ve been playing with. &#39;mpirun -n 2 parent&#39; seems to work as expected.<br><br></div><div>Alex<br></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-13 23:46 GMT-02:00 Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@gmail.com" target="_blank">gilles.gouaillardet@gmail.com</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div>Alex,<br><br>Are you calling MPI_Comm_disconnect in the 3 &quot;master&quot; tasks and with the same remote communicator ?<br><br>I also read the man page again, and MPI_Comm_disconnect does not ensure the remote processes have finished or called MPI_Comm_disconnect, so that might not be the thing you need.<br>George, can you please comment on that ?<br><br>Cheers,<br><br>Gilles<br><br>George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu" target="_blank">bosilca@icl.utk.edu</a>&gt; wrote:<br><div dir="ltr">MPI_Comm_disconnect should be a local operation, there is no reason for it to deadlock. I looked at the code and everything is local with the exception of a call to PMIX.FENCE. Can you attach to your deadlocked processes and confirm that they are stopped in the pmix.fence?<div><br></div><div>  George.</div><div><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">On Sat, Dec 13, 2014 at 8:47 AM, Alex A. Schmidt <span dir="ltr">&lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt;</span> wrote:<br><blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">Hi<br><br>Sorry, I was calling mpi_comm_disconnect on the group comm handler, not<br>on the intercomm handler returned from the spawn call as it should be.<br><br>Well, calling the disconnect on the intercomm handler does halt the spwaner<br>side but the wait is never completed since, as George points out, there is no<br>disconnect call being made on the spawnee side.... and that brings me back<br>to the beginning of the problem since, being a third party app, that call would<br>never be there. I guess an mpi wrapper to deal with that could be made for<br>the app, but I fell the wrapper itself, at the end, would face the same problem<br>we face right now.<br><br>My application is a genetic algorithm code that search optimal configuration<br>(minimum or maximum energy) of cluster of atoms. The work flow bottleneck<br>is the calculation of the cluster energy. For the cases which an analytical<br>potential is available the calculation can be made internally and the workload<br>is distributed among slaves nodes from a master node. This is also done<br>when an analytical potential is not available and the energy calculation must<br>be done externally by a quantum chemistry code like dftb+, siesta and Gaussian.<br>So far, we have been running these codes in serial mode. No need to say that<br>we could do a lot better if they could be executed in parallel.<br><br>I am not familiar with DMRAA but it seems to be the right choice to deal with<br>job schedulers as it covers the ones I am interested in (pbs/torque and loadlever).<br><br>Alex<br></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-13 7:49 GMT-02:00 Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@gmail.com" target="_blank">gilles.gouaillardet@gmail.com</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div>George is right about the semantic<br><br>However i am surprised it returns immediatly...<br>That should either work or hang imho<br><br>The second point is no more mpi related, and is batch manager specific.<br><br>You will likely find a submit parameter to make the command block until the job completes. Or you can write your own wrapper.<br>Or you can retrieve the jobid and qstat periodically to get the job state.<br>If an api is available, this is also an option.<br><br>Cheers,<br><br>Gilles<br><br>George Bosilca &lt;<a href="mailto:bosilca@icl.utk.edu" target="_blank">bosilca@icl.utk.edu</a>&gt; wrote:<br>You have to call MPI_Comm_disconnect on both sides of the intercommunicator. On the spawner processes you should call it on the intercom, while on the spawnees you should call it on the MPI_Comm_get_parent.<div><br></div><div>  George.</div><div><br><div><blockquote type="cite"><div>On Dec 12, 2014, at 20:43 , Alex A. Schmidt &lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt; wrote:</div><br><div><div dir="ltr"><div><div><div><div><div><div><div>Gilles,<br><br></div>MPI_comm_disconnect seem to work but not quite.<br></div>The call to it returns almost immediatly while<br></div>the spawn processes keep piling up in the background<br></div>until they are all done...<br><br></div>I think system(&#39;env -i qsub...&#39;) to launch the third party apps<br></div>would take the execution of every call back to the scheduler <br>queue. How would I track each one for their completion?<br><br></div><div>Alex<br></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-12 22:35 GMT-02:00 Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@gmail.com" target="_blank">gilles.gouaillardet@gmail.com</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">Alex,<br><br>You need MPI_Comm_disconnect at least.<br>I am not sure if this is 100% correct nor working.<br><br>If you are using third party apps, why dont you do something like<br>system(&quot;env -i qsub ...&quot;)<br>with the right options to make qsub blocking or you manually wait for the end of the job ?<br><br>That looks like a much cleaner and simpler approach to me.<br><br>Cheers,<br><br>Gilles<br><br>&quot;Alex A. Schmidt&quot; &lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt; wrote:<br><div dir="ltr"><div><div><div><div>Hello Gilles,<br><br></div><span style="background:none repeat scroll 0% 0% yellow">Ok</span>, I believe I have a simple toy app running as I think it should:<br>&#39;n&#39; parent processes running under <span style="background:none repeat scroll 0% 0% yellow">mpi</span>_comm_world, each one<br></div></div>spawning its own &#39;m&#39; child processes (each child group work <br>together nicely, returning the expected result for an <span style="background:none repeat scroll 0% 0% yellow">mpi</span>_<span style="background:none repeat scroll 0% 0% yellow">allreduce</span> call).<br><br></div><div>Now, as I mentioned before, the apps I want to run in the spawned <br></div><div>processes are third party mpi apps and I don&#39;t think it will be possible <br>to exchange messages with them from my app. So, I do I tell <br>when the spawned processes have finnished running? All I have to work<br></div><div>with is the intercommunicator returned from the mpi_comm_spawn call...<br></div><div><br></div><div>Alex<br></div><div><br></div><div><br><br></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-12 2:42 GMT-02:00 Alex A. Schmidt <span dir="ltr">&lt;<a href="mailto:aas@ufsm.br" target="_blank">aas@ufsm.br</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr"><div><div><div><div><div>Gilles,<br><br></div>Well, yes, I guess....<br><br></div>I&#39;ll do tests with the real third party apps and let you know.<br></div>These are huge quantum chemistry codes (dftb+, siesta and Gaussian)<br></div>which greatly benefits from a parallel environment. My code is just<br>a front end to use those, but since we have a lot of data to process<br></div><div>it also benefits from a parallel environment. <br></div><div><br></div>Alex<br><div><div> <br></div></div></div><div class="gmail_extra"><br><div class="gmail_quote">2014-12-12 2:30 GMT-02:00 Gilles Gouaillardet <span dir="ltr">&lt;<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>&gt;</span>:<blockquote class="gmail_quote" style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div><div>
+  
+    
+  
+  <div text="#000000" bgcolor="#FFFFFF">
+    <div>Alex,<br>
+      <br>
+      just to make sure ...<br>
+      this is the behavior you expected, right ?<br>
+      <br>
+      Cheers,<br>
+      <br>
+      Gilles<div><div><br>
+      <br>
+      On 2014/12/12 13:27, Alex A. Schmidt wrote:<br>
+    </div></div></div>
+    <blockquote type="cite"><div><div>
+      <pre>Gilles,
+
+Ok, very nice!
+
+When I excute
+
+do rank=1,3
+    call  MPI_Comm_spawn(&#39;hello_world&#39;,&#39;
+&#39;,5,MPI_INFO_NULL,rank,MPI_COMM_WORLD,my_intercomm,MPI_ERRCODES_IGNORE,status)
+enddo
+
+I do get 15 instances of the &#39;hello_world&#39; app running: 5 for each parent
+rank 1, 2 and 3.
+
+Thanks a lot, Gilles.
+
+Best regargs,
+
+Alex
+
+
+
+
+2014-12-12 1:32 GMT-02:00 Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a>
+</pre>
+      </div></div><blockquote type="cite">
+        <pre><div><div>:
+
+ Alex,
+
+just ask MPI_Comm_spawn to start (up to) 5 tasks via the maxprocs
+parameter :
+
+       int MPI_Comm_spawn(char *command, char *argv[], int maxprocs,
+MPI_Info info,
+                         int root, MPI_Comm comm, MPI_Comm *intercomm,
+                         int array_of_errcodes[])
+
+INPUT PARAMETERS
+       maxprocs
+              - maximum number of processes to start (integer, significant
+only at root)
+
+Cheers,
+
+Gilles
+
+
+On 2014/12/12 12:23, Alex A. Schmidt wrote:
+
+Hello Gilles,
+
+Thanks for your reply. The &quot;env -i PATH=...&quot; stuff seems to work!!!
+
+call system(&quot;sh -c &#39;env -i PATH=/usr/lib64/openmpi/bin:/bin mpirun -n 2
+hello_world&#39; &quot;)
+
+did produce the expected result with a simple openmi &quot;hello_world&quot; code I
+wrote.
+
+I might be harder though with the real third party app I have in mind. And
+I realize
+getting passed over a job scheduler with this approach might not work at
+all...
+
+I have looked at the MPI_Comm_spawn call but I failed to understand how it
+could help here. For instance, can I use it to launch an mpi app with the
+option &quot;-n 5&quot; ?
+
+Alex
+
+2014-12-12 0:36 GMT-02:00 Gilles Gouaillardet &lt;<a href="mailto:gilles.gouaillardet@iferc.org" target="_blank">gilles.gouaillardet@iferc.org</a></div></div>
+
+ :
+
+ Alex,
+
+can you try something like
+call system(sh -c &#39;env -i /.../mpirun -np 2 /.../app_name&#39;)
+
+-i start with an empty environment
+that being said, you might need to set a few environment variables
+manually :
+env -i PATH=/bin ...
+
+and that being also said, this &quot;trick&quot; could be just a bad idea :
+you might be using a scheduler, and if you empty the environment, the
+scheduler
+will not be aware of the &quot;inside&quot; run.
+
+on top of that, invoking system might fail depending on the interconnect
+you use.
+
+Bottom line, i believe Ralph&#39;s reply is still valid, even if five years
+have passed :
+changing your workflow, or using MPI_Comm_spawn is a much better approach.
+
+Cheers,
+
+Gilles
+
+On 2014/12/12 11:22, Alex A. Schmidt wrote:
+
+Dear OpenMPI users,
+
+Regarding to this previous post<a href="http://www.open-mpi.org/community/lists/users/2009/06/9560.php" target="_blank">&lt;http://www.open-mpi.org/community/lists/users/2009/06/9560.php&gt;</a> <a href="http://www.open-mpi.org/community/lists/users/2009/06/9560.php" target="_blank">&lt;http://www.open-mpi.org/community/lists/users/2009/06/9560.php&gt;</a> <a href="http://www.open-mpi.org/community/lists/users/2009/06/9560.php" target="_blank">&lt;http://www.open-mpi.org/community/lists/users/2009/06/9560.php&gt;</a> <a href="http://www.open-mpi.org/community/lists/users/2009/06/9560.php" target="_blank">&lt;http://www.open-mpi.org/community/lists/users/2009/06/9560.php&gt;</a> from 2009,
+I wonder if the reply
+from Ralph Castain is still valid. My need is similar but quite simpler:
+to make a system call from an openmpi fortran application to run a
+third party openmpi application. I don&#39;t need to exchange mpi messages
+with the application. I just need to read the resulting output file
+generated
+by it. I have tried to do the following system call from my fortran openmpi
+code:
+
+call system(&quot;sh -c &#39;mpirun -n 2 app_name&quot;)
+
+but I get
+
+**********************************************************
+
+Open MPI does not support recursive calls of mpirun
+
+**********************************************************
+
+Is there a way to make this work?
+
+Best regards,
+
+Alex
+
+
+
+
+_______________________________________________
+users mailing <a href="mailto:listusers@open-mpi.org" target="_blank">listusers@open-mpi.org</a><span>
+
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25966.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25966.php</a>
+
+
+
+_______________________________________________
+users mailing <a href="mailto:listusers@open-mpi.org" target="_blank">listusers@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></span>
+Link to this post:<a href="http://www.open-mpi.org/community/lists/users/2014/12/25967.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25967.php</a><span>
+
+
+
+_______________________________________________
+users mailing <a href="mailto:listusers@open-mpi.org" target="_blank">listusers@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></span>
+
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25968.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25968.php</a><span>
+
+
+
+_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a>
+Link to this post:
+<a href="http://www.open-mpi.org/community/lists/users/2014/12/25969.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25969.php</a>
+
+</span></pre>
+      </blockquote>
+      <pre></pre>
+      <br>
+      <fieldset></fieldset>
+      <br>
+      <pre><span>_______________________________________________
+users mailing list
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a></span>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25970.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25970.php</a></pre>
+    </blockquote>
+    <br>
+  </div>
+
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25971.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25971.php</a><br></blockquote></div></div>
+</blockquote></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25974.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25974.php</a><br></blockquote></div></div>
+_______________________________________________<br>users mailing list<br><a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25975.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25975.php</a></div></blockquote></div><br></div><br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25978.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25978.php</a><br></blockquote></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25979.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25979.php</a><br></blockquote></div><br></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25981.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25981.php</a><br></blockquote></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25982.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25982.php</a><br></blockquote></div><br></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/25991.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/25991.php</a><br></blockquote></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26002.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26002.php</a><br></blockquote></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26003.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26003.php</a><br></blockquote></div></div>
+</blockquote></div></div></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26010.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26010.php</a><br></blockquote></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26011.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26011.php</a><br></blockquote></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26013.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26013.php</a><br></blockquote></div><br></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org" target="_blank">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br></div></div>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26014.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26014.php</a><br></blockquote></div></div>
+</blockquote></div></div>
+<br>_______________________________________________<br>
+users mailing list<br>
+<a href="mailto:users@open-mpi.org">users@open-mpi.org</a><br>
+Subscription: <a href="http://www.open-mpi.org/mailman/listinfo.cgi/users" target="_blank">http://www.open-mpi.org/mailman/listinfo.cgi/users</a><br>
+Link to this post: <a href="http://www.open-mpi.org/community/lists/users/2014/12/26021.php" target="_blank">http://www.open-mpi.org/community/lists/users/2014/12/26021.php</a><br></blockquote></div></div>
+
