@@ -31,7 +31,7 @@ function paper_page($title, $authors, $presented, $abstract, $files, $mon, $day,
         if (count($files) > 0) {
             printf("<P><h3>Paper:</h3><table cellpadding=5><tr>\n");
             for ($i = 0; $i < count($files); ++$i) {
-                if (ereg("\..+$", $files[$i], $match)) {
+                if (preg_match("/\..+$/", $files[$i], $match)) {
                     if ($match[0] == ".ps" || $match[0] == ".PS") {
                         $name = "Postscript";
                     } else if ($match[0] == ".pdf" || $match[0] == ".PDF") {
