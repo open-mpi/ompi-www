@@ -133,7 +133,7 @@ function printsublink($link, $text, $a_modifier = "") {
   }
 }
 
-print("<script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js\"></script>\n");
+print("<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js\"></script>\n");
 include_once("$topdir/includes/google-analytics.php");
 
 print("</HEAD>\n<BODY>\n");
