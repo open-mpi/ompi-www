@@ -10,12 +10,12 @@ have been added to it since July of 2016.</p>
 if ($this_list != "") {
     # 8 Aug 2016 is the ETA for the mail-archives.com to come online
     # with the old mails.
-    $t = mkdir(0, 0, 0, 8, 8, 2016);
+    $t = mktime(0, 0, 0, 8, 8, 2016);
 
     print("<p><a href=\"https://mail-archive.com/$this_list@lists.open-mpi.org/\">Click here to be taken to the new web archives of this list</a>; it ");
-    if ($t > time()) {
+    if (time() > $t) {
         print("includes");
-    else {
+    } else {
         print("will soon include");
     }
     print(" all the mails that are in this frozen archive plus all new mails that have been sent to the list since it was migrated to the new archives.</p>\n");
