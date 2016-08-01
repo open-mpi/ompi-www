@@ -18,7 +18,7 @@ into even numbered "super stable" series.</p>
 
 <p> <strong>Current release series</strong>
 
-<li><a href="v2.0/"><strong>v2.0 series</strong></a>: These are images from
+<li><a href="v2.x/"><strong>v2.0 series</strong></a>: These are images from
 the stable v2.0 series.  <strong><font color="red"><?php
   $t = mktime(0, 0, 0, 9, 1, 2016);
   if (time() < $t) {
