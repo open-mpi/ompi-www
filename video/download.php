@@ -11,8 +11,7 @@ if (!ctype_alnum($file[0])) {
 }
 
 # Convert %2F to /
-preg_replace("%2f", "/", $file);
-preg_replace("%2F", "/", $file);
+preg_replace("/%2f/i", "/", $file);
 
 # From http://php.net/manual/en/function.readfile.php
 if (file_exists($file)) {
