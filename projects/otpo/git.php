@@ -1,10 +1,9 @@
 <?php
-$topdir = "..";
+$topdir = "../..";
 $title = "Source Code Access: Obtaining a Git Clone";
 include_once("nav.inc");
 include_once("$topdir/includes/header.inc");
 include_once("$topdir/includes/code.inc");
-include_once("warning.inc");
 ?>
 
 <p>Open MPI's Git repositories are hosted at <a
