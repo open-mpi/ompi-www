@@ -5,6 +5,7 @@
   include_once("$topdir/includes/header.inc");
 
 function g($v) {
+    return;
     print("<p><div align=center><img src=\"../$v/timeline-graph.php\"></div></p>\n");
 }
 
@@ -20,4 +21,5 @@ g("v1.2");
 g("v1.1");
 g("v1.0");
 
+print("The Open MPI version timeline graphs are temporarily unavailable.\n");
   include_once("$topdir/includes/footer.inc");
