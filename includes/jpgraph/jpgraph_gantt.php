@@ -3189,6 +3189,10 @@ class HorizontalGridLine {
         $this->iRowColor2 = $aColor2;
     }
 
+    function SetLineColor($aColor) {
+        $this->line->SetColor($aColor);
+    }
+
     function SetStart($aStart) {
         $this->iStart = $aStart;
     }
