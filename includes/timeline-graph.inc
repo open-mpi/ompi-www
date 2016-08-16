@@ -27,7 +27,7 @@ function series($name, $start, $end, &$data, &$vpos, &$graph) {
     $graph = new GanttGraph(0, 0, "auto"); 
     $graph->SetShadow(); 
     $graph->hgrid->Show();
-    $graph->hgrid->line->SetColor('lightblue' ); 
+    $graph->hgrid->SetLineColor('lightblue' ); 
     $graph->hgrid->SetRowFillColor( 'darkblue@0.9');
     $graph->title->Set("Open MPI Release Version Timeline: $name"); 
     $graph->subtitle->Set(strftime("As of %B %e, %Y", time()));
