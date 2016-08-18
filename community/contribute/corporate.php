@@ -12,17 +12,11 @@ MPI</a>" for more information.</em>
 
 <p> If you are an organization whose employees will be submitting code
 to Open MPI, you need to fill out an Open MPI Corporate Contributor
-License Agreement form.  It is available in two formats:
+License Agreement form.
 
 <ul>
 
-<li> <?php
-print("<a href=\"open-mpi-corporate-contributor-agrement.docx\">");
-?>Microsoft Word</a></li>
-
-<li> <?php
-print("<a href=\"open-mpi-corporate-contributor-agrement.pdf\">");
-?>PDF</a></li>
+<li> <a href="open-mpi-corporate-contributor-agrement.pdf">PDF</a></li>
 
 </ul>
 
