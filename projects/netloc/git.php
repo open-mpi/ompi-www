@@ -10,7 +10,7 @@ include_once("$topdir/includes/code.inc");
 <!- ------------------------------------------------------------------ -->
 
 <br/>
-<p style="font-size: 18px">
+<p style="font-size: 18px; color: red;">
  <b>netloc development moved to the <a href="../../projects/hwloc/git.php">hwloc git tree</a>
  (master branch only).</b>
  The Git repository below is not updated anymore.

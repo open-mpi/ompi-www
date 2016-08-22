@@ -39,7 +39,7 @@ two software packages work together to provide a comprehensive view of
 the HPC system topology, spanning from the processor cores in one
 server to the cores in another – including the complex network(s) in
 between.
-<b>Starting with hwloc 2.0, both netloc and hwloc are distributed in
+<b style="color: red;">Starting with hwloc 2.0, both netloc and hwloc are distributed in
 hwloc releases.</b>
 </p>
 

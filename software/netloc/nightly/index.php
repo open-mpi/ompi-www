@@ -6,7 +6,7 @@
 ?>
 
 <br/>
-<p style="font-size: 18px">
+<p style="font-size: 18px; color: red;">
  <b>netloc development moved to the hwloc git tree.
  You may want to look at <a href="../../../software/hwloc/nightly/">hwloc nightly snapshots</a> instead.</b>
 </p>
