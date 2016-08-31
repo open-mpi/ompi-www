@@ -160,7 +160,7 @@ add_org("http://www.absoft.com/", "Absoft Corporation",
            "Software Development Tools", "absoft.jpg", $partner);
 
 add_org("https://umich.edu/", "University of Michigan",
-           "Advanced Research Computing", "umuch.jpg", $partner);
+           "Advanced Research Computing", "umich.png", $partner);
 
 add_org("http://www.arm.com/", "ARM", "", "ARM_Corp_RGB.gif", $contrib);
 
