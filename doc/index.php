@@ -23,7 +23,7 @@ Documentation for the following versions is available:
 
 <p> <strong>Current release series</strong>
 
-<li><a href="v2.0/"><strong>Open MPI v<?php print($ver_v2_0); ?>
+<li><a href="current/"><strong>Open MPI v<?php print($ver_v2_0); ?>
 </strong></a>.  This documentation reflects
 the latest progression in the 2.0.x series.  The emphasis of this
 tree is on bug fixes and stability, although it also introduces a few
