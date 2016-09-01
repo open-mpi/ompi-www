@@ -157,7 +157,7 @@ function print_item($url, $short_name, $long_name, $logo, $level, $type) {
 print_line();
 
 add_org("https://aws.amazon.com/", "Amazon Web Services, Inc.",
-        "", "aws.png", $contributor);
+        "", "aws.png", $contrib);
 
 add_org("http://www.absoft.com/", "Absoft Corporation",
            "Software Development Tools", "absoft.jpg", $partner);
