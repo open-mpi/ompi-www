@@ -67,16 +67,6 @@ discussion on this list.</p>
 
 <!--------------------------------------------------------------------->
 
-<?php print_link("Documentation list", "docs"); ?>
-
-<P>This list is used for the documentation group.  <?php
-red("Subscribers"); ?> are welcome to post any topics dealing with the
-documentation of Open MPI.</p>
-
-<?php print_list("docs"); ?>
-
-<!--------------------------------------------------------------------->
-
 <?php print_link("Git commit list (<font
 color=red>USERS CANNOT POST TO THIS LIST</font>)", "ompi-commits"); ?>
 
