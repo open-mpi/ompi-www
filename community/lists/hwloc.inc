@@ -1,6 +1,9 @@
 <?php
 // Assume that $base has already been set
 
-$this_nav[] = new Nav("hwloc announce archives", "$base/community/lists/hwloc-announce/");
-$this_nav[] = new Nav("hwloc users archives", "$base/community/lists/hwloc-users/");
-$this_nav[] = new Nav("hwloc devel archives", "$base/community/lists/hwloc-devel/");
+$this_nav[] = new Nav("hwloc announce archives",
+                      "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/");
+$this_nav[] = new Nav("hwloc users archives",
+                      "https://mail-archive.com/hwloc-users@lists.open-mpi.org/");
+$this_nav[] = new Nav("hwloc devel archives",
+                      "https://mail-archive.com/hwloc-devel@lists.open-mpi.org/");
