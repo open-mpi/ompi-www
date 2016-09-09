@@ -6,8 +6,9 @@ function print_link($name, $dir) {
     print("<p>
 <li><B>$name</B><BR>
      [ ");
+
     if (is_dir($dir) || is_link($dir)) {
-        print("<a href=\"$dir/\">Archives</a> | \n");
+        print("<a href=\"https://www.mail-archive.com/$dir@lists.open-mpi.org//\">Archives</a> | \n");
     }
 
     // Mailman is not mirrored, of course -- must link to the original page
