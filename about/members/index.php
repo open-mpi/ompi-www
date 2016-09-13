@@ -156,6 +156,9 @@ function print_item($url, $short_name, $long_name, $logo, $level, $type) {
 
 print_line();
 
+add_org("https://code.facebook.com/", "Facebook",
+        "", "facebook.png", $contrib);
+
 add_org("https://aws.amazon.com/", "Amazon Web Services, Inc.",
         "", "aws.png", $contrib);
 
