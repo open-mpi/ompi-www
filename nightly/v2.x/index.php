@@ -18,9 +18,9 @@
 print($topdir); ?>/software/ompi/current/">look here</a>.</p>
 
 <p>Note that snapshots are only generated when there has been a commit to
-the v2.x branch in the Git ompi-release repository.  This may be less than once a day!</p>
+the v1.10 branch in the Git ompi-release repository.  This may be less than once a day!</p>
 
-<p>Tarballs are made from the Git v2.x branch nightly at approximately
+<p>Tarballs are made from the Git v1.10 branch nightly at approximately
 9pm US Eastern time.</p>
 
 <?php
