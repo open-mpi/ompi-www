@@ -73,7 +73,7 @@ to a more recent version of Open MPI, if possible.</strong></p>
 
 <p><dv align=center><hr width=50%></div></p>
 
-<P><?php $dir = "https://github.com/open-mpi/ompi-release/blob/v1.0/NEWS";
+<P><?php $dir = "https://github.com/open-mpi/ompi/raw/v1.0/NEWS";
       print("<a href=\"$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the Open
 MPI v1.0.x series.</p>

@@ -17,7 +17,7 @@
 
 <p>These are snapshots of the 1.0 branch of the Open MPI source code.
 Note that snapshots are only generated when there has been a commit to
-the corresponding branch in the Git ompi-release repository.  This may be less than
+the corresponding branch in the Git ompi repository.  This may be less than
 once a day!</p>
 
 <p>Tarballs are made from the Git <code>v1.0</code> branch

@@ -47,13 +47,6 @@ MPI from a developer checkout.</li>
 
 <br>
 
-<li> <a href="https://github.com/open-mpi/ompi-release">Clone the
-"ompi-release" Open MPI Git repo at GitHub</a>.  This repo holds the
-release branches for Open MPI (i.e., the branches that are used to
-make official distribution tarballs).
-
-<br>
-
 <strong><font color=green>Advantage:</font></strong> You'll easily be
 able to keep up with the latest source code using normal Git
 commands (e.g., '<code>git pull --rebase</code>').<br>
