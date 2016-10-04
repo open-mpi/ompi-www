@@ -10,8 +10,8 @@
   include_once("$topdir/includes/downloads.inc");
 
   $ver = "v1.6";
-  $base_url = "https://github.com/open-mpi/ompi-release/tree";
-  $rawbase_url = "https://raw.githubusercontent.com/open-mpi/ompi-release";
+  $base_url = "https://github.com/open-mpi/ompi/tree";
+  $rawbase_url = "https://raw.githubusercontent.com/open-mpi/ompi";
   $linux_dir = "$ver/contrib/dist/linux";
 
   $readme = "$base_url/$linux_dir/README";
