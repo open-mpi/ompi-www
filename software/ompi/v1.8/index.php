@@ -129,7 +129,7 @@ include_once("$topdir/includes/subscribe-announce.inc");
 
 <p><hr>
 
-<P><?php $dir = "https://github.com/open-mpi/ompi-release/blob/v1.8/NEWS";
+<P><?php $dir = "https://github.com/open-mpi/ompi/raw/v1.8/NEWS";
       print("<a href=\"$dir\">"); ?>This
 file</a> contains a list of changes between the releases in the Open
 MPI releases in the v1.8 series</p>
