@@ -17,19 +17,8 @@ latest version available.  If you do not have the command
 "<code>git</code>" in your path, you will likely need to download and
 install Git.</li>
 
-<li> Open MPI has two repositories at Github:
-<ol>
-
-<li> <a href="https://github.com/open-mpi/ompi">ompi</a>: This is the
+<li> <a href="https://github.com/open-mpi/ompi">ompi</a> is the
 main Open MPI repository where most active development is done.</li>
-
-<li> <a
-href="https://github.com/open-mpi/ompi-release">ompi-release</a>: This
-repo contains all the Open MPI release branches (i.e., from which
-official distribution tarballs are made).  There are Git tags on the
-branches in this repo that indicate where official tarballs were made
-(e.g., "v1.8.3" is the tag corresponding to the Open MPI v1.8.3
-release).</li> </ol>
 
 </ul>
 
