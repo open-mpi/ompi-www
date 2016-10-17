@@ -22,6 +22,14 @@ into even numbered "super stable" series.</p>
 the stable v2.0.x series.  <strong><font color="red">This is the recommended series
 for all users to download and use.</font></strong></li>
 
+<p> <strong>Upcoming release series</strong>
+
+<li><a href="v2.x/"><strong>v2.x series</strong></a>: These are images from
+the stable v2.x series (i.e., what will become v2.1.0).
+<strong><font color="red">This branch is new and not yet fully tested.
+It is only recomended for users who wish to test the upcoming
+release.</font></strong></li>
+
 <p> <strong>Prior stable release series</strong>
 
 <li><a href="v1.10/"><strong>v1.10 series</strong></a>: These are
