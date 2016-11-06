@@ -13,6 +13,8 @@ include_once("$topdir/includes/downloads.inc");
  Here are the links to ancient release series archives:
 </p>
 <ul>
+<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.10/">Download v1.10 (old)</a></li>
+<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.9/">Download v1.9 (ancient)</a></li>
 <li><a href="<?php echo $topdir; ?>/software/hwloc/v1.8/">Download v1.8 (Antiquity)</a></li>
 <li><a href="<?php echo $topdir; ?>/software/hwloc/v1.7/">Download v1.7 (Iron Age)</a></li>
 <li><a href="<?php echo $topdir; ?>/software/hwloc/v1.6/">Download v1.6 (Bronze Age)</a></li>
