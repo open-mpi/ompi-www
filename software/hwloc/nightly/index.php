@@ -7,47 +7,55 @@
 
 The following versions are available as nightly snapshots:
 
-<p>
 <ul>
 
-<p> <strong>Current stable release series</strong>
+<li> <strong>Current stable release series</strong>
 
-<li><a href="v1.11/"><strong>v1.11 series</strong></a> (stable
+<p><a href="v1.11/"><strong>v1.11 series</strong></a> (stable
 release series): These snapshots are from the 1.11 branch and reflect
 the latest progression in the 1.11.x series.  The emphasis of this tree
 is on bug fixes and stability.  <strong>This is the recommended series for
-all users to download and use.</strong></li>
+all users to download and use.</strong></p>
+
+</li>
 
 <!--
-<p> <strong>Upcoming stable release series</strong>
+<li> <strong>Upcoming stable release series</strong>
 
-<li><a href="v2.0/"><strong>v2.0 series</strong></a> (upcoming stable
+<p><a href="v2.0/"><strong>v2.0 series</strong></a> (upcoming stable
 release series): These snapshots are from the 2.0 branch and reflect
 the latest progression in the 2.0.x series.  The emphasis of this tree
 is on bug fixes and stability.  <strong>This tree is not ready for
-prime time consumption yet.</strong></li>
+prime time consumption yet.</strong></p>
+
+</li>
 -->
 
-<p> <strong>Previous stable release series (v1.10, etc) are considered too old and obsolete.</strong>
+<li> <strong>Previous stable release series (v1.10, etc) are considered too old and obsolete.</strong>
+<p></p>
+</li>
 
 <!--
-<p> <strong>Previous stable release series</strong>
+<li> <strong>Previous stable release series</strong>
 
-<li><a href="v1.10/"><strong>v1.10 series</strong></a> (previous stable
+<p><a href="v1.10/"><strong>v1.10 series</strong></a> (previous stable
 release series): These snapshots are from the 1.10 branch and reflect
 the latest progression in the 1.10.x series.  The emphasis of this tree
-is on bug fixes and stability.</li>
+is on bug fixes and stability.</p>
+
+</li>
 -->
 
-<p> <strong>Current development</strong>
+<li> <strong>Current development</strong>
 
-<li><a href="master/"><strong>Master</strong></a> (development head):
+<p><a href="master/"><strong>Master</strong></a> (development head):
 These snapshots are from the git master branch and reflect the current
 head of development.  The usual disclaimers about the state of
-development code apply.</li>
+development code apply.</p>
+
+</li>
 
 </ul>
-</p>
 
 <?php 
   include_once("$topdir/includes/footer.inc"); 
