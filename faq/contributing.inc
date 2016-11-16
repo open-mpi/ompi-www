@@ -80,11 +80,10 @@ $q[] = "How do I contribute code to Open MPI?";
 
 $anchor[] = "contribute-code";
 
-$a[] = "Similar to the Apache projects, before you contribute any code
-to the Open MPI code base, you must first print out, sign, and submit
-an Open MPI Third Party Contribution Agreement.
+$a[] = "We love code contributions!
 
-*NOTE:* We are not lawyers and this is not legal advice.
+All code contributions are submitted as pull requests on the
+<a href=\"https://github.com/open-mpi/ompi/\">Open MPI Github project</a>.
 
 We need to have an established intellectual property pedigree of the
 code in Open MPI.  This means being able to ensure that all code
@@ -95,26 +94,10 @@ Open MPI code base and then someone later claims that we owe them
 money for it.  Open MPI is a free, open source code base.  And we
 intend it to remain that way.
 
-We enforce this policy by requiring all code contributors to submit a
-signed Open MPI Third Party Contribution Agreement before we can
-accept any code from them.  These agreements assert that the
-contributor has the right to donate the code and allow the Open MPI
-Project to perpetually distribute it under the project's licensing
-terms.
-
-There are two versions of this agreement:
-<a href=\"$topdir/community/contribute/individual.php\">one for
-individuals</a>, and <a
-href=\"$topdir/community/contribute/corporate.php\">one for
-organizations</a>.  Ensure that you use the correct form; for example,
-some companies own all the code produced by their employees, so even
-if you write code in your spare time, it may still be the intellectual
-property of your employer.
-
-Send and original, signed copy to the address on the form.
-
-We _must_ have a copy of this agreement on file before we can accept
-code into the Open MPI code base.";
+We enforce this policy by requiring all git commits to include a
+\"Signed-off-by\" token in the commit message, indicating your
+agreement to the <a href=\"https://github.com/open-mpi/ompi/wiki/Admistrative-rules#contributors-declaration\">Open
+MPI Contributor's Declaration</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -123,9 +106,18 @@ how can I contribute to Open MPI?";
 
 $anchor[] = "cant-sign-agreement";
 
-$a[] = "Fear not.
+$a[] = "This question is obsolete (as of November, 2016).  The Open MPI
+project *used* to require a signed Open MPI Third Party Contribution
+Agreement before we could accept code contributions.
 
-Although we cannot accept code from you, there are still plenty of
+However, we have changed our policy and now only require agreement
+with the <a href=\"https://github.com/open-mpi/ompi/wiki/Admistrative-rules#contributors-declaration\">Open
+MPI Contributor's Declaration</a>.
+
+See <a href=\"#contribute-code\">this FAQ entry for more details</a>.
+
+If you are unable to agree to the Contributor's Declaration, fear not --
+there are
 other ways to contribute to Open MPI.  Here are some examples:
 
 <ul>

@@ -46,16 +46,10 @@ reports</a> and/or patches <a href="<?php print($topdir);
 ?>/community/lists/">to the mailing lists</a>.  We always appreciate
 help in making Open MPI better!</li>
 
-<li>Submit code for new functionality to Open MPI.  We're not total
-snobs; we really do love code contributions.  They just must be robust
-codes that are suitable for widespread use.  Additionaly, all code
-submitted to Open MPI <em>must</em> be accompanied by an Open MPI
-Contributor License Agreement form (very similar to the Apache
-Foundation's contriubtion forms).  There are two versions: <a
-href="individual.php">one for individuals</a> and <a
-href="corporate.php">one for organizations</a>.  Look them over,
-decide which is appropriate to your situations, and follow the
-included instructions.</li>
+<li>Submit code for new functionality to Open MPI.
+We love code contributions!  Keep in mind that code contributions
+must be robust
+enough to be suitable for widespread use.</li>
 
 </ul>
 
@@ -82,17 +76,17 @@ FAQ</a>.  Determine how you want to make your contribution
 available.</li>
 
 <li>Look through the source code -- <a href="<?php print($topdir);
-?>/svn/">get a Subversion checkout</a>.  Open MPI is an active
+?>/source/">get a Git clone</a>.  Open MPI is an active
 development effort -- it is usually better to work with the most
 recent development version of the code than the last stable release
 (especially for new projects).</li>
 
-<li>If you want to submit code to be included in Open MPI, you must
-fill out, sign, and submit an Open MPI Contributor License Agreement.
-There are two versions: <a href="individual.php">one for
-individuals</a> and <a href="corporate.php">one for organizations</a>.
-Look them over, decide which is appropriate to your situations, and
-follow the included instructions.</li>
+<li>Code contributions are submitted via pull requests at the
+<a href="https://github.com/open-mpi/ompi/">Open MPI project on 
+Github</a>.  All commits <em>must</em> contain a "Signed-off-by" token
+in the commit message.  This constitutes your agreement with
+<a href="https://github.com/open-mpi/ompi/wiki/Admistrative-rules#contributors-declaration">the
+Open MPI Contributor's Declaration</a>.</li>
 
 </ul>
 
