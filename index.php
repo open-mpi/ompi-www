@@ -93,9 +93,9 @@ news("Open MPI v2.0.1 released",
 news("Open MPI v1.10.4 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00088.html");
-news("hwloc v1.11.4 released",
+news("hwloc v1.11.5 released",
      "New release",
-     "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00091.html");
+     "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00093.html");
 news("PMIx v1.1.1 released",
      "New production release",
      "https://groups.google.com/forum/#!category-topic/pmix/CaQNm9aPGcI");
