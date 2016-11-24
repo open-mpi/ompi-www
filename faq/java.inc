@@ -128,3 +128,22 @@ C/Fortran code).
 We suggest users experiencing performance problems to contact the
 <a href=\"https://www.open-mpi.org/community/lists/ompi.php\">
 OMPI users mailing list</a>.";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "What are the known limitations of the Java Bindings?";
+$anchor[] = "java_limitations";
+
+$a[] = "There are currently issues with Intel Truescale (PSM) and Omnipath
+(PSM2) interconnects involving Java.  If you experience crashes or hangs 
+while using psm or psm2, try updating your psm/psm2 installation.  If this 
+does not resolve the issue, you may contact Intel for support, or use one 
+of the following [mpirun] command options to disable psm/psm2:
+
+<geshi bash>
+shell$ mpirun [other options] --mca mtl ^psm java [your-java-options] my-app-class
+</geshi>
+
+<geshi bash>
+shell$ mpirun [other options] --mca mtl ^psm2 java [your-java-options] my-app-class
+</geshi>";
