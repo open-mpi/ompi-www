@@ -233,7 +233,7 @@ helpful debugging information.</p>
 <h1>Publications</h1>
 
 <p>
- If you are looking for general-purpose hwloc citations, please use the following one.
+ For a general-purpose hwloc citations, please use the following one.
  This paper (available <a href="http://hal.inria.fr/inria-00429889">here</a>)
  introduces hwloc, its goals and its implementation.
  It then shows how hwloc may be used by MPI implementations and OpenMP
@@ -249,7 +249,30 @@ helpful debugging information.</p>
 </blockquote>
 
 <p>
- If you are looking for a citation about I/O device locality and cluster/multi-node support, please use the following one instead.
+ For citing how hwloc deals with new heterogeneous memory hierarchies
+ (Knights Landing's MCDRAM, high-bandwidth memory (HBM), non-volatile memory (NVDIMM), etc),
+ use this paper (available <a href="https://hal.inria.fr/hal-01330194">here</a>):
+</p>
+<blockquote>
+ Brice Goglin.
+ <b>Exposing the Locality of Heterogeneous Memory Architectures to HPC Applications.</b>
+ In <em>Proceedings of the First ACM International Symposium on Memory Systems (MEMSYS16)</em>,
+ Washington, DC, USA, October 2016.
+</blockquote>
+
+<p>
+ When discussing the overhead of topology discovery and why XML or synthetic topologies are useful, use this paper
+ (available <a href="http://hal.inria.fr/hal-01402755">here</a>):
+</p>
+<blockquote>
+ Brice Goglin
+ <b>On the Overhead of Topology Discovery for Locality-aware Scheduling in HPC.</b>
+ In <em>Proceedings of the 25th Euromicro International Conference on Parallel, Distributed and Network-Based Processing (PDP2017)</em>,
+ St Petersburg, Russia, March 2017.
+</blockquote>
+
+<p>
+ For citing hwloc's I/O device locality and cluster/multi-node support, please use the following one instead.
  This paper (available <a href="http://hal.inria.fr/hal-00985096">here</a>)
  explains how I/O locality is managed in hwloc, how device details are represented,
  how hwloc interacts with other libraries, and how multiple nodes such as a cluster can be efficiently managed.
@@ -262,15 +285,13 @@ helpful debugging information.</p>
 </blockquote>
 
 <p>
- If you are looking for a citation about how hwloc deals with new heterogeneous memory hierarchies
- (Knights Landing's MCDRAM, high-bandwidth memory (HBM), non-volatile memory (NVDIMM), etc),
- use this paper (available <a href="https://hal.inria.fr/hal-01330194">here</a>):
+ For citing hwloc's hierarchical modeling of computing, memory and I/O resources as well as multi-node support,
+ use this paper (available <a href="http://hal.inria.fr/hal-01400264">here</a>):
 </p>
 <blockquote>
  Brice Goglin.
- <b>Exposing the Locality of Heterogeneous Memory Architectures to HPC Applications.</b>
- In <em>Proceedings of the First ACM International Symposium on Memory Systems (MEMSYS16)</em>,
- Washington, DC, USA, October 2016.
+ <b>Towards the Structural Modeling of the Topology of next-generation heterogeneous cluster Nodes with hwloc.</b>
+ Inria, November 2016.
 </blockquote>
 
 <p>
