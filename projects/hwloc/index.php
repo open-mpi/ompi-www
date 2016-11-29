@@ -200,6 +200,7 @@ ported to it:<ul>
  <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
  <li>The <a href="http://www.scylladb.com">Scylla</a> NoSQL server.</li>
  <li><a href="http://geopm.github.io/geopm/">Global Energy Optimization Power Management (GEOPM)</a>.</li>
+ <li>The <a href="https://github.com/pwrapi/pwrapi-ref">Reference Implementation</a> of the <a href="http://powerapi.sandia.gov/">HPC Power API</a>.</li>
 </ul></ul></p>
 
 <!------------------------------------------------------------------------->
