@@ -131,14 +131,17 @@ OMPI users mailing list</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "What are the known limitations of the Java Bindings?";
+$q[] = "What are the known limitations of the Java interface?";
 $anchor[] = "java_limitations";
 
-$a[] = "There are currently issues with Intel Truescale (PSM) and Omnipath
-(PSM2) interconnects involving Java.  If you experience crashes or hangs 
-while using psm or psm2, try updating your psm/psm2 installation.  If this 
-does not resolve the issue, you may contact Intel for support, or use one 
-of the following [mpirun] command options to disable psm/psm2:
+$a[] = "There exist issues with Intel Truescale (PSM) and Omnipath
+(PSM2) interconnects involving Java. The problems definitely exist in
+PSM v1.16, and PSM2 v10.2; we have not tested previous versions.
+As of November 2016, there is not yet a PSM/PSM2 release that completely
+fixes the issue. Intel is working on the issue, and will update this 
+FAQ when more information is available.
+
+The following [mpirun] command options will disable PSM/PSM2:
 
 <geshi bash>
 shell$ mpirun [other options] --mca mtl ^psm java [your-java-options] my-app-class
