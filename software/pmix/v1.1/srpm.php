@@ -3,7 +3,8 @@
   include_once("$topdir/software/pmix/v1.1/version.inc");
 
   $title = "PMIx: Version $ver_v1_1 Source RPM Notes";
-  include_once("$topdir/software/pmix/nav.inc");
+# JMS This file does not seem to exist
+#  include_once("$topdir/software/pmix/nav.inc");
   include_once("$topdir/includes/header.inc");
   include_once("$topdir/includes/curl_get.inc");
 

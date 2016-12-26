@@ -16,7 +16,7 @@ $data = "email=" . $_POST['email'] . "&email-button=Subscribe";
 if ($_POST['email'] == "") {
     print("<p> You must specify an e-mail address in order to receive
 announcements of new $project releases.\n\n");
-    include_once("$topdir/includes/subscribe-announcement.inc");
+    include_once("$topdir/includes/subscribe-announce.inc");
     include("$topdir/includes/footer.inc"); 
     exit(0);    
 }

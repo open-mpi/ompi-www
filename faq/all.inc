@@ -27,4 +27,4 @@ include_once("perftools.inc");
 include_once("osx.inc");
 include_once("aix.inc");
 include_once("vampirtrace.inc");
-include_once("known-issues.inc");
+#include_once("known-issues.inc");
