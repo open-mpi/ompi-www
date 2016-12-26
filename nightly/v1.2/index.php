@@ -8,6 +8,7 @@
   $title = "Open MPI: 1.2 series nightly snapshot tarballs";
   include_once("$topdir/software/ompi/nav.inc");
   include_once("$topdir/includes/header.inc");
+  include_once("$topdir/includes/downloads.inc");
   include_once("$topdir/includes/mailto.inc");
   $dir = "$topdir/nightly/v1.2";
 ?>
