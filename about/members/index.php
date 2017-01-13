@@ -223,7 +223,7 @@ add_org("http://www.fujitsu.com/",
 add_org("http://www.hlrs.de/", "High Performance Computing Center
 Stuttgart (HLRS)", "University of Stuttgart", "hlrs.png", $member);
 
-add_org("http://www.ibm.com/", "IBM", "", "ibm.jpg", $contrib);
+add_org("http://www.ibm.com/", "IBM", "", "ibm.jpg", $member);
 
 add_org("http://www.intel.com/", "Intel", "", "intel.jpg", $member);
 
