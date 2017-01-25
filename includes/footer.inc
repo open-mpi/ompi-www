@@ -108,7 +108,15 @@ function print_location($location, $tagline) {
             <?php print_mirror();?>
           </TD>
           <TD class="footer" ALIGN="CENTER" height="36">
-            <?php print_mailto("open-mpi.org", "www", "Contact webmaster"); ?>
+<a href="http://spi-inc.org/projects/open-mpi/">Open MPI is an Associated
+Project</a> of the
+<a href="http://spi-inc.org/">Software in the Public Interest</a> 
+non-profit organization.
+<p>
+<a href="http://spi-inc.org/"><img height="35" 
+src="<?php print($topdir); ?>/images/spi-logo.svg"></a>
+<br />
+            <?php print_mailto("open-mpi.org", "the-web-maintainer", "Contact webmaster"); ?>
           </TD>
           <TD class="footer" ALIGN="RIGHT" height="36">
 <?php 
