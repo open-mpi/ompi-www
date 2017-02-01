@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Win_get_name(3) man page (version 2.0.0)";
-$meta_desc = "Open MPI v2.0.0 man page: MPI_WIN_GET_NAME(3)";
+$title = "MPI_Win_get_name(3) man page (version 2.0.2)";
+$meta_desc = "Open MPI v2.0.2 man page: MPI_WIN_GET_NAME(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -50,7 +50,7 @@ Parameters</a></h2>
 <dl>
 
 <dt>win_name </dt>
-<dd>the Tame previously stored on the window, or an empty
+<dd>the name previously stored on the window, or an empty
 string if no such name exists (string). </dd>
 
 <dt>resultlen </dt>

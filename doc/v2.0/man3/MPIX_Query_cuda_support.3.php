@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPIX_Query_cuda_support(3) man page (version 2.0.0)";
-$meta_desc = "Open MPI v2.0.0 man page: MPIX_Query_cuda_support(3)";
+$title = "MPIX_Query_cuda_support(3) man page (version 2.0.2)";
+$meta_desc = "Open MPI v2.0.2 man page: MPIX_Query_cuda_support(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

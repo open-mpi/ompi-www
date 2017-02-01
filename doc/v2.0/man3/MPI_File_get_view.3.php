@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_File_get_view(3) man page (version 2.0.0)";
-$meta_desc = "Open MPI v2.0.0 man page: MPI_FILE_GET_VIEW(3)";
+$title = "MPI_File_get_view(3) man page (version 2.0.2)";
+$meta_desc = "Open MPI v2.0.2 man page: MPI_FILE_GET_VIEW(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

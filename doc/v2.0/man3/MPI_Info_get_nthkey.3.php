@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Info_get_nthkey(3) man page (version 2.0.0)";
-$meta_desc = "Open MPI v2.0.0 man page: MPI_INFO_GET_NTHKEY(3)";
+$title = "MPI_Info_get_nthkey(3) man page (version 2.0.2)";
+$meta_desc = "Open MPI v2.0.2 man page: MPI_INFO_GET_NTHKEY(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -86,7 +86,7 @@ past an error.
 <h2><a name='sect9' href='#toc9'>See Also</a></h2>
 <a href="../man3/MPI_Info_get.3.php">MPI_Info_get</a> <br>
 <a href="../man3/MPI_Info_get_nkeys.3.php">MPI_Info_get_nkeys</a> <br>
-MPI_Info_get_valueln <br>
+<a href="../man3/MPI_Info_get_valuelen.3.php">MPI_Info_get_valuelen</a> <br>
 
 <p> <p>
 

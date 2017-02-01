@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Comm_connect(3) man page (version 2.0.0)";
-$meta_desc = "Open MPI v2.0.0 man page: MPI_COMM_CONNECT(3)";
+$title = "MPI_Comm_connect(3) man page (version 2.0.2)";
+$meta_desc = "Open MPI v2.0.2 man page: MPI_COMM_CONNECT(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -22,7 +22,7 @@ include_once("$topdir/includes/header.inc");
 Syntax</a></h2>
 <br>
 <pre>#include &lt;mpi.h&gt;
-int MPI_Comm_connect(const gchar *port_name, MPI_Info info, int root,
+int MPI_Comm_connect(const char *port_name, MPI_Info info, int root,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Comm comm, MPI_Comm *newcomm)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
