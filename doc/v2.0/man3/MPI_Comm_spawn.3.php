@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Comm_spawn(3) man page (version 2.0.0)";
-$meta_desc = "Open MPI v2.0.0 man page: MPI_COMM_SPAWN(3)";
+$title = "MPI_Comm_spawn(3) man page (version 2.0.2)";
+$meta_desc = "Open MPI v2.0.2 man page: MPI_COMM_SPAWN(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -154,18 +154,18 @@ than <i>maxprocs</i> processes may be returned is called soft. <p>
 The <i>info</i> Argument
 <p>
 The <i>info</i> argument is an opaque handle of type MPI_Info in C, MPI::Info
-in C++ and INTEGER in Fortran. It is a container for a number of user-speci
-ed (<i>key,value</i>) pairs. <i>key</i> and <i>value</i> are strings (null-terminated char* in
-C, character*(*) in Fortran). Routines to create and manipulate the <i>info</i>
-argument are described in Section 4.10 of the MPI-2 standard. <p>
-For the SPAWN
-calls, <i>info</i> provides additional, implementation-dependent instructions to
-MPI and the runtime system on how to start processes. An application may
-pass MPI_INFO_NULL in C or Fortran. Portable programs not requiring detailed
-control over process locations should use MPI_INFO_NULL. <p>
-The following keys
-for <i>info</i> are recognized in Open MPI. (The reserved values mentioned in Section
-5.3.4 of the MPI-2 standard are not implemented.) <p>
+in C++ and INTEGER in Fortran. It is a container for a number of user-specified
+(<i>key,value</i>) pairs. <i>key</i> and <i>value</i> are strings (null-terminated char* in C,
+character*(*) in Fortran). Routines to create and manipulate the <i>info</i> argument
+are described in Section 4.10 of the MPI-2 standard. <p>
+For the SPAWN calls,
+<i>info</i> provides additional, implementation-dependent instructions to MPI and
+the runtime system on how to start processes. An application may pass MPI_INFO_NULL
+in C or Fortran. Portable programs not requiring detailed control over process
+locations should use MPI_INFO_NULL. <p>
+The following keys for <i>info</i> are recognized
+in Open MPI. (The reserved values mentioned in Section 5.3.4 of the MPI-2 standard
+are not implemented.) <p>
 <br>
 <pre>Key                    Type     Description
 ---                    ----     -----------

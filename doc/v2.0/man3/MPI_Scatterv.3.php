@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Scatterv(3) man page (version 2.0.0)";
-$meta_desc = "Open MPI v2.0.0 man page: MPI_SCATTERV(3)";
+$title = "MPI_Scatterv(3) man page (version 2.0.2)";
+$meta_desc = "Open MPI v2.0.2 man page: MPI_SCATTERV(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -194,7 +194,7 @@ where <i>stride</i> &gt;= 100. <p>
 </pre>
 <h2><a name='sect8' href='#toc8'>Use of In-place Option</a></h2>
 When the communicator is an intracommunicator, you
-can perform a gather operation in-place (the output buffer is used as the
+can perform a scatter operation in-place (the output buffer is used as the
 input buffer).  Use the variable MPI_IN_PLACE as the value of the root process
 <i>recvbuf</i>.  In this case, <i>recvcount</i> and <i>recvtype</i> are ignored, and the root
 process sends no data to itself. <p>
