@@ -95,6 +95,7 @@ $t_older = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP
 if (isset($t_older)) {
     $versions = array();
     $versions[] = "2.0.0";
+    $versions[] = "2.0.1";
 
     foreach ($versions as $v) {
         $n = array();
