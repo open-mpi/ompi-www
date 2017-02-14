@@ -196,3 +196,21 @@ such as with the following flag when configuring Open MPI:
 <geshi bash>
 shell$ ./configure --with-wrapper-ldflags=\"-Wl,-search_paths_first\" ...
 </geshi>";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "I am using Open MPI 2.0.x and getting an error at application startup.  How do I work around this?";
+
+$anchor[] = "startup-errors-with-open-mpi-2.0.x";
+
+$a[] = "On some versions of OS-X, the default tmpdir location is sufficiently long that it
+is easy for an application to create file names for temporary files which exceed the maximum
+allowed file name length.  With Open MPI, this can lead to errors like the following at application startup:
+
+<geshi bash>
+shell$ [[53415,0],0] ORTE_ERROR_LOG: Bad parameter in file ../../orte/orted/pmix/pmix_server.c at line 264
+shell$  [[53415,0],0] ORTE_ERROR_LOG: Bad parameter in file ../../../../../orte/mca/ess/hnp/ess_hnp_module.c at line
+</geshi>
+
+The recommended workaround for the Open MPI 2.0.x release series
+is to set the TMPDIR environment variable to /tmp or other short directory name.";
