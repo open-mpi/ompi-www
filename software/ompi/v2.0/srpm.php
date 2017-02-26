@@ -9,7 +9,7 @@
 
   include_once("$topdir/includes/downloads.inc");
 
-  $ver = "v2.x";
+  $ver = "v2.0.x";
   $base_url = "https://github.com/open-mpi/ompi/tree";
   $rawbase_url = "https://raw.githubusercontent.com/open-mpi/ompi";
   $linux_dir = "$ver/contrib/dist/linux";
