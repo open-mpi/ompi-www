@@ -116,7 +116,7 @@ non-profit organization.
 <a href="http://spi-inc.org/"><img height="35" 
 src="<?php print($topdir); ?>/images/spi-logo.svg"></a>
 <br />
-            <?php print_mailto("open-mpi.org", "the-web-maintainer", "Contact webmaster"); ?>
+            <?php print_mailto("open-mpi.org", "the-web-maintainer", "Contact Open MPI webmaster"); ?>
           </TD>
           <TD class="footer" ALIGN="RIGHT" height="36">
 <?php 
