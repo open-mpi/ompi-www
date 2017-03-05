@@ -12,7 +12,56 @@ in future years.
 
 Open MPI v$ver_current is significantly faster and more robust than its
 predecessors. We recommend that anyone running large jobs and/or on
-large clusters make the upgrade to the $ver_current_dir series.  ";
+large clusters make the upgrade to the $ver_current_dir series.
+
+Several major launch time enhancements have been made starting with the
+v3.0 release. Most of these take place in the background - i.e., there
+is nothing you (as a user) need do to take advantage of them. However,
+there are a few that are left as options until we can assess any potential
+negative impacts on different applications. Some options are only available
+when launching via \"mpirun\" - these include:
+
+<ul>
+<li>adding \"--fwd-mpirun-port\" to the cmd line (or the corresponding
+\"fwd_mpirun_port\" MCA parameter) will allow the daemons launched on compute
+nodes to wireup to each other using an overlay network (e.g., a tree-based
+pattern). This reduces the number of socket connections mpirun must handle
+and can significantly reduce startup time.</li>
+</ul>
+
+Other options are available when launching via mpirun or when launching using
+the native resource manager launcher (e.g., \"srun\" in a SLURM environment).
+These are activated by setting the corresponding MCA parameter, and include:
+
+<ul>
+<li>setting the \"pmix_async_modex\" MCA parameter will eliminate a global
+out-of-band collective operation during MPI_Init. This operation is performed
+in order to share endpoint information prior to communication. At scale, this
+operation can take some time and scales at best logarithmically. Setting the
+parameter bypasses the operation and causes the system to lookup the endpoint
+information for a peer only at first message. Thus, instead of collecting
+endpoint information for all processes, only the endpoint information for those
+processes this peer communicates with will be retrieved. The parameter is
+especially effective for applications with sparse communication patterns - i.e.,
+where a process only communicates with a few other peers. Applications that
+use dense communication patterns (i.e., where a peer communicates directly to
+all other peers in the job) will probably see a negative impact of this option.
+
+NOTE: this option is only available in PMIx-supporting environments, or when
+launching via \"mpirun\"</li>
+
+<li>the \"async_mpi_init\" parameter is automatically set to \"true\" when the
+\"pmix_async_modex\" parameter has been set, but can also be independently
+controlled. When set to \"true\", this parameter causes MPI_Init to skip an
+out-of-band barrier operation at the end of the procedure that is not required
+whenever direct retrieval of endpoint information is being used.</li>
+
+<li>similarly, the \"async_mpi_finalize\" skips an out-of-band barrier operation
+usually performed at the beginning of MPI_Finalize. Some transports (e.g., the
+usnic BTL) require this barrier to ensure that all MPI messages are completed
+prior to finalizing, while other transports handle this internally and thus do
+not require the additional barrier. Check with your transport provider to be sure,
+or you can experiment to determine the proper setting</li></ul>";
 
 /////////////////////////////////////////////////////////////////////////
 
