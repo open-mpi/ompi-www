@@ -34,7 +34,7 @@ the native resource manager launcher (e.g., \"srun\" in a SLURM environment).
 These are activated by setting the corresponding MCA parameter, and include:
 
 <ul>
-<li>setting the \"pmix_async_modex\" MCA parameter will eliminate a global
+<li>setting the \"pmix_base_async_modex\" MCA parameter will eliminate a global
 out-of-band collective operation during MPI_Init. This operation is performed
 in order to share endpoint information prior to communication. At scale, this
 operation can take some time and scales at best logarithmically. Setting the
@@ -51,7 +51,7 @@ NOTE: this option is only available in PMIx-supporting environments, or when
 launching via \"mpirun\"</li>
 
 <li>the \"async_mpi_init\" parameter is automatically set to \"true\" when the
-\"pmix_async_modex\" parameter has been set, but can also be independently
+\"pmix_base_async_modex\" parameter has been set, but can also be independently
 controlled. When set to \"true\", this parameter causes MPI_Init to skip an
 out-of-band barrier operation at the end of the procedure that is not required
 whenever direct retrieval of endpoint information is being used.</li>
