@@ -5,11 +5,11 @@
     force_server("www.open-mpi.org");
   }
 
-  $title = "Open MPI: v2.x nightly snapshot tarballs";
+  $title = "Open MPI: v3.x nightly snapshot tarballs";
   include_once("$topdir/software/ompi/nav.inc");
   include_once("$topdir/includes/header.inc");
   include_once("$topdir/includes/downloads.inc");
-  $dir = "$topdir/nightly/v2.x";
+  $dir = "$topdir/nightly/v3.x";
 ?>
 
 <h2>These are not stable releases of software packages!</h2>
@@ -18,9 +18,9 @@
 print($topdir); ?>/software/ompi/current/">look here</a>.</p>
 
 <p>Note that snapshots are only generated when there has been a commit to
-the v2.x branch in the Git ompi repository.  This may be less than once a day!</p>
+the v3.x branch in the Git ompi repository.  This may be less than once a day!</p>
 
-<p>Tarballs are made from the Git v2.x branch nightly at approximately
+<p>Tarballs are made from the Git v3.x branch nightly at approximately
 9pm US Eastern time.</p>
 
 <?php

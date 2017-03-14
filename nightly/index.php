@@ -30,6 +30,12 @@ the stable v2.x series (i.e., what will become v2.1.0).
 It is only recomended for users who wish to test the upcoming
 release.</font></strong></li>
 
+<li><a href="v3.x/"><strong>v3.x series</strong></a>: These are images from
+the v3.x series (i.e., what will become v3.0.0).
+<strong><font color="red">This branch is new and not yet fully tested.
+It is only recomended for users who wish to test the upcoming
+release.</font></strong></li>
+
 <p> <strong>Prior stable release series</strong>
 
 <li><a href="v1.10/"><strong>v1.10 series</strong></a>: These are
