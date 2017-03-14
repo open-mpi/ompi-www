@@ -95,6 +95,7 @@ if (isset($t_older)) {
     $versions[] = "1.10.2";
     $versions[] = "1.10.3";
     $versions[] = "1.10.4";
+    $versions[] = "1.10.5";
 
     foreach ($versions as $v) {
         $n = array();
