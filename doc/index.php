@@ -13,6 +13,7 @@ include_once("$topdir/software/ompi/v1.7/version.inc");
 include_once("$topdir/software/ompi/v1.8/version.inc");
 include_once("$topdir/software/ompi/v1.10/version.inc");
 include_once("$topdir/software/ompi/v2.0/version.inc");
+include_once("$topdir/software/ompi/v2.1/version.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
@@ -29,7 +30,7 @@ the latest progression in the 2.0.x series.  The emphasis of this
 tree is on bug fixes and stability, although it also introduces a few
 new features (compared to the v1.10 series).  <strong><font
 color=red><?php
-  $t = mktime(0, 0, 0, 9, 1, 2016);
+  $t = mktime(0, 0, 0, 4, 1, 2017);
   if (time() < $t) {
           printf("This stable series is relatively new.  Please upgrade with caution and test your codes thoroughly.");
   } else {
@@ -38,6 +39,14 @@ color=red><?php
 ?></font></strong></li>
 
 <p> <strong>Prior stable release series</strong>
+
+<li><a href="v2.0/"><strong>Open MPI v<?php print($ver_v2_0); ?>
+</strong></a> (prior stable release series).  This documentation reflects
+the latest progression in the 2.0.x series.  The emphasis of this
+tree is on bug fixes and stability, although it also introduced many
+new features (compared to the v1.10 series).  <strong><font
+color=red>This code base is still supported, but is in "bug fix only"
+mode.</font></strong></li>
 
 <li><a href="v1.10/"><strong>Open MPI v<?php print($ver_v1_10); ?>
 </strong></a> (prior stable release series).  This documentation reflects
