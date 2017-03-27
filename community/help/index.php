@@ -7,9 +7,17 @@
   include_once("$topdir/software/ompi/current/version.inc");
 ?>
 
-<p>If you have a bug report and/or patch for Open MPI, you should
+<p> If you have:
+<ul>
+<li> A general end-user question or problem, you should probably
+subscribe to the Open MPI <a href="<?php print($topdir);
+?>/community/lists/ompi.php"?>user's mailing list</a> and post it
+there.</li>
+<li> If you have a bug report and/or patch for Open MPI, you should
 probably subscribe to the Open MPI <a href="<?php print($topdir);
-?>/community/lists/ompi.php">developer's list</a> and post it there.  Open MPI uses <a
+?>/community/lists/ompi.php">developer's list</a> and post it there.</li>
+</ul>
+Open MPI uses <a
 href="https://github.com/open-mpi/ompi/issues">Github issues</a> for
 its bug tracking (see the "Bug Tracking" link in the left-hand
 navigation).</p>
