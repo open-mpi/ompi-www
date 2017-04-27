@@ -77,7 +77,7 @@ $t_older = new downloadTable("./downloads", "./downloads",
 			     dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_older)) {
-    $versions = array("1.11.4", "1.11.3", "1.11.2", "1.11.1", "1.11.0");
+    $versions = array("1.11.5", "1.11.4", "1.11.3", "1.11.2", "1.11.1", "1.11.0");
 
     foreach ($versions as $key => $ver) {
         $src = "Version $ver";
