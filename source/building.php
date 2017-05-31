@@ -63,8 +63,28 @@ developers working on the internals of Open MPI itself</em>):
 </TABLE>
 
 <P>The following table lists the versions that are used to make
-nightly Open MPI tarballs.  Other versions may work, but these are the
-versions that we <em>know</em> work.</p>
+nightly snapshot and official release Open MPI tarballs.  Other
+versions of the tools <em>may</em> work for <em>some</em> (but almost
+certainly not <em>all</em>) platforms, but the ones listed below are
+the versions that we <em>know</em> work across an extremely wide
+variety of platforms and environments.</p>
+
+<p><strong>NOTE:</strong> The <code>autogen.pl</code> and
+<code>configure.ac</code> scripts tend to be a bit lenient and enforce
+slightly <em>older</em> minimum versions than the ones listed below.
+This is because such older versions still make usable Open MPI builds
+on <em>many</em> platforms -- especially Linux on x86_64 with GNU
+compilers -- and are convenient for developers whose Linux distro may
+not have as recent as the versions listed below (but are recent enough
+to produce a working version for their platform).</p>
+
+<p>To be clear: the versions listed below are <em>required</em> to
+support a wide variety of platforms and environments, and are used to
+make nightly and official release tarballs.  When building Open MPI,
+YMMV when using verions older than those listed below --
+<em>especially if you are not building on Linux x86_64 with the GNU
+compilers</em>.  Using older versions is unsupported.  If you run into
+problems, upgrade to at least the versions listed below.</p>
 
 <TABLE BORDER=1 CELLPADDING=5>
 <TR>
