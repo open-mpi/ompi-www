@@ -26,9 +26,9 @@ Documentation for the following versions is available:
 
 <li><a href="current/"><strong>Open MPI v<?php print($ver_v2_1); ?>
 </strong></a>.  This documentation reflects
-the latest progression in the 2.0.x series.  The emphasis of this
+the latest progression in the 2.1.x series.  The emphasis of this
 tree is on bug fixes and stability, although it also introduces a few
-new features (compared to the v1.10 series).  <strong><font
+new features (compared to the v2.0 series).  <strong><font
 color=red><?php
   $t = mktime(0, 0, 0, 4, 1, 2017);
   if (time() < $t) {
