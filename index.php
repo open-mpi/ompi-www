@@ -87,31 +87,27 @@ information</a></h3>
 
 <?php
 # Lists are not mirrored - use an absolute URL
+news("Open MPI v2.0.3 released",
+     "Bug fix release",
+     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00101.html");
+news("Open MPI v1.10.7 released",
+     "Bug fix release - final in series",
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00100.html");
 news("Open MPI v2.1.1 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00099.html");
 news("Open MPI v2.1.0 released",
      "New stable series release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00098.html");
-news("Open MPI v2.0.3 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00101.html");
 news("Open MPI v2.0.2 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00095.html");
-news("Open MPI v1.10.7 released",
-     "Bug fix release - final in series",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00100.html");
 news("hwloc v1.11.7 released",
      "Stable release",
      "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00098.html");
 news("PMIx v1.1.1 released",
      "New production release",
      "https://groups.google.com/forum/#!category-topic/pmix/CaQNm9aPGcI");
-news("Performance Benchmarks",
-     "New section on performance benchmarks added",
-     "https://www.open-mpi.org/performance/");
-
 ?>
 
 </td>
