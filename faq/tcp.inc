@@ -617,3 +617,42 @@ using the virtual interface will *not* solve the issue.
 This may get fixed in a future release.  See <a
 href=\"https://svn.open-mpi.org/trac/ompi/ticket/3339\">Trac bug
 #3339</a> to follow the progress on this issue.";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Why do i get low bandwidth on 10 GbE or faster network?";
+
+$anchor[] = "fast-tcp-network";
+
+$a[] = "In modern version of the Linux kernel, setting the TCP send and receive buffer sizes is a unnecessary operation that can lead to inefficiencies. We suggest users to check their TCP buffer sizes using
+<geshi>
+shell$ ompi_info --param btl tcp -l 4
+</geshi>
+ and make sure that *btl_tcp_sndbuf* and *btl_tcp_rcvbuf* are set to 0.
+
+Starting from Open MPI 2.0.3, 2.1.2 and 3.0.0, these are the default settings.
+
+If you run a previous version, you can
+<geshi>
+shell$ mpirun --mca btl_tcp_sndbuf 0 --mca btl_tcp_rcvbuf 0 ...
+</geshi>";
+
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Can i use more links to improve performances even more ?";
+
+$anchor[] = "multi-links";
+
+$a[] = "Not now  :-(
+
+The bandwidth between two peers might be improved by using more than one socket per interface pair.
+
+For example, you can
+<geshi>
+shell$ mpirun --mca btl_tcp_links 4 ...
+</geshi>
+
+Unfortunately this option is currently not working as expected.
+";
+
