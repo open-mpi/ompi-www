@@ -617,3 +617,54 @@ using the virtual interface will *not* solve the issue.
 This may get fixed in a future release.  See <a
 href=\"https://svn.open-mpi.org/trac/ompi/ticket/3339\">Trac bug
 #3339</a> to follow the progress on this issue.";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Why do I only see 5 Gbps bandwidth benchmark results on 10 GbE or faster networks?";
+
+$anchor[] = "fast-tcp-network";
+
+$a[] = " Before the 3.0 release series, Open MPI set two TCP tuning
+parameters which, while a little large for 1 Gbps networks in 2005,
+were woefully undersized for modern 10 Gbps networks.  Further, the
+Linux kernel TCP stack has progressed to a dynamic buffer scheme,
+allowing even larger buffers (and therefore window sizes).  The Open
+MPI parameters meant that for most any multi-switch 10 GbE
+configuration, the TCP window could not cover the bandwidth-delay
+product of the network and, therefore, a single TCP flow could not
+saturate the network link.
+
+Open MPI 3.0 and later removed the problematic tuning parameters and
+let the kernel do its (much more intelligent) thing.  If you still see
+unexpected bandwidth numbers in your network, this may be a bug.
+Please file a <a
+href=\"https://github.com/open-mpi/ompi/issues\">GitHub Issue</a>.
+The tuning parameter patch was backported to the 2.0 series in 2.0.3
+and the 2.1 series in 2.1.2, so those versions and later should also
+not require workarounds.  For earlier versions, the parameters can be
+modified with an MCA parameter:
+
+<geshi bash>
+shell$ mpirun --mca btl_tcp_sndbuf 0 --mca btl_tcp_rcvbuf 0 ...
+</geshi>";
+
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Can I use multiple TCP connections to improve network performance?";
+
+$anchor[] = "tcp-multi-links";
+
+$a[] = "Open MPI 4.0.0 and later can use multiple TCP connections
+between any pair of MPI processes, striping large messages across the
+connections.  The \"btl_tcp_links\" parameter can be used to set how
+many TCP connections should be established between MPI ranks.  Note
+that this may not improve application performance for common use cases
+of nearest-neighbor exchanges when there many MPI ranks on each host.
+In these cases, there are already many TCP connections between any two
+hosts (because of the many ranks all communicating), so the extra TCP
+connections are likely just consuming extra resources and adding work
+to the MPI implementation.  However, for highly multi-threaded
+applications, where there are only one or two MPI ranks per host, the
+\"btl_tcp_links\" option may improve TCP throughput considerably.";
+
