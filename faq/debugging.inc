@@ -139,7 +139,7 @@ problems identified by *mpi_param_check*.</li>
 supported systems) when MPI_ABORT is invoked.</li>
 
 <li> *mpi_ddt_&lt;foo&gt;_debug*, where *&lt;foo&gt;* can be one of
-*pack*, *unpack*, *position*, or *copy*: These are intenral debugging
+*pack*, *unpack*, *position*, or *copy*: These are internal debugging
 features that are not intended for end users (but [ompi_info] will
 report that they exist).
 </ul>";
@@ -231,7 +231,7 @@ MPI_COMM_WORLD, each one running a serial debugger (such as [gdb])
 that will launch and run your MPI application.  Having a separate
 window for each MPI process can be quite handy for low process-count
 MPI jobs, but requires a bit of setup and configuration that is
-outside of Open MPI to work properly.  A naieve approach would be to
+outside of Open MPI to work properly.  A naive approach would be to
 assume that the following would immediately work:
 
 <geshi bash>
@@ -279,7 +279,7 @@ not even have the option of using SSH X forwarding if you SSH logins
 to cluster nodes are disabled), but check with your security
 administrator to be sure.
 
-If using non-encrypted X11 forwarding is permissable, we recommend the
+If using non-encrypted X11 forwarding is permissible, we recommend the
 following:
 
 <ol>
@@ -350,13 +350,13 @@ $a[] = "There many be many reasons for this; the Open MPI Team
 strongly encourages the use of tools (such as debuggers) whenever
 possible.
 
-One of the reaons, however, may come from inside Open MPI itself.  If
+One of the reasons, however, may come from inside Open MPI itself.  If
 your application fails due to memory corruption, Open MPI may
 subsequently fail to output an error message before dying.
 Specifically, starting with v1.3, Open MPI attempts to aggregate error
 messages from multiple processes in an attempt to show unique error
 messages only once (vs. one for each MPI process -- which can be
-unweildly, especially when running large MPI jobs).
+unwieldy, especially when running large MPI jobs).
 
 However, this aggregation process requires allocating memory in the
 MPI process when it displays the error message.  If the process'
@@ -367,7 +367,7 @@ work is done during MPI_INIT and no memory is allocated during the
 \"print the error\" routine.  It therefore almost always successfully
 outputs error messages in real time -- but at the expense that you'll
 potentially see the same error message for *each* MPI process that
-encourntered the error.
+encountered the error.
 
 Hence, the error message aggregation is _usually_ a good thing, but
 sometimes it can mask a real error.  You can disable Open MPI's error
@@ -471,7 +471,7 @@ check for a recent Valgrind-distribution and include the compilation
 of [ompi/opal/mca/memchecker]. You may ensure, that the library is
 being built, by using the [ompi_info] application. Please note, that
 all of this will only make sense together with [--enable-debug], which
-is required by Valgrind for outputing messages pointing directly to
+is required by Valgrind for outputting messages pointing directly to
 the relevant source code lines. Otherwise, without debugging info,
 the messages from Valgrind are nearly useless.
 
