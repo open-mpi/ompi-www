@@ -15,7 +15,7 @@ problem: a greater propensity for race conditions, asynchronous
 events, and the general difficulty of trying to understand N processes
 simultaneously executing -- the problem becomes quite formidable.
 
-This FAQ section does not provide any definition solutions to
+This FAQ section does not provide any definite solutions to
 debugging in parallel.  At best, it shows some general techniques and
 a few specific examples that may be helpful to your situation.
 
@@ -505,7 +505,7 @@ $anchor[] = "memchecker_run";
 
 $a[] = "First of all, you have to make sure that Valgrind 3.2.0 or
 later is installed, and Open MPI is compiled with Memchecker
-enabled. Then simply run you application with Valgrind, e.g.:
+enabled. Then simply run your application with Valgrind, e.g.:
 
 <geshi bash>
 shell$ mpirun -np 2 valgrind ./my_app
