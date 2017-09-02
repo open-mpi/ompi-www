@@ -149,8 +149,8 @@ Perl bindings are available from Bernd Kallies
 <a href="http://search.cpan.org/~bka/Sys-Hwloc-0.10/">on CPAN</a>.
 <br />
 Python bindings are available from Guy Streeter
-as <a href="http://people.redhat.com/streeter/">Fedora RPM and tarball</a>
-or within their <a href="http://git.fedorahosted.org/git/python-hwloc.git">git tree</a>.
+as <a href="https://copr.fedorainfracloud.org/coprs/streeter/python-hwloc/">Fedora RPM and tarball</a>
+or within their <a href="https://gitlab.com/guystreeter/python-hwloc">git tree</a>.
 <br />
 Rust bindings are available from Michael Nitschinger
 <a href="https://github.com/daschl/hwloc-rs">on GitHub</a>.
