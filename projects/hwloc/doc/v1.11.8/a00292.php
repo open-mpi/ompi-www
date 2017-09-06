@@ -82,7 +82,7 @@ hwloc-dump-hwdata</h1>
 <p>See <code>HWLOC_DUMPED_HWDATA_DIR</code> in <a class="el" href="a00293.php">Environment Variables</a> for details about the location of dumped files.</p>
 <h1><a class="anchor" id="cli_hwloc_gather"></a>
 hwloc-gather-topology</h1>
-<p>hwloc-gather-topology is a Linux-specific tool that saves the relevant topology files of the current machine into a tarball (and the corresponding lstopo output).</p>
+<p>hwloc-gather-topology is a Linux-specific tool that saves the relevant topology files of the current machine into a tarball (and the corresponding lstopo outputs).</p>
 <p>These files may be used later (possibly offline) for simulating or debugging a machine without actually running on it. </p>
 </div></div><!-- contents -->
 <?php
