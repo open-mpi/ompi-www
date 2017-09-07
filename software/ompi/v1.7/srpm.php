@@ -1,25 +1,23 @@
 <?php
   $topdir = "../../..";
-  include_once("$topdir/software/ompi/v1.7/version.inc");
+  include_once("version.inc");
 
-  $title = "Open MPI: Version $ver_v1_7 Source RPM Notes";
+  $title = "Open MPI: Version $release_series Source RPM Notes";
   include_once("$topdir/software/ompi/nav.inc");
   include_once("$topdir/includes/header.inc");
   include_once("$topdir/includes/curl_get.inc");
 
   include_once("$topdir/includes/downloads.inc");
 
-  $ver = "v1.7";
   $base_url = "https://github.com/open-mpi/ompi/tree";
   $rawbase_url = "https://raw.githubusercontent.com/open-mpi/ompi";
-  $linux_dir = "$ver/contrib/dist/linux";
+  $linux_dir = "$release_branch/contrib/dist/linux";
 
   $readme = "$base_url/$linux_dir/README";
   $raw_readme = "$rawbase_url/$linux_dir/README";
   $build_script = "$base_url/$linux_dir/buildrpm.sh";
   $specfile = "$base_url/$linux_dir/openmpi.spec";
 ?>
-
 
 <p>Because every parallel computation environment is different, Open MPI
 is a highly configurable piece of software.  As such, a single set of
