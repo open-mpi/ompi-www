@@ -27,8 +27,6 @@ $dir = "v3.0";
 include_once("$topdir/software/ompi/$dir/version.inc");
 $name = preg_replace("/\./", "_", $dir);
 
-$str = "\$ver_current = \$ver_$name;";
-eval($str);
-$str = "\$ver_current_dir = \$ver_${name}_dir;";
-eval($str);
+$ver_current = $releases[0];
+$ver_current_dir = $dir;
 

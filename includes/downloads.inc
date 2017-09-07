@@ -8,8 +8,6 @@ use Aws\Credentials\CredentialProvider;
 use Aws\S3\S3Client;
 use Aws\Exception\AwsException;
 
-$download_base = "$topdir/download";
-
 # HostGator's apache runs as root, so it looks for creds 
 # in the wrong place.  Special case the search path for 
 # HostGator and use the default location (or role) on other
@@ -21,235 +19,12 @@ if (strpos(gethostname(), 'hostgator.com') !== false) {
     $provider = CredentialProvider::defaultProvider();
 }
 
-function prettyprint_filesize($s) {
-    if ($s > 1048576) {
-        $s = ((int) (($s / 1048576) * 100)) / 100 . "MB";
-    } else {
-        $s = (int) ($s / 1024) . "KB";
-    }
-    return $s;
+function prettyprint_filesize($size) {
+    $base = log($size, 1024);
+    $suffixes = array(' B', ' KiB', ' MiB', ' GiB', ' TiB');
+
+    return round(pow(1024, $base - floor($base)), 2) .' '. $suffixes[floor($base)];
 }
-
-//
-// Utility function to read in a file of checksums (i.e., the output
-// of md5sum or sha1sum)
-//
-function read_checksums($file) {
-    if (file_exists($file) && is_readable($file)) {
-        // Read the file
-        $f = fopen($file, "r");
-        $str = fread($f, filesize($file));
-        fclose($f);
-
-        // Split it into an array
-        $a = preg_split("/\n/", $str);
-        foreach ($a as $line) {
-            $both = preg_split("/[ \t]+/", $line);
-            $files[$both[1]] = $both[0];
-        }
-
-        return $files;
-    }
-}
-
-
-//
-// Class for holding both headers and file info
-//
-class downloadFileInfo {
-    var $section, $filename, $base_url, $size, $mdsum, $shasum;
-    var $link, $a_modifier;
-    var $headerText;
-
-    //
-    // Set the file info
-    //
-    function setFile($section, $filename, $base_url, $download_dir,
-                     $mdsum = "", $shasum = "") {
-
-        // Save almost everything
-        $this->section = $section;
-        $this->filename = $filename;
-        $this->mdsum = $mdsum;
-        $this->shasum = $shasum;
-        $this->link = "";
-        $this->base_url = $base_url;
-        $this->a_modifier = "";
-
-        // Compute a print-friendly size
-        $file = $download_dir . "/" . $filename;
-        $st = stat($file);
-        $this->size = prettyprint_filesize($st[size]);
-        $this->mtime = $st[mtime];
-        $this->mtime_str = date("M j, Y", $st[mtime]);
-    }
-
-    function setLink($section, $filename, $date, $link, $a_modifier) {
-
-        // Save almost everything
-        $this->section = $section;
-        $this->filename = $filename;
-        $this->base_url = $base_url;
-        $this->mdsum = "";
-        $this->shasum = "";
-        $this->link = $link;
-        $this->size = "";
-        $this->mtime_str = $date;
-        $this->a_modifier = $a_modifier;
-    }
-
-    //
-    // Output this instance
-    //
-    function printMe($rowspan, $download_url) {
-        print("<TR>\n");
-        if ($rowspan > 0)
-            print("<TD ROWSPAN=$rowspan>$this->section</TD>\n");
-
-        // Is it a link or a file?
-        if (!empty($this->link)) {
-            print("<TD><A HREF=\"$this->link\"");
-        if (!empty($this->a_modifier)) {
-        print(" $this->a_modifier");
-        }
-        print("$this->filename</A></TD>
-<TD>&nbsp;</TD>
-<TD>$this->mtime_str</TD>
-<TD ALIGN=CENTER>(external link)</TD>
-</TR>\n");
-        } else {
-            if (!empty($this->mdsum)) {
-        print("<TD><A HREF=\"$download_url/$this->filename\"");
-        if (!empty($this->a_modifier)) {
-            print(" $this->a_modifier");
-        }
-        print(">$this->filename</A></TD>\n");
-            } else {
-                print("<TD>$this->filename</TD>\n");
-            }
-            print("<TD ALIGN=RIGHT>$this->size</TD>\n");
-            print("<TD ALIGN=RIGHT>$this->mtime_str</TD>\n");
-
-            print("<TD><TABLE BORDER=0>\n");
-            if ($this->mdsum) {
-                print("<TR>\n<TD ALIGN=RIGHT>MD5:</TD>\n<TD>$this->mdsum</TD></TR>");
-            }
-            if ($this->shasum) {
-                print("<TR>\n<TD ALIGN=RIGHT>SHA1:</TD>\n<TD>$this->shasum</TD></TR>");
-            }
-            print("</TABLE></TD></TR>\n\n");
-        }
-    }
-}
-
-//
-// Base class to hold info for download files
-//
-class downloadTable {
-    var $files;
-    var $download_url, $download_dir;
-    var $title;
-
-    //
-    // Constructor
-    //
-    function downloadTable($download_url, $download_dir, $base_url,
-                           $sort_by_date = true) {
-        global $download_base;
-
-        $this->download_url = $download_url;
-        $this->download_dir = $download_dir;
-        $this->base_url = $base_url;
-        $this->title = "";
-        $this->sort_by_date = $sort_by_date;
-    }
-
-    //
-    // Add a heading to the table
-    //
-    function setHeader($title) {
-        $this->title= $title;
-    }
-
-    //
-    // Add a file to the table
-    //
-    function addFile($section, $file, $mdsum = "", $shasum = "") {
-        $foo = new downloadFileInfo;
-        $foo->setFile($section, $file, $this->base_url, $this->download_url, $mdsum, $shasum);
-        $this->files[] = $foo;
-    }
-
-    //
-    // Add an external link to the table
-    //
-    function addLink($section, $text, $date, $link, $a_modifier = "") {
-        $foo = new downloadFileInfo;
-        if (empty($a_modifier)) {
-            $a_modifier = "<a href=\"$link\">";
-        }
-        $foo->setLink($section, $text, $date, $link, $a_modifier);
-        $this->files[] = $foo;
-    }
-
-    //
-    // Function to cache / print out an entry in the table
-    //
-    function printMe() {
-        $next_section = 0;
-
-        if (sizeof($this->files) == 0) {
-            return;
-        }
-
-        print("<TABLE BORDER=1 CELLPADDING=5>\n");
-        if ($this->title) {
-            print("<TR>\n<TH COLSPAN=4>". $this->title . "</TH>\n</TR>\n\n");
-        }
-        print("<TR>
-<TH>Contents</TH>
-<TH>File names</TH>
-<TH>Size</TH>
-<TH>Date</TH>
-<TH>Checksums (GNU md5sum and sha1sum v5.2.1)</TH>
-</TR>\n\n");
-
-        if ($this->sort_by_date) {
-            usort($this->files, "downloadFileInfo_sort_by_date");
-        }
-
-        $next_section = 0;
-        for ($i = 0; $i < sizeof($this->files); $i++) {
-            $f = $this->files[$i];
-            if ($next_section == $i) {
-                $s = $f->section;
-                for ($next_section = $j = $i + 1; $j < sizeof($this->files);
-                     $next_section++, $j++) {
-                    $f2 = $this->files[$j];
-                    if ($f2->section != $s) {
-                        break;
-                    }
-                }
-
-                $rowspan = $next_section - $i;
-            } else {
-                $rowspan = 0;
-            }
-            $f->printMe($rowspan, $this->download_url);
-        }
-        print("</TABLE>\n\n");
-    }
-}
-
-# Reverse sort the filenames by date (i.e., newest first)
-function downloadFileInfo_sort_by_date($a, $b)
-{
-    if ($a->mtime == $b->mtime) {
-        return 0;
-    }
-    return ($a->mtime > $b->mtime) ? -1 : 1;
-}
-
 
 // function to print a download table for either releases or nightly
 // snapshots.  release_infos is sorted array of releases, which are a
@@ -332,10 +107,38 @@ function print_download_table($release_infos, $download_prefix, $extra_rows = []
     print("</TABLE>\n\n");
 }
 
-// For a given bucket and prefix, grab the contents of the
-// latest_snapshot.txt file.
-function get_latest_snapshot($bucket, $prefix) {
-    $latest_key = $prefix . "latest_snapshot.txt";
+function print_release_section($project, $s3_bucket, $s3_prefix, $download_prefix,
+                               $releases, $prereleases, $cygwin_note)
+{
+    if (count($releases) > 0) {
+        $extra_rows = array();
+
+        if ($cygwin_note) {
+            $extra_rows[] = "Cygwin provides <A HREF=\"http://cygwin.com/cgi-bin2/package-grep.cgi?grep=openmpi\">binaries for the $release_series release series</A>.\n";
+        }
+
+        print("</div>\n\n<p>Current stable release:</p>\n\n<p>\n<div align=center>\n\n");
+        print_release_table($project, array_slice($releases, 0, 1), $s3_bucket,
+                            $s3_prefix, $download_prefix, $extra_rows);
+    }
+
+    if (count($prereleases) > 0) {
+        print("</div>\n\n<p>Prerelease:</p>\n\n<p>\n<div align=center>\n\n");
+        print_release_table($project, $prereleases, $s3_bucket, $s3_prefix,
+                            $download_prefix);
+    }
+
+    if (count($releases) > 1) {
+        print("</div>\n\n<p>Previous releases:</p>\n\n<p>\n<div align=center>\n\n");
+        print_release_table($project, array_slice($releases, 1), $s3_bucket,
+                            $s3_prefix, $download_prefix);
+    }
+}
+
+function print_release_table($project, $releases, $bucket, $s3_prefix,
+                             $download_prefix, $extra_rows = [])
+{
+    $release_infos = [];
 
     try {
         global $provider;
@@ -343,10 +146,56 @@ function get_latest_snapshot($bucket, $prefix) {
         $s3_client = new S3Client(['region' => 'us-west-2',
                                    'version' => '2006-03-01',
                                    'credentials' => $provider]);
-        $data = $s3_client->getObject(['Bucket' => $bucket,
-                                       'Key' => $latest_key]);
     } catch (Exception $e) {
+        error_log("s3_client connect failed: " . $e);
+        return;
+    }
+
+    foreach($releases as &$release) {
+        try {
+            $keyname = $s3_prefix . "build-" . $project . "-" . $release . ".json";
+            $data = $s3_client->getObject(['Bucket' => $bucket,
+                                           'Key' => $keyname]);
+            $info = json_decode($data['Body'], true);
+        } catch (Exception $e) {
+            // not much we can do, so just skip this entry
+            error_log("Release download failed: " . $e);
+            continue;
+        }
+
+        # add a name for display
+        $info['release_name'] = $release;
+        $release_infos[] = $info;
+    }
+
+    print_download_table($release_infos, $download_prefix, $extra_rows);
+}
+
+// For a given bucket and prefix, grab the contents of the
+// latest_snapshot.txt file.
+function get_latest_snapshot($bucket, $prefix) {
+    $latest_key = $prefix . "latest_snapshot.txt";
+
+    $data = get_download_file($bucket, $latest_key);
+    if ($data == NULL) {
         return "";
+    }
+
+    return $data;
+}
+
+function get_download_file($bucket, $key) {
+    try {
+        global $provider;
+
+        $s3_client = new S3Client(['region' => 'us-west-2',
+                                   'version' => '2006-03-01',
+                                   'credentials' => $provider]);
+        $data = $s3_client->getObject(['Bucket' => $bucket,
+                                       'Key' => $key]);
+    } catch (Exception $e) {
+        error_log("get_download_file failed: " . $e);
+        return NULL;
     }
 
     return $data['Body'];
@@ -430,4 +279,29 @@ function print_nightly_table($bucket, $prefix, $download_prefix) {
     }
 
     print_download_table($builds, $download_prefix);
+}
+
+function latest_snapshot_output($s3_prefix, $prereleases, $releases) {
+    if (count($prereleases) > 0) {
+        $latest = $prereleases[0];
+    } else if (count($releases) > 0) {
+        $latest = $releases[0];
+    } else {
+        $latest = NULL;
+    }
+
+    if ($latest != NULL) {
+        $filename = $s3_prefix . "build-openmpi-" . $latest . ".json";
+        $blob = get_download_file("open-mpi-release", $filename);
+    } else {
+        $blob = NULL;
+    }
+    if ($blob === NULL) {
+        header("HTTP/1.0 404 Not Found");
+        return;
+    }
+    $info = json_decode($blob, true);
+
+    header("Last-Modified: " . gmdate("D, d M Y H:i:s", $info["build_unix_time"]) . " GMT");
+    print($latest);
 }
