@@ -54,13 +54,41 @@ if (preg_match("/[a-z]/i", $v) &&
 
 #############################################################################
 #
+# Older releases
+#
+#############################################################################
+
+$t_older = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
+
+if (isset($t_older)) {
+    $versions = array();
+    $versions[] = "3.0.0";
+
+    foreach ($versions as $v) {
+        $n = array();
+        $n[] = "openmpi-$v.tar.bz2";
+        $n[] = "openmpi-$v.tar.gz";
+        $n[] = "openmpi-$v-1.src.rpm";
+
+        $s = "Version $v<br>$notes";
+
+        foreach ($n as $name) {
+            if (file_exists("downloads/$name")) {
+                $t_older->addFile($s, $name, $md5[$name], $sha1[$name]);
+            }
+        }
+    }
+}
+
+#############################################################################
+#
 # Main display part of the page
 #
 #############################################################################
 
 $project = "Open MPI";
 $list_name = "announce";
-$prev_describe = "the v$ver_v1_10 download page";
+$prev_describe = "the v$ver_v3_0 download page";
 include_once("$topdir/includes/subscribe-announce.inc");
 ?>
 
