@@ -58,6 +58,12 @@ $descriptions[] = "Intel Knights Landing."
 ."<br/>SubNUMA clustering (SNC-4) is also enabled, for a total of 8 NUMA nodes."
 ."<br/>72 cores and 288 threads";
 $sections[] = 3;
+$files[] = "SPARC-T7.v1.11.png";
+$descriptions[] = "Dual-socket Oracle SPARC T7 (from 2016, with hwloc v1.11)."."<br/>32 cores in each socket, with 8 hardware threads each";
+$sections[] = 3;
+$files[] = "SPARC-T8.v1.11.png";
+$descriptions[] = "Oracle SPARC T8 (from 2017, with hwloc 1.11)."."<br/>32 cores with 8 hardware threads each";
+$sections[] = 3;
 $files[] = "16XeonX7400.v1.11.png";
 $descriptions[] = "16x Xeon <em>Dunnington</em> X7460 with IBM custom NUMA interconnect (IBM x3950 M2 from 2009, with hwloc v1.11)."
 ."<br/>96 cores total";
