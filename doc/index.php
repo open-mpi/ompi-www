@@ -41,7 +41,7 @@ color=red><?php
 
 <p> <strong>Prior stable release series</strong>
 
-<li><a href="current/"><strong>Open MPI v<?php print($ver_v2_1); ?>
+<li><a href="v2.1/"><strong>Open MPI v<?php print($ver_v2_1); ?>
 </strong></a>.  This documentation reflects
 the latest progression in the 2.1.x series.  The emphasis of this
 tree is on bug fixes and stability, although it also introduces a few
