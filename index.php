@@ -90,6 +90,9 @@ information</a></h3>
 news("Open MPI v2.1.2 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00103.html");
+news("Open MPI v3.0.0 released",
+     "New stable series release",
+     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00102.html");
 news("Open MPI v2.0.3 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00101.html");
