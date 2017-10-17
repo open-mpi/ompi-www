@@ -41,6 +41,9 @@ These snapshots are from the Git master and reflect the current
 head of development.  The usual disclaimers about the state of
 development code apply.</li>
 
+<li><a href="v3.1.x/"><strong>v3.1.x series</strong></a>: These are images from
+the upcoming v3.1.x series.
+
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
 
