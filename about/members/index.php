@@ -300,6 +300,9 @@ add_org("http://www.hs-esslingen.de/", "Hochschule Esslingen",
 add_org("http://radical.rutgers.edu/", "Rutgers University",
         "RADICAL / Department of Electrical and Computer Engineering (ECE)", "rutgers.png", $contrib);
 
+add_org("http://http://newmexicoconsortium.org/", "New Mexico Consortium",
+        "", "nmc.jpg", $partner);
+
 add_individual("https://www.clarkson.edu/math/faculty_pages/black.html",
                "Kelly Black", "", $contrib);
 
