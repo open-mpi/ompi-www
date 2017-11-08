@@ -17,3 +17,7 @@ $this_nav[] = new Nav("v1.4 (ancient)", "$topdir/doc/v1.4/");
 $this_nav[] = new Nav("v1.3 (ancient)", "$topdir/doc/v1.3/");
 $this_nav[] = new Nav("v1.2 (ancient)", "$topdir/doc/v1.2/");
 $this_nav[] = new Nav("v1.1 (ancient)", "$topdir/doc/v1.1/");
+
+if (preg_match("/\/doc\/v1/", $_SERVER['REQUEST_URI']) == 1) {
+    $noindex = 1;
+}
