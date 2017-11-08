@@ -1,6 +1,8 @@
 <?php
 include_once("$topdir/includes/nav.inc");
 
+$meta_keywords="hwloc, Hardware Locality, topology, locality, hierarchy, NUMA, NUMAnode, processor, package, cache, core, PU, Open MPI, HPC, Linux";
+
 $this_dir = "hwloc";
 $this_nav[] = new Nav("Download v1.11 (stable)", "$topdir/software/hwloc/v1.11/");
 $this_nav[] = new Nav("Download ancient", "$topdir/software/hwloc/ancient/");
