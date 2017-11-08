@@ -6,6 +6,9 @@
 if (isset($meta_desc)) {
     print("<META name=\"description\" content=\"$meta_desc\">\n");
 }
+if (isset($noindex)) {
+    print("<META name=\"googlebot\" content=\"noindex\">\n");
+}
 print("<META name=\"keywords\" content=\"");
 if (isset($meta_keywords)) {
     print($meta_keywords);
