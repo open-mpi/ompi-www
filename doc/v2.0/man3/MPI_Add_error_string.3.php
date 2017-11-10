@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Add_error_string(3) man page (version 2.0.3)";
-$meta_desc = "Open MPI v2.0.3 man page: MPI_ADD_ERROR_STRING(3)";
+$title = "MPI_Add_error_string(3) man page (version 2.0.4)";
+$meta_desc = "Open MPI v2.0.4 man page: MPI_ADD_ERROR_STRING(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

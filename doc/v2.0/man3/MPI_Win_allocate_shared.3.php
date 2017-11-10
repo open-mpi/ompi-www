@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Win_allocate_shared(3) man page (version 2.0.3)";
-$meta_desc = "Open MPI v2.0.3 man page: MPI_WIN_ALLOCATE_SHARED(3)";
+$title = "MPI_Win_allocate_shared(3) man page (version 2.0.4)";
+$meta_desc = "Open MPI v2.0.4 man page: MPI_WIN_ALLOCATE_SHARED(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -28,7 +28,7 @@ int MPI_Win_allocate_shared (MPI_Aint size, int disp_unit, MPI_Info info,
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
 <pre>INCLUDE &rsquo;mpif.h&rsquo;
-MPI_WIN_ALLOCATE_SHARED(IZE, DISP_UNIT, INFO, COMM, BASEPTR, WIN, IERROR)
+MPI_WIN_ALLOCATE_SHARED(SIZE, DISP_UNIT, INFO, COMM, BASEPTR, WIN, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER(KIND=MPI_ADDRESS_KIND) SIZE, BASEPTR
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER DISP_UNIT, INFO, COMM, WIN, IERROR
 </pre>

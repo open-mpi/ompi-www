@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Mrecv(3) man page (version 2.0.3)";
-$meta_desc = "Open MPI v2.0.3 man page: MPI_MRECV(3)";
+$title = "MPI_Mrecv(3) man page (version 2.0.4)";
+$meta_desc = "Open MPI v2.0.4 man page: MPI_MRECV(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -29,7 +29,7 @@ int MPI_Mrecv(void *buf, int count, MPI_Datatype type,
 <pre>INCLUDE &rsquo;mpif.h&rsquo;
 MPI_MRECV(BUF, COUNT, DATATYPE, MESSAGE, STATUS, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;BUF(*)
-<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;OUNT, DATATYPE, MESSAGE
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COUNT, DATATYPE, MESSAGE
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;STATUS(MPI_STATUS_SIZE), IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>C++ Syntax</a></h2>
