@@ -89,7 +89,7 @@ information</a></h3>
 # Lists are not mirrored - use an absolute URL
 news("Open MPI v2.0.4 released",
      "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00104.html");
+     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00105.html");
 news("Open MPI v2.1.2 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00103.html");
