@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Win_unlock_all(3) man page (version 2.0.3)";
-$meta_desc = "Open MPI v2.0.3 man page: MPI_WIN_UNLOCK_ALL(3)";
+$title = "MPI_Win_unlock_all(3) man page (version 2.0.4)";
+$meta_desc = "Open MPI v2.0.4 man page: MPI_WIN_UNLOCK_ALL(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -27,8 +27,8 @@ int MPI_Win_unlock_all(MPI_Win win)
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
 <pre>INCLUDE &rsquo;mpif.h&rsquo;
-MPI_WIN_UNLOCK_ALL(IN, IERROR)
-<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER IN, IERROR
+MPI_WIN_UNLOCK_ALL(WIN, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER WIN, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Input Parameters</a></h2>
 

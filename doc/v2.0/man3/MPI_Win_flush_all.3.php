@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Win_flush_all(3) man page (version 2.0.3)";
-$meta_desc = "Open MPI v2.0.3 man page: MPI_WIN_FLUSH_ALL(3)";
+$title = "MPI_Win_flush_all(3) man page (version 2.0.4)";
+$meta_desc = "Open MPI v2.0.4 man page: MPI_WIN_FLUSH_ALL(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -31,7 +31,7 @@ int MPI_Win_flush_all (MPI_Win win)
 <pre>INCLUDE &rsquo;mpif.h&rsquo;
 <a href="../man3/MPI_Win_flush.3.php">MPI_WIN_FLUSH</a>(RANK, WIN, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER RANK, WIN, IERROR
-MPI_WIN_FLUSH_ALL(IN, IERROR)
+MPI_WIN_FLUSH_ALL(WIN, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER WIN, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Input Parameters</a></h2>
