@@ -8,7 +8,9 @@ include_once("$topdir/includes/header.inc");
 
 ?>
 
-<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSfbubS-ldcfAnpXmF75EtH6g28Nh-hL1FY9IJc2cLX6brqBWA/viewform?embedded=true" width="760" height="1500" frameborder="0" marginheight="0" marginwidth="0">Loading...</iframe>
+<h2><a href="http://sc17.supercomputing.org/presentation/?id=bof115&sess=sess328">BOF session page (including the link to ask a question / vote on questions)</a></h2>
+
+<h2><a href="https://submissions.supercomputing.org/?page=SessionEval&new_year=sc17&id=sess328&eval_stype=stype159"></a>BOF evaluation form</h2>
 
 <?php
 include_once("$topdir/includes/footer.inc");
