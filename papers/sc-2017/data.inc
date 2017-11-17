@@ -13,7 +13,7 @@ November, 2017, in Denver, CO, USA";
 $files[] = "Open-MPI-SC17-BOF.pdf";
 
 $month = 11;
-$day = 16;
+$day = 15;
 $year = 2017;
 
 $bibtex = "";
