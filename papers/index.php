@@ -34,7 +34,7 @@ href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.ps">ps</a>]
 <p><strong>2017</strong></p>
 <ul>
 <?php
-print_papers(array("sc-2017"));
+print_papers(array("sc-2017", "sc-2017-pmix"));
 ?>
 </ul>
 
@@ -173,7 +173,7 @@ print_papers(array("openib-workshop-2006",
                    "kicc-2005",
                    "sc-2005",
                    "lanl-2005-red-storm",
-                   "euro-pvmmpi-2005-fortran", 
+                   "euro-pvmmpi-2005-fortran",
                    "euro-pvmmpi-2005-mca-perf",
                    "euro-pvmmpi-2005-orte",
                    "ppam-2005",
@@ -184,7 +184,7 @@ print_papers(array("openib-workshop-2006",
 <p><strong>2004</strong></p>
 <UL>
 <?php
-print_papers(array("euro-pvmmpi-2004-overview", 
+print_papers(array("euro-pvmmpi-2004-overview",
                    "euro-pvmmpi-2004-p2p",
                    "euro-pvmmpi-2004-p2p-perf",
                    "ics-2004"));
@@ -192,4 +192,4 @@ print_papers(array("euro-pvmmpi-2004-overview",
 <UL>
 
 <?php
-include_once("$topdir/includes/footer.inc"); 
+include_once("$topdir/includes/footer.inc");
