@@ -31,10 +31,17 @@ href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.ps">ps</a>]
 
 <p><B>Open MPI Bibliography and Papers:</B><BR>
 
+<p><strong>2017</strong></p>
+<ul>
+<?php
+print_papers(array("sc-2017"));
+?>
+</ul>
+
 <p><strong>2016</strong></p>
 <ul>
 <?php
-print_papers(array("sc-2016"));
+print_papers(array("sc-2016", "sc-2016-pmix"));
 ?>
 </ul>
 
