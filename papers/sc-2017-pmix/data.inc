@@ -12,7 +12,7 @@ November, 2017, in Denver, CO, USA";
 $files[] = "PMIxBoF-2017.pdf";
 
 $month = 11;
-$day = 19;
+$day = 16;
 $year = 2017;
 
 $bibtex = "";
