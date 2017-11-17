@@ -1,2 +1,2 @@
 <?php
-header("Location: ../sc13/");
+header("Location: ../papers/sc-2013/");
