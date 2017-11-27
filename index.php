@@ -96,21 +96,9 @@ news("Open MPI v2.1.2 released",
 news("Open MPI v3.0.0 released",
      "New stable series release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00102.html");
-news("Open MPI v2.0.3 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00101.html");
 news("Open MPI v1.10.7 released",
      "Bug fix release - final in series",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00100.html");
-news("Open MPI v2.1.1 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00099.html");
-news("Open MPI v2.1.0 released",
-     "New stable series release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00098.html");
-news("Open MPI v2.0.2 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00095.html");
 news("hwloc v1.11.7 released",
      "Stable release",
      "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00098.html");
