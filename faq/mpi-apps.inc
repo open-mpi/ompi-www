@@ -225,7 +225,7 @@ wrapper-specific variable is not set.  For example, the value of
   <!-- MPICXX Compiler -->
   <tr>
     <td> *mpicxx* </td>
-    <td> [OMPI_MPIXX] </td>
+    <td> [OMPI_MPICXX] </td>
     <td> [OMPI_MPICXX_CXXPPFLAGS] </td>
     <td> [OMPI_MPICXX_CXXFLAGS] </td>
     <td> [OMPI_MPICXX_LDFLAGS] </td>
