@@ -74,6 +74,32 @@ if (preg_match("/[a-z]/i", $v) &&
 
 #########################################################
 
+$snapv_dir = "v2.0";
+$v = "";
+if (file_exists("$topdir/software/hwloc/$snapv_dir")) {
+    $fp = fopen("$topdir/software/hwloc/$snapv_dir/downloads/latest_snapshot.txt", "r");
+    $v = fgets($fp);
+    fclose($fp);
+    $v = preg_replace("/\s*(\S+)\s*/", "$1", $v);
+}
+
+# See if there's a snapshot file that does not have any letters in its
+# version number (i.e., is not a stable release) and has
+# corresponding pdf's and directory here in the downloads
+# directory.
+
+if (preg_match("/[a-z]/i", $v) &&
+    file_exists("v$v") &&
+    file_exists("hwloc-v$v-a4.pdf") &&
+    file_exists("hwloc-v$v-letter.pdf")) {
+    print($blank_line);
+
+    print_docs("Beta-release $v (newest of the new, unstable)",
+               "hwloc-v$v-letter.pdf", "hwloc-v$v-a4.pdf", "v$v/");
+}
+
+#########################################################
+
 print($blank_line);
 
 $versions = array("v1.10.1", "v1.10.0");
