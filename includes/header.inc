@@ -241,7 +241,6 @@ printsublink("$topurl/projects/netloc/", "Network Locality");
 printsublink("$topurl/projects/mtt/", "MPI Testing Tool");
 printsublink("$topurl/projects/user-docs/", "Open MPI User Docs");
 printsublink("$topurl/projects/otpo/", "Open Tool for Parameter Optimization");
-printsublink("$topurl/projects/pmix/", "PMIx");
 
 // Community
 printbutton("Community");

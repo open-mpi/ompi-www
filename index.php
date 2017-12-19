@@ -102,9 +102,6 @@ news("Open MPI v1.10.7 released",
 news("hwloc v1.11.7 released",
      "Stable release",
      "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00098.html");
-news("PMIx v1.1.1 released",
-     "New production release",
-     "https://groups.google.com/forum/#!category-topic/pmix/CaQNm9aPGcI");
 ?>
 
 </td>
