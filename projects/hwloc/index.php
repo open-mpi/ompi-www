@@ -19,6 +19,9 @@ include_once("$topdir/includes/code.inc");
 news("hwloc v2.0 beta1 released",
      "Experimental major release",
      "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00102.html");
+news("hwloc v1.11.9rc1 released",
+     "Stable release candidate",
+     "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00103.html");
 news("hwloc v1.11.8 released",
      "Stable release",
      "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00100.html");
