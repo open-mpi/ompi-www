@@ -81,7 +81,7 @@ and a reliable way to
 information, with knowledge of cgroups, offline CPUs, ScaleMP vSMP,
 and NumaScale NumaConnect) on all supported hardware,
 including Intel Xeon Phi.</li>
-<li>Solaris, AIX, HP-UX and OSF/1 (a.k.a., Tru64)</li>
+<li>Solaris, AIX and HP-UX</li>
 <li>NetBSD, FreeBSD and kFreeBSD/GNU</li>
 <li>Darwin / OS X</li>
 <li>Microsoft Windows (either using MinGW or a native Visual Studio solution)</li>
