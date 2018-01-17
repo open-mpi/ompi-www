@@ -36,12 +36,26 @@ However, the non-contiguous datatypes currently have high overhead
 because of the many calls to [cuMemcpy] to copy all the pieces of the
 buffer into the intermediate buffer.
 
-CUDA-aware support is only available in the sm, smcuda, tcp, and openib BTLs.
+CUDA-aware support is available in the sm, smcuda, tcp, and openib BTLs.
 The smcuda BTL is an optimized version of the sm BTL that takes advantage
 of the CUDA IPC support for fast GPU transfers.  Much of the other
 optimizations are built in to the openib BTL.
 
-There is no CUDA-aware support in any of the MTLs.
+CUDA-aware support is present in PSM2 MTL.
+When running CUDA-aware Open MPI on Intel(r) Omni-path, the PSM2 MTL will
+automatically set PSM2_CUDA environment variable which enables PSM2 to handle
+GPU buffers. If user wants to use host buffers with a CUDA-aware Open MPI,
+it is recommended to set PSM2_CUDA to 0 in the execution environment. PSM2 also
+has support for NVIDIA(r) GPUDirect support feature. To enable this, users will
+need to set PSM2_GPUDIRECT to 1 in the execution environment.
+
+Note: PSM2 library and hfi1 driver with CUDA support are requirements to use
+GPU Direct support on Intel(r) Omni-Path. The minimum PSM2 build version required
+is <a href=\"https://github.com/01org/opa-psm2/releases/tag/PSM2_10.2-175\"> PSM2 10.2.175.</a> 
+
+For more information refer to
+<a href=\"https://www.intel.com/content/www/us/en/support/articles/000016242/network-and-i-o/fabric-products.html\">
+Intel (R) Omni-Path documentation.</a>
 
 *Open MPI v1.7.0, Open MPI v1.7.1, Open MPI v1.7.2*
 <ul>
