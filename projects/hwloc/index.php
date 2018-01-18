@@ -19,12 +19,9 @@ include_once("$topdir/includes/code.inc");
 news("hwloc v2.0rc1 released",
      "Major release candidate",
      "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00104.html");
-news("hwloc v1.11.9rc1 released",
-     "Stable release candidate",
-     "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00103.html");
-news("hwloc v1.11.8 released",
+news("hwloc v1.11.9 released",
      "Stable release",
-     "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00100.html");
+     "https://mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00105.html");
 news("The Best of lstopo",
      "Best lstopo graphical outputs",
      "lstopo");
