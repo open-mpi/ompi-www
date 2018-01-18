@@ -19,7 +19,6 @@ all users to download and use.</strong></p>
 
 </li>
 
-<!--
 <li> <strong>Upcoming stable release series</strong>
 
 <p><a href="v2.0/"><strong>v2.0 series</strong></a> (upcoming stable
@@ -29,7 +28,6 @@ is on bug fixes and stability.  <strong>This tree is not ready for
 prime time consumption yet.</strong></p>
 
 </li>
--->
 
 <li> <strong>Previous stable release series (v1.10, etc) are considered too old and obsolete.</strong>
 <p></p>
