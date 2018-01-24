@@ -15,6 +15,28 @@ $notes = "<a href=\"srpm.php\">SRPM notes</a>";
 
 #############################################################################
 #
+# Current stable release
+#
+#############################################################################
+
+$t_stable = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
+
+if (isset($t_stable)) {
+    $src = "Version $ver_v3_0<br>$notes";
+
+    $n[] = "openmpi-$ver_v3_0.tar.bz2";
+    $n[] = "openmpi-$ver_v3_0.tar.gz";
+    $n[] = "openmpi-$ver_v3_0-1.src.rpm";
+
+    foreach ($n as $name) {
+        if (file_exists("downloads/$name")) {
+            $t_stable->addFile($src, $name, $md5[$name], $sha1[$name]);
+        }
+    }
+}
+
+#############################################################################
+#
 # Prereleases
 #
 #############################################################################
@@ -58,7 +80,7 @@ if (preg_match("/[a-z]/i", $v) &&
 #
 #############################################################################
 
-$t_older = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
+//$t_older = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
 
 if (isset($t_older)) {
     $versions = array();
