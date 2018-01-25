@@ -1,9 +1,5 @@
 <?php
   $topdir = "../..";
-  include_once("$topdir/includes/force-server.inc");
-  if ($_SERVER['SERVER_NAME'] != "gator.open-mpi.org") {
-    force_server("www.open-mpi.org");
-  }
 
   $title = "Open MPI: v2.0.x nightly snapshot tarballs";
   include_once("$topdir/software/ompi/nav.inc");
@@ -24,43 +20,17 @@ the v2.x branch in the Git ompi repository.  This may be less than once a day!</
 9pm US Eastern time.</p>
 
 <?php
-$f = fopen("latest_snapshot.txt", "r");
-if (!$f) {
-    print("<p>No nightly tarballs available.</p>\n");
+$latest = get_latest_snapshot("open-mpi-nightly", "nightly/open-mpi/v2.0.x/");
+if ($latest == "") {
+    echo("<p><b>No nightly tarballs available.</b></p>\n");
 } else {
-    $latest = trim(fgets($f, 4096));
-    fclose($f);
-?>
+    echo("<p>Latest snapshot version: <strong>" . $latest . "</strong></p>\n");
+    echo("<div align=center>\n");
 
-<p>Latest snapshot version: <strong><?php print($latest); ?></strong></p>
+    print_nightly_table("open-mpi-nightly", "nightly/open-mpi/v2.0.x/",
+                        "https://download.open-mpi.org/nightly/open-mpi/v2.0.x/");
 
-<div align=center>
-<?php
-    $md5 = read_checksums("md5sums.txt");
-    $sha1 = read_checksums("sha1sums.txt");
-    $t = new downloadTable($dir, ".");
-
-    uksort($md5, callback);
-    uksort($sha1, callback);
-    foreach ($md5 as $file => $md5sum) {
-        if ($file) {
-            $t->addFile("Nightly snapshot", $file, $md5sum, $sha1[$file]);
-        }
-    }
-
-    $t->printMe();
     print("</div>\n\n");
-}
-
-# Do a reverse comparison so that we get the highest numbered tarball first
-function callback($a, $b) {
-    if ($a < $b) {
-        return 1;
-    } else if ($a > $b) {
-        return -1;
-    } else {
-        return 0;
-    }
 }
 
 include_once("$topdir/includes/footer.inc");
