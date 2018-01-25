@@ -1,9 +1,5 @@
 <?php
   $topdir = "../../../..";
-  include_once("$topdir/includes/force-server.inc");
-  if ($_SERVER['SERVER_NAME'] != "gator.open-mpi.org") {
-    force_server("www.open-mpi.org");
-  }
 
   $title = "Hardware Locality (hwloc): v1.11 series nightly snapshot tarballs";
   include_once("$topdir/projects/hwloc/nav.inc");
@@ -26,48 +22,17 @@ once a day!</p>
 9pm US Indiana time.</p>
 
 <?php
-$f = fopen("latest_snapshot.txt", "r");
-if (!$f) {
-    print("<p>No nightly tarballs available.</p>\n");
+$latest = get_latest_snapshot("open-mpi-nightly", "nightly/hwloc/v1.11/");
+if ($latest == "") {
+    echo("<p><b>No nightly tarballs available.</b></p>\n");
 } else {
-    $latest = trim(fgets($f, 4096));
-    fclose($f);
-?>
+    echo("<p>Latest snapshot version: <strong>" . $latest . "</strong></p>\n");
+    echo("<div align=center>\n");
 
-<p>Latest snapshot version: <strong><?php print($latest); ?></strong></p>
+    print_nightly_table("open-mpi-nightly", "nightly/hwloc/v1.11/",
+                        "https://download.open-mpi.org/nightly/hwloc/v1.11/");
 
-<div align=center>
-<?php
-    $md5 = read_checksums("md5sums.txt");
-    $sha1 = read_checksums("sha1sums.txt");
-    $t = new downloadTable($dir, ".");
-
-    uksort($md5, callback);
-    uksort($sha1, callback);
-    foreach ($md5 as $file => $md5sum) {
-        if ($file) {
-            $t->addFile("Nightly snapshot", $file, $md5sum, $sha1[$file]);
-        }
-    }
-
-    $t->printMe();
     print("</div>\n\n");
-}
-
-# Do a reverse comparison so that we get the highest numbered tarball
-# first.  Parse out the git sequence number and sort numerically (not
-# lexigraphically).
-function callback($a, $b) {
-    $a_parts = explode("-", $a);
-    $b_parts = explode("-", $b);
-
-    if ($a_parts[2] < $b_parts[2]) {
-        return 1;
-    } else if ($a_parts[2] > $b_parts[2]) {
-        return -1;
-    } else {
-        return 0;
-    }
 }
 
 include_once("$topdir/includes/footer.inc");
