@@ -52,11 +52,15 @@ $descriptions[] = "2x Power8 with 2 NUMA node each + 1x InfiniBand HCA (IBM Powe
 ."<br/>20 cores and 160 hardware threads total";
 $sections[] = 2;
 
-$files[] = "KNL.SNC4.H50.v1.11.png";
-$descriptions[] = "Intel Knights Landing."
+$files[] = "KNL.SNC4.H50.v2.0.png";
+$descriptions[] = "Intel Knights Landing Xeon Phi."
 ."<br/>MCDRAM is configured in <em>Hybrid</em> mode (half as a memory-side cache, half as an additional high-bandwidth NUMA node)."
 ."<br/>SubNUMA clustering (SNC-4) is also enabled, for a total of 8 NUMA nodes."
-."<br/>72 cores and 288 threads";
+."<br/>72 cores and 288 threads (from 2017, with hwloc 2.0, which represents DDR and MCDRAM locality properly).";
+$sections[] = 3;
+$files[] = "KNL.SNC4.H50.v1.11.png";
+$descriptions[] = "Intel Knights Landing Xeon Phi."
+."<br/>Same SNC-4 Hybrid configuration as above (from 2017, with hwloc 1.11, which could not expose the memory hierarchy perfectly).";
 $sections[] = 3;
 $files[] = "SPARC-T7.v1.11.png";
 $descriptions[] = "Dual-socket Oracle SPARC T7 (from 2016, with hwloc v1.11)."."<br/>32 cores in each socket, with 8 hardware threads each";
