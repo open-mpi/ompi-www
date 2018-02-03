@@ -9,23 +9,23 @@ The following versions are available as nightly snapshots:
 
 <ul>
 
-<li> <strong>Current stable release series</strong>
+<li> <strong>New stable release series</strong>
 
-<p><a href="v1.11/"><strong>v1.11 series</strong></a> (stable
-release series): These snapshots are from the 1.11 branch and reflect
-the latest progression in the 1.11.x series.  The emphasis of this tree
-is on bug fixes and stability.  <strong>This is the recommended series for
-all users to download and use.</strong></p>
+<p><a href="v2.0/"><strong>v2.0 series</strong></a> (new stable
+release series): These snapshots are from the 2.0 branch and reflect
+the latest progression in the 2.0.x series.  The emphasis of this tree
+is on bug fixes and stability.
+<strong>This is the recommended series for all users to download and use.</strong></p>
 
 </li>
 
-<li> <strong>Upcoming stable release series</strong>
+<li> <strong>Ultra-stable release series</strong>
 
-<p><a href="v2.0/"><strong>v2.0 series</strong></a> (upcoming stable
-release series): These snapshots are from the 2.0 branch and reflect
-the latest progression in the 2.0.x series.  The emphasis of this tree
-is on bug fixes and stability.  <strong>This tree is not ready for
-prime time consumption yet.</strong></p>
+<p><a href="v1.11/"><strong>v1.11 series</strong></a> (ultra-stable
+release series): These snapshots are from the 1.11 branch and reflect
+the latest progression in the 1.11.x series.  The emphasis of this tree
+is on bug fixes and stability.
+<strong>This is the recommended series for users that have a good reason not to switch to v2.0 yet.</strong></p>
 
 </li>
 

@@ -38,10 +38,48 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 
 print($blank_line);
 
+$versions = array();
+$first = 1;
+foreach ($versions as $key => $v) {
+    print_docs("Release $v (new stable" . (!$first ? ", old" : "") . ")",
+               "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
+    $first = 0;
+}
+
+#########################################################
+
+$snapv_dir = "v2.0";
+$v = "";
+if (file_exists("$topdir/software/hwloc/$snapv_dir")) {
+    $fp = fopen("$topdir/software/hwloc/$snapv_dir/downloads/latest_snapshot.txt", "r");
+    $v = fgets($fp);
+    fclose($fp);
+    $v = preg_replace("/\s*(\S+)\s*/", "$1", $v);
+}
+
+# See if there's a snapshot file that does not have any letters in its
+# version number (i.e., is not a stable release) and has
+# corresponding pdf's and directory here in the downloads
+# directory.
+
+if (preg_match("/[a-z]/i", $v) &&
+    file_exists("v$v") &&
+    file_exists("hwloc-v$v-a4.pdf") &&
+    file_exists("hwloc-v$v-letter.pdf")) {
+    print($blank_line);
+
+    print_docs("Pre-release $v (newest of the new, unstable)",
+               "hwloc-v$v-letter.pdf", "hwloc-v$v-a4.pdf", "v$v/");
+}
+
+#########################################################
+
+print($blank_line);
+
 $versions = array("v1.11.9", "v1.11.8", "v1.11.7", "v1.11.6", "v1.11.5", "v1.11.4", "v1.11.3", "v1.11.2", "v1.11.1", "v1.11.0");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
+    print_docs("Release $v (ultrastable" . (!$first ? ", old" : "") . ")",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -69,32 +107,6 @@ if (preg_match("/[a-z]/i", $v) &&
     print($blank_line);
 
     print_docs("Pre-release $v (newest of the new, unstable)",
-               "hwloc-v$v-letter.pdf", "hwloc-v$v-a4.pdf", "v$v/");
-}
-
-#########################################################
-
-$snapv_dir = "v2.0";
-$v = "";
-if (file_exists("$topdir/software/hwloc/$snapv_dir")) {
-    $fp = fopen("$topdir/software/hwloc/$snapv_dir/downloads/latest_snapshot.txt", "r");
-    $v = fgets($fp);
-    fclose($fp);
-    $v = preg_replace("/\s*(\S+)\s*/", "$1", $v);
-}
-
-# See if there's a snapshot file that does not have any letters in its
-# version number (i.e., is not a stable release) and has
-# corresponding pdf's and directory here in the downloads
-# directory.
-
-if (preg_match("/[a-z]/i", $v) &&
-    file_exists("v$v") &&
-    file_exists("hwloc-v$v-a4.pdf") &&
-    file_exists("hwloc-v$v-letter.pdf")) {
-    print($blank_line);
-
-    print_docs("Beta-release $v (newest of the new, unstable)",
                "hwloc-v$v-letter.pdf", "hwloc-v$v-a4.pdf", "v$v/");
 }
 
