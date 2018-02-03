@@ -20,7 +20,7 @@
 # {version} is a variable-friendly transmorgification of the directory
 # name, meaning "replace . with _".
 #
-$dir = "v1.11";
+$dir = "v2.0";
 
 # This part is automatic and should get the variables and stuff them
 # into $current_ver and $current_ver_dir.

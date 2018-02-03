@@ -102,7 +102,7 @@ If some things do not look right (e.g. bogus or
 missing cache information), see Questions and bugs below</p>
 
 <p> hwloc may display the topology in multiple convenient formats (see
-<a href="doc/v<?php print($ver_current); ?>/#cli_examples">v<?php
+<a href="doc/v<?php print($ver_current); ?>/a00312.php#cli_examples">v<?php
 print($ver_current); ?> examples</a> and the <a href="lstopo">Best of lstopo</a>).
 It also offers a powerful programming interface to gather information
 about the hardware, bind processes, and much more.</p>
@@ -113,9 +113,9 @@ about the hardware, bind processes, and much more.</p>
 
 <p> More details are available in the <a href="doc/">Documentation</a>
 (in both PDF and HTML).  The documentation for each version contains
-<a href="doc/v<?php print($ver_current); ?>/#cli_examples">examples of
+<a href="doc/v<?php print($ver_current); ?>/a00312.php#cli_examples">examples of
 outputs</a> and an <a href="doc/v<?php print($ver_current);
-?>/#interface">API interface example</a> (these links are for v<?php
+?>/a00312.php#interface">API interface example</a> (these links are for v<?php
 print($ver_current); ?>).</p>
 
 <p>The materials from several hwloc tutorials are

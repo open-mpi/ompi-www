@@ -10,6 +10,12 @@ include_once("$topdir/includes/code.inc");
 
 <p>The entire material (slides, exercices and solutions) of several hwloc tutorials is available from here.</p>
 
+<p><b>
+  Note that all these slides focus on hwloc v1.x,
+  The v2.x API might require some changes to the given examples of code.
+  See also <a href="../doc/v<?php print($ver_current); ?>/a00327.php">Upgrading to hwloc 2.0 API</a>.
+</b></p>
+
 <ul>
 <li>
  2016/06/06 &mdash; 2,5 hours Tutorial (PRACE Advance Training Centre course, Saclay, France)
