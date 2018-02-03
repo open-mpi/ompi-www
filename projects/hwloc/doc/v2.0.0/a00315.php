@@ -26,7 +26,10 @@ $(function() {
 <div class="title">Environment Variables </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p>The behavior of the hwloc library and tools may be tuned thanks to the following environment variables.</p>
+<div class="textblock"><p> 
+<div class="section">
+</p>
+<p>The behavior of the hwloc library and tools may be tuned thanks to the following environment variables.</p>
 <dl>
 <dt>HWLOC_XMLFILE=/path/to/file.xml </dt>
 <dd><p class="startdd">enforces the discovery from the given XML file as if <a class="el" href="a00156.php#ga879439b7ee99407ee911b3ac64e9a25e" title="Enable XML-file based topology. ">hwloc_topology_set_xml()</a> had been called. This file may have been generated earlier with lstopo file.xml. For convenience, this backend provides empty binding hooks which just return success. To have hwloc still actually call OS-specific hooks, HWLOC_THISSYSTEM should be set 1 in the environment too, to assert that the loaded file is really the underlying system. See also <a class="el" href="a00320.php">Importing and exporting topologies from/to XML files</a>. </p>

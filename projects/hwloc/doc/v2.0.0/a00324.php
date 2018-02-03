@@ -26,8 +26,14 @@ $(function() {
 <div class="title">Components and plugins </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p>hwloc is organized in components that are responsible for discovering objects. Depending on the topology configuration, some components will be used, some will be ignored. The usual default is to enable the native operating system component, (e.g. <code>linux</code> or <code>solaris</code>) and the <code>pci</code> miscellaneous component. If available, an architecture-specific component (such as <code>x86</code>) may also improve the topology detection.</p>
+<div class="textblock"><p> 
+<div class="section">
+</p>
+<p>hwloc is organized in components that are responsible for discovering objects. Depending on the topology configuration, some components will be used, some will be ignored. The usual default is to enable the native operating system component, (e.g. <code>linux</code> or <code>solaris</code>) and the <code>pci</code> miscellaneous component. If available, an architecture-specific component (such as <code>x86</code>) may also improve the topology detection.</p>
 <p>If a XML topology is loaded, the <code>xml</code> discovery component will be used instead of all other components. It internally uses a specific class of components for the actual XML import/export routines (<code>xml_libxml</code> and <code>xml_nolibxml</code>) but these will not be discussed here (see <a class="el" href="a00320.php#xml_backends">libxml2 and minimalistic XML backends</a>).</p>
+<p> 
+</div><div class="section" id="plugins_default">
+ </p>
 <h1><a class="anchor" id="plugins_default"></a>
 Components enabled by default</h1>
 <p>The hwloc core contains a list of components sorted by priority. Each one is enabled as long as it does not conflict with the previously enabled ones. This includes native operating system components, architecture-specific ones, and if available, I/O components such as <code>pci</code>.</p>
@@ -37,6 +43,9 @@ Components enabled by default</h1>
 <p>If any configuration function such as <a class="el" href="a00156.php#ga879439b7ee99407ee911b3ac64e9a25e" title="Enable XML-file based topology. ">hwloc_topology_set_xml()</a> is used before loading the topology, the corresponding component is enabled first. Then, as usual, hwloc enables any other component (based on priorities) that does not conflict.</p>
 <p>Certain components that manage a virtual topology, for instance XML topology import or synthetic topology description, conflict with all other components. Therefore, one of them may only be loaded (e.g. with <code><a class="el" href="a00156.php#ga879439b7ee99407ee911b3ac64e9a25e" title="Enable XML-file based topology. ">hwloc_topology_set_xml()</a></code>) if no other component is enabled.</p>
 <p>The environment variable <code>HWLOC_COMPONENTS_VERBOSE</code> may be set to get verbose messages about component registration (including their priority) and enabling.</p>
+<p> 
+</div><div class="section" id="plugins_select">
+ </p>
 <h1><a class="anchor" id="plugins_select"></a>
 Selecting which components to use</h1>
 <p>If no topology configuration functions such as <code><a class="el" href="a00156.php#ga4fab186bb6181a00bcf585825fddd38d" title="Enable synthetic topology. ">hwloc_topology_set_synthetic()</a></code> have been called, plugins may be selected with environment variables such as <code>HWLOC_XMLFILE</code>, <code>HWLOC_SYNTHETIC</code> or <code>HWLOC_FSROOT</code> (see <a class="el" href="a00315.php">Environment Variables</a>).</p>
@@ -44,12 +53,18 @@ Selecting which components to use</h1>
 <p>If the variable is set to <code>x86</code> in this variable will cause the <code>x86</code> component to take precedence over any other component, including the native operating system component. It is therefore loaded first, before hwloc tries to load all remaining non-conflicting components. In this case, <code>x86</code> would take care of discovering everything it supports, instead of only completing what the native OS information. This may be useful if the native component is buggy on some platforms.</p>
 <p>It is possible to prevent some components from being loaded by prefixing their name with <code>-</code> in the list. For instance <code>x86,-pci</code> will load the <code>x86</code> component, then let hwloc load all the usual components except <code>pci</code>.</p>
 <p>It is possible to prevent all remaining components from being loaded by placing <code>stop</code> in the environment variable. Only the components listed before this keyword will be enabled.</p>
+<p> 
+</div><div class="section" id="plugins_load">
+ </p>
 <h1><a class="anchor" id="plugins_load"></a>
 Loading components from plugins</h1>
 <p>Components may optionally be built as plugins so that the hwloc core library does not directly depend on their dependencies (for instance the <code>libpciaccess</code> library). Plugin support may be enabled with the <code>--enable-plugins</code> configure option. All components buildable as plugins will then be built as plugins. The configure option may be given a comma-separated list of component names to specify the exact list of components to build as plugins.</p>
 <p>Plugins are built as independent dynamic libraries that are installed in <code>$libdir/hwloc</code>. All plugins found in this directory are loaded during <code>topology_init()</code> (unless blacklisted in <code>HWLOC_PLUGINS_BLACKLIST</code>, see <a class="el" href="a00315.php">Environment Variables</a>). A specific list of directories (colon-separated) to scan may be specified in the <code>HWLOC_PLUGINS_PATH</code> environment variable.</p>
 <p>Note that loading a plugin just means that the corresponding component is registered to the hwloc core. Components are then only enabled if the topology configuration requests it, as explained in the previous sections.</p>
 <p>Also note that plugins should carefully be enabled and used when embedding hwloc in another project, see <a class="el" href="a00325.php">Embedding hwloc in Other Software</a> for details.</p>
+<p> 
+</div><div class="section" id="plugins_add">
+ </p>
 <h1><a class="anchor" id="plugins_adding"></a>
 Adding new discovery components and plugins</h1>
 <p>The types and functions cited below are declared in the <a class="el" href="a00140_source.php" title="Public interface for building hwloc plugins. ">hwloc/plugins.h</a> header. Components are supposed to only use hwloc public headers (<a class="el" href="a00089_source.php" title="The hwloc API. ">hwloc.h</a> and anything under the <code>include/hwloc</code> subdirectory) and nothing from the <code>include/private</code> subdirectory in the source tree.</p>
@@ -64,6 +79,9 @@ Registering a new discovery component</h2>
 <dl class="section note"><dt>Note</dt><dd>The symbol name of the <code><a class="el" href="a00311.php" title="Generic component structure. ">hwloc_component</a></code> structure is independent of the name of the discovery component mentioned in the previous section.</dd></dl>
 <p>When the component is statically built inside the hwloc library, the symbol <code>hwloc_&lt;name&gt;_component</code> is added by configure to the <code>src/static-components.h</code>. The core then registers all components listed in this file.</p>
 <p>If the new component may be built as a plugin, the configure script should also define the shell variable <code>hwloc_&lt;name&gt;_component_maybeplugin=1</code>. When the configure script actually enables the component as a plugin, it will set the variable <code>hwloc_&lt;name&gt;_component</code> to <code>plugin</code>. The build system may then use this variable to change the way the component is built. It should create a <code>hwloc_&lt;name&gt;.so</code> shared object. All these files are loaded in alphabetic order, and the components they contain are registered to the hwloc core.</p>
+<p> 
+</div><div class="section" id="plugins_list">
+ </p>
 <h1><a class="anchor" id="plugins_list"></a>
 Existing components and plugins</h1>
 <p>All components distributed within hwloc are listed below. The list of actually available components may be listed at running with the <code>HWLOC_COMPONENTS_VERBOSE</code> environment variable (see <a class="el" href="a00315.php">Environment Variables</a>).</p>

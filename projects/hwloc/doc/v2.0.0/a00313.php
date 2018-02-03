@@ -26,12 +26,15 @@ $(function() {
 <div class="title">Terms and Definitions </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><h1><a class="anchor" id="termsanddefs_objects"></a>
+<div class="textblock"><p> 
+<div class="section" id="termsanddefs_objects">
+ </p>
+<h1><a class="anchor" id="termsanddefs_objects"></a>
 Objects</h1>
 <dl>
 <dt>Object </dt>
 <dd><p class="startdd">Interesting kind of part of the system, such as a Core, a L2Cache, a NUMA memory node, etc. The different types detected by hwloc are detailed in the <a class="el" href="a00148.php#gacd37bb612667dc437d66bfb175a8dc55">hwloc_obj_type_t</a> enumeration.</p>
-<p>There are four kinds of Objects: Memory (NUMA nodes), I/O (Bridges, PCI and OS devices), Misc, and Normal (everything else, including Machine, Package, Core, PU, CPU Caches, etc.).</p>
+<p>There are four kinds of Objects: Memory (NUMA nodes), I/O (Bridges, PCI and OS devices), Misc, and Normal (everything else, including Machine, Package, Core, PU, CPU Caches, etc.). Normal and Memory objects have (non-NULL) CPU sets and nodesets, while I/O and Misc don't.</p>
 <p>Objects are topologically sorted by locality (CPU and node sets) into a tree (see <a class="el" href="a00313.php#termsanddefs_tree">Hierarchy, Tree and Levels</a>). </p>
 <p class="enddd"></p>
 </dd>
@@ -50,6 +53,9 @@ Objects</h1>
 <p class="enddd"></p>
 </dd>
 </dl>
+<p> 
+</div><div class="section" id="termsanddefs_indexes">
+ </p>
 <h1><a class="anchor" id="termsanddefs_indexes"></a>
 Indexes and Sets</h1>
 <dl>
@@ -63,11 +69,11 @@ Indexes and Sets</h1>
 <p class="enddd"></p>
 </dd>
 <dt>CPU set </dt>
-<dd><p class="startdd">The set of logical processors (or processing units) logically included in an object (if it makes sense). They are always expressed using physical logical processor numbers (as announced by the OS). They are implemented as the <a class="el" href="a00169.php#gaa3c2bf4c776d603dcebbb61b0c923d84" title="Set of bits represented as an opaque pointer to an internal bitmap. ">hwloc_bitmap_t</a> opaque structure. hwloc CPU sets are just masks, they do <em>not</em> have any relation with an operating system actual binding notion like Linux' cpusets. I/O and Misc objects do not have CPU sets while all normal and memory objects have a non-NULL one.</p>
+<dd><p class="startdd">The set of logical processors (or processing units) logically included in an object (if it makes sense). They are always expressed using physical logical processor numbers (as announced by the OS). They are implemented as the <a class="el" href="a00169.php#gaa3c2bf4c776d603dcebbb61b0c923d84" title="Set of bits represented as an opaque pointer to an internal bitmap. ">hwloc_bitmap_t</a> opaque structure. hwloc CPU sets are just masks, they do <em>not</em> have any relation with an operating system actual binding notion like Linux' cpusets. I/O and Misc objects do not have CPU sets while all Normal and Memory objects have non-NULL CPU sets.</p>
 <p class="enddd"></p>
 </dd>
 <dt>Node set </dt>
-<dd><p class="startdd">The set of NUMA memory nodes logically included in an object (if it makes sense). They are always expressed using physical node numbers (as announced by the OS). They are implemented with the <a class="el" href="a00169.php#gaa3c2bf4c776d603dcebbb61b0c923d84" title="Set of bits represented as an opaque pointer to an internal bitmap. ">hwloc_bitmap_t</a> opaque structure. as bitmaps. I/O and Misc objects do not have Node sets while all normal and memory objects have a non-NULL one.</p>
+<dd><p class="startdd">The set of NUMA memory nodes logically included in an object (if it makes sense). They are always expressed using physical node numbers (as announced by the OS). They are implemented with the <a class="el" href="a00169.php#gaa3c2bf4c776d603dcebbb61b0c923d84" title="Set of bits represented as an opaque pointer to an internal bitmap. ">hwloc_bitmap_t</a> opaque structure. as bitmaps. I/O and Misc objects do not have Node sets while all Normal and Memory objects have non-NULL nodesets.</p>
 <p class="enddd"></p>
 </dd>
 <dt>Bitmap </dt>
@@ -75,6 +81,9 @@ Indexes and Sets</h1>
 <p class="enddd"></p>
 </dd>
 </dl>
+<p> 
+</div><div class="section" id="termsanddefs_tree">
+ </p>
 <h1><a class="anchor" id="termsanddefs_tree"></a>
 Hierarchy, Tree and Levels</h1>
 <dl>

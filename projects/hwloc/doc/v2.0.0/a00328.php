@@ -26,7 +26,19 @@ $(function() {
 <div class="title">Network Locality (netloc) </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p>Portable abstraction of network topologies for high-performance computing.</p>
+<div class="textblock"><p> 
+<div class="section">
+</p>
+<p>Portable abstraction of network topologies for high-performance computing.</p>
+<p>The netloc documentation spans of these sections: </p><ul>
+<li>
+<a class="el" href="a00328.php">Network Locality (netloc)</a>, this section below  </li>
+<li>
+<a class="el" href="a00329.php">Netloc with Scotch</a>  </li>
+</ul>
+<p> 
+</div><div class="section" id="netloc_summary">
+ </p>
 <h1><a class="anchor" id="netloc_summary"></a>
 Netloc Summary</h1>
 <p>The Portable Network Locality (netloc) software package provides network topology discovery tools, and an abstract representation of those networks topologies for a range of network types and configurations. It is provided as a companion to the Portable Hardware Locality (hwloc) package. These two software packages work together to provide a comprehensive view of the HPC system topology, spanning from the processor cores in one server to the cores in another - including the complex network(s) in between.</p>
@@ -34,7 +46,10 @@ Netloc Summary</h1>
 <div class="image">
 <img src="netloc_design.png" alt="netloc_design.png"/>
 </div>
- <h2><a class="anchor" id="supportednetworks"></a>
+ <p> 
+</div><div class="section" id="supportednetworks">
+ </p>
+<h2><a class="anchor" id="supportednetworks"></a>
 Supported Networks</h2>
 <p>For now, only InfiniBand (See <a class="el" href="a00328.php#netloc_setup">Setup</a>) is supported, but it is planned to be extended it very soon.</p>
 <p> 
@@ -43,14 +58,10 @@ Supported Networks</h2>
 <h1><a class="anchor" id="netloc_installation"></a>
 Netloc Installation</h1>
 <p>The generic installation procedure for both hwloc and netloc is described in <a class="el" href="index.php#common_installation">Installation</a>.</p>
-<p>Note that netloc is currently not supported on as many platform as the original hwloc project. netloc is enabled by default when supported, or can be disabled by passing <code>--disable-netloc</code> to the configure command-line.</p>
+<p>netloc is disabled by default in this release. It can be enabled by passing <code>--enable-netloc</code> to the configure command-line. Note that netloc is currently not supported on as many platforms as the original hwloc project.</p>
 <p> 
-</div><div class="section" id="netloc_bugs">
+</div><div class="section" id="netloc_setup">
  </p>
-<h1><a class="anchor" id="netloc_bugs"></a>
-Netloc Questions and Bugs</h1>
-<p>Questions should be sent to the hwloc users and/or developers mailing list (<a href="http://www.open-mpi.org/community/lists/hwloc.php">http://www.open-mpi.org/community/lists/hwloc.php</a>).</p>
-<p>Bug reports should be reported in the tracker (<a href="https://github.com/open-mpi/hwloc/issues">https://github.com/open-mpi/hwloc/issues</a>).</p>
 <h1><a class="anchor" id="netloc_setup"></a>
 Setup</h1>
 <p>To use Netloc tools, we need two steps. The first step consists in getting information about network directly from tools distributed by manufacturers. For Infiniband, for instance, this operation needs privileges to access to the network device. For this step we have wrappers in Netloc that will call the right tools with the right options.</p>
@@ -128,7 +139,10 @@ Read subnet: fe80:0000:0000:0000
 2 partitions found
         'node'
         'admin'
-</pre><h1><a class="anchor" id="netloc_draw"></a>
+</pre><p> 
+</div><div class="section" id="netloc_draw">
+ </p>
+<h1><a class="anchor" id="netloc_draw"></a>
 Topology display</h1>
 <p>Netloc provides a tool, <code>netloc_draw.html</code>, that displays a topology in a web browser, by using a JSON file.</p>
 <h2><a class="anchor" id="netloc_draw_setup"></a>

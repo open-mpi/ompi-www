@@ -29,6 +29,13 @@ $(function() {
 <div class="textblock"><h1 class="sub">Portable abstraction of hierarchical architectures for high-performance computing</h1>
 <hr/>
 <p> 
+<div class="section">
+ See also <a class="el" href="a00312.php#further_reading">Further Reading</a>  
+or the Related pages tab above
+ for links to more sections about hwloc concepts.  
+</div>
+</p>
+<p> 
 <div class="section" id="hwloc_summary">
  </p>
 <h1><a class="anchor" id="hwloc_summary"></a>
@@ -57,7 +64,7 @@ Microsoft Windows </li>
 IBM BlueGene/Q Compute Node Kernel (CNK) </li>
 </ul>
 <p>Since it uses standard Operating System information, hwloc's support is mostly independant from the processor type (x86, powerpc, ...) and just relies on the Operating System support. The main exception is BSD operating systems (NetBSD, FreeBSD, etc.) because they do not provide support topology information, hence hwloc uses an x86-only CPUID-based backend (which can be used for other OSes too, see the <a class="el" href="a00324.php">Components and plugins</a> section).</p>
-<p>To check whether hwloc works on a particular machine, just try to build it and run <code>lstopo</code> or <code>lstopo-no-graphics</code>. If some things do not look right (e.g. bogus or missing cache information), see <a class="el" href="a00312.php#bugs">Questions and Bugs</a> below.</p>
+<p>To check whether hwloc works on a particular machine, just try to build it and run <code>lstopo</code> or <code>lstopo-no-graphics</code>. If some things do not look right (e.g. bogus or missing cache information), see <a class="el" href="index.php#bugs">Questions and Bugs</a>.</p>
 <p>hwloc only reports the number of processors on unsupported operating systems; no topology information is available.</p>
 <p>For development and debugging purposes, hwloc also offers the ability to work on "fake" topologies:</p>
 <ul>
@@ -190,7 +197,7 @@ Command-line Examples</h1>
       L1 L#7 (32KB) + Core L#7 + PU L#7 (P#7)
 </pre><p> 
 </div><div class="section" id="interface">
-</p>
+ </p>
 <h1><a class="anchor" id="interface"></a>
 Programming Interface</h1>
 <p>The basic interface is available in <a class="el" href="a00089_source.php" title="The hwloc API. ">hwloc.h</a>. Some higher-level functions are available in <a class="el" href="a00092_source.php" title="High-level hwloc traversal helpers. ">hwloc/helper.h</a> to reduce the need to manually manipulate objects and follow links between them. Documentation for all these is provided later in this document. Developers may also want to look at hwloc/inlines.h which contains the actual inline code of some <a class="el" href="a00089_source.php" title="The hwloc API. ">hwloc.h</a> routines, and at this document, which provides good higher-level topology traversal examples.</p>
@@ -261,15 +268,7 @@ Machine
 *** Logical processor 0 has 0 caches totaling 0KB
 shell$ 
 </pre><p> 
-</div><div class="section" id="bugs">
- </p>
-<h1><a class="anchor" id="bugs"></a>
-Questions and Bugs</h1>
-<p>Bugs should be reported in the tracker (<a href="https://github.com/open-mpi/hwloc/issues">https://github.com/open-mpi/hwloc/issues</a>). Opening a new issue automatically displays lots of hints about how to debug and report issues.</p>
-<p>Questions may be sent to the users or developers mailing lists (<a href="http://www.open-mpi.org/community/lists/hwloc.php">http://www.open-mpi.org/community/lists/hwloc.php</a>).</p>
-<p>There is also a <code>#hwloc</code> IRC channel on Freenode (<code>irc.freenode.net</code>).</p>
-<p> 
-</div><div class="section" id="credits">
+</div><div class="section" id="history">
  </p>
 <h1><a class="anchor" id="history"></a>
 History / Credits</h1>
@@ -278,7 +277,7 @@ History / Credits</h1>
 <p> 
 </div><div class="section" id="further_reading">
  </p>
-<h1><a class="anchor" id="further_read"></a>
+<h1><a class="anchor" id="further_reading"></a>
 Further Reading</h1>
 <p>The documentation chapters include</p>
 <ul>
@@ -311,7 +310,7 @@ Further Reading</h1>
 <li>
 <a class="el" href="a00326.php">Frequently Asked Questions</a> </li>
 <li>
-<a class="el" href="a00327.php">Upgrading to hwloc 2.0 API</a> </li>
+<a class="el" href="a00327.php">Upgrading to the hwloc 2.0 API</a> </li>
 </ul>
 <p>Make sure to have had a look at those too!</p>
 <p> 

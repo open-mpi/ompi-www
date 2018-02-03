@@ -26,12 +26,21 @@ $(function() {
 <div class="title">I/O Devices </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p>hwloc usually manipulates processing units and memory but it can also discover I/O devices and report their locality as well. This is useful for placing I/O intensive applications on cores near the I/O devices they use, or for gathering information about all platform components.</p>
+<div class="textblock"><p> 
+<div class="section">
+</p>
+<p>hwloc usually manipulates processing units and memory but it can also discover I/O devices and report their locality as well. This is useful for placing I/O intensive applications on cores near the I/O devices they use, or for gathering information about all platform components.</p>
+<p> 
+</div><div class="section" id="iodevices_enabling">
+ </p>
 <h1><a class="anchor" id="iodevices_enabling"></a>
 Enabling and requirements</h1>
 <p>I/O discovery is disabled by default (except in lstopo) for performance reasons. It can be enabled by changing the filtering of I/O object types to <code><a class="el" href="a00157.php#gga9a5a1f0140cd1952544477833733195ba63fd24954e18c83ff7eae9588759adb5" title="Only keep likely-important objects of the given type. ">HWLOC_TYPE_FILTER_KEEP_IMPORTANT</a></code> or <code><a class="el" href="a00157.php#gga9a5a1f0140cd1952544477833733195bafda7b59e6810dfe778d8f9a4cc1e350e" title="Keep all objects of this type. ">HWLOC_TYPE_FILTER_KEEP_ALL</a></code> before loading the topology, for instance with <code><a class="el" href="a00157.php#ga0ab38705357bc1203abe829da8a12ad3" title="Set the filtering for all I/O object types. ">hwloc_topology_set_io_types_filter()</a></code>.</p>
 <p>Note that I/O discovery requires significant help from the operating system. The pciaccess library (the development package is usually <code>libpciaccess-devel</code> or <code>libpciaccess-dev</code>) is needed to fully detect PCI devices and bridges. On Linux, PCI discovery may still be performed even if <code>libpciaccess</code> cannot be used. But it misses PCI device names. Moreover, some operating systems require privileges for probing PCI devices, see <a class="el" href="a00326.php#faq_privileged">Does hwloc require privileged access?</a> for details.</p>
 <p>The actual locality of I/O devices is only currently detected on Linux. Other operating system will just report I/O devices as being attached to the topology root object.</p>
+<p> 
+</div><div class="section" id="iodevices_objects">
+ </p>
 <h1><a class="anchor" id="iodevices_objects"></a>
 I/O objects</h1>
 <p>When I/O discovery is enabled and supported, some additional objects are added to the topology. The corresponding I/O object types are: </p><ul>
@@ -43,6 +52,9 @@ I/O objects</h1>
 <p>Any of these types may be filtered individually with <code><a class="el" href="a00157.php#gad894e70f15f8d4aada7be8d1aba38b7e" title="Set the filtering for the given object type. ">hwloc_topology_set_type_filter()</a></code>.</p>
 <p>hwloc tries to attach these new objects to normal objects (usually NUMA nodes) to match their actual physical location. For instance, if a I/O Hub is physically connected to a package, the corresponding hwloc bridge object (and its PCI bridges and devices children) is inserted as a child of the corresponding hwloc Package object. <b>These children are not in the normal children list but rather in the I/O-specific children list.</b></p>
 <p>I/O objects also have neither CPU sets nor node sets (NULL pointers) because they are not directly usable by the user applications for binding. Moreover I/O hierarchies may be highly complex (asymmetric trees of bridges). So I/O objects are placed in specific levels with custom depths. Their lists may still be traversed with regular helpers such as <a class="el" href="a00151.php#ga759e88eaf5a230ad283e9d4c42486735" title="Returns the next object of type type. ">hwloc_get_next_obj_by_type()</a>. However, hwloc offers some dedicated helpers such as <a class="el" href="a00168.php#ga66470dabce9db19a57c5940a909d0baa" title="Get the next PCI device in the system. ">hwloc_get_next_pcidev()</a> and <a class="el" href="a00168.php#ga8b4584c8949e2c5f1c97ba7fe92b8145" title="Get the next OS device in the system. ">hwloc_get_next_osdev()</a> for convenience (see <a class="el" href="a00168.php">Finding I/O objects</a>).</p>
+<p> 
+</div><div class="section" id="iodevices_osdev">
+ </p>
 <h1><a class="anchor" id="iodevices_osdev"></a>
 OS devices</h1>
 <p>Although each PCI device is uniquely identified by its bus ID (e.g. 0000:01:02.3), a user-space application can hardly find out which PCI device it is actually using. Applications rather use software handles (such as the <em>eth0</em> network interface, the <em>sda</em> hard drive, or the <em>mlx4_0</em> OpenFabrics HCA). Therefore hwloc tries to add software devices (<code><a class="el" href="a00148.php#ggacd37bb612667dc437d66bfb175a8dc55a51e7280240fd9f25589cbbe538bdb075" title="Operating system device (filtered out by default). They are not added to the topology unless I/O disc...">HWLOC_OBJ_OS_DEVICE</a></code>, also known as OS devices).</p>
@@ -96,10 +108,16 @@ DMA engine channel (<a class="el" href="a00148.php#gga64f5d539df299c97ae80ce53fc
 </ul>
 <p>Note that some PCI devices may contain multiple software devices (see the example below).</p>
 <p>See also <a class="el" href="a00322.php">Interoperability With Other Software</a> for managing these devices without considering them as hwloc objects.</p>
+<p> 
+</div><div class="section" id="iodevices_pci">
+ </p>
 <h1><a class="anchor" id="iodevices_pci"></a>
 PCI devices and bridges</h1>
 <p>A PCI hierarchy is usually organized as follows: A hostbridge object ( <code><a class="el" href="a00148.php#ggacd37bb612667dc437d66bfb175a8dc55a6825f10895fea60aca7a6ba9fe273db0" title="Bridge (filtered out by default). Any bridge that connects the host or an I/O bus, to another I/O bus. They are not added to the topology unless I/O discovery is enabled with hwloc_topology_set_flags(). I/O objects are not listed in the main children list, but rather in the dedicated io children list. I/O objects have NULL CPU and node sets. ">HWLOC_OBJ_BRIDGE</a></code> object with upstream type <em>Host</em> and downstream type <em>PCI</em>) is attached below a normal object (usually the entire machine or a NUMA node). There may be multiple hostbridges in the machine, attached to different places, but all PCI devices are below one of them (unless the Bridge object type is filtered-out).</p>
 <p>Each hostbridge contains one or several children, either other bridges (usually PCI to PCI) or PCI devices (<code><a class="el" href="a00148.php#ggacd37bb612667dc437d66bfb175a8dc55a5d8117a54df1fbd3606ab19e42cb0ea9" title="PCI device (filtered out by default). They are not added to the topology unless I/O discovery is enab...">HWLOC_OBJ_PCI_DEVICE</a></code>). The number of bridges between the hostbridge and a PCI device depends on the machine.</p>
+<p> 
+</div><div class="section" id="iodevices_consult">
+ </p>
 <h1><a class="anchor" id="iodevices_consult"></a>
 Consulting I/O devices and binding</h1>
 <p>I/O devices may be consulted by traversing the topology manually (with usual routines such as <a class="el" href="a00151.php#ga6f414dd80a2b943967a0ac92da3181a2" title="Returns the topology object at logical index idx with type type. ">hwloc_get_obj_by_type()</a>) or by using dedicated helpers (such as <a class="el" href="a00168.php#gacdbaf0db98872e224b7883a84bfb0455" title="Find the PCI device object matching the PCI bus id given domain, bus device and function PCI bus id...">hwloc_get_pcidev_by_busid()</a>, see <a class="el" href="a00168.php">Finding I/O objects</a>).</p>
@@ -112,13 +130,16 @@ Consulting I/O devices and binding</h1>
 <code>os=eth0</code> is replaced by CPUs that are close to the I/O device whose software handle is called <code>eth0</code>.  </li>
 </ul>
 <p>This enables easy binding of I/O-intensive applications near the device they use.</p>
+<p> 
+</div><div class="section" id="iodevices_examples">
+ </p>
 <h1><a class="anchor" id="iodevices_examples"></a>
 Examples</h1>
 <p>The following picture shows a dual-package dual-core host whose PCI bus is connected to the first package and NUMA node.</p>
 <div class="image">
 <img src="devel09-pci.png" alt="devel09-pci.png"/>
 </div>
- <p>Six interesting PCI devices were discovered. However hwloc found some corresponding software devices (<em>eth0</em>, <em>eth1</em>, <em>sda</em>, <em>mlx4_0</em>, <em>ib0</em>, and <em>ib1</em>) for only four of these physical devices. The other ones (<em>PCI 102b:0532</em> and <em>PCI 8086:3a20</em>) are an unused IDE controller (no disk attached) and a graphic card (no corresponding software device reported to the user by the operating system).</p>
+ <p>Six interesting PCI devices were discovered. However, hwloc found some corresponding software devices (<em>eth0</em>, <em>eth1</em>, <em>sda</em>, <em>mlx4_0</em>, <em>ib0</em>, and <em>ib1</em>) for only four of these physical devices. The other ones (<em>PCI 102b:0532</em> and <em>PCI 8086:3a20</em>) are an unused IDE controller (no disk attached) and a graphic card (no corresponding software device reported to the user by the operating system).</p>
 <p>On the contrary, it should be noted that three different software devices were found for the last PCI device (<em>PCI 15b3:634a</em>). Indeed this OpenFabrics HCA PCI device object contains one one OpenFabrics software device (<em>mlx4_0</em>) and two virtual network interface software devices (<em>ib0</em> and <em>ib1</em>).</p>
 <p>PCI link speed is also reported for some bridges and devices because lstopo was privileged when it discovered the topology.</p>
 <p>Here is the corresponding textual output:</p>

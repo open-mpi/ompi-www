@@ -26,7 +26,10 @@ $(function() {
 <div class="title">Frequently Asked Questions </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><h1><a class="anchor" id="faq1"></a>
+<div class="textblock"><p> 
+<div class="section" id="faq1">
+ </p>
+<h1><a class="anchor" id="faq1"></a>
 Concepts</h1>
 <h2><a class="anchor" id="faq_why"></a>
 I only need binding, why should I use hwloc ?</h2>
@@ -57,7 +60,7 @@ $ hwloc-calc -I numa --logical-input --physical-output numa:2-3 numa:7
 </pre><h2><a class="anchor" id="faq_structural"></a>
 hwloc is only a structural model, it ignores performance models, memory bandwidth, etc.?</h2>
 <p>hwloc is indeed designed to provide applications with a structural model of the platform. This is an orthogonal approach to describing the machine with performance models, for instance using memory bandwidth or latencies measured by benchmarks. We believe that both approaches are important for helping application make the most of the hardware.</p>
-<p>For instance, on a dual-processor host with four cores each, hwloc clearly shows which four cores are together. Latencies between all pairs of cores of the same processor are likely identical, and also likely lower than the latency between cores of different processors. However the structural model cannot guarantee such implementation details. On the other side, performance models would reveal such details without always clearly identifying which cores are in the same processor.</p>
+<p>For instance, on a dual-processor host with four cores each, hwloc clearly shows which four cores are together. Latencies between all pairs of cores of the same processor are likely identical, and also likely lower than the latency between cores of different processors. However, the structural model cannot guarantee such implementation details. On the other side, performance models would reveal such details without always clearly identifying which cores are in the same processor.</p>
 <p>The focus of hwloc is mainly of the structural modeling side. However, hwloc lets user adds performance information to the topology through distances (see <a class="el" href="a00172.php">Retrieve distances between objects</a> and <a class="el" href="a00174.php">Add or remove distances between objects</a>) or even custom annotations (see <a class="el" href="a00326.php#faq_annotate">How do I annotate the topology with private notes?</a>). hwloc may also use such distance information for grouping objects together (see <a class="el" href="a00326.php#faq_onedim">hwloc only has a one-dimensional view of the architecture, it ignores distances?</a> and <a class="el" href="a00326.php#faq_groups">What are these Group objects in my topology?</a>).</p>
 <h2><a class="anchor" id="faq_onedim"></a>
 hwloc only has a one-dimensional view of the architecture, it ignores distances?</h2>
@@ -137,7 +140,10 @@ hello from first thread on core #3
 ...
 $ hwloc-bind core:3 --single -- echo "hello from a single thread on core #3"
 hello from a single thread on core #3
-</pre><h1><a class="anchor" id="faq2"></a>
+</pre><p> 
+</div><div class="section" id="faq2">
+ </p>
+<h1><a class="anchor" id="faq2"></a>
 Advanced</h1>
 <h2><a class="anchor" id="faq_xml"></a>
 I do not want hwloc to rediscover my enormous machine topology every time I rerun a process</h2>
@@ -146,23 +152,26 @@ I do not want hwloc to rediscover my enormous machine topology every time I reru
 <p>XML lets you save the discovered topology to a file (for instance with the lstopo program) and reload it later by setting the HWLOC_XMLFILE environment variable. The HWLOC_THISSYSTEM environment variable should also be set to 1 to assert that loaded file is really the underlying system.</p>
 <p>Loading a XML topology is usually much faster than querying multiple files or calling multiple functions of the operating system. It is also possible to manipulate such XML files with the C programming interface, and the import/export may also be directed to memory buffer (that may for instance be transmitted between applications through a package). See also <a class="el" href="a00320.php">Importing and exporting topologies from/to XML files</a>.</p>
 <dl class="section note"><dt>Note</dt><dd>The environment variable HWLOC_THISSYSTEM_ALLOWED_RESOURCES may be used to load a XML topology that contains the entire machine and restrict it to the part that is actually available to the current process (e.g. when Linux Cgroup/Cpuset are used to restrict the set of resources). See <a class="el" href="a00315.php">Environment Variables</a>.</dd></dl>
-<p>Shared-memory topologies consist in one process exposing its topology in a shared-memory buffer so that other processes (running on the same machine) may use it directly. This has the advantage of reducing the memory footprint since a single topology is stored in physical memory for multiple processes. However it requires all processes to map this shared-memory buffer at the same virtual address, which may be difficult in some cases. This API is described in <a class="el" href="a00187.php">Sharing topologies between processes</a>.</p>
+<p>Shared-memory topologies consist in one process exposing its topology in a shared-memory buffer so that other processes (running on the same machine) may use it directly. This has the advantage of reducing the memory footprint since a single topology is stored in physical memory for multiple processes. However, it requires all processes to map this shared-memory buffer at the same virtual address, which may be difficult in some cases. This API is described in <a class="el" href="a00187.php">Sharing topologies between processes</a>.</p>
 <h2><a class="anchor" id="faq_multitopo"></a>
 How many topologies may I use in my program?</h2>
-<p>hwloc lets you manipulate multiple topologies at the same time. However these topologies consume memory and system resources (for instance file descriptors) until they are destroyed. It is therefore discouraged to open the same topology multiple times.</p>
+<p>hwloc lets you manipulate multiple topologies at the same time. However, these topologies consume memory and system resources (for instance file descriptors) until they are destroyed. It is therefore discouraged to open the same topology multiple times.</p>
 <p>Sharing a single topology between threads is easy (see <a class="el" href="a00323.php">Thread Safety</a>) since the vast majority of accesses are read-only.</p>
 <p>If multiple topologies of different (but similar) nodes are needed in your program, have a look at <a class="el" href="a00326.php#faq_diff">How to avoid memory waste when manipulating multiple similar topologies?</a>.</p>
 <h2><a class="anchor" id="faq_diff"></a>
 How to avoid memory waste when manipulating multiple similar topologies?</h2>
 <p>hwloc does not share information between topologies. If multiple similar topologies are loaded in memory, for instance the topologies of different identical nodes of a cluster, lots of information will be duplicated.</p>
-<p><a class="el" href="a00134_source.php" title="Topology differences. ">hwloc/diff.h</a> (see also <a class="el" href="a00186.php">Topology differences</a>) offers the ability to compute topology differences, apply or unapply them, or export/import to/from XML. However this feature is limited to basic differences such as attribute changes. It does not support complex modifications such as adding or removing some objects.</p>
+<p><a class="el" href="a00134_source.php" title="Topology differences. ">hwloc/diff.h</a> (see also <a class="el" href="a00186.php">Topology differences</a>) offers the ability to compute topology differences, apply or unapply them, or export/import to/from XML. However, this feature is limited to basic differences such as attribute changes. It does not support complex modifications such as adding or removing some objects.</p>
 <h2><a class="anchor" id="faq_annotate"></a>
 How do I annotate the topology with private notes?</h2>
 <p>Each hwloc object contains a <code>userdata</code> field that may be used by applications to store private pointers. This field is only valid during the lifetime of these container object and topology. It becomes invalid as soon the topology is destroyed, or as soon as the object disappears, for instance when restricting the topology. The userdata field is not exported/imported to/from XML by default since hwloc does not know what it contains. This behavior may be changed by specifying application-specific callbacks with <code><a class="el" href="a00170.php#ga9d6ff0f7a8dd45be9aa8575ef31978cc" title="Set the application-specific callback for exporting object userdata. ">hwloc_topology_set_userdata_export_callback()</a></code> and <code><a class="el" href="a00170.php#ga5ac6917ea7289955fb1ffda4353af9b0" title="Set the application-specific callback for importing userdata. ">hwloc_topology_set_userdata_import_callback()</a></code>.</p>
-<p>Each object may also contain some <em>info</em> attributes (key name and value) that are setup by hwloc during discovery and that may be extended by the user with <code><a class="el" href="a00153.php#gace7654bb8a9002caae1a4b8a59e7452e" title="Add the given info name and value pair to the given object. ">hwloc_obj_add_info()</a></code> (see also <a class="el" href="a00319.php">Object attributes</a>). Contrary to the <code>userdata</code> field which is unique, multiple info attributes may exist for each object, even with the same name. These attributes are always exported to XML. However only character strings may be used as key names and values.</p>
+<p>Each object may also contain some <em>info</em> attributes (key name and value) that are setup by hwloc during discovery and that may be extended by the user with <code><a class="el" href="a00153.php#gace7654bb8a9002caae1a4b8a59e7452e" title="Add the given info name and value pair to the given object. ">hwloc_obj_add_info()</a></code> (see also <a class="el" href="a00319.php">Object attributes</a>). Contrary to the <code>userdata</code> field which is unique, multiple info attributes may exist for each object, even with the same name. These attributes are always exported to XML. However, only character strings may be used as key names and values.</p>
 <p>It is also possible to insert Misc objects with a custom name anywhere as a leaf of the topology (see <a class="el" href="a00318.php">Miscellaneous objects</a>). And Misc objects may have their own userdata and info attributes just like any other object.</p>
 <p>The hwloc-annotate command-line tool may be used for adding Misc objects and info attributes.</p>
 <p>There is also a topology-specific userdata pointer that can be used to recognize different topologies by storing a custom pointer. It may be manipulated with <code><a class="el" href="a00157.php#ga2cc7b7b155cba58dda203e54f1637b9c" title="Set the topology-specific userdata pointer. ">hwloc_topology_set_userdata()</a></code> and <code><a class="el" href="a00157.php#ga91f992f8d6c4905b2d3c4f43e509c2a3" title="Retrieve the topology-specific userdata pointer. ">hwloc_topology_get_userdata()</a></code>.</p>
+<p> 
+</div><div class="section" id="faq3">
+ </p>
 <h1><a class="anchor" id="faq3"></a>
 Caveats</h1>
 <h2><a class="anchor" id="faq_slow_lstopo"></a>
@@ -177,7 +186,7 @@ Does hwloc require privileged access?</h2>
 <p>hwloc discovers the topology by querying the operating system. Some minor features may require privileged access to the operation system. For instance memory module and PCI link speed discovery on Linux is reserved to root, and the entire PCI discovery on Solaris and BSDs requires access to some special files that are usually restricted to root (/dev/pci* or /devices/pci*).</p>
 <p>To workaround this limitation, it is recommended to export the topology as a XML file generated by the administrator (with the lstopo program) and make it available to all users (see <a class="el" href="a00320.php">Importing and exporting topologies from/to XML files</a>). It will offer all discovery information to any application without requiring any privileged access anymore. Only the necessary hardware characteristics will be exported, no sensitive information will be disclosed through this XML export.</p>
 <p>This XML-based model also has the advantage of speeding up the discovery because reading a XML topology is usually much faster than querying the operating system again.</p>
-<p>The utility <code>hwloc-dump-hwdata</code> is also involved in gathering privileged information at boot time and making it available to non-privileged users (note that this may require a specific SELinux MLS policy module). However it only applies to Intel Knights Landing Xeon Phi for now (see <a class="el" href="a00326.php#faq_knl_dump">Why do I need hwloc-dump-hwdata for memory on Intel Knights Landing Xeon Phi?</a>). See also <code>HWLOC_DUMPED_HWDATA_DIR</code> in <a class="el" href="a00315.php">Environment Variables</a> for details about the location of dumped files.</p>
+<p>The utility <code>hwloc-dump-hwdata</code> is also involved in gathering privileged information at boot time and making it available to non-privileged users (note that this may require a specific SELinux MLS policy module). However, it only applies to Intel Knights Landing Xeon Phi for now (see <a class="el" href="a00326.php#faq_knl_dump">Why do I need hwloc-dump-hwdata for memory on Intel Knights Landing Xeon Phi?</a>). See also <code>HWLOC_DUMPED_HWDATA_DIR</code> in <a class="el" href="a00315.php">Environment Variables</a> for details about the location of dumped files.</p>
 <h2><a class="anchor" id="faq_os_error"></a>
 What should I do when hwloc reports "operating system" warnings?</h2>
 <p>When the operating system reports invalid locality information (because of either software or hardware bugs), hwloc may fail to insert some objects in the topology because they cannot fit in the already built tree of resources. If so, hwloc will report a warning like the following. The object causing this error is ignored, the discovery continues but the resulting topology will miss some objects and may be asymmetric (see also <a class="el" href="a00326.php#faq_asymmetric">What happens if my topology is asymmetric?</a>).</p>
@@ -195,10 +204,11 @@ What should I do when hwloc reports "operating system" warnings?</h2>
 <p>Some platforms report similar warnings about conflicting Packages and NUMANodes.</p>
 <p>On x86 hosts, passing <code>HWLOC_COMPONENTS=x86</code> in the environment may workaround some of these issues by switching to a different way to discover the topology.</p>
 <p>Upgrading the BIOS and/or the operating system may help. Otherwise, as explained in the message, reporting this issue to the hwloc developers (by sending the tarball that is generated by the hwloc-gather-topology script on this platform) is a good way to make sure that this is a software (operating system) or hardware bug (BIOS, etc).</p>
+<p>See also <a class="el" href="index.php#bugs">Questions and Bugs</a>. Opening an issue on GitHub automatically displays hints on what information you should provide when reporting such bugs.</p>
 <h2><a class="anchor" id="faq_valgrind"></a>
 Why does Valgrind complain about hwloc memory leaks?</h2>
 <p>If you are debugging your application with Valgrind, you want to avoid memory leak reports that are caused by hwloc and not by your program.</p>
-<p>hwloc itself is often checked with Valgrind to make sure it does not leak memory. However some global variables in hwloc dependencies are never freed. For instance libz allocates its global state once at startup and never frees it so that it may be reused later. Some libxml2 global state is also never freed because hwloc does not know whether it can safely ask libxml2 to free it (the application may also be using libxml2 outside of hwloc).</p>
+<p>hwloc itself is often checked with Valgrind to make sure it does not leak memory. However, some global variables in hwloc dependencies are never freed. For instance libz allocates its global state once at startup and never frees it so that it may be reused later. Some libxml2 global state is also never freed because hwloc does not know whether it can safely ask libxml2 to free it (the application may also be using libxml2 outside of hwloc).</p>
 <p>These unfreed variables cause leak reports in Valgrind. hwloc installs a Valgrind <em>suppressions</em> file to hide them. You should pass the following command-line option to Valgrind to use it: </p><pre class="fragment">  --suppressions=/path/to/hwloc-valgrind.supp
 </pre><h2><a class="anchor" id="faq_upgrade"></a>
 How do I handle ABI breaks and API upgrades?</h2>
@@ -214,7 +224,7 @@ How do I handle ABI breaks and API upgrades?</h2>
 #define HWLOC_OBJ_NUMANODE HWLOC_OBJ_NODE
 #define HWLOC_OBJ_PACKAGE HWLOC_OBJ_SOCKET
 #endif
-</pre><p>The hwloc interface was deeply modified in release 2.0 to fix several issues of the 1.x interface (see <a class="el" href="a00327.php">Upgrading to hwloc 2.0 API</a> and the NEWS file in the source directory for details). The ABI was broken, which means <b>applications must be recompiled against the new 2.0 interface</b>.</p>
+</pre><p>The hwloc interface was deeply modified in release 2.0 to fix several issues of the 1.x interface (see <a class="el" href="a00327.php">Upgrading to the hwloc 2.0 API</a> and the NEWS file in the source directory for details). The ABI was broken, which means <b>applications must be recompiled against the new 2.0 interface</b>.</p>
 <p>To check that you are not mixing old/recent headers with a recent/old runtime library, check the major revision number in the API version: </p><pre class="fragment">#include &lt;hwloc.h&gt;
   unsigned version = hwloc_get_api_version();
   if ((version &gt;&gt; 16) != (HWLOC_API_VERSION &gt;&gt; 16)) {
@@ -236,6 +246,9 @@ How do I handle ABI breaks and API upgrades?</h2>
     ... error out, the hwloc runtime library is more recent than 2.0 ...
 #endif
 </pre><p>You should not try to remain compatible with very old releases such as 1.1.x or earlier because <code><a class="el" href="a00146.php#ga8f4dfb8eef138af55dd1a0fa802e5476" title="Indicate at build time which hwloc API version is being used. ">HWLOC_API_VERSION</a></code> was added in 1.0.0 and <code><a class="el" href="a00146.php#ga9c0b50c98add1adf57ed1ce85bb5190d" title="Indicate at runtime which hwloc API version was used at build time. ">hwloc_get_api_version()</a></code> came only in 1.1.1. Also do not use the old cpuset API since it was deprecated and superseded by the bitmap API in 1.1, and later removed in 1.5.</p>
+<p> 
+</div><div class="section" id="faq4">
+ </p>
 <h1><a class="anchor" id="faq4"></a>
 Platform-specific</h1>
 <h2><a class="anchor" id="faq_knl_numa"></a>

@@ -26,7 +26,10 @@ $(function() {
 <div class="title">Synthetic topologies </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p>hwloc may load fake or remote topologies so as to consult them without having the underlying hardware available. Aside from loading XML topologies, hwloc also enables the building of <em>synthetic</em> topologies that are described by a single string listing the arity of each levels.</p>
+<div class="textblock"><p> 
+<div class="section">
+</p>
+<p>hwloc may load fake or remote topologies so as to consult them without having the underlying hardware available. Aside from loading XML topologies, hwloc also enables the building of <em>synthetic</em> topologies that are described by a single string listing the arity of each levels.</p>
 <p>For instance, lstopo may create a topology made of 2 packages, containing a single NUMA node and a L2 cache above two single-threaded cores:</p>
 <pre class="fragment">$ lstopo -i "pack:2 node:1 l2:1 core:2 pu:1" -
 Machine (2048MB)
@@ -42,6 +45,9 @@ Machine (2048MB)
       Core L#3 + PU L#3 (P#3)
 </pre><p>Replacing <code>-</code> with <code>file.xml</code> in this command line will export this topology to XML as usual.</p>
 <dl class="section note"><dt>Note</dt><dd>Synthetic topologies offer a very basic way to export a topology and reimport it on another machine. It is a lot less precise than XML but may still be enough when only the hierarchy of resources matters.</dd></dl>
+<p> 
+</div><div class="section" id="synthetic_string">
+ </p>
 <h1><a class="anchor" id="synthetic_string"></a>
 Synthetic description string</h1>
 <p>Each item in the description string gives the type of the level and the number of such children under each object of the previous level. That is why the above topology contains 4 cores (2 cores times 2 nodes).</p>
@@ -64,18 +70,24 @@ $ lstopo -i "Package:2 NUMANode:3 L2Cache:4 Core:5 PU:6"
 <li>
 Attributes in parentheses at the very beginning of the description apply to the root object.  </li>
 </ul>
+<p> 
+</div><div class="section" id="synthetic_use">
+ </p>
 <h1><a class="anchor" id="synthetic_use"></a>
 Loading a synthetic topology</h1>
 <p>Aside from lstopo, the hwloc programming interface offers the same ability by passing the synthetic description string to <a class="el" href="a00156.php#ga4fab186bb6181a00bcf585825fddd38d" title="Enable synthetic topology. ">hwloc_topology_set_synthetic()</a> before <a class="el" href="a00150.php#gabdf58d87ad77f6615fccdfe0535ff826" title="Build the actual topology. ">hwloc_topology_load()</a>.</p>
 <p>Synthetic topologies are created by the <code>synthetic</code> component. This component may be enabled by force by setting the HWLOC_SYNTHETIC environment variable to something such as <code>node:2 core:3 pu:4</code>.</p>
 <p>Loading a synthetic topology disables binding support since the topology usually does not match the underlying hardware. Binding may be reenabled as usual by setting HWLOC_THISSYSTEM=1 in the environment or by setting the <a class="el" href="a00157.php#ggada025d3ec20b4b420f8038d23d6e7bdea6ecb6abc6a0bb75e81564f8bca85783b" title="Assume that the selected backend provides the topology for the system on which we are running...">HWLOC_TOPOLOGY_FLAG_IS_THISSYSTEM</a> topology flag.</p>
+<p> 
+</div><div class="section" id="synthetic_export">
+ </p>
 <h1><a class="anchor" id="synthetic_export"></a>
 Exporting a topology as a synthetic string</h1>
 <p>The function <a class="el" href="a00171.php#ga24b7864a1c588309c4749f621f03b4c7" title="Export the topology as a synthetic string. ">hwloc_topology_export_synthetic()</a> may export a topology as a synthetic string. It offers a convenient way to quickly describe the contents of a machine. The lstopo tool may also perform such an export by forcing the output format.</p>
 <pre class="fragment">$ lstopo --of synthetic --no-io
 Package:1 L3Cache:1 L2Cache:2 L1dCache:1 L1iCache:1 Core:1 PU:2
 </pre><p>The exported string may be passed back to hwloc for recreating another similar topology. The entire tree will be similar, but some attributes such as the processor model will be missing.</p>
-<p>Such an export is only possible if the topology is totally symmetric. It means that the <code>symmetric_subtree</code> field of the root object is set. Also memory children should be attached in a symmetric way (e.g. the same number of memory children below each Package object, etc.). However I/O devices and Misc objects are ignored when looking at symmetry and exporting the string. </p>
+<p>Such an export is only possible if the topology is totally symmetric. It means that the <code>symmetric_subtree</code> field of the root object is set. Also memory children should be attached in a symmetric way (e.g. the same number of memory children below each Package object, etc.). However, I/O devices and Misc objects are ignored when looking at symmetry and exporting the string. </p>
 </div></div><!-- contents -->
 <?php
 include_once("$topdir/includes/footer.inc");

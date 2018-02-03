@@ -23,19 +23,29 @@ $(function() {
 </div><!-- top -->
 <div class="header">
   <div class="headertitle">
-<div class="title">Upgrading to hwloc 2.0 API </div>  </div>
+<div class="title">Upgrading to the hwloc 2.0 API </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p>See <a class="el" href="a00326.php#faq_upgrade">How do I handle ABI breaks and API upgrades?</a> for detecting the hwloc version that you are compiling and/or running against.</p>
-<h1><a class="anchor" id="upgrade_to_api_2x_memory_children"></a>
-Memory children</h1>
+<div class="textblock"><p> 
+<div class="section">
+</p>
+<p>See <a class="el" href="a00326.php#faq_upgrade">How do I handle ABI breaks and API upgrades?</a> for detecting the hwloc version that you are compiling and/or running against.</p>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_memory">
+ </p>
+<h1><a class="anchor" id="upgrade_to_api_2x_memory"></a>
+New Organization of NUMA nodes and Memory</h1>
+<h2><a class="anchor" id="upgrade_to_api_2x_memory_children"></a>
+Memory children</h2>
 <p>In hwloc v1.x, NUMA nodes were inside the tree, for instance Packages contained 2 NUMA nodes which contained a L3 and several cache.</p>
 <p>Starting with hwloc v2.0, NUMA nodes are not in the main tree anymore. They are attached under objects as <em>Memory Children</em> on the side of normal children. This memory children list starts at <code>obj-&gt;memory_first_child</code> and its size is <code>obj-&gt;memory_arity</code>. Hence there can now exist two local NUMA nodes, for instance on KNL.</p>
 <p>The normal list of children (starting at <code>obj-&gt;first_child</code>, ending at <code>obj-&gt;last_child</code>, of size <code>obj-&gt;arity</code>, and available as the array <code>obj-&gt;children</code>) now only contains CPU-side objects: PUs, Cores, Packages, Caches, Groups, Machine and System. <a class="el" href="a00161.php#ga12d8565a3436c565e791ed02a0353621" title="Return the next child. ">hwloc_get_next_child()</a> may still be used to iterate over all children of all lists.</p>
 <p>Hence the CPU-side hierarchy is built using normal children, while memory is attached to that hierarchy depending on its affinity.</p>
-<p>For instance: </p><ul>
+<h2><a class="anchor" id="upgrade_to_api_2x_memory_examples"></a>
+Examples</h2>
+<ul>
 <li>
-<p class="startli">a machine with 2 packages but a single NUMA node is now modeled as a "Machine" object with two "Package" children and one "NUMANode" memory children (displayed first in lstopo below). </p><pre class="fragment">Machine (1024MB total)
+<p class="startli">a UMA machine with 2 packages and a single NUMA node is now modeled as a "Machine" object with two "Package" children and one "NUMANode" memory children (displayed first in lstopo below): </p><pre class="fragment">Machine (1024MB total)
   NUMANode L#0 (P#0 1024MB)
   Package L#0
     Core L#0 + PU L#0 (P#0)
@@ -46,7 +56,7 @@ Memory children</h1>
 </pre> <p class="endli"></p>
 </li>
 <li>
-<p class="startli">a machine with 2 packages with one NUMA node and 2 cores in each is now </p><pre class="fragment">Machine (2048MB total)
+<p class="startli">a machine with 2 packages with one NUMA node and 2 cores in each is now: </p><pre class="fragment">Machine (2048MB total)
   Package L#0
     NUMANode L#0 (P#0 1024MB)
     Core L#0 + PU L#0 (P#0)
@@ -58,7 +68,7 @@ Memory children</h1>
 </pre> <p class="endli"></p>
 </li>
 <li>
-<p class="startli">if there are two NUMA nodes per package, a Group object is used to keep cores together with their local NUMA node: </p><pre class="fragment">Machine (4096MB total)
+<p class="startli">if there are two NUMA nodes per package, a Group object may be added to keep cores together with their local NUMA node: </p><pre class="fragment">Machine (4096MB total)
   Package L#0
     Group0 L#0
       NUMANode L#0 (P#0 1024MB)
@@ -73,7 +83,7 @@ Memory children</h1>
 </pre> <p class="endli"></p>
 </li>
 <li>
-In practice, if the NUMA node locality is identical to a L3, the Group isn't needed: <pre class="fragment">Machine (4096MB total)
+if the platform has L3 caches whose localities are identical to NUMA nodes, Groups aren't needed: <pre class="fragment">Machine (4096MB total)
   Package L#0
     L3 L#0 (16MB)
       NUMANode L#0 (P#0 1024MB)
@@ -87,21 +97,49 @@ In practice, if the NUMA node locality is identical to a L3, the Group isn't nee
     [...]
 </pre>  </li>
 </ul>
-<h1><a class="anchor" id="upgrade_to_api_2x_numa_level"></a>
-NUMA level and depth, and finding NUMA parent/children</h1>
-<p>NUMA nodes are not in "main" tree of normal objects anymore. Hence, they don't have a meaningful depth anymore. They have a virtual (negative) depth (<a class="el" href="a00151.php#ggaf4e663cf42bbe20756b849c6293ef575a245c34ec9884c2cf5de5049b2153ed9c" title="Virtual depth for NUMA nodes. ">HWLOC_TYPE_DEPTH_NUMANODE</a>) so that functions manipulating depths still work, and so that we can still iterate over the level of NUMA nodes just like for any other level. For instance we can still use lines such as </p><pre class="fragment">int depth = hwloc_get_type_depth(topology, HWLOC_OBJ_NUMANODE);
+<h2><a class="anchor" id="upgrade_to_api_2x_numa_level"></a>
+NUMA level and depth</h2>
+<p>NUMA nodes are not in "main" tree of normal objects anymore. Hence, they don't have a meaningful depth anymore (like I/O and Misc objects). They have a virtual (negative) depth (<a class="el" href="a00151.php#ggaf4e663cf42bbe20756b849c6293ef575a245c34ec9884c2cf5de5049b2153ed9c" title="Virtual depth for NUMA nodes. ">HWLOC_TYPE_DEPTH_NUMANODE</a>) so that functions manipulating depths and level still work, and so that we can still iterate over the level of NUMA nodes just like for any other level.</p>
+<p>For instance we can still use lines such as </p><pre class="fragment">int depth = hwloc_get_type_depth(topology, HWLOC_OBJ_NUMANODE);
 hwloc_obj_t obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_NUMANODE, 4);
 hwloc_obj_t node = hwloc_get_next_obj_by_depth(topology, HWLOC_TYPE_DEPTH_NUMANODE, prev);
-</pre><p>Also tt is still possible to look at a nodeset and then iterate over NUMA nodes whose nodeset is included.</p>
-<p>However, applications that ever walked up/down to find NUMANode parent/children must now be updated. For instance, finding a NUMANode parent should be replaced with finding a parent that has a memory child, and using that child.</p>
-<p>Also the NUMA depth should not be compared with others. An unmodified code that still NUMA and Package depths (to find out whether Packages contain NUMA or the contrary) would now always assume Packages contain NUMA (because the NUMA depth is negative). If all NUMA nodes are attached to Normal parents at the same depth, the depth of these parents may be used instead. It may be retrieved with <a class="el" href="a00151.php#gae85786340b88e24835f8c403a1e2e54b" title="Return the depth of parents where memory objects are attached. ">hwloc_get_memory_parents_depth()</a>. However this function may return <a class="el" href="a00151.php#ggaf4e663cf42bbe20756b849c6293ef575ae99465995cacde6c210d5fc2e409798c" title="Objects of given type exist at different depth in the topology (only for Groups). ...">HWLOC_TYPE_DEPTH_MULTIPLE</a> on future platforms with NUMA nodes attached to different levels.</p>
-<h1><a class="anchor" id="upgrade_to_api_2x_io_misc_children"></a>
-I/O and Misc children</h1>
+</pre><p>The NUMA depth should not be compared with others. An unmodified code that still compares NUMA and Package depths (to find out whether Packages contain NUMA or the contrary) would now always assume Packages contain NUMA (because the NUMA depth is negative).</p>
+<p>However, the depth of the Normal parents of NUMA nodes may be used instead. In the last example above, NUMA nodes are attached to L3 caches, hence one may compare the depth of Packages and L3 to find out that NUMA nodes are contained in Packages. This depth of parents may be retrieved with <a class="el" href="a00151.php#gae85786340b88e24835f8c403a1e2e54b" title="Return the depth of parents where memory objects are attached. ">hwloc_get_memory_parents_depth()</a>. However, this function may return <a class="el" href="a00151.php#ggaf4e663cf42bbe20756b849c6293ef575ae99465995cacde6c210d5fc2e409798c" title="Objects of given type exist at different depth in the topology (only for Groups). ...">HWLOC_TYPE_DEPTH_MULTIPLE</a> on future platforms if NUMA nodes are attached to different levels.</p>
+<h2><a class="anchor" id="upgrade_to_api_2x_memory_find"></a>
+Finding Local NUMA nodes and looking at Children and Parents</h2>
+<p>Applications that walked up/down to find NUMANode parent/children must now be updated. Instead of looking directly for a NUMA node, one should now look for an object that has some memory children. NUMA node(s) will be be attached there. For instance, when looking for a NUMA node above a given core <code>core</code>: </p><pre class="fragment">hwloc_obj_t parent = core-&gt;parent;
+while (parent &amp;&amp; !parent-&gt;memory_arity)
+  parent = parent-&gt;parent; /* no memory child, walk up */
+if (parent)
+  /* use parent-&gt;memory_first_child (and its siblings if there are multiple local NUMA nodes) */
+</pre><p>The list of local NUMA nodes (usually a single one) is also described by the <code>nodeset</code> attribute of each object (which contains the physical indexes of these nodes). Iterating over the NUMA level is also an easy way to find local NUMA nodes: </p><pre class="fragment">hwloc_obj_t tmp = NULL;
+while ((tmp = hwloc_get_next_obj_by_type(topology, HWLOC_OBJ_NUMANODE, tmp)) != NULL) {
+  if (hwloc_bitmap_isset(obj-&gt;nodeset, tmp-&gt;os_index))
+    /* tmp is a NUMA node local to obj, use it */
+}
+</pre><p>Similarly finding objects that are close to a given NUMA nodes should be updated too. Instead of looking at the NUMA node parents/children, one should now find a Normal parent above that NUMA node, and then look at its parents/children as usual: </p><pre class="fragment">hwloc_obj_t tmp = obj-&gt;parent;
+while (hwloc_obj_type_is_memory(tmp))
+  tmp = tmp-&gt;parent;
+/* now use tmp instead of obj */
+</pre><p>To avoid such hwloc v2.x-specific and NUMA-specific cases in the code, a <b>generic lookup for any kind of object, including NUMA nodes</b>, might also be implemented by iterating over a level. For instance finding an object of type <code>type</code> which either contains or is included in object <code>obj</code> can be performed by traversing the level of that type and comparing CPU sets: </p><pre class="fragment">hwloc_obj_t tmp = NULL;
+while ((tmp = hwloc_get_next_obj_by_type(topology, type, tmp)) != NULL) {
+  if (hwloc_bitmap_intersects(tmp-&gt;cpuset, obj-&gt;cpuset))
+    /* tmp matches, use it */
+}
+</pre><p> <b> This generic lookup works whenever <code>type</code> or <code>obj</code> are Normal or Memory objects since both have CPU sets. Moreover, it is compatible with the hwloc v1.x API. </b></p>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_children">
+ </p>
+<h1><a class="anchor" id="upgrade_to_api_2x_children"></a>
+4 Kinds of Objects and Children</h1>
+<h2><a class="anchor" id="upgrade_to_api_2x_io_misc_children"></a>
+I/O and Misc children</h2>
 <p>I/O children are not in the main object children list anymore either. They are in the list starting at <code>obj-&gt;io_first_child</code> and whose size if <code>obj-&gt;io_arity</code>.</p>
 <p>Misc children are not in the main object children list anymore. They are in the list starting at <code>obj-&gt;misc_first_child</code> nd whose size if <code>obj-&gt;misc_arity</code>.</p>
+<p>See <a class="el" href="a00199.php" title="Structure of a topology object. ">hwloc_obj</a> for details about children lists.</p>
 <p><a class="el" href="a00161.php#ga12d8565a3436c565e791ed02a0353621" title="Return the next child. ">hwloc_get_next_child()</a> may still be used to iterate over all children of all lists.</p>
-<h1><a class="anchor" id="upgrade_to_api_2x_kinds"></a>
-Kinds of objects</h1>
+<h2><a class="anchor" id="upgrade_to_api_2x_kinds_subsec"></a>
+Kinds of objects</h2>
 <p>Given the above, objects may now be of 4 kinds: </p><ul>
 <li>
 Normal (everything not listed below, including Machine, Package, Core, PU, CPU Caches, etc); </li>
@@ -112,28 +150,47 @@ I/O (Bridges, PCI and OS devices), attached to parents as I/O children; </li>
 <li>
 Misc objects, attached to parents as Misc children. </li>
 </ul>
+<p>See <a class="el" href="a00199.php" title="Structure of a topology object. ">hwloc_obj</a> for details about children lists.</p>
 <p>For a given object type, the kind may be found with <a class="el" href="a00162.php#ga52ef38431eba383b048b98c669b59a16" title="Check whether an object type is Normal. ">hwloc_obj_type_is_normal()</a>, <a class="el" href="a00162.php#ga1d074390c8a3dc3088d84f73fb73f966" title="Check whether an object type is I/O. ">hwloc_obj_type_is_memory()</a>, <a class="el" href="a00162.php#ga52ef38431eba383b048b98c669b59a16" title="Check whether an object type is Normal. ">hwloc_obj_type_is_normal()</a>, or comparing with <a class="el" href="a00148.php#ggacd37bb612667dc437d66bfb175a8dc55a19f8a6953fa91efc76bcbcdf2d22de4d" title="Miscellaneous objects (filtered out by default). Objects without particular meaning, that can e.g. be added by the application for its own use, or by hwloc for miscellaneous objects such as MemoryModule (DIMMs). These objects are not listed in the main children list, but rather in the dedicated misc children list. Misc objects may only have Misc objects as children, and those are in the dedicated misc children list as well. Misc objects have NULL CPU and node sets. ">HWLOC_OBJ_MISC</a>.</p>
-<h1><a class="anchor" id="upgrade_to_api_2x_io_cache"></a>
+<p>Normal and Memory objects have (non-NULL) CPU sets and nodesets, while I/O and Misc objects don't have any sets (they are NULL).</p>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_cache">
+ </p>
+<h1><a class="anchor" id="upgrade_to_api_2x_cache"></a>
 HWLOC_OBJ_CACHE replaced</h1>
 <p>Instead of a single HWLOC_OBJ_CACHE, there are now 8 types <a class="el" href="a00148.php#ggacd37bb612667dc437d66bfb175a8dc55a56389b8eb2e2f74f288bb657c4e72140" title="Level 1 Data (or Unified) Cache. ">HWLOC_OBJ_L1CACHE</a>, ..., <a class="el" href="a00148.php#ggacd37bb612667dc437d66bfb175a8dc55a67194c9de5e3e581c64c11d2eb1c109d" title="Level 5 Data (or Unified) Cache. ">HWLOC_OBJ_L5CACHE</a>, <a class="el" href="a00148.php#ggacd37bb612667dc437d66bfb175a8dc55afa834a85d9e53836cf0db6d0bd8329b4" title="Level 1 instruction Cache (filtered out by default). ">HWLOC_OBJ_L1ICACHE</a>, ..., <a class="el" href="a00148.php#ggacd37bb612667dc437d66bfb175a8dc55ac22850c717f07bf7ffb316fadd08d218" title="Level 3 instruction Cache (filtered out by default). ">HWLOC_OBJ_L3ICACHE</a>.</p>
 <p>Cache object attributes are unchanged.</p>
 <p><a class="el" href="a00163.php#gad108a09ce400222fe45545257d575489" title="Find the depth of cache objects matching cache level and type. ">hwloc_get_cache_type_depth()</a> is not needed to disambiguate cache types anymore since new types can be passed to <a class="el" href="a00151.php#ga8bec782e21be313750da70cf7428b374" title="Returns the depth of objects of type type. ">hwloc_get_type_depth()</a> without ever getting <a class="el" href="a00151.php#ggaf4e663cf42bbe20756b849c6293ef575ae99465995cacde6c210d5fc2e409798c" title="Objects of given type exist at different depth in the topology (only for Groups). ...">HWLOC_TYPE_DEPTH_MULTIPLE</a> anymore.</p>
 <p><a class="el" href="a00162.php#ga2ed589bea28711e80b92066510a5607d" title="Check whether an object type is a Cache (Data, Unified or Instruction). ">hwloc_obj_type_is_cache()</a>, <a class="el" href="a00162.php#ga395e48cd221d107e5891689624e1aec4" title="Check whether an object type is a Data or Unified Cache. ">hwloc_obj_type_is_dcache()</a> and <a class="el" href="a00162.php#ga8abcee67b9b074332c1866405a3648a9" title="Check whether an object type is a Instruction Cache,. ">hwloc_obj_type_is_icache()</a> may be used to check whether a given type is a cache, data/unified cache or instruction cache.</p>
-<h1><a class="anchor" id="upgrade_to_api_2x_io_allowed"></a>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_allowed">
+ </p>
+<h1><a class="anchor" id="upgrade_to_api_2x_allowed"></a>
 allowed_cpuset and allowed_nodeset only in the main topology</h1>
 <p>Objects do not have <code>allowed_cpuset</code> and <code>allowed_nodeset</code> anymore. They are only available for the entire topology using <a class="el" href="a00166.php#ga517d5d68ec9f24583d8933aab713be8e" title="Get allowed CPU set. ">hwloc_topology_get_allowed_cpuset()</a> and <a class="el" href="a00166.php#ga21a4d7237a11e76b912ed4524ab78cbd" title="Get allowed node set. ">hwloc_topology_get_allowed_nodeset()</a>.</p>
 <p>As usual, those are only needed when the WHOLE_SYSTEM topology flag is given, which means disallowed objects are kept in the topology. If so, one may find out whether some PUs inside an object is allowed by checking </p><pre class="fragment">hwloc_bitmap_intersects(obj-&gt;cpuset, hwloc_topology_get_allowed_cpuset(topology))
 </pre><p> Replace cpusets with nodesets for NUMA nodes. To find out which ones, replace intersects() with and() to get the actual intersection.</p>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_depth">
+ </p>
 <h1><a class="anchor" id="upgrade_to_api_2x_depth"></a>
 Object depths are now signed int</h1>
 <p><code>obj-&gt;depth</code> as well as depths given to functions such as <a class="el" href="a00151.php#ga391f6b2613f0065673eaa4069b93d4e0" title="Returns the topology object at logical index idx from depth depth. ">hwloc_get_obj_by_depth()</a> or returned by <a class="el" href="a00151.php#gae54d1782ca9b54bea915f5c18a9158fa" title="Get the depth of the hierarchical tree of objects. ">hwloc_topology_get_depth()</a> are now <b>signed int</b>.</p>
 <p>Other depth such as cache-specific depth attribute are still unsigned.</p>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_memory_attrs">
+ </p>
 <h1><a class="anchor" id="upgrade_to_api_2x_memory_attrs"></a>
 Memory attributes become NUMANode-specific</h1>
 <p>Memory attributes such as <code>obj-&gt;memory.local_memory</code> are now only available in NUMANode-specific attributes in <code>obj-&gt;attr-&gt;numanode.local_memory</code>.</p>
 <p><code>obj-&gt;memory.total_memory</code> is available in all objects as <code>obj-&gt;total_memory</code>.</p>
+<p>See <a class="el" href="a00207.php" title="NUMA node-specific Object Attributes. ">hwloc_obj_attr_u::hwloc_numanode_attr_s</a> and <a class="el" href="a00199.php" title="Structure of a topology object. ">hwloc_obj</a> for details.</p>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_config">
+ </p>
 <h1><a class="anchor" id="upgrade_to_api_2x_config"></a>
 Topology configuration changes</h1>
+<p>The old ignoring API as well as several configuration flags are replaced with the new filtering API, see <a class="el" href="a00157.php#gad894e70f15f8d4aada7be8d1aba38b7e" title="Set the filtering for the given object type. ">hwloc_topology_set_type_filter()</a> and its variants, and <a class="el" href="a00157.php#ga9a5a1f0140cd1952544477833733195b" title="Type filtering flags. ">hwloc_type_filter_e</a> for details.</p>
 <ul>
 <li>
 <p class="startli">hwloc_topology_ignore_type(), hwloc_topology_ignore_type_keep_structure() and hwloc_topology_ignore_all_keep_structure() are respectively superseded by </p><pre class="fragment">hwloc_topology_set_type_filter(topology, type, HWLOC_TYPE_FILTER_KEEP_NONE);
@@ -153,6 +210,9 @@ hwloc_topology_set_all_types_filter(topology, HWLOC_TYPE_FILTER_KEEP_STRUCTURE);
 </pre> <p class="endli"></p>
 </li>
 </ul>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_xml">
+ </p>
 <h1><a class="anchor" id="upgrade_to_api_2x_xml"></a>
 XML changes</h1>
 <p>2.0 XML files are not compatible with 1.x</p>
@@ -176,16 +236,25 @@ When the exporter uses hwloc 1.x, it cannot pass any flag, and a 2.0 importer ca
    hwloc_topology_export_xml(....);
 #endif
 </pre><p>Additionally, <a class="el" href="a00186.php#ga2cd902ce8766e90d4f2523a8e87640e9" title="Load a list of topology differences from a XML file. ">hwloc_topology_diff_load_xml()</a>, <a class="el" href="a00186.php#gad693810a5c51628529b9dd56f040fb81" title="Load a list of topology differences from a XML buffer. ">hwloc_topology_diff_load_xmlbuffer()</a>, <a class="el" href="a00186.php#ga8a14dd7d01efbdd97af7fe85e8b84b20" title="Export a list of topology differences to a XML file. ">hwloc_topology_diff_export_xml()</a>, <a class="el" href="a00186.php#gaa2f0918df60c1c4a0bef9411f7d92a13" title="Export a list of topology differences to a XML buffer. ">hwloc_topology_diff_export_xmlbuffer()</a> and <a class="el" href="a00186.php#ga5dcff18f80583ac6505a94ba2877fd1b" title="Destroy a list of topology differences. ">hwloc_topology_diff_destroy()</a> lost the topology argument: The first argument (topology) isn't needed anymore.</p>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_distances">
+ </p>
 <h1><a class="anchor" id="upgrade_to_api_2x_distances"></a>
 Distances API totally rewritten</h1>
 <p>The new distances API is in <a class="el" href="a00101_source.php" title="Object distances. ">hwloc/distances.h</a>.</p>
 <p>Distances are not accessible directly from objects anymore. One should first call <a class="el" href="a00172.php#ga613e6b2a5d0f06626ee8d0c12fa46691" title="Retrieve distance matrices. ">hwloc_distances_get()</a> (or a variant) to retrieve distances (possibly with one call to get the number of available distances structures, and another call to actually get them). Then it may consult these structures, and finally release them.</p>
 <p>The set of object involved in a distances structure is specified by an array of objects, it may not always cover the entire machine or so.</p>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_return">
+ </p>
 <h1><a class="anchor" id="upgrade_to_api_2x_return"></a>
 Return values of functions</h1>
 <p>Bitmap functions (and a couple other functions) can return errors (in theory).</p>
-<p>Most bitmap functions may have to reallocate the internal bitmap storage. In v1.x, they would silently crash if realloc failed. In v2.0, they now return an int that can be negative on error. However the preallocated storage is 512 bits, hence realloc will not even be used unless you run hwloc on machines with larger PU or NUMAnode indexes.</p>
-<p><a class="el" href="a00153.php#gace7654bb8a9002caae1a4b8a59e7452e" title="Add the given info name and value pair to the given object. ">hwloc_obj_add_info()</a>, <a class="el" href="a00167.php#gad5ee8691e08a3538ea7633344c00456d" title="Convert a NUMA node set into a CPU set and handle non-NUMA cases. ">hwloc_cpuset_from_nodeset()</a> and hwloc_nodeset_to_cpuset() also return an int, which would be -1 in case of allocation errors.</p>
+<p>Most bitmap functions may have to reallocate the internal bitmap storage. In v1.x, they would silently crash if realloc failed. In v2.0, they now return an int that can be negative on error. However, the preallocated storage is 512 bits, hence realloc will not even be used unless you run hwloc on machines with larger PU or NUMAnode indexes.</p>
+<p><a class="el" href="a00153.php#gace7654bb8a9002caae1a4b8a59e7452e" title="Add the given info name and value pair to the given object. ">hwloc_obj_add_info()</a>, <a class="el" href="a00167.php#gad5ee8691e08a3538ea7633344c00456d" title="Convert a NUMA node set into a CPU set and handle non-NUMA cases. ">hwloc_cpuset_from_nodeset()</a> and <a class="el" href="a00167.php#gad5ee8691e08a3538ea7633344c00456d" title="Convert a NUMA node set into a CPU set and handle non-NUMA cases. ">hwloc_cpuset_from_nodeset()</a> also return an int, which would be -1 in case of allocation errors.</p>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_misc">
+ </p>
 <h1><a class="anchor" id="upgrade_to_api_2x_misc"></a>
 Misc API changes</h1>
 <ul>
@@ -206,15 +275,18 @@ Misc API changes</h1>
 <p class="endli"></p>
 </li>
 </ul>
+<p> 
+</div><div class="section" id="upgrade_to_api_2x_removals">
+ </p>
 <h1><a class="anchor" id="upgrade_to_api_2x_removals"></a>
 API removals and deprecations</h1>
 <ul>
 <li>
-<p class="startli">HWLOC_OBJ_SYSTEM removed: The root object is always HWLOC_OBJ_MACHINE </p>
+<p class="startli">HWLOC_OBJ_SYSTEM removed: The root object is always <a class="el" href="a00148.php#ggacd37bb612667dc437d66bfb175a8dc55a3f4e83ffc4a259354959ae8a9eaa2a80" title="Machine. The root object type. A set of processors and memory with cache coherency. ">HWLOC_OBJ_MACHINE</a> </p>
 <p class="endli"></p>
 </li>
 <li>
-<p class="startli">_membind_nodeset() memory binding interfaces deprecated: One should use the variant without _nodeset suffix and pass the new HWLOC_MEMBIND_BYNODESET flag </p>
+<p class="startli">_membind_nodeset() memory binding interfaces deprecated: One should use the variant without _nodeset suffix and pass the <a class="el" href="a00155.php#ggab00475fd98815bf4fb9aaf752030e7d2a71f19fe4505f1c083dc8e6f7bdea6256" title="Consider the bitmap argument as a nodeset. ">HWLOC_MEMBIND_BYNODESET</a> flag. </p>
 <p class="endli"></p>
 </li>
 <li>
@@ -234,7 +306,7 @@ API removals and deprecations</h1>
 <p class="endli"></p>
 </li>
 <li>
-<p class="startli">hwloc_distribute() and hwloc_distributev() removed, deprecated by <a class="el" href="a00165.php#ga7b0c28f797c2ff17fa2f244ebbd55b33" title="Distribute n items over the topology under roots. ">hwloc_distrib()</a> </p>
+<p class="startli">hwloc_distribute() and hwloc_distributev() removed, deprecated by <a class="el" href="a00165.php#ga7b0c28f797c2ff17fa2f244ebbd55b33" title="Distribute n items over the topology under roots. ">hwloc_distrib()</a>. </p>
 <p class="endli"></p>
 </li>
 <li>

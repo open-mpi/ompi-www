@@ -26,13 +26,25 @@ $(function() {
 <div class="title">Netloc with Scotch </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p>Scotch is a toolbox for graph partitioning [XXX], that can do mapping between a communication graph and an architecture. Netloc interfaces with Scotch, by getting the topology of the machine and building the Scotch architecture. It is also possible to directly build a mapping file that can be given to <code>mpirun</code>.</p>
+<div class="textblock"><p> 
+<div class="section">
+</p>
+<p>Scotch is a toolbox for graph partitioning [XXX], that can do mapping between a communication graph and an architecture. Netloc interfaces with Scotch, by getting the topology of the machine and building the Scotch architecture. It is also possible to directly build a mapping file that can be given to <code>mpirun</code>.</p>
+<p> 
+</div><div class="section" id="scotch_intro">
+ </p>
 <h1><a class="anchor" id="scotch_intro"></a>
 Introduction</h1>
 <p>Scotch is able to deal architectures to represent the topology of a complete machine. Scotch handles several types of topologies: complete graphs, hypercubes, fat trees, meshes, torus, and random graphs. Moreover, Scotch is able to manage parts of architectures that are called sub-architectures. Thus, from a complete architecture, we can create a sub-architecture that will represent the available resources of the complete machine.</p>
+<p> 
+</div><div class="section" id="scotch_setup">
+ </p>
 <h1><a class="anchor" id="scotch_setup"></a>
 Setup</h1>
 <p>The first step in order to use Netloc tools is to discover the network. For this task, we provide tools called netloc_gather that are wrappers to the dedicated tools provided by the manufacturer of the network, that generate the raw data given by the devices. This task needs privileges to access to the network devices. Once, this task is completed, the raw data is converted in a generic format independent to the fabric by extract_dats. Figure 1 shows how the different modules of Netloc are linked, and what are the tools provided by Netloc.</p>
+<p> 
+</div><div class="section" id="scotch_tools_api">
+ </p>
 <h1><a class="anchor" id="scotch_tools_api"></a>
 Tools and API</h1>
 <p>When the machine is discovered and all the needed files are generated as seen previously, a user can call the netlocscotch functions from the API and interact with Scotch.</p>

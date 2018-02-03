@@ -43,7 +43,7 @@ $(function() {
 <tr id="row_12_" class="even"><td class="entry"><span style="width:16px;display:inline-block;">&#160;</span><a class="el" href="a00324.php" target="_self">Components and plugins</a></td><td class="desc"></td></tr>
 <tr id="row_13_"><td class="entry"><span style="width:16px;display:inline-block;">&#160;</span><a class="el" href="a00325.php" target="_self">Embedding hwloc in Other Software</a></td><td class="desc"></td></tr>
 <tr id="row_14_" class="even"><td class="entry"><span style="width:16px;display:inline-block;">&#160;</span><a class="el" href="a00326.php" target="_self">Frequently Asked Questions</a></td><td class="desc"></td></tr>
-<tr id="row_15_"><td class="entry"><span style="width:16px;display:inline-block;">&#160;</span><a class="el" href="a00327.php" target="_self">Upgrading to hwloc 2.0 API</a></td><td class="desc"></td></tr>
+<tr id="row_15_"><td class="entry"><span style="width:16px;display:inline-block;">&#160;</span><a class="el" href="a00327.php" target="_self">Upgrading to the hwloc 2.0 API</a></td><td class="desc"></td></tr>
 <tr id="row_16_" class="even"><td class="entry"><span style="width:16px;display:inline-block;">&#160;</span><a class="el" href="a00328.php" target="_self">Network Locality (netloc)</a></td><td class="desc"></td></tr>
 <tr id="row_17_"><td class="entry"><span style="width:16px;display:inline-block;">&#160;</span><a class="el" href="a00329.php" target="_self">Netloc with Scotch</a></td><td class="desc"></td></tr>
 </table>

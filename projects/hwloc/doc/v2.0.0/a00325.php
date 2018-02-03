@@ -26,7 +26,10 @@ $(function() {
 <div class="title">Embedding hwloc in Other Software </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p>It can be desirable to include hwloc in a larger software package (be sure to check out the LICENSE file) so that users don't have to separately download and install it before installing your software. This can be advantageous to ensure that your software uses a known-tested/good version of hwloc, or for use on systems that do not have hwloc pre-installed.</p>
+<div class="textblock"><p> 
+<div class="section">
+</p>
+<p>It can be desirable to include hwloc in a larger software package (be sure to check out the LICENSE file) so that users don't have to separately download and install it before installing your software. This can be advantageous to ensure that your software uses a known-tested/good version of hwloc, or for use on systems that do not have hwloc pre-installed.</p>
 <p>When used in "embedded" mode, hwloc will:</p>
 <ul>
 <li>not install any header files</li>
@@ -38,6 +41,9 @@ $(function() {
 <pre class="fragment">shell$ ./configure --enable-embedded-mode ...
 </pre><p>The second requires that your software project uses the GNU Autoconf / Automake / Libtool tool chain to build your software. If you do this, you can directly integrate hwloc's m4 configure macro into your configure script. You can then invoke hwloc's configuration tests and build setup by calling an m4 macro (see below).</p>
 <p>Although hwloc dynamic shared object plugins may be used in embedded mode, the embedder project will have to manually setup libltdl in its build system so that hwloc can load its plugins at run time. Also, embedders should be aware of complications that can arise due to public and private linker namespaces (e.g., if the embedder project is loaded into a private namespace and then hwloc tries to dynamically load its plugins, such loading may fail since the hwloc plugins can't find the hwloc symbols they need). The embedder project is <b>strongly</b> advised not to use hwloc's dynamically loading plugins / libltdl capability.</p>
+<p> 
+</div><div class="section" id="embedding_m4">
+ </p>
 <h1><a class="anchor" id="embedding_m4"></a>
 Using hwloc's M4 Embedding Capabilities</h1>
 <p>Every project is different, and there are many different ways of integrating hwloc into yours. What follows is <em>one</em> example of how to do it.</p>
@@ -57,6 +63,9 @@ Using hwloc's M4 Embedding Capabilities</h1>
 </ul>
 <p><b>NOTE:</b> When using the HWLOC_SETUP_CORE m4 macro, it may be necessary to explicitly invoke AC_CANONICAL_TARGET (which requires config.sub and config.guess) and/or AC_USE_SYSTEM_EXTENSIONS macros early in the configure script (e.g., after AC_INIT but before AM_INIT_AUTOMAKE). See the Autoconf documentation for further information.</p>
 <p>Also note that hwloc's top-level configure.ac script uses exactly the macros described above to build hwloc in a standalone mode (by default). You may want to examine it for one example of how these macros are used.</p>
+<p> 
+</div><div class="section" id="embedding_example">
+ </p>
 <h1><a class="anchor" id="embedding_example"></a>
 Example Embedding hwloc</h1>
 <p>Here's an example of integrating with a larger project named sandbox that already uses Autoconf, Automake, and Libtool to build itself:</p>

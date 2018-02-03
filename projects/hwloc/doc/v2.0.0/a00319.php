@@ -26,11 +26,17 @@ $(function() {
 <div class="title">Object attributes </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><h1><a class="anchor" id="attributes_normal"></a>
+<div class="textblock"><p> 
+<div class="section" id="attributes_normal">
+ </p>
+<h1><a class="anchor" id="attributes_normal"></a>
 Normal attributes</h1>
 <p>hwloc objects have many generic attributes in the <a class="el" href="a00199.php" title="Structure of a topology object. ">hwloc_obj</a> structure, for instance their <code>logical_index</code> or <code>os_index</code> (see <a class="el" href="a00326.php#faq_indexes">Should I use logical or physical/OS indexes? and how?</a>), <code>depth</code> or <code>name</code>.</p>
 <p>The kind of object is first described by the <code>obj-&gt;type</code> generic attribute (an integer). OS devices also have a specific <code>obj-&gt;attr-&gt;osdev.type</code> integer for distinguishing between NICs, GPUs, etc. Objects may also have an optional <code>obj-&gt;subtype</code> pointing to a better description string. For instance subtype is useful to say what Group objects are actually made of (e.g. <em>Book</em> for Linux S/390 books). It may also specify that a Block OS device is a <em>Disk</em>, or that a CoProcessor OS device is a <em>CUDA</em> device. This subtype is displayed by lstopo either in place or after the main <code>obj-&gt;type</code> attribute.</p>
 <p>Each object also contains an <code>attr</code> field that, if non NULL, points to a union <a class="el" href="a00203.php" title="Object type-specific Attributes. ">hwloc_obj_attr_u</a> of type-specific attribute structures. For instance, a L2Cache object <code>obj</code> contains cache-specific information in <code>obj-&gt;attr-&gt;cache</code>, such as its size and associativity, cache type. See <a class="el" href="a00203.php" title="Object type-specific Attributes. ">hwloc_obj_attr_u</a> for details.</p>
+<p> 
+</div><div class="section" id="attributes_info">
+ </p>
 <h1><a class="anchor" id="attributes_info"></a>
 Custom string infos</h1>
 <p>Aside os these generic attribute fields, hwloc annotates many objects with string attributes that are made of a key and a value. Each object contains a list of such pairs that may be consulted manually (looking at the object <code>infos</code> array field) or using the <a class="el" href="a00153.php#gab358661a92bb27d8542b255cc9f6f25e" title="Search the given key name in object infos and return the corresponding value. ">hwloc_obj_get_info_by_name()</a>. The user may additionally add new key-value pairs to any object using <a class="el" href="a00153.php#gace7654bb8a9002caae1a4b8a59e7452e" title="Add the given info name and value pair to the given object. ">hwloc_obj_add_info()</a> or the <a class="el" href="a00314.php#cli_hwloc_annotate">hwloc-annotate</a> program.</p>
