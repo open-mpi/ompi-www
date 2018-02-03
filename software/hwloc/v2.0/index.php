@@ -17,8 +17,8 @@ $sha1 = read_checksums("downloads/sha1sums.txt");
 #
 #############################################################################
 
-#$t_stable = new downloadTable("./downloads", "./downloads",
-#			      dirname($_SERVER["PHP_SELF"]), 0);
+$t_stable = new downloadTable("./downloads", "./downloads",
+			      dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_stable)) {
     $src = "Version $ver_v2_0";
