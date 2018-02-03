@@ -160,18 +160,15 @@ Rust bindings are available from Michael Nitschinger
 ported to it:<ul>
 <li>MPI implementations and tools</li><ul>
  <li><a href="https://www.open-mpi.org">Open MPI</a></li>
- <li>The <a
- href="http://www.mpich.org">MPICH</a>
- process launcher Hydra</li>
+ <li>The <a href="http://www.mpich.org">MPICH</a> process launcher Hydra</li>
  <li><a href="http://mvapich.cse.ohio-state.edu/">MVAPICH2</a></li>
- <li>CEA and Paratools' <a href="http://mpc.paratools.com/">Multiprocessor Computing framework (MPC)</a></li>
+ <li>CEA and Paratools' <a href="http://mpc.hpcframework.paratools.com/">Multiprocessor Computing framework (MPC)</a></li>
  <li>The parallel job inspector <a href="http://padb.pittman.org.uk/">Padb</a></li>
- <li>TACC's MPI Advisor tool</li>
+ <li>TACC's <a href="https://www.tacc.utexas.edu/research-development/tacc-projects/mpi-advisor">MPI Advisor tool</a></li>
 </ul>
 <li>Runtime systems and compilers</li><ul>
  <li>Cray's <a href="http://chapel.cray.com/">Chapel Parallel Programming Language</a></li>
- <li>The <a href="http://runtime.bordeaux.inria.fr/StarPU">StarPU</a>
- runtime system for heterogeneous multicore architectures</li>
+ <li>The <a href="http://starpu.gforge.inria.fr/">StarPU</a> runtime system for heterogeneous multicore architectures</li>
  <li>The <a href="http://icl.cs.utk.edu/parsec">Parallel Runtime Scheduling and Execution Controller (PaRSEC)</a> project</li>
  <li>The <a href="https://pm.bsc.es/projects/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss-bsc">OmpSs</a></li>
  <li>The <a href="http://stellar.cct.lsu.edu/projects/hpx/">High Performance ParalleX (HPX)</a> runtime system</li>
@@ -184,7 +181,7 @@ ported to it:<ul>
  <li>The <a href="http://www.cp2k.org/">CP2K</a> quantum chemistry and solid state physics software package</li>
  <li>The <a href="http://www.feelpp.org/">Feel++</a> library for partial differential equations</li>
  <li>The <a href="http://pastix.gforge.inria.fr/">Parallel Sparse matriX (PaStiX)</a> package</li>
- <li>The <a href="http://icl.cs.utk.edu/plasma/">Parallel Linear Algebra for Scalable Multi-core Architectures (PLASMA)</a> project</li>
+ <li>The <a href="https://bitbucket.org/icl/plasma">Parallel Linear Algebra for Scalable Multi-core Architectures (PLASMA)</a> project</li>
  <li>The <a href="http://www.mcs.anl.gov/petsc">Portable Extensible Toolkit for Scientific Computation (PETSc)</a></li>
 </ul>
 <li>Resource manager and job schedulers</li><ul>
@@ -193,13 +190,12 @@ ported to it:<ul>
  <li>Univa <a href="http://www.univa.com/products/grid-engine">Grid Engine</a></li>
  <li>The <a href="http://arc.liv.ac.uk/trac/SGE/">Son of Grid Engine</a> project</li>
  <li>Altair's <a href="http://www.pbsworks.com/Product.aspx?id=1">PBS Professional</a> solution (part of PBS Works)</li>
- <li>The <a href="https://github.com/open-mpi/orcm">Open Resilient Cluster Manager (ORCM)</a></li>
- <li><a href="http://www-03.ibm.com/systems/platformcomputing/products/lsf/">IBM Platform LSF</a> workload management platform</li>
+ <li><a href="https://www.ibm.com/us-en/marketplace/hpc-workload-management">IBM Platform LSF</a> workload management platform</li>
 </ul>
 <li>and even more!</li><ul>
- <li><a href="https://www.open-mpi.org/projects/pmix">PMI-Exascale (PMIx)</a></li>
+ <li><a href="https://pmix.github.io/pmix/">PMI-Exascale (PMIx)</a></li>
  <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a></li>
- <li>The interactive process viewer <a href="http://htop.sourceforge.net/">htop</a> for Linux</a></li>
+ <li>The interactive process viewer <a href="http://hisham.hm/htop/">htop</a> for Linux</a></li>
  <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
  <li>The <a href="http://www.scylladb.com">Scylla</a> NoSQL server.</li>
  <li><a href="http://geopm.github.io/geopm/">Global Energy Optimization Power Management (GEOPM)</a>.</li>
