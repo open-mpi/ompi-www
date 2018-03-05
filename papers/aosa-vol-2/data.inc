@@ -22,7 +22,7 @@ $year = 2012;
 
 $bibtex = "@InBook{squyres12:_archic_of_open_sourc_applic,
   author = 	 {Jeffrey M. Squyres},
-  title = 	 {The Archicture of Open Source Applications},
+  title = 	 {The Architecture of Open Source Applications},
   chapter = 	 15,
   publisher = 	 {Self published},
   year = 	 2012,
