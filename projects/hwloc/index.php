@@ -271,6 +271,17 @@ There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</t
 </blockquote>
 
 <p>
+ About the memory footprint of hwloc and the new shmem topology API in hwloc 2.0
+ (available <a href="https://hal.inria.fr/hal-01644087">here</a>):
+</p>
+<blockquote>
+ Brice Goglin
+ <b>Memory Footprint of Locality Information on Many-Core Platforms.</b>
+ In <em>Proceedings of the 6th Workshop on Runtime and Operating Systems for the Many-core Era (ROME 2018), held in conjunction with IPDPS</em>,
+ Vancouvert, BC, Canada, May 2018.
+</blockquote>
+
+<p>
  For citing hwloc's I/O device locality and cluster/multi-node support, please use the following one instead.
  This paper (available <a href="http://hal.inria.fr/hal-00985096">here</a>)
  explains how I/O locality is managed in hwloc, how device details are represented,
