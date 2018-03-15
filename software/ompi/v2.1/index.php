@@ -96,6 +96,7 @@ if (isset($t_older)) {
     $versions = array();
     $versions[] = "2.1.0";
     $versions[] = "2.1.1";
+    $versions[] = "2.1.2";
 
     foreach ($versions as $v) {
         $n = array();
