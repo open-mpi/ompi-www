@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Attr_get(3) man page (version 2.1.2)";
-$meta_desc = "Open MPI v2.1.2 man page: MPI_ATTR_GET(3)";
+$title = "MPI_Attr_get(3) man page (version 2.1.3)";
+$meta_desc = "Open MPI v2.1.3 man page: MPI_ATTR_GET(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -66,7 +66,7 @@ with the key. </dd>
 <h2><a name='sect6' href='#toc6'>Description</a></h2>
 Note
 that use of this routine is <i>deprecated</i> as of MPI-2, and was <i>deleted</i> in MPI-3.
-Please use MPI_Comm_create_attr.  This function does not have a C++ or mpi_f08
+Please use <a href="../man3/MPI_Comm_get_attr.3.php">MPI_Comm_get_attr</a>.  This function does not have a C++ or mpi_f08
 binding. <p>
 Retrieves attribute value by key. The call is erroneous if there
 is no key with value keyval. On the other hand, the call is correct if the
