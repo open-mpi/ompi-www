@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Comm_spawn(3) man page (version 2.1.2)";
-$meta_desc = "Open MPI v2.1.2 man page: MPI_COMM_SPAWN(3)";
+$title = "MPI_Comm_spawn(3) man page (version 2.1.3)";
+$meta_desc = "Open MPI v2.1.3 man page: MPI_COMM_SPAWN(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -207,7 +207,7 @@ ompi_preload_files     char *   A comma-separated list of files that
                                 ompi_preload_binary - files can
                                 be moved to the target even if an
                                 executable is not moved.
-ompi_stdin_target   char* Comma-delimited list of ranks to
+ompi_stdin_target      char *   Comma-delimited list of ranks to
                                 receive stdin when forwarded.
 ompi_non_mpi           bool     If set to true, launching a non-MPI
                                 application; the returned communicator
@@ -220,25 +220,25 @@ ompi_param             char *   Pass an OMPI MCA parameter to the
                                 exists in the environment, the value
                                 will be overwritten by the provided
                                 value.
-mapper                    char*  Mapper to be used for this job
-map_by                    char*  Mapping directive indicating how
+mapper                 char *   Mapper to be used for this job
+map_by                 char *   Mapping directive indicating how
                                 processes are to be mapped (slot,
                                 node, socket, etc.).
-rank_by                   char *  Ranking directive indicating how
+rank_by                char *   Ranking directive indicating how
                                 processes are to be ranked (slot,
                                 node, socket, etc.).
-bind_to                    char *  Binding directive indicating how
+bind_to                char *   Binding directive indicating how
                                 processes are to be bound (core, slot,
                                 node, socket, etc.).
-path                         char*  List of directories to search for
+path                   char *   List of directories to search for
                                 the executable
-npernode                 char* Number of processes to spawn on
+npernode               char *   Number of processes to spawn on
                                 each node of the allocation
-pernode                   bool  Equivalent to npernode of 1
-ppr                          char* Spawn specified number of processes
-                               on each of the identified object type
-env                         char*  Newline-delimited list of envars to
-                               be passed to the spawned procs
+pernode                bool     Equivalent to npernode of 1
+ppr                    char *   Spawn specified number of processes
+                                on each of the identified object type
+env                    char *   Newline-delimited list of envars to
+                                be passed to the spawned procs
 </pre>
 <p> <i>bool</i> info keys are actually strings but are evaluated as follows: if the
 string value is a number, it is converted to an integer and cast to a boolean
