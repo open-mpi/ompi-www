@@ -310,11 +310,6 @@ There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</t
  Inria, November 2016.
 </blockquote>
 
-<p>
- See also the
- <a href="https://www.open-mpi.org/papers/">Open MPI publication list</a>.
-</p>
-
 <!------------------------------------------------------------------------->
 
 <h1>History / credits</h1>
