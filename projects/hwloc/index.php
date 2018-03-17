@@ -219,6 +219,12 @@ how to debug and report issues.
 </p>
 
 <p>
+See also the
+<a href="https://github.com/open-mpi/hwloc/wiki/Linux-kernel-bugs">
+wiki page about Linux kernel bugs</a> affect locality information in hwloc.
+</p>
+
+<p>
 Questions may be sent to the users or developers
 <a href="http://www.open-mpi.org/community/lists/hwloc.php">mailing lists</a>.
 </p>
