@@ -270,7 +270,7 @@ There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</t
  (available <a href="http://hal.inria.fr/hal-01402755">here</a>):
 </p>
 <blockquote>
- Brice Goglin
+ Brice Goglin.
  <b>On the Overhead of Topology Discovery for Locality-aware Scheduling in HPC.</b>
  In <em>Proceedings of the 25th Euromicro International Conference on Parallel, Distributed and Network-Based Processing (PDP2017)</em>,
  St Petersburg, Russia, March 2017.
@@ -281,7 +281,7 @@ There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</t
  (available <a href="https://hal.inria.fr/hal-01644087">here</a>):
 </p>
 <blockquote>
- Brice Goglin
+ Brice Goglin.
  <b>Memory Footprint of Locality Information on Many-Core Platforms.</b>
  In <em>Proceedings of the 6th Workshop on Runtime and Operating Systems for the Many-core Era (ROME 2018), held in conjunction with IPDPS</em>,
  Vancouvert, BC, Canada, May 2018.
