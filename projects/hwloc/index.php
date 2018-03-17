@@ -239,8 +239,7 @@ There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</t
 
 <p>
  For a general-purpose hwloc citations, please use the following one.
- This paper (available <a href="http://hal.inria.fr/inria-00429889">here</a>)
- introduces hwloc, its goals and its implementation.
+ This paper introduces hwloc, its goals and its implementation.
  It then shows how hwloc may be used by MPI implementations and OpenMP
  runtime systems as a way to carefully place processes and adapt communication
  strategies to the underlying hardware.
@@ -251,46 +250,47 @@ There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</t
  In <em>Proceedings of the 18th Euromicro International Conference on Parallel, Distributed and Network-Based Processing (PDP2010)</em>,
  Pisa, Italia, February 2010.
  IEEE Computer Society Press.
+ <a href="https://hal.inria.fr/inria-00429889">https://hal.inria.fr/inria-00429889</a>
 </blockquote>
 
 <p>
  For citing how hwloc deals with new heterogeneous memory hierarchies
  (Knights Landing's MCDRAM, high-bandwidth memory (HBM), non-volatile memory (NVDIMM), etc),
- use this paper (available <a href="https://hal.inria.fr/hal-01330194">here</a>):
+ use this paper:
 </p>
 <blockquote>
  Brice Goglin.
  <b>Exposing the Locality of Heterogeneous Memory Architectures to HPC Applications.</b>
  In <em>Proceedings of the First ACM International Symposium on Memory Systems (MEMSYS16)</em>,
  Washington, DC, USA, October 2016.
+ <a href="https://hal.inria.fr/hal-01330194">https://hal.inria.fr/hal-01330194</a>
 </blockquote>
 
 <p>
- When discussing the overhead of topology discovery and why XML or synthetic topologies are useful, use this paper
- (available <a href="http://hal.inria.fr/hal-01402755">here</a>):
+ When discussing the overhead of topology discovery and why XML or synthetic topologies are useful, use this paper:
 </p>
 <blockquote>
  Brice Goglin.
  <b>On the Overhead of Topology Discovery for Locality-aware Scheduling in HPC.</b>
  In <em>Proceedings of the 25th Euromicro International Conference on Parallel, Distributed and Network-Based Processing (PDP2017)</em>,
  St Petersburg, Russia, March 2017.
+ <a href="https://hal.inria.fr/hal-01402755">https://hal.inria.fr/hal-01402755</a>
 </blockquote>
 
 <p>
- About the memory footprint of hwloc and the new shmem topology API in hwloc 2.0
- (available <a href="https://hal.inria.fr/hal-01644087">here</a>):
+ About the memory footprint of hwloc and the new shmem topology API in hwloc 2.0:
 </p>
 <blockquote>
  Brice Goglin.
  <b>Memory Footprint of Locality Information on Many-Core Platforms.</b>
  In <em>Proceedings of the 6th Workshop on Runtime and Operating Systems for the Many-core Era (ROME 2018), held in conjunction with IPDPS</em>,
  Vancouvert, BC, Canada, May 2018.
+ <a href="https://hal.inria.fr/hal-01644087">https://hal.inria.fr/hal-01644087</a>
 </blockquote>
 
 <p>
  For citing hwloc's I/O device locality and cluster/multi-node support, please use the following one instead.
- This paper (available <a href="http://hal.inria.fr/hal-00985096">here</a>)
- explains how I/O locality is managed in hwloc, how device details are represented,
+ This paper explains how I/O locality is managed in hwloc, how device details are represented,
  how hwloc interacts with other libraries, and how multiple nodes such as a cluster can be efficiently managed.
 </p>
 <blockquote>
@@ -298,16 +298,18 @@ There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</t
  <b>Managing the Topology of Heterogeneous Cluster Nodes with Hardware Locality (hwloc).</b>
  In <em>Proceedings of 2014 International Conference on High Performance Computing & Simulation (HPCS 2014)</em>,
  Bologna, Italy, July 2014.
+ <a href="https://hal.inria.fr/hal-00985096">https://hal.inria.fr/hal-00985096</a>
 </blockquote>
 
 <p>
  For citing hwloc's hierarchical modeling of computing, memory and I/O resources as well as multi-node support,
- use this paper (available <a href="http://hal.inria.fr/hal-01400264">here</a>):
+ use this paper:
 </p>
 <blockquote>
  Brice Goglin.
  <b>Towards the Structural Modeling of the Topology of next-generation heterogeneous cluster Nodes with hwloc.</b>
  Inria, November 2016.
+ <a href="https://hal.inria.fr/hal-01400264">https://hal.inria.fr/hal-01400264</a>
 </blockquote>
 
 <!------------------------------------------------------------------------->
