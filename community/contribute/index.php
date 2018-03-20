@@ -81,12 +81,14 @@ development effort -- it is usually better to work with the most
 recent development version of the code than the last stable release
 (especially for new projects).</li>
 
-<li>Code contributions are submitted via pull requests at the
-<a href="https://github.com/open-mpi/ompi/">Open MPI project on 
+<li>Code contributions are submitted via pull requests at the <a
+href="https://github.com/open-mpi/ompi/">Open MPI project on
 Github</a>.  All commits <em>must</em> contain a "Signed-off-by" token
-in the commit message.  This constitutes your agreement with
-<a href="https://github.com/open-mpi/ompi/wiki/Admistrative-rules#contributors-declaration">the
-Open MPI Contributor's Declaration</a>.</li>
+in the commit message.  This constitutes your agreement with <a
+href="https://github.com/open-mpi/ompi/wiki/Admistrative-rules#contributors-declaration">the
+Open MPI Contributor's Declaration</a>.  Check out the overall <a
+href="https://github.com/open-mpi/ompi/blob/master/CONTRIBUTING.md">code
+contribution guidelines</a>.</li>
 
 </ul>
 
