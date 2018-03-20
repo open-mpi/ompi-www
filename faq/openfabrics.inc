@@ -2062,7 +2062,7 @@ v1.4.4 or later.";
 
 $q[] = "Does Open MPI support XRC?";
 $anchor[] = "ib-xrc";
-$a[] = "Yes.
+$a[] = "Older versions of Open MPI support XRC.
 
 *XRC* (eXtended Reliable Connection) decreases the memory consumption
 of Open MPI and improves its scalability by significantly decreasing
@@ -2070,6 +2070,22 @@ number of QPs per machine.
 
 XRC is available on Mellanox ConnectX family HCAs with OFED 1.4 and
 later.
+
+XRC was was removed in the middle of multiple release streams (which
+were effectively concurrent in time) because there were known problems
+with it and no one was going to fix it.  Here are the versions where
+XRC support was disabled:
+
+<ul>
+<li> In then 2.0.x series, XRC was disabled in v2.0.4.</li>
+<li> In then 2.1.x series, XRC was disabled in v2.1.2.</li>
+<li> In then 3.0.x series, XRC was disabled prior to the v3.0.0
+release.</li>
+</ul>
+
+Specifically: v2.1.1 was the latest release that contained XRC
+support.  Note that it is not known whether it actually works,
+however.
 
 See <a href=\"#ib-receive-queues\">this FAQ entry</a> for instructions
 how to tell Open MPI to use XRC receive queues.  ";
@@ -2097,8 +2113,9 @@ queues:
 <ul>
 <li> *P* : Per-Peer Receive Queues</li>
 <li> *S* : Shared Receive Queues (SRQ) </li>
-<li> *X* : eXtended Reliable Connection queues (XRC, supported since
-OFED 1.4 with Mellanox ConnectX family HCAs)</li>
+<li> *X* : eXtended Reliable Connection queues (see <a
+href=\"#ib-xrc\">this FAQ item</a> to see when XRC support was removed
+from Open MPI</li>
 </ul>
 
 The default value of the [btl_openib_receive_queues] MCA parameter
@@ -2108,7 +2125,9 @@ is sometimes equivalent to the following command line:
 shell$ mpirun ... --mca btl_openib_receive_queues P,128,256,192,128:S,2048,256,128,32:S,12288,256,128,32:S,65536,256,128,32 ...
 </geshi>
 
-In particular, note that XRC is (currently) _not_ used by default.
+In particular, note that XRC is (currently) _not_ used by default (and
+is no longer supported -- see <a href=\"#ib-xrc\">this FAQ item</a>
+for more information).
 
 $note Open MPI chooses a default value of [btl_openib_receive_queues]
 based on the type of OpenFabrics network device that is found.  The
@@ -2165,6 +2184,9 @@ sends to that peer</li>
 </ol>
 
 *XRC Queues*
+
+Note that XRC is no longer supported in Open MPI.  See <a
+href=\"#ib-xrc\">this FAQ item</a> for more details.
 
 XRC queues take the same parameters as SRQs.  Note that if you use
 *any* XRC queues, then *all* of your queues must be XRC.  Therefore,
