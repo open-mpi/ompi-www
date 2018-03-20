@@ -21,7 +21,7 @@ $t_stable = new downloadTable("./downloads", "./downloads",
 			      dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_stable)) {
-    $src = "Version $ver_v2_0";
+    $src = "Version $ver_v2_0<br/><b><font color=\"red\">Broken ABI, do not use!</font></b>";
     $names = array("hwloc-$ver_v2_0.tar.gz", "hwloc-$ver_v2_0.tar.bz2",
 		   "hwloc-win32-build-$ver_v2_0.zip", "hwloc-win64-build-$ver_v2_0.zip");
     foreach ($names as $key => $n) {
