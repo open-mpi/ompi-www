@@ -11,7 +11,7 @@
 // in this file.
 
 $script_base = dirname($_SERVER["SCRIPT_NAME"]);
-$image_base_url = $_SERVER["REQUEST_SCHEME"] . "://" .
+$image_base_url = "https://" .
 	$_SERVER["SERVER_NAME"] . $script_base . "/images";
 ?>
 
