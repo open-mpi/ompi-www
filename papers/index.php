@@ -50,7 +50,7 @@ following:</p>
 
 <dl>
 <dd><b>An Extensible Framework for Distributed Testing of MPI
-Implementations (2007).</b> Hursey J., Mallove E., Squyres J.M.,
+Implementations.</b> Hursey J., Mallove E., Squyres J.M.,
 Lumsdaine A In <em>Recent Advances in Parallel Virtual Machine and
 Message Passing Interface.</em> EuroPVM/MPI 2007. Lecture Notes in
 Computer Science, vol 4757. Springer, Berlin, Heidelberg.  <a
