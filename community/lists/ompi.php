@@ -67,6 +67,18 @@ discussion on this list.</p>
 
 <!--------------------------------------------------------------------->
 
+<?php print_link("Packagers list", "ompi-packagers"); ?>
+
+<P>This list is for downstream packagers who develop, distribute, and
+maintain Open MPI as a software package (e.g., for Linux
+distributions).  <?php red("Subscribers"); ?> are welcome to post any
+topics dealing with platform support, packaging details, dependencies,
+etc.</p>
+
+<?php print_list("ompi-packagers"); ?>
+
+<!--------------------------------------------------------------------->
+
 <?php print_link("Git commit list (<font
 color=red>USERS CANNOT POST TO THIS LIST</font>)", "ompi-commits"); ?>
 
