@@ -13,7 +13,8 @@ include_once("$topdir/papers/papers.inc");
 <P>If you are looking for a general-purpose Open MPI citation, please
 use the following:</P>
 
-<p><b>Open MPI: Goals, Concept, and Design of a Next Generation MPI
+<dl>
+<dd><b>Open MPI: Goals, Concept, and Design of a Next Generation MPI
 Implementation</b>.  Edgar Gabriel, Graham E. Fagg, George Bosilca,
 Thara Angskun, Jack J. Dongarra, Jeffrey M. Squyres, Vishal Sahay,
 Prabhanjan Kambadur, Brian Barrett, Andrew Lumsdaine, Ralph
@@ -24,30 +25,42 @@ href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.pdf">pdf</a>]
 [<a
 href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.ps">ps</a>]
 [<a href="euro-pvmmpi-2004-overview/">bibtex</a>]
-<?php # Stupid php mode: '
-?></p>
+</dd>
+</dl>
 
 <P>If you are looking for a general-purpose Hwloc citation, please use
 the following:</P>
 
-<p><b>hwloc: a Generic Framework for Managing Hardware Affinities in
+<dl>
+<dd><b>hwloc: a Generic Framework for Managing Hardware Affinities in
 HPC Applications.</b> François Broquedis, Jérôme Clet-Ortega,
 Stéphanie Moreaud, Nathalie Furmento, Brice Goglin, Guillaume
 Mercier, Samuel Thibault, and Raymond Namyst.  In <em>Proceedings of
 the 18th Euromicro International Conference on Parallel, Distributed
 and Network-Based Processing (PDP2010)</em>, Pisa, Italia, February
 2010.  IEEE Computer Society Press.  <a
-href="https://hal.inria.fr/inria-00429889">https://hal.inria.fr/inria-00429889</a></p>
+href="https://hal.inria.fr/inria-00429889">https://hal.inria.fr/inria-00429889</a>
+[<a href="pdp-2010/hwloc-pdp-2010.pdf">pdf</a>]
+[<a href="pdp-2010/">bibtex</a>]</p>
+</dd>
+</dl>
 
 <p>If you are looking for general-purpose MTT citation, please use the
 following:</p>
 
-<p><b>An Extensible Framework for Distributed Testing of MPI
+<dl>
+<dd><b>An Extensible Framework for Distributed Testing of MPI
 Implementations (2007).</b> Hursey J., Mallove E., Squyres J.M.,
 Lumsdaine A In <em>Recent Advances in Parallel Virtual Machine and
 Message Passing Interface.</em> EuroPVM/MPI 2007. Lecture Notes in
 Computer Science, vol 4757. Springer, Berlin, Heidelberg.  <a
-href="https://doi.org/10.1007/978-3-540-75416-9_15">https://doi.org/10.1007/978-3-540-75416-9_15</a></p>
+href="https://doi.org/10.1007/978-3-540-75416-9_15">https://doi.org/10.1007/978-3-540-75416-9_15</a>
+[<a href="euro-pvmmpi-2007-mtt/euro-pvmmpi-2007-mtt.pdf">pdf</a>]
+[<a href="euro-pvmmpi-2007-mtt/">bibtex</a>]</p>
+</dd>
+</dl>
+
+<hr>
 
 <!------------------------------------------------------------------------->
 

@@ -218,7 +218,7 @@ print("      <H1 CLASS=\"doctitle\">$title</H1>\n");
 
 // About
 printbutton("About");
-printsublink("$topurl/papers/", "Publications");
+printsublink("$topurl/papers/", "Presentations");
 printsublink("$topurl/about/members/", "Open MPI Team");
 printsublink("$topurl/faq/", "FAQ");
 printsublink("$topurl/video/", "Videos");
