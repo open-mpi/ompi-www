@@ -32,7 +32,7 @@ processes in the machine and its hardware characteristics.";
 
 $presented = "<a href=\"http://www.pdp2010.org/\">" .
 "The 18th Euromicro International Conference on Parallel, Distributed
-and Network-Based Computing</a> on February 17, 2010, in Garching, Germany.";
+and Network-Based Computing</a> on February 17, 2010, in Pisa, Italy.";
 
 $files[] = "hwloc-pdp-2010.pdf";
 
