@@ -30,7 +30,7 @@ thanks to hwloc. An optimized MPI communication strategy may also
 be dynamically chosen according to the location of the communicating
 processes in the machine and its hardware characteristics.";
 
-$presented = "<a href=\"http://hal.inria.fr/INRIA/inria-00429889/fr/\">" .
+$presented = "<a href=\"http://www.pdp2010.org/\">" .
 "The 18th Euromicro International Conference on Parallel, Distributed
 and Network-Based Computing</a> on February 17, 2010, in Garching, Germany.";
 
@@ -69,6 +69,6 @@ $bibtex = "%% inria-00429889, version 1
 	day = {17},
 	month = {02},
 	year = {2010},
-	URL = {http://hal.inria.fr/inria-00429889/en/},
+	URL = {http://www.pdp2010.org/},
 }";
 
