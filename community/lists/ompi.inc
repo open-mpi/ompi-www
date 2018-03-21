@@ -7,3 +7,5 @@ $this_nav[] = new Nav("OMPI users archives",
                       "https://www.mail-archive.com/users@lists.open-mpi.org/");
 $this_nav[] = new Nav("OMPI devel archives",
                       "https://www.mail-archive.com/devel@lists.open-mpi.org/");
+$this_nav[] = new Nav("OMPI packagers archives",
+                      "https://www.mail-archive.com/ompi-packagers@lists.open-mpi.org/");
