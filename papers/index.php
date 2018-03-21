@@ -1,8 +1,7 @@
 <?php // -*- php -*-
 
 $topdir = "..";
-$title = "Open MPI Publications";
-$lam_section = "papers";
+$title = "Open MPI Slides and Presentations";
 
 include_once("$topdir/includes/header.inc");
 include_once("$topdir/papers/papers.inc");
@@ -11,10 +10,10 @@ include_once("$topdir/papers/papers.inc");
 
 <!------------------------------------------------------------------------->
 
-<P>If you are looking for general-purpose Open MPI citations, please
-use the following (other, more specific papers are also available):</P>
+<P>If you are looking for a general-purpose Open MPI citation, please
+use the following:</P>
 
-<b>Open MPI: Goals, Concept, and Design of a Next Generation MPI
+<p><b>Open MPI: Goals, Concept, and Design of a Next Generation MPI
 Implementation</b>.  Edgar Gabriel, Graham E. Fagg, George Bosilca,
 Thara Angskun, Jack J. Dongarra, Jeffrey M. Squyres, Vishal Sahay,
 Prabhanjan Kambadur, Brian Barrett, Andrew Lumsdaine, Ralph
@@ -26,10 +25,34 @@ href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.pdf">pdf</a>]
 href="euro-pvmmpi-2004-overview/euro-pvmmpi-2004-overview.ps">ps</a>]
 [<a href="euro-pvmmpi-2004-overview/">bibtex</a>]
 <?php # Stupid php mode: '
-?>
+?></p>
+
+<P>If you are looking for a general-purpose Hwloc citation, please use
+the following:</P>
+
+<p><b>hwloc: a Generic Framework for Managing Hardware Affinities in
+HPC Applications.</b> François Broquedis, Jérôme Clet-Ortega,
+Stéphanie Moreaud, Nathalie Furmento, Brice Goglin, Guillaume
+Mercier, Samuel Thibault, and Raymond Namyst.  In <em>Proceedings of
+the 18th Euromicro International Conference on Parallel, Distributed
+and Network-Based Processing (PDP2010)</em>, Pisa, Italia, February
+2010.  IEEE Computer Society Press.  <a
+href="https://hal.inria.fr/inria-00429889">https://hal.inria.fr/inria-00429889</a></p>
+
+<p>If you are looking for general-purpose MTT citation, please use the
+following:</p>
+
+<p><b>An Extensible Framework for Distributed Testing of MPI
+Implementations (2007).</b> Hursey J., Mallove E., Squyres J.M.,
+Lumsdaine A In <em>Recent Advances in Parallel Virtual Machine and
+Message Passing Interface.</em> EuroPVM/MPI 2007. Lecture Notes in
+Computer Science, vol 4757. Springer, Berlin, Heidelberg.  <a
+href="https://doi.org/10.1007/978-3-540-75416-9_15">https://doi.org/10.1007/978-3-540-75416-9_15</a></p>
+
 <!------------------------------------------------------------------------->
 
-<p><B>Open MPI Bibliography and Papers:</B><BR>
+<p><B>Community Open MPI project slides, public presentations, and
+general architecture papers:</B><BR>
 
 <p><strong>2017</strong></p>
 <ul>
@@ -50,17 +73,14 @@ print_papers(array("sc-2016", "sc-2016-pmix"));
 <?php
 print_papers(array("sc-2015",
                    "sc-2015-pmix",
-                   "versioning-update-2015",
-                   "controls-2015"));
+                   "versioning-update-2015"));
 ?>
 </ul>
 
 <p><strong>2014</strong></p>
 <UL>
 <?php
-print_papers(array("sc-2014",
-		   "hpcs-2014-hwloc",
-		   "psti-2014-netloc",
+print_papers(array("sc-2014"
 		   ));
 ?>
 </UL>
@@ -68,8 +88,7 @@ print_papers(array("sc-2014",
 <p><strong>2013</strong></p>
 <UL>
 <?php
-print_papers(array("sc-2013",
-		   "euro-mpi-2013-iopp"
+print_papers(array("sc-2013"
 		   ));
 ?>
 </UL>
@@ -78,11 +97,8 @@ print_papers(array("sc-2013",
 <UL>
 <?php
 print_papers(array("sc-2012",
-		   "kcomputer-2012",
-		   "mpi-java-presentation",
-		   "mpi-java-spec",
-		   "aosa-vol-2",
-		   "cug-2012"));
+		   "aosa-vol-2"
+		   ));
 ?>
 </UL>
 
@@ -90,12 +106,7 @@ print_papers(array("sc-2012",
 <UL>
 <?php
 print_papers(array("sc-2011",
-                   "cluster-2011-lama",
-                   "euro-mpi-2011-log-validate",
-		   "euro-mpi-2011-ompio",
-                   "ipdps-dpdns-2011",
-                   "ipdps-hips-2011",
-                   "orcm-2011",
+		   "euro-mpi-2011-ompio"
                    ));
 ?>
 </UL>
@@ -104,8 +115,6 @@ print_papers(array("sc-2011",
 <UL>
 <?php
 print_papers(array("sc-2010",
-                   "euro-mpi-2010-cr-debug",
-                   "pdp-2010",
                    ));
 ?>
 </UL>
@@ -114,10 +123,6 @@ print_papers(array("sc-2010",
 <UL>
 <?php
 print_papers(array("sc-2009",
-                   "tr-uni-muenchen-8991",
-                   "trinity-btl-2009",
-                   "hpdc-2009",
-                   "orcm-2009",
                    ));
 ?>
 </UL>
@@ -126,8 +131,7 @@ print_papers(array("sc-2009",
 <UL>
 <?php
 print_papers(array("sc-2008",
-                   "iccs-2008",
-                   "euro-pvmmpi-2008-xrc"));
+	           ));
 ?>
 </UL>
 
@@ -135,14 +139,7 @@ print_papers(array("sc-2008",
 <UL>
 <?php
 print_papers(array("euro-pvmmpi-2007-mtt",
-		   "euro-pvmmpi-2007-ib",
-		   "euro-pvmmpi-2007-nb-coll",
-		   "euro-pvmmpi-2007-cray-mtl",
-                   "euro-pvmmpi-2007-onesided",
-                   "parco-2007",
-                   "isc-2007",
-                   "cac-2007",
-                   "dpdns-2007",
+		   "isc-2007",
                    "kicc-2007"));
 ?>
 </UL>
@@ -151,17 +148,7 @@ print_papers(array("euro-pvmmpi-2007-mtt",
 <UL>
 <?php
 print_papers(array("sc-2006",
-                   "heteropar-2006",
-                   "dapsys-2006-self-healing-network",
-                   "euro-pvmmpi-2006-app-ft",
-                   "euro-pvmmpi-2006-hpc-protocols",
-                   "euro-pvmmpi-2006-peruse",
-                   "euro-pvmmpi-2006-mpi2-debugging",
-                   "euro-pvmmpi-2006-scalable-rt-ft",
-                   "euro-pvmmpi-2006-libnbc",
-                   "euro-pvmmpi-2006-collective-alg-selection",
-                   "iu-cs-tr635",
-                   "ipdps-2006",
+	           "euro-pvmmpi-2006-hpc-protocols",
                    "workshop-2006"));
 ?>
 </UL>
@@ -169,15 +156,10 @@ print_papers(array("sc-2006",
 <p><strong>2005</strong></p>
 <UL>
 <?php
-print_papers(array("openib-workshop-2006",
-                   "kicc-2005",
-                   "sc-2005",
-                   "lanl-2005-red-storm",
-                   "euro-pvmmpi-2005-fortran",
-                   "euro-pvmmpi-2005-mca-perf",
+print_papers(array("sc-2005",
                    "euro-pvmmpi-2005-orte",
                    "ppam-2005",
-                   "icpp-2005"));
+		   ));
 ?>
 </UL>
 
@@ -185,8 +167,6 @@ print_papers(array("openib-workshop-2006",
 <UL>
 <?php
 print_papers(array("euro-pvmmpi-2004-overview",
-                   "euro-pvmmpi-2004-p2p",
-                   "euro-pvmmpi-2004-p2p-perf",
                    "ics-2004"));
 ?>
 <UL>
