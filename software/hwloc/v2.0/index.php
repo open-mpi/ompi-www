@@ -21,7 +21,7 @@ $t_stable = new downloadTable("./downloads", "./downloads",
 			      dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_stable)) {
-    $src = "Version $ver_v2_0<br/><b><font color=\"red\">Broken ABI, do not use!</font></b>";
+    $src = "Version $ver_v2_0";
     $names = array("hwloc-$ver_v2_0.tar.gz", "hwloc-$ver_v2_0.tar.bz2",
 		   "hwloc-win32-build-$ver_v2_0.zip", "hwloc-win64-build-$ver_v2_0.zip");
     foreach ($names as $key => $n) {
@@ -73,14 +73,17 @@ if (preg_match("/[a-z]/i", $v)) {
 #
 #############################################################################
 
-#$t_older = new downloadTable("./downloads", "./downloads",
-#			     dirname($_SERVER["PHP_SELF"]), 0);
+$t_older = new downloadTable("./downloads", "./downloads",
+			     dirname($_SERVER["PHP_SELF"]), 0);
 
 if (isset($t_older)) {
-    $versions = array();
+    $versions = array("2.0.0");
 
     foreach ($versions as $key => $ver) {
         $src = "Version $ver";
+        if ($ver == "2.0.0") {
+           $src .= "<br/><b><font color=\"red\">Broken ABI, do not use!</font></b>";
+        }
         $names = array("hwloc-$ver.tar.gz", "hwloc-$ver.tar.bz2",
                        "hwloc-win32-build-$ver.zip", "hwloc-win64-build-$ver.zip");
 
