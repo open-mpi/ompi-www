@@ -80,7 +80,7 @@ if (preg_match("/[a-z]/i", $v) &&
 #
 #############################################################################
 
-//$t_older = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
+$t_older = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
 
 if (isset($t_older)) {
     $versions = array();
