@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "mpiexec(1) man page (version 3.0.0)";
-$meta_desc = "Open MPI v3.0.0 man page: mpiexec(1)";
+$title = "mpiexec(1) man page (version 3.0.1)";
+$meta_desc = "Open MPI v3.0.1 man page: mpiexec(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -139,12 +139,12 @@ to run.    </dd>
 
 <dt><b>-novm, --novm</b> </dt>
 <dd>Execute without creating an allocation-spanning virtual
-machine (only start  daemons on nodes hosting application procs).    </dd>
+machine (only start daemons on nodes hosting application procs).    </dd>
 
 <dt><b>-hnp,
 --hnp &lt;arg0&gt;</b> </dt>
 <dd>Specify the URI of the Head Node Process (HNP), or the name of
-the file (specified as  file:filename) that contains that info.    </dd>
+the file (specified as file:filename) that contains that info.    </dd>
 </dl>
 <p>
 Use one
@@ -254,7 +254,7 @@ each node. (Enabled by default).  </dd>
 
 <dt><b>-oversubscribe, --oversubscribe</b> </dt>
 <dd>Nodes are
-allowed to be oversubscribed, even on a managed system, and  overloading
+allowed to be oversubscribed, even on a managed system, and overloading
 of processing elements.  </dd>
 
 <dt><b>-bynode, --bynode</b> </dt>
@@ -326,14 +326,17 @@ To manage standard I/O:
 processes to a process-unique version of the specified filename. Any directories
 in the filename will automatically be created. Each output file will consist
 of filename.id, where the id will be the processes&rsquo; rank in MPI_COMM_WORLD,
-left-filled with zero&rsquo;s for correct ordering in listings.   </dd>
+left-filled with zero&rsquo;s for correct ordering in listings. A relative path
+value will be converted to an absolute path based on the cwd where mpirun
+is executed. Note that this <i>will not</i> work on environments where the file
+system on compute nodes differs from that where mpirun is executed.   </dd>
 
-<dt><b>-stdin, --stdin &lt;rank&gt;
-</b> </dt>
-<dd>The MPI_COMM_WORLD rank of the process that is to receive stdin. The default
-is to forward stdin to MPI_COMM_WORLD rank 0, but this option can be used
-to forward stdin to any process. It is also acceptable to specify <i>none</i>,
-indicating that no processes are to receive stdin.   </dd>
+<dt><b>-stdin,
+--stdin &lt;rank&gt; </b> </dt>
+<dd>The MPI_COMM_WORLD rank of the process that is to receive stdin.
+The default is to forward stdin to MPI_COMM_WORLD rank 0, but this option
+can be used to forward stdin to any process. It is also acceptable to specify
+<i>none</i>, indicating that no processes are to receive stdin.   </dd>
 
 <dt><b>-merge-stderr-to-stdout,
 --merge-stderr-to-stdout</b> </dt>
@@ -570,23 +573,23 @@ to a tool listening at the specified URI.   </dd>
 <dt><b>-report-pid, --report-pid &lt;channel&gt;</b>
 </dt>
 <dd>Print out mpirun&rsquo;s PID during startup. The channel must be either a &rsquo;-&rsquo; to indicate
- that the pid is to be output to stdout, a &rsquo;+&rsquo; to indicate that the pid is
-to be  output to stderr, or a filename to which the pid is to be written.
+that the pid is to be output to stdout, a &rsquo;+&rsquo; to indicate that the pid is
+to be output to stderr, or a filename to which the pid is to be written.
   </dd>
 
 <dt><b>-report-uri, --report-uri &lt;channel&gt;</b> </dt>
 <dd>Print out mpirun&rsquo;s URI during startup. The
-channel must be either a &rsquo;-&rsquo; to indicate  that the URI is to be output to
-stdout, a &rsquo;+&rsquo; to indicate that the URI is to be  output to stderr, or a filename
-to which the URI is to be written.   </dd>
+channel must be either a &rsquo;-&rsquo; to indicate that the URI is to be output to stdout,
+a &rsquo;+&rsquo; to indicate that the URI is to be output to stderr, or a filename to
+which the URI is to be written.   </dd>
 
 <dt><b>-show-progress, --show-progress</b> </dt>
-<dd>Output a
-brief periodic report on launch progress.   </dd>
+<dd>Output a brief
+periodic report on launch progress.   </dd>
 
 <dt><b>-terminate, --terminate</b> </dt>
-<dd>Terminate
-the DVM.   </dd>
+<dd>Terminate the
+DVM.   </dd>
 
 <dt><b>-use-hwthread-cpus, --use-hwthread-cpus</b> </dt>
 <dd>Use hardware threads as independent
@@ -1320,7 +1323,7 @@ of the process with the lowest MPI_COMM_WORLD rank to have a non-zero status
 <dd>if all processes in the primary job normally terminate with exit status
 0, and one or more processes in a secondary job normally terminate with
 non-zero exit status, we (a) return the exit status of the process with
-the lowest MPI_COMM_WORLD rank in the lowest jobid to have a non-zero  status,
+the lowest MPI_COMM_WORLD rank in the lowest jobid to have a non-zero status,
 and (b) output a message summarizing the exit status of the primary and
 all secondary jobs. </dd>
 
