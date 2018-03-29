@@ -87,6 +87,9 @@ information</a></h3>
 
 <?php
 # Lists are not mirrored - use an absolute URL
+news("Open MPI v3.0.1 released",
+     "Bug fix release",
+     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00108.html");
 news("Open MPI v2.1.3 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00107.html");

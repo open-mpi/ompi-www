@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Cart_shift(3) man page (version 3.0.0)";
-$meta_desc = "Open MPI v3.0.0 man page: MPI_CART_SHIFT(3)";
+$title = "MPI_Cart_shift(3) man page (version 3.0.1)";
+$meta_desc = "Open MPI v3.0.1 man page: MPI_CART_SHIFT(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -107,7 +107,7 @@ by i steps. <p>
 <br>
 <pre>  ....
   C find process rank
-        CALL <a href="../man3/MPI_Comm_rank.3.php">MPI_COMM_RANK</a>(comm, rank, ierr))
+        CALL <a href="../man3/MPI_Comm_rank.3.php">MPI_COMM_RANK</a>(comm, rank, ierr)
   C find Cartesian coordinates
         CALL <a href="../man3/MPI_Cart_coords.3.php">MPI_CART_COORDS</a>(comm, rank, maxdims, coords,
                              ierr)
