@@ -1,1 +1,1 @@
-<?php header("Location: v1.3/");
+<?php header("Location: .");
