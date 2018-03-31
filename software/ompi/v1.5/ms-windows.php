@@ -1,8 +1,8 @@
 <?php
   $topdir = "../../..";
-  include_once("version.inc");
+  include_once("$topdir/software/ompi/v1.5/version.inc");
 
-  $title = "Open MPI: Version $release_version Windows Binary Installer Notes";
+  $title = "Open MPI: Version $ver_v1_5 Windows Binary Installer Notes";
   include_once("$topdir/software/ompi/nav.inc");
   include_once("$topdir/includes/header.inc");
   include_once("$topdir/includes/curl_get.inc");

@@ -1,8 +1,8 @@
 <?php
 $topdir = "../../..";
-include_once("version.inc");
+include_once("$topdir/software/ompi/v1.1/version.inc");
 
-$title = "Open MPI: Version $release_series Mac OS X Package Notes";
+$title = "Open MPI: Version $ver_v1_1 Mac OS X Package Notes";
 include_once("$topdir/software/ompi/nav.inc");
 include_once("$topdir/includes/header.inc");
 include_once("$topdir/includes/curl_get.inc");
@@ -20,7 +20,8 @@ should work on any 10.4 machine.</li>
 <li>The Open MPI tree is installed with a prefix of
 <code>/usr/local</code>.</li>
 
-<li>The Open MPI package is built as a <a href="http://www.apple.com/universal/">Universal
+<li>The Open MPI package is built as a <?php
+print("<a href=\"http://www.apple.com/universal/\">"); ?>Universal
 Binary</a>, including support for PPC, PPC64 and i386 platforms. It
 does not include support for the 64-bit Xeon machines.  This package
 requires a Universal-binary aware version of Mac OS X (10.3.9 or
@@ -37,6 +38,6 @@ later).</li>
 <li>Support for Myrinet/GM and InfiniBand will require rebuilding
     from source.</li>
 </ul>
-
+  
 <?php
     include_once("$topdir/includes/footer.inc");
