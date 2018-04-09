@@ -1209,7 +1209,7 @@ If the following command line is used:
 <p>     <b>%</b> mpirun --prefix /remote/node/directory<br>
 
 <p> Open MPI will add "/remote/node/directory/bin" to the <i>PATH</i> and "/remote/node/directory/lib64"
-to the D_LIBRARY_PATH on the remote node before attempting to execute anything.
+to the LD_LIBRARY_PATH on the remote node before attempting to execute anything.
 <p>
 The <i>--prefix</i> option is not sufficient if the installation paths on the remote
 node are different than the local node (e.g., if "/lib" is used on the local
