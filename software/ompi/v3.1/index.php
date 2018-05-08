@@ -19,7 +19,7 @@ $notes = "<a href=\"srpm.php\">SRPM notes</a>";
 #
 #############################################################################
 
-//$t_stable = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
+$t_stable = new downloadTable("./downloads", "./downloads", dirname($_SERVER["PHP_SELF"]));
 
 if (isset($t_stable)) {
     $src = "Version $ver_v3_1<br>$notes";

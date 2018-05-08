@@ -3,8 +3,9 @@ include_once("$topdir/includes/nav.inc");
 
 $this_dir = "doc";
 $this_nav[] = new Nav("Current");
-$this_nav[] = new Nav("v3.0 (current stable)", "$topdir/doc/v3.0/");
+$this_nav[] = new Nav("v3.1 (current stable)", "$topdir/doc/v3.1/");
 $this_nav[] = new Nav("Still supported");
+$this_nav[] = new Nav("v3.0 (priot stable)", "$topdir/doc/v3.0/");
 $this_nav[] = new Nav("v2.1 (prior stable)", "$topdir/doc/v2.1/");
 $this_nav[] = new Nav("v2.0 (prior stable)", "$topdir/doc/v2.0/");
 $this_nav[] = new Nav("Older versions");
