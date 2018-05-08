@@ -15,6 +15,7 @@ include_once("$topdir/software/ompi/v1.10/version.inc");
 include_once("$topdir/software/ompi/v2.0/version.inc");
 include_once("$topdir/software/ompi/v2.1/version.inc");
 include_once("$topdir/software/ompi/v3.0/version.inc");
+include_once("$topdir/software/ompi/v3.1/version.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
@@ -25,10 +26,9 @@ Documentation for the following versions is available:
 
 <p> <strong>Current release series</strong>
 
-<li><a href="current/"><strong>Open MPI v<?php print($ver_v3_0); ?>
+<li><a href="current/"><strong>Open MPI v<?php print($ver_v3_1); ?>
 </strong></a>.  This documentation reflects
-the latest progression in the 3.0.x series.  The 3.0.x series introduced
-an updated run-time based on PMIx 2.0.
+the latest progression in the 3.1.x series.
 <strong><font
 color=red><?php
   $t = mktime(0, 0, 0, 4, 1, 2017);
@@ -40,6 +40,13 @@ color=red><?php
 ?></font></strong></li>
 
 <p> <strong>Prior stable release series</strong>
+
+<li><a href="v3.0/"><strong>Open MPI v<?php print($ver_v3_0); ?>
+</strong></a>.  This documentation reflects
+the latest progression in the 3.0.x series.
+<strong><font color=red>This code base is still supported, but is 
+in "bug fix only" mode.</font></strong>
+</li>
 
 <li><a href="v2.1/"><strong>Open MPI v<?php print($ver_v2_1); ?>
 </strong></a>.  This documentation reflects
@@ -58,16 +65,15 @@ new features (compared to the v1.10 series).  <strong><font
 color=red>This code base is still supported, but is in "bug fix only"
 mode.</font></strong></li>
 
+<p> <strong>Older series (retired, deprecated, or otherwise no longer in
+development)</strong>
+
 <li><a href="v1.10/"><strong>Open MPI v<?php print($ver_v1_10); ?>
 </strong></a> (prior stable release series).  This documentation reflects
 the latest progression in the 1.10.x series.  The emphasis of this
 tree is on bug fixes and stability, although it also introduces a few
-new features (compared to the v1.8 series).  <strong><font
-color=red>This code base is still supported, but is in "bug fix only"
-mode.</font></strong></li>
-
-<p> <strong>Older series (retired, deprecated, or otherwise no longer in
-development)</strong>
+new features (compared to the v1.8 series).  This documentation is unlikely to be
+updated any more.</li>
 
 <li><a href="v1.8/"><strong>v1.8 series</strong></a> (previous super
 stable series).  This documentation reflects the latest
