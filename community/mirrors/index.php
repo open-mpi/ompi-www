@@ -68,9 +68,6 @@ function print_region($region, $columns = 1) {
 }
 ?>
 
-<P><A HREF="become-a-mirror.php">Are you interested in becoming an
-official Open MPI mirror site?</A>
-
 <p>The Open MPI web pages are available at the following sites:</p>
 
 <P>
@@ -87,14 +84,10 @@ print_region("North America", 1);
 <TD VALIGN=TOP>
 <?php
 print_region("Europe", 1);
-//print_region("Australia", 2);
 ?>
 </TD></TR>
 </TABLE>
 </DIV>
-
-<P><A HREF="become-a-mirror.php">Are you interested in becoming an
-official Open MPI mirror site?</A>
 
 <?php
   include_once("$topdir/includes/footer.inc");
