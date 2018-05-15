@@ -8,6 +8,7 @@ if (is_file("data.inc")) {
 
 function paper_page($title, $authors, $presented, $abstract, $files, $mon, $day, $year, $bibtex = "") {
     print("\n\n<h3>Title: $title");
+    date_default_timezone_set('UTC');
     $appearing = mktime(0, 0, 0, $mon, $day, $year);
     if (time() < $appearing) {
         print(" (<em>to appear</em>)");
