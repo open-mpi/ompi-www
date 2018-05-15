@@ -1,88 +1,18 @@
 <?php // -*- php -*-
 
-// Ugh -- we have to put the "global" statements here, because 
+// Ugh -- we have to put the "global" statements here, because
 // this file may be included in the body of a function.
 
 global $topurl;
 global $topdir;
-global $mirror_dir;
 
 include_once("$topdir/includes/functions.inc");
 include_once("$topdir/includes/mailto.inc");
-include_once("$topdir/community/mirrors/read_mirrors.php");  
 
 if (!isset($topurl) || $topurl == "") {
     $topurl = $topdir;
 }
 
-function print_mirror() {
-    global $server_dir;
-    global $table_border;
-    global $topdir;
-
-    $server_hostname = $_SERVER["SERVER_NAME"];
-    
-    // Find this site in the mirrors list
-
-    $mirrors = read_mirrors();
-    for ($i = 0; $i < count($mirrors); ++$i) {
-        if ($server_hostname == $mirrors[$i]->get_server()) {
-            $server_flag = $mirrors[$i]->get_flag();
-            $server_location = preg_replace('/ /', '&nbsp;',
-                                            $mirrors[$i]->get_location());
-            $server_tagline = preg_replace('/ /', '&nbsp;',
-                                           $mirrors[$i]->get_name());
-            break;
-        }
-    }
-
-    if (isset($server_location)) {
-        if (isset($server_flag)) {
-            print("<TABLE>\n<TR>\n<TD VALIGN=\"MIDDLE\" CLASS=\"footer\">");
-            print_flag($server_flag);
-            print("</TD>\n<TD VALIGN=\"MIDDLE\" CLASS=\"footer\">");
-            print_location($server_location, $server_tagline);
-            print("</TD>\n</TR>\n</TABLE>\n\n");
-        } else {
-            print_location($server_location);
-        }
-    } else {
-        print("<TABLE BORDER=\"<?php print($table_border); ?>\">\n<TR>\n<TD VALIGN=\"MIDDLE\" CLASS=\"footer\">");
-        print_flag("jolly-roger.jpg");
-        print("</TD>\n<TD VALIGN=\"MIDDLE\" CLASS=\"footer\">" .
-              preg_replace('/ /', '&nbsp;',
-                           "This is an unregistered mirror site.") .
-              "</TD>\n</TR>\n</TABLE>\n\n");
-    }
-}
-function print_flag($flag) {    
-    global $table_border;
-    global $topdir;
-    global $topurl;
-    global $mirror_dir;
-
-    $size = GetImageSize("$topdir$mirror_dir/$flag");
-    print("<A HREF=\"$topurl$mirror_dir/\">" .
-          "<IMG SRC=\"$topurl$mirror_dir/$flag\" " .
-          $size[3] . 
-          " ALT=\"[Flag]\" BORDER=\"$table_border\"></A><BR>\n");
-}
-function print_location($location, $tagline) {
-    global $is_mirror;
-    global $topdir;
-
-    print("$tagline<BR />\nThis&nbsp;site&nbsp;is&nbsp;located&nbsp;in: $location\n");
-
-    // If there's a timestamp available for when the last update occurred,
-    // then include it.
-
-    if ($is_mirror && is_file("$topdir/includes/when_mirrored.inc") ) {
-        print("<BR />Mirror last updated: ");
-        $f = fopen("$topdir/includes/when_mirrored.inc", "r");
-        print(fgets($f, 1024));
-        fclose($f);
-    }
-}
 ?>
 
 	  <!-- END MAIN TEXT -->
@@ -104,22 +34,19 @@ function print_location($location, $tagline) {
       <COL>
       <COL>
         <TR>
-          <TD class="footer" ALIGN="LEFT" height="36">
-            <?php print_mirror();?>
+          <TD class="footer" ALIGN="LEFT" height="36" WIDTH="33%">
+	  <TABLE><TR><TD CLASS="footer"><a href="http://spi-inc.org/"><img height="35"
+src="<?php print($topdir); ?>/images/spi-logo.svg"></a></TD>
+                 <TD CLASS="footer"><a href="http://spi-inc.org/projects/open-mpi/">Open MPI is an Associated
+Project</a><br /> of the
+<a href="http://spi-inc.org/">Software in the Public Interest</a>
+non-profit organization</TD></TR></TABLE>
           </TD>
-          <TD class="footer" ALIGN="CENTER" height="36">
-<a href="http://spi-inc.org/projects/open-mpi/">Open MPI is an Associated
-Project</a> of the
-<a href="http://spi-inc.org/">Software in the Public Interest</a> 
-non-profit organization.
-<p>
-<a href="http://spi-inc.org/"><img height="35" 
-src="<?php print($topdir); ?>/images/spi-logo.svg"></a>
-<br />
-            <?php print_mailto("open-mpi.org", "the-web-maintainer", "Contact Open MPI webmaster"); ?>
+          <TD class="footer" ALIGN="CENTER" height="36" WIDTH="33%">
+            <?php print_mailto("open-mpi.org", "the-web-maintainer", "Contact the Open MPI webmaster"); ?>
           </TD>
-          <TD class="footer" ALIGN="RIGHT" height="36">
-<?php 
+          <TD class="footer" ALIGN="RIGHT" height="36" WIDTH="33%">
+<?php
 // Calculate last mode time of this file and all included files
 $last = getlastmod();
 global $included_files;
