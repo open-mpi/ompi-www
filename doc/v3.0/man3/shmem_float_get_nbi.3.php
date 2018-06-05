@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "shmem_float_get_nbi(3) man page (version 3.0.1)";
-$meta_desc = "Open MPI v3.0.1 man page: shmem_float_get_nbi(3)";
+$title = "shmem_float_get_nbi(3) man page (version 3.0.2)";
+$meta_desc = "Open MPI v3.0.2 man page: shmem_float_get_nbi(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
