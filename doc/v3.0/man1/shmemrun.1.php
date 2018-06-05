@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "shmemrun(1) man page (version 3.0.1)";
-$meta_desc = "Open MPI v3.0.1 man page: shmemrun(1)";
+$title = "shmemrun(1) man page (version 3.0.2)";
+$meta_desc = "Open MPI v3.0.2 man page: shmemrun(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -1209,16 +1209,16 @@ If the following command line is used:
 <p>     <b>%</b> mpirun --prefix /remote/node/directory<br>
 
 <p> Open MPI will add "/remote/node/directory/bin" to the <i>PATH</i> and "/remote/node/directory/lib64"
-to the D_LIBRARY_PATH on the remote node before attempting to execute anything.
-<p>
-The <i>--prefix</i> option is not sufficient if the installation paths on the remote
-node are different than the local node (e.g., if "/lib" is used on the local
-node, but "/lib64" is used on the remote node), or if the installation
-paths are something other than a subdirectory under a common prefix. <p>
-Note
-that executing <i>mpirun</i> via an absolute pathname is equivalent to specifying
-<i>--prefix</i> without the last subdirectory in the absolute pathname to <i>mpirun</i>.
- For example:
+to the <i>LD_LIBRARY_PATH</i> on the remote node before attempting to execute
+anything. <p>
+The <i>--prefix</i> option is not sufficient if the installation paths
+on the remote node are different than the local node (e.g., if "/lib" is
+used on the local node, but "/lib64" is used on the remote node), or if
+the installation paths are something other than a subdirectory under a
+common prefix. <p>
+Note that executing <i>mpirun</i> via an absolute pathname is equivalent
+to specifying <i>--prefix</i> without the last subdirectory in the absolute pathname
+to <i>mpirun</i>.  For example:
 <p>     <b>%</b> /usr/local/bin/mpirun ...<br>
 
 <p> is equivalent to

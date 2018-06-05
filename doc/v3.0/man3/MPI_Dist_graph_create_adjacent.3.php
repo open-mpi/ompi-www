@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Dist_graph_create_adjacent(3) man page (version 3.0.1)";
-$meta_desc = "Open MPI v3.0.1 man page: MPI_DIST_GRAPH_CREATE_ADJACENT(3)";
+$title = "MPI_Dist_graph_create_adjacent(3) man page (version 3.0.2)";
+$meta_desc = "Open MPI v3.0.2 man page: MPI_DIST_GRAPH_CREATE_ADJACENT(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
