@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "orted(1) man page (version 3.0.1)";
-$meta_desc = "Open MPI v3.0.1 man page: orted(1)";
+$title = "orted(1) man page (version 3.0.2)";
+$meta_desc = "Open MPI v3.0.2 man page: orted(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
