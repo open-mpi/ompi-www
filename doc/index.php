@@ -3,19 +3,6 @@ $topdir = "..";
 $title = "Open MPI Documentation";
 
 include_once("$topdir/doc/nav.inc");
-include_once("$topdir/software/ompi/v1.1/version.inc");
-include_once("$topdir/software/ompi/v1.2/version.inc");
-include_once("$topdir/software/ompi/v1.3/version.inc");
-include_once("$topdir/software/ompi/v1.4/version.inc");
-include_once("$topdir/software/ompi/v1.5/version.inc");
-include_once("$topdir/software/ompi/v1.6/version.inc");
-include_once("$topdir/software/ompi/v1.7/version.inc");
-include_once("$topdir/software/ompi/v1.8/version.inc");
-include_once("$topdir/software/ompi/v1.10/version.inc");
-include_once("$topdir/software/ompi/v2.0/version.inc");
-include_once("$topdir/software/ompi/v2.1/version.inc");
-include_once("$topdir/software/ompi/v3.0/version.inc");
-include_once("$topdir/software/ompi/v3.1/version.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
@@ -26,9 +13,8 @@ Documentation for the following versions is available:
 
 <p> <strong>Current release series</strong>
 
-<li><a href="current/"><strong>Open MPI v<?php print($ver_v3_1); ?>
-</strong></a>.  This documentation reflects
-the latest progression in the 3.1.x series.
+<li><a href="current/"><strong>v3.1 series</strong></a>.
+This documentation reflects the latest progression in the 3.1.x series.
 <strong><font
 color=red><?php
   $t = mktime(0, 0, 0, 4, 1, 2017);
@@ -41,14 +27,14 @@ color=red><?php
 
 <p> <strong>Prior stable release series</strong>
 
-<li><a href="v3.0/"><strong>Open MPI v<?php print($ver_v3_0); ?>
+<li><a href="v3.0/"><strong>v3.0 series
 </strong></a>.  This documentation reflects
 the latest progression in the 3.0.x series.
 <strong><font color=red>This code base is still supported, but is 
 in "bug fix only" mode.</font></strong>
 </li>
 
-<li><a href="v2.1/"><strong>Open MPI v<?php print($ver_v2_1); ?>
+<li><a href="v2.1/"><strong>v2.1 series
 </strong></a>.  This documentation reflects
 the latest progression in the 2.1.x series.  The emphasis of this
 tree is on bug fixes and stability, although it also introduces a few
@@ -57,7 +43,7 @@ new features (compared to the v2.0 series).
 in "bug fix only" mode.</font></strong>
 </li>
 
-<li><a href="v2.0/"><strong>Open MPI v<?php print($ver_v2_0); ?>
+<li><a href="v2.0/"><strong>v2.0 series
 </strong></a> (prior stable release series).  This documentation reflects
 the latest progression in the 2.0.x series.  The emphasis of this
 tree is on bug fixes and stability, although it also introduced many
@@ -68,7 +54,7 @@ mode.</font></strong></li>
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
 
-<li><a href="v1.10/"><strong>Open MPI v<?php print($ver_v1_10); ?>
+<li><a href="v1.10/"><strong>v1.10 series
 </strong></a> (prior stable release series).  This documentation reflects
 the latest progression in the 1.10.x series.  The emphasis of this
 tree is on bug fixes and stability, although it also introduces a few
