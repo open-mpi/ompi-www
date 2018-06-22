@@ -22,9 +22,10 @@
 #
 $dir = "v3.0";
 
-# This part is automatic and should get the variables and stuff them
-# into $current_ver and $current_ver_dir.
-include_once("$topdir/software/mtt/$dir/version.inc");
+# Note that we do not include $dir/version.inc here (like other Open
+# MPI proejcts) because MTT does not have downloadable tarballs.
+#include_once("$topdir/software/mtt/$dir/version.inc");
+
 $name = preg_replace("/\./", "_", $dir);
 
 $str = "\$ver_current = \$ver_$name;";
