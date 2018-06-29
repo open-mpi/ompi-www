@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Comm_spawn_multiple(3) man page (version 3.1.0)";
-$meta_desc = "Open MPI v3.1.0 man page: MPI_COMM_SPAWN_MULTIPLE(3)";
+$title = "MPI_Comm_spawn_multiple(3) man page (version 3.1.1)";
+$meta_desc = "Open MPI v3.1.1 man page: MPI_COMM_SPAWN_MULTIPLE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
