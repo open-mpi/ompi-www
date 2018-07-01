@@ -247,7 +247,6 @@ printbutton("Community");
 printsublink("$topurl/community/lists/", "Mailing Lists");
 printsublink("$topurl/community/help/", "<font color=red>Getting Help/Support</font>");
 printsublink("$topurl/community/contribute/", "Contribute");
-printsublink("$topurl/community/mirrors/", "Mirrors");
 printsublink("$topurl/community/contact.php", "Contact");
 printsublink("$topurl/community/license.php", "License");
 
