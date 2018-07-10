@@ -87,6 +87,7 @@ order):
     net_table_row("Infiniband / RoCE / iWARP Verbs", "BTL", "1.0", "") .
     net_table_row("Infiniband mVAPI", "BTL", "1.0", "1.2") .
     net_table_row("Libfabric", "MTL", "1.10", "") .
+    net_table_row("Libfabric", "BTL", "4.0", "") .
     net_table_row("Loopback (send-to-self)", "BTL", "1.0", "") .
     net_table_row("Myrinet GM", "BTL", "1.0", "1.4") .
     net_table_row("Myrinet MX", "BTL", "1.0", "1.6") .
