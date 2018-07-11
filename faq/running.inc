@@ -1634,6 +1634,56 @@ $a[] = "See these two FAQ categories:
 
 /////////////////////////////////////////////////////////////////////////
 
+$q[] = "What are the Libfabric (OFI) components in Open MPI?";
+
+$anchor[] = "mpi-ofi-support";
+
+$a[] = "
+Open MPI has two main components for Libfabric (a.k.a., OFI) communications:
+
+<ol>
+<li> [ofi] MTL: Available since Open MPI v1.10, this component is used with the
+[cm] PML and is used for two-sided MPI communication (e.g., [MPI_SEND] and [MPI_RECV]).
+The [ofi] MTL requires that the Libfabric provider support reliable datagrams with
+ordered tagged messaging (specifically: [FI_EP_RDM] endpoints, [FI_TAGGED]
+capabilities, and [FI_ORDER_SAS] ordering).
+</li>
+<li> [ofi] BTL: Available since Open MPI v4.0.0, this component is used for
+one-sided MPI communications (e.g., [MPI_PUT]). The [ofi] BTL requires that
+the Libfabric provider support reliable datagrams, RMA and atomic operations,
+and remote atomic completion notifications (specifically: [FI_EP_RDM] endpoints,
+[FI_RMA] and [FI_ATOMIC] capabilities, and [FI_DELIVERY_COMPLETE] op flags).
+</li>
+</ol>
+
+See each Lifabric provider man page (e.g., fi_sockets(7)) to understand which
+provider will work for each of the above-listed Open MPI components. Some
+providers may require to be used with one of the Libfabric utility providers;
+for example, the verbs provider needs to be paired with utility provider
+[ofi_rxm] to provide reliable datagram endpoint support ([verbs;ofi_rxm]).
+
+Both components have MCA parameters to specify the Libfabric provider(s) that
+will be included/excluded in the selection process. For example:
+
+<geshi bash>
+shell$ mpirun --mca pml cm --mca mtl ofi --mca mtl_ofi_provider_include psm2 mpi_hello
+</geshi>
+
+In addition, each component has specific parameters for each one; see
+[ompi_info --param <framework> <component> -level 9] for a full list. For
+example:
+
+<geshi bash>
+shell$ ompi_info --param mtl ofi --level 9
+</geshi>
+
+For more information refer to
+<a href=\"https://ofiwg.github.io/libfabric/\">
+libfabric.org</a> web site.
+";
+
+/////////////////////////////////////////////////////////////////////////
+
 # Return "a" or "an"
 function get_article($s) {
     if (preg_match("/^[aeiou]/i", $s)) {
