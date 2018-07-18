@@ -44,6 +44,8 @@ These snapshots are from the Git master and reflect the current
 head of development.  The usual disclaimers about the state of
 development code apply.</li>
 
+<li><a href="v4.0.x/"><strong>v4.0.x series</strong></a>: These are images from
+the upcoming v4.0.x series.
 
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
