@@ -13,9 +13,7 @@
 $script_base = dirname($_SERVER["SCRIPT_NAME"]);
 $image_base_url = "https://" .
 	$_SERVER["SERVER_NAME"] . $script_base . "/images";
-?>
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+?><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <HTML>
 <HEAD>
   <META http-equiv="Content-Type" content="text/html; charset=UTF-8">
