@@ -391,7 +391,7 @@ physical memory on your machine.
 See this Open MPI FAQ item for more information on these Linux kernel
 module parameters:
 
-    https://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages
+    http://www.linux-pam.org/Linux-PAM-html/sag-pam_limits.html
 
   Local host:              node02
   Registerable memory:     32768 MiB
@@ -446,7 +446,7 @@ You may need to consult with your system administrator to get this
 problem fixed.  This FAQ entry on the Open MPI web site may also be
 helpful:
 
-    https://www.open-mpi.org/faq/?category=openfabrics#ib-locked-pages
+    http://www.linux-pam.org/Linux-PAM-html/sag-pam_limits.html
 </geshi></li>
 
 <li><geshi text>
