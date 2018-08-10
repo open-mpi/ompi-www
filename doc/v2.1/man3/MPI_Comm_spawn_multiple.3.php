@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Comm_spawn_multiple(3) man page (version 2.1.3)";
-$meta_desc = "Open MPI v2.1.3 man page: MPI_COMM_SPAWN_MULTIPLE(3)";
+$title = "MPI_Comm_spawn_multiple(3) man page (version 2.1.4)";
+$meta_desc = "Open MPI v2.1.4 man page: MPI_COMM_SPAWN_MULTIPLE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -259,26 +259,33 @@ as the last element of the array). <p>
 Other restrictions apply to the <i>array_of_argv</i>
 parameter; see <i><a href="../man3/MPI_Comm_spawn.3.php">MPI_Comm_spawn</a>(3)</i>&rsquo;s description of the <i>argv</i> parameter for
 more details. <p>
-Calling <i><a href="../man3/MPI_Comm_spawn.3.php">MPI_Comm_spawn</a>(3)</i> many times would create many sets
-of children with different MPI_COMM_WORLDs, whereas MPI_Comm_spawn_multiple
-creates children with a single MPI_COMM_WORLD, so the two methods are not
-completely equivalent. Also if you need to spawn multiple executables, you
-may get better performance by using MPI_Comm_spawn_multiple instead of
-calling <i><a href="../man3/MPI_Comm_spawn.3.php">MPI_Comm_spawn</a>(3)</i> several times.
+MPI-3.1 implies (but does not directly state) that the argument
+<i>array_of_commands</i> must be an array of strings of length <i>count</i>.  Unlike the
+<i>array_of_argv</i> parameter, <i>array_of_commands</i> does not need to be terminated
+with a NULL pointer in C or a blank string in Fortran.  Older versions of
+Open MPI required that <i>array_of_commands</i> be terminated with a blank string
+in Fortran; that is no longer required in this version of Open MPI. <p>
+Calling
+<i><a href="../man3/MPI_Comm_spawn.3.php">MPI_Comm_spawn</a>(3)</i> many times would create many sets of children with different
+MPI_COMM_WORLDs, whereas MPI_Comm_spawn_multiple creates children with
+a single MPI_COMM_WORLD, so the two methods are not completely equivalent.
+Also if you need to spawn multiple executables, you may get better performance
+by using MPI_Comm_spawn_multiple instead of calling <i><a href="../man3/MPI_Comm_spawn.3.php">MPI_Comm_spawn</a>(3)</i> several
+times.
 <p>
 <h2><a name='sect10' href='#toc10'>Errors</a></h2>
-Almost all MPI routines
-return an error value; C routines as the value of the function and Fortran
-routines in the last argument. C++ functions do not return errors. If the
-default error handler is set to MPI::ERRORS_THROW_EXCEPTIONS, then on error
-the C++ exception mechanism will be used to throw an MPI::Exception object.
-<p>
-Before the error value is returned, the current MPI error handler is called.
-By default, this error handler aborts the MPI job, except for I/O function
-errors. The error handler may be changed with <a href="../man3/MPI_Comm_set_errhandler.3.php">MPI_Comm_set_errhandler</a>; the
-predefined error handler MPI_ERRORS_RETURN may be used to cause error values
-to be returned. Note that MPI does not guarantee that an MPI program can
-continue past an error.
+Almost all MPI routines return an error value; C routines
+as the value of the function and Fortran routines in the last argument.
+C++ functions do not return errors. If the default error handler is set
+to MPI::ERRORS_THROW_EXCEPTIONS, then on error the C++ exception mechanism
+will be used to throw an MPI::Exception object. <p>
+Before the error value is
+returned, the current MPI error handler is called. By default, this error
+handler aborts the MPI job, except for I/O function errors. The error handler
+may be changed with <a href="../man3/MPI_Comm_set_errhandler.3.php">MPI_Comm_set_errhandler</a>; the predefined error handler
+MPI_ERRORS_RETURN may be used to cause error values to be returned. Note
+that MPI does not guarantee that an MPI program can continue past an error.
+
 <p>
 <h2><a name='sect11' href='#toc11'>See Also</a></h2>
 <p>

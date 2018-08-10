@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Type_create_hvector(3) man page (version 2.1.3)";
-$meta_desc = "Open MPI v2.1.3 man page: MPI_TYPE_CREATE_HVECTOR(3)";
+$title = "MPI_Type_create_hvector(3) man page (version 2.1.4)";
+$meta_desc = "Open MPI v2.1.4 man page: MPI_TYPE_CREATE_HVECTOR(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
