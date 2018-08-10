@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "OpenMPI(3) man page (version 2.1.3)";
-$meta_desc = "Open MPI v2.1.3 man page: OpenMPI(3)";
+$title = "OpenMPI(3) man page (version 2.1.4)";
+$meta_desc = "Open MPI v2.1.4 man page: OpenMPI(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,7 +14,7 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-MPI - General information Open MPI 2.1.3.
+MPI - General information Open MPI 2.1.4.
 <p>
 <h2><a name='sect1' href='#toc1'>Mpi</a></h2>
 Open MPI is an open source
