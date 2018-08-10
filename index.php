@@ -87,21 +87,21 @@ information</a></h3>
 
 <?php
 # Lists are not mirrored - use an absolute URL
+news("Open MPI v2.1.4 released",
+     "Bug fix release",
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00112.html");
 news("Open MPI v3.1.1 released",
      "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00111.html");
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00111.html");
 news("Open MPI v3.0.2 released",
      "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00110.html");
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00110.html");
 news("Open MPI v3.1.0 released",
      "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00109.html");
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00109.html");
 news("Open MPI v3.0.1 released",
      "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00108.html");
-news("Open MPI v2.1.3 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00107.html");
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00108.html");
 ?>
 
 </td>
