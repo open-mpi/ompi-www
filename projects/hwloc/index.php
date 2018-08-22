@@ -149,8 +149,8 @@ or <a href="git.php">checkout</a>.
 
 <p>hwloc is already available as official packages for many Linux distributions
 (at least Debian/Ubuntu, Fedora/RHEL, SUSE, ArchLinux, Slackware, Gentoo and their derivatives),
-as well as NetBSD, FreeBSD, Cygwin and Mac OS X ports.
-It is also available as EasyBuild and Spack packages
+as well as NetBSD, FreeBSD, Cygwin, Mac OS X ports, and <a href="http://hpux.connect.org.uk/hppd/hpux/">HP-UX</a>.
+It is also available as EasyBuild and Spack packages.
 </p>
 
 <p>
