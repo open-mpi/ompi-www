@@ -25,6 +25,8 @@ $beyond_end_date = strftime("%Y-%m-%d", $ts);
 series("v3.1 series", "2018-01-01", $beyond_end_date, $data, $vpos, $graph);
 milestone("branch from master", "2017-10-01", $data, $vpos);
 milestone("v3.1.0", "2018-05-07", $data, $vpos);
+milestone("v3.1.1", "2018-06-29", $data, $vpos);
+milestone("v3.1.2", "2018-08-22", $data, $vpos);
 
 
 // Party on
