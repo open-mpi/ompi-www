@@ -40,39 +40,76 @@ Normal attributes</h1>
 <h1><a class="anchor" id="attributes_info"></a>
 Custom string infos</h1>
 <p>Aside os these generic attribute fields, hwloc annotates many objects with string attributes that are made of a key and a value. Each object contains a list of such pairs that may be consulted manually (looking at the object <code>infos</code> array field) or using the <a class="el" href="a00153.php#gab358661a92bb27d8542b255cc9f6f25e" title="Search the given key name in object infos and return the corresponding value. ">hwloc_obj_get_info_by_name()</a>. The user may additionally add new key-value pairs to any object using <a class="el" href="a00153.php#gace7654bb8a9002caae1a4b8a59e7452e" title="Add the given info name and value pair to the given object. ">hwloc_obj_add_info()</a> or the <a class="el" href="a00314.php#cli_hwloc_annotate">hwloc-annotate</a> program.</p>
-<p>Here is a non-exhaustive list of attributes that may be automatically added by hwloc (with the usual corresponding object in parentheses). Note that these attributes heavily depend on the ability of the operating system to report them. Many of them will therefore be missing on some OS. </p><dl>
-<dt>OSName, OSRelease, OSVersion, HostName, Architecture (Machine object) </dt>
-<dd>The operating system name, release, version, the hostname and the architecture name, as reported by the Unix <code>uname</code> command.  </dd>
-<dt>Backend (topology root, Machine object) </dt>
-<dd>The name of the hwloc backend/component that filled the topology. If several components were combined, multiple Backend keys may exist, with different values, for instance <code>x86</code>, <code>Linux</code> and <code>pci</code>.  </dd>
-<dt>LinuxCgroup (Machine object) </dt>
-<dd>The name the Linux control group where the calling process is placed.  </dd>
-<dt>SyntheticDescription (topology root, Machine object) </dt>
-<dd>The description string that was given to hwloc to build this synthetic topology.  </dd>
-<dt>CPUModel (Package or Machine) </dt>
-<dd>The processor model name. Usually added to Package objects, but can be in Machine instead if hwloc failed to discover any package.  </dd>
-<dt>CPUType (Package) </dt>
-<dd>A Solaris-specific general processor type name, such as "i86pc".  </dd>
-<dt>CPUVendor, CPUModelNumber, CPUFamilyNumber, CPUStepping (Package or Machine) </dt>
-<dd>The processor vendor name, model number, family number, and stepping number. Currently available for x86 and Xeon Phi processors on most systems, and for ia64 processors on Linux (except CPUStepping). Usually added to Package objects, but can be in Machine instead if hwloc failed to discover any package.  </dd>
-<dt>CPURevision (Package) </dt>
-<dd>A POWER/PowerPC-specific general processor revision number, currently only available on Linux.  </dd>
+<p>Here is a non-exhaustive list of attributes that may be automatically added by hwloc. Note that these attributes heavily depend on the ability of the operating system to report them. Many of them will therefore be missing on some OS.</p>
+<p> 
+</div><div class="subsection" id="attributes_info_platform">
+ </p>
+<h2><a class="anchor" id="attributes_info_platform"></a>
+Hardware Platform Information</h2>
+<p>These info attributes are attached to the root object (Machine).</p>
+<dl>
 <dt>PlatformName, PlatformModel, PlatformVendor, PlatformBoardID, PlatformRevision, </dt>
 <dd></dd>
 <dt>SystemVersionRegister, ProcessorVersionRegister (Machine) </dt>
 <dd>Some POWER/PowerPC-specific attributes describing the platform and processor. Currently only available on Linux. Usually added to Package objects, but can be in Machine instead if hwloc failed to discover any package.  </dd>
-<dt>MemoryMode, ClusterMode (topology root, Machine object) </dt>
+<dt>DMIBoardVendor, DMIBoardName, etc. </dt>
+<dd>DMI hardware information such as the motherboard and chassis models and vendors, the BIOS revision, etc., as reported by Linux under <code>/sys/class/dmi/id/</code>.  </dd>
+<dt>MemoryMode, ClusterMode </dt>
 <dd><p class="startdd">Intel Xeon Phi processor configuration modes. Available if hwloc-dump-hwdata was used (see <a class="el" href="a00326.php#faq_knl_dump">Why do I need hwloc-dump-hwdata for memory on Intel Xeon Phi processor?</a>) or if hwloc managed to guess them from the NUMA configuration.</p>
 <p class="enddd">The memory mode may be <em>Cache</em>, <em>Flat</em>, <em>Hybrid50</em> (half the MCDRAM is used as a cache) or <em>Hybrid25</em> (25% of MCDRAM as cache). The cluster mode may be <em>Quadrant</em>, <em>Hemisphere</em>, <em>All2All</em>, <em>SNC2</em> or <em>SNC4</em>. See doc/examples/get-knl-modes.c in the source directory for an example of retrieving these attributes.  </p>
 </dd>
-<dt>Inclusive (Caches) </dt>
-<dd>The inclusiveness of a cache (1 if inclusive, 0 otherwise). Currently only available on x86 processors.  </dd>
-<dt>SolarisProcessorGroup (Group) </dt>
-<dd>The Solaris kstat processor group name that was used to build this Group object.  </dd>
-<dt>PCIVendor, PCIDevice (PCI devices and bridges) </dt>
-<dd>The vendor and device names of the PCI device.  </dd>
-<dt>PCISlot (PCI devices) </dt>
-<dd>The name/number of the physical slot where the device is plugged.  </dd>
+</dl>
+<p> 
+</div><div class="subsection" id="attributes_info_os">
+ </p>
+<h2><a class="anchor" id="attributes_info_os"></a>
+Operating System Information</h2>
+<p>These info attributes are attached to the root object (Machine).</p>
+<dl>
+<dt>OSName, OSRelease, OSVersion, HostName, Architecture </dt>
+<dd>The operating system name, release, version, the hostname and the architecture name, as reported by the Unix <code>uname</code> command.  </dd>
+<dt>LinuxCgroup </dt>
+<dd>The name the Linux control group where the calling process is placed.  </dd>
+</dl>
+<p> 
+</div><div class="subsection" id="attributes_info_hwloc">
+ </p>
+<h2><a class="anchor" id="attributes_info_hwloc"></a>
+hwloc Information</h2>
+<p>Unless specified, these info attributes are attached to the root object (Machine).</p>
+<dl>
+<dt>Backend (topology root, or specific object added by that backend) </dt>
+<dd>The name of the hwloc backend/component that filled the topology. If several components were combined, multiple Backend keys may exist, with different values, for instance <code>x86</code> and <code>Linux</code> in the root object and <code>CUDA</code> in CUDA OS device objects.  </dd>
+<dt>SyntheticDescription </dt>
+<dd>The description string that was given to hwloc to build this synthetic topology.  </dd>
+<dt>hwlocVersion </dt>
+<dd>The version number of the hwloc library that was used to generate the topology. If the topology was loaded from XML, this is not the hwloc version that loaded it, but rather the first hwloc instance that exported the topology to XML earlier.  </dd>
+<dt>ProcessName </dt>
+<dd>The name of the process that contains the hwloc library that was used to generate the topology. If the topology was from XML, this is not the hwloc process that loaded it, but rather the first process that exported the topology to XML earlier.  </dd>
+</dl>
+<p> 
+</div><div class="subsection" id="attributes_info_cpu">
+ </p>
+<h2><a class="anchor" id="attributes_info_cpu"></a>
+CPU Information</h2>
+<p>These info attributes are attached to Package objects, or to the root object (Machine) if package locality information is missing.</p>
+<dl>
+<dt>CPUModel </dt>
+<dd>The processor model name. </dd>
+<dt>CPUVendor, CPUModelNumber, CPUFamilyNumber, CPUStepping </dt>
+<dd>The processor vendor name, model number, family number, and stepping number. Currently available for x86 and Xeon Phi processors on most systems, and for ia64 processors on Linux (except CPUStepping).  </dd>
+<dt>CPURevision </dt>
+<dd>A POWER/PowerPC-specific general processor revision number, currently only available on Linux.  </dd>
+<dt>CPUType </dt>
+<dd>A Solaris-specific general processor type name, such as "i86pc".  </dd>
+</dl>
+<p> 
+</div><div class="subsection" id="attributes_info_osdev">
+ </p>
+<h2><a class="anchor" id="attributes_info_osdev"></a>
+OS Device Information</h2>
+<p>These info attributes are attached to OS device objects specified in parentheses.</p>
+<dl>
 <dt>Vendor, Model, Revision, SerialNumber, Size, SectorSize (Block OS devices) </dt>
 <dd>The vendor and model names, revision, serial number, size (in kB) and SectorSize (in bytes).  </dd>
 <dt>LinuxDeviceID (Block OS devices) </dt>
@@ -95,19 +132,34 @@ Custom string infos</h1>
 <dd>The serial number of an Intel Xeon Phi (MIC) coprocessor. hwloc may run either inside the coprocessor itself, or on the host processor. That attribute is set in both cases, so that the exact same coprocessor may be identified from both point of views, even if there are multiple nodes with multiple MICs. When running hwloc on the host, each hwloc OS device object that corresponds to a Xeon Phi gets such an attribute. When running hwloc inside a Xeon Phi coprocessor, the root of the topology (Machine object) gets this attribute.  </dd>
 <dt>MICFamily, MICSKU, MICActiveCores, MICMemorySize (MIC coprocessor OS device) </dt>
 <dd>The family, SKU (model), number of active cores, and memory size (in kB) of an Intel Xeon Phi (MIC) coprocessor.  </dd>
-<dt>DMIBoardVendor, DMIBoardName, etc. (Machine object) </dt>
-<dd>DMI hardware information such as the motherboard and chassis models and vendors, the BIOS revision, etc., as reported by Linux under <code>/sys/class/dmi/id/</code>.  </dd>
 <dt>Address, Port (Network interface OS devices) </dt>
 <dd>The MAC address and the port number of a software network interface, such as <code>eth4</code> on Linux.  </dd>
 <dt>NodeGUID, SysImageGUID, Port1State, Port2LID, Port2LMC, Port3GID1 (OpenFabrics OS devices) </dt>
 <dd>The node GUID and GUID mask, the state of a port #1 (value is 4 when active), the LID and LID mask count of port #2, and GID #1 of port #3.  </dd>
+</dl>
+<p> 
+</div><div class="subsection" id="attributes_info_otherobjs">
+ </p>
+<h2><a class="anchor" id="attributes_info_otherobjs"></a>
+Other Object-specific Information</h2>
+<p>These info attributes are attached to objects specified in parentheses.</p>
+<dl>
+<dt>Inclusive (Caches) </dt>
+<dd>The inclusiveness of a cache (1 if inclusive, 0 otherwise). Currently only available on x86 processors.  </dd>
+<dt>SolarisProcessorGroup (Group) </dt>
+<dd>The Solaris kstat processor group name that was used to build this Group object.  </dd>
+<dt>PCIVendor, PCIDevice (PCI devices and bridges) </dt>
+<dd>The vendor and device names of the PCI device.  </dd>
+<dt>PCISlot (PCI devices) </dt>
+<dd>The name/number of the physical slot where the device is plugged.  </dd>
 <dt>Vendor, AssetTag, PartNumber, DeviceLocation, BankLocation (MemoryModule Misc objects) </dt>
 <dd>Information about memory modules (DIMMs) extracted from SMBIOS.  </dd>
-<dt>hwlocVersion (topology root, Machine object) </dt>
-<dd>The version number of the hwloc library that was used to generate the topology. If the topology was loaded from XML, this is not the hwloc version that loaded it, but rather the first hwloc instance that exported the topology to XML earlier.  </dd>
-<dt>ProcessName (topology root, Machine object) </dt>
-<dd>The name of the process that contains the hwloc library that was used to generate the topology. If the topology was from XML, this is not the hwloc process that loaded it, but rather the first process that exported the topology to XML earlier.  </dd>
 </dl>
+<p> 
+</div><div class="subsection" id="attributes_info_user">
+ </p>
+<h2><a class="anchor" id="attributes_info_user"></a>
+User-Given Information</h2>
 <p>Here is a non-exhaustive list of user-provided info attributes that have a special meaning: </p><dl>
 <dt>lstopoStyle </dt>
 <dd>Enforces the style of an object (background and text colors) in the graphical output of lstopo. See CUSTOM COLORS in the lstopo(1) manpage for details.  </dd>
