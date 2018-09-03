@@ -32,43 +32,43 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="enum-members"></a>
 Enumerations</h2></td></tr>
-<tr class="memitem:ga217dc8d373f8958cc93c154ebce1c71c"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00128.php#ga217dc8d373f8958cc93c154ebce1c71c">hwloc_cpubind_flags_t</a> { <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71ca2e0dd0128dac6b03408c7dd170477fdc">HWLOC_CPUBIND_PROCESS</a>, 
-<a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421">HWLOC_CPUBIND_THREAD</a>, 
-<a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71ca679a7e0f0c7ee06b123565f90d98e7fa">HWLOC_CPUBIND_STRICT</a>, 
-<a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71ca41ce440443cc3087caed95ab60edcad6">HWLOC_CPUBIND_NOMEMBIND</a>
+<tr class="memitem:ga217dc8d373f8958cc93c154ebce1c71c"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00154.php#ga217dc8d373f8958cc93c154ebce1c71c">hwloc_cpubind_flags_t</a> { <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71ca2e0dd0128dac6b03408c7dd170477fdc">HWLOC_CPUBIND_PROCESS</a>, 
+<a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421">HWLOC_CPUBIND_THREAD</a>, 
+<a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71ca679a7e0f0c7ee06b123565f90d98e7fa">HWLOC_CPUBIND_STRICT</a>, 
+<a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71ca41ce440443cc3087caed95ab60edcad6">HWLOC_CPUBIND_NOMEMBIND</a>
  }</td></tr>
 <tr class="separator:ga217dc8d373f8958cc93c154ebce1c71c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:ga80bc07473a8edf840cae17bd7ec21d48"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00128.php#ga80bc07473a8edf840cae17bd7ec21d48">hwloc_set_cpubind</a> (<a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, <a class="el" href="a00120.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a> set, int flags)</td></tr>
+<tr class="memitem:ga80bc07473a8edf840cae17bd7ec21d48"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00154.php#ga80bc07473a8edf840cae17bd7ec21d48">hwloc_set_cpubind</a> (<a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, <a class="el" href="a00147.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a> set, int flags)</td></tr>
 <tr class="separator:ga80bc07473a8edf840cae17bd7ec21d48"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gacba7ecb979baf824d5240fa2cb2a8be6"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00128.php#gacba7ecb979baf824d5240fa2cb2a8be6">hwloc_get_cpubind</a> (<a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, <a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
+<tr class="memitem:gacba7ecb979baf824d5240fa2cb2a8be6"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00154.php#gacba7ecb979baf824d5240fa2cb2a8be6">hwloc_get_cpubind</a> (<a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, <a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
 <tr class="separator:gacba7ecb979baf824d5240fa2cb2a8be6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga296db8a3c6d49b51fb83d6f3e45c02a6"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00128.php#ga296db8a3c6d49b51fb83d6f3e45c02a6">hwloc_set_proc_cpubind</a> (<a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_pid_t pid, <a class="el" href="a00120.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a> set, int flags)</td></tr>
+<tr class="memitem:ga296db8a3c6d49b51fb83d6f3e45c02a6"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00154.php#ga296db8a3c6d49b51fb83d6f3e45c02a6">hwloc_set_proc_cpubind</a> (<a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_pid_t pid, <a class="el" href="a00147.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a> set, int flags)</td></tr>
 <tr class="separator:ga296db8a3c6d49b51fb83d6f3e45c02a6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gac82de91f788fa82dacf99c6e0d4b7158"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00128.php#gac82de91f788fa82dacf99c6e0d4b7158">hwloc_get_proc_cpubind</a> (<a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_pid_t pid, <a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
+<tr class="memitem:gac82de91f788fa82dacf99c6e0d4b7158"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00154.php#gac82de91f788fa82dacf99c6e0d4b7158">hwloc_get_proc_cpubind</a> (<a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_pid_t pid, <a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
 <tr class="separator:gac82de91f788fa82dacf99c6e0d4b7158"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gae42c01b2addcfbf6048b9a516dd7a906"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00128.php#gae42c01b2addcfbf6048b9a516dd7a906">hwloc_set_thread_cpubind</a> (<a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_thread_t thread, <a class="el" href="a00120.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a> set, int flags)</td></tr>
+<tr class="memitem:gae42c01b2addcfbf6048b9a516dd7a906"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00154.php#gae42c01b2addcfbf6048b9a516dd7a906">hwloc_set_thread_cpubind</a> (<a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_thread_t thread, <a class="el" href="a00147.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a> set, int flags)</td></tr>
 <tr class="separator:gae42c01b2addcfbf6048b9a516dd7a906"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaf13f765642b5d0d9a9813e6bb043671b"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00128.php#gaf13f765642b5d0d9a9813e6bb043671b">hwloc_get_thread_cpubind</a> (<a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_thread_t thread, <a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
+<tr class="memitem:gaf13f765642b5d0d9a9813e6bb043671b"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00154.php#gaf13f765642b5d0d9a9813e6bb043671b">hwloc_get_thread_cpubind</a> (<a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_thread_t thread, <a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
 <tr class="separator:gaf13f765642b5d0d9a9813e6bb043671b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gafdb374627358bf09203b5a4215b13032"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00128.php#gafdb374627358bf09203b5a4215b13032">hwloc_get_last_cpu_location</a> (<a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, <a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
+<tr class="memitem:gafdb374627358bf09203b5a4215b13032"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00154.php#gafdb374627358bf09203b5a4215b13032">hwloc_get_last_cpu_location</a> (<a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, <a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
 <tr class="separator:gafdb374627358bf09203b5a4215b13032"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga910a05c2d47f68a3155bf176b50fa555"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00128.php#ga910a05c2d47f68a3155bf176b50fa555">hwloc_get_proc_last_cpu_location</a> (<a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_pid_t pid, <a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
+<tr class="memitem:ga910a05c2d47f68a3155bf176b50fa555"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00154.php#ga910a05c2d47f68a3155bf176b50fa555">hwloc_get_proc_last_cpu_location</a> (<a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, hwloc_pid_t pid, <a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a> set, int flags)</td></tr>
 <tr class="separator:ga910a05c2d47f68a3155bf176b50fa555"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<p>It is often useful to call <a class="el" href="a00144.php#ga36d802130aa5d96bc1b5a90d2f0f3765" title="Keep a single index among those set in bitmap bitmap. ">hwloc_bitmap_singlify()</a> first so that a single CPU remains in the set. This way, the process will not even migrate between different CPUs inside the given set. Some operating systems also only support that kind of binding.</p>
-<p>Some operating systems do not provide all hwloc-supported mechanisms to bind processes, threads, etc. <a class="el" href="a00124.php#gab8c76173c4a8ce1a9a9366012b1388e6" title="Retrieve the topology support. ">hwloc_topology_get_support()</a> may be used to query about the actual CPU binding support in the currently used operating system.</p>
-<p>When the requested binding operation is not available and the <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71ca679a7e0f0c7ee06b123565f90d98e7fa" title="Request for strict binding from the OS. ">HWLOC_CPUBIND_STRICT</a> flag was passed, the function returns -1. <code>errno</code> is set to <code>ENOSYS</code> when it is not possible to bind the requested kind of object processes/threads. errno is set to <code>EXDEV</code> when the requested cpuset can not be enforced (e.g. some systems only allow one CPU, and some other systems only allow one NUMA node).</p>
-<p>If <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71ca679a7e0f0c7ee06b123565f90d98e7fa" title="Request for strict binding from the OS. ">HWLOC_CPUBIND_STRICT</a> was not passed, the function may fail as well, or the operating system may use a slightly different operation (with side-effects, smaller binding set, etc.) when the requested operation is not exactly supported.</p>
+<p>Some operating systems only support binding threads or processes to a single PU. Others allow binding to larger sets such as entire Cores or Packages or even random sets of invididual PUs. In such operating system, the scheduler is free to run the task on one of these PU, then migrate it to another PU, etc. It is often useful to call <a class="el" href="a00169.php#gaa611a77c092e679246afdf9a60d5db8b" title="Keep a single index among those set in bitmap bitmap. ">hwloc_bitmap_singlify()</a> on the target CPU set before passing it to the binding function to avoid these expensive migrations. See the documentation of <a class="el" href="a00169.php#gaa611a77c092e679246afdf9a60d5db8b" title="Keep a single index among those set in bitmap bitmap. ">hwloc_bitmap_singlify()</a> for details.</p>
+<p>Some operating systems do not provide all hwloc-supported mechanisms to bind processes, threads, etc. <a class="el" href="a00157.php#gab8c76173c4a8ce1a9a9366012b1388e6" title="Retrieve the topology support. ">hwloc_topology_get_support()</a> may be used to query about the actual CPU binding support in the currently used operating system.</p>
+<p>When the requested binding operation is not available and the <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71ca679a7e0f0c7ee06b123565f90d98e7fa" title="Request for strict binding from the OS. ">HWLOC_CPUBIND_STRICT</a> flag was passed, the function returns -1. <code>errno</code> is set to <code>ENOSYS</code> when it is not possible to bind the requested kind of object processes/threads. errno is set to <code>EXDEV</code> when the requested cpuset can not be enforced (e.g. some systems only allow one CPU, and some other systems only allow one NUMA node).</p>
+<p>If <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71ca679a7e0f0c7ee06b123565f90d98e7fa" title="Request for strict binding from the OS. ">HWLOC_CPUBIND_STRICT</a> was not passed, the function may fail as well, or the operating system may use a slightly different operation (with side-effects, smaller binding set, etc.) when the requested operation is not exactly supported.</p>
 <p>The most portable version that should be preferred over the others, whenever possible, is the following one which just binds the current program, assuming it is single-threaded:</p>
-<div class="fragment"><div class="line"><a class="code" href="a00128.php#ga80bc07473a8edf840cae17bd7ec21d48">hwloc_set_cpubind</a>(topology, <span class="keyword">set</span>, 0),</div></div><!-- fragment --><p>If the program may be multithreaded, the following one should be preferred to only bind the current thread:</p>
-<div class="fragment"><div class="line"><a class="code" href="a00128.php#ga80bc07473a8edf840cae17bd7ec21d48">hwloc_set_cpubind</a>(topology, <span class="keyword">set</span>, <a class="code" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421">HWLOC_CPUBIND_THREAD</a>),</div></div><!-- fragment --><dl class="section see"><dt>See also</dt><dd>Some example codes are available under doc/examples/ in the source tree.</dd></dl>
+<div class="fragment"><div class="line"><a class="code" href="a00154.php#ga80bc07473a8edf840cae17bd7ec21d48">hwloc_set_cpubind</a>(topology, <span class="keyword">set</span>, 0),</div></div><!-- fragment --><p>If the program may be multithreaded, the following one should be preferred to only bind the current thread:</p>
+<div class="fragment"><div class="line"><a class="code" href="a00154.php#ga80bc07473a8edf840cae17bd7ec21d48">hwloc_set_cpubind</a>(topology, <span class="keyword">set</span>, <a class="code" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421">HWLOC_CPUBIND_THREAD</a>),</div></div><!-- fragment --><dl class="section see"><dt>See also</dt><dd>Some example codes are available under doc/examples/ in the source tree.</dd></dl>
 <dl class="section note"><dt>Note</dt><dd>To unbind, just call the binding function with either a full cpuset or a cpuset equal to the system cpuset.</dd>
 <dd>
-On some operating systems, CPU binding may have effects on memory binding, see <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71ca41ce440443cc3087caed95ab60edcad6" title="Avoid any effect on memory binding. ">HWLOC_CPUBIND_NOMEMBIND</a></dd>
+On some operating systems, CPU binding may have effects on memory binding, see <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71ca41ce440443cc3087caed95ab60edcad6" title="Avoid any effect on memory binding. ">HWLOC_CPUBIND_NOMEMBIND</a></dd>
 <dd>
 Running lstopo --top or hwloc-ps can be a very convenient tool to check how binding actually happened. </dd></dl>
 <h2 class="groupheader">Enumeration Type Documentation</h2>
@@ -79,7 +79,7 @@ Running lstopo --top or hwloc-ps can be a very convenient tool to check how bind
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">enum <a class="el" href="a00128.php#ga217dc8d373f8958cc93c154ebce1c71c">hwloc_cpubind_flags_t</a></td>
+          <td class="memname">enum <a class="el" href="a00154.php#ga217dc8d373f8958cc93c154ebce1c71c">hwloc_cpubind_flags_t</a></td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -87,7 +87,7 @@ Running lstopo --top or hwloc-ps can be a very convenient tool to check how bind
 <p>Process/Thread binding flags. </p>
 <p>These bit flags can be used to refine the binding policy.</p>
 <p>The default (0) is to bind the current process, assumed to be single-threaded, in a non-strict way. This is the most portable way to bind as all operating systems usually provide it.</p>
-<dl class="section note"><dt>Note</dt><dd>Not all systems support all kinds of binding. See the "Detailed Description" section of <a class="el" href="a00128.php">CPU binding</a> for a description of errors that can occur. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Not all systems support all kinds of binding. See the "Detailed Description" section of <a class="el" href="a00154.php">CPU binding</a> for a description of errors that can occur. </dd></dl>
 <table class="fieldtable">
 <tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="gga217dc8d373f8958cc93c154ebce1c71ca2e0dd0128dac6b03408c7dd170477fdc"></a>HWLOC_CPUBIND_PROCESS&#160;</td><td class="fielddoc"><p>Bind all threads of the current (possibly) multithreaded process. </p>
 </td></tr>
@@ -117,13 +117,13 @@ Running lstopo --top or hwloc-ps can be a very convenient tool to check how bind
         <tr>
           <td class="memname">int hwloc_get_cpubind </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
           <td class="paramname"><em>topology</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
           <td class="paramname"><em>set</em>, </td>
         </tr>
         <tr>
@@ -154,13 +154,13 @@ Running lstopo --top or hwloc-ps can be a very convenient tool to check how bind
         <tr>
           <td class="memname">int hwloc_get_last_cpu_location </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
           <td class="paramname"><em>topology</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
           <td class="paramname"><em>set</em>, </td>
         </tr>
         <tr>
@@ -179,7 +179,7 @@ Running lstopo --top or hwloc-ps can be a very convenient tool to check how bind
 
 <p>Get the last physical CPU where the current process or thread ran. </p>
 <p>The operating system may move some tasks from one processor to another at any time according to their binding, so this function may return something that is already outdated.</p>
-<p><code>flags</code> can include either <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71ca2e0dd0128dac6b03408c7dd170477fdc" title="Bind all threads of the current (possibly) multithreaded process. ">HWLOC_CPUBIND_PROCESS</a> or <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> to specify whether the query should be for the whole process (union of all CPUs on which all threads are running), or only the current thread. If the process is single-threaded, flags can be set to zero to let hwloc use whichever method is available on the underlying OS. </p>
+<p><code>flags</code> can include either <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71ca2e0dd0128dac6b03408c7dd170477fdc" title="Bind all threads of the current (possibly) multithreaded process. ">HWLOC_CPUBIND_PROCESS</a> or <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> to specify whether the query should be for the whole process (union of all CPUs on which all threads are running), or only the current thread. If the process is single-threaded, flags can be set to zero to let hwloc use whichever method is available on the underlying OS. </p>
 
 </div>
 </div>
@@ -192,7 +192,7 @@ Running lstopo --top or hwloc-ps can be a very convenient tool to check how bind
         <tr>
           <td class="memname">int hwloc_get_proc_cpubind </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
           <td class="paramname"><em>topology</em>, </td>
         </tr>
         <tr>
@@ -204,7 +204,7 @@ Running lstopo --top or hwloc-ps can be a very convenient tool to check how bind
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
           <td class="paramname"><em>set</em>, </td>
         </tr>
         <tr>
@@ -224,9 +224,9 @@ Running lstopo --top or hwloc-ps can be a very convenient tool to check how bind
 <p>Get the current physical binding of process <code>pid</code>. </p>
 <dl class="section note"><dt>Note</dt><dd><code>hwloc_pid_t</code> is <code>pid_t</code> on Unix platforms, and <code>HANDLE</code> on native Windows platforms.</dd>
 <dd>
-As a special case on Linux, if a tid (thread ID) is supplied instead of a pid (process ID) and <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> is passed in flags, the binding for that specific thread is returned.</dd>
+As a special case on Linux, if a tid (thread ID) is supplied instead of a pid (process ID) and HWLOC_CPUBIND_THREAD is passed in flags, the binding for that specific thread is returned.</dd>
 <dd>
-On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> can not be used in <code>flags</code>. </dd></dl>
+On non-Linux systems, HWLOC_CPUBIND_THREAD can not be used in <code>flags</code>. </dd></dl>
 
 </div>
 </div>
@@ -239,7 +239,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
         <tr>
           <td class="memname">int hwloc_get_proc_last_cpu_location </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
           <td class="paramname"><em>topology</em>, </td>
         </tr>
         <tr>
@@ -251,7 +251,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
           <td class="paramname"><em>set</em>, </td>
         </tr>
         <tr>
@@ -272,9 +272,9 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
 <p>The operating system may move some tasks from one processor to another at any time according to their binding, so this function may return something that is already outdated.</p>
 <dl class="section note"><dt>Note</dt><dd><code>hwloc_pid_t</code> is <code>pid_t</code> on Unix platforms, and <code>HANDLE</code> on native Windows platforms.</dd>
 <dd>
-As a special case on Linux, if a tid (thread ID) is supplied instead of a pid (process ID) and <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> is passed in flags, the last CPU location of that specific thread is returned.</dd>
+As a special case on Linux, if a tid (thread ID) is supplied instead of a pid (process ID) and <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> is passed in flags, the last CPU location of that specific thread is returned.</dd>
 <dd>
-On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> can not be used in <code>flags</code>. </dd></dl>
+On non-Linux systems, <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> can not be used in <code>flags</code>. </dd></dl>
 
 </div>
 </div>
@@ -287,7 +287,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
         <tr>
           <td class="memname">int hwloc_get_thread_cpubind </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
           <td class="paramname"><em>topology</em>, </td>
         </tr>
         <tr>
@@ -299,7 +299,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="a00120.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00147.php#ga4bbf39b68b6f568fb92739e7c0ea7801">hwloc_cpuset_t</a>&#160;</td>
           <td class="paramname"><em>set</em>, </td>
         </tr>
         <tr>
@@ -319,7 +319,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
 <p>Get the current physical binding of thread <code>tid</code>. </p>
 <dl class="section note"><dt>Note</dt><dd><code>hwloc_thread_t</code> is <code>pthread_t</code> on Unix platforms, and <code>HANDLE</code> on native Windows platforms.</dd>
 <dd>
-<a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71ca2e0dd0128dac6b03408c7dd170477fdc" title="Bind all threads of the current (possibly) multithreaded process. ">HWLOC_CPUBIND_PROCESS</a> can not be used in <code>flags</code>. </dd></dl>
+<a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71ca2e0dd0128dac6b03408c7dd170477fdc" title="Bind all threads of the current (possibly) multithreaded process. ">HWLOC_CPUBIND_PROCESS</a> can not be used in <code>flags</code>. </dd></dl>
 
 </div>
 </div>
@@ -332,13 +332,13 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
         <tr>
           <td class="memname">int hwloc_set_cpubind </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
           <td class="paramname"><em>topology</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="a00120.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00147.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a>&#160;</td>
           <td class="paramname"><em>set</em>, </td>
         </tr>
         <tr>
@@ -371,7 +371,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
         <tr>
           <td class="memname">int hwloc_set_proc_cpubind </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
           <td class="paramname"><em>topology</em>, </td>
         </tr>
         <tr>
@@ -383,7 +383,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="a00120.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00147.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a>&#160;</td>
           <td class="paramname"><em>set</em>, </td>
         </tr>
         <tr>
@@ -403,9 +403,9 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
 <p>Bind a process <code>pid</code> on cpus given in physical bitmap <code>set</code>. </p>
 <dl class="section note"><dt>Note</dt><dd><code>hwloc_pid_t</code> is <code>pid_t</code> on Unix platforms, and <code>HANDLE</code> on native Windows platforms.</dd>
 <dd>
-As a special case on Linux, if a tid (thread ID) is supplied instead of a pid (process ID) and <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> is passed in flags, the binding is applied to that specific thread.</dd>
+As a special case on Linux, if a tid (thread ID) is supplied instead of a pid (process ID) and <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> is passed in flags, the binding is applied to that specific thread.</dd>
 <dd>
-On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> can not be used in <code>flags</code>. </dd></dl>
+On non-Linux systems, <a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71caf1b6bbad00d7b1017b918e3719f4d421" title="Bind current thread of current process. ">HWLOC_CPUBIND_THREAD</a> can not be used in <code>flags</code>. </dd></dl>
 
 </div>
 </div>
@@ -418,7 +418,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
         <tr>
           <td class="memname">int hwloc_set_thread_cpubind </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="a00123.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00150.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a>&#160;</td>
           <td class="paramname"><em>topology</em>, </td>
         </tr>
         <tr>
@@ -430,7 +430,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="a00120.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="a00147.php#ga1f784433e9b606261f62d1134f6a3b25">hwloc_const_cpuset_t</a>&#160;</td>
           <td class="paramname"><em>set</em>, </td>
         </tr>
         <tr>
@@ -450,7 +450,7 @@ On non-Linux systems, <a class="el" href="a00128.php#gga217dc8d373f8958cc93c154e
 <p>Bind a thread <code>thread</code> on cpus given in physical bitmap <code>set</code>. </p>
 <dl class="section note"><dt>Note</dt><dd><code>hwloc_thread_t</code> is <code>pthread_t</code> on Unix platforms, and <code>HANDLE</code> on native Windows platforms.</dd>
 <dd>
-<a class="el" href="a00128.php#gga217dc8d373f8958cc93c154ebce1c71ca2e0dd0128dac6b03408c7dd170477fdc" title="Bind all threads of the current (possibly) multithreaded process. ">HWLOC_CPUBIND_PROCESS</a> can not be used in <code>flags</code>. </dd></dl>
+<a class="el" href="a00154.php#gga217dc8d373f8958cc93c154ebce1c71ca2e0dd0128dac6b03408c7dd170477fdc" title="Bind all threads of the current (possibly) multithreaded process. ">HWLOC_CPUBIND_PROCESS</a> can not be used in <code>flags</code>. </dd></dl>
 
 </div>
 </div>
