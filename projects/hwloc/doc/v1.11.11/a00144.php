@@ -1268,8 +1268,10 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Keep a single index among those set in bitmap <code>bitmap</code>. </p>
-<p>May be useful before binding so that the process does not have a chance of migrating between multiple logical CPUs in the original mask.</p>
-<dl class="section note"><dt>Note</dt><dd>This function is NOT meant to distribute multiple processes within a single CPU set. It always return the same single bit when called multiple times on the same input set. <a class="el" href="a00139.php#ga2e3db06f766509ae2004ee4c8bbf5204" title="Distribute n items over the topology under roots. ">hwloc_distrib()</a> may be used for generating CPU sets to distribute multiple tasks below a single multi-PU object. </dd></dl>
+<p>May be useful before binding so that the process does not have a chance of migrating between multiple logical CPUs in the original mask. Instead of running the task on any PU inside the given CPU set, the operating system scheduler will be forced to run it on a single of these PUs. It avoids a migration overhead and cache-line ping-pongs between PUs.</p>
+<dl class="section note"><dt>Note</dt><dd>This function is NOT meant to distribute multiple processes within a single CPU set. It always return the same single bit when called multiple times on the same input set. <a class="el" href="a00139.php#ga2e3db06f766509ae2004ee4c8bbf5204" title="Distribute n items over the topology under roots. ">hwloc_distrib()</a> may be used for generating CPU sets to distribute multiple tasks below a single multi-PU object.</dd>
+<dd>
+This function cannot be applied to an object set directly. It should be applied to a copy (which may be obtained with <a class="el" href="a00144.php#gae679434c1a5f41d3560a8a7e2c1b0dee" title="Duplicate bitmap bitmap by allocating a new bitmap and copying bitmap contents. ">hwloc_bitmap_dup()</a>). </dd></dl>
 
 </div>
 </div>

@@ -42,8 +42,8 @@ Custom string infos</h1>
 <p>Here is a non-exhaustive list of attributes that may be automatically added by hwloc (with the usual corresponding object in parentheses). Note that these attributes heavily depend on the ability of the operating system to report them. Many of them will therefore be missing on some OS. </p><dl>
 <dt>OSName, OSRelease, OSVersion, HostName, Architecture (Machine object) </dt>
 <dd>The operating system name, release, version, the hostname and the architecture name, as reported by the Unix <code>uname</code> command.  </dd>
-<dt>Backend (Machine object or topology root object) </dt>
-<dd>The name of the hwloc backend/component that filled the topology. If several components were combined, multiple Backend keys may exist, with different values, for instance <code>x86</code>, <code>Linux</code> and <code>pci</code>.  </dd>
+<dt>Backend (Machine object, topology root object, or specific object added by that backend) </dt>
+<dd>The name of the hwloc backend/component that filled the topology. If several components were combined, multiple Backend keys may exist, with different values, for instance <code>x86</code> and <code>Linux</code> in the root object and <code>CUDA</code> in CUDA OS device objects.  </dd>
 <dt>LinuxCgroup (Machine object) </dt>
 <dd>The name the Linux control group where the calling process is placed.  </dd>
 <dt>SyntheticDescription (topology root object) </dt>
