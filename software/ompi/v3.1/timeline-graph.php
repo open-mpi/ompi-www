@@ -6,6 +6,7 @@ $vpos = 0;
 $graph = 0;
 $data = array();
 
+# Oldest milestone date
 $first_date = "2017-10-01";
 
 # The graph needs about a year time span for the title to display properly.
@@ -16,13 +17,16 @@ $first_date = "2017-10-01";
 $ts1 = time() + (90 * 24 * 60 * 60);
 # 1 year beyond the first date (this i
 $ts2 = mktime(0, 0, 0, 6, 1, 2016);
+# 1 month before the first date:
+$series_start = new DateTime($first_date);
+$series_start->modify("-1 month");
 
 $ts = (int) max($ts1, $ts2);
 $beyond_end_date = strftime("%Y-%m-%d", $ts);
 
 //////////////////////////////////////////////////////////////////////////
 // v2.1 release series
-series("v3.1 series", "2018-01-01", $beyond_end_date, $data, $vpos, $graph);
+series("v3.1 series", $series_start->format("Y-m-d"), $beyond_end_date, $data, $vpos, $graph);
 milestone("branch from master", "2017-10-01", $data, $vpos);
 milestone("v3.1.0", "2018-05-07", $data, $vpos);
 milestone("v3.1.1", "2018-06-29", $data, $vpos);
