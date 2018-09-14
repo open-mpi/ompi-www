@@ -7,7 +7,7 @@ $graph = 0;
 $data = array();
 
 # Oldest milestone date
-$first_date = "2017-10-01";
+$first_date = "2018-07-18";
 
 # The graph needs about a year time span for the title to display properly.
 # So pick either a year beyond the first date or 90 days beyond now,
@@ -25,13 +25,11 @@ $ts = (int) max($ts1, $ts2);
 $beyond_end_date = strftime("%Y-%m-%d", $ts);
 
 //////////////////////////////////////////////////////////////////////////
-// v2.1 release series
-series("v3.1 series", $series_start->format("Y-m-d"), $beyond_end_date, $data, $vpos, $graph);
-milestone("branch from master", "2017-10-01", $data, $vpos);
-milestone("v3.1.0", "2018-05-07", $data, $vpos);
-milestone("v3.1.1", "2018-06-29", $data, $vpos);
-milestone("v3.1.2", "2018-08-22", $data, $vpos);
-
+// v4.0 release series
+series("v4.0 series", $series_start->format("Y-m-d"), $beyond_end_date, $data, $vpos, $graph);
+milestone("branch from master", "2018-07-18", $data, $vpos);
+milestone("v4.0.0rc1", "2018-09-14", $data, $vpos);
+#milestone("v4.0.0", "2018-09-17", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
