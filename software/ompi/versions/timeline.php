@@ -8,6 +8,7 @@ function g($v) {
     print("<p><div align=center><img src=\"../$v/timeline-graph.php\"></div></p>\n");
 }
 
+g("v3.1");
 g("v3.0");
 g("v2.1");
 g("v2.0");
