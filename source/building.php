@@ -96,57 +96,39 @@ problems, upgrade to at least the versions listed below.</p>
 <TH>Flex Versions</TH>
 </TR>
 
-<TR>
-<TD>v1.0</TD><TD>NA</TD><TD>2.58 - 2.59</TD><TD>1.7 - 1.9.6</TD><TD>1.5.16 - 1.5.22</TD><TD>2.5.4</TD>
-</TR>
+<?php
 
-<TR>
-<TD>v1.1</TD><TD>NA</TD><TD>2.59</TD><TD>1.9.6</TD><TD>1.5.16 - 1.5.22</TD><TD>2.5.4</TD>
-</TR>
+function row($str, $m4, $ac, $am, $lt, $flex) {
+    print("<TR>\n<TD>$str</TD><TD>$m4</TD><TD>$ac</TD><TD>$am</TD><TD>$lt</TD><TD>$flex</TD>\n</TR>\n\n");
+}
 
-<TR>
-<TD>v1.2</TD><TD>NA</TD><TD>2.59</TD><TD>1.9.6</TD><TD>1.5.22 - 2.1a</TD><TD>2.5.4</TD>
-</TR>
+row("v1.0", "NA", "2.58 - 2.59", "1.7 - 1.9.6", "1.5.16 - 1.5.22", "2.5.4");
 
-<TR>
-<TD>v1.3</TD><TD>1.4.11</TD><TD>2.63</TD><TD>1.10.1</TD><TD>2.2.6b</TD><TD>2.5.4</TD>
-</TR>
+row("v1.1", "NA", "2.59", "1.9.6", "1.5.16 - 1.5.22", "2.5.4");
 
-<TR>
-<TD>v1.4</TD><TD>1.4.11</TD><TD>2.63</TD><TD>1.10.3</TD><TD>2.2.6b</TD><TD>2.5.4</TD>
-</TR>
+row("v1.2", "NA", "2.59", "1.9.6", "1.5.22 - 2.1a", "2.5.4");
 
-<TR>
-<TD>v1.5 thru 1.5.4</TD><TD>1.4.13</TD><TD>2.65</TD><TD>1.11.1</TD><TD>2.2.6b</TD><TD>2.5.4</TD>
-</TR>
+row("v1.3", "1.4.11", "2.63", "1.10.1", "2.2.6b", "2.5.4");
 
-<TR>
-<TD>v1.5.5 and up</TD><TD>1.4.16</TD><TD>2.68</TD><TD>1.11.3</TD><TD>2.4.2</TD><TD>2.5.35</TD>
-</TR>
+row("v1.4", "1.4.11", "2.63", "1.10.3", "2.2.6b", "2.5.4");
 
-<TR>
-<TD>v1.6</TD><TD>1.4.16</TD><TD>2.68</TD><TD>1.11.3</TD><TD>2.4.2</TD><TD>2.5.35</TD>
-</TR>
+row("v1.5 thru 1.5.4", "1.4.13", "2.65", "1.11.1", "2.2.6b", "2.5.4");
 
-<TR>
-<TD>v1.7</TD><TD>1.4.16</TD><TD>2.69</TD><TD>1.12.2</TD><TD>2.4.2</TD><TD>2.5.35</TD>
-</TR>
+row("v1.5.5 and up", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35");
 
-<TR>
-<TD>v1.8</TD><TD>1.4.16</TD><TD>2.69</TD><TD>1.12.2</TD><TD>2.4.2</TD><TD>2.5.35</TD>
-</TR>
+row("v1.6", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35");
 
-<TR>
-<TD>v1.10.x</TD><TD>1.4.16</TD><TD>2.69</TD><TD>1.12.2</TD><TD>2.4.2</TD><TD>2.5.35</TD>
-</TR>
+row("v1.7",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35");
+row("v1.8",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35");
+row("v1.10.x", "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35");
 
-<TR>
-<TD>v2.x</TD><TD>1.4.17</TD><TD>2.69</TD><TD>1.15</TD><TD>2.4.6</TD><TD>2.5.35</TD>
-</TR>
+row("v2.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
+row("v2.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
+row("v3.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
+row("v3.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
+row("master", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
 
-<TR>
-    <TD>master</TD><TD>1.4.17</TD><TD>2.69</TD><TD>1.15</TD><TD>2.4.6</TD><TD>2.5.35</TD>
-</TR>
+?>
 
 </TABLE>
 
@@ -172,13 +154,13 @@ problems, upgrade to at least the versions listed below.</p>
 <LI> If Autoconf 2.60 (and higher) is used, Automake 1.10 (and higher)
      <b>must</b> be used.</LI>
 
-<LI> The Open MPI v1.2 branch and later (including the present master)
-     require the use of the Libtool 2.x (or higher) so that Open MPI
-     can build the Fortran 90 module as a shared library.  If (and
-     only if) you intend to not build the Fortran 90 library or your
-     Fortran 77 and Fortran 90 compilers have the same name (e.g.,
-     gfortran), you can use Libtool 1.5.22 to build Open MPI v1.0
-     through v1.2.x.</LI>
+<LI> The <code>master</code> branch and all release branches starting
+     with <code>v1.2</code> require the use of the Libtool 2.x (or
+     higher) so that Open MPI can build the Fortran 90 module as a
+     shared library.  If (and only if) you intend to not build the
+     Fortran 90 library or your Fortran 77 and Fortran 90 compilers
+     have the same name (e.g., gfortran), you can use Libtool 1.5.22
+     to build Open MPI v1.0 through v1.2.x.</LI>
 
 <LI> There was a period of time where OMPI nightly trunk snapshot
      tarballs were made with a <a href="libtool.tar.gz">Libtool 2.0
@@ -219,10 +201,10 @@ debugging code is enabled.</font></strong> This results in a
 several options for building an optimzed Open MPI; see the HACKING
 file for more details.</p>
 
-<p><strong>NOTE:</strong> Most Linux distributions and OS X install
-Flex by default (and this is sufficient).  Other operating systems may
-provide "lex", but this is <em>not</em> sufficient -- flex is
-required.</p>
+<p><strong>NOTE:</strong> Most Linux distributions and OS X/MacOS
+install Flex by default (and this is sufficient).  Other operating
+systems may provide "lex", but this is <em>not</em> sufficient -- flex
+is required.</p>
 
 <?php 
   include_once("$topdir/includes/footer.inc"); 
