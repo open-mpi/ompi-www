@@ -8,7 +8,7 @@ include_once("warning.inc");
 ?>
 
 <p>Open MPI's Git repositories are hosted at <a
-href="https://github.com/">GitHub</a>.</p>
+href="https://github.com/open-mpi/ompi/">GitHub</a>.</p>
 
 <ol>
 
