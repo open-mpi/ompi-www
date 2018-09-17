@@ -17,6 +17,11 @@ from non-subscribers.  If you are not subscribed <?php red("with the
 address that you post from"); ?>, you posts will be automatically
 discarded.</p>
 
+<p>Please note that our mailing lists have a <strong>150 KB</strong>
+message size limit.  If you need to send an attachment that makes your
+overall message be over that size, please post it elsewhere on the
+internet and then just send a link to it across our lists.</p>
+
 <p><center><hr width=50%></center>
 
 <P>The following lists are available for the Open MPI community:</p>
