@@ -52,11 +52,10 @@ mailing list (see the <A HREF="<?php print($topdir);
 <strong>please compress the files (e.g., with bzip2) before sending
 them!</strong>
 
-<p> <strong><font color="red">Note:</font></strong>
-The mailing lists have a 250kb limit on messages to prevent from
-sending enormous, uncompressed datatsets.  If your attachment is
-larger than this, please post it on the web somewhere for people to
-download.  Thanks.
+<p> <strong><font color="red">Note:</font></strong> The mailing lists
+have a 150 KB limit on messages.  If your attachment is larger than
+this, please try compressing it and/or posting it on the web somewhere
+for people to download.  Thanks.
 
 <UL>
 
