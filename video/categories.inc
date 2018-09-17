@@ -40,11 +40,6 @@ $cat_short_titles[] = "Developer information";
 $cat_names[] = "developer_parent";
 $cat_parent_name[] = "";
 
-    $cat_titles[] = "Mercurial";
-    $cat_short_titles[] = "Mercurial";
-    $cat_names[] = "mercurial";
-    $cat_parent_name[] = "developer_parent";
-
     $cat_titles[] = "Open MPI code internals";
     $cat_short_titles[] = "Internals";
     $cat_names[] = "internals";
