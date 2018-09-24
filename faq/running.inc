@@ -43,25 +43,6 @@ $a[] = "Open MPI's versioning and ABI scheme <a
 href=\"https://www.open-mpi.org/software/ompi/versions/\">is described
 here</a>, but is summarized here in this FAQ entry for convenience.
 
-
-
-JMS NEED MORE HERE
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Open MPI provided forward application binary interface (ABI)
 compatibility for MPI applications starting with v1.3.2.  Prior to
 that version, no ABI guarantees were provided.
