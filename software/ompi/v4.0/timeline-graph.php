@@ -31,6 +31,7 @@ milestone("branch from master", "2018-07-18", $data, $vpos);
 milestone("v4.0.0rc1", "2018-09-14", $data, $vpos);
 milestone("v4.0.0rc2", "2018-09-22", $data, $vpos);
 milestone("v4.0.0rc3", "2018-09-27", $data, $vpos);
+milestone("v4.0.0rc4", "2018-10-05", $data, $vpos);
 #milestone("v4.0.0", "2018-09-17", $data, $vpos);
 
 // Party on
