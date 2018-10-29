@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "orte_sstore(7) man page (version 3.0.2)";
-$meta_desc = "Open MPI v3.0.2 man page: orte_sstore(7)";
+$title = "orte_sstore(7) man page (version 3.0.3)";
+$meta_desc = "Open MPI v3.0.3 man page: orte_sstore(7)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -15,7 +15,7 @@ include_once("$topdir/includes/header.inc");
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
  Open RTE MCA File Management (SStore) Framework - Overview
-of Open RTE&rsquo;s SStore framework, and selected modules.  Open MPI 3.0.2
+of Open RTE&rsquo;s SStore framework, and selected modules.  Open MPI 3.0.3
 <h2><a name='sect1' href='#toc1'>Description</a></h2>
 
 <p>
