@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Unpack_external(3) man page (version 3.0.2)";
-$meta_desc = "Open MPI v3.0.2 man page: MPI_UNPACK_EXTERNAL(3)";
+$title = "MPI_Unpack_external(3) man page (version 3.0.3)";
+$meta_desc = "Open MPI v3.0.3 man page: MPI_UNPACK_EXTERNAL(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
