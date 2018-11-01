@@ -2011,7 +2011,7 @@ must be specified using the UCX_NET_DEVICES environment parameter.
 For example:
 
 <geshi bash>
-shell$ mpirun -mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 ...
+shell$ mpirun --mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 ...
 </geshi>
 
 *How does UCX run with Routable RoCE (RoCEv2)?*
@@ -2273,20 +2273,21 @@ shell$ ./configure --with-ucx ...
 UCX is enabled and selected by default, so no additional parameters are required.
 In this case the network port with the highest bandwidth on the system will be
 used for inter-node communication, and shared memory will be used intra-node
-communication. To select a specific network device to use (for example, mlx5_0 device port 1):
+communication. To select a specific network device to use (for example, mlx5_0
+device port 1):
 <geshi bash>
 shell$ mpirun -x UCX_NET_DEVICES=mlx5_0:1 ...
 </geshi>
 
 It's also possible to force using UCX for MPI point-to-point and one-sided operations:
 <geshi bash>
-shell$ mpirun -mca pml ucx -mca osc ucx ...
+shell$ mpirun --mca pml ucx --mca osc ucx ...
 </geshi>
 
 For OpenSHMEM, in addition to the above, it's possible to force using UCX for remote
-memeory access and atomic memory operations:
+memory access and atomic memory operations:
 <geshi bash>
-shell$ mpirun -mca pml ucx -mca osc ucx -mca scoll ucx -mca atomic ucx ...
+shell$ mpirun --mca pml ucx --mca osc ucx --mca scoll ucx --mca atomic ucx ...
 </geshi>
 
 ";
