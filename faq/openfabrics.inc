@@ -56,6 +56,9 @@ $th OpenFabrics support </th>
 ". ofarow("v1.3 / v1.4 series", " [openib] BTL") . "
 ". ofarow("v1.5 / v1.6 series", " [openib] BTL, [mxm] MTL, [fca] coll") . "
 ". ofarow("v1.7 / v1.8 series", " [openib] BTL, [mxm] MTL, [fca] and [ml] and [hcoll] coll") . "
+". ofarow("v2.x series", " [openib] BTL, [mxm] PML, [ml] and [hcoll] coll") . "
+". ofarow("v3.x series", " [openib] BTL, [ucx] and [mxm] PML, [hcoll] coll") . "
+". ofarow("v4.x series", " [ucx] PML, [hcoll] coll") . "
 </table>
 </div>";
 
@@ -2001,35 +2004,22 @@ In order to use it, RRoCE needs to be enabled from the command line.
 shell$ mpirun --mca pml ob1 --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm ****--mca btl_openib_rroce_enable 1**** ...
 </geshi>
 
-*How does MXM run on top of RoCE?*
+*How does UCX run on top of RoCE?*
 
-In order to use RoCE with <a href=\"#mxm\">MXM</a>, the Ethernet port
-must be specified using the MXM_RDMA_PORTS environment parameter.
+In order to use RoCE with <a href=\"#ucx\">UCX</a>, the Ethernet port
+must be specified using the UCX_NET_DEVICES environment parameter.
 For example:
 
 <geshi bash>
-shell$ mpirun --mca pml cm -mca mtl mxm -x MXM_RDMA_PORTS=mlx4_0:2 ...
+shell$ mpirun --mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 ...
 </geshi>
 
-MXM can also be run with the Yalla PML.  Using RoCE requires the same
-environment parameter:
+*How does UCX run with Routable RoCE (RoCEv2)?*
 
+UCX selects IPV4 RoCEv2 by default. If a different behavior is needed, it's possible
+to set a speific GID index to use:
 <geshi bash>
-shell$ mpirun --mca pml yalla -x MXM_RDMA_PORTS=mlx4_0:2 ...
-</geshi>
-
-Older versions of MXM may also require an additional environment
-parameter:
-
-<geshi bash>
-shell$ mpirun --mca pml cm -mca mtl mxm -x MXM_RDMA_PORTS=mlx4_0:2 -x MXM_TLS=self,shm,ud ...
-</geshi>
-
-*How does MXM run with Routable RoCE (RoCEv2)?*
-
-In order to use RRoCE when running with MXM, the following environment parameters need to be set:
-<geshi bash>
-shell$ mpirun --mca pml yalla -x MXM_RDMA_PORTS=mlx4_0:2 -x MXM_IB_GID_INDEX=1 ...
+shell$ mpirun --mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 -x UCX_IB_GID_INDEX=1 ...
 </geshi>
 
 
@@ -2252,73 +2242,54 @@ shell$ mpirun --mca coll_fca_enable 1 --mca coll_fca_np &lt;N&gt; ...
 /////////////////////////////////////////////////////////////////////////
 $q[] = "Does Open MPI support <code>MXM</code>?";
 $anchor[] = "mxm";
+$a[] = "MXM support is currently deprecated and replaced by <a href=\"#ucx\">UCX</a>.";
+
+/////////////////////////////////////////////////////////////////////////
+$q[] = "Does Open MPI support <code>UCX</code>?";
+$anchor[] = "ucx";
 $a[] = "Yes.
 
-MXM is a <strong>M</strong>ellano<strong>X</strong> <strong>M</strong>essaging
-library which provides enhancements to parallel communication libraries.</br>
+UCX is an open-source optimized communication library which supports multiple
+networks, including RoCE, InfiniBand, uGNI, TCP, shared memory, and others. UCX
+mixes-and-matches transports and protocols which are available on the system
+to provide optimal performance. It also has built-in support for GPU transports
+(with Cuda and RoCM providers) which lets RDMA-capable transports access the
+GPU memory directly.
 
-It is integrated into the Mellanox OFED stack, and also provided in
-a stand-alone package.</br>
+UCX can be downloaded from:
+ <a href=\"http://www.openucx.org\" target=\"&#95;blank\">http://www.openucx.org</a>
 
-The MXM stand-alone package is available for download here: "
-. "<a href=\"http://www.mellanox.com/products/mxm\" target=\"&#95;blank\">" .
-"http://www.mellanox.com/products/mxm</a>
 
-*MX>M requirements*
-<ul>
-<li>
-Mellanox OFED 1.5.3 or later
-</li>
-<li>
-Open MPI 1.6 or later
-</li>
-</ul>
+*Building Open MPI with UCX support*
 
-*Building Open MPI with MXM support*
-
-By default, MXM is installed in [/opt/mellanox/mxm]. Use the following
-configure option to enable MXM support in OMPI:
+Use the following configure option to enable UCX support in OMPI. It will search
+for UCX headers and libraries in the default installation prefix, which is /usr:
 <geshi bash>
-shell$ ./configure --with-mxm=/opt/mellanox/mxm ...
+shell$ ./configure --with-ucx ...
 </geshi>
 
-*Enabling MXM in Open MPI 1.6.1 or later*
+*Running with UCX*
 
-In Open MPI 1.6 and above, MXM will be enabled by default, regardless of the number of ranks.
-
-Running an Open MPI job with MXM:
-
-MXM can be run in one of two ways:
-
-<ul>
-<li>
-With the CM PML and the MXM MTL:
+UCX is enabled and selected by default, so no additional parameters are required.
+In this case the network port with the highest bandwidth on the system will be
+used for inter-node communication, and shared memory will be used intra-node
+communication. To select a specific network device to use (for example, mlx5_0
+device port 1):
 <geshi bash>
-shell$ mpirun --mca pml cm --mca mtl mxm ...
+shell$ mpirun -x UCX_NET_DEVICES=mlx5_0:1 ...
 </geshi>
-</li>
-<li>
-With the Yalla PML:
+
+It's also possible to force using UCX for MPI point-to-point and one-sided operations:
 <geshi bash>
-shell$ mpirun --mca pml yalla ...
+shell$ mpirun --mca pml ucx --mca osc ucx ...
 </geshi>
-</li>
-</ul>
 
-The Yalla PML calls MXM directly and therefore improves the
-performance significantly.  Note that the Yalla PML and CM PML are
-mutually exclusive.
-
-$note Please note that the Yalla PML is available only from Open MPI
-v1.10 and above.
-
-In older versions of Open MPI (before v1.6), MXM is automatically
-selected when the job has at least 128 MPI processes. To activate MXM
-for any number of MPI processes, run the following command:
-
+For OpenSHMEM, in addition to the above, it's possible to force using UCX for remote
+memory access and atomic memory operations:
 <geshi bash>
-shell$ mpirun --mca mtl_mxm_np 0 ...
+shell$ mpirun --mca pml ucx --mca osc ucx --mca scoll ucx --mca atomic ucx ...
 </geshi>
+
 ";
 /////////////////////////////////////////////////////////////////////////
 $q[] = "What is <code>cpu-set</code>?";
