@@ -1007,3 +1007,16 @@ to some of the available packages:
 over time; projects come, and projects go.  Your best bet these days
 is simply to use Google to find MPI bindings and application-level
 programming interfaces.";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Why does my legacy MPI application fail to compile with Open MPI v4.0.0 (and beyond)?";
+
+$anchor[] = "mpi-1-deleted-functions";
+
+$a[] = "Starting with v4.0.0, Open MPI &mdash; by default &mdash; removes the
+prototypes for MPI symbols that were deprecated in 1996 and finally
+removed from the MPI standard in MPI-3.0 (2012).
+
+<a href=\"?category=mpi-legacy\">See this FAQ category</a> for much
+more information.";

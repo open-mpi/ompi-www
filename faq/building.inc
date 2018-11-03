@@ -1086,6 +1086,7 @@ You tell [configure] where support libraries are with the appropriate
 <li> *--with-libfabric=&lt;dir&gt;:* Build support for OpenFabrics
 Interfaces (OFI), commonly known as \"libfabric\" (starting with the
 v1.10 series).</li>
+<li> *--with-ucx=&lt;dir&gt;:* Build support for the UCX library.</li>
 <li> *--with-mxm=&lt;dir&gt;:* Build support for the Mellanox
 Messaging (MXM) library (starting with the v1.5 series).</li>
 <li> *--with-verbs=&lt;dir&gt;:* Build support for OpenFabrics verbs
@@ -1099,8 +1100,6 @@ library (starting with the v1.7 series).</li>
 library.</li>
 <li> *--with-psm2=&lt;dir&gt;:* Build support for the PSM 2
 library (starting with the v1.10 series).</li>
-<li> *--with-scif=&lt;dir&gt;:* Build support for the SCIF
-library (starting with the v1.8 series).</li>
 <li> *--with-usnic:* Build support for usNIC networks (starting with
 the v1.8 series).  In the v1.10 series, usNIC support is included in
 the libfabric library, but this option can still be used to ensure
@@ -1110,8 +1109,8 @@ that usNIC support is specifically available.</li>
 For example:
 
 <geshi bash>
-shell$ ./configure --with-mvapi=/path/to/mvapi/installation \
-  --with-gm=/path/to/gm/installation
+shell$ ./configure --with-ucx=/path/to/ucx/installation \
+  --with-libfabric=/path/to/libfabric/installation
 </geshi>
 
 These switches enable Open MPI's [configure] script to automatically
@@ -1128,19 +1127,22 @@ supporting a specific network type.
 If [configure] indicates that support for your networks will be
 included, after you build and install Open MPI, you can run the
 \"[ompi_info]\" command and look for components for your networks.
-The v1.2 (and earlier) series has two openib components (your exact
-version numbers may be different):
+For example:
 
 <geshi bash>
-shell$ ompi_info | grep openib
-               MCA mpool: openib (MCA v1.0, API v1.0, Component v1.0)
-                 MCA btl: openib (MCA v1.0, API v1.0, Component v1.0)
+shell$ ompi_info | egrep ': ofi|ucx'
+                 MCA rml: ofi (MCA v2.1.0, API v3.0.0, Component v4.0.0)
+                 MCA mtl: ofi (MCA v2.1.0, API v2.0.0, Component v4.0.0)
+                 MCA pml: ucx (MCA v2.1.0, API v2.0.0, Component v4.0.0)
+                 MCA osc: ucx (MCA v2.1.0, API v2.0.0, Component v4.0.0)
 </geshi>
 
 Here's some network types that are no longer supported in current
 versions of Open MPI:
 
 <ul>
+<li> *--with-scif=&lt;dir&gt;:* Build support for the SCIF library <br />
+ _Last supported in the v3.1.x series._ </li>
 <li> *--with-elan=&lt;dir&gt;:* Build support for Elan. <br />
  _Last supported in the v1.6.x series._ </li>
 <li> *--with-gm=&lt;dir&gt;:* Build support for GM (Myrinet).  <br />
@@ -1754,13 +1756,14 @@ against the Open MPI binaries and libraries. This can cause problems if the Inte
 compiler libraries are installed in non-standard locations. For example, you might 
 get errors like:
  
-<blockquote>
+<geshi bash>
 error while loading shared libraries: libimf.so: cannot open shared object file: 
 No such file or directory
-</blockquote>
- 
-To avoid such problems, you can pass flags to Open MPI's configure script that instruct 
-the Intel compiler suite to statically link its runtime libraries with Open MPI:
+</geshi>
+
+To avoid such problems, you can pass flags to Open MPI's configure
+script that instruct the Intel compiler suite to statically link its
+runtime libraries with Open MPI:
 
 <geshi bash>
 shell$ ./configure CC=icc CXX=icpc FC=ifort LDFLAGS=-Wc,-static-intel ...
