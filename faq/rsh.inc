@@ -1,4 +1,4 @@
-`<?php
+<?php
 include_once("$topdir/software/ompi/current/version.inc");
 
 $q[] = "Can I make Open MPI use <code>rsh</code> instead of <code>ssh</code>?";
