@@ -89,7 +89,7 @@ them when the Open MPI libraries will be mounted on a network file
 system! Doing so will lead to significant network traffic and delayed
 start times, especially on clusters with a large number of
 nodes. Instead, be sure to configure your build with
---disable-dlopen. This will include the DSO's in the main libraries,
+[--disable-dlopen]. This will include the DSO's in the main libraries,
 resulting in much faster startup times.</li>
 
 <li>Many networked file systems use automount for user level
@@ -226,7 +226,7 @@ and tested as to whether or not they should be selected for use. If
 you know that a component can build on your system, but due to your
 cluster's configuration will never actually be selected, then it is
 best to simply configure OMPI to not build that component by using the
-_--enable-mca-no-build_ configure option.
+[--enable-mca-no-build] configure option.
 
 For example, if you know that your system will only utilize the
 \"ob1\" component of the PML framework, then you can _no_build_ all

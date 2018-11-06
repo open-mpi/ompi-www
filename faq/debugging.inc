@@ -13,7 +13,7 @@ tricky: errors, uninitialized variables, stack smashing, ... etc.
 Debugging in parallel adds multiple different dimensions to this
 problem: a greater propensity for race conditions, asynchronous
 events, and the general difficulty of trying to understand N processes
-simultaneously executing -- the problem becomes quite formidable.
+simultaneously executing &mdash; the problem becomes quite formidable.
 
 This FAQ section does not provide any definite solutions to
 debugging in parallel.  At best, it shows some general techniques and
@@ -131,7 +131,7 @@ when MPI_ABORT is invoked showing the hostname and PID of the process
 that invoked MPI_ABORT, and then delay that many seconds before
 exiting.  A negative value means to delay indefinitely.  This allows a
 user to manually come in and attach a debugger when an error occurs.
-Remember that the default MPI error handler -- MPI_ERRORS_ABORT --
+Remember that the default MPI error handler &mdash; MPI_ERRORS_ABORT &mdash;
 invokes MPI_ABORT, so this parameter can be useful to discover
 problems identified by *mpi_param_check*.</li>
 
@@ -156,7 +156,7 @@ $a[] = "No.
 If you build Open MPI without compiler/linker debugging flags (such as
 <code>-g</code>), you will not be able to step inside MPI functions
 when you debug your MPI applications.  However, this is likely what
-you want -- the internals of Open MPI are quite complex and you
+you want &mdash; the internals of Open MPI are quite complex and you
 probably don't want to start poking around in there.
 
 You'll need to compile your own applications with [-g] (or whatever
@@ -310,7 +310,7 @@ shell$ mpirun -np 4 --hostfile my_hostfile \
     -x DISPLAY=arcade.example.com:0 xterm -e gdb my_mpi_application
 </geshi>
 
-Note that X traffic is fairly \"heavy\" -- if you are operating over a
+Note that X traffic is fairly \"heavy\" &mdash; if you are operating over a
 slow network connection, it may take some time before the [xterm]
 windows appear on your screen.</li>
 
@@ -355,7 +355,7 @@ your application fails due to memory corruption, Open MPI may
 subsequently fail to output an error message before dying.
 Specifically, starting with v1.3, Open MPI attempts to aggregate error
 messages from multiple processes in an attempt to show unique error
-messages only once (vs. one for each MPI process -- which can be
+messages only once (vs. one for each MPI process &mdash; which can be
 unwieldy, especially when running large MPI jobs).
 
 However, this aggregation process requires allocating memory in the
@@ -365,7 +365,7 @@ fail and the process will simply die, possibly silently.  When Open
 MPI does not attempt to aggregate error messages, most of its setup
 work is done during MPI_INIT and no memory is allocated during the
 \"print the error\" routine.  It therefore almost always successfully
-outputs error messages in real time -- but at the expense that you'll
+outputs error messages in real time &mdash; but at the expense that you'll
 potentially see the same error message for *each* MPI process that
 encountered the error.
 

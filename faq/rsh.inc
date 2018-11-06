@@ -32,7 +32,7 @@ to [rsh] or [rsh : ssh] if you have a mixture.</li>
 same as the v1.3 method, but the MCA parameter name is slightly
 different: [pls_rsh_agent] (\"pls\" vs. \"plm\").  Using the old
 \"pls\" name will continue to work in the v1.3 series, but it is now
-officially deprecated -- you'll receive a warning if you use it.</li>
+officially deprecated &mdash; you'll receive a warning if you use it.</li>
 
 <li> *v1.0 series:* In the 1.0.x series, Open MPI defaults to using
 [ssh] for remote startup of processes in unscheduled environments.
@@ -43,7 +43,7 @@ parameter</a> [pls_rsh_agent] to [rsh].  </li>
 </ol>
 
 See <a href=\"?category=tuning#setting-mca-params\">this FAQ entry</a>
-for details on how to set MCA parameters -- particularly with
+for details on how to set MCA parameters &mdash; particularly with
 multi-word values.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -123,8 +123,8 @@ In order for RSA authentication to work, you need to have the
 are running Open MPI.  If your home directory is on a common
 filesystem, this may be already taken care of.  If not, you will need to
 copy the [\$HOME/.ssh] directory to your home directory on all Open
-MPI nodes (be sure to do this in a secure manner -- perhaps using the
-[scp] command -- particularly if your secret key is not encrypted).
+MPI nodes (be sure to do this in a secure manner &mdash; perhaps using the
+[scp] command &mdash; particularly if your secret key is not encrypted).
 
 [ssh] is very particular about file permissions. Ensure that your home
 directory on all your machines is set to at least mode 755, your
@@ -223,7 +223,7 @@ The first field indicates the name of the machine where jobs may
 originate from; the second field indicates the user ID who may
 originate jobs from that machine.  It is better to supply a
 fully-qualified domain name for the machine name (for security reasons
--- there may be many machines named [stevemachine] on the internet).
+&mdash; there may be many machines named [stevemachine] on the internet).
 So the above example should be:
 
 <geshi text>
@@ -246,7 +246,7 @@ the [.rhosts] file, and will give a misleading \"permission denied\"
 error if you have white space before the machine name.
 
 <strong><font color=red>NOTE:</font></strong> It should be noted that
-[rsh] is _not_ considered \"secure\" or \"safe\" -- [.rhosts]
+[rsh] is _not_ considered \"secure\" or \"safe\" &mdash; [.rhosts]
 authentication is considered fairly weak.  The Open MPI Team
 recommends that you use [ssh] (\"Secure Shell\") to launch remote
 programs as it uses a much stronger authentication system.";
@@ -267,7 +267,7 @@ Using a \"[+]\" in your [.rhosts] file indicates that you will allow
 any machine and/or any user to connect as you.  This is _extremely_
 dangerous, especially on machines that are connected to the internet.
 Consider the fact that anyone on the internet can connect to your
-machine (as you) -- it should strike fear into your heart.
+machine (as you) &mdash; it should strike fear into your heart.
 
 <center>
 *The [+] should not be used for either field of the [.rhosts] file.*
@@ -282,6 +282,6 @@ as your local [rsh] documentation.
 
 Additionally, the Open MPI Team strongly recommends that [rsh] is not
 used in unscheduled environments (espectially those connected to the
-internet) -- it is considered weak remote authentication.  Instead, we
-recommend the use of [ssh] -- the secure remote shell.  See <a
+internet) &mdash; it is considered weak remote authentication.  Instead, we
+recommend the use of [ssh] &mdash; the secure remote shell.  See <a
 href=\"#ssh-keys\">this FAQ entry</a> for more details.";

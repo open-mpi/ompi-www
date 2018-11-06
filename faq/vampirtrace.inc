@@ -31,7 +31,7 @@ the compiler wrappers to activate it: [mpicc] to [mpicc-vt], [mpicxx]
 to [mpicxx-vt] and so on (note that the [*-vt] variants of the wrapper
 compilers are unavailable before Open MPI v1.3).  Secondly, the
 run-time measurement part is responsible for data collection.  This
-can only be effective when the first part was performed -- otherwise
+can only be effective when the first part was performed &mdash; otherwise
 there will be *no* effect on your program *at all*.
 
 VampirTrace has been developed at ZIH, TU Dresden in collaboration with

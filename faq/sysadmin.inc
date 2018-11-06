@@ -120,7 +120,7 @@ The bottom line is that Open MPI can support all manner of run-time
 systems and interconnects in a single installation, but supporting
 multiple compilers \"sort of\" works (i.e., is subject to trial and
 error) in some cases, and definitely does not work in other cases.
-There's unfortunately little that we can do about this -- it's a
+There's unfortunately little that we can do about this &mdash; it's a
 compiler compatibility issue, and one that compiler authors have
 little incentive to resolve.";
 
@@ -149,7 +149,7 @@ operating environment.  These values can then be set in a global text
 file that all users will, by default, inherit when then run Open MPI
 jobs.
 
-For example, say that you have a cluster with 2 ethernet networks --
+For example, say that you have a cluster with 2 ethernet networks &mdash;
 one for NFS and other system-level operations, and one for MPI jobs.
 The system administrator can tell Open MPI to not use the NFS TCP
 network at a system level, such that when users invoke [mpirun] or
@@ -295,7 +295,7 @@ $anchor[] = "new-plugin";
 $a[] = "If your installation of Open MPI uses shared libraries and
 components are standalone plug-in files, then no.  If you add a new
 component (such as support for a new network), Open MPI will simply
-open the new plugin at run-time -- your applications do not need to be
+open the new plugin at run-time &mdash; your applications do not need to be
 recompiled or re-linked.";
 
 /////////////////////////////////////////////////////////////////////////

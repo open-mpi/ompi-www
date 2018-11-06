@@ -21,7 +21,7 @@ LD_LIBRARY_PATH: /opt/openmpi/lib
 Depending on your environment, you may need to set these values in
 your shell startup files (e.g., [.profile], [.cshrc], etc.).
 
-*NOTE:* there are exceptions to this rule -- notably <a
+*NOTE:* there are exceptions to this rule &mdash; notably <a
 href=\"#mpirun-prefix\">the [--prefix] option to mpirun</a>.
 
 See <a href=\"#adding-ompi-to-path\">this FAQ entry</a> for more
@@ -66,8 +66,8 @@ compatible, however, and can be recompiled/re-linked with other Open
 MPI releases.
 </blockquote>
 
-Starting with v1.3.2, Open MPI provides forward ABI compatibility --
-with respect to the MPI API only -- in all versions of a given <a
+Starting with v1.3.2, Open MPI provides forward ABI compatibility &mdash;
+with respect to the MPI API only &mdash; in all versions of a given <a
 href=\"https://www.open-mpi.org/software/ompi/versions/\">feature
 release series</a> and its corresponding <a
 href=\"https://www.open-mpi.org/software/ompi/versions/\">super stable
@@ -253,7 +253,7 @@ $q[] = "What if I can't modify my <code>PATH</code> and/or <code>LD_LIBRARY_PATH
 $anchor[] = "mpirun-prefix";
 
 $a[] ="There are some situations where you cannot modify the [PATH] or
-[LD_LIBRARY_PATH] -- e.g., some ISV application prefer to hide all
+[LD_LIBRARY_PATH] &mdash; e.g., some ISV application prefer to hide all
 parallelism from the user, and therefore do not want to make the user
 modify their shell startup files.  Another case is where you want a
 single user to be able to launch multiple MPI jobs simultaneously,
@@ -289,7 +289,7 @@ and remote hosts with [/opt/openmpi-$ver_current/bin] and
 [/opt/openmpi-$ver_current/lib], respectively.  This is _usually_
 unnecessary when using resource managers to launch jobs (e.g., SLURM,
 Torque, etc.) because they tend to copy the entire local environment
--- to include the [PATH] and [LD_LIBRARY_PATH] -- to remote nodes
+&mdash; to include the [PATH] and [LD_LIBRARY_PATH] &mdash; to remote nodes
 before execution.  As such, if [PATH] and [LD_LIBRARY_PATH] are set
 properly on the local node, the resource manager will automatically
 propagate those values out to remote nodes.  The [--prefix] option is
@@ -323,7 +323,7 @@ questions in this FAQ category deal with using these commands.
 Note, however, that these commands are exactly identical.
 Specifically, they are symbolic links to a common back-end launcher
 command named [orterun] (Open MPI's run-time environment interaction
-layer is named the Open Run-Time Environment, or ORTE -- hence
+layer is named the Open Run-Time Environment, or ORTE &mdash; hence
 [<strong>orte</strong>run]).
 
 As such, the rest of this FAQ usually refers only to [mpirun], even
@@ -771,7 +771,7 @@ forwarding.  However, it does not work well with curses, ncurses,
 readline, or other sophisticated I/O packages that generally require
 direct control of the terminal.
 
-Every application and I/O library is different -- you should try to
+Every application and I/O library is different &mdash; you should try to
 see if yours is supported.  But chances are that it won't work.
 
 Sorry.  :-(";
@@ -857,7 +857,7 @@ be in the already-provided host list.  If the hostfile-specified nodes
 are _not_ in the already-provided host list, [mpirun] will abort
 without launching anything.
 
-In this case, hostfiles act like an exclusionary filter -- they limit
+In this case, hostfiles act like an exclusionary filter &mdash; they limit
 the scope of where processes will be scheduled from the original list
 of hosts to produce a final list of hosts.
 
@@ -1031,7 +1031,7 @@ $a[] = "The short version is that if you are not oversubscribing your
 nodes (i.e., trying to run more processes than you have told Open MPI
 are available on that node), scheduling is pretty simple and occurs
 either on a by-slot or by-node round robin schedule.  If you're
-oversubscribing, the issue gets much more complicated -- keep reading.
+oversubscribing, the issue gets much more complicated &mdash; keep reading.
 
 The more complete answer is: Open MPI schedules processes to nodes by
 asking two questions from each application on the [mpirun] command
@@ -1067,7 +1067,7 @@ count.
 Max slot counts, however, are rarely specified by schedulers.  The max
 slot count for each node will default to \"infinite\" if it is not
 provided (meaning that Open MPI will oversubscribe the node if you ask
-it to -- see more on oversubscribing in <a
+it to &mdash; see more on oversubscribing in <a
 href=\"#oversubscribing\">this FAQ entry</a>).
 
 Open MPI currently supports two scheduling policies: by slot and by
@@ -1252,7 +1252,7 @@ shell$ mpirun -np 4 --hostfile my-hostfile a.out
 
 This would cause all 4 MPI processes to run in _aggressive_ mode
 because Open MPI thinks that there are 4 available processors
-to use.  This is actually a lie (there is only 1 processor -- not 4),
+to use.  This is actually a lie (there is only 1 processor &mdash; not 4),
 and can cause extremely bad performance.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -1429,7 +1429,7 @@ $q[] = "How do I run with the SLURM and PBS/Torque launchers?";
 $anchor[] = "run-slurm-or-tm";
 
 $a[] = "If support for these systems are included in your Open MPI
-installation (which you can check with the [ompi_info] command -- look
+installation (which you can check with the [ompi_info] command &mdash; look
 for components named \"[slurm]\" and/or \"[tm]\"), Open MPI will
 automatically detect when it is running inside such jobs and will just
 \"do the Right Thing.\"
@@ -1454,7 +1454,7 @@ $q[] = "How do I run with LoadLeveler?";
 $anchor[] = "run-loadleveler";
 
 $a[] = "If support for LoadLeveler is included in your Open MPI
-installation (which you can check with the [ompi_info] command -- look
+installation (which you can check with the [ompi_info] command &mdash; look
 for components named \"[loadleveler]\"), Open MPI will
 automatically detect when it is running inside such jobs and will just
 \"do the Right Thing.\"

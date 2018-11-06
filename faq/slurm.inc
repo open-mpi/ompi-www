@@ -6,7 +6,7 @@ $q[] = "How do I run jobs under SLURM?";
 $anchor[] = "slurm-run-jobs";
 
 $a[] = "The short answer is yes, provided you configured OMPI
---with-slurm. You can use [mpirun] as normal, or directly launch
+[--with-slurm]. You can use [mpirun] as normal, or directly launch
 your application using srun if OMPI is configured per
 <a
 href=\"?category=slurm#slurm-direct-srun-mpi-apps\">this FAQ entry</a>.
@@ -68,13 +68,13 @@ $q[] = "Does Open MPI support \"srun -n X my_mpi_application\"?";
 
 $anchor[] = "slurm-direct-srun-mpi-apps";
 
-$a[] = "Yes, if you have configured OMPI --with-pmi=foo, where foo is
-the path to the directory where pmi.h/pmi2.h is located. Slurm (> 2.6,
-> 14.03) installs PMI-2 support by default.
+$a[] = "Yes, if you have configured OMPI [--with-pmi=foo], where foo is
+the path to the directory where pmi.h/pmi2.h is located. Slurm (&gt; 2.6,
+&gt; 14.03) installs PMI-2 support by default.
 
 Older versions of Slurm install PMI-1 by default. If you desire PMI-2,
 Slurm requires that you manually install that support. When the
---with-pmi option is given, OMPI will automatically determine if PMI-2
+[--with-pmi] option is given, OMPI will automatically determine if PMI-2
 support was built and use it in place of PMI-1.";
 
 /////////////////////////////////////////////////////////////////////////

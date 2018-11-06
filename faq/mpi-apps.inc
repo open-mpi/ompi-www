@@ -53,12 +53,12 @@ or linking; all they do is manipulate the command line and add in all
 the relevant compiler / linker flags and then invoke the underlying
 compiler / linker (hence, the name \"wrapper\" compiler).  More
 specifically, if you run into a compiler or linker error, check your
-source code and/or back-end compiler -- it is _usually_ not the fault of
+source code and/or back-end compiler &mdash; it is _usually_ not the fault of
 the Open MPI wrapper compiler.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Wait -- what is <code>mpifort</code>?  Shouldn't I use
+$q[] = "Wait &mdash; what is <code>mpifort</code>?  Shouldn't I use
 <code>mpif77</code> and <code>mpif90</code>?";
 
 $anchor[] = "mpifort-vs-mpif77-and-mpif90";
@@ -69,7 +69,7 @@ debuted in Open MPI v1.7.
 *It supports compiling all versions of Fortran*, and *utilizing all
 MPI Fortran interfaces* (<code>mpif.h</code>, [use mpi], and [use
 mpi_f08]).  There is no need to distinguish between \"Fortran 77\"
-(which hasn't existed for 30+ years) or \"Fortran 90\" -- just use
+(which hasn't existed for 30+ years) or \"Fortran 90\" &mdash; just use
 [mpifort] to compile all your Fortran MPI applications and don't worry
 about what dialect it is, nor which MPI Fortran interface it uses.
 
@@ -112,8 +112,8 @@ Things are _much_ better these days; wrapper compilers can handle
 almost any situation, and are far more reliable than you attempting to
 hard-code the Open MPI-specific compiler and linker flags manually.
 
-That being said, there *are* some -- very, very few -- situations
-where using wrapper compilers can be problematic -- such as nesting
+That being said, there *are* some &mdash; very, very few &mdash; situations
+where using wrapper compilers can be problematic &mdash; such as nesting
 multiple wrapper compilers of multiple projects.  Hence, Open MPI
 provides a workaround to find out what command line flags you need to
 compile MPI applications.  There are generally two sets of flags that
@@ -585,7 +585,7 @@ applications to be compiled with.  Rather than trying to get all your
 users to remember to pass the extra flags to the compiler when
 compiling their applications, you can specify them with the [configure]
 options shown above, thereby silently including them in the Open MPI
-wrapper compilers -- your users will therefore be using the correct
+wrapper compilers &mdash; your users will therefore be using the correct
 flags without ever knowing it.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -606,8 +606,8 @@ include any non-essential flags in the wrapper compilers.  This is the
 most conservative setting and allows the greatest flexability for
 end-users.  If the wrapper compilers started adding flags to support
 specific features (such as run-time locations for finding the Open MPI
-libraries), such flags -- no matter how useful to some portion of
-users -- would almost certainly break assumptions and functionality
+libraries), such flags &mdash; no matter how useful to some portion of
+users &mdash; would almost certainly break assumptions and functionality
 for other users.
 
 As a workaround, Open MPI provides several mechanisms for users to
@@ -680,9 +680,9 @@ your program links to.  This includes Open MPI; you must have used the
 [--enable-static] option to Open MPI's configure or otherwise have
 available the static versions of the Open MPI libraries (note that
 Open MPI static builds default to including all of its plugins *in*
-its libraries -- as opposed to having each plugin in its own dynamic
+its libraries &mdash; as opposed to having each plugin in its own dynamic
 shared object file.  So *all* of Open MPI's code will be contained in
-the static libraries -- even what are normally contained in Open MPI's
+the static libraries &mdash; even what are normally contained in Open MPI's
 plugins).  Note that some popular Linux libraries do not have static
 versions by default (e.g., libnuma), or require additional RPMs to be
 installed to get the equivalent libraries.</li>
@@ -740,7 +740,7 @@ your libibverbs).  Both libibverbs and your verbs hardware plugin must
 be available in static form.
 
 Once all of that has been setup, run the following (artificially
-wrapped sample output shown below -- your output may be slightly
+wrapped sample output shown below &mdash; your output may be slightly
 different):
 
 <geshi bash>
@@ -752,7 +752,7 @@ gcc -I/opt/openmpi/include/openmpi \
 -lopen-pal -libverbs -lrt -Wl,--export-dynamic -lnsl -lutil -lm -ldl
 </geshi>
 
-(or use whatever wrapper compiler is relevant -- the [--showme] flag
+(or use whatever wrapper compiler is relevant &mdash; the [--showme] flag
 is the important part here)
 
 This example shows the steps for the GNU compiler suite, but other
@@ -812,8 +812,8 @@ $a[] = "
 MPI v1.7, if you are not using gfortran, buidling the Fortran 90 and
 08 bindings do not suffer the same performance penalty that previous
 versions incurred.  The Open MPI developers encourage all users to
-upgrade to the new Fortran bindings implementation -- including the
-new MPI-3 Fortran'08 bindings -- when possible.
+upgrade to the new Fortran bindings implementation &mdash; including the
+new MPI-3 Fortran'08 bindings &mdash; when possible.
 </blockquote>
 
 This is unfortunately due to a design flaw in the MPI F90

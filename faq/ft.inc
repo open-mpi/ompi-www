@@ -20,7 +20,7 @@ Open MPI strives to provide the application with a consistent system
 view while still providing a production quality, high performance
 implementation.
 
-Yes, that's pretty much as all-inclusive as possible -- intentionally
+Yes, that's pretty much as all-inclusive as possible &mdash; intentionally
 so!  Remember that in addition to being a production-quality MPI
 implementation, Open MPI is also a vehicle for research.  So while
 some forms of \"fault tolerance\" are more widely accepted and used,
@@ -153,7 +153,7 @@ be corrupted while traversing PCI buses, etc. (some corruption errors
 at this level can be caught/fixed, others cannot).  Such errors are
 not uncommon at high altitudes (!).
 
-Note that such added reliability does incur a performance cost --
+Note that such added reliability does incur a performance cost &mdash;
 latency and bandwidth suffer when Open MPI performs the consistency
 checks that are necessary to provide such guarantees.
 

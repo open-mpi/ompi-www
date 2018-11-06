@@ -107,7 +107,7 @@ $a[] = "<font size=+3 color=red><strong>ABSOLUTELY.</strong></font>
 Bringing together smart researchers and developers to work on a common
 product is not only a good idea, it's the open source model.  Merging
 the multiple MPI implementation teams has worked extremely well for us
-over the past year -- extending this concept to the HPC open source
+over the past year &mdash; extending this concept to the HPC open source
 community is the next logical step.
 
 The component architecture that Open MPI is founded upon (see the
@@ -143,7 +143,7 @@ href=\"$topdir/community/license.php\">the new BSD license</a>.
 That being said, although we are an open source project, we recognize
 that the everyone does not provide free, open source software.  Our
 collaboration models allow (and encourage!)  3rd parties to write and
-distribute their own components -- perhaps with a different license,
+distribute their own components &mdash; perhaps with a different license,
 and perhaps even as closed source.  This is all perfectly acceptable
 (and desirable!).";
 
@@ -279,13 +279,13 @@ be in Open MPI.</li>
 Open MPI.</li>
 </ul>
 
-Not to worry -- each of the respective teams has a vested interest in
+Not to worry &mdash; each of the respective teams has a vested interest in
 bringing over the \"best\" parts of their prior implementation to Open
 MPI.  Indeed, we would love to migrate each of our current user bases
 to Open MPI as their time, resources, and constraints allow.
 
-In short: we believe that Open MPI -- its code, methodology, and open
-source philosophy -- is the future.";
+In short: we believe that Open MPI &mdash; its code, methodology, and open
+source philosophy &mdash; is the future.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -315,14 +315,14 @@ excellence, we all shared the same common core values:
 
 <ul>
 <li>A full MPI implementation</li>
-<li>Production quality code -- it has to \"just work\"</li>
+<li>Production quality code &mdash; it has to \"just work\"</li>
 <li>A desire to explore lots of things that an MPI implementation can
 do that we've never had the time/resources to investigate because we
 are bound to bug fixing, etc.</li>
 </ul>
 
 Hence, we decided to collaborate and pool our resources.  At SC2003,
-we decided to start an entire new code base -- leaving all the cruft
+we decided to start an entire new code base &mdash; leaving all the cruft
 and legacy code of our prior implementations behind.  Take the best,
 leave the rest.  The source tree's first commit was on November 22,
 2003; development work started in earnest on January 5, 2004.  Since

@@ -67,8 +67,8 @@ administrators to fine-tune the Open MPI installation for their
 hardware / environment such that normal users can simply use the
 default values.
 
-More specifically, HPC environments -- and the applications that run
-on them -- tend to be unique.  Providing extensive run-time tuning
+More specifically, HPC environments &mdash; and the applications that run
+on them &mdash; tend to be unique.  Providing extensive run-time tuning
 capabilities through MCA parameters allows the customization of Open
 MPI to each system's / user's / application's particular needs.";
 
@@ -420,7 +420,7 @@ Keep in mind that, just like components, these parameter files are
 *only* relevant where they are \"visible\" (see <a
 href=\"#install-components\">this FAQ entry</a>).  Specifically,
 Open MPI does not read all the values from these files during startup
-and then send them to all nodes in the job -- the files are read on
+and then send them to all nodes in the job &mdash; the files are read on
 each node during each process' startup.  This is intended behavior: it
 allows for per-node customization, which is especially relevant in
 heterogeneous environments.</li>
@@ -610,7 +610,7 @@ that process to run on only that subset.  (Other processes might be
 allowed on the same resources.)
 
 Affinity can improve performance by inhibiting excessive process
-movement -- for example, away from \"hot\" caches or NUMA memory.
+movement &mdash; for example, away from \"hot\" caches or NUMA memory.
 Judicious bindings can improve performance by reducing resource contention
 (by spreading processes apart from one another) or improving interprocess
 communications (by placing processes close to one another).  Binding can
@@ -659,7 +659,7 @@ because most architectures exhibit Non-Uniform Memory Access (NUMA)
 architectures.  In a NUMA architecture, memory is physically
 distributed throughout the machine even though it is virtually treated
 as a single address space.  That is, memory may be physically local to
-one or more processors -- and therefore remote to other processors.
+one or more processors &mdash; and therefore remote to other processors.
 
 Simply put: some memory will be faster to access (for a given process)
 than others.
@@ -772,7 +772,7 @@ will print out warnings to that effect.
 Also note, however, that processor affinity is _not_ exclusionary with
 Degraded performance mode.  Degraded mode is _usually_ only used when
 oversubscribing nodes (i.e., running more processes on a node than it
-has processors -- see <a
+has processors &mdash; see <a
 href=\"./?category=running#oversubscribing\">this FAQ entry</a> for
 more details about oversubscribing, as well as a definition of
 Degraded performance mode).  It is possible manually to select
@@ -810,7 +810,7 @@ MPI process in your job.  Note:
 <ul>
 <li>Typically, the slot list is a comma-delimited list of ranges.  The
 numbering is OS/BIOS-dependent and refers to the finest grained processing
-units identified by the OS -- for example, cores or hardware threads.</li>
+units identified by the OS &mdash; for example, cores or hardware threads.</li>
 <li>Alternatively, a colon can be used in the slot list for _socket:core_
 designations.  For example, _1:2-3_ means cores 2-3 of socket 1.</li>
 <li>It is strongly recommended that you provide a full rankfile when
@@ -821,8 +821,8 @@ for example via a list of hosts in a hostfile or as obtained from a
 resource manager.</li>
 <li>The number of processes [np] must be provided on the [mpirun] cmd
 line.</li>
-<li>If some processing units are not available -- e.g., due to
-unpopulated sockets, idled cores, or BIOS settings -- the syntax assumes
+<li>If some processing units are not available &mdash; e.g., due to
+unpopulated sockets, idled cores, or BIOS settings &mdash; the syntax assumes
 a logical numbering in which numbers are contiguous despite the physical
 gaps.  You may refer to actual physical numbers with a \"p\" prefix.
 For example, _rank 4=host3 slot=<font color=red><strong>p</strong></font>3:2_
@@ -841,7 +841,7 @@ shell$ mpirun -np 4 -hostfile hostfile ****--slot-list 0:1**** ./my_mpi_applicat
 </geshi>
 
 Remember, every process will use the same slot list.  If multiple processes
-run on the same host, they will bind to the same resources -- in this case,
+run on the same host, they will bind to the same resources &mdash; in this case,
 socket0:core1, presumably oversubscribing that core and ruining performance.
 
 Slot lists can be used to bind to multiple slots, which would be helpful for
@@ -1053,7 +1053,7 @@ what the results mean.
 To be specific, many benchmark applications are not well understood
 for exactly what they are testing.  There have been many cases where
 users run a given benchmark application and wrongfully conclude that
-their system's performance is bad -- solely on the basis of a single
+their system's performance is bad &mdash; solely on the basis of a single
 benchmark that they did not understand.  Read the documentation of the
 benchmark carefully, and possibly even look into the code itself to
 see exactly what it is testing.
@@ -1124,12 +1124,12 @@ fewer samples; longer-running jobs tend to take more samples
 
 <ul>
 <li> Perform some \"warmup\" events first.  Many MPI implementations
-(including Open MPI) -- and other subsystems upon which the MPI uses
--- may use \"lazy\" semantics to setup and maintain streams of
+(including Open MPI) &mdash; and other subsystems upon which the MPI uses
+&mdash; may use \"lazy\" semantics to setup and maintain streams of
 communications.  Hence, the first event (or first few events)
 may well take significantly longer than subsequent events.</li>
 
-<li> Use a high-resolution timer if possible -- [gettimeofday()] only
+<li> Use a high-resolution timer if possible &mdash; [gettimeofday()] only
 returns milisecond precision (sometimes on the order of several
 microseconds).</li>
 
@@ -1155,7 +1155,7 @@ and software versions as appropriate). </li>
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "I am getting a MPI_Win_free error from IMB-EXT -- what do I do?";
+$q[] = "I am getting a MPI_Win_free error from IMB-EXT &mdash; what do I do?";
 
 $anchor[] = "imb-win-free-error";
 

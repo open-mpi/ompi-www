@@ -43,7 +43,7 @@ for \"C source files\" and select using MPICC.
 Before moving the file, the <code>ExecPath</code> parameter should be set
 to the location of the Open MPI install.  The <code>BasedOn</code> parameter
 should be updated to refer to the compiler version that <code>mpicc</code>
-will invoke -- generally <code>gcc-4.0</code> on OS X 10.4 machines.
+will invoke &mdash; generally <code>gcc-4.0</code> on OS X 10.4 machines.
 
 Thanks to Karl Dockendorf for this information.
 ";
@@ -119,9 +119,9 @@ $q[] = "Is Open MPI included in OS X?";
 
 $anchor[] = "osx-bundled-ompi";
 
-$a[] = "Open MPI v1.2.3 was included in some older versions of OS X --
+$a[] = "Open MPI v1.2.3 was included in some older versions of OS X &mdash;
 starting with version 10.5 (Leopard).  It was removed in more recent
-versions of OS X (we're not sure in which version it disappeared --
+versions of OS X (we're not sure in which version it disappeared &mdash;
 *but your best bet is to simply <a href=\"$topdir/software/\">download
 a modern version of Open MPI</a> for your modern version of OS X*).
 

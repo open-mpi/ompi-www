@@ -212,12 +212,12 @@ $anchor[] = "why-openib-name";
 
 $a[] = "Before the iWARP vendors joined the OpenFabrics Alliance, the
 project was known as OpenIB.  Open MPI's support for this software
-stack was originally written during this timeframe -- the name of the
+stack was originally written during this timeframe &mdash; the name of the
 group was \"OpenIB\", so we named the BTL [openib].
 
 Since then, iWARP vendors joined the project and it changed names to
 \"OpenFabrics\".  Open MPI did not rename its BTL mainly for
-historical reasons -- we didn't want to break compatibility for users
+historical reasons &mdash; we didn't want to break compatibility for users
 who were already using the [openib] BTL name in scripts, etc.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -237,14 +237,14 @@ The Open MPI team is doing no new work with mVAPI-based networks.
 
 Generally, much of the information contained in this FAQ category
 applies to both the OpenFabrics [openib] BTL and the mVAPI [mvapi] BTL
--- simply replace [openib] with [mvapi] to get similar results.
+&mdash; simply replace [openib] with [mvapi] to get similar results.
 However, new features and options are continually being added to the
 [openib] BTL (and are being listed in this FAQ) that will not be
 back-ported to the [mvapi] BTL.  So not all [openib]-specific items in
 this FAQ category will apply to the [mvapi] BTL.
 
 All that being said, as of Open MPI v4.0.0, the use of InfiniBand over
-the [openib] BTL is deprecated -- <a href=\"#run-ucx\">the UCX PML</a>
+the [openib] BTL is deprecated &mdash; <a href=\"#run-ucx\">the UCX PML</a>
 is the preferred way to run over InfiniBand.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -292,7 +292,7 @@ be absolutely positively definitely sure to use the specific BTL.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "But wait -- I also have a TCP network.  Do I need to explicitly
+$q[] = "But wait &mdash; I also have a TCP network.  Do I need to explicitly
 disable the TCP BTL?";
 
 $anchor[] = "ib-tcp-disable";
@@ -416,7 +416,7 @@ $anchor[] = "ib-locked-pages";
 
 $a[] = "With OpenFabrics (and therefore the [openib] BTL component),
 you need to set the available locked memory to a large number (or
-better yet, unlimited) -- the defaults with most Linux installations
+better yet, unlimited) &mdash; the defaults with most Linux installations
 are usually too low for most HPC applications that utilize
 OpenFabrics.  Failure to do so will result in a error message similar
 to one of the following (the messages have changed throughout the
@@ -566,7 +566,7 @@ integral number of pages).  \"&lt;number&gt;\" can also be
 <li>Per-user default values are controlled via the [ulimit] (or
 [limit] in csh) command.  The default amount of memory allowed to be
 locked will correspond to the \"soft\" limit set in
-[/etc/security/limits.d/] (or [limits.conf] -- see above); users
+[/etc/security/limits.d/] (or [limits.conf] &mdash; see above); users
 cannot use [ulimit] (or [limit] in csh) to set their amount to be more
 than the hard limit in [/etc/security/limits.d] (or [limits.conf]).
 
@@ -596,7 +596,7 @@ using [rsh] or [ssh] to start parallel jobs, it will be necessary to
 set the [ulimit] in your shell startup files so that it is effective
 on the processes that are started on each node.
 
-More specifically -- it may not be sufficient to simply execute the
+More specifically &mdash; it may not be sufficient to simply execute the
 following, because the [ulimit] may not be in effect on all nodes
 where Open MPI processes will be run:
 
@@ -742,7 +742,7 @@ In older hardware:
 *<font color=\"red\">At least some versions of OFED (community OFED,
 Mellanox OFED, and upstream OFED in Linux distributions) set the
 default values of these variables FAR too low!</font>* For example, in
-some cases, the default values may only allow registering 2 GB -- even
+some cases, the default values may only allow registering 2 GB &mdash; even
 if the node has much more than 2GB of physical memory.
 
 Mellanox has advised the Open MPI community to increase the
@@ -859,7 +859,7 @@ row("Internal eager fragment buffers", "2 x
     unbounded, meaning that Open MPI will try to allocate as many
     registered buffers as it needs.  If [btl_openib_free_list_max] is
     greater than 0, the list will be limited to this size.  Each entry
-    in the list is approximately [btl_openib_eager_limit] bytes --
+    in the list is approximately [btl_openib_eager_limit] bytes &mdash;
     some additional overhead space is required for alignment and
     internal accounting.  <code>btl_openib_eager_limit</code> is the
     maximum size of an eager fragment.") .
@@ -876,7 +876,7 @@ row("Internal send/receive buffers", "2 x
     unbounded, meaning that Open MPI will allocate as many registered
     buffers as it needs.  If [btl_openib_free_list_max] is greater
     than 0, the list will be limited to this size.  Each entry in the
-    list is approximately [btl_openib_max_send_size] bytes -- some
+    list is approximately [btl_openib_max_send_size] bytes &mdash; some
     additional overhead space is required for alignment and internal
     accounting.  <code>btl_openib_max_send_size</code> is the maximum
     size of a send/receive fragment.") .
@@ -1002,11 +1002,11 @@ $anchor[] = "ib-leave-pinned";
 
 $a[] = "Open MPI, by default, uses a pipelined RDMA protocol.
 Additionally, in the v1.0 series of Open MPI, small messages use
-send/receive semantics (instead of RDMA -- small message RDMA <a
+send/receive semantics (instead of RDMA &mdash; small message RDMA <a
 href=\"#ib-small-message-rdma\">was added in the v1.1 series</a>).
 For some applications, this may result in lower-than-expected
 bandwidth.  However, Open MPI also supports caching of registrations
-in a most recently used (MRU) list -- this bypasses the pipelined RDMA
+in a most recently used (MRU) list &mdash; this bypasses the pipelined RDMA
 and allows messages to be sent faster (in some cases).
 
 For version the v1.1 series, see <a
@@ -1268,8 +1268,8 @@ the child that is registered in the parent will cause a segfault or
 other error).  Because memory is registered in units of pages, the end
 of a long message is likely to share the same page as other heap
 memory in use by the application.  If this last page of the large
-message is registered, then all the memory in that page -- to include
-other buffers that are not part of the long message -- will not be
+message is registered, then all the memory in that page &mdash; to include
+other buffers that are not part of the long message &mdash; will not be
 available to the child.  By moving the \"intermediate\" fragments to
 the end of the message, the end of the message will be sent with copy
 in/copy out semantics and, more importantly, will not have its page
@@ -1331,7 +1331,7 @@ with very little software intervention results in utilizing the
 maximum possible bandwidth.
 
 Leaving user memory registered has disadvantages, however.  Bad Things
-happen if registered memory is <code>free()</code>ed, for example --
+happen if registered memory is <code>free()</code>ed, for example &mdash;
 it can silently invalidate Open MPI's cache of knowing which memory is
 registered and which is not.  The MPI layer usually has no visibility
 on when the MPI application calls [free()] (or otherwise frees memory,
@@ -1344,7 +1344,7 @@ These schemes are best described as \"icky\" and can actually cause
 real problems in applications that provide their own internal memory
 allocators.  Additionally, only _some_ applications (most notably,
 ping-pong benchmark applications) benefit from \"leave pinned\"
-behavior -- those who consistently re-use the same buffers for sending
+behavior &mdash; those who consistently re-use the same buffers for sending
 and receiving long messages.
 
 *It is for these reasons that \"leave pinned\" behavior is not enabled
@@ -1518,7 +1518,7 @@ operating system memory subsystem constriaints, Open MPI must react to
 the setting of the [mpi_leave_pinned] parameter in each MPI process
 _before MPI_INIT is invoked._ Specifically, some of Open MPI's MCA
 parameter propagation mechanisms are not activated until during
-MPI_INIT -- which is too late for [mpi_leave_pinned].
+MPI_INIT &mdash; which is too late for [mpi_leave_pinned].
 
 As such, only the following MCA parameter-setting mechanisms can be
 used for [mpi_leave_pinned] and [mpi_leave_pinned_pipeline]:
@@ -1588,7 +1588,7 @@ to reconfigure your OFA networks to have different subnet ID values,
 and then Open MPI will function properly.
 
 Please note that the same issue can occur when any two physically
-separate subnets share the same subnet ID value -- not just the
+separate subnets share the same subnet ID value &mdash; not just the
 factory-default subnet ID value.  However, Open MPI only warns about
 the factory default subnet ID value because most users do not bother
 to change it unless they know that they have to.
@@ -1613,7 +1613,7 @@ endpoints that it can use.  Specifically, for each network endpoint,
 Open MPI calculates which other network endpoints are reachable.
 
 In OpenFabrics networks, Open MPI uses the subnet ID to differentiate
-between subnets -- assuming that if two ports share the same subnet
+between subnets &mdash; assuming that if two ports share the same subnet
 ID, they are reachable from each other.  If multiple, physically
 separate OFA networks use the same subnet ID (such as the default
 subnet ID), it is not possible for Open MPI to tell them apart and
@@ -1705,9 +1705,9 @@ between multiple hosts in an MPI job, Open MPI will attempt to use
 them all by default.  Open MPI makes several assumptions regarding
 active ports when establishing connections between two hosts. Active
 ports that have the same subnet ID are assumed to be connected to the
-same physical fabric -- that is to say that communication is possible
+same physical fabric &mdash; that is to say that communication is possible
 between these ports. Active ports with different subnet IDs
-are assumed to be connected to different physical fabric -- no
+are assumed to be connected to different physical fabric &mdash; no
 communication is possible between them. It is therefore very important
 that if active ports on the same host are on physically separate
 fabrics, they must have different subnet IDs.  Otherwise Open MPI may
@@ -1751,7 +1751,7 @@ href=\"?category=tuning#running-perf-numbers\">this FAQ entry</a> for
 many suggestions on benchmarking performance.
 
 _Pay particular attention to the discussion of processor affinity and
-NUMA systems_ -- running benchmarks without processor affinity and/or
+NUMA systems_ &mdash; running benchmarks without processor affinity and/or
 on CPU sockets that are not directly connected to the bus where the
 HCA is located can lead to confusing or misleading performance
 results.";
@@ -2138,7 +2138,7 @@ $anchor[] = "ib-receive-queues";
 $a[] = "You can use the [btl_openib_receive_queues] MCA parameter to
 specify the exact type of the receive queues for the Open MPI to use.
 This can be advantageous, for example, when you know the exact sizes
-of messages that your MPI application will use -- Open MPI can
+of messages that your MPI application will use &mdash; Open MPI can
 internally pre-post receive buffers of exactly the right size.  See <a
 href=\"$topdir/papers/euro-pvmmpi-2007-ib/\">this paper</a> for more
 details.
@@ -2165,7 +2165,7 @@ shell$ mpirun ... --mca btl_openib_receive_queues P,128,256,192,128:S,2048,256,1
 </geshi>
 
 In particular, note that XRC is (currently) _not_ used by default (and
-is no longer supported -- see <a href=\"#ib-xrc\">this FAQ item</a>
+is no longer supported &mdash; see <a href=\"#ib-xrc\">this FAQ item</a>
 for more information).
 
 $note Open MPI chooses a default value of [btl_openib_receive_queues]

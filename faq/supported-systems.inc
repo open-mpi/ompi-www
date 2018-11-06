@@ -246,7 +246,7 @@ $anchor[] = "heterogeneous-support";
 $a[] = "As of v1.1, Open MPI requires that the size of C, C++, and
 Fortran datatypes be the same on all platforms within a single
 parallel application with the exception of types represented by
-[MPI_BOOL] and [MPI_LOGICAL] -- size differences in these types
+[MPI_BOOL] and [MPI_LOGICAL] &mdash; size differences in these types
 between processes are properly handled.  Endian differences between
 processes in a single MPI job are properly and automatically handled.
 
