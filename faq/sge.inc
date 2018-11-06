@@ -42,7 +42,7 @@ will just \"do the Right Thing.\"
 
 Specifically, if you execute an [mpirun] command in a SGE job, it
 will automatically use the SGE mechanisms to launch and kill
-processes.  There is no need to specify what nodes to run on -- Open
+processes.  There is no need to specify what nodes to run on &mdash; Open
 MPI will obtain this information directly from SGE and default to a number
 of processes equal to the slot count specified.  For example, this
 will run 4 MPI processes on the nodes that were allocated by SGE:

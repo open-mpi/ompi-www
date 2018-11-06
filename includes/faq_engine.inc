@@ -207,7 +207,7 @@ function do_category() {
     for ($i = 0; $i < sizeof($a); ++$i) {
         $j = $i + 1;
         print("<!--------------------------------------- -->
-<a name=\"" . urlencode($anchor[$i]) . "\">\n");
+<a name=\"" . urlencode($anchor[$i]) . "\"></a>\n");
         # Some anchors have special characters in them (e.g., "+")
         # which urlencode will transmorgify.  In this case, output
         # both the url-encoded version and the non-encoded version

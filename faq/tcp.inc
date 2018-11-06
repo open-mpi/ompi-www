@@ -36,7 +36,7 @@ If you are using a high-speed network (such as Myrinet or InfiniBand),
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "But wait -- I'm using a high-speed network.  Do I have to
+$q[] = "But wait &mdash; I'm using a high-speed network.  Do I have to
 disable the TCP BTL?";
 
 $anchor[] = "tcp-auto-disable";
@@ -49,7 +49,7 @@ Hence, the [tcp] BTL component will sense this and automatically
 deactivate itself.
 
 That being said, Open MPI may still use TCP for setup and teardown
-information -- so you'll see traffic across your IP network during
+information &mdash; so you'll see traffic across your IP network during
 startup and shutdwon of your MPI job.  This is normal and does not
 affect the MPI message passing channels.";
 
@@ -181,7 +181,7 @@ $q[] = "How do I tell Open MPI which IP interfaces / networks to use?";
 $anchor[] = "tcp-selection";
 
 $a[] = "In some parallel environments, it is not uncommon to have
-multiple IP interfaces on each node -- for example, one IP network
+multiple IP interfaces on each node &mdash; for example, one IP network
 may be \"slow\" and used for control information such as a batch
 scheduler, a networked filesystem, and/or interactive logins.  Another
 IP network (or networks) may be \"fast\" and be intended for parallel
@@ -192,9 +192,9 @@ with virtual machines.
 Unless otherwise specified, Open MPI will greedily use all \"up\" IP
 networks that it can find and try to connect to all peers _upon
 demand_ (i.e., Open MPI does not open sockets to all of its MPI peers
-during [MPI_INIT] -- see <A HREF=\"#tcp-sockets\">this FAQ entry</A>
+during [MPI_INIT] &mdash; see <A HREF=\"#tcp-sockets\">this FAQ entry</A>
 for more details).  Hence, if you want MPI jobs to not use specific
-IP networks -- or not use any IP networks at all -- then you need to
+IP networks &mdash; or not use any IP networks at all &mdash; then you need to
 tell Open MPI.
 
 *NOTE:* Aggressively using all \"up\" interfaces can cause problems in
@@ -286,7 +286,7 @@ $anchor[] = "tcp-sockets";
 $a[] = "Although Open MPI is likely to open multiple TCP sockets
 during [MPI_INIT], the tcp BTL component *does not open one socket per
 MPI peer process during <code>MPI_INIT</code>.*  Open MPI opens
-sockets as they are required -- so the first time a process sends a
+sockets as they are required &mdash; so the first time a process sends a
 message to a peer and there is a TCP connection between the two, Open
 MPI will automatically open a new socket.
 
@@ -311,7 +311,7 @@ that some users have found helpful.
 
 <ol>
 <li> *" . goog("net.ipv4.tcp_syn_retries") . ":* Some Linux systems
-have very large initial connection timeouts -- they retry sending SYN
+have very large initial connection timeouts &mdash; they retry sending SYN
 packets many times before determining that a connection cannot be
 made.  If MPI is going to fail to make socket connections, it would be
 better for them to fail in somewhat quickly (minutes vs. hours).  You
@@ -390,12 +390,12 @@ $q[] = "How does Open MPI know which IP addresses are routable to each other in 
 
 $anchor[] = "tcp-routability";
 
-$a[] = "This is a fairly complicated question -- there can be
+$a[] = "This is a fairly complicated question &mdash; there can be
 ambiguity when hosts have multiple NICs and/or there are multiple
 IP networks that are not routable to each other in a single MPI job.
 
 It is important to note that Open MPI's atomic unit of routing is a
-_process_ -- not an IP address.  Hence, Open MPI makes connections
+_process_ &mdash; not an IP address.  Hence, Open MPI makes connections
 between _processes_, not nodes (these processes are almost always on
 remote nodes, but it's still better to think in terms of _processes_,
 not _nodes_).
@@ -403,12 +403,12 @@ not _nodes_).
 Specifically, since Open MPI jobs can span multiple IP networks, each
 MPI process may be able to use multiple IP addresses to communicate
 with each other MPI process (and vice versa).  So for each process,
-Open MPI needs to determine which IP address -- if any -- to use to
+Open MPI needs to determine which IP address &mdash; if any &mdash; to use to
 connect to a peer MPI process.
 
 For example, say that you have a cluster with 16 nodes on a private
 ethernet network.  One of these nodes doubles as the head node for the
-cluster and therefore has 2 ethernet NICs -- one to the external
+cluster and therefore has 2 ethernet NICs &mdash; one to the external
 network and one to the internal cluster network.  But since 16 is a
 nice number, you also want to use it for computation as well.  So when
 you mpirun spanning all 16 nodes, OMPI has to figure out to _not_ use
@@ -435,7 +435,7 @@ A \"match\" is defined by the following rules:
      assume that they are mutually routable and allow the connection</li>
 <li> If the two IP addresses are public, assume that they are mutually
      routable and allow the connection</li>
-<li> Otherwise, the connection is disallowed (this is not an error --
+<li> Otherwise, the connection is disallowed (this is not an error &mdash;
      we just disallow this connection on the hope that some other
      device can be used to make a connection)</li>
 </ol>
@@ -571,7 +571,7 @@ $anchor[] = "tcp-socket-closing";
 $a[] = "In general, no.
 
 Although TCP sockets are opened \"lazily\" (meaning that MPI
-connections / TCP sockets are only opened upon demand -- as opposed to
+connections / TCP sockets are only opened upon demand &mdash; as opposed to
 opening all possible sockets between MPI peer processes during
 MPI_INIT), they are never closed.";
 

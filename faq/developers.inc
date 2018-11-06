@@ -44,7 +44,7 @@ interface.
 As such, this code organization more reflects abstractions and
 software engineering, not a strict hierarchy of functions that must be
 traversed in order to reach lower layer.  For example, OMPI can call
-OPAL functions directly -- it does not have to go through ORTE.
+OPAL functions directly &mdash; it does not have to go through ORTE.
 Indeed, OPAL has a different set of purposes than ORTE, so it wouldn't
 even make sense to channel all OPAL access through ORTE.  OMPI can
 also directly call the operating system as necessary.  For example,
@@ -61,10 +61,10 @@ the Open MPI code base:
 upon which the entire Open MPI project is built.  It provides all the
 component architecture services that the rest of the system use.
 Although it is the fundamental heart of the system, it's
-implementation is actually quite small and lightweight -- it is
+implementation is actually quite small and lightweight &mdash; it is
 nothing like CORBA, COM, JINI, or many other well-known component
-architectures.  It was designed for HPC -- meaning that it is small,
-fast, and resonably efficient -- and therefore offers few services
+architectures.  It was designed for HPC &mdash; meaning that it is small,
+fast, and resonably efficient &mdash; and therefore offers few services
 other finding, loading, and unloading components.
 
 <li> *Framework:* An MCA _framework_ is a construct that is created
@@ -73,7 +73,7 @@ is used by external code, but it also its own internal services.  A
 list of Open MPI frameworks <a
 href=\"./?category=tuning#frameworks\">is available here</a>.  An MCA
 framework uses the MCA's services to find and load _components_ at run
-time -- implementations of the framework's interface.  An easy example
+time &mdash; implementations of the framework's interface.  An easy example
 framework to discuss is the MPI framework named \"[btl]\", or the Byte
 Transfer Layer.  It is used to sends and receive data on different
 kinds of networks.  Hence, Open MPI has [btl] components for shared

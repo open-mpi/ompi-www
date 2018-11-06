@@ -46,13 +46,18 @@ $anchor[] = "network-interconnects";
 
 function net_table_init()
 {
-    return "<div align=\"center\"><table border=1 cellpadding=5>
+    return "<div align=\"center\"><table border=0 cellpadding=2>
 <tr>
-<th valign=\"bottom\">Interconnect / Library stack name</th>
+<th valign=\"bottom\">Interconnect /<br /> Library stack name</th>
 <th valign=\"bottom\">Support type</th>
 <th valign=\"bottom\">Introduced in<br />Open MPI series</th>
 <th valign=\"bottom\">Removed after<br />Open MPI series</th>
 </tr>\n";
+}
+
+function net_table_line()
+{
+    return "<tr><td colspan=4><hr></td></tr>\n";
 }
 
 function net_table_row($interconnect, $type, $start, $stop)
@@ -82,28 +87,48 @@ versions in which they were supported in Open MPI (in alphabetical
 order):
 
 " . net_table_init() .
+    net_table_line() .
     net_table_row("Elan", "BTL", "1.3", "1.6") .
-    net_table_row("Infiniband MXM", "MTL", "1.5", "") .
-    net_table_row("Infiniband / RoCE / iWARP Verbs", "BTL", "1.0", "") .
-    net_table_row("Infiniband mVAPI", "BTL", "1.0", "1.2") .
+    net_table_line() .
+    net_table_row("InfiniBand MXM", "MTL", "1.5", "3.1") .
+    net_table_row("InfiniBand MXM", "PML", "1.5", "") .
+    net_table_line() .
+    net_table_row("InfiniBand / RoCE / iWARP Verbs", "BTL", "1.0", "") .
+    net_table_row("InfiniBand / RoCE / iWARP Verbs", "PML", "3.0", "") .
+    net_table_line() .
+    net_table_row("InfiniBand mVAPI", "BTL", "1.0", "1.2") .
+    net_table_line() .
     net_table_row("Libfabric", "MTL", "1.10", "") .
-    net_table_row("Libfabric", "BTL", "4.0", "") .
+# OFI BTL was originally scheduled for 4.0 but didn't make it
+#    net_table_row("Libfabric", "BTL", "4.0", "") .
+    net_table_line() .
     net_table_row("Loopback (send-to-self)", "BTL", "1.0", "") .
+    net_table_line() .
     net_table_row("Myrinet GM", "BTL", "1.0", "1.4") .
     net_table_row("Myrinet MX", "BTL", "1.0", "1.6") .
     net_table_row("Myrinet MX", "MTL", "1.2", "1.8") .
+    net_table_line() .
     net_table_row("Portals", "BTL", "1.0", "1.6") .
     net_table_row("Portals", "MTL", "1.2", "1.6") .
     net_table_row("Portals4", "MTL", "1.7", "") .
+    net_table_line() .
     net_table_row("PSM", "MTL", "1.2", "") .
     net_table_row("PSM2", "MTL", "1.10", "") .
-    net_table_row("SCIF", "BTL", "1.8", "") .
+    net_table_line() .
+    net_table_row("SCIF", "BTL", "1.8", "3.1") .
+    net_table_line() .
     net_table_row("SCTP", "BTL", "1.5", "1.6") .
+    net_table_line() .
     net_table_row("Shared memory", "BTL", "1.0", "") .
+    net_table_line() .
     net_table_row("TCP sockets", "BTL", "1.0", "") .
+    net_table_line() .
     net_table_row("uDAPL", "BTL", "1.2", "1.6") .
+    net_table_line() .
     net_table_row("uGNI", "BTL", "1.7", "") .
+    net_table_line() .
     net_table_row("usNIC", "BTL", "1.8", "") .
+    net_table_line() .
     net_table_finalize() . "
 
 Is there a network that you'd like to see supported that is not shown
@@ -168,7 +193,9 @@ $a[] = "Open MPI 1.2 supports all of MPI-2.0.
 
 Open MPI 1.3 supports all of MPI-2.1.
 
-Open MPI 1.8 supports all of MPI-3";
+Open MPI 1.8 supports all of MPI-3
+
+Open MPI 2.0 supports all of MPI-3.1";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -182,14 +209,23 @@ progress (i.e., continuing message passing operations even while no
 user threads are in the MPI library) has been designed into Open MPI
 from its first planning meetings.
 
-Support for [MPI_THREAD_MULTIPLE] is included in the first version of
-Open MPI, but it is only lightly tested and likely still has some
-bugs.  Support for asynchronous progress is included in the TCP
-point-to-point device, but it, too, has only had light testing and
-likely still has bugs.
+Support for [MPI_THREAD_MULTIPLE] was included in the first version of
+Open MPI, but it only became robust around v3.0.0.  Subsequent
+releases continually improve reliability and performance of
+multi-threaded MPI applications.";
 
-Completing the testing for full support of [MPI_THREAD_MULTIPLE] and
-asynchronous progress is planned in the near future.";
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Does Open MPI support 32 bit environments?";
+
+$anchor[] = "32-bit-support";
+
+$a[] = "As far as we know, yes.  64 bit architectures have effectively
+taken over the world, though, so 32-bit is not tested nearly as much
+as 64-bit.
+
+Specifically, most of the Open MPI developers only have 64-bit
+machines, and therefore only test 32-bit in emulation mode.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -210,7 +246,7 @@ $anchor[] = "heterogeneous-support";
 $a[] = "As of v1.1, Open MPI requires that the size of C, C++, and
 Fortran datatypes be the same on all platforms within a single
 parallel application with the exception of types represented by
-[MPI_BOOL] and [MPI_LOGICAL] -- size differences in these types
+[MPI_BOOL] and [MPI_LOGICAL] &mdash; size differences in these types
 between processes are properly handled.  Endian differences between
 processes in a single MPI job are properly and automatically handled.
 

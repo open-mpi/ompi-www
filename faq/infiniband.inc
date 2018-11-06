@@ -22,7 +22,7 @@ $a[] = moved($n);
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "But wait -- I also have a TCP network.  Do I need to explicitly
+$q[] = "But wait &mdash; I also have a TCP network.  Do I need to explicitly
 disable the TCP BTL?";
 
 $n = "ib-tcp-disable";

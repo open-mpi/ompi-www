@@ -28,7 +28,7 @@ $anchor[] = "prof-vs-trace";
 $a[] = "These terms are sometimes used to refer to two different kinds
 of performance analysis.
 
-In profiling, one aggregates statistics at run time -- e.g., total
+In profiling, one aggregates statistics at run time &mdash; e.g., total
 amount of time spent in MPI, total number of messages or bytes sent,
 etc.  Data volumes are small.
 

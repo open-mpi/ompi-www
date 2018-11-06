@@ -45,13 +45,13 @@ Consult the [README] file in the Open MPI tarball and the output of
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Wow -- I see a lot of errors during <code>configure</code>.
+$q[] = "Wow &mdash; I see a lot of errors during <code>configure</code>.
 Is that normal?";
 
 $anchor[] = "configure-errors";
 
-$a[] = "If [configure] finishes successfully -- meaning that it
-generates a bunch of [Makefiles] at the end -- then yes, it is
+$a[] = "If [configure] finishes successfully &mdash; meaning that it
+generates a bunch of [Makefiles] at the end &mdash; then yes, it is
 completely normal.
 
 The Open MPI [configure] script tests for a lot of things, not all of
@@ -143,7 +143,7 @@ you'll likely need to specify [--with-&lt;FOO&gt;] kinds of flags.
 However, note that it is safest to add [--with-&lt;FOO&gt;] types of
 flags if you want to _guarantee_ that Open MPI builds support for
 feature [FOO], regardless of whether support for [FOO] can be found in
-default compiler/linker paths or not -- [configure] will abort if you
+default compiler/linker paths or not &mdash; [configure] will abort if you
 can't find the appropriate support for [FOO].  *This may be preferable
 to unexpectedly discovering at run-time that Open MPI is missing
 support for a critical feature.*
@@ -215,7 +215,7 @@ There are two common approaches:
 to be used.  Install Open MPI such that the installation directory is
 the _same value_ on each node.  This will _greatly_ simplify user's
 shell startup scripts (e.g., [.bashrc], [.cshrc], [.profile] .etc.)
--- the [PATH] can be set without checking which machine the user is
+&mdash; the [PATH] can be set without checking which machine the user is
 on.  It also simplifies the system administrator's job; when the time
 comes to patch or otherwise upgrade OMPI, only one copy needs to be
 modified.
@@ -323,7 +323,7 @@ MPI executables.</li>
 
 In its default configuration, an Open MPI installation consists of
 several shared libraries, header files, executables, and plugins
-(dynamic shared objects -- DSOs).  These installation files act
+(dynamic shared objects &mdash; DSOs).  These installation files act
 together as a single entity.  The specific filenames and
 contents of these files are subject to change between different
 versions of Open MPI.
@@ -334,7 +334,7 @@ version of Open MPI does not uninstall another version.
 If you install a new version of Open MPI over an older version, this
 may not remove or overwrite all the files from the older version.
 Hence, you may end up with an incompatible muddle of files from two
-different installations -- which can cause problems.
+different installations &mdash; which can cause problems.
 
 The Open MPI team recommends one of the following methods for
 upgrading your Open MPI installation:
@@ -383,7 +383,7 @@ compiled and installed in several different ways:
 are compiled as a separate DSO that is dynamically loaded at run
 time.
 <ul>
-<li> *Advantage:* this approach is highly flexible -- it gives system
+<li> *Advantage:* this approach is highly flexible &mdash; it gives system
 developers and administrators fine-grained approach to install new
 plugins to an existing Open MPI installation, and also allows the
 removal of old plugins (i.e., forcibly disallowing the use of specific
@@ -425,7 +425,7 @@ ways:
 
 <li> *--disable-mca-dso:* Using the [--disable-mca-dso] switch to Open
 MPI's [configure] script will cause all plugins to be built as part of
-Open MPI's main libraries -- they will _not_ be built as standalone
+Open MPI's main libraries &mdash; they will _not_ be built as standalone
 DSOs.  However, Open MPI will still look for DSOs in the filesystem at
 run-time.  Specifically: this option _significantly_ decreases (but
 does not eliminate) filesystem traffic during MPI_INIT, but does allow
@@ -1076,7 +1076,7 @@ $a[] = "To build support for high-speed interconnect networks, you
 generally only have to specify the directory where its support header
 files and libraries were installed to Open MPI's [configure] script.
 You can specify where multiple packages were installed if you have
-support for more than one kind of interconnect -- Open MPI will build
+support for more than one kind of interconnect &mdash; Open MPI will build
 support for as many as it can.
 
 You tell [configure] where support libraries are with the appropriate
@@ -1086,6 +1086,7 @@ You tell [configure] where support libraries are with the appropriate
 <li> *--with-libfabric=&lt;dir&gt;:* Build support for OpenFabrics
 Interfaces (OFI), commonly known as \"libfabric\" (starting with the
 v1.10 series).</li>
+<li> *--with-ucx=&lt;dir&gt;:* Build support for the UCX library.</li>
 <li> *--with-mxm=&lt;dir&gt;:* Build support for the Mellanox
 Messaging (MXM) library (starting with the v1.5 series).</li>
 <li> *--with-verbs=&lt;dir&gt;:* Build support for OpenFabrics verbs
@@ -1099,8 +1100,6 @@ library (starting with the v1.7 series).</li>
 library.</li>
 <li> *--with-psm2=&lt;dir&gt;:* Build support for the PSM 2
 library (starting with the v1.10 series).</li>
-<li> *--with-scif=&lt;dir&gt;:* Build support for the SCIF
-library (starting with the v1.8 series).</li>
 <li> *--with-usnic:* Build support for usNIC networks (starting with
 the v1.8 series).  In the v1.10 series, usNIC support is included in
 the libfabric library, but this option can still be used to ensure
@@ -1110,8 +1109,8 @@ that usNIC support is specifically available.</li>
 For example:
 
 <geshi bash>
-shell$ ./configure --with-mvapi=/path/to/mvapi/installation \
-  --with-gm=/path/to/gm/installation
+shell$ ./configure --with-ucx=/path/to/ucx/installation \
+  --with-libfabric=/path/to/libfabric/installation
 </geshi>
 
 These switches enable Open MPI's [configure] script to automatically
@@ -1119,7 +1118,7 @@ find all the right header files and libraries to support the various
 networks that you specified.
 
 You can verify that [configure] found everything properly by examining
-its output -- it will test for each network's header files and
+its output &mdash; it will test for each network's header files and
 libraries and report whether it will build support (or not) for each
 of them.  Examining [configure]'s output is the *first* place you
 should look if you have a problem with Open MPI not correctly
@@ -1128,19 +1127,22 @@ supporting a specific network type.
 If [configure] indicates that support for your networks will be
 included, after you build and install Open MPI, you can run the
 \"[ompi_info]\" command and look for components for your networks.
-The v1.2 (and earlier) series has two openib components (your exact
-version numbers may be different):
+For example:
 
 <geshi bash>
-shell$ ompi_info | grep openib
-               MCA mpool: openib (MCA v1.0, API v1.0, Component v1.0)
-                 MCA btl: openib (MCA v1.0, API v1.0, Component v1.0)
+shell$ ompi_info | egrep ': ofi|ucx'
+                 MCA rml: ofi (MCA v2.1.0, API v3.0.0, Component v4.0.0)
+                 MCA mtl: ofi (MCA v2.1.0, API v2.0.0, Component v4.0.0)
+                 MCA pml: ucx (MCA v2.1.0, API v2.0.0, Component v4.0.0)
+                 MCA osc: ucx (MCA v2.1.0, API v2.0.0, Component v4.0.0)
 </geshi>
 
 Here's some network types that are no longer supported in current
 versions of Open MPI:
 
 <ul>
+<li> *--with-scif=&lt;dir&gt;:* Build support for the SCIF library <br />
+ _Last supported in the v3.1.x series._ </li>
 <li> *--with-elan=&lt;dir&gt;:* Build support for Elan. <br />
  _Last supported in the v1.6.x series._ </li>
 <li> *--with-gm=&lt;dir&gt;:* Build support for GM (Myrinet).  <br />
@@ -1237,7 +1239,7 @@ version of Open MPI.
 and the workarounds listed below are no longer necessary.  However,
 this version of Torque changed other things that require upgrading
 Open MPI to 1.0.3 or higher (as of this writing, v1.0.3 has not yet
-been released -- nightly snapshot tarballs of what will become 1.0.3
+been released &mdash; nightly snapshot tarballs of what will become 1.0.3
 are available at " .
 "<a href=\"https://www.open-mpi.org/nightly/v1.0/\">" .
 "https://www.open-mpi.org/nightly/v1.0/</a>).
@@ -1278,7 +1280,7 @@ densely packing them all into a single library).
 
 <li> Configure Open MPI to build a static library that includes all of
 its components.  Specifically, all of Open MPI's components will be
-included in its libraries -- none will be discovered and opened at
+included in its libraries &mdash; none will be discovered and opened at
 run-time.  This does not affect user MPI code at all (i.e., the
 location of Open MPI's plugins is transparent to MPI applications).
 Use the following options to Open MPI's [configure] script:
@@ -1298,7 +1300,7 @@ run-time.
 Pro).
 
 *CON:* User applications are statically linked to Open MPI; if Open
-MPI -- or any of its default set of components -- is updated, users
+MPI &mdash; or any of its default set of components &mdash; is updated, users
 will need to re-link their MPI applications.</li>
 
 </ol>
@@ -1379,7 +1381,7 @@ $anchor[] = "build-paffinity";
 
 $a[] = "Open MPI supports processor affinity for many platforms.  In
 general, processor affinity will automatically be built if it is
-supported -- no additional command line flags to [configure] should be
+supported &mdash; no additional command line flags to [configure] should be
 necessary.
 
 However, Open MPI fail to build processor affinity if the appropriate
@@ -1402,7 +1404,7 @@ $anchor[] = "build-maffinity";
 
 $a[] = "Open MPI supports memory affinity for many platforms.  In
 general, processor affinity will automatically be built if it is
-supported -- no additional command line flags to [configure] should be
+supported &mdash; no additional command line flags to [configure] should be
 necessary.
 
 However, Open MPI fail to build memory affinity if the appropriate
@@ -1547,15 +1549,15 @@ $a[] = "
 MPI v1.7, if you are not using gfortran, buidling the Fortran 90 and
 08 bindings do not suffer the same performance penalty that previous
 versions incurred.  The Open MPI developers encourage all users to
-upgrade to the new Fortran bindings implementation -- including the
-new MPI-3 Fortran'08 bindings -- when possible.
+upgrade to the new Fortran bindings implementation &mdash; including the
+new MPI-3 Fortran'08 bindings &mdash; when possible.
 </blockquote>
 
 This is actually a design problem with the MPI F90 bindings
 themselves.  The issue is that since F90 is a strongly typed language,
 we have to overload each function that takes a choice buffer with a
 typed buffer.  For example, [MPI_SEND] has many different overloaded
-versions -- one for each type of the user buffer.  Specifically, there
+versions &mdash; one for each type of the user buffer.  Specifically, there
 is an [MPI_SEND] that has the following types for the first argument:
 
 <ul>
@@ -1570,7 +1572,7 @@ is an [MPI_SEND] that has the following types for the first argument:
 
 On the surface, this is 17 bindings for [MPI_SEND].  Multiply this by
 every MPI function that takes a choice buffer (50) and you 850
-overloaded functions.  However, the problem gets worse -- for each
+overloaded functions.  However, the problem gets worse &mdash; for each
 type, we also have to overload for each array dimension that needs to
 be supported.  Fortran allows up to 7 dimensional arrays, so this
 becomes (17x7) = 119 versions of every MPI function that has a choice
@@ -1579,7 +1581,7 @@ functions.
 
 To make matters even worse, consider the ~25 MPI functions that take
 *2* choice buffers.  Functions have to be provided for all possible
-combinations of types.  This then becomes exponential -- the total
+combinations of types.  This then becomes exponential &mdash; the total
 number of interface functions balloons up to 6.8M.
 
 Additionally, F90 modules must all have their functions in a single
@@ -1603,7 +1605,7 @@ default value is 4.  Decreasing this value makes the compilation go
 faster, but obviously supports fewer dimensions.
 
 Other than this limit on dimension size, there is little else that we
-can do -- the MPI-2 F90 bindings were unfortunately not well thought
+can do &mdash; the MPI-2 F90 bindings were unfortunately not well thought
 out in this regard.
 
 Note, however, that the Open MPI team has <a
@@ -1740,7 +1742,7 @@ $anchor[] = "other";
 
 $a[] = "Please see <a href=\"./?category=troubleshooting\">this FAQ
 category</a> for troubleshooting tips and the <a
-href=\"$topdir/community/help/\">Getting Help</a> page -- it details
+href=\"$topdir/community/help/\">Getting Help</a> page &mdash; it details
 how to send a request to the Open MPI mailing lists.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -1754,13 +1756,14 @@ against the Open MPI binaries and libraries. This can cause problems if the Inte
 compiler libraries are installed in non-standard locations. For example, you might 
 get errors like:
  
-<blockquote>
+<geshi bash>
 error while loading shared libraries: libimf.so: cannot open shared object file: 
 No such file or directory
-</blockquote>
- 
-To avoid such problems, you can pass flags to Open MPI's configure script that instruct 
-the Intel compiler suite to statically link its runtime libraries with Open MPI:
+</geshi>
+
+To avoid such problems, you can pass flags to Open MPI's configure
+script that instruct the Intel compiler suite to statically link its
+runtime libraries with Open MPI:
 
 <geshi bash>
 shell$ ./configure CC=icc CXX=icpc FC=ifort LDFLAGS=-Wc,-static-intel ...

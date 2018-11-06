@@ -8,10 +8,9 @@ include_once("$topdir/includes/header.inc");
 
 Documentation for the following versions is available:
 
-<p>
-<ul>
+<h2>Current release series</h2>
 
-<p> <strong>Current release series</strong>
+<p><ul>
 
 <li><a href="current/"><strong>v3.1 series</strong></a>.
 This documentation reflects the latest progression in the 3.1.x series.
@@ -25,7 +24,11 @@ color=red><?php
   }
 ?></font></strong></li>
 
-<p> <strong>Prior stable release series</strong>
+</ul></p>
+
+<h2>Prior stable release series</h2>
+
+<p><ul>
 
 <li><a href="v3.0/"><strong>v3.0 series
 </strong></a>.  This documentation reflects
@@ -51,8 +54,12 @@ new features (compared to the v1.10 series).  <strong><font
 color=red>This code base is still supported, but is in "bug fix only"
 mode.</font></strong></li>
 
-<p> <strong>Older series (retired, deprecated, or otherwise no longer in
-development)</strong>
+</ul></p>
+
+<h2>Older series (retired, deprecated, or otherwise no longer in
+development)</h2>
+
+<p><ul>
 
 <li><a href="v1.10/"><strong>v1.10 series
 </strong></a> (prior stable release series).  This documentation reflects
@@ -100,8 +107,7 @@ more.</li>
 This documentation reflects the latest progression in the stable 1.1.x
 series.  It has not been updated in a long, long time.</li>
 
-</ul>
-</p>
+</ul></p>
 
 <?php
 include_once("$topdir/includes/footer.inc"); 

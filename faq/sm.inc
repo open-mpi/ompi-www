@@ -75,7 +75,7 @@ The [sm] BTL only has to transfer individual fragments.  The steps are:
 
 On each node where an MPI job has two or more processes running, the job creates
 a file that each process <code>mmap</code>s into its address space.  Shared-memory
-resources that the job needs -- such as FIFOs and fragment free lists -- are
+resources that the job needs &mdash; such as FIFOs and fragment free lists &mdash; are
 allocated from this shared-memory area.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -88,11 +88,11 @@ $anchor[] = "large-job-startup";
 $a[] = "If you are using Open MPI v1.3.1 or earlier, it is possible that the shared-memory
 area set aside for your job was not created large enough.  Make sure you're running
 in 64-bit mode (compiled with [-m64]) and set the MCA parameter mpool_sm_max_size
-to be very large -- even several Gbytes.  Exactly how large is discussed further
+to be very large &mdash; even several Gbytes.  Exactly how large is discussed further
 <a href=\"#how-much-need\">below</a>.
 
 Regardless of which OMPI release you're using, make sure that there is sufficient
-space for a large file to back the shared memory -- typically in [/tmp].";
+space for a large file to back the shared memory &mdash; typically in [/tmp].";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -122,7 +122,7 @@ performance for memory.
 <ul>
 <li> [btl_sm_eager_limit]:
 If message data plus header information fits within this limit, the
-message is sent \"eagerly\"... -- that is, a sender attempts to write
+message is sent \"eagerly\"... &mdash; that is, a sender attempts to write
 its entire message to shared buffers without waiting for a receiver to
 be ready.  Above this size, a sender will only write the first part of
 a message, then wait for the receiver to acknowledge its ready before
@@ -269,13 +269,13 @@ is somewhat complicated and subject to change.  It guarantees that
 there will be at least enough shared memory for the program to start
 up and run.  See <a href=\"#how-much-need\">this FAQ item</a> to see
 how much is needed.  Alternatively, the motivated user can examine the
-OMPI source code to see the formula used -- for example, here is the "
+OMPI source code to see the formula used &mdash; for example, here is the "
 . "<a
 href=\"https://svn.open-mpi.org/source/xref/ompi-trunk/ompi/mca/btl/sm/btl_sm.c?r=20906#195\">"
 . "formula in OMPI revision SVN r20906</a>.
 
 OMPI v1.3.2 also uses the MCA parameter [mpool_sm_min_size] to set a
-minimum size -- e.g., so that there is not only enough shared memory
+minimum size &mdash; e.g., so that there is not only enough shared memory
 for the job to start, but additionally headroom for further
 shared-memory allocations (e.g., of more eager or max fragments).
 
@@ -356,12 +356,12 @@ making the [mmap] file smaller doesn't help if then your job won't
 start up.)  The answers are:
 
 <ul>
-<li> For small values of [n] -- that is, for few processes per node --
+<li> For small values of [n] &mdash; that is, for few processes per node &mdash;
      shared-memory usage during [MPI_Init()] is predominantly for max free lists.
      So, you can reduce the MCA parameter [btl_sm_max_send_size].  Alternatively,
      you could reduce [btl_sm_free_list_num], but it is already pretty small by
      default.
-<li> For large values of [n] -- that is, for many processes per node -- there
+<li> For large values of [n] &mdash; that is, for many processes per node &mdash; there
      are two cases:
      <ul>
      <li> up to Open MPI v1.3.1:  shared-memory usage is dominated by the

@@ -60,6 +60,11 @@ $parent_name[] = "";
     $names[] = "building";
     $parent_name[] = "build_parent";
 
+    $titles[] = "Legacy MPI constructs";
+    $short_titles[] = "Legacy MPI constructs";
+    $names[] = "mpi-legacy";
+    $parent_name[] = "build_parent";
+
     $titles[] = "Compiling MPI applications";
     $short_titles[] = "Compiling MPI apps";
     $names[] = "mpi-apps";

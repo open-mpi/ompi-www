@@ -116,7 +116,7 @@ MPI Contributor's Declaration</a>.
 
 See <a href=\"#contribute-code\">this FAQ entry for more details</a>.
 
-If you are unable to agree to the Contributor's Declaration, fear not --
+If you are unable to agree to the Contributor's Declaration, fear not &mdash;
 there are
 other ways to contribute to Open MPI.  Here are some examples:
 
@@ -124,7 +124,7 @@ other ways to contribute to Open MPI.  Here are some examples:
 <li>Become an active participant in the mailing lists</li>
 <li>Write and distribute your own components (remember: Open MPI
 components can be distributed completely separately from the main Open
-MPI distribution -- they can be added to existing Open MPI
+MPI distribution &mdash; they can be added to existing Open MPI
 installations, and don't even need to be open source)</li>
 <li>Report bugs</li>
 <li>Do a good deed daily</li>
@@ -178,7 +178,7 @@ origanization needs to release a version of Open MPI with a specific
 feature.
 
 If you're thinking of forking the Open MPI code base, please let us
-know -- let's see if we can work something out so that it is not
+know &mdash; let's see if we can work something out so that it is not
 necessary.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -195,6 +195,6 @@ technical, perhaps due to licensing restrictions, etc.).
 If you wrote a standalone component, you can still distribute this
 component independent of the main Open MPI distribution.  Open MPI
 components can be installed into existing Open MPI installations.  As
-such, you can distribute your component -- even if it is closed source
-(e.g., distributed as binary-only) -- via any mechanism you choose,
+such, you can distribute your component &mdash; even if it is closed source
+(e.g., distributed as binary-only) &mdash; via any mechanism you choose,
 such as on a web site, FTP site, etc.";
