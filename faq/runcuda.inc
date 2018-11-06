@@ -93,6 +93,12 @@ host memory if it is not available.
 <li> Support for blocking reduction MPI APIs.
 </ul>
 
+*Open MPI v2.0.0 New Features*
+<ul>
+<li> CUDA support through UCX
+<li> Improved on-node Host to GPU transfers using gdrcopy for improved Send/Recv performance.
+</ul>
+
 *For best results, it is recommended that you use the latest version
  of Open MPI which as of this writing was Open MPI v1.10.1.*
 
@@ -446,6 +452,93 @@ $a[] = "
 <tr>
 <td>MPI_Iallgather, MPI_Iallgatherv, MPI_Iallreduce, MPI_Ialltoall,
     MPI_Iialltoallv, MPI_Ialltoallw, MPI_Ibcast, MPI_Iexscan
+</td>
+<td>Future</td>
+</tr>
+
+</table>
+
+";
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "How do I use CUDA-aware UCX for Open MPI?";
+
+$anchor[] = "run-ompi-cuda-ucx";
+
+$a[] = "
+
+Example of running osu_latency from
+<a href=\"http://mvapich.cse.ohio-state.edu/benchmarks\">OSU benchmarks</a>
+with CUDA buffers using Open MPI and UCX CUDA support:
+
+<geshi bash>
+shell$ mpirun -np 2 --mca pml ucx -x UCX_TLS=rc,sm,cuda_copy,gdr_copy,cuda_ipc ./osu_latency D D
+</geshi>
+
+
+";
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Which MPI APIs work with CUDA-aware UCX?";
+
+$anchor[] = "mpi-apis-cuda-ucx";
+
+$a[] = "
+
+<p>
+<center>
+<table border=1 cellpadding=5>
+<tr>
+<th>MPI API</th>
+<th>Support Added In Version</th>
+</tr>
+
+<tr>
+<td>MPI_Send, MPI_Bsend, MPI_Ssend, MPI_Rsend, MPI_Isend, MPI_Ibsend,
+ MPI_Issend, MPI_Irsend, MPI_Send_init, MPI_Bsend_init, MPI_Ssend_init,
+ MPI_Rsend_init, MPI_Recv, MPI_Irecv, MPI_Recv_init, MPI_Sendrecv,
+ MPI_Bcast, MPI_Gather, MPI_Gatherv, MPI_Allgather, MPI_Reduce,
+ MPI_Reduce_scatter, MPI_Reduce_scatter_block, MPI_Allreduce, MPI_Scan, MPI_Exscan,
+ MPI_Allgatherv, MPI_Alltoall, MPI_Alltoallv, MPI_Alltoallw, MPI_Scatter, MPI_Scatterv,
+ MPI_Iallgather, MPI_Iallgatherv, MPI_Ialltoall, MPI_Iialltoallv,
+ MPI_Ialltoallw, MPI_Ibcast, MPI_Iexscan
+</td>
+<td>UCX v1.4</td>
+
+</table>
+</center>
+
+";
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Which MPI APIs do NOT work with CUDA-aware UCX?";
+
+$anchor[] = "mpi-apis-no-cuda-ucx";
+
+$a[] = "
+
+<p>
+<table border=1 cellpadding=5>
+<tr>
+<th>MPI API</th>
+<th>Expected Support</th>
+</tr>
+
+<tr>
+<td>One-sided operations such as MPI_Put, MPI_Get, MPI_Accumulate, MPI_Rget, MPI_Rput,
+    MPI_Get_Accumulate, MPI_Fetch_and_op, MPI_Compare_and_swap, etc
+</td>
+<td>Future</td>
+</tr>
+
+<tr>
+<td>Window creation calls such as MPI_Win_create
+</td>
+<td>Future</td>
+</tr>
+
+<tr>
+<td>Non-blocking reduction collectives like MPI_Ireduce, MPI_Iallreduce, etc
 </td>
 <td>Future</td>
 </tr>
