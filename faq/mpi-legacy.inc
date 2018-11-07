@@ -3,7 +3,7 @@
 include_once("$topdir/software/ompi/current/version.inc");
 include_once("$topdir/includes/emoji.inc");
 
-$right_arrow = "<i class=\"em em-arrow_right\"></i>";
+$right_arrow = "&rarr;";
 
 function mpi1($old, $href, $new, $man)
 {
