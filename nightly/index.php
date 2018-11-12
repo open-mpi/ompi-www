@@ -18,6 +18,10 @@ into even numbered "super stable" series.</p>
 
 <p> <strong>Current release series</strong>
 
+<li><a href="v4.0.x/"><strong>v4.0.x series</strong></a>: These are images from
+the stable v4.0.x series.  <strong><font color="red">This is the recommended series
+for all users to download and use.</font></strong></li>
+
 <li><a href="v3.1.x/"><strong>v3.1.x series</strong></a>: These are images from
 the stable v3.1.x series.  <strong><font color="red">This is the recommended series
 for all users to download and use.</font></strong></li>
