@@ -1018,5 +1018,5 @@ $a[] = "Starting with v4.0.0, Open MPI &mdash; by default &mdash; removes the
 prototypes for MPI symbols that were deprecated in 1996 and finally
 removed from the MPI standard in MPI-3.0 (2012).
 
-<a href=\"?category=mpi-legacy\">See this FAQ category</a> for much
+<a href=\"?category=mpi-removed\">See this FAQ category</a> for much
 more information.";
