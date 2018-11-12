@@ -26,7 +26,7 @@ compile.</strong>
 
 <p> <strong><font color="red">DO NOT FEAR!</font></strong> It is easy
 to fix such issues.  <a href="<?php print($topdir);
-?>/faq/?category=mpi-legacy">See this FAQ category for more
+?>/faq/?category=mpi-removed">See this FAQ category for more
 information</a>, including:</p>
 
 <p><ul>
