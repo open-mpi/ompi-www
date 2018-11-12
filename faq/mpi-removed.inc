@@ -108,11 +108,11 @@ v4.0.x, even though they will fail to _compile_.
 MPI application developers to stop using these constructs that were
 first deprecated over 20 years ago, and finally removed from the MPI
 specification in MPI-3.0 (in 2012).* The FAQ items in this category
-show how to update your application to stop using these legacy
+show how to update your application to stop using these removed
 symbols.
 
 All that being said, if you are unable to immediately update your
-application to stop using these legacy MPI-1 symbols, you can
+application to stop using these removed MPI-1 symbols, you can
 re-enable them in [mpi.h] by configuring Open MPI with the
 [--enable-mpi-compatibility] flag.
 
@@ -136,21 +136,21 @@ with the Open MPI v4.0.x series for the following reasons:
 <ol>
 <li> These symbols have been deprecated since *1996.* That's
 <em>$years_ago years ago!</em>  It's time to start raising awareness
-for developers who are inadvertantly still using these legacy
+for developers who are inadvertantly still using these removed
 symbols.</li>
 <li> The MPI Forum removed these symbols from the MPI-3.0
 specification in 2012.  This is a sign that the Forum itself
-recognizes that these legacy symbols are no longer needed.</li>
-<li> Note that Open MPI _did not fully remove_ these legacy symbols:
+recognizes that these removed symbols are no longer needed.</li>
+<li> Note that Open MPI _did not fully remove_ these removed symbols:
 we just made it slightly more painful to get to them.  This is an
 attempt to raise awareness so that MPI application developers can
 update their applications (it's easy!).</li>
 </ol>
 
-In short: the only way to finally be able to remove these legacy
+In short: the only way to finally be able to remove these removed
 symbols from Open MPI someday is to have a \"grace period\" where the
 MPI application developers are a) made aware that they are using
-legacy symbols, and b) educated how to update their applications.
+removed symbols, and b) educated how to update their applications.
 
 We, the Open MPI developers, recognize that your MPI application
 failing to compile with Open MPI may be a nasty surprise.  We
@@ -159,7 +159,7 @@ appologize for that.  <i class=\"em em-anguished\"></i>
 Our intent is simply to use this minor shock to raise awareness and
 use it as an educational opprotunity to show you how to update your
 application (or direct your friendly neighborhood MPI application
-developer to this FAQ) to stop using these legacy MPI symbols.
+developer to this FAQ) to stop using these removed MPI symbols.
 
 Thank you!";
 
@@ -190,8 +190,8 @@ advises you to use [MPI_Comm_delete_attr()] instead of
 [MPI_Attr_delete()].
 
 Also, note that when using [--enable-mpi1-compatibility] to re-enable
-legacy MPI-1 symbols you will still get compiler warnings when you use
-the legacy symbols.  For example:
+removed MPI-1 symbols you will still get compiler warnings when you use
+the removed symbols.  For example:
 
 <geshi bash>
 shell$ mpicc deleted-example.c -c

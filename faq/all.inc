@@ -7,7 +7,7 @@ include_once("developers.inc");
 include_once("sysadmin.inc");
 include_once("ft.inc");
 include_once("building.inc");
-include_once("mpi-legacy.inc");
+include_once("mpi-removed.inc");
 include_once("mpi-apps.inc");
 include_once("running.inc");
 include_once("troubleshooting.inc");
