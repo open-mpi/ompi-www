@@ -590,12 +590,15 @@ Two solutions are possible:
 client(s) is the same.  This can be accomplished in a variety of ways
 and is dependent upon your local setup; one method is to use an NTP
 daemon to synchronize all machines to a common time server.</li>
-<li> Build on a local disk filesystem where network timestamps are not
-a factor.</li>
+<li> Build on a local disk filesystem where network timestamps are
+guaranteed to be synchronized with the local build machine's
+time.</li>
 </ol>
 
-After implementing one of the two options, you will likely need to
-re-run [configure].  Then Open MPI should build successfully.";
+After using one of the two options, it is likely safest to remove the
+Open MPI source tree and re-expand the Open MPI tarball.  Then you can
+run [configure], [make], and [make install].  Open MPI should then
+build and install successfully.";
 
 /////////////////////////////////////////////////////////////////////////
 
