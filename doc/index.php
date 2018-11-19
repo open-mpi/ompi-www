@@ -30,7 +30,7 @@ color=red><?php
 
 <p><ul>
 
-<li><a href="current/"><strong>v3.1 series</strong></a>.
+<li><a href="v3.1/"><strong>v3.1 series</strong></a>.
 This documentation reflects the latest progression in the 3.1.x series.
 <strong><font color=red>This code base is still supported, but is 
 in "bug fix only" mode.</font></strong>
