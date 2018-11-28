@@ -15,7 +15,7 @@ $releases = array("2.1.5", "2.1.4", "2.1.3", "2.1.2", "2.1.1", "2.1.0");
 /* prereleases must be ordered newest to oldest.  All prereleases
    will be shown, so make an empty array when the official release
    is added to releases above */
-$prereleases = array();
+$prereleases = array("2.1.6rc1");
 
 /* set to true if we should add a cygwin note */
 $cygwin_note = 0;
