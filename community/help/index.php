@@ -48,14 +48,15 @@ answered.
 <LI> If you do not find a solution to your problem in the above
 resources, send the following information to the Open MPI user's
 mailing list (see the <A HREF="<?php print($topdir);
-?>/community/lists/">mailing lists</a> page for more information) --
-<strong>please compress the files (e.g., with bzip2) before sending
-them!</strong>
+?>/community/lists/">mailing lists</a> page for more information).
 
-<p> <strong><font color="red">Note:</font></strong> The mailing lists
-have a 150 KB limit on messages.  If your attachment is larger than
-this, please try compressing it and/or posting it on the web somewhere
-for people to download.  Thanks.
+<p> <strong><font size="+2" color="red">Note:</font></strong> The
+mailing lists have <em>a 150 KB size limit on messages</em>.  If
+attaching your files results in an email larger than this, please try
+compressing it and/or posting it on the web somewhere for people to
+download.  A <a href="https://gist.github.com/">GitHub gist</a> or a
+<a href="https://pastebin.com/">Pastebin</a> might be an easy choice
+for posting large text files.</p>
 
 <UL>
 
@@ -84,8 +85,8 @@ for people to download.  Thanks.
       <LI> The version of Open MPI that you're using.</LI>
 
       <LI> The <code>config.log</code> file from the top-level Open
-           MPI directory, if available (<strong>please
-           compress, e.g., with bzip2!</strong>).</LI>
+           MPI directory, if available (<strong>compress with bzip2 or
+           post to a Github gist or Pastebin</strong>).</LI>
 
       <LI> The output of the "<code>ompi_info --all</code>" command
            from the node where you're invoking <code>mpirun</code>.
@@ -170,19 +171,13 @@ foreach? end");
                 variables (did you set them correctly to point to all
                 relevant executables, the Open MPI libraries, and any
                 required support libraries, such as libraries required
-                for high-speed networks such as InfiniBand and/or
-                Myrinet?).</LI>
+                for high-speed networks such as InfiniBand).</LI>
 
 	   </UL></LI>
 
       <LI> Please include information about your network:
 
            <UL>
-
-	   <LI> For Myrinet-based networks, include the information <a
-                href="<?php print($topdir);
-                ?>/faq/?category=myrinet#myri-troubleshoot">listed
-                in this FAQ entry</a>.</LI>
 
 	   <LI> For InfiniBand-based networks, include the information
                 <a href="<?php print($topdir);
@@ -209,20 +204,20 @@ foreach? end");
     output, including all error messages)</LI>
 
     <LI> Output from when you ran "<code>./configure</code>" to
-    configure Open MPI (<strong>please compress, e.g., with
-    bzip2!</strong>)</LI>
+    configure Open MPI (<strong>compress with bzip2 or post to a
+    GitHub gist or Pastebin!</strong>)</LI>
 
     <LI> The <code>config.log</code> file from the top-level Open MPI
-    directory (<strong>please compress, e.g., with
-    bzip2!</strong>)</LI>
+    directory (<strong>compress with bzip2 or post to a GitHub gist or
+    Pastebin!</strong>)</LI>
 
     <LI> Output from when you ran "<code>make V=1</code>" to build
-    Open MPI (<strong>please compress, e.g., with
-    bzip2!</strong>)</LI>
+    Open MPI (<strong>compress with bzip2 or post to a GitHub gist or
+    Pastebin!</strong>)</LI>
 
     <LI> Output from when you ran "<code>make install</code>" to
-    install Open MPI (<strong>please compress, e.g., with
-    bzip2!</strong>)</LI>
+    install Open MPI (<strong>compress bzip2 or post to a GitHub gist
+    or Pastebin!</strong>)</LI>
 
     </OL>
 </UL>
@@ -313,9 +308,9 @@ mailing list.</p>
 
 <p><strong>NOTE:</strong> The mailing lists <em>do</em> have size
 limits on attachments.  If your post is rejected because the
-attachment is too large, try compressing at a higher level.  If that
-does not work, then try posting your file on the internet somewhere and
-sending a link to it on the list.
+attachment is too large, you might want to post the files somewhere on
+the internet (e.g., a GitHub gist or a Pastebin) and just send links
+in your post to the mailing list.</p>
 
 </ol>
 
