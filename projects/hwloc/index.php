@@ -151,6 +151,9 @@ It is also available as EasyBuild and Spack packages.
 The following langages also have dedicated bindings:
 <ul>
  <li>
+  <b>Julia</b> <a href="https://github.com/JuliaParallel/Hwloc.jl">on GitHub</a> (thanks to Erik Schnetter).
+ </li>
+ <li>
   <b>Perl</b> <a href="http://search.cpan.org/~bka/Sys-Hwloc-0.10/">on CPAN</a> (thanks to Bernd Kallies).
  </li>
  <li>
@@ -177,6 +180,7 @@ ported to it:<ul>
 </ul>
 <li>Runtime systems and compilers</li><ul>
  <li>Cray's <a href="http://chapel.cray.com/">Chapel Parallel Programming Language</a></li>
+ <li>The <a href="https://legion.stanford.edu/">Legion Programming System</a></li>
  <li>The <a href="http://starpu.gforge.inria.fr/">StarPU</a> runtime system for heterogeneous multicore architectures</li>
  <li>The <a href="http://icl.cs.utk.edu/parsec">Parallel Runtime Scheduling and Execution Controller (PaRSEC)</a> project</li>
  <li>The <a href="https://pm.bsc.es/projects/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss-bsc">OmpSs</a></li>
