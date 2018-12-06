@@ -90,7 +90,7 @@ if (preg_match("/[a-z]/i", $v) &&
 
 print($blank_line);
 
-$versions = array("v1.10.1", "v1.10.0");
+$versions = array("v1.10.1");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
@@ -102,7 +102,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.9.1", "v1.9");
+$versions = array("v1.9.1");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
@@ -114,7 +114,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.8.1", "v1.8");
+$versions = array("v1.8.1");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
@@ -126,7 +126,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.7.2", "v1.7.1", "v1.7");
+$versions = array("v1.7.2");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
@@ -138,7 +138,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.6.2", "v1.6.1", "v1.6");
+$versions = array("v1.6.2");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
@@ -150,7 +150,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.5.2", "v1.5.1", "v1.5");
+$versions = array("v1.5.2");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
@@ -162,7 +162,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.4.3", "v1.4.2", "v1.4.1", "v1.4");
+$versions = array("v1.4.3");
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
@@ -172,7 +172,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.3.3", "v1.3.2", "v1.3.1", "v1.3");
+$versions = array("v1.3.3");
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
@@ -182,7 +182,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.2.2", "v1.2.1", "v1.2");
+$versions = array("v1.2.2");
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
@@ -192,7 +192,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.1.2", "v1.1.1", "v1.1");
+$versions = array("v1.1.2");
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
@@ -202,7 +202,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v1.0.3", "v1.0.2", "v1.0.1", "v1.0");
+$versions = array("v1.0.3");
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
@@ -212,7 +212,7 @@ foreach ($versions as $key => $v) {
 
 print($blank_line);
 
-$versions = array("v0.9.3", "v0.9.2", "v0.9.1");
+$versions = array("v0.9.3");
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ancient" . ($v == "v0.9.2" ? ", identical to 0.9.1 except for some documentation image sizes" : "") . ")",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");

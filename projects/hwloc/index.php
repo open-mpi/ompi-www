@@ -148,15 +148,24 @@ It is also available as EasyBuild and Spack packages.
 </p>
 
 <p>
-Perl bindings are available from Bernd Kallies
-<a href="http://search.cpan.org/~bka/Sys-Hwloc-0.10/">on CPAN</a>.
-<br />
-Python bindings are available from Guy Streeter
-as <a href="https://copr.fedorainfracloud.org/coprs/streeter/python-hwloc/">Fedora RPM and tarball</a>
-or within their <a href="https://gitlab.com/guystreeter/python-hwloc">git tree</a>.
-<br />
-Rust bindings are available from Michael Nitschinger
-<a href="https://github.com/daschl/hwloc-rs">on GitHub</a>.
+The following langages also have dedicated bindings:
+<ul>
+ <li>
+  <b>Julia</b> <a href="https://github.com/JuliaParallel/Hwloc.jl">on GitHub</a> (thanks to Erik Schnetter).
+ </li>
+ <li>
+  <b>Perl</b> <a href="http://search.cpan.org/~bka/Sys-Hwloc-0.10/">on CPAN</a> (thanks to Bernd Kallies).
+ </li>
+ <li>
+  <b>Python</b>
+  as <a href="https://copr.fedorainfracloud.org/coprs/streeter/python-hwloc/">Fedora RPM and tarball</a>
+  or within their <a href="https://gitlab.com/guystreeter/python-hwloc">git tree</a>
+  (thanks to Guy Streeter).
+ </li>
+ <li>
+  <b>Rust</b> <a href="https://github.com/daschl/hwloc-rs">on GitHub</a> (thanks to Michael Nitschinger).
+ </li>
+</ul>
 </p>
 
 <p><b>The following software already benefit from hwloc</b> or are being
@@ -171,6 +180,7 @@ ported to it:<ul>
 </ul>
 <li>Runtime systems and compilers</li><ul>
  <li>Cray's <a href="http://chapel.cray.com/">Chapel Parallel Programming Language</a></li>
+ <li>The <a href="https://legion.stanford.edu/">Legion Programming System</a></li>
  <li>The <a href="http://starpu.gforge.inria.fr/">StarPU</a> runtime system for heterogeneous multicore architectures</li>
  <li>The <a href="http://icl.cs.utk.edu/parsec">Parallel Runtime Scheduling and Execution Controller (PaRSEC)</a> project</li>
  <li>The <a href="https://pm.bsc.es/projects/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss-bsc">OmpSs</a></li>
