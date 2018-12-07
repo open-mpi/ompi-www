@@ -17,4 +17,4 @@ $releases = array("1.11.11", "1.11.10", "1.11.9", "1.11.8", "1.11.7", "1.11.6",
 /* prereleases must be ordered newest to oldest.  All prereleases
    will be shown, so make an empty array when the official release
    is added to releases above */
-$prereleases = array();
+$prereleases = array("1.11.12rc1");
