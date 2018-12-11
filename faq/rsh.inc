@@ -13,7 +13,7 @@ versions of Open MPI.
 <li> *v1.7 and later series:* The [plm_rsh_agent] MCA parameter
 accepts a colon-delimited list of programs to search for in your path
 to use as the remote startup agent.  The default value
-is \"ssh : rsh\", meaning that it will look for [ssh] first, and if it
+is [ssh : rsh], meaning that it will look for [ssh] first, and if it
 doesn't find it, use [rsh].  You can change the value of this
 parameter as relevant to your environment, such as simply changing it
 to [rsh] or [rsh : ssh] if you have a mixture. The deprecated forms
@@ -23,7 +23,7 @@ to [rsh] or [rsh : ssh] if you have a mixture. The deprecated forms
 accepts a colon-delimited list of programs to search for in your path
 to use as the remote startup agent (the MCA parameter name
 [plm_rsh_agent] also works, but it is deprecated).  The default value
-is \"ssh : rsh\", meaning that it will look for [ssh] first, and if it
+is [ssh : rsh], meaning that it will look for [ssh] first, and if it
 doesn't find it, use [rsh].  You can change the value of this
 parameter as relevant to your environment, such as simply changing it
 to [rsh] or [rsh : ssh] if you have a mixture.</li>
@@ -48,7 +48,7 @@ multi-word values.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "What pre-requisites are necessary for running an Open MPI job
+$q[] = "What prerequisites are necessary for running an Open MPI job
 under <code>rsh</code>/<code>ssh</code>?";
 
 $anchor[] = "ssh-run-prereqs";
@@ -63,9 +63,8 @@ $q[] = "How can I make <code>ssh</code> not ask me for a password?";
 
 $anchor[] = "ssh-keys";
 
-$a[] = "If you are using [rsh] to launch processes on remote nodes,
-
-There are multiple ways.
+$a[] = "If you are using [ssh] to launch processes on remote nodes,
+there are multiple ways.
 
 Note that there are multiple versions of [ssh] available.  References
 to [ssh] in this text refer to OpenSSH.
@@ -79,11 +78,11 @@ and filenames may be slightly different.  Consult your SSH
 documentation for more details.
 
 Normally, when you use [ssh] to connect to a remote host, it will
-prompt you for your password. However, the easiest way for [mpirun]
+prompt you for your password. However, for the easiest way for [mpirun]
 (and [mpiexec], which, in Open MPI, is identical to [mpirun]) to work
 properly, you need to be able to execute jobs on remote nodes without
 typing in a password. In order to do this, you will need to set up
-passphrase We recomend using RSA passphrases as they is generally
+a passphrase. We recommend using RSA passphrases as they are generally
 \"better\" (i.e., more secure) than DSA passphrases.  As such, this
 text will describe the process for RSA setup.
 
@@ -104,7 +103,8 @@ Accept the default value for the file in which to store the key
 may choose to not enter a passphrase and therefore obviate the need
 for using the [ssh-agent].  However, this <strong>greatly</strong>
 weakens the authentication that is possible, because your secret key
-is [potentially] vulnerable to compromise because it is unencrypted.
+is <strong>potentially</strong> vulnerable to compromise 
+because it is unencrypted.
 It has been compared to the moral equivalent of leaving a plain text
 copy of your password in your [\$HOME] directory.  See the [ssh]
 documentation for more details.
@@ -120,11 +120,11 @@ shell$ cp id_rsa.pub authorized_keys
 
 In order for RSA authentication to work, you need to have the
 [\$HOME/.ssh] directory in your home directory on all the machines you
-are running Open MPI.  If your home directory is on a common
+are running Open MPI on.  If your home directory is on a common
 filesystem, this may be already taken care of.  If not, you will need to
 copy the [\$HOME/.ssh] directory to your home directory on all Open
-MPI nodes (be sure to do this in a secure manner &mdash; perhaps using the
-[scp] command &mdash; particularly if your secret key is not encrypted).
+MPI nodes. (Be sure to do this in a secure manner &mdash; perhaps using the
+[scp] command &mdash; particularly if your secret key is not encrypted.)
 
 [ssh] is very particular about file permissions. Ensure that your home
 directory on all your machines is set to at least mode 755, your
@@ -141,13 +141,13 @@ permissions:
 
 The phrase \"at least\" in the above paragraph means the following:
 <ul>
-<li> The files need to be readable by you</li>
-<li> The files should _only_ be writable by you</li>
-<li> The files should not be executable</li>
+<li> The files need to be readable by you.</li>
+<li> The files should _only_ be writable by you.</li>
+<li> The files should not be executable.</li>
 <li> Aside from [id_rsa], the files _can_ be readable by others, but
-do not need to be</li>
+do not need to be.</li>
 <li> Your [\$HOME] and [\$HOME/.ssh] directories _can_ be readable by
-others, but do not need to be</li>
+others, but do not need to be.</li>
 </ul>
 
 You are now set up to use RSA authentication. However, when you [ssh]
