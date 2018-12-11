@@ -154,10 +154,10 @@ removed symbols, and b) educated how to update their applications.
 
 We, the Open MPI developers, recognize that your MPI application
 failing to compile with Open MPI may be a nasty surprise.  We
-appologize for that.  <i class=\"em em-anguished\"></i>
+apologize for that.  <i class=\"em em-anguished\"></i>
 
 Our intent is simply to use this minor shock to raise awareness and
-use it as an educational opprotunity to show you how to update your
+use it as an educational opportunity to show you how to update your
 application (or direct your friendly neighborhood MPI application
 developer to this FAQ) to stop using these removed MPI symbols.
 
