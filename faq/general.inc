@@ -5,7 +5,7 @@ $q[] = "What is MPI?  What is Open MPI?";
 $anchor[] = "what-is-mpi";
 
 $a[] = "MPI stands for the Message Passing Interface.  Written by the
-MPI Forum (a large committee comprising of a cross-section between
+MPI Forum (a large committee comprised of a cross-section between
 industry and research representatives), MPI is a standardized API
 typically used for parallel and/or distributed computing.  The MPI
 standard has been published multiple times:
@@ -15,12 +15,12 @@ standard has been published multiple times:
 <li> MPI-2.0 (published in 1996).  MPI-2.0 is, for the most part,
 additions and extensions to the original MPI-1.0 specification.
 <ul>
-<li> MPI-2.1 and MPI-2.2 were subsequently published, and contained
+<li> MPI-2.1 and MPI-2.2 were subsequently published, and contain
 minor fixes, changes, and additions compared to MPI-2.0.</li>
 </ul></li>
 <li> MPI-3.0 (published in 2012).
 <ul>
-<li> MPI-3.1 was subsequently, and contains minor fixes, changes, and
+<li> MPI-3.1 was subsequently published, and contains minor fixes, changes, and
 additions compared to MPI-3.0.</li>
 </ul></li>
 </ul>
@@ -50,7 +50,7 @@ not recommended for beginners, but is an invaluable reference.</li>
      sellers for availability):
      <ul>
      <li> _MPI: The Complete Reference_, Marc Snir et al. (an annotated
-          version of the MPI-1 and MPI-2 standard; a 2 volume set,
+          version of the MPI-1 and MPI-2 standards; a 2 volume set,
           also known as \"The orange book\" and \"The yellow
           book\")</li>
      <li> _Using MPI_, William Gropp et al. (2nd edition, also known as
@@ -67,7 +67,7 @@ beginners.</strong></font></li>
 <li> Last but not least, "
 . "<a href=\"http://www.google.com/search?q=MPI+tutorial\">"
 . "searching for \"MPI tutorial\" on Google</a> turns up a wealth of
-information (some good, some bad)</li>
+information (some good, some bad).</li>
 </ul>";
 
 /////////////////////////////////////////////////////////////////////////
@@ -141,7 +141,7 @@ $a[] = "The Open MPI code base is licensed under <a
 href=\"$topdir/community/license.php\">the new BSD license</a>.
 
 That being said, although we are an open source project, we recognize
-that the everyone does not provide free, open source software.  Our
+that everyone does not provide free, open source software.  Our
 collaboration models allow (and encourage!)  3rd parties to write and
 distribute their own components &mdash; perhaps with a different license,
 and perhaps even as closed source.  This is all perfectly acceptable
@@ -179,15 +179,15 @@ We intend to distinguish ourselves from other projects by:
 <ul>
 <li> Working with the HPC community to accept best-in-breed
 improvements and functionality enhancements.
-<li> Provide a flexible framework and set of APIs that allow a
-wide-variety of different goals within the same code base through the
+<li> Providing a flexible framework and set of APIs that allow a
+wide variety of different goals within the same code base through the
 combinatorial effect of mixing-and-matching different components.
 </ul>
 
 Hence, we hope that no one ever has a reason to fork the main code
 base.  We intend to work with the community to accept the best
 improvements back into the main code base.  And if some developers
-want to do things to the main code base that are different than the
+want to do things to the main code base that are different from the
 goals of the main Open MPI Project, it is our hope that they can do
 what they need in components that can be distributed without forking
 the main Open MPI code base.
