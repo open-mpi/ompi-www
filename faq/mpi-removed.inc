@@ -114,7 +114,7 @@ symbols.
 All that being said, if you are unable to immediately update your
 application to stop using these removed MPI-1 symbols, you can
 re-enable them in [mpi.h] by configuring Open MPI with the
-[--enable-mpi-compatibility] flag.
+[--enable-mpi1-compatibility] flag.
 
 *NOTE:* Future releases of Open MPI beyond the v4.0.x series may
 remove these symbols altogether.";
