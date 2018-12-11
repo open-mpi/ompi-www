@@ -222,7 +222,7 @@ href=\"$topdir/papers/workshop-2006/\">are available here</a>.
 
 Additionally, several Greenplum videoed several Open MPI developers
 discussing Open MPI internals in 2012.  The videos <a
-href=\"$topdir/videos/internals/\">are available here</a>.";
+href=\"$topdir/video/?category=internals\">are available here</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
