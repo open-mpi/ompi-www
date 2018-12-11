@@ -22,7 +22,7 @@ advanced support from recent BProc versions, it is somewhat doubtful
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "What pre-requisites are necessary for running an Open MPI job under BProc?";
+$q[] = "What prerequisites are necessary for running an Open MPI job under BProc?";
 
 $anchor[] = "bproc-run-prereqs";
 
@@ -30,25 +30,25 @@ $a[] = "In general, they are the same for running Open MPI jobs in
 other environments (see <a href=\"./?category=running\">this FAQ
 category for more general information</a>).
 
-However, BProc it is worth noting that BProc may not bring all
+However, with BProc it is worth noting that BProc may not bring all
 necessary dynamic libraries with a process when it is migrated to a
 back-end compute node.  Plus, Open MPI opens components on the fly
 (i.e., _after_ the process has started), so if these components are
 unavailable on the back-end compute nodes, Open MPI applications may
 fail.
 
-In general the Open MPI team recomends one of the following two
+In general the Open MPI team recommends one of the following two
 solutions when running on BProc clusters (in order):
 
 <ol>
 <li>Compile Open MPI statically, meaning that Open MPI's libraries
 produce static \"[.a]\" libraries and all components are included in
 the library (as opposed to dynamic \"[.so]\" libraries, and separate
-\"[.so]\" files for each component that are found and loaded at
+\"[.so]\" files for each component that is found and loaded at
 run-time) so that applications do not need to find any shared
 libraries or components when they are migrated to back-end compute
 nodes.  This can be accomplished by specifying [--enable-static
---disable-shared] to [configure] script when building Open MPI.</li>
+--disable-shared] to [configure] when building Open MPI.</li>
 
 <li>If you do not wish to use static compilation, ensure that Open MPI
 is fully installed on all nodes (i.e., the head node and all compute
