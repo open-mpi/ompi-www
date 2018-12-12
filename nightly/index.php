@@ -54,7 +54,7 @@ the upcoming v4.0.x series.
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
 
-<li><a href="v1.10/"><strong>v1.10 series</strong></a> (previuos stable
+<li><a href="v1.10/"><strong>v1.10 series</strong></a> (previous stable
 series): These are
 images from the stable v1.10 series.   This tree is unlikely to be
 updated any more.</li>
