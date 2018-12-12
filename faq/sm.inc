@@ -269,10 +269,10 @@ is somewhat complicated and subject to change.  It guarantees that
 there will be at least enough shared memory for the program to start
 up and run.  See <a href=\"#how-much-need\">this FAQ item</a> to see
 how much is needed.  Alternatively, the motivated user can examine the
-OMPI source code to see the formula used &mdash; for example, here is the "
-. "<a
-href=\"https://svn.open-mpi.org/source/xref/ompi-trunk/ompi/mca/btl/sm/btl_sm.c?r=20906#195\">"
-. "formula in OMPI revision SVN r20906</a>.
+OMPI source code to see the formula used &mdash; for example, here is the 
+<a
+href=\"https://github.com/open-mpi/ompi/blob/463f11f9937b084250751c29b1556e40148737b3/ompi/mca/btl/sm/btl_sm.c#L187-L255\">
+formula in OMPI commit 463f11f</a>.
 
 OMPI v1.3.2 also uses the MCA parameter [mpool_sm_min_size] to set a
 minimum size &mdash; e.g., so that there is not only enough shared memory
