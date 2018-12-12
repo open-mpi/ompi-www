@@ -48,7 +48,7 @@ $q[] = "What license is Open MPI distributed under?";
 $anchor[] = "ompi-license";
 
 $a[] = "Open MPI is distributed under <a
-href=\"$topdir/community/license.php\">the BSD license</a>.";
+href=\"$topdir/community/license.php\">the 3-clause BSD license</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -83,7 +83,7 @@ $anchor[] = "contribute-code";
 $a[] = "We love code contributions!
 
 All code contributions are submitted as pull requests on the
-<a href=\"https://github.com/open-mpi/ompi/\">Open MPI Github project</a>.
+<a href=\"https://github.com/open-mpi/ompi/\">Open MPI GitHub project</a>.
 
 We need to have an established intellectual property pedigree of the
 code in Open MPI.  This means being able to ensure that all code
@@ -106,7 +106,7 @@ how can I contribute to Open MPI?";
 
 $anchor[] = "cant-sign-agreement";
 
-$a[] = "This question is obsolete (as of November, 2016).  The Open MPI
+$a[] = "This question is obsolete (as of November 2016).  The Open MPI
 project *used* to require a signed Open MPI Third Party Contribution
 Agreement before we could accept code contributions.
 
@@ -140,8 +140,8 @@ $a[] = "No problem.
 
 While we are creating free / open-source software, and we would prefer
 if everyone's contributions to Open MPI were also free / open-source,
-we certainly recognize that other organizations have difference goals
-than us.  Such is the reality of software development in today's
+we certainly recognize that other organizations have different goals
+from us.  Such is the reality of software development in today's
 global economy.
 
 As such, it is perfectly acceptable to make non-free / non-open-source
