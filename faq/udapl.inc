@@ -47,11 +47,11 @@ and will be included in future Open MPI releases.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "What values are expected to be used by the btl_udapl_if_include and btl_udapl_if_exclude mca parameter?";
+$q[] = "What values are expected to be used by the <code>btl_udapl_if_include</code> and <code>btl_udapl_if_exclude</code> MCA parameters?";
 
 $anchor[] = "include-exclude";
 
-$a[] = "The uDAPL BTL looks for a match from the uDAPL static registry which is contained in the dat.conf file. Each non commented or blank line is considered an interface. The first field of each interface entry is the value which must be supplied to the mca parameter in question.
+$a[] = "The uDAPL BTL looks for a match from the uDAPL static registry which is contained in the [dat.conf] file. Each non commented or blank line is considered an interface. The first field of each interface entry is the value which must be supplied to the MCA parameter in question.
 
 Solaris Example:
 
@@ -83,15 +83,15 @@ Linux: [/etc/dat.conf]
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How come the value reported by \"ifconfig\" is not accepted by the btl_udapl_if_include/btl_udapl_if_exclude MCA parameter?";
+$q[] = "How come the value reported by <code>ifconfig</code> is not accepted by the <code>btl_udapl_if_include</code>/<code>btl_udapl_if_exclude</code> MCA parameter?";
 
 $anchor[] = "ifconfig-interface";
 
-$a[] = "uDAPL queries a static registry defined in the dat.conf file to find available interfaces which can be used. As such, the uDAPL BTL needs to match the names found in the registry and these may differ from what is reported by \"ifconfig\".";
+$a[] = "uDAPL queries a static registry defined in the [dat.conf] file to find available interfaces which can be used. As such, the uDAPL BTL needs to match the names found in the registry and these may differ from what is reported by [ifconfig].";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "I get a warning message about not being able to register memory and possibly out of privileged memory while running on Solaris, what can I do?";
+$q[] = "I get a warning message about not being able to register memory and possibly out of privileged memory while running on Solaris; what can I do?";
 
 $anchor[] = "privileged-memory";
 
@@ -106,14 +106,14 @@ the allowed privileged memory may alleviate this issue.
 One thing to do is increase the amount of available privileged
 memory. On Solaris your system adminstrator can increase the amount of
 available privileged memory by editing the [/etc/project] file on the
-nodes. For more information see Solaris \"project\" man page.
+nodes. For more information see the Solaris [project] man page.
 
 <geshi bash>
 shell% man project
 </geshi>
 
-As an example of increasing the privileged memory first determine the
-amount available (example of typical value is 978MB):
+As an example of increasing the privileged memory, first determine the
+amount available (example of typical value is 978 MB):
 
 <geshi bash>
 shell% prctl -n project.max-device-locked-memory -i project default
@@ -123,7 +123,7 @@ project.max-device-locked-memory
         system          16.0EB    max   deny            -
 </geshi>
 
-To increase the amount of privileged memory edit [/etc/project] file:
+To increase the amount of privileged memory, edit the [/etc/project] file:
 
 Default [/etc/project] file.
 
@@ -135,7 +135,7 @@ default:3::::
 group.staff:10::::
 </geshi>
 
-Change to, for example 4GB.
+Change to, for example, 4 GB.
 
 <geshi text>
 system:0::::
