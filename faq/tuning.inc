@@ -8,8 +8,8 @@ much of Open MPI's functionality.  It is a series of _frameworks_,
 _components_, and _modules_ that are assembled at run-time to create
 an MPI implementation.
 
-*Frameworks:* An MCA framework manages zero or more components at run
-time and is targeted at a specific task (e.g., provide MPI collective
+*Frameworks:* An MCA framework manages zero or more components at run-time
+and is targeted at a specific task (e.g., providing MPI collective
 operation functionality).  Each MCA framework supports a single
 component type, but may support multiple versions of that type.  The
 framework uses the services from the MCA base functionality to find
@@ -44,10 +44,10 @@ developers use are:
 
 <ul>
 <li>Instead of using a constant for an important value, make it an MCA
-parameter</li>
+parameter.</li>
 <li>If a task can be implemented in multiple, user-discernible ways,
 implement as many as possible and make choosing between them be an MCA
-parameter</li>
+parameter.</li>
 </ul>
 
 For example, an easy MCA parameter to describe is the boundary between
@@ -182,7 +182,7 @@ list in the Open MPI v1.3 series:
 
 <ul>
 <li> *errmgr:* RTE error manager</li>
-<li> *ess:* RTE environment-specfic services</li>
+<li> *ess:* RTE environment-specific services</li>
 <li> *filem:* Remote file management</li>
 <li> *grpcomm:* RTE group communications</li>
 <li> *iof:* I/O forwarding</li>
@@ -266,7 +266,7 @@ components in Open MPI is, itself, an MCA parameter.  Setting the
 directories).
 
 Note also that components are only used on nodes where they are
-\"visible.\" Hence, if you [\$prefix/lib/openmpi/] is a directory on a
+\"visible\". Hence, if your [\$prefix/lib/openmpi/] is a directory on a
 local disk that is not shared via a network filesystem to other nodes
 where you run MPI jobs, then components that are installed to that
 directory will *only* be used by MPI jobs running on the local node.
@@ -342,7 +342,7 @@ before running [a.out] with four processes.  In general, the format
 used on the command line is \"<code>--mca &lt;param_name&gt;
 &lt;value&gt;</code>\".
 
-Note that when senting multi-word values, you need to use quotes to ensure that the shell and Open MPI understand that they are a single value.  For example:
+Note that when setting multi-word values, you need to use quotes to ensure that the shell and Open MPI understand that they are a single value.  For example:
 
 <geshi bash>
 shell$ mpirun --mca param \"value with multiple words\" ...
@@ -451,7 +451,7 @@ parameters.
 AMCA parameter files are typically supplied on the command line via
 the [--am] option.
 
-For example, consider a AMCA parameter file called [foo.conf]
+For example, consider an AMCA parameter file called [foo.conf]
 placed in the same directory as the application [a.out]. A user
 will typically run the application as:
 
@@ -475,7 +475,7 @@ shell$ mpirun -np 2 --am foo.conf -mca btl tcp,self a.out
 
 AMCA parameter files can be coupled if more than one file is to be
 used. If we have another AMCA parameter file called [bar.conf]
-that we want to use we add it to the command line as follows:
+that we want to use, we add it to the command line as follows:
 
 <geshi bash>
 shell$ mpirun -np 2 --am foo.conf:bar.conf a.out
@@ -489,18 +489,18 @@ parameter to [mpi_leave_pinned=1] then the latter will be used.
 
 The location of AMCA parameter files are resolved in a similar way as
 the shell. If no path operator is provided (i.e., [foo.conf]) then
-Open MPI will search the [\$SYSCONFDIR/amca-param-sets directory] then
-the current working directory. If a relative path is specified then
-only that path will be searched (i.e., [./foo.conf],
-[baz/foo.conf]). If an absolute path is specified then only that
-path will be searched (i.e., [/bip/boop/foo.conf]).
+Open MPI will search the [\$SYSCONFDIR/amca-param-sets] directory, then
+the current working directory. If a relative path is specified, then
+only that path will be searched (e.g., [./foo.conf],
+[baz/foo.conf]). If an absolute path is specified, then only that
+path will be searched (e.g., [/bip/boop/foo.conf]).
 
 Though the typical use case for AMCA parameter files is to be
 specified on the command line, they can also be set as MCA parameters
-in the environment. The MCA parameter (mca_base_param_file_prefix)
+in the environment. The MCA parameter [mca_base_param_file_prefix]
 contains a ':' separated list of AMCA parameter files exactly as they
 would be passed to the [--am] command line option. The MCA
-parameter (mca_base_param_file_path) specifies the path to search for
+parameter [mca_base_param_file_path] specifies the path to search for
 AMCA files with relative paths. By default this is
 [\$SYSCONFDIR/amca-param-sets/:\$CWD].";
 
@@ -528,7 +528,7 @@ A valid line in the file may contain zero or many [-x], [-mca], or
 last value read will be used.
 
 Fox example, a file may contain the following line:
-<geshi make>
+<geshi text>
 -x envar1 = value1 -mca param1 value1 -x envar2 -mca param2 \"value2\"
 </geshi>
 
@@ -544,7 +544,7 @@ the command line have higher precedence than variables specified in
 the file.
 
 The [--tune] option can also be replaced by the MCA parameter
-([mca_base_envar_file_prefix]) which is similar to
+[mca_base_envar_file_prefix] which is similar to
 [mca_base_param_file_prefix] having the same meaning as the [--am]
 option.";
 
@@ -561,7 +561,7 @@ framework that can be used to _include_ or _exclude_ components from a
 given run.
 
 For example, the [btl] MCA parameter is used to control which BTL
-components are used (i.e., MPI point-to-point communications; see <A
+components are used (e.g., MPI point-to-point communications; see <A
 HREF=\"#frameworks\">this FAQ entry</a> for a full list of MCA
 frameworks).  It can take as a value a comma-separated list of
 components with the optional prefix \"[^]\".  For example:
@@ -580,7 +580,7 @@ shell$ mpirun ****--mca btl self,sm,openib**** ...
 Note that [^] can _only_ be the prefix of the entire value because the
 inclusive and exclusive behavior are mutually exclusive.
 Specifically, since the exclusive behavior means \"use all components
-_except_ these,\" it does not make sense to mix it with the inclusive
+_except_ these\", it does not make sense to mix it with the inclusive
 behavior of not specifying it (i.e., \"use all of these components\").
 Hence, something like this:
 
@@ -618,18 +618,18 @@ also improve performance reproducibility by eliminating variable process
 placement.  Unfortunately, binding can also degrade performance by
 inhibiting the OS capability to balance loads.
 
-You can run the \"[ompi_info]\" command and look for \"[hwloc]\"
+You can run the [ompi_info] command and look for [hwloc]
 components to see if your system is supported (older versions of Open
-MPI used \"[paffinity]\" components).  For example:
+MPI used [paffinity] components).  For example:
 
 <geshi bash>
 $ ompi_info | grep hwloc
       MCA hwloc: hwloc191 (MCA v2.0, API v2.0, Component v1.8.4)
 </geshi>
 
-Older versions of Open MPI used \"paffinity\" components for process
+Older versions of Open MPI used [paffinity] components for process
 affinity control; if your version of Open MPI does not have an
-\"hwloc\" component, see if it has a \"paffinity\" component.
+[hwloc] component, see if it has a [paffinity] component.
 
 Note that processor affinity probably should *not* be used when a node
 is over-subscribed (i.e., more processes are launched than there are
@@ -673,17 +673,17 @@ processes in order to minimize memory network/bus traffic.
 Open MPI supports memory affinity on a variety of systems.
 
 In recent versions of Open MPI, memory affinity is controlled through
-the \"[hwloc]\" component.  In earlier versions of Open MPI, memory
-affinity was controlled through \"[maffinity]\" components.
+the [hwloc] component.  In earlier versions of Open MPI, memory
+affinity was controlled through [maffinity] components.
 
 <geshi bash>
 $ ompi_info | grep hwloc
       MCA hwloc: hwloc191 (MCA v2.0, API v2.0, Component v1.8.4)
 </geshi>
 
-Older versions of Open MPI used \"maffinity\" components for memory
+Older versions of Open MPI used [maffinity] components for memory
 affinity control; if your version of Open MPI does not have an
-\"hwloc\" component, see if it has a \"maffinity\" component.
+[hwloc] component, see if it has a [maffinity] component.
 
 $maffinity_warning
 
@@ -697,9 +697,9 @@ $q[] = "How do I tell Open MPI to use processor and/or memory affinity?";
 $anchor[] = "using-paffinity";
 
 $a[] = "Assuming that your system supports processor and memory
-affinity (check [ompi_info] for an \"[hwloc]\" component (or, in
-earlier Open MPI versions, \"[paffinity]\" and \"[maffinity]\"
-components), you can explicitly tell Open MPI to use them when running
+affinity (check [ompi_info] for an [hwloc] component (or, in
+earlier Open MPI versions, [paffinity] and [maffinity]
+components)), you can explicitly tell Open MPI to use them when running
 MPI jobs.
 
 $maffinity_warning
@@ -728,7 +728,7 @@ in Open MPI v1.2.x?  (What is <tt>mpi_paffinity_alone</tt>?)";
 $anchor[] = "using-paffinity-v1.2";
 
 $a[] = "Open MPI 1.2 offers only crude control, with the MCA
-parameter \"[mpi_paffinity_alone]\".  For example:
+parameter [mpi_paffinity_alone].  For example:
 
 <geshi bash>
 $ mpirun --mca mpi_paffinity_alone 1 -np 4 a.out
@@ -816,10 +816,10 @@ designations.  For example, _1:2-3_ means cores 2-3 of socket 1.</li>
 <li>It is strongly recommended that you provide a full rankfile when
 using such affinity settings, otherwise there would be a very high
 probability of processor oversubscription and performance degradation.</li>
-<li>The hosts specified in the rankfile must be known to mpirun,
-for example via a list of hosts in a hostfile or as obtained from a
+<li>The hosts specified in the rankfile must be known to [mpirun],
+for example, via a list of hosts in a hostfile or as obtained from a
 resource manager.</li>
-<li>The number of processes [np] must be provided on the [mpirun] cmd
+<li>The number of processes [np] must be provided on the [mpirun] command
 line.</li>
 <li>If some processing units are not available &mdash; e.g., due to
 unpopulated sockets, idled cores, or BIOS settings &mdash; the syntax assumes
@@ -831,7 +831,7 @@ will bind rank4 to the physical socket3 : physical core2 pair.</li>
 
 Rank files are also discussed on the [mpirun] man page.
 
-If you want to use the same \"slot list\" binding for each process,
+If you want to use the same slot list binding for each process,
 presumably in cases where there is only one process per node, you can
 specify this slot list on the command line rather than having to use a
 rank file:
@@ -876,8 +876,8 @@ supports additional command-line binding switches to [mpirun]:
      by Open MPI.</li>
 </ul>
 
-In the case of cores with multiple hardware threads (e.g., HyperThreads or
-SMT), only the first hardware thread on each core is used with the
+In the case of cores with multiple hardware threads (e.g., "HyperThreads" or
+"SMT"), only the first hardware thread on each core is used with the
 [--bind-to-*] options.  This will hopefully be fixed in the Open MPI v1.5 series.
 
 The above options are typically most useful when used with the
@@ -903,13 +903,13 @@ actual hardware rather than by some node-dependent numbering, which
 is what [mpi_paffinity_alone] does as described
 <a href=\"#using-paffinity-v1.2\">in this FAQ entry.</a>
 
-Finally, there is poorly-named a \"combination\" option that effects both process
+Finally, there is a poorly-named \"combination\" option that effects both process
 layout counting and binding: [--cpus-per-proc] (and an even more poorly-named
 alias [--cpus-per-rank]).
 
 <blockquote>
 _Editor's note:_ I feel that these options are poorly named for two
-reasons: 1) \"cpu\" is not consistently defined (e.g., it may be a
+reasons: 1) \"cpu\" is not consistently defined (i.e., it may be a
 core, or may be a hardware thread, or it may be something else), and
 2) even though many users use the terms \"rank\" and \"MPI process\"
 interchangeably, they are *NOT* the same thing.
@@ -964,12 +964,12 @@ in Open MPI v1.6 (and beyond)?";
 
 $anchor[] = "using-paffinity-v1.6";
 
-$a[] = "The use of processor an memory affinity evolved rapidly,
+$a[] = "The use of processor and memory affinity evolved rapidly,
 starting with Open MPI version 1.6.
 
-The mpirun(1) man page for each version of Open MPI contains a lot of
+The [mpirun(1)] man page for each version of Open MPI contains a lot of
 information about the use of processor and memory affinity.  You
-should consult the mpirun(1) page for your version of Open MPI for
+should consult the [mpirun(1)] page for your version of Open MPI for
 detailed information about processor/memory affinity.
 
 <ul>
@@ -992,7 +992,7 @@ $a[] = "It depends on a lot of factors, including (but not limited to):
 <ul>
 <li> The operating system</li>
 <li> The underlying compute hardware</li>
-<li> The network stack (a see <a href=\"?category=openfabrics#ofa-fork\">this FAQ entry</a> for more details)</li>
+<li> The network stack (see <a href=\"?category=openfabrics#ofa-fork\">this FAQ entry</a> for more details)</li>
 <li> Interactions with other middleware in the MPI process</li>
 </ul>
 
@@ -1001,8 +1001,8 @@ In some cases, Open MPI will determine that it is not safe to
 callback to print a warning when the process forks.
 
 This warning is helpful for legacy MPI applications where the current
-maintainers are unaware that system() or popen() is being invoked from
-an obscure subroutine nestled deep in millions of line of Fortran code
+maintainers are unaware that [system()] or [popen()] is being invoked from
+an obscure subroutine nestled deep in millions of lines of Fortran code
 (we've seen this kind of scenario many times).
 
 However, this atfork handler can be dangerous because there is no way
@@ -1030,7 +1030,7 @@ $q[] = "I want to run some performance benchmarks with Open MPI.  How do I do th
 
 $anchor[] = "running-perf-numbers";
 
-$a[] = "Running benchmarks correctly is an extremely difficult task to
+$a[] = "Running benchmarks is an extremely difficult task to
 do correctly.  There are many, many factors to take into account; it
 is *not* as simple as just compiling and running a stock benchmark
 application.  This FAQ entry is by no means a definitive guide, but it
@@ -1078,13 +1078,13 @@ network. </li>
 
 <li> Disable all services and daemons that are not being used.  Even
 \"harmless\" daemons consume system resources (such as RAM) and cause
-\"jitter\" by occassionally waking up, consuming CPU cycles, reading
+\"jitter\" by occasionally waking up, consuming CPU cycles, reading
 or writing to disk, etc.  The optimum benchmark system has an absolute
 minimum number of system services running. </li>
 
 <li> Use processor affinity on multi-processor/core machines to
 disallow the operating system from swapping MPI processes between
-processor (and causing unnecessary cache thrashing, for
+processors (and causing unnecessary cache thrashing, for
 example).
 
 On NUMA architectures, having the processes getting bumped from one
@@ -1092,7 +1092,7 @@ socket to another is more expensive in terms of cache locality (with
 all of the cache coherency overhead that comes with the lack of it)
 than in terms of hypertransport routing (see below).
 
-Non-NUMA architectures such as the Intel Woodcrest have a flat access
+Non-NUMA architectures such as Intel Woodcrest have a flat access
 time to the South Bridge, but cache locality is still important so CPU
 affinity is always a good thing to do.</li>
 
@@ -1106,7 +1106,7 @@ documentation (it's not always socket 0!).  If a process on the other
 socket needs to write something to a NIC on a PCIE bus behind the
 South Bridge, it needs to first hop through the first socket.  On
 modern machines (circa late 2006), this hop cost usually something
-like 100ns (i.e., 0.1 us).  If the socket is further away, like in a 4
+like 100ns (i.e., 0.1 us).  If the socket is further away, like in a 4-
 or 8-socket configuration, there could potentially be more hops,
 leading to more latency.</li>
 
@@ -1117,7 +1117,7 @@ Open MPI does not.  Add <tt>-O</tt> or other flags explicitly.
 
 <li> Make sure your benchmark runs for a sufficient amount of time.
 Short-running benchmarks are generally less accurate because they take
-fewer samples; longer-running jobs tend to take more samples
+fewer samples; longer-running jobs tend to take more samples.
 
 <li> If your benchmark is trying to benchmark extremely short events
 (such as the time required for a single ping-pong of messages):
@@ -1130,24 +1130,24 @@ communications.  Hence, the first event (or first few events)
 may well take significantly longer than subsequent events.</li>
 
 <li> Use a high-resolution timer if possible &mdash; [gettimeofday()] only
-returns milisecond precision (sometimes on the order of several
+returns millisecond precision (sometimes on the order of several
 microseconds).</li>
 
 <li> Run the event many, many times (hundreds or thousands, depending
-on the event and the time it takes).  Not only does this provide a
+on the event and the time it takes).  Not only does this provide
 more samples, it may also be necessary, especially when the precision
-of the timer your using may be several orders of magnitude less
-precise than the even you're trying to benchmark.</li>
+of the timer you're using may be several orders of magnitude less
+precise than the event you're trying to benchmark.</li>
 </ul>
 
 <li> Decide whether you are reporting minimum, average, or maximum
 numbers, and have good reasons why. </li>
 
-<li> Accurately label and report all results.  Reproducability is a
+<li> Accurately label and report all results.  Reproducibility is a
 major goal of benchmarking; benchmark results are effectively useless
 if they are not precisely labeled as to exactly what they are
 reporting.  Keep a log and detailed notes about the ''exact'' system
-configuration that ou are benchmarking.  Note, for example, all
+configuration that you are benchmarking.  Note, for example, all
 hardware and software characteristics (to include hardware, firmware,
 and software versions as appropriate). </li>
 
@@ -1174,7 +1174,7 @@ This is due to a bug in the Intel MPI Benchmarks, known to be in at
 least versions v3.1 and v3.2.  Intel was notified of this bug in May
 of 2009.  If you have a version after then, it should include this bug
 fix.  If not, here is the fix that you can apply to the IMB-EXT source
-code yourself:
+code yourself.
 
 Here is a small patch that fixes the bug in IMB v3.2:
 
