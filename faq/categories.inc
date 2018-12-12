@@ -105,8 +105,8 @@ $parent_name[] = "";
     $names[] = "tm";
     $parent_name[] = "run_parent";
 
-    $titles[] = "Running jobs under SLURM";
-    $short_titles[] = "SLURM";
+    $titles[] = "Running jobs under Slurm";
+    $short_titles[] = "Slurm";
     $names[] = "slurm";
     $parent_name[] = "run_parent";
 

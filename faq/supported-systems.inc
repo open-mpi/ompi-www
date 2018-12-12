@@ -161,7 +161,7 @@ ORTE currently natively supports the following run-time environments:
 <li> LSF </li>
 <li> POE (pre-1.8 only)</li>
 <li> rsh / ssh</li>
-<li> SLURM</li>
+<li> Slurm</li>
 <li> XGrid (pre-1.3 only)</li>
 <li> Yod (Red Storm, pre-1.5 only)</li>
 </ul>

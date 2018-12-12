@@ -30,7 +30,7 @@ and can significantly reduce startup time.</li>
 </ul>
 
 Other options are available when launching via [mpirun] or when launching using
-the native resource manager launcher (e.g., [srun] in a SLURM environment).
+the native resource manager launcher (e.g., [srun] in a Slurm environment).
 These are activated by setting the corresponding MCA parameter, and include:
 
 <ul>

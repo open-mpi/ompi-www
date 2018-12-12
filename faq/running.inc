@@ -287,7 +287,7 @@ shell$ mpirun --prefix /opt/openmpi-$ver_current -np 4 a.out
 This will prefix the [PATH] and [LD_LIBRARY_PATH] on both the local
 and remote hosts with [/opt/openmpi-$ver_current/bin] and
 [/opt/openmpi-$ver_current/lib], respectively.  This is _usually_
-unnecessary when using resource managers to launch jobs (e.g., SLURM,
+unnecessary when using resource managers to launch jobs (e.g., Slurm,
 Torque, etc.) because they tend to copy the entire local environment
 &mdash; to include the [PATH] and [LD_LIBRARY_PATH] &mdash; to remote nodes
 before execution.  As such, if [PATH] and [LD_LIBRARY_PATH] are set
@@ -367,7 +367,7 @@ entry") . ".
 
 Note, however, that not all environments require a hostfile.  For
 example, Open MPI will automatically detect when it is running in
-batch / scheduled environments (such as SGE, PBS/Torque, SLURM, and
+batch / scheduled environments (such as SGE, PBS/Torque, Slurm, and
 LoadLeveler), and will use host information provided by those systems.
 
 Also note that if using a launcher that requires a hostfile and no
@@ -438,7 +438,7 @@ other MPI implementations, [--machinefile] is a synonym for
 hosts on which to run on the command line.  See "
 . faqlink("#mpirun-host", "this FAQ entry") . " for more information
 about the [--host] option.</li>
-<li> If you are running in a scheduled environment (e.g., in a SLURM,
+<li> If you are running in a scheduled environment (e.g., in a Slurm,
 Torque, or LSF job), Open MPI will automatically get the lists of
 hosts from the scheduler.</li>
 </ol>
@@ -513,7 +513,7 @@ remotehost
 
 If you are unable to launch across multiple hosts, check that your SSH
 keys are setup properly.  Or, if you are running in a managed
-environment, such as in a SLURM, Torque, or other job launcher, check
+environment, such as in a Slurm, Torque, or other job launcher, check
 that you have reserved enough hosts, are running in an allocated job,
 etc.</li>
 
@@ -852,7 +852,7 @@ Hostfiles works in two different ways:
 
 <li> *Exclusionary:* If a list of hosts to run on has been provided by
 another source (e.g., by a hostfile or a batch scheduler such as
-SLURM, PBS/Torque, SGE, etc.), the hosts provided by the hostfile must
+Slurm, PBS/Torque, SGE, etc.), the hosts provided by the hostfile must
 be in the already-provided host list.  If the hostfile-specified nodes
 are _not_ in the already-provided host list, [mpirun] will abort
 without launching anything.
@@ -958,7 +958,7 @@ specify on which hosts to launch MPI processes.
 
 <li> *Exclusionary:* If a list of hosts to run on has been provided by
 another source (e.g., by a hostfile or a batch scheduler such as
-SLURM, PBS/Torque, SGE, etc.), the hosts provided by the [--host] option
+Slurm, PBS/Torque, SGE, etc.), the hosts provided by the [--host] option
 must be in the already-provided host list.  If the [--host]-specified
 nodes are _not_ in the already-provided host list, [mpirun] will abort
 without launching anything.
@@ -1060,7 +1060,7 @@ processors are available on a given host.
 
 The default number of slots on any machine, if not explicitly
 specified, is 1 (e.g., if a host is listed in a hostfile by has no
-corresponding \"slots\" keyword).  Schedulers (such as SLURM,
+corresponding \"slots\" keyword).  Schedulers (such as Slurm,
 PBS/Torque, SGE, etc.) automatically provide an accurate default slot
 count.
 
@@ -1408,7 +1408,7 @@ the most up-to-date information, but as of v1.0, Open MPI supports:
 <li> PBS Pro, Torque, and Open PBS</li>
 <li> LoadLeveler scheduler (full support since 1.1.1)</li>
 <li> rsh / ssh</li>
-<li> SLURM</li>
+<li> Slurm</li>
 <li> LSF</li>
 <li> XGrid (discontinued starting with OMPI 1.4)</li>
 <li> Yod (Cray XT-3 and XT-4)</li>
@@ -1424,7 +1424,7 @@ $a[] = "See <a href=\"./?category=rsh#rsh-not-ssh\">this FAQ entry</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I run with the SLURM and PBS/Torque launchers?";
+$q[] = "How do I run with the Slurm and PBS/Torque launchers?";
 
 $anchor[] = "run-slurm-or-tm";
 
@@ -1435,7 +1435,7 @@ automatically detect when it is running inside such jobs and will just
 \"do the Right Thing.\"
 
 See <a href=\"?category=slurm#slurm-run-jobs\">this FAQ entry</a> for
-a description of how to run jobs in SLURM; see <a
+a description of how to run jobs in Slurm; see <a
 href=\"?category=tm#tm-run-jobs\">this FAQ entry</a> for a description
 of how to run jobs in PBS/Torque.";
 
