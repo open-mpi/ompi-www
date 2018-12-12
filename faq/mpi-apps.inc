@@ -75,7 +75,7 @@ about what dialect it is, nor which MPI Fortran interface it uses.
 
 Other MPI implementations will also soon support a wrapper compiler
 named [mpifort], so hopefully we can move the whole world to this
-simpler wrapper compiler name, and elminiate the use of [mpif77] and
+simpler wrapper compiler name, and eliminate the use of [mpif77] and
 [mpif90].
 
 <font color=\"red\"><strong>Specifically: [mpif77] and [mpif90] are
@@ -99,7 +99,7 @@ What do I do?";
 $anchor[] = "cant-use-wrappers";
 
 $a[] = "We repeat the above statement: the Open MPI Team *strongly*
-recommends that the use the wrapper compilers to compile and link MPI
+recommends that you use the wrapper compilers to compile and link MPI
 applications.
 
 If you find yourself saying, \"But I don't *want* to use wrapper
@@ -131,7 +131,7 @@ The [--showme:*] flags work with all Open MPI wrapper compilers
 (specifically: [mpicc], [mpiCC] / [mpicxx] / [mpic++], [mpifort], and
 if you really must use them, [mpif77], [mpif90]).
 
-Hence, if you need to use some other compiler other than Open MPI's
+Hence, if you need to use some compiler other than Open MPI's
 wrapper compilers, we advise you to run the appropriate Open MPI
 wrapper compiler with the [--showme] flags to see what Open MPI needs
 to compile / link, and then use those with your compiler.
@@ -313,7 +313,7 @@ built/installed with a different compiler.  This is annoying, but it
 is beyond the scope of Open MPI to be able to fix.
 </blockquote>
 
-However, there are cases where it may be necessary or desireable to
+However, there are cases where it may be necessary or desirable to
 edit these files and add to or subtract from the flags that Open MPI
 selected.  These files are installed in [\$pkgdatadir], which defaults
 to [\$prefix/share/openmpi/&lt;wrapper_name&gt;-wrapper-data.txt].  A
@@ -510,7 +510,7 @@ Where are all the MPI-related flags, such as the necessary -I, -L, and
 
 The short answer is that these flags are not included in the wrapper
 compiler's underlying command line unless the wrapper compiler sees a
-filename argument.  Specifically (output artifically wrapped below for
+filename argument.  Specifically (output artificially wrapped below for
 readability)
 
 <geshi bash>
@@ -539,13 +539,13 @@ shell$
 </geshi>
 
 That is, the wrapper compiler does not behave differently when
-constructing the underlying command line if \"--showme\" is used or
+constructing the underlying command line if [--showme] is used or
 not.  The _only_ difference is whether the resulting command line is
 displayed or executed.
 
 Hence, this behavior allows users to pass arguments to the underlying
 compiler without intending to actually compile or link (such as
-passing --version to query the underlying compiler's version).  If the
+passing [--version] to query the underlying compiler's version).  If the
 wrapper compilers added more flags in these cases, some underlying
 compilers emit warnings.";
 
@@ -603,7 +603,7 @@ more information</a>.
 
 The default installation of Open MPI tries very hard to not
 include any non-essential flags in the wrapper compilers.  This is the
-most conservative setting and allows the greatest flexability for
+most conservative setting and allows the greatest flexibility for
 end-users.  If the wrapper compilers started adding flags to support
 specific features (such as run-time locations for finding the Open MPI
 libraries), such flags &mdash; no matter how useful to some portion of
@@ -625,16 +625,16 @@ dynamically see what flags the wrappers are adding, and modify them as
 appropiate.  <a href=\"#cant-use-wrappers\">See this FAQ entry</a> for
 more details.</li>
 <li> Use environment variables to override the arguments that the
-wrappers insert.  If you are using Open MPI 1.0.x, <a
+wrappers insert.  If you are using Open MPI 1.0.x, see <a
 href=\"#override-wrappers\">this FAQ entry</a>, otherwise see <a
 href=\"#override-wrappers-after-v1.0\">this FAQ entry</a>.</li>
-<li> If you are using Open MPI 1.1 or layer, you can modify text files
+<li> If you are using Open MPI 1.1 or later, you can modify text files
 that provide the system-wide default flags for the wrapper compilers.
-<a href=\"#override-wrappers-after-v1.0\">this FAQ entry</a> for more
+See <a href=\"#override-wrappers-after-v1.0\">this FAQ entry</a> for more
 details.</li>
-<li> If you are using Open MPI 1.1 or layer, you can pass additional
+<li> If you are using Open MPI 1.1 or later, you can pass additional
 flags in to the system-wide wrapper compiler default flags through
-Open MPI's configure script.  <a
+Open MPI's [configure] script.  <a
 href=\"#adding-flags-to-wrappers\">See this FAQ entry</a> for more
 details.</li>
 </ol>
@@ -657,7 +657,7 @@ href=\"#why-no-rpath\">in this FAQ entry</a>).
 Due to popular user request, Open MPI changed its policy starting with
 v1.7.4: by default on supported systems, Open MPI's wrapper compilers
 _do_ insert [-rpath] (or similar) flags when linking MPI applications.
-You can see the exact flags added by the [-showme] functionality
+You can see the exact flags added by the [--showme] functionality
 described in <a href=\"#default-wrapper-compiler-flags\">this FAQ
 entry</a>.
 
@@ -677,7 +677,7 @@ recommended.  But it is possible, with some caveats.
 
 <li> You must have static libraries available for *everything* that
 your program links to.  This includes Open MPI; you must have used the
-[--enable-static] option to Open MPI's configure or otherwise have
+[--enable-static] option to Open MPI's [configure] or otherwise have
 available the static versions of the Open MPI libraries (note that
 Open MPI static builds default to including all of its plugins *in*
 its libraries &mdash; as opposed to having each plugin in its own dynamic
@@ -701,7 +701,7 @@ files requiring dynamic libraries for functions such as [gethostname]
 and [dlopen].  These are ok, but do mean that you need to have the
 shared libraries installed.  You can disable all of Open MPI's
 [dlopen] behavior (i.e., prevent it from trying to open any plugins)
-by specifying the [--disable-dlopen] flag to Open MPI's configure
+by specifying the [--disable-dlopen] flag to Open MPI's [configure]
 script).  This will eliminate the linker warnings about [dlopen].</li>
 </ol>
 
@@ -752,8 +752,8 @@ gcc -I/opt/openmpi/include/openmpi \
 -lopen-pal -libverbs -lrt -Wl,--export-dynamic -lnsl -lutil -lm -ldl
 </geshi>
 
-(or use whatever wrapper compiler is relevant &mdash; the [--showme] flag
-is the important part here)
+(Or use whatever wrapper compiler is relevant &mdash; the [--showme] flag
+is the important part here.)
 
 This example shows the steps for the GNU compiler suite, but other
 compilers will be similar.  This example also assumes that the
@@ -762,12 +762,12 @@ some distributions install under [/usr/ofed] (or elsewhere).  Finally,
 some installations use the library directory \"lib64\" while others
 use \"lib\".  Adjust your directory names as appropriate.
 
-Take the output of from the above command and run it manually to
-compile and link your application, adding the following hilighted
+Take the output of the above command and run it manually to
+compile and link your application, adding the following highlighted
 arguments:
 
 <geshi bash>
-shell$ gcc --static -I/opt/openmpi/include/openmpi \
+shell$ gcc -static -I/opt/openmpi/include/openmpi \
   -I/opt/openmpi/include -pthread ring.c -o ring \
   -L/usr/local/ofed/lib -L/usr/local/ofed/lib64/infiniband \
   -L/usr/local/ofed/lib64 -L/opt/openmpi/lib -lmpi -lopen-rte \
@@ -796,8 +796,8 @@ default of not including entire libraries in the executable.</li>
 You can either add these arguments in manually, or you can <a
 href=\"#override-wrappers-after-v1.0\">see this FAQ entry</a> to
 modify the default behavior of the wrapper compilers to hide this
-complexity from end users (but be aware that if modify the wrapper
-compilers default behavior, *all* users will be creating static
+complexity from end users (but be aware that if you modify the wrapper
+compilers' default behavior, *all* users will be creating static
 applications!).";
 
 /////////////////////////////////////////////////////////////////////////
@@ -809,7 +809,7 @@ $anchor[] = "f90-mpi-slow-compiles";
 $a[] = "
 <blockquote>
 <font color=\"red\"><strong>NOTE:</strong></font> Starting with Open
-MPI v1.7, if you are not using gfortran, buidling the Fortran 90 and
+MPI v1.7, if you are not using gfortran, building the Fortran 90 and
 08 bindings do not suffer the same performance penalty that previous
 versions incurred.  The Open MPI developers encourage all users to
 upgrade to the new Fortran bindings implementation &mdash; including the
