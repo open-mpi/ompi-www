@@ -1891,7 +1891,8 @@ functions often.  The default is 1, meaning that early completion
 optimization semantics are enabled (because it can reduce
 point-to-point latency).
 
-See Open MPI " . ompi_bug(1224) . "ticket #1224</a> for further
+See Open MPI <a href="https://svn.open-mpi.org/trac/ompi/ticket/1224">
+legacy Trac ticket #1224</a> for further
 information.
 
 $note This FAQ entry only applies to the v1.2 series.  This
