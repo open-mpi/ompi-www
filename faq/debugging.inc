@@ -111,7 +111,7 @@ freed.</li>
 
 <li> *mpi_show_mca_params:* If set to true (any positive value), show
 a list of all MCA parameters and their values during MPI_INIT.  This
-can be quite helpful for reproducability of MPI applications.</li>
+can be quite helpful for reproducibility of MPI applications.</li>
 
 <li> *mpi_show_mca_params_file:* If set to a non-empty value, and if
 the value of *mpi_show_mca_params* is true, then output the list of
