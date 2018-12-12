@@ -57,11 +57,11 @@ the preferred method of InfiniBand support.
     information on how to run Open MPI jobs with UCX support.</li>
 
     <li> In the Open MPI v4.0.x series, the <code>openib</code> BTL
-    will still be used -- by default -- for RoCE and iWARP networks
+    will still be used &mdash; by default &mdash; for RoCE and iWARP networks
     (although UCX works fine with these networks, too).  Users can
     force the use of UCX for RoCE and iWARP networks, if desired (see
     <a href="<?php print($topdir);
-    ?>/faq/?category=openfabrics#run-ucx">see this FAQ item</a>).</li>
+    ?>/faq/?category=openfabrics#run-ucx">this FAQ item</a>).</li>
 
 </ul></p>
 </li>
@@ -74,7 +74,7 @@ v3.1.x.
 <p>Even though Open MPI changed its major version from 3 to 4, it
 remains ABI-compatible with the v3.0.x and v3.1.x release series.</p>
 
-<p>Note that other backwards-incompatibilite changes, occurred --
+<p>Note that other backwards-incompatible changes occurred &mdash;
 e.g., some MCA parameter names and behaviors changed, some
 <code>mpirun</code> command line parameters changed, etc.  Hence, Open
 MPI 4.0.x is not fully, 100% backwards-compatibile <a href="<?php
@@ -92,7 +92,7 @@ version number / backwards compatibility scheme</a>, but it is
 <p>Open MPI still embeds <code>hwloc</code> and <code>libevent</code>
 source code in its release packages, and will automatically use them
 if no suitable version is found when Open MPI is built.  However, if a
-suitable external version of hwloc and/or libevent (and their
+suitable external version of [hwloc] and/or [libevent] (and their
 corresponding development headers) is found on the system during Open
 MPI's configuration process, then Open MPI will ignore its embedded
 copy and use the system version, instead.</p>
@@ -101,3 +101,4 @@ copy and use the system version, instead.</p>
 
 <?php
   include_once("$topdir/includes/footer.inc");
+?>
