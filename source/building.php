@@ -61,6 +61,7 @@ developers working on the internals of Open MPI itself</em>):
 </TR>
 
 </TABLE>
+</CENTER>
 
 <P>The following table lists the versions that are used to make
 nightly snapshot and official release Open MPI tarballs.  Other
@@ -86,6 +87,7 @@ YMMV when using verions older than those listed below --
 compilers</em>.  Using older versions is unsupported.  If you run into
 problems, upgrade to at least the versions listed below.</p>
 
+<CENTER>
 <TABLE BORDER=1 CELLPADDING=5>
 <TR>
 <TH>Open MPI Release</TH>
