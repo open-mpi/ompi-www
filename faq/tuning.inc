@@ -974,6 +974,9 @@ detailed information about processor/memory affinity.
 
 <ul>
 <li> <a href=\"../doc/current/man1/mpirun.1.php\">mpirun(1) man page for current Open MPI release</a></li>
+<li> <a href=\"../doc/v4.0/man1/mpirun.1.php\">mpirun(1) man page for Open MPI v4.0.x</a></li>
+<li> <a href=\"../doc/v3.1/man1/mpirun.1.php\">mpirun(1) man page for Open MPI v3.1.x</a></li>
+<li> <a href=\"../doc/v3.0/man1/mpirun.1.php\">mpirun(1) man page for Open MPI v3.0.x</a></li>
 <li> <a href=\"../doc/v2.0/man1/mpirun.1.php\">mpirun(1) man page for Open MPI v2.0.x</a></li>
 <li> <a href=\"../doc/v1.10/man1/mpirun.1.php\">mpirun(1) man page for Open MPI v1.10.x</a></li>
 <li> <a href=\"../doc/v1.8/man1/mpirun.1.php\">mpirun(1) man page for Open MPI v1.8.x</a></li>
