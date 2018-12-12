@@ -5,11 +5,11 @@ $anchor[] = "os";
 
 $a[] = "We primarily develop Open MPI on Linux and OS X.
 
-Other operatings are supported, however.  The exact list of operating
+Other operating systems are supported, however.  The exact list of operating
 systems supported has changed over time (e.g., native Microsoft
 Windows support was added in v1.3.3, and although it was removed prior
 to v1.8, is still supported through Cygwin).  See the README file in
-your copy of Open MPI for a listing of the OSs that that version
+your copy of Open MPI for a listing of the OSes that that version
 supports.
 
 Open MPI is fairly POSIX-neutral, so it will run without too many
@@ -35,7 +35,7 @@ systems listed in the previous question support.
 
 For example, Linux runs on a *wide* variety of platforms, and we
 certainly can't claim to support all of them.  Open MPI includes
-Linux-compiler-based assembly for support Intel, AMD, and PowerPC
+Linux-compiler-based assembly for support of Intel, AMD, and PowerPC
 chips, for example.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -76,7 +76,7 @@ function net_table_finalize()
 }
 
 $a[] = "Open MPI is based upon a component architecture; support for its MPI
-point-to-point functionality only utilize a small number of components
+point-to-point functionality only utilizes a small number of components
 at run-time.  Adding native support for a new network interconnect was
 specifically designed to be easy.
 
@@ -193,7 +193,7 @@ $a[] = "Open MPI 1.2 supports all of MPI-2.0.
 
 Open MPI 1.3 supports all of MPI-2.1.
 
-Open MPI 1.8 supports all of MPI-3
+Open MPI 1.8 supports all of MPI-3.
 
 Open MPI 2.0 supports all of MPI-3.1";
 
@@ -245,7 +245,7 @@ $anchor[] = "heterogeneous-support";
 
 $a[] = "As of v1.1, Open MPI requires that the size of C, C++, and
 Fortran datatypes be the same on all platforms within a single
-parallel application with the exception of types represented by
+parallel application, with the exception of types represented by
 [MPI_BOOL] and [MPI_LOGICAL] &mdash; size differences in these types
 between processes are properly handled.  Endian differences between
 processes in a single MPI job are properly and automatically handled.
@@ -274,10 +274,10 @@ MPI message queue support is problematic with 64 bit versions of
 TotalView prior to v8.3:
 
 <ul>
-<li> The message queues views will be truncated</li>
-<li> Both the communicators and requests list will be incomplete</li>
+<li> The message queues views will be truncated.</li>
+<li> Both the communicators and requests list will be incomplete.</li>
 <li> Both the communicators and requests list may be filled with wrong
-values (such as an MPI_Send to the destination ANY_SOURCE)</li>
+values (such as an MPI_Send to the destination ANY_SOURCE).</li>
 </ul>
 
 There are two workarounds:
