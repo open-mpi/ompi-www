@@ -105,7 +105,7 @@ the linker problems described in the Complications section of the
 Profiling Interface chapter of the MPI standard.
 
 See the section on " . "<a
-href=\"http://www.mpi-forum.org/docs/mpi22-report/node312.htm#Node312\">"
+href=\"https://www.mpi-forum.org/docs/mpi-3.1/mpi31-report/node358.htm#Node358\">"
 . "Profiling Interface</a> in the MPI standard for more details.";
 
 /////////////////////////////////////////////////////////////////////////
