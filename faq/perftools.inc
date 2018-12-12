@@ -205,7 +205,7 @@ generally understanding the behavior of your program.
 
 As such, debugging tools can help you step through or pry into the
 execution of your MPI program.  Popular tools include " . "<a
-href=\"http://www.totalviewtech.com\">" . "TotalView</a>, which can be
+href=\"https://www.roguewave.com/products-services/totalview\">" . "TotalView</a>, which can be
 downloaded for free trial use, and " . "<a
 href=\"http://www.allinea.com/?page=48\">" . "Allinea DDT</a> which
 also provides evaluation copies.
