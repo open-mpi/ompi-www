@@ -1,7 +1,7 @@
 <?php
 include_once("$topdir/software/ompi/current/version.inc");
 
-$q[] = "What pre-requisites are necessary for running an Open MPI job?";
+$q[] = "What prerequisites are necessary for running an Open MPI job?";
 
 $anchor[] = "run-prereqs";
 
@@ -21,7 +21,7 @@ LD_LIBRARY_PATH: /opt/openmpi/lib
 Depending on your environment, you may need to set these values in
 your shell startup files (e.g., [.profile], [.cshrc], etc.).
 
-*NOTE:* there are exceptions to this rule &mdash; notably <a
+*NOTE:* There are exceptions to this rule &mdash; notably <a
 href=\"#mpirun-prefix\">the [--prefix] option to mpirun</a>.
 
 See <a href=\"#adding-ompi-to-path\">this FAQ entry</a> for more
@@ -100,8 +100,8 @@ similar cluster (e.g., a bunch of 1U servers in a bunch of racks).
 Simply stated, Open MPI can run on a group of servers or workstations
 connected by a network.  As mentioned above, there are several
 prerequisites, however (for example, you typically must have an
-account on all the machines, you can [ssh] or [ssh] between the nodes
-without using a password etc.).
+account on all the machines, you can [rsh] or [ssh] between the nodes
+without using a password, etc.).
 
 Regardless of whether Open MPI is installed on a shared / networked
 filesystem or independently on each node, it is usually easiest if
@@ -253,7 +253,7 @@ $q[] = "What if I can't modify my <code>PATH</code> and/or <code>LD_LIBRARY_PATH
 $anchor[] = "mpirun-prefix";
 
 $a[] ="There are some situations where you cannot modify the [PATH] or
-[LD_LIBRARY_PATH] &mdash; e.g., some ISV application prefer to hide all
+[LD_LIBRARY_PATH] &mdash; e.g., some ISV applications prefer to hide all
 parallelism from the user, and therefore do not want to make the user
 modify their shell startup files.  Another case is where you want a
 single user to be able to launch multiple MPI jobs simultaneously,
@@ -273,7 +273,7 @@ href=\"?category=mpi-apps#why-no-rpath\">see this FAQ entry</a>)</li>
 [mpirun]'s [--prefix] command line option takes as an argument the
 top-level directory where Open MPI was installed.  While relative
 directory names are possible, they can become ambiguous depending on
-the job launcher used; using absolute directory names are strongly
+the job launcher used; using absolute directory names is strongly
 recommended.
 
 For example, say that Open MPI was installed into
@@ -457,7 +457,7 @@ $q[] = "I can run ompi_info and launch MPI jobs on a single host, but not across
 
 $anchor[] = "missing-prereqs";
 
-$a[] = "(you should probably also see " . faqlink("#diagnose-multi-host-problems", "this FAQ entry, too") . ")
+$a[] = "(You should probably also see " . faqlink("#diagnose-multi-host-problems", "this FAQ entry, too") . ".)
 
 If you can run [ompi_info] and possibly even launch MPI
 processes locally, but fail to launch MPI processes on remote hosts,
@@ -503,7 +503,7 @@ fail to run them across multiple hosts, try the following:
 
 <li> Ensure that your launcher is able to launch across multiple
 hosts.  For example, if you are using [ssh], try to [ssh] to each
-remote host and ensuring that you are not prompted for a password.
+remote host and ensure that you are not prompted for a password.
 For example:
 
 <geshi bash>
@@ -550,7 +550,7 @@ If you are unable to run non-MPI jobs across multiple hosts, check
 for common problems such as:
 
 <ol>
-<li> Check that your non-interactive shell setup on each remote host
+<li> Check your non-interactive shell setup on each remote host
 to ensure that it is setting up the PATH and LD_LIBRARY_PATH properly.</li>
 <li> Check that Open MPI is finding and launching the correct version of Open MPI on the remote hosts. </li>
 <li> Ensure that you have firewalling disabled between hosts (Open MPI
@@ -623,7 +623,7 @@ tcp] .</li>
 # Compiler => Compiler library linked to orted
 $compilers["Intel"] = "libimf.so";
 $compilers["PGI"] = "libpgc.so";
-$compilers["Pathscale"] = "libmv.so";
+$compilers["PathScale"] = "libmv.so";
 
 foreach (array_keys($compilers) as $compiler) {
 
@@ -704,7 +704,7 @@ Environment layer in Open MPI, or ORTE).  So you can use [mpirun] and
 shell$ mpirun -np 2 --host a,b uptime
 </geshi>
 
-This will launch a copy of the unix command [uptime] on the hosts [a]
+This will launch a copy of the Unix command [uptime] on the hosts [a]
 and [b].
 
 Other questions in the FAQ section deal with the specifics of the
@@ -724,7 +724,7 @@ In short: you will need to have X forwarding enabled from the remote
 processes to the display where you want output to appear.  In a secure
 environment, you can simply allow all X requests to be shown on the
 target display and set the [DISPLAY] environment variable in all MPI
-process' environments to the target display, perhaps something like
+processes' environments to the target display, perhaps something like
 this:
 
 <geshi bash>
@@ -824,7 +824,7 @@ for MPI communication.  They are _only_ used to specify on which hosts
 to launch MPI processes.
 
 Hostfiles [my_hostfile] are simple text files with hosts specified,
-one per line.  Each host can also specify a default a maximum number
+one per line.  Each host can also specify a default and maximum number
 of _slots_ to be used on that host (i.e., the number of available
 processors on that host).  Comments are also supported, and blank
 lines are ignored.  For example:
@@ -843,7 +843,7 @@ bar.example.com slots=2
 yow.example.com slots=4 max-slots=4
 </geshi>
 
-_slot_ and _max-slots_ are discussed more
+_slots_ and _max-slots_ are discussed more
 " . faqlink("#mpirun-scheduling", "in this FAQ entry") . "
 
 Hostfiles works in two different ways:
@@ -963,7 +963,7 @@ must be in the already-provided host list.  If the [--host]-specified
 nodes are _not_ in the already-provided host list, [mpirun] will abort
 without launching anything.
 
-In this case, the [--host] option acts like an exclusionary filter --
+In this case, the [--host] option acts like an exclusionary filter &mdash;
 it limits the scope of where processes will be scheduled from the
 original list of hosts to produce a final list of hosts.
 
@@ -981,7 +981,7 @@ However, if you run:
 shell$ mpirun -np 1 --hostfile my_hosts --host node17 hostname
 </geshi>
 
-This is an error (because [node17] is not listed in [my_hosts];
+This is an error (because [node17] is not listed in [my_hosts]);
 [mpirun] will abort.
 
 Finally, note that in exclusionary mode, processes will _only_ be
@@ -1182,7 +1182,7 @@ $a[] = "Yes.
 <strong><font color=red>But be very careful to ensure that Open MPI
 knows that you are oversubscibing your node!</font></strong>  If Open
 MPI is unaware that you are oversubscribing a node, <strong><font
-color=red>severe</font></strong> performance degredation can result.
+color=red>severe</font></strong> performance degradation can result.
 
 See <a href=\"#oversubscribing\">this FAQ entry</a> for more details
 on oversubscription.";
@@ -1197,7 +1197,7 @@ $a[] = "Yes.
 
 However, it is critical that Open MPI _knows_ that you are
 oversubscribing the node, or <strong><font
-color=red>severe</font></strong> performance degredation can result.
+color=red>severe</font></strong> performance degradation can result.
 
 The short explanation is as follows: <strong><font color=red>never
 specify a number of slots that is more than the available number of
@@ -1277,7 +1277,7 @@ that is not inside an MPI library call.
 Open MPI normally sets this parameter automatically (see <a
 href=\"#oversubscribing\">this FAQ entry</a> for details).  Users are
 cautioned against setting this parameter unless you are really,
-absoultely, positively sure of what you are doing.";
+absolutely, positively sure of what you are doing.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -1313,7 +1313,7 @@ shell$ totalview mpirun -a -np 4 a.out
 </geshi>
 
 Alternatively, Open MPI's [mpirun] offers the \"[-tv]\" convenience
-option which does the same thing as TotalView's \"-a\" syntax.  For
+option which does the same thing as TotalView's \"[-a]\" syntax.  For
 example:
 
 <geshi bash>
@@ -1366,7 +1366,7 @@ shell$ mpirun --debug ...mpirun arguments...
 
 Assuming that you are using Open MPI v1.2.4 or later, and assuming
 that DDT is the first supported parallel debugger in your path, Open
-MPI will autmoatically invoke the correct underlying command to run
+MPI will automatically invoke the correct underlying command to run
 your MPI process in the DDT debugger.  For reference (or if you are
 using an earlier version of Open MPI), this underlying command form is
 the following:
@@ -1378,7 +1378,7 @@ shell$ ddt -n {nprocs} -start {exe-name}
 Note that passing arbitrary arguments to Open MPI's [mpirun] is not
 supported with the DDT debugger.
 
-You can also attach to already-running proceses with either of the
+You can also attach to already-running processes with either of the
 following two syntaxes:
 
 <geshi bash>
@@ -1428,7 +1428,7 @@ $q[] = "How do I run with the SLURM and PBS/Torque launchers?";
 
 $anchor[] = "run-slurm-or-tm";
 
-$a[] = "If support for these systems are included in your Open MPI
+$a[] = "If support for these systems is included in your Open MPI
 installation (which you can check with the [ompi_info] command &mdash; look
 for components named \"[slurm]\" and/or \"[tm]\"), Open MPI will
 automatically detect when it is running inside such jobs and will just
@@ -1543,7 +1543,7 @@ MPI process:
 
 <ul>
 
-<li> *OMPI_COMM_WORLD_SIZE* - the number of processes in this process'
+<li> *OMPI_COMM_WORLD_SIZE* - the number of processes in this process's
 MPI_COMM_WORLD</li>
 <li> *OMPI_COMM_WORLD_RANK* - the MPI rank of this process in
 MPI_COMM_WORLD</li>
@@ -1593,7 +1593,7 @@ Users can set this parameter in two ways:
 
 <ul>
 <li> in the environment as OMPI_MCA_mpi_preconnect_mpi=1</li>
-<li> on the cmd line as mpirun -mca mpi_preconnect_mpi 1</li>
+<li> on the command line as mpirun -mca mpi_preconnect_mpi 1</li>
 </ul>
 
 See <a href=\"?category=tuning#setting-mca-params\">this FAQ entry</a>
