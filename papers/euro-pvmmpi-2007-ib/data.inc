@@ -2,7 +2,7 @@
 $title = "Investigations on InfiniBand: Efficient Network Buffer Utilization at Scale";
 
 $overview = "Using multiple queue pairs and pre-posted buffer sizes to
-get more efficient registered memory utilization.";
+get more efficient registered memory utilization";
 
 $presented = "<a href=\"http://pvmmpi07.lri.fr/\">" .
 "EuroPVM/MPI '07</a>, September 30th - October 3rd, 2007, Paris,

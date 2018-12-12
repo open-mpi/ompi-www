@@ -1,6 +1,6 @@
 <?php 
 $title = "High Performance RDMA Protocols in HPC";
-$overview = "An overview of Open MPI's RDMA-based point-to-point messaging layer (PML).";
+$overview = "An overview of Open MPI's RDMA-based point-to-point messaging layer (PML)";
 
 $authors = "Galen Mark Shipman, Tim S. Woodall, George Bosilca, 
 Rich L. Graham, Arthur B. Maccabe";

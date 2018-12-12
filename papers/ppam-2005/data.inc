@@ -1,6 +1,6 @@
 <?php
 $title = "Open MPI: A Flexible High Performance MPI";
-$overview = "Overview of Open MPI and the OB1 point-to-point architecture.";
+$overview = "Overview of Open MPI and the OB1 point-to-point architecture";
 
 $presented = "PPAM 2005, the 6th International Conference on Parallel
 Processing and Applied Mathematics in Poznan, Poland, in September
