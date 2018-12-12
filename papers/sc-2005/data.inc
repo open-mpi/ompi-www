@@ -1,6 +1,6 @@
 <?php
 $title = "Supercomputing 2005 slides";
-$overview = "Slides from various presentations about Open MPI or by the Open MPI team members.";
+$overview = "Slides from various presentations about Open MPI or by the Open MPI team members";
 
 $authors = "Jeff Squyres, Tim Woodall, George Bosilca, Graham Fagg";
 

@@ -1,6 +1,6 @@
 <?php
 $title = "The Component Architecture of Open MPI: Enabling Third-Party Collective Algorithms";
-$overview = "General description of the MPI Component Architecture, focusing on the details of the collective algorithm framework in Open MPI.";
+$overview = "General description of the MPI Component Architecture, focusing on the details of the collective algorithm framework in Open MPI";
 
 $authors = "Jeffrey M. Squyres, Andrew Lumsdaine";
 

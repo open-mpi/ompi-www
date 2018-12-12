@@ -1,6 +1,6 @@
 <?php
 $title = "Efficient Message Passing on Multi-Clusters: An IPv6 Extension to Open MPI";
-$overview = "General description and first benchmarks of the Open MPI IPv6 extension.";
+$overview = "General description and first benchmarks of the Open MPI IPv6 extension";
 
 $authors = "Christian Kauhaus, Adrian Knoth, Thomas Peiselt, Dietmar Fey";
 

@@ -1,6 +1,6 @@
 <?php 
 $title = "Open MPI: Goals, Concept, and Design of a Next Generation MPI Implementation";
-$overview = "Presents an overview of the Open MPI project.";
+$overview = "Presents an overview of the Open MPI project";
 
 $authors = "Edgar Gabriel, Graham E. Fagg, George Bosilca, Thara Angskun,
 Jack J. Dongarra, Jeffrey M. Squyres, Vishal Sahay, Prabhanjan Kambadur,

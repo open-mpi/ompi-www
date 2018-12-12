@@ -3,7 +3,7 @@
 $title = "An Extensible Framework for Distributed Testing of MPI
 Implementations";
 
-$overview = "An overview of the MPI Testing Tool (MTT).";
+$overview = "An overview of the MPI Testing Tool (MTT)";
 
 $presented = "<a href=\"http://pvmmpi07.lri.fr/\">" .
 "EuroPVM/MPI '07</a>, September 30th - October 3rd, 2007, Paris,

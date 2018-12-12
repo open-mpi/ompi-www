@@ -37,9 +37,9 @@ function paper_page($title, $authors, $presented, $abstract, $files, $mon, $day,
                         $name = "Postscript";
                     } else if ($match[0] == ".pdf" || $match[0] == ".PDF") {
                         $name = "PDF";
-                    } else if ($match[0] == ".doc" || $match[0] == ".doc") {
+                    } else if ($match[0] == ".doc" || $match[0] == ".DOC") {
                         $name = "Microsoft Word";
-                    } else if ($match[0] == ".ppt" || $match[0] == ".PPT" || $match[0] == ".pptx") {
+                    } else if ($match[0] == ".ppt" || $match[0] == ".PPT" || $match[0] == ".pptx" || $match[0] == ".PPTX") {
                         $name = "Microsoft Powerpoint";
                     } else {
                         $name = $files[$i];
