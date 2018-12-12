@@ -3,7 +3,7 @@
 $topdir = "..";
 $title = "Performance";
 $short_title = "Performance";
-$search_name = "performance";
+$search_name = "just performance";
 $search_subdir = "/performance/";
 
 include_once("$topdir/includes/functions.inc");
@@ -23,11 +23,11 @@ across a wide range of platforms and environments.
 
 <p>
 Unfortunately, the various benchmark codes are actually rather easy to run, thus leading
-to sometimes erroneous results if the user isn't familar and/or doesn't take the time
+to sometimes erroneous results if the user isn't familiar with and/or doesn't take the time
 to determine the optimal configuration and control settings. This section is intended to:
 
 <ul>
-<li>aid benchmarking efforts by providing
+<li>Aid benchmarking efforts by providing
     results from knowledgeable users (often developers) along with the corresponding
     configuration and MCA parameters used to obtain those results. As one might expect,
     the various MPI implementations watch each other rather closely, and so their
@@ -36,20 +36,20 @@ to determine the optimal configuration and control settings. This section is int
     a gap beginning to appear. Thus, these numbers reflect a point-in-time behavior that
     is subject to change.</li>
 <br>
-<li>help provide some clarity to the relative performance of various MPIs when
+<li>Help provide some clarity to the relative performance of various MPIs when
     compared to Open MPI. Care has been taken to optimize the configuration and
     run-time controls for all the code bases, thus hopefully providing more of an
-    "apple-vs-apple" comparison.</li>
+    "apples-to-apples" comparison.</li>
 </ul>
 </p>
 
 <p>As always, users are reminded that performance benchmarks rarely provide
 an accurate predictor of actual application performance. They are simply a sometimes
 useful way of measuring the relative behavior of a specific feature that may or
-    may not be relevant to your application. Accordingly, the OMPI developers don't
+may not be relevant to your application. Accordingly, the OMPI developers don't
 exert a lot of effort optimizing benchmark performance, preferring instead to focus
 on providing features of interest to users and researchers, while maintaining good
-application performance
+application performance.
 </p>
 
 Please feel free to contact the community on the <a href="../community/lists/ompi.php">mailing lists</a>
