@@ -12,10 +12,10 @@ $q[] = "What MPI coverage is provided by the Java interface?";
 $anchor[] = "java_cover";
 
 $a[] = "Complete MPI-3.1 coverage is provided with a few exceptions. 
-The bindings for the MPI_Neighbor_alltoallw and MPI_Ineighbor_alltoallw 
+The bindings for the [MPI_Neighbor_alltoallw] and [MPI_Ineighbor_alltoallw]
 functions are planned for release after v2.0.0. Also excluded are functions 
 that incorporate the concepts of explicit virtual memory addressing, such
-as MPI_Win_shared_query.";
+as [MPI_Win_shared_query].";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -32,7 +32,7 @@ $q[] = "Is there documentation for the Java interface?";
 $anchor[] = "java_docs";
 
 $a[] = "The Java API documentation is generated at build time in
-'\$prefix/share/doc/openmpi/javadoc'.
+[\$prefix/share/doc/openmpi/javadoc].
 
 Here you have an overview of how to use the Java bindings:
 <a href=\"http://blogs.cisco.com/performance/java-bindings-for-open-mpi\">
@@ -42,8 +42,9 @@ The following paper serves as a reference for the API, and in addition
 provides details of the internal implementation to justify some of the
 design decisions:
 <ul>
-    O. Vega-Gisbert, J. E. Roman, and J. M. Squyres. \"Design and
-    implementation of Java bindings in Open MPI\". Submitted (2014).
+    O. Vega-Gisbert, J. E. Roman, and J. M. Squyres. 
+    <a href=\"http://personales.upv.es/jroman/preprints/ompi-java.pdf\">\"Design and
+    implementation of Java bindings in Open MPI\"</a>. Submitted (2014).
 </ul>";
 
 /////////////////////////////////////////////////////////////////////////
@@ -63,8 +64,8 @@ Otherwise, it is necessary to indicate where the JDK binaries and headers
 are located:
 
 <geshi bash>
-shell$ ./configure --enable-mpi-java --with-jdk-bindir=<foo>
-                   --with-jdk-headers=<bar> ...
+shell$ ./configure --enable-mpi-java --with-jdk-bindir=</path/to/jdk/bindir>
+                   --with-jdk-headers=</path/to/jdk/headers> ...
 </geshi>";
 
 /////////////////////////////////////////////////////////////////////////
@@ -82,13 +83,13 @@ Once your application has been compiled, you can run it with the
 standard [mpirun] command line:
 
 <geshi bash>
-shell$ mpirun [options] java [your-java-options] my-app-class
+shell$ mpirun [options] java [your-java-options ...] your-app-class
 </geshi>
 
-For convenience, mpirun has been updated to detect the [java] command
+For convenience, [mpirun] has been updated to detect the [java] command
 and ensure that the required MPI libraries and class paths are defined
 to support execution. You therefore do NOT need to specify the Java
-library path to the MPI installation, nor the MPI classpath. Any class
+library path to the MPI installation, nor the MPI class path. Any class
 path definitions required for your application should be specified
 either on the command line or via the CLASSPATH environmental
 variable. Note that the local directory will be added to the class
@@ -113,7 +114,7 @@ $q[] = "Does the Java interface impact performance of my non-Java application?";
 $anchor[] = "java_impact";
 
 $a[] = "The Java interface in Open MPI is logically separated from, and
-completely transparent to, all other Open MPI users and have zero
+completely transparent to, all other Open MPI users and has zero
 performance impact on the rest of the code/bindings.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -136,7 +137,7 @@ $anchor[] = "java_limitations";
 
 $a[] = "There exist issues with Intel Truescale (PSM) and Omnipath
 (PSM2) interconnects involving Java. The problems definitely exist in
-PSM v1.16, and PSM2 v10.2; we have not tested previous versions.
+PSM v1.16 and PSM2 v10.2; we have not tested previous versions.
 As of November 2016, there is not yet a PSM/PSM2 release that completely
 fixes the issue. Intel is working on the issue, and will update this 
 FAQ when more information is available.
@@ -144,9 +145,9 @@ FAQ when more information is available.
 The following [mpirun] command options will disable PSM/PSM2:
 
 <geshi bash>
-shell$ mpirun [other options] --mca mtl ^psm java [your-java-options] my-app-class
+shell$ mpirun [other options] --mca mtl ^psm java [your-java-options] your-app-class
 </geshi>
 
 <geshi bash>
-shell$ mpirun [other options] --mca mtl ^psm2 java [your-java-options] my-app-class
+shell$ mpirun [other options] --mca mtl ^psm2 java [your-java-options] your-app-class
 </geshi>";
