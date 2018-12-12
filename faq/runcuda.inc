@@ -27,7 +27,7 @@ program have unique addresses.  In addition, there is a new API that
 allows one to determine if a pointer is a CUDA device pointer or host
 memory pointer.  This API is used by the library to decide what needs
 to be done with each buffer.  In addition, CUDA 4.1 also provides the
-ability to register host memory with the CUDA driver which can improve
+ability to register host memory with the CUDA driver, which can improve
 performance.  CUDA 4.1 also added CUDA IPC support for fast communication
 between GPUs on the same node.
 
@@ -42,55 +42,55 @@ of the CUDA IPC support for fast GPU transfers.  Much of the other
 optimizations are built in to the openib BTL.
 
 CUDA-aware support is present in PSM2 MTL.
-When running CUDA-aware Open MPI on Intel(r) Omni-path, the PSM2 MTL will
+When running CUDA-aware Open MPI on Intel Omni-path, the PSM2 MTL will
 automatically set PSM2_CUDA environment variable which enables PSM2 to handle
-GPU buffers. If user wants to use host buffers with a CUDA-aware Open MPI,
+GPU buffers. If the user wants to use host buffers with a CUDA-aware Open MPI,
 it is recommended to set PSM2_CUDA to 0 in the execution environment. PSM2 also
-has support for NVIDIA(r) GPUDirect support feature. To enable this, users will
+has support for the NVIDIA GPUDirect support feature. To enable this, users will
 need to set PSM2_GPUDIRECT to 1 in the execution environment.
 
-Note: PSM2 library and hfi1 driver with CUDA support are requirements to use
-GPU Direct support on Intel(r) Omni-Path. The minimum PSM2 build version required
-is <a href=\"https://github.com/01org/opa-psm2/releases/tag/PSM2_10.2-175\"> PSM2 10.2.175.</a> 
+Note: The PSM2 library and hfi1 driver with CUDA support are requirements to use
+GPUDirect support on Intel Omni-Path. The minimum PSM2 build version required
+is <a href=\"https://github.com/01org/opa-psm2/releases/tag/PSM2_10.2-175\">PSM2 10.2.175.</a> 
 
-For more information refer to
+For more information refer to the
 <a href=\"https://www.intel.com/content/www/us/en/support/articles/000016242/network-and-i-o/fabric-products.html\">
-Intel (R) Omni-Path documentation.</a>
+Intel Omni-Path documentation.</a>
 
 *Open MPI v1.7.0, Open MPI v1.7.1, Open MPI v1.7.2*
 <ul>
-<li> Basic GPU direct support.
-<li> Support for CUDA IPC between GPUs on a node, but would get error if
-the GPUs did not support CUDA IPC.
+<li> Basic GPUDirect support
+<li> Support for CUDA IPC between GPUs on a node, but will get an error if
+the GPUs do not support CUDA IPC
 </ul>
 
 *Open MPI v1.7.3 New Features*
 <ul>
 <li> Support for asynchronous copies of larger GPU buffers over
-the openib BTL.
-<li> Dynamically loads the libcuda.so library so you can configure
-with CUDA-aware support, but run on machines that do not have CUDA installed.
+the openib BTL
+<li> Dynamically loads the [libcuda.so] library so you can configure
+with CUDA-aware support, but run on machines that do not have CUDA installed
 </ul>
 
 *Open MPI v1.7.4 New Features*
 <ul>
-<li> Removed synchronize point in CUDA IPC when running with CUDA 6.0 or later.
-<li> Utilizes GPU Direct RDMA if it is available. Requires CUDA 6.0 or later.
+<li> Removed synchronize point in CUDA IPC when running with CUDA 6.0 or later
+<li> Utilizes GPUDirect RDMA if it is available (requires CUDA 6.0 or later)
 <li> Dynamically enable CUDA IPC support between GPUs and back off to copy through
-host memory if it is not available.
+host memory if it is not available
 </ul>
 
 *Open MPI v1.8.0 - v1.8.4 New Features*
 <ul>
-<li> Minor error handling fixes.
+<li> Minor error handling fixes
 <li> Better cleanup of CUDA resources
 </ul>
 
 *Open MPI v1.8.5 New Features*
 <ul>
-<li> Improved on-node GPU to GPU transfers even when CUDA IPC is not supported between the two GPUs.
-<li> Properly handle Unified Memory.  This is done by disabling CUDA IPC and GPU Direct RDMA optimizations on Unified Memory buffers.
-<li> Support for blocking reduction MPI APIs.
+<li> Improved on-node GPU to GPU transfers even when CUDA IPC is not supported between the two GPUs
+<li> Properly handle Unified Memory.  This is done by disabling CUDA IPC and GPUDirect RDMA optimizations on Unified Memory buffers.
+<li> Support for blocking reduction MPI APIs
 </ul>
 
 *For best results, it is recommended that you use the latest version
@@ -98,7 +98,7 @@ host memory if it is not available.
 
 *Additional Information about CUDA-aware support*
 
-Here are some relevant mca parameters to extract extra information if you
+Here are some relevant MCA parameters to extract extra information if you
 are having issues. For Open MPI v1.7.3 and later, you can see if the library
 was built with CUDA-aware support.
 
@@ -108,17 +108,17 @@ mca:mpi:base:param:mpi_built_with_cuda_support:value:true
 </geshi>
 
 To get some extra information, there are some verbose flags.  The
-*opal_cuda_verbose* has only one level of verbosity.  (Works on all
-versions)
+[opal_cuda_verbose] parameter has only one level of verbosity.  (Works on all
+versions.)
 
 <geshi bash>
 shell$ mpirun --mca opal_cuda_verbose 10 ...
 </geshi>
 
-This *mpi_common_cuda_verbose* flag provides additional information
+This [mpi_common_cuda_verbose] parameter provides additional information
 about CUDA-aware related activities.  This can be set to a variety of
 different values.  There is really no need to use these unless you
-have strange problems (works on all versions).
+have strange problems.  (Works on all versions).
 
 <geshi bash>
 shell$ mpirun --mca mpi_common_cuda_verbose 10 ...
@@ -135,14 +135,14 @@ shell$ mpirun --mca btl_smcuda_use_cuda_ipc 0 ...
 </geshi>
 
 In addition, it is assumed that CUDA IPC is possible when running on
-the same GPU and this is typically true.  However, there is the
+the same GPU, and this is typically true.  However, there is the
 ability to turn it off.
 
 <geshi bash>
 shell$ mpirun --mca btl_smcuda_use_cuda_ipc_same_gpu 0 ...
 </geshi>
 
-Lastly, to get some insight into whether CUDA IPC is being used, you
+Last, to get some insight into whether CUDA IPC is being used, you
 can turn on some verbosity that shows whether CUDA IPC gets enabled
 between two GPUs.
 
@@ -150,17 +150,17 @@ between two GPUs.
 shell$ mpirun --mca btl_smcuda_cuda_ipc_verbose 100 ...
 </geshi>
 
-*GPU Direct RDMA Information*
+*GPUDirect RDMA Information*
 
 Open MPI v1.7.4 and later have added some support to take advantage of
-GPU Direct RDMA on Mellanox cards.  All the details about Mellanox
+GPUDirect RDMA on Mellanox cards.  All the details about Mellanox
 hardware as well as software needed to get things to work can be found
-at <a
+at the <a
 href=\"http://www.mellanox.com/page/products_dyn?product_family=116&mtag=gpudirect\">
-Mellanox web site.</a> Note that to get GPU Direct RDMA support, you
+Mellanox web site.</a> Note that to get GPUDirect RDMA support, you
 also need to configure your Open MPI library with CUDA 6.0.
 
-To see if you have GPU Direct RDMA compiled into your library, you can
+To see if you have GPUDirect RDMA compiled into your library, you can
 check like this:
 
 <geshi bash>
@@ -168,7 +168,7 @@ shell$ ompi_info --all | grep btl_openib_have_cuda_gdr
    MCA btl: informational \"btl_openib_have_cuda_gdr\" (current value: \"true\", data source: default, level: 4 tuner/basic, type: bool)
 </geshi>
 
-To see if your OFED stack has GPU Direct RDMA support, you can check
+To see if your OFED stack has GPUDirect RDMA support, you can check
 like this:
 
 <geshi bash>
@@ -176,52 +176,52 @@ shell$ ompi_info --all | grep btl_openib_have_driver_gdr
    MCA btl: informational \"btl_openib_have_driver_gdr\" (current value: \"true\", data source: default, level: 4 tuner/basic, type: bool)
 </geshi>
 
-To run with GPU Direct RDMA support, you have to enable it as it is
-off by default.
+To run with GPUDirect RDMA support, you have to enable it as it is
+off by default:
 
 <geshi bash>
 shell$ mpirun --mca btl_openib_want_cuda_gdr 1 ...
 </geshi>
 
-*GPU Direct RDMA Implementation Details*
+*GPUDirect RDMA Implementation Details*
 
-With GPU Direct RDMA support selected, the eager protocol is unused.
+With GPUDirect RDMA support selected, the eager protocol is unused.
 This is done to avoid the penalty of copying unexpected GPU messages
 into host memory.  Instead, a rendezvous protocol is used where the
 sender and receiver both register their GPU buffers and make use of
-GPU Direct RDMA support to transfer the data.  This is done for all
+GPUDirect RDMA support to transfer the data.  This is done for all
 messages that are less than 30,000 bytes in size.  For larger
 messages, the openib BTL switches to using pipelined buffers as that
-has better performance at larger messages.  So, by default, with GPU
-Direct RDMA enabled, the underlying protocol usage is like this:
+has better performance at larger message sizes.  So, by default, with
+GPUDirect RDMA enabled, the underlying protocol usage is like this:
 
 <geshi text>
-0      < message size < 30,000      GPU Direct RDMA
+0      < message size < 30,000      GPUDirect RDMA
 30,000 < message size < infinity    Asynchronous copies through host memory
 </geshi>
 
-You can adjust the point where we switch to asynchronous copes with
-the *--mca btl_openib_cuda_rdma_limit* value.  For example, if you
+You can adjust the point where we switch to asynchronous copies with
+the [--mca btl_openib_cuda_rdma_limit] value.  For example, if you
 want to increase the switchover point to 100,000 bytes, then set it
-like this.
+like this:
 
 <geshi bash>
 shell$ mpirun --mca btl_openib_cuda_rdma_limit 100000 ...
 </geshi>
 
-By default, if we have GPU Direct RDMA, we use it for 1 byte messages
-on up to the *btl_openib_cuda_rdma_limit* value.  However, you could
-use the eager protocol for the smallest messages by setting *--mca
-btl_openib_cuda_eager_limit* value.  _Note: The
-*btl_openib_cuda_eager_limit* value includes some overhead so you
+By default, if we have GPUDirect RDMA, we use it for 1 byte messages
+on up to the [btl_openib_cuda_rdma_limit] value.  However, you could
+use the eager protocol for the smallest messages by setting [--mca
+btl_openib_cuda_eager_limit] value.  _Note: The
+[btl_openib_cuda_eager_limit] value includes some overhead so you
 cannot just set it to the payload value.  It has to be set to the
 payload plus the extra upper layer extra bytes.  Currently, in Open
 MPI v1.7.4, this overhead is 44 bytes, so that has to be the minimum
 value.  In the table below we are just referring to the size of the
 payload._
 
-This table tries to show how the various runtime parameters affect
-what protocols are used in a GPU Direct RDMA.
+This table tries to show how the various run-time parameters affect
+what protocols are used in a GPUDirect RDMA.
 
 <p>
 <center>
@@ -238,12 +238,12 @@ what protocols are used in a GPU Direct RDMA.
 
 <tr>
 <td>btl_openib_cuda_eager_limit (default=0) < message size < btl_openib_cuda_rdma_limit (default=30,000)</td>
-<td> rendezvous protocol utilizing GPU Direct RDMA</td>
+<td> rendezvous protocol utilizing GPUDirect RDMA</td>
 </tr>
 
 <tr>
 <td>btl_openib_cuda_rdma_limit (default=30,000) < message size < infinity</td>
-<td> pipelined transfers of size 128K through host memory</td>
+<td> pipelined transfers of size 128KB through host memory</td>
 </tr>
 
 </table>
@@ -257,18 +257,18 @@ communication.
 *NUMA Node Issues*
 When running on a node that has multiple GPUs, you may want to select
 the GPU that is closest to the process you are running on.  One way to
-do this is to make use of the hwloc library.  Following is a code
+do this is to make use of the [hwloc] library.  Following is a code
 snippet that can be used in your application to select a GPU that is
 close.  It will determine which CPU it is running on and then look for
 the closest GPU.  There could be multiple GPUs that are the same
-distance away.  This is dependent on having hwloc somewhere on your
+distance away.  This is dependent on having [hwloc] somewhere on your
 system.
 
 <geshi c>
 /**
  * Test program to show the use of hwloc to select the GPU closest to the CPU
  * that the MPI program is running on.  Note that this works even without
- * any libpciacces or libpci support as it keys of the NVIDIA vendor ID.
+ * any libpciacces or libpci support as it keys off the NVIDIA vendor ID.
  * There may be other ways to implement this but this is one way.
  * January 10, 2014
  */
@@ -380,7 +380,7 @@ int main(int argc, char *argv[])
 </geshi>
 
 See <a href=\"?category=buildcuda\">this FAQ entry</a>
-for detals on how to configure the CUDA support into the library.
+for details on how to configure the CUDA support into the library.
 ";
 /////////////////////////////////////////////////////////////////////////
 
@@ -455,17 +455,17 @@ $a[] = "
 ";
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Can I tell at compile time or runtime whether I have CUDA-aware support?";
+$q[] = "Can I tell at compile time or run time whether I have CUDA-aware support?";
 
 $anchor[] = "mpi-cuda-aware-support";
 
 $a[] = "
 New with Open MPI v2.0.0, we have added a compile time check and a
-runtime check.  You can use whichever is the most convenient for your
+run-time check.  You can use whichever is the most convenient for your
 program.  To access them, you need to include [mpi-ext.h]. Note that
 [mpi-ext.h] has been around for several releases so you can just add it
 to your include list. The following program shows an example of using
-the CUDA-aware macro and runtime check.
+the CUDA-aware macro and run-time check.
 
 <geshi c>
 /*
@@ -519,8 +519,9 @@ possible to move the GPU data quickly between GPUs that are on the same node and
 same PCI root complex. The library holds on to registrations even after the data
 transfer is complete as it is expensive to make some of the CUDA IPC registration
 calls. If you want to limit how much memory is registered, you can use the
-mpool_rgpusm_rcache_size_limit MCA parameter. For example, this sets the limit
-to 1000000 bytes.
+[mpool_rgpusm_rcache_size_limit] MCA parameter. For example, this sets the limit
+to 1000000 bytes:
+
 <geshi bash>
 shell$ --mca mpool_rgpusm_rcache_size_limit 1000000
 </geshi>
@@ -530,7 +531,8 @@ it can fit the new registration in.
 
 In Open MPI 1.10.2 and later, there also is the ability to have the cache empty
 itself out when the limit is reached. To do this, just set the MCA parameter as
-shown in this example.
+shown in this example:
+
 <geshi bash>
 shell$ --mca mpool_rgpusm_rcache_empty_cache 1
 </geshi>
