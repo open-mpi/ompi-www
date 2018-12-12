@@ -615,8 +615,8 @@ Note that using [btl_tcp_if_include] or [btl_tcp_if_exclude] to avoid
 using the virtual interface will *not* solve the issue.
 
 This may get fixed in a future release.  See <a
-href=\"https://svn.open-mpi.org/trac/ompi/ticket/3339\">Trac bug
-#3339</a> to follow the progress on this issue.";
+href=\"https://github.com/open-mpi/ompi/issues/160">GitHub issue
+#160</a> to follow the progress on this issue.";
 
 /////////////////////////////////////////////////////////////////////////
 
