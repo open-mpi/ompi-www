@@ -12,7 +12,7 @@ MPI.
 Since Open MPI is an open source project, its features and
 requirements are driven by the union of its developers.  Hence, AIX
 support has fallen away because none of us currently use AIX.  All
-this means that is we do not develop or test on AIX; there is no
+this means is that we do not develop or test on AIX; there is no
 fundamental technology reason why Open MPI _couldn't_ be supported on
 AIX.
 
