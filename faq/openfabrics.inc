@@ -660,7 +660,7 @@ startup scripts are located (e.g., [/etc/profile] and
 [/etc/csh.cshrc])</li>
 </ul>
 
-Also, note that resource managers such as SLURM, Torque/PBS, LSF,
+Also, note that resource managers such as Slurm, Torque/PBS, LSF,
 etc. may affect OpenFabrics jobs in two ways:
 
 <ol>
@@ -683,10 +683,10 @@ you typically need to modify daemons' startup scripts to increase the
 limit before they drop root privliedges.
 
 <li> Some resource managers can limit the amount of locked
-memory that is made available to jobs.  For example, SLURM has some
-fine-grained controls that allow locked memory for _only_ SLURM jobs
-(i.e., the system's default is low memory lock limits, but SLURM jobs
-can get high memory lock limits).  See these FAQ items on the SLURM
+memory that is made available to jobs.  For example, Slurm has some
+fine-grained controls that allow locked memory for _only_ Slurm jobs
+(i.e., the system's default is low memory lock limits, but Slurm jobs
+can get high memory lock limits).  See these FAQ items on the Slurm
 web site for more details: " .
 "<a href=\"http://www.llnl.gov/linux/slurm/faq.html#rlimit\">" .
 "propagating limits</a> and " .

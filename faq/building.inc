@@ -1162,11 +1162,11 @@ _Last supported in the v1.6.x series._ </li>
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I build Open MPI with support for SLURM / XGrid?";
+$q[] = "How do I build Open MPI with support for Slurm / XGrid?";
 
 $anchor[] = "build-rte";
 
-$a[] = "SLURM support is built automatically; there is nothing that
+$a[] = "Slurm support is built automatically; there is nothing that
 you need to do.
 
 XGrid support is built automatically if the XGrid tools are installed.";

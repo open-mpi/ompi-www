@@ -36,7 +36,7 @@ $anchor[] = "multiple-installs";
 $a[] = "Yes and no.
 
 Open MPI can handle a variety of different run-time environments
-(e.g., rsh/ssh, SLURM, PBS, etc.) and a variety of different
+(e.g., rsh/ssh, Slurm, PBS, etc.) and a variety of different
 interconnection networks (e.g., ethernet, Myrinet, Infiniband, etc.)
 in a single installation.  Specifically: because Open MPI is
 fundamentally powered by a component architecture, plug-ins for all
