@@ -46,7 +46,7 @@ about this case.</li>
 example, if the [openib] plugin fails to load, ensure that
 [libibverbs.so] can be found by the linker at run time (e.g., check
 the value of your [LD_LIBRARY_PATH] environment variable).  The same is
-true for any other plugin that have shared library dependencies (e.g.,
+true for any other plugins that have shared library dependencies (e.g.,
 the [mx] BTL and MTL plugins need to be able to find
 the [libmyriexpress.so] shared library at run time).</li>
 </ol>";
@@ -314,7 +314,7 @@ $a[] = "As noted in <a
 href=\"?category=supported-systems#parallel-debuggers\">this FAQ
 entry</a>, Open MPI supports parallel debuggers that utilize the
 TotalView API for parallel process attaching.  However, it can
-sometimes fail of Open MPI is not installed correctly.  Symptoms of
+sometimes fail if Open MPI is not installed correctly.  Symptoms of
 this failure typically involve having the debugger hang (or crash)
 when attempting to attach to a parallel MPI application.
 
@@ -361,7 +361,7 @@ $q[] = "When launching large MPI jobs, I see messages like: <code>mca_oob_tcp_pe
 
 $anchor[] = "large-job-tcp-oob-timeout";
 
-$a[] = "This is a known issue in the Open MPI v1.2. series.  Try the
+$a[] = "This is a known issue in the Open MPI v1.2 series.  Try the
 following:
 
 <ol>
