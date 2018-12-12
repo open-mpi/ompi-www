@@ -179,7 +179,7 @@ This is because the system-installed Open MPI is typically under the
 control of some software package management system (rpm, yum, etc.).
 
 Instead, you probably want to install your new version of Open MPI to
-another path, such as [/opt/openmpi-<version>] (or whatever is
+another path, such as [/opt/openmpi-&lt;version&gt;] (or whatever is
 appropriate for your system).
 
 <a href=\"#where-to-install\">This FAQ
@@ -214,7 +214,7 @@ There are two common approaches:
 <li> Have a common filesystem, such as NFS, between all the machines
 to be used.  Install Open MPI such that the installation directory is
 the _same value_ on each node.  This will _greatly_ simplify user's
-shell startup scripts (e.g., [.bashrc], [.cshrc], [.profile] .etc.)
+shell startup scripts (e.g., [.bashrc], [.cshrc], [.profile] etc.)
 &mdash; the [PATH] can be set without checking which machine the user is
 on.  It also simplifies the system administrator's job; when the time
 comes to patch or otherwise upgrade OMPI, only one copy needs to be
@@ -304,7 +304,7 @@ $anchor[] = "install-overwrite";
 $a[] = "We do not recommend this.
 
 Before discussing specifics, here are some definitions that are
-necessary understand:
+necessary to understand:
 
 <ul>
 <li> <strong>Source tree</strong>: The tree where the Open MPI source
@@ -390,13 +390,13 @@ removal of old plugins (i.e., forcibly disallowing the use of specific
 plugins) simply by removing the corresponding DSO(s).</li>
 <li> *Disadvantage:* this approach causes additional filesystem
 traffic (mostly during MPI_INIT).  If Open MPI is installed on a
-networked filesystem, this can cause noticable network traffic when a
+networked filesystem, this can cause noticeable network traffic when a
 large parallel job starts, for example.</li>
 </ul>
 </li>
 
 <li> *As part of a larger library:* In this mode, Open MPI \"slurps
-up\" the plugins includes them in libmpi (and other libraries).
+up\" the plugins and includes them in libmpi (and other libraries).
 Hence, _all_ plugins are included in the main Open MPI libraries
 that are loaded by the system linker before an MPI process even
 starts.
@@ -505,7 +505,7 @@ directory where [configure] resides).
 
 Some versions of [make] support parallel builds.  The example above
 shows GNU make's \"[-j]\" option, which specifies how many compile
-processes may be executing any any given time.  We, the Open MPI Team,
+processes may be executing at any given time.  We, the Open MPI Team,
 have found that doubling or quadrupling the number of processors in a
 machine can _significantly_ speed up an Open MPI compile (since
 compiles tend to be much more IO bound than CPU bound).";
@@ -608,7 +608,7 @@ commands";
 $anchor[] = "configure-sed-errors";
 
 $a[] = "Some users have reported seeing warnings like this in the
-final output from configure:
+final output from [configure]:
 
 <geshi text>
 *** Final output
@@ -634,7 +634,7 @@ exit 0
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Open MPI configured ok, but I get \"Makefile:602: *** missing separator\" kinds of errrs when building";
+$q[] = "Open MPI configured ok, but I get \"Makefile:602: *** missing separator\" kinds of errors when building";
 
 $anchor[] = "make-missing-separator";
 
@@ -675,7 +675,7 @@ specify the compiler suite:
 </ul>
 
 *<font color=red>NOTE:</font>* The Open MPI team recommends using a
-single compiler suite whenever possible.  Unexpeced or undefined
+single compiler suite whenever possible.  Unexpected or undefined
 behavior can occur when you mix compiler suites in unsupported ways
 (e.g., mixing Fortran 77 and Fortran 90 compilers between different
 compiler suites is almost guaranteed not to work).
@@ -722,7 +722,7 @@ LDFLAGS that it needs by itself.</li>
 language-specific).  This flag is rarely required; Open MPI will
 _usually_ pick up all LIBS that it needs by itself.</li>
 <li> *LD_LIBRARY_PATH*: Note that we do not recommend setting
-*LD_LIBRARY_PATH* via configure, but it is worth noting that you
+*LD_LIBRARY_PATH* via [configure], but it is worth noting that you
 should ensure that your *LD_LIBRARY_PATH* value is appropriate for
 your build.  Some users have been tripped up, for example, by
 specifying a non-default Fortran compiler to *FC* and *F77*, but then
@@ -744,7 +744,7 @@ shell$ ./configure CFLAGS=-m64 ...
 
 will produce 64 bit C objects, but 32 bit objects for C++, Fortran 77,
 and Fortran 90.  These codes will be incompatible with each other, and
-Open MPI will build successfully.  Instead, you must specify to build
+Open MPI will build successfully.  Instead, you must specify building
 64 bit objects for _all_ languages:
 
 <geshi bash>
@@ -780,7 +780,7 @@ shell$ ./configure CC=icc CXX=icpc F77=ifort FC=ifort ...
 </geshi>
 
 For Googling purposes, here's some of the error messages that may be
-issued during the Open MPI C++ codes with the Intel C compiler
+issued during the Open MPI compilation of C++ codes with the Intel C compiler
 (<code>icc</code>), in no particular order:
 
 <geshi text>
@@ -860,7 +860,7 @@ libraries and build Open MPI statically. For example:
 shell$ ./configure CC=xlc CXX=xlc++ F77=xlf FC=xlf90 --disable-shared --enable-static ...
 </geshi>
 
-For Googling purposes, here's a error message that may be
+For Googling purposes, here's an error message that may be
 issued when the build fails:
 
 <geshi bash>
@@ -896,7 +896,7 @@ $q[] = "What configure options should I use when building with the Oracle Solari
 
 $anchor[] = "build-sun-compilers-suggested-configure-options";
 
-$a[] = "The below configure options are suggested for use with the Oracle Solaris Studio (Sun) compilers:
+$a[] = "The below [configure] options are suggested for use with the Oracle Solaris Studio (Sun) compilers:
 
 <geshi text>
 --enable-heterogeneous
@@ -953,7 +953,7 @@ $anchor[] = "build-qs22";
 
 $a[] = "You can use two following scripts (contributed by IBM) to build Open MPI on QS22.
 
-Script to build OpenMPI using the GCC compiler
+Script to build OpenMPI using the GCC compiler:
 
 <geshi bash>
 #!/bin/bash
@@ -985,7 +985,7 @@ EOF
 cp config.status \$PREFIX/config.status
 </geshi>
 
-Script to build OpenMPI using XLC and XLF compilers
+Script to build OpenMPI using XLC and XLF compilers:
 
 <geshi bash>
 #!/bin/bash
@@ -1037,7 +1037,7 @@ v3.0 and v3.1 versions of their compiler; you must disable certain
 
 <ol>
 <li>With PathScale 3.0 and 3.1 compilers use the workaround options
--O2 and -fno-builtin in CFLAGS across the Open MPI build.  For
+[-O2] and [-fno-builtin] in CFLAGS across the Open MPI build.  For
 example:
 <geshi bash>
 shell$ ./configure CFLAGS=\"-O2 -fno-builtin\" ...
@@ -1054,8 +1054,8 @@ when Open MPI is compiled with the PathScale compilers.  What do I do?";
 $anchor[] = "pathscale-broken-with-mpi-c++-api";
 
 $a[] = "This is an old issue that _seems_ to be a problem when
-Pathscale uses a back-end GCC 3.x compiler.  Here's a proposed
-solution from the Pathscale support team (from July 2010):
+PathScale uses a back-end GCC 3.x compiler.  Here's a proposed
+solution from the PathScale support team (from July 2010):
 
 <blockquote>
 The proposed work-around is to install gcc-4.x on the system and use
@@ -1238,7 +1238,7 @@ Specific frameworks and version numbers may vary, depending on your
 version of Open MPI.
 
 <strong><font color=red>NOTE:</font></strong> Update to the note below
-(May 2006), Torque 2.1.0p0 now includes support for shared libraries
+(May 2006): Torque 2.1.0p0 now includes support for shared libraries
 and the workarounds listed below are no longer necessary.  However,
 this version of Torque changed other things that require upgrading
 Open MPI to 1.0.3 or higher (as of this writing, v1.0.3 has not yet
@@ -1387,7 +1387,7 @@ general, processor affinity will automatically be built if it is
 supported &mdash; no additional command line flags to [configure] should be
 necessary.
 
-However, Open MPI fail to build processor affinity if the appropriate
+However, Open MPI will fail to build processor affinity if the appropriate
 support libraries and header files are not available on the system on
 which Open MPI is being built.  Ensure that you have all appropriate
 \"development\" packages installed.  For example, Red Hat Enterprise
@@ -1406,11 +1406,11 @@ $q[] = "How do I build Open MPI with memory affinity / NUMA support (e.g., libnu
 $anchor[] = "build-maffinity";
 
 $a[] = "Open MPI supports memory affinity for many platforms.  In
-general, processor affinity will automatically be built if it is
+general, memory affinity will automatically be built if it is
 supported &mdash; no additional command line flags to [configure] should be
 necessary.
 
-However, Open MPI fail to build memory affinity if the appropriate
+However, Open MPI will fail to build memory affinity if the appropriate
 support libraries and header files are not available on the system on
 which Open MPI is being built.  Ensure that you have all appropriate
 \"development\" packages installed.  For example, Red Hat Enterprise
@@ -1435,23 +1435,23 @@ versions.  We recommend you use the latest 1.8 version for best support.
 
 *Configuring the Open MPI 1.8 series and Open MPI 1.7.3, 1.7.4, 1.7.5*
 
-With Open MPI 1.7.3 and later the libcuda.so library is loaded dynamically
+With Open MPI 1.7.3 and later the [libcuda.so] library is loaded dynamically
 so there is no need to specify a path to it at configure time.  Therefore,
-all you need is the path to the cuda.h header file.
+all you need is the path to the [cuda.h] header file.
 
-1. Searches in default locations.  Looks for cuda.h in
+1. Searches in default locations.  Looks for [cuda.h] in
 /usr/local/cuda/include.
 <geshi bash>
 shell$ ./configure --with-cuda
 </geshi>
 
-2. Searches for cuda.h in /usr/local/cuda-v6.0/cuda/include.
+2. Searches for [cuda.h] in /usr/local/cuda-v6.0/cuda/include.
 <geshi bash>
 shell$ ./configure --with-cuda=/usr/local/cuda-v6.0/cuda
 </geshi>
 
 Note that you cannot configure with *--disable-dlopen* as that will
-break the ability of the Open MPI library to dynamically load libcuda.so.
+break the ability of the Open MPI library to dynamically load [libcuda.so].
 
 *Configuring Open MPI 1.7, MPI 1.7.1 and 1.7.2*
 
@@ -1461,32 +1461,32 @@ break the ability of the Open MPI library to dynamically load libcuda.so.
   --with-cuda-libdir=DIR  Search for cuda libraries in DIR
 </geshi>
 
-Here are some examples of configure commands that enable CUDA support.
+Here are some examples of [configure] commands that enable CUDA support.
 
-1. Searches in default locations.  Looks for cuda.h in
-/usr/local/cuda/include and libcuda.so in /usr/lib64.
+1. Searches in default locations.  Looks for [cuda.h] in
+/usr/local/cuda/include and [libcuda.so] in /usr/lib64.
 <geshi bash>
 shell$ ./configure --with-cuda
 </geshi>
 
-2. Searches for cuda.h in /usr/local/cuda-v4.0/cuda/include and libcuda.so in
+2. Searches for [cuda.h] in /usr/local/cuda-v4.0/cuda/include and [libcuda.so] in
 default location of /usr/lib64.
 <geshi bash>
 shell$ ./configure --with-cuda=/usr/local/cuda-v4.0/cuda
 </geshi>
 
-3. Searches for cuda.h in /usr/local/cuda-v4.0/cuda/include and
-libcuda.so in /usr/lib64.  (same as previous one)
+3. Searches for [cuda.h] in /usr/local/cuda-v4.0/cuda/include and
+[libcuda.so] in /usr/lib64.  (Same as previous example.)
 <geshi bash>
 shell$ ./configure --with-cuda=/usr/local/cuda-v4.0/cuda --with-cuda-libdir=/usr/lib64
 </geshi>
 
-If the cuda.h or libcuda.so files cannot be found, then the configure
+If the [cuda.h] or [libcuda.so] files cannot be found, then the configure
 will abort.
 
 *Note:* There is a bug in Open MPI 1.7.2 such that you will get an
 error if you configure the library with *--enable-static*.  To get
-around this error, add the following to your configure line and
+around this error, add the following to your [configure] line and
 reconfigure.  This disables the build of the PML BFO which is largely
 unused anyways.  This bug is fixed in Open MPI 1.7.3.
 <geshi text>
@@ -1504,10 +1504,10 @@ $anchor[] = "skip-components";
 
 $a[] = "The [--enable-mca-no-build] option to Open MPI's [configure]
 script enables you to specify a list of components that you want to
-skip building.  This allow you to not include support for specific
+skip building.  This allows you to not include support for specific
 features in Open MPI if you do not want to.
 
-It takes a single argmuent: a comma-delimited list of
+It takes a single argument: a comma-delimited list of
 framework/component pairs inidicating which specific components you do
 not want to build.  For example:
 
@@ -1528,13 +1528,13 @@ support for GM and will automatically skip the [gm] BTL component.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "What other options to [configure] exist?";
+$q[] = "What other options to configure exist?";
 
 $anchor[] = "build-configure-options";
 
 $a[] = "There are _many_ options to Open MPI's [configure] script.
 Please run the following to get a full list (including a short
-description of each option);
+description of each option):
 
 <geshi bash>
 shell$ ./configure --help
@@ -1549,7 +1549,7 @@ $anchor[] = "f90-bindings-slow-compile";
 $a[] = "
 <blockquote>
 <font color=\"red\"><strong>NOTE:</strong></font> Starting with Open
-MPI v1.7, if you are not using gfortran, buidling the Fortran 90 and
+MPI v1.7, if you are not using gfortran, building the Fortran 90 and
 08 bindings do not suffer the same performance penalty that previous
 versions incurred.  The Open MPI developers encourage all users to
 upgrade to the new Fortran bindings implementation &mdash; including the
@@ -1701,7 +1701,7 @@ environment variable can be used; setting [OPAL_DESTDIR] to
 [/var/rpm/build.1234] will automatically prefix every directory such
 that Open MPI can function properly.</li>
 
-<li> Overriding invidividual directories: Open MPI uses the
+<li> Overriding individual directories: Open MPI uses the
 GNU-specified directories (per Autoconf/Automake), and can be
 overridden by setting environment variables directly related to their
 common names.  The list of environment variables that can be used is:
