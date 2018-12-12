@@ -154,7 +154,7 @@ If running MX, include the output from running [mx_info] from a known
 
 <ul>
 
-<li> Is the \"Map version\" value from this output is the same across
+<li> Is the \"Map version\" value from this output the same across
 all nodes?</li>
 
 <li> <strong><font color=red>NOTE:</font></strong> If the map version
@@ -187,8 +187,8 @@ is 16k &mdash; fragments sent larger than these sizes will fail.
 Open MPI automatically fragments large messages; it currently limits
 its first fragment size on MX networks to the lower of these two
 values &mdash; 16k.  As such, increasing the value of the MCA parameter
-named [btl_mx_first_frag_size] larger than 16k may cause failures in
-some cases (i.e., when using MX to send large messages to processes on
+[btl_mx_first_frag_size] larger than 16k may cause failures in
+some cases (e.g., when using MX to send large messages to processes on
 the same node); it will cause failures in all cases if it is set above
 32k.
 
