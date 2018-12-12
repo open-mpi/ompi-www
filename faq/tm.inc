@@ -115,9 +115,9 @@ $q[] = "How do I determine if Open MPI is configured for Torque/PBS Pro?";
 
 $anchor[] = "tm-configure-ompi";
 
-$a[] = "If you configuring and installing Open MPI yourself, and you want
+$a[] = "If you are configuring and installing Open MPI yourself, and you want
 to insure that you are building the components of Open MPI required for
-Torque/PBS Pro support, include the [--with-tm] option on the configure
+Torque/PBS Pro support, include the [--with-tm] option on the [configure]
 command line.  Run [./configure --help] for further information about this
 configure option.
 
