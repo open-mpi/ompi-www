@@ -34,7 +34,7 @@ color=red><?php
 This documentation reflects the latest progression in the 3.1.x series.
 <strong><font color=red>This code base is still supported, but is 
 in "bug fix only" mode.</font></strong>
-strong></li>
+</li>
 
 <li><a href="v3.0/"><strong>v3.0 series
 </strong></a>.  This documentation reflects
