@@ -876,8 +876,8 @@ supports additional command-line binding switches to [mpirun]:
      by Open MPI.</li>
 </ul>
 
-In the case of cores with multiple hardware threads (e.g., "HyperThreads" or
-"SMT"), only the first hardware thread on each core is used with the
+In the case of cores with multiple hardware threads (e.g., \"HyperThreads\" or
+\"SMT\"), only the first hardware thread on each core is used with the
 [--bind-to-*] options.  This will hopefully be fixed in the Open MPI v1.5 series.
 
 The above options are typically most useful when used with the
