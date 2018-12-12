@@ -10,8 +10,8 @@
 as-bug-free-as-possible distributions, we tend to take a long time
 between major releases.  However, there are many useful new features
 (and bug fixes) in our internal Git tree that some users have
-asked for access to.  Additionally, for those who are actually develop
-with the internals Open MPI, Git access gives the most
+asked for access to.  Additionally, for those who are actually developing
+the internals of Open MPI, Git access gives the most
 up-to-date versions rather than the periodic tarball access.  As such,
 the Open MPI Team has decided to provide read-only access to the Open
 MPI Git tree.</p>
@@ -19,7 +19,7 @@ MPI Git tree.</p>
 <P> Be aware, however, that the head of the development code tree is
 <em>not</em> guaranteed to be stable.  For the most part, we try very
 hard to not commit things that are broken, but this is an active
-development tree -- bugs happen.  This is actually another major
+development tree &mdash; bugs happen.  This is actually another major
 reason that this tree has been made available: peer review.  If you
 find any bugs, <em>please</em> report them!  <a href="<?php
 print("$topdir/community/lists/"); ?>">Contributions,
@@ -35,15 +35,6 @@ Open MPI.  It is generally where new Open MPI work is done.</p>
 <li> <a href="https://github.com/open-mpi/ompi">Clone the main Open
 MPI Git repo at GitHub</a>.  The main development work occurs on the
 "master" branch in this repo.
-
-<br>
-
-<strong><font color=green>Advantage:</font></strong> You'll easily be
-able to keep up with the latest source code using normal Git
-commands (e.g., '<code>git pull --rebase</code>').<br>
-<strong><font color=red>Disadvantage:</font></strong> You need to have
-<a href="building.php">several tools installed</a> to compile Open
-MPI from a developer checkout.</li>
 
 <br>
 
