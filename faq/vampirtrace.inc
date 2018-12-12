@@ -1,7 +1,7 @@
 <?php
 
 $vampir_is_gone = "<p><strong><font
-color=\"red\">NOTE:</font></strong> VampirTrace was only included Open
+color=\"red\">NOTE:</font></strong> VampirTrace was only included in Open
 MPI from v1.3.x through v1.10.x.  It was removed in the v2.0.0 release
 of Open MPI.  This FAQ question pertains to the versions of Open MPI
 that contained VampirTrace.</p>";
@@ -19,24 +19,24 @@ of other tools that read the Open Trace Format (OTF).
 Tracing is interesting for performance analysis and optimization of
 parallel and HPC (High Performance Computing) applications in general
 and MPI programs in particular. In fact, that's where the letters
-'mpi' in Vampir come from. Therefore, it is integrated into Open MPI
+'mpi' in "Vampir" come from. Therefore, it is integrated into Open MPI
 for convenience.
 
 VampirTrace is included in Open MPI v1.3 and later.
 
-VampirTrace consists of two main components: Firstly, the
+VampirTrace consists of two main components: First, the
 instrumentation part which slightly modifies the target program in
 order to be notified about run-time events of interest. Simply replace
 the compiler wrappers to activate it: [mpicc] to [mpicc-vt], [mpicxx]
 to [mpicxx-vt] and so on (note that the [*-vt] variants of the wrapper
-compilers are unavailable before Open MPI v1.3).  Secondly, the
+compilers are unavailable before Open MPI v1.3).  Second, the
 run-time measurement part is responsible for data collection.  This
 can only be effective when the first part was performed &mdash; otherwise
 there will be *no* effect on your program *at all*.
 
 VampirTrace has been developed at ZIH, TU Dresden in collaboration with
 the KOJAK project from JSC/FZ Juelich and is available as open source
-software under BSD license, see [ompi/contrib/vt/vt/COPYING].
+software under the BSD license; see [ompi/contrib/vt/vt/COPYING].
 
 The software is also available as a stand-alone source code
 package. The latest version can always be found at " .  "<a href=
@@ -51,8 +51,8 @@ $anchor[] = "vt_docu";
 $a[] = "$vampir_is_gone
 
 A complete documentation of VampirTrace comes with the Open
-MPI software package as PDF and HTML (in Open MPI v1.3 and later). You
-can find it in the Open MPI source tree [ompi/contrib/vt/vt/doc/] or
+MPI software package as PDF and HTML. You
+can find it in the Open MPI source tree at [ompi/contrib/vt/vt/doc/] or
 after installing Open MPI in
 [\$(install-prefix)/share/vampirtrace/doc/].";
 
@@ -103,18 +103,18 @@ $q[] = "Does VampirTrace cause overhead to my application?";
 $anchor[] = "vt_overhead";
 $a[] = "$vampir_is_gone
 
-By using the default MPI compiler wrappers ( [mpicc] etc.) your
+By using the default MPI compiler wrappers ( [mpicc], etc.) your
 application will be run without any changes at all. The VampirTrace
 compiler wrappers ( [mpicc-vt] etc.) link the VampirTrace library which intercepts
 MPI calls and some user level function/subroutine calls. This causes a certain
-amount of runtime overhead to applications. Usually, the overhead is reasonably
+amount of run-time overhead to applications. Usually, the overhead is reasonably
 small (0.x% - 5%) and VampirTrace by default enables precautions to avoid
 excessive overhead. However, it can be configured to produce very substantial
 overhead using non-default settings.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How can I change the underlying compiler of the mpi*-vt wrappers?";
+$q[] = "How can I change the underlying compiler of the <code>mpi*-vt</code> wrappers?";
 $anchor[] = "vt_change";
 
 $a[] = "$vampir_is_gone
@@ -144,11 +144,11 @@ $anchor[] = "vt_options";
 
 $a[] = "$vampir_is_gone
 
-To give options to the VampirTrace configure script you can add these
-to the configure option [--with-contrib-vt-flags].
+To give options to the VampirTrace [configure] script you can add this
+to the configure option: [--with-contrib-vt-flags].
 
 The following example passes the options [--with-papi-lib-dir] and [--with-papi-lib]
-to the VampirTrace configure script to specify the location and the name of the PAPI
+to the VampirTrace [configure] script to specify the location and name of the PAPI
 library:
 
 <geshi bash>
@@ -164,7 +164,7 @@ $a[] = "$vampir_is_gone
 
 By default, the VampirTrace part of Open MPI will be built and
 installed.  If you would like to disable building and installing of
-VampirTrace add the value [vt] to the configure option
+VampirTrace, add the value [vt] to the configure option
 [--enable-contrib-no-build].
 
 <geshi bash>
