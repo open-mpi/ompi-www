@@ -400,6 +400,7 @@ The output diff may be modified by removing some entries from the list. The remo
 
 <p>Export a list of topology differences to a XML buffer. </p>
 <p>If not <code>NULL</code>, <code>refname</code> defines an identifier string for the reference topology which was used as a base when computing this difference. This identifier is usually the name of the other XML file that contains the reference topology. This attribute is given back when reading the diff from XML.</p>
+<p>The returned buffer ends with a \0 that is included in the returned length.</p>
 <dl class="section note"><dt>Note</dt><dd>The XML buffer should later be freed with <a class="el" href="a00170.php#ga293e4a6489f15fd16ad22a5734561cf1" title="Free a buffer allocated by hwloc_topology_export_xmlbuffer() ">hwloc_free_xmlbuffer()</a>. </dd></dl>
 
 </div>
