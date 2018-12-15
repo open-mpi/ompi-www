@@ -20,12 +20,11 @@ if (!empty($title)) {
 }
 if (isset($site)) {
     if (!empty($restrict) && "$restrict" != "all") {
-        if (substr($site, strlen($site) - 1, 1) == "/" ||
-	    substr($restrict, 0, 1) == "/") {
-	    $extra .= "site:$site$restrict ";
-	} else {
-	    $extra .= "site:$site/$restrict ";
-	}
+        if (substr($site, strlen($site) - 1, 1) == "/" || substr($restrict, 0, 1) == "/") {
+	          $extra .= "site:$site$restrict ";
+      	} else {
+      	    $extra .= "site:$site/$restrict ";
+      	}
     } else {
         $extra .= "site:$site ";
     }

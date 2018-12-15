@@ -5,7 +5,7 @@ $server_dir = "/";
 $is_mirror = false;
 $download_url = "$topdir/download/files";
 if (!isset($topurl) || $topurl == "") {
-     $topurl = $topdir;
+    $topurl = $topdir;
 }
 if (!isset($logo)) {
     $logo = "images/open-mpi-logo.png";
@@ -21,19 +21,19 @@ if (!isset($project)) {
 $table_border = 0;
 
 function left_width_1() {
-  print("width=\"10%\"");
+    print("width=\"10%\"");
 }
 function left_width_2() {
-  print("width=\"10%\"");
+    print("width=\"10%\"");
 }
 function right_width_1() {
-  print("width=\"90%\"");
+    print("width=\"90%\"");
 }
 function right_width_2() {
-  print("width=\"90%\"");
+    print("width=\"90%\"");
 }
 function right_width_3() {
-  print("width=\"90%\"");
+    print("width=\"90%\"");
 }
 
 //
