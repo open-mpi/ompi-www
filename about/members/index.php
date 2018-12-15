@@ -49,7 +49,7 @@ function print_line() {
 class contrib {
     var $url, $short_name, $big_org, $logo, $level, $type;
 
-    function contrib($url, $short_name, $long_name, $logo, $level, $type) {
+    function __construct($url, $short_name, $long_name, $logo, $level, $type) {
         $this->url = $url;
         $this->short_name = $short_name;
         $this->long_name = $long_name;
