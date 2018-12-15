@@ -16,12 +16,12 @@ $image_base_url = "https://" .
 ?>
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<HTML>
-<HEAD>
-  <META http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <TITLE>Open MPI: We couldn't find what you were looking for -- Sadness</TITLE>
-</HEAD>
-<BODY>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Open MPI: We couldn't find what you were looking for -- Sadness</title>
+</head>
+<body>
 
 <br />
 <div align="center">
@@ -45,5 +45,5 @@ width="300"></td>
 </tr>
 </table>
 </div>
-</BODY>
-</HTML>
+</body>
+</html>

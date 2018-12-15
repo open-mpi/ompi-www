@@ -36,13 +36,13 @@ $footer_bg    = $osl_std_grey;
 $footer_fg    = "black";
 
 ?>
-<STYLE TYPE="text/css">
+<style type="text/css">
 BODY          {	background		: white ;
 		color			: black ;
-		font-family		: verdana,arial,helvetica ; 
+		font-family		: verdana,arial,helvetica ;
 		font-size		: 12px ; }
 
-td	      { background-color	: white ; 
+td	      { background-color	: white ;
 		color			: black ;
 		font-family		: verdana,arial,helvetica ; }
 
@@ -112,23 +112,23 @@ td.glanceitemall {
 		color			: #ffffff;
 }
 
-td.navbarsub  { font-size		: 11px ; 
+td.navbarsub  { font-size		: 11px ;
                 color			: <?php print("$navbarsub_fg");?> ;
                 background-color	: <?php print("$navbarsub_bg");?> ; }
-td.navbarsub2 {	font-size		: 11px ; 
-		font-weight		: normal; 
+td.navbarsub2 {	font-size		: 11px ;
+		font-weight		: normal;
 		color			: <?php print("$navbarsub2_fg");?> ;
                 background-color	: <?php print("$navbarsub2_bg");?> ; }
-td.navbarsub2b {	font-size		: 11px ; 
-		font-weight		: bold; 
+td.navbarsub2b {	font-size		: 11px ;
+		font-weight		: bold;
 		color			: <?php print("$navbarsub3_fg");?> ;
                 background-color	: <?php print("$navbarsub3_bg");?> ; }
-td.navbarsub3 {	font-size		: 11px ; 
-		font-weight		: normal; 
+td.navbarsub3 {	font-size		: 11px ;
+		font-weight		: normal;
 		color			: <?php print("$navbarsub3_fg");?> ;
                 background-color	: <?php print("$navbarsub3_bg");?> ; }
-td.quickbar   { font-size		: 11px ; 
-		font-weight		: bold ; 
+td.quickbar   { font-size		: 11px ;
+		font-weight		: bold ;
 		color			: <?php print("$quickbar_fg");?> ;
 		background-color	: <?php print("$quickbar_bg");?> ; }
 td.footer     { font-size		: 11px ;
@@ -167,7 +167,7 @@ td.newsbar   { background-color   : #E0E0E0 ;
 td.newstitle { background-color   : #DD3333 ;
                color              : white ;
                text-align         : center ;  }
-td.newstext  { font-size          : small ; 
+td.newstext  { font-size          : small ;
                color              : #333333 ; }
 
 .newstitle {   	color           : #333333 ;
@@ -190,7 +190,7 @@ td.glancebox  {	font-size		: 11px ;
 
 td.glancetitle { font-size	: 14px ;
 		 font-weight	: bold ;
-                 color              : <?php print("$glancetitle_fg");?> ; 
+                 color              : <?php print("$glancetitle_fg");?> ;
  		 background-color   : <?php print("$glancetitle_bg");?> ;
                  text-align         : left ; }
 
@@ -200,7 +200,7 @@ td.glanceitem {  font-size	: 11px ;
                  background-color   : <?php print("$glanceitem_bg");?> ;
                  text-align         : left ;  }
 
-td.glancetext  { font-size          : 11px ; 
+td.glancetext  { font-size          : 11px ;
 		 font-weight		: normal ;
                  color              : <?php print("$glancetext_fg");?> ;
                  background-color   : <?php print("$glancetext_bg");?> ; }
@@ -210,43 +210,43 @@ p.small        { font-size           : small                ;
 
 h1.doctitle   { text-align		: left ; }
 
-h3.frontpage    {	margin-bottom : 6px ; 
-		margin-top : 6px ; 
+h3.frontpage    {	margin-bottom : 6px ;
+		margin-top : 6px ;
 		font-size: 16px;
 		font-weight: bold;
 }
-h4.frontpage    {	margin-bottom : 3px ; 
-		margin-top : 3px ; 
+h4.frontpage    {	margin-bottom : 3px ;
+		margin-top : 3px ;
 		font-size: 14px;
 		font-weight: bold;
 }
 
-td.copyright  { font-size		: 11px ; 
-		font-weight		: bold ; 
+td.copyright  { font-size		: 11px ;
+		font-weight		: bold ;
 		color			: #333333   ;
 		background-color	: #E0E0E0 ; }
 
-td.mirror     { font-size		: 11px ; 
-		font-weight		: bold ; 
+td.mirror     { font-size		: 11px ;
+		font-weight		: bold ;
 		color			: #333333   ;
 		background-color	: #E0E0E0 ; }
 
-td.faq_question { font-weight		: bold ; 
+td.faq_question { font-weight		: bold ;
 		color			: #333333   ;
 		background-color	: <?php print($osl_drk_grey); ?> ; }
 
-.faq_applies  {	color		: #777777 ; 
+.faq_applies  {	color		: #777777 ;
 		font-weight     : normal; }
 
-.faq_title    { font-weight		: normal ; 
+.faq_title    { font-weight		: normal ;
 		color			: #333333   ; }
 
-.divider    {	color		: #777777 ; 
-		font-family	: Verdana, Arial, sans-serif ; 
-		font-size	: 10px ; 
+.divider    {	color		: #777777 ;
+		font-family	: Verdana, Arial, sans-serif ;
+		font-size	: 10px ;
 		font-weight     : normal; }
 
-input.medium  { width		: 96px ; 
+input.medium  { width		: 96px ;
 		height		: 15px ;
 		font-size	: 10px ;
 		text-align	: left ;
@@ -292,4 +292,4 @@ if (isset($added_css)) {
     print("\n$added_css\n\ns");
 }
 ?>
-</STYLE>
+</style>

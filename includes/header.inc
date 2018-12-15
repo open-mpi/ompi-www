@@ -54,7 +54,7 @@ function deny_mirror() {
     if ($is_mirror) {
         $equiv_dir = preg_replace("/^$server_dir/", '',
             $_SERVER["REQUEST_URI"]);
-        print("Sorry, this page is not mirrored.  Please see the <A HREF=\"https://www.open-mpi.org/$equiv_dir\">original version of this page</A> on the main Open MPI web site.\n");
+        print("Sorry, this page is not mirrored.  Please see the <a href=\"https://www.open-mpi.org/$equiv_dir\">original version of this page</A> on the main Open MPI web site.\n");
         include_once("$topdir/includes/footer.inc");
         exit();
     }
@@ -72,15 +72,15 @@ if (isset($header_include_file)) {
 }
 
 function printtoplink($link, $text, $class) {
-    print("              <TR>\n");
-    print("                 <TD class=\"navbartop");
+    print("              <tr>\n");
+    print("                 <td class=\"navbartop");
     if ($class != "")
         print("$class");
     print("\">\n");
     print("                  $text\n");
-    print("                 </TD>\n");
+    print("                 </td>\n");
 
-    print("              </TR>\n");
+    print("              </tr>\n");
 }
 
 function printbutton($text) {
@@ -95,39 +95,39 @@ function printsublink($link, $text, $a_modifier = "") {
     global $topdir;
     global $download_url;
 
-    print("              <TR>\n");
-    print("                <TD class=\"navbarsub\">\n");
-    print("                  &nbsp;&nbsp;<A HREF=\"$link\" CLASS=\"navbarsub\" $a_modifier>$text</A>\n");
-    print("                </TD>\n");
-    print("              </TR>\n");
+    print("              <tr>\n");
+    print("                <td class=\"navbarsub\">\n");
+    print("                  &nbsp;&nbsp;<a href=\"$link\" class=\"navbarsub\" $a_modifier>$text</A>\n");
+    print("                </td>\n");
+    print("              </tr>\n");
 
     $b = basename($link);
     if ((isset($this_dir) && $b == $this_dir) ||
         (isset($this_absdir) &&
          ($link == "$topdir$this_absdir" || $link == "$topdir$this_absdir/"))) {
         for ($i = 0; $i < sizeof($this_nav); $i++) {
-            print("              <TR>\n");
+            print("              <tr>\n");
             #if there is no link, make the font different so it stands out as such
             if("" == $this_nav[$i]->link) {
-                print("                <TD class=\"navbarsub2b\">\n");
+                print("                <td class=\"navbarsub2b\">\n");
                 print("                  &nbsp;&nbsp;&nbsp;&nbsp;" . $this_nav[$i]->name ."\n");
             } else {
-                print("                <TD class=\"navbarsub2\">\n");
+                print("                <td class=\"navbarsub2\">\n");
                 print("                  &nbsp;&nbsp;&nbsp;&nbsp;" .
-                      "<A HREF=\"" . $this_nav[$i]->link . "\" CLASS=\"navbarsub2\">" .
-                      $this_nav[$i]->name . "</A>\n");
+                      "<a href=\"" . $this_nav[$i]->link . "\" class=\"navbarsub2\">" .
+                      $this_nav[$i]->name . "</a>\n");
             }
-            print("                </TD>\n");
-            print("              </TR>\n");
+            print("                </td>\n");
+            print("              </tr>\n");
             if ($this_nav[$i]->children != "") {
               for($j = 0; $j < sizeof($this_nav[$i]->children); $j++) {
-                  print("              <TR>\n");
-                  print("                <TD class=\"navbarsub3\">\n");
+                  print("              <tr>\n");
+                  print("                <td class=\"navbarsub3\">\n");
                   print("                  &nbsp;&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp;&nbsp;" .
-                        "<A HREF=\"" . $this_nav[$i]->children[$j]->link . "\" CLASS=\"navbarsub3\">" .
-                        $this_nav[$i]->children[$j]->name . "</A>\n");
-                  print("                </TD>\n");
-                  print("              </TR>\n");
+                        "<a href=\"" . $this_nav[$i]->children[$j]->link . "\" class=\"navbarsub3\">" .
+                        $this_nav[$i]->children[$j]->name . "</a>\n");
+                  print("                </td>\n");
+                  print("              </tr>\n");
               }
             }
 
@@ -138,83 +138,83 @@ function printsublink($link, $text, $a_modifier = "") {
 print("<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js\"></script>\n");
 include_once("$topdir/includes/google-analytics.php");
 
-print("</HEAD>\n<BODY>\n");
+print("</head>\n<body>\n");
 ?>
-<A NAME="top"></A>
+<a name="top"></A>
 
 <!-- START MAIN TABLE -->
-<TABLE WIDTH="98%" BORDER="<?php print($table_border); ?>" CELLSPACING="0" CELLPADDING="0">
-<COLGROUP>
-  <COL width="10%">
-  <COL>
+<table width="98%" border="<?php print($table_border); ?>" cellspacing="0" cellpadding="0">
+<colgroup>
+  <col width="10%">
+  <col>
 
   <!-- Title area -->
-  <TR>
-    <TD class="logobox" VALIGN="center" ALIGN="center" ROWSPAN="2" <?php left_width_1(); ?>>
-      <A HREF="<?php print("$logo_url");?>/"><?php
+  <tr>
+    <td class="logobox" valign="center" align="center" rowspan="2" <?php left_width_1(); ?>>
+      <a href="<?php print("$logo_url");?>/"><?php
 $size = GetImageSize("$topdir/$logo");
-print("<IMG SRC=\"$topurl/$logo\" " . $size[3] .
-      " ALT=\"$project logo\" BORDER=\"0\">");
+print("<img src=\"$topurl/$logo\" " . $size[3] .
+      " alt=\"$project logo\" border=\"0\">");
 ?></A>
-    </TD>
-    <TD VALIGN="center" <?php right_width_1(); ?> >
+    </td>
+    <td valign="center" <?php right_width_1(); ?> >
 <?php
 if (!isset($title) || $title == "") {
   $title = $project;
 }
-print("      <H1 CLASS=\"doctitle\">$title</H1>\n");
+print("      <h1 class=\"doctitle\">$title</H1>\n");
 
 ?>
-    </TD>
-  </TR>
+    </td>
+  </tr>
 
   <!-- Quick bar -->
-  <TR>
-    <!-- one TD taken by logo -->
-    <TD HEIGHT="1" VALIGN="BOTTOM" <?php right_width_2(); ?> >
-    <TABLE WIDTH="100%" BORDER="<?php print($table_border); ?>" CELLSPACING="0" CELLPADDING="0">
-    <TR>
+  <tr>
+    <!-- one td taken by logo -->
+    <td height="1" valign="BOTTOM" <?php right_width_2(); ?> >
+    <table width="100%" border="<?php print($table_border); ?>" cellspacing="0" cellpadding="0">
+    <tr>
 
-    <TD class="quickbar"  VALIGN="top" ALIGN="left" height=16 width="1">
-     <IMG SRC="<?php print("$topurl");?>/images/left-e0-2.gif">
-    </TD>
+    <td class="quickbar"  valign="top" align="left" height=16 width="1">
+     <img src="<?php print("$topurl");?>/images/left-e0-2.gif">
+    </td>
 
-    <TD>
-    <TABLE WIDTH="100%" BORDER="<?php print($table_border); ?>" CELLSPACING="0" CELLPADDING="5">
-      <TR>
+    <td>
+    <table width="100%" border="<?php print($table_border); ?>" cellspacing="0" cellpadding="5">
+      <tr>
         <?php nav_search_start(); ?>
-        <TD class="quickbar" VALIGN="center" ALIGN="right">
+        <td class="quickbar" valign="center" align="right">
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
-	<A HREF="<?php print("$topurl"); ?>/" CLASS="quickbar">Home</A>
+	<a href="<?php print("$topurl"); ?>/" class="quickbar">Home</A>
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
-	<A HREF="<?php print("$topurl"); ?>/community/help/" CLASS="quickbar"><font color=red>Support</font></A>
+	<a href="<?php print("$topurl"); ?>/community/help/" class="quickbar"><font color=red>Support</font></A>
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
-	<A HREF="<?php print("$topurl"); ?>/faq/" CLASS="quickbar">FAQ</A>
+	<a href="<?php print("$topurl"); ?>/faq/" class="quickbar">FAQ</A>
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
 	<?php nav_search_make(); ?>
-       </TD>
+       </td>
        <?php nav_search_end(); ?>
-      </TR>
-    </TABLE>
-    </TD>
+      </tr>
+    </table>
+    </td>
 
-    <TD class="quickbar"  VALIGN="top" ALIGN="right" height=16 width="1">
-     <IMG SRC="<?php print("$topurl");?>/images/right-e0-2.gif">
-    </TD>
+    <td class="quickbar"  valign="top" align="right" height=16 width="1">
+     <img src="<?php print("$topurl");?>/images/right-e0-2.gif">
+    </td>
 
-    </TR>
-    </TABLE>
-    </TD>
-  </TR>
+    </tr>
+    </table>
+    </td>
+  </tr>
 
   <!-- Main row -->
-  <TR>
+  <tr>
     <!-- Navigation bar -->
-    <TD VALIGN="top" CLASS="navbarbox" <?php left_width_2(); ?>>
-      <TABLE WIDTH="100%" BORDER="<?php print($table_border); ?>" CELLPADDING="1" CELLSPACING="0">
-        <TR>
-          <TD CLASS="navbarbox">
-            <TABLE WIDTH="168px" BORDER="<?php print($table_border); ?>" CELLPADDING="1" CELLSPACING="1">
+    <td valign="top" class="navbarbox" <?php left_width_2(); ?>>
+      <table width="100%" border="<?php print($table_border); ?>" cellpadding="1" cellspacing="0">
+        <tr>
+          <td class="navbarbox">
+            <table width="168px" border="<?php print($table_border); ?>" cellpadding="1" cellspacing="1">
 
 <?php
 
@@ -256,22 +256,22 @@ printsublink("$topurl/community/license.php", "License");
 printbutton("");
 
 ?>
-            </TABLE>
-          </TD>
-        </TD>
-      </TABLE>
-    </TD>
+            </table>
+          </td>
+        </td>
+      </table>
+    </td>
 
     <!-- Main text box -->
-    <TD VALIGN="top" <?php right_width_3(); ?> >
-      <TABLE WIDTH="100%" BORDER="<?php print($table_border); ?>" CELLPADDING="6" CELLSPACING="0">
-        <TR>
-          <TD>
-      <TABLE WIDTH="100%" BORDER="<?php print($table_border); ?>" CELLPADDING="4" CELLSPACING="0">
-      <COLGROUP>
-      <COL>
-        <TR>
-          <TD>
+    <td valign="top" <?php right_width_3(); ?> >
+      <table width="100%" border="<?php print($table_border); ?>" cellpadding="6" cellspacing="0">
+        <tr>
+          <td>
+      <table width="100%" border="<?php print($table_border); ?>" cellpadding="4" cellspacing="0">
+      <colgroup>
+      <col>
+        <tr>
+          <td>
           <!-- BEGIN MAIN TEXT -->
 <?php
 if (file_exists("$topdir/sitewide_notice.inc")) {
