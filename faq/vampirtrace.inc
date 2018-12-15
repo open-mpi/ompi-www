@@ -19,7 +19,7 @@ of other tools that read the Open Trace Format (OTF).
 Tracing is interesting for performance analysis and optimization of
 parallel and HPC (High Performance Computing) applications in general
 and MPI programs in particular. In fact, that's where the letters
-'mpi' in "Vampir" come from. Therefore, it is integrated into Open MPI
+'mpi' in \"Vampir\" come from. Therefore, it is integrated into Open MPI
 for convenience.
 
 VampirTrace is included in Open MPI v1.3 and later.
@@ -170,4 +170,3 @@ VampirTrace, add the value [vt] to the configure option
 <geshi bash>
 shell$ ./configure --enable-contrib-no-build=vt ...
 </geshi>";
-

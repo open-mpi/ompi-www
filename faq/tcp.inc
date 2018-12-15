@@ -615,7 +615,7 @@ Note that using [btl_tcp_if_include] or [btl_tcp_if_exclude] to avoid
 using the virtual interface will *not* solve the issue.
 
 This may get fixed in a future release.  See <a
-href=\"https://github.com/open-mpi/ompi/issues/160">GitHub issue
+href=\"https://github.com/open-mpi/ompi/issues/160\">GitHub issue
 #160</a> to follow the progress on this issue.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -667,4 +667,3 @@ connections are likely just consuming extra resources and adding work
 to the MPI implementation.  However, for highly multi-threaded
 applications, where there are only one or two MPI ranks per host, the
 [btl_tcp_links] option may improve TCP throughput considerably.";
-
