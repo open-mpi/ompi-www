@@ -32,7 +32,7 @@ $q[] = "What OpenFabrics-based components does Open MPI have?";
 $anchor[] = "ib-components";
 
 $a[] = "Current versions of Open MPI support the UCX and verbs APIs
-for the ${ofs}OpenFabrics Alliance</a> (OFA) software stack.  The
+for the ${ofa}OpenFabrics Alliance</a> (OFA) software stack.  The
 OpenFabrics software stack supports both InfiniBand and iWARP
 networks.  Open MPI's support of the OpenFabrics stack is provided
 through multiple different components; see the table below.
