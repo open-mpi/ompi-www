@@ -119,14 +119,16 @@ function printsublink($link, $text, $a_modifier = "") {
             }
             print("                </TD>\n");
             print("              </TR>\n");
-            for($j = 0; $j < sizeof($this_nav[$i]->children); $j++) {
-                print("              <TR>\n");
-                print("                <TD class=\"navbarsub3\">\n");
-                print("                  &nbsp;&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp;&nbsp;" .
-                      "<A HREF=\"" . $this_nav[$i]->children[$j]->link . "\" CLASS=\"navbarsub3\">" .
-                      $this_nav[$i]->children[$j]->name . "</A>\n");
-                print("                </TD>\n");
-                print("              </TR>\n");
+            if ($this_nav[$i]->children != "") {
+              for($j = 0; $j < sizeof($this_nav[$i]->children); $j++) {
+                  print("              <TR>\n");
+                  print("                <TD class=\"navbarsub3\">\n");
+                  print("                  &nbsp;&nbsp;&nbsp;&nbsp&nbsp;&nbsp;&nbsp;&nbsp;" .
+                        "<A HREF=\"" . $this_nav[$i]->children[$j]->link . "\" CLASS=\"navbarsub3\">" .
+                        $this_nav[$i]->children[$j]->name . "</A>\n");
+                  print("                </TD>\n");
+                  print("              </TR>\n");
+              }
             }
 
     }
