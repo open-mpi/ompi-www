@@ -83,10 +83,11 @@ function print_contribs() {
     global $contribs;
     usort($contribs, "contrib_cmp");
 
-    while ($contrib = each($contribs)) {
-        print_item($contrib[1]->url,
-                   $contrib[1]->short_name, $contrib[1]->long_name,
-                   $contrib[1]->logo, $contrib[1]->level, $contrib[1]->type);
+    for ($i = 0; $i < count($contribs); $i++) {
+      $contrib = $contribs[$i];
+      print_item($contrib->url,
+                 $contrib->short_name, $contrib->long_name,
+                 $contrib->logo, $contrib->level, $contrib->type);
     }
 }
 
