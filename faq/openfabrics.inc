@@ -1892,7 +1892,7 @@ functions often.  The default is 1, meaning that early completion
 optimization semantics are enabled (because it can reduce
 point-to-point latency).
 
-See Open MPI <a href="https://svn.open-mpi.org/trac/ompi/ticket/1224">
+See Open MPI <a href=\"https://svn.open-mpi.org/trac/ompi/ticket/1224\">
 legacy Trac ticket #1224</a> for further
 information.
 
