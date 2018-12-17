@@ -273,7 +273,7 @@ printbutton("");
         <TR>
           <TD>
           <!-- BEGIN MAIN TEXT -->
-<?
+<?php
 if (file_exists("$topdir/sitewide_notice.inc")) {
   include("$topdir/sitewide_notice.inc");
 }
