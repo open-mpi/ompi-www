@@ -10,6 +10,8 @@ include_once("$topdir/includes/header.inc");
 
 <P>Lists for multiple projects are available:
 
+<h2> Please do not send conference Call For Papers/Posters/Abstracts/etc. (and related) notices to our mailing lists.</h2>
+
 <p>
 <ul>
 <li><a href="ompi.php">Open MPI-related lists</a></li>
