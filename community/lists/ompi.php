@@ -9,6 +9,8 @@ include_once("$topdir/includes/mailto.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
+<h2> Please do not send conference Call For Papers/Posters/Abstracts/etc. (and related) notices to our mailing lists.</h2>
+
 <p><center><?php red("YOU MUST BE SUBSCRIBED IN ORDER TO POST!");
 ?></center></p>
 
