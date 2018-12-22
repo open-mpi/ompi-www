@@ -4,7 +4,7 @@
  * --------
  * Author: Sean Hanna (smokingrope@gmail.com)
  * Copyright: (c) 2006 Sean Hanna
- * Release Version: 1.0.8.11
+ * Release Version: 1.0.9.0
  * Date Started: 04/23/2006
  *
  * Standard Text File (No Syntax Highlighting).
@@ -65,26 +65,18 @@ $language_data = array (
         'METHODS' => array(),
         'SYMBOLS' => array(),
         'SCRIPT' => array(),
-        'REGEXPS' => array(
-            # Open MPI bright red emphasis
-            999 => 'color: #FF0000;'
-        )
+        'REGEXPS' => array()
         ),
     'URLS' => array(),
     'OOLANG' => false,
     'OBJECT_SPLITTERS' => array(),
-    'REGEXPS' => array(
-        // Open MPI: emphasize
-        999 => "\*\*\*\*(.+)\*\*\*\*"
-    ),
+    'REGEXPS' => array(),
     'STRICT_MODE_APPLIES' => GESHI_NEVER,
     'SCRIPT_DELIMITERS' => array(),
     'HIGHLIGHT_STRICT_BLOCK' => array(),
     'PARSER_CONTROL' => array(
         'ENABLE_FLAGS' => array(
             'ALL' => GESHI_NEVER
-        ),
-    )
+            )
+        )
 );
-
-?>
