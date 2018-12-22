@@ -13,7 +13,7 @@ print("<meta name=\"keywords\" content=\"");
 if (isset($meta_keywords)) {
     print($meta_keywords);
 } else {
-    print("MPI, Open MPI, Open-MPI, OpenMPI, parallel computing, beowulf, linux, cluster, parallel, distributed");
+    print("MPI, Open MPI, Open-MPI, OpenMPI, parallel computing, HPC, high performance computing, beowulf, linux, cluster, parallel, distributed");
 }
 print("\">\n");
 ?>
