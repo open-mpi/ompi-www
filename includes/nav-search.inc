@@ -15,7 +15,7 @@ function nav_search_make() {
   global $search_name;
   global $search_subdir;
   global $search_dispatch;
-  
+
   # Standard google search
   print("<input type=hidden name=site value=\"www.open-mpi.org\">\n");
 
@@ -28,8 +28,8 @@ function nav_search_make() {
 
   if (isset($search_subdir) && isset($search_name)) {
     print("<input type=radio name=restrict value=all>all&nbsp;" .
-	  "<input type=radio name=restrict value=\"$search_subdir\" " .
-	  "checked>$search_name");
+  	  "<input type=radio name=restrict value=\"$search_subdir\" " .
+  	  "checked>$search_name");
   }
 
   print("

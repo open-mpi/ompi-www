@@ -361,4 +361,4 @@ print "<p>Totals:<br>
 </ul>
 </p>\n";
 
-  include_once("$topdir/includes/footer.inc");
+include_once("$topdir/includes/footer.inc");

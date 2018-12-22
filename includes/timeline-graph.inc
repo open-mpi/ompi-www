@@ -1,6 +1,6 @@
 <?php
-include_once("$topdir/includes/jpgraph/jpgraph.php"); 
-include_once("$topdir/includes/jpgraph/jpgraph_gantt.php"); 
+include_once("$topdir/includes/jpgraph/jpgraph.php");
+include_once("$topdir/includes/jpgraph/jpgraph_gantt.php");
 
 // Cross-index for labels
 $months[] = "Jan";
@@ -24,14 +24,14 @@ function series($name, $start, $end, &$data, &$vpos, &$graph) {
     //    $data[] = array($vpos, ACTYPE_GROUP, $name, $start, $end, "");
 
     // Make the graph object
-    $graph = new GanttGraph(0, 0, "auto"); 
-    $graph->SetShadow(); 
+    $graph = new GanttGraph(0, 0, "auto");
+    $graph->SetShadow();
     $graph->hgrid->Show();
-    $graph->hgrid->SetLineColor('lightblue' ); 
+    $graph->hgrid->SetLineColor('lightblue' );
     $graph->hgrid->SetRowFillColor( 'darkblue@0.9');
-    $graph->title->Set("Open MPI Release Version Timeline: $name"); 
+    $graph->title->Set("Open MPI Release Version Timeline: $name");
     $graph->subtitle->Set(strftime("As of %B %e, %Y", time()));
-    $graph->ShowHeaders(GANTT_HMONTH | GANTT_HYEAR); 
+    $graph->ShowHeaders(GANTT_HMONTH | GANTT_HYEAR);
     $graph->scale->year->SetFontColor("white");
     $graph->scale->year->SetBackgroundColor("blue");
     $graph->scale->month->SetStyle(MONTHSTYLE_SHORTNAME);
@@ -41,9 +41,9 @@ function series($name, $start, $end, &$data, &$vpos, &$graph) {
 // Add a milestone / release
 function milestone($text, $date, &$data, &$vpos) {
     global $months;
-    $ltext = "  " . $months[substr($date, 5, 2) - 1] . " " . 
-	substr($date, 8, 2) . ", " .
-	substr($date, 0, 4);
+    $ltext = "  " . $months[substr($date, 5, 2) - 1] . " " .
+      	substr($date, 8, 2) . ", " .
+      	substr($date, 0, 4);
     $data[] = array($vpos, ACTYPE_MILESTONE, $ltext, $date, $text);
     ++$vpos;
 }
