@@ -525,9 +525,10 @@ process can lock:
 
 <ol>
 
-<li>Assuming that the PAM limits module is being used (see " .  "<a
-href=\"http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/\">" .
-"full docs for the Linux PAM limits module</a>), the system-level
+<li>Assuming that the PAM limits module is being used (see <a
+href=\"http://www.linux-pam.org/Linux-PAM-html/sag-pam_limits.html\">
+full docs for the Linux PAM limits module</a>, or 
+<a href=\"http://soc.if.usp.br/manual/libpam-doc/html/sag-pam_limits.html\">this mirror</a>), the system-level
 default values are controlled by putting a file in
 [/etc/security/limits.d/] (or directly editing the
 [/etc/security/limits.conf] file on older systems).  Two limits are
