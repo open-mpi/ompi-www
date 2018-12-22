@@ -250,22 +250,14 @@ function do_category() {
     }
 }
 
-function reg_display($str) {
-    // Pick up changes at the beginning of the string
-    $str = preg_replace("/^\*([^~]+?)\*([- \t\n,\.:;\(\)])/",
-                        "<strong>\\1</strong>\\2", $str);
-    $str = preg_replace("/^_([^~]+?)_([- \t\n,\.:;\(\)])/",
-                        "<em>\\1</em>\\2", $str);
-    $str = preg_replace("/^\[([^~]+?)\]([- \t\n,\.:;\(\)\'])/",
-                        "<code>\\1</code>\\2", $str);
-
-    // Pick up changes in the middle of the string
-    $str = preg_replace("/([ \t\n\"])\*([^~]+?)\*([- \"\t\n,\.:;\(\)])/",
-                        "\\1<strong>\\2</strong>\\3", $str);
-    $str = preg_replace("/([ \t\n\"])_([^~]+?)_([- \"\t\n,\.:;\(\)])/",
-                        "\\1<em>\\2</em>\\3", $str);
-    $str = preg_replace("/([ \t\n\"])\[([^~]+?)\]([- \"\t\n,\.:;\(\)\'])/",
-                        "\\1<code>\\2</code>\\3", $str);
+function reg_display($str) {    
+    // *...*, _..._, and [...] notations
+    $str = preg_replace("/(?<=\W|^)\*(.+?)\*(?=\W|$)/",
+                        "<strong>\\1</strong>", $str);
+    $str = preg_replace("/(?<=\W|^)_(.+?)_(?=\W|$)/",
+                        "<em>\\1</em>", $str);
+    $str = preg_replace("/(?<=\W|^)\[(.+?)\](?=\W|$)/",
+                        "<code>\\1</code>", $str);
 
     // Trac-like notation
     $str = preg_replace("/''(.+?)''/",
