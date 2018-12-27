@@ -10,7 +10,27 @@ $a[] = "CUDA-aware support means that the MPI library can send and
 receive GPU buffers directly.  This feature exists in the Open MPI v1.7
 series and later.  The support is being continuously updated so
 different levels of support exist in different versions.  We recommend
-you use the latest v1.8 version for best support.
+you use the latest version for best support.
+
+*Configure and build Open MPI >= 2.0.0 with UCX*
+
+We recommend <a href=\"https://github.com/openucx/ucx/releases/tag/v1.4.0\">UCX1.4</a>
+ built with <a href=\"https://github.com/NVIDIA/gdrcopy\">gdrcopy</a> for the most
+updated set of MPI features and for better performance.
+
+1. Configure and build UCX to provide CUDA support
+
+<geshi bash>
+shell$ ./configure --prefix=$UCX_PREFIX --with-cuda=$CUDA_HOME --with-gdrcopy=$GDRCOPY_HOME
+shell$ make -j8 install
+</geshi>
+
+2. Configure and build Open MPI to leverage UCX CUDA supprt
+
+<geshi bash>
+shell$ ./configure --prefix=$OMPI_PREFIX --with-cuda=$CUDA_HOME --with-ucx=$UCX_PREFIX
+shell$ make -j8 install
+</geshi>
 
 *Configuring the Open MPI v1.8 series and Open MPI v1.7.3, v1.7.4, and v1.7.5*
 
