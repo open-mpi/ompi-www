@@ -32,54 +32,57 @@ shell$ ./configure --prefix=$OMPI_PREFIX --with-cuda=$CUDA_HOME --with-ucx=$UCX_
 shell$ make -j8 install
 </geshi>
 
-*Configuring the Open MPI v1.8 series and Open MPI v1.7.3, v1.7.4, v1.7.5*
+*Configuring the Open MPI v1.8 series and Open MPI v1.7.3, v1.7.4, and v1.7.5*
 
 With Open MPI v1.7.3 and later, the [libcuda.so] library is loaded
 dynamically so there is no need to specify a path to it at configure
 time.  Therefore, all you need is the path to the [cuda.h] header file.
 
-1. Searches in default locations.  Looks for [cuda.h] in
-[/usr/local/cuda/include].
+Examples:
+
+1. Search in default location(s).  Looks for [cuda.h] in
+[/usr/local/cuda/include] or your default prefix.
 
 <geshi bash>
 shell$ ./configure --with-cuda
 </geshi>
 
-2. Searches for [cuda.h] in [/usr/local/cuda-v6.0/cuda/include].
+2. Search in a specified location. Looks for [cuda.h] in
+[/usr/local/cuda-v6.0/cuda/include].
 
 <geshi bash>
 shell$ ./configure --with-cuda=/usr/local/cuda-v6.0/cuda
 </geshi>
 
-Note that you cannot configure with *--disable-dlopen* as that will
+Note that you cannot configure with *--disable-dlopen*, as that will
 break the ability of the Open MPI library to dynamically load
 [libcuda.so].
 
-*Configuring Open MPI v1.7, MPI v1.7.1 and v1.7.2*
+*Configuring Open MPI v1.7, MPI v1.7.1, and v1.7.2*
 
 <geshi text>
   --with-cuda(=DIR)       Build cuda support, optionally adding DIR/include,
                           DIR/lib, and DIR/lib64
   --with-cuda-libdir=DIR  Search for cuda libraries in DIR
-</geshi text>
+</geshi>
 
-Here are some examples of configure commands that enable CUDA support.
+Here are some examples of [configure] commands that enable CUDA support:
 
-1. Searches in default locations.  Looks for [cuda.h] in
+1. Search in default locations.  Looks for [cuda.h] in
 [/usr/local/cuda/include] and [libcuda.so] in [/usr/lib64].
 
 <geshi bash>
 shell$ ./configure --with-cuda
 </geshi>
 
-2. Searches for [cuda.h] in [/usr/local/cuda-v4.0/cuda/include] and
+2. Search for [cuda.h] in [/usr/local/cuda-v4.0/cuda/include] and
 [libcuda.so] in default location of [/usr/lib64].
 
 <geshi bash>
 shell$ ./configure --with-cuda=/usr/local/cuda-v4.0/cuda
 </geshi>
 
-3. Searches for [cuda.h] in [/usr/local/cuda-v4.0/cuda/include] and
+3. Search for [cuda.h] in [/usr/local/cuda-v4.0/cuda/include] and
 [libcuda.so] in [/usr/lib64] (same as previous one).
 
 <geshi bash>
@@ -91,7 +94,7 @@ configure will abort.
 
 *Note:* There is a bug in Open MPI v1.7.2 such that you will get an
 error if you configure the library with *--enable-static*.  To get
-around this error, add the following to your configure line and
+around this error, add the following to your [configure] line and
 reconfigure.  This disables the build of the PML BFO which is largely
 unused anyways.  This bug is fixed in Open MPI v1.7.3.
 
@@ -117,6 +120,6 @@ Add the following to your configure line.
       CFLAGS=-D__LP64__ --with-wrapper-cflags=\"-D__LP64__ -ta:tesla\"
 </geshi>
 
-*Update:* With PGI 15.9 and later compilers, the CFLAGS=-D__LP64__ is no longer needed.
+*Update:* With PGI 15.9 and later compilers, the [CFLAGS=-D__LP64__] is no longer needed.
 
 ";

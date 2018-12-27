@@ -28,12 +28,12 @@ $beyond_end_date = strftime("%Y-%m-%d", $ts);
 // v4.0 release series
 series("v4.0 series", $series_start->format("Y-m-d"), $beyond_end_date, $data, $vpos, $graph);
 milestone("branch from master", "2018-07-18", $data, $vpos);
-milestone("v4.0.0rc1", "2018-09-14", $data, $vpos);
-milestone("v4.0.0rc2", "2018-09-22", $data, $vpos);
-milestone("v4.0.0rc3", "2018-09-27", $data, $vpos);
-milestone("v4.0.0rc4", "2018-10-05", $data, $vpos);
-milestone("v4.0.0rc5", "2018-10-22", $data, $vpos);
-#milestone("v4.0.0", "2018-09-17", $data, $vpos);
+#milestone("v4.0.0rc1", "2018-09-14", $data, $vpos);
+#milestone("v4.0.0rc2", "2018-09-22", $data, $vpos);
+#milestone("v4.0.0rc3", "2018-09-27", $data, $vpos);
+#milestone("v4.0.0rc4", "2018-10-05", $data, $vpos);
+#milestone("v4.0.0rc5", "2018-10-22", $data, $vpos);
+milestone("v4.0.0", "2018-11-12", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);

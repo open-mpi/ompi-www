@@ -8,7 +8,7 @@ include_once("$topdir/includes/header.inc");
   <p>The Open MPI project has many members, contributors, and partners.
   "Contributors" provide resources to the project such as code (which
   requires having a signed Open MPI 3rd Party Contribution Agreement
-  on file -- see <a href="<?php print($topdir);
+  on file &mdash; see <a href="<?php print($topdir);
   ?>/community/contribute/">How to Contribute</a> for details),
   testing, hosting services, etc.  "Members" are contributors who have
   voting rights, which entitles them to help determine the direction
@@ -49,7 +49,7 @@ function print_line() {
 class contrib {
     var $url, $short_name, $big_org, $logo, $level, $type;
 
-    function contrib($url, $short_name, $long_name, $logo, $level, $type) {
+    function __construct($url, $short_name, $long_name, $logo, $level, $type) {
         $this->url = $url;
         $this->short_name = $short_name;
         $this->long_name = $long_name;
@@ -83,10 +83,11 @@ function print_contribs() {
     global $contribs;
     usort($contribs, "contrib_cmp");
 
-    while ($contrib = each($contribs)) {
-        print_item($contrib[1]->url,
-                   $contrib[1]->short_name, $contrib[1]->long_name,
-                   $contrib[1]->logo, $contrib[1]->level, $contrib[1]->type);
+    for ($i = 0; $i < count($contribs); $i++) {
+      $contrib = $contribs[$i];
+      print_item($contrib->url,
+                 $contrib->short_name, $contrib->long_name,
+                 $contrib->logo, $contrib->level, $contrib->type);
     }
 }
 
@@ -360,4 +361,4 @@ print "<p>Totals:<br>
 </ul>
 </p>\n";
 
-  include_once("$topdir/includes/footer.inc");
+include_once("$topdir/includes/footer.inc");

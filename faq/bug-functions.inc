@@ -8,6 +8,6 @@ function sun_bug($num) {
 }
 
 function ompi_bug($num) {
-    return "<a href=\"https://svn.open-mpi.org/trac/ompi/ticket/$num\">";
+    return "<a href=\"https://github.com/open-mpi/ompi/issues/$num\">";
 }
 

@@ -54,7 +54,7 @@ if (curl_errno($ch)) {
 ?>
 
 <p>You will shortly receive an e-mail asking you to confirm the fact
-that you want to receive announcements about <?php print($project); ?>
+that you want to receive announcements about <?php print($project); ?> 
 (i.e., confirm that you want to be on the "<?php print($list_name);
 ?>" mailing list on <code>open-mpi.org</code>).  Once you click on the
 link included in the mail (or reply to the mail), you'll receive an

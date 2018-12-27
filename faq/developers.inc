@@ -43,13 +43,13 @@ interface.
 
 As such, this code organization more reflects abstractions and
 software engineering, not a strict hierarchy of functions that must be
-traversed in order to reach lower layer.  For example, OMPI can call
-OPAL functions directly -- it does not have to go through ORTE.
+traversed in order to reach a lower layer.  For example, OMPI can call
+OPAL functions directly &mdash; it does not have to go through ORTE.
 Indeed, OPAL has a different set of purposes than ORTE, so it wouldn't
 even make sense to channel all OPAL access through ORTE.  OMPI can
 also directly call the operating system as necessary.  For example,
 many top-level MPI API functions are quite performance sensitive; it
-would not make sense to force them to traverse an abritrarily deep
+would not make sense to force them to traverse an arbitrarily deep
 call stack just to move some bytes across a network.
 
 Here's a list of terms that are frequently used in discussions about
@@ -59,29 +59,29 @@ the Open MPI code base:
 
 <li> *MCA:* The Modular Component Architecture (MCA) is the foundation
 upon which the entire Open MPI project is built.  It provides all the
-component architecture services that the rest of the system use.
-Although it is the fundamental heart of the system, it's
-implementation is actually quite small and lightweight -- it is
+component architecture services that the rest of the system uses.
+Although it is the fundamental heart of the system, its
+implementation is actually quite small and lightweight &mdash; it is
 nothing like CORBA, COM, JINI, or many other well-known component
-architectures.  It was designed for HPC -- meaning that it is small,
-fast, and resonably efficient -- and therefore offers few services
-other finding, loading, and unloading components.
+architectures.  It was designed for HPC &mdash; meaning that it is small,
+fast, and reasonably efficient &mdash; and therefore offers few services
+other than finding, loading, and unloading components.
 
 <li> *Framework:* An MCA _framework_ is a construct that is created
 for a single, targeted purpose.  It provides a public interface that
-is used by external code, but it also its own internal services.  A
+is used by external code, but it also has its own internal services.  A
 list of Open MPI frameworks <a
 href=\"./?category=tuning#frameworks\">is available here</a>.  An MCA
-framework uses the MCA's services to find and load _components_ at run
-time -- implementations of the framework's interface.  An easy example
+framework uses the MCA's services to find and load _components_ at run-time
+&mdash; implementations of the framework's interface.  An easy example
 framework to discuss is the MPI framework named \"[btl]\", or the Byte
-Transfer Layer.  It is used to sends and receive data on different
+Transfer Layer.  It is used to send and receive data on different
 kinds of networks.  Hence, Open MPI has [btl] components for shared
-memory, TCP, Infiniband, Myrinetc, etc.
+memory, TCP, Infiniband, Myrinet, etc.
 
 <li> *Component:* An MCA _component_ is an implementation of a
 framework's interface.  Another common word for component is
-\"plugin.\" It is a standalone collection of code that can be bundled
+\"plugin\". It is a standalone collection of code that can be bundled
 into a plugin that can be inserted into the Open MPI code base, either
 at run-time and/or compile-time.
 
@@ -90,7 +90,7 @@ C++ sense of the word \"instance\"; an MCA component is analogous to a
 C++ class). For example, if a node running an Open MPI application has
 multiple ethernet NICs, the Open MPI application will contain one TCP
 [btl] component, but two TCP [btl] modules.  This difference between
-components and modules is important becaue modules have private state;
+components and modules is important because modules have private state;
 components do not.
 
 </ul>
@@ -171,7 +171,7 @@ form:
 </pre>
 
 To be explicit: it is forbidden to have a directory under the [mca]
-trees that does not meet this template (with the execption of [base]
+trees that does not meet this template (with the exception of [base]
 directories, explained below).  Hence, only framework and component
 code can be in the [mca/] trees.
 
@@ -189,7 +189,7 @@ opal/mca/btl/tcp/
 
 The name [base] is reserved; there cannot be a framework or component
 named \"base.\" Directories named [base] are reserved for the
-implementatio of the MCA and frameworks.  Here are a few examples (as
+implementation of the MCA and frameworks.  Here are a few examples (as
 of the v1.8 source tree):
 
 <pre>
@@ -220,9 +220,9 @@ the Open MPI Team provided several days of intensive
 dive-into-the-code tutorials.  The slides from these tutorials <a
 href=\"$topdir/papers/workshop-2006/\">are available here</a>.
 
-Additionally, several Greenplum videoed several Open MPI developers
+Additionally, Greenplum videoed several Open MPI developers
 discussing Open MPI internals in 2012.  The videos <a
-href=\"$topdir/videos/internals/\">are available here</a>.";
+href=\"$topdir/video/?category=internals\">are available here</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 

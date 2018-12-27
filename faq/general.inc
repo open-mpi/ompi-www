@@ -5,7 +5,7 @@ $q[] = "What is MPI?  What is Open MPI?";
 $anchor[] = "what-is-mpi";
 
 $a[] = "MPI stands for the Message Passing Interface.  Written by the
-MPI Forum (a large committee comprising of a cross-section between
+MPI Forum (a large committee comprised of a cross-section between
 industry and research representatives), MPI is a standardized API
 typically used for parallel and/or distributed computing.  The MPI
 standard has been published multiple times:
@@ -15,12 +15,12 @@ standard has been published multiple times:
 <li> MPI-2.0 (published in 1996).  MPI-2.0 is, for the most part,
 additions and extensions to the original MPI-1.0 specification.
 <ul>
-<li> MPI-2.1 and MPI-2.2 were subsequently published, and contained
+<li> MPI-2.1 and MPI-2.2 were subsequently published, and contain
 minor fixes, changes, and additions compared to MPI-2.0.</li>
 </ul></li>
 <li> MPI-3.0 (published in 2012).
 <ul>
-<li> MPI-3.1 was subsequently, and contains minor fixes, changes, and
+<li> MPI-3.1 was subsequently published, and contains minor fixes, changes, and
 additions compared to MPI-3.0.</li>
 </ul></li>
 </ul>
@@ -50,7 +50,7 @@ not recommended for beginners, but is an invaluable reference.</li>
      sellers for availability):
      <ul>
      <li> _MPI: The Complete Reference_, Marc Snir et al. (an annotated
-          version of the MPI-1 and MPI-2 standard; a 2 volume set,
+          version of the MPI-1 and MPI-2 standards; a 2 volume set,
           also known as \"The orange book\" and \"The yellow
           book\")</li>
      <li> _Using MPI_, William Gropp et al. (2nd edition, also known as
@@ -67,7 +67,7 @@ beginners.</strong></font></li>
 <li> Last but not least, "
 . "<a href=\"http://www.google.com/search?q=MPI+tutorial\">"
 . "searching for \"MPI tutorial\" on Google</a> turns up a wealth of
-information (some good, some bad)</li>
+information (some good, some bad).</li>
 </ul>";
 
 /////////////////////////////////////////////////////////////////////////
@@ -107,7 +107,7 @@ $a[] = "<font size=+3 color=red><strong>ABSOLUTELY.</strong></font>
 Bringing together smart researchers and developers to work on a common
 product is not only a good idea, it's the open source model.  Merging
 the multiple MPI implementation teams has worked extremely well for us
-over the past year -- extending this concept to the HPC open source
+over the past year &mdash; extending this concept to the HPC open source
 community is the next logical step.
 
 The component architecture that Open MPI is founded upon (see the
@@ -141,9 +141,9 @@ $a[] = "The Open MPI code base is licensed under <a
 href=\"$topdir/community/license.php\">the new BSD license</a>.
 
 That being said, although we are an open source project, we recognize
-that the everyone does not provide free, open source software.  Our
+that everyone does not provide free, open source software.  Our
 collaboration models allow (and encourage!)  3rd parties to write and
-distribute their own components -- perhaps with a different license,
+distribute their own components &mdash; perhaps with a different license,
 and perhaps even as closed source.  This is all perfectly acceptable
 (and desirable!).";
 
@@ -179,15 +179,15 @@ We intend to distinguish ourselves from other projects by:
 <ul>
 <li> Working with the HPC community to accept best-in-breed
 improvements and functionality enhancements.
-<li> Provide a flexible framework and set of APIs that allow a
-wide-variety of different goals within the same code base through the
+<li> Providing a flexible framework and set of APIs that allow a
+wide variety of different goals within the same code base through the
 combinatorial effect of mixing-and-matching different components.
 </ul>
 
 Hence, we hope that no one ever has a reason to fork the main code
 base.  We intend to work with the community to accept the best
 improvements back into the main code base.  And if some developers
-want to do things to the main code base that are different than the
+want to do things to the main code base that are different from the
 goals of the main Open MPI Project, it is our hope that they can do
 what they need in components that can be distributed without forking
 the main Open MPI code base.
@@ -279,13 +279,13 @@ be in Open MPI.</li>
 Open MPI.</li>
 </ul>
 
-Not to worry -- each of the respective teams has a vested interest in
+Not to worry &mdash; each of the respective teams has a vested interest in
 bringing over the \"best\" parts of their prior implementation to Open
 MPI.  Indeed, we would love to migrate each of our current user bases
 to Open MPI as their time, resources, and constraints allow.
 
-In short: we believe that Open MPI -- its code, methodology, and open
-source philosophy -- is the future.";
+In short: we believe that Open MPI &mdash; its code, methodology, and open
+source philosophy &mdash; is the future.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -315,14 +315,14 @@ excellence, we all shared the same common core values:
 
 <ul>
 <li>A full MPI implementation</li>
-<li>Production quality code -- it has to \"just work\"</li>
+<li>Production quality code &mdash; it has to \"just work\"</li>
 <li>A desire to explore lots of things that an MPI implementation can
 do that we've never had the time/resources to investigate because we
 are bound to bug fixing, etc.</li>
 </ul>
 
 Hence, we decided to collaborate and pool our resources.  At SC2003,
-we decided to start an entire new code base -- leaving all the cruft
+we decided to start an entire new code base &mdash; leaving all the cruft
 and legacy code of our prior implementations behind.  Take the best,
 leave the rest.  The source tree's first commit was on November 22,
 2003; development work started in earnest on January 5, 2004.  Since

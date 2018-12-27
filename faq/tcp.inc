@@ -36,7 +36,7 @@ If you are using a high-speed network (such as Myrinet or InfiniBand),
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "But wait -- I'm using a high-speed network.  Do I have to
+$q[] = "But wait &mdash; I'm using a high-speed network.  Do I have to
 disable the TCP BTL?";
 
 $anchor[] = "tcp-auto-disable";
@@ -49,8 +49,8 @@ Hence, the [tcp] BTL component will sense this and automatically
 deactivate itself.
 
 That being said, Open MPI may still use TCP for setup and teardown
-information -- so you'll see traffic across your IP network during
-startup and shutdwon of your MPI job.  This is normal and does not
+information &mdash; so you'll see traffic across your IP network during
+startup and shutdown of your MPI job.  This is normal and does not
 affect the MPI message passing channels.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -70,7 +70,7 @@ shell$ ompi_info --param btl tcp --level 9
 <font color=\"red\"><strong>NOTE:</strong></font> Prior to the Open
 MPI 1.7 series, [ompi_info] would show all MCA parameters by default.
 Starting with Open MPI v1.7, you need to specify [--level 9] (or
-[--all]) to show _all_ MCA parameters";
+[--all]) to show _all_ MCA parameters.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -104,7 +104,7 @@ default to using a shared memory BTL (<tt>sm</tt> or <tt>vader</tt>).
 If the user has deactivated these BTLs, depending on what other BTL
 components are available, it is possible that the TCP BTL will be
 chosen for message passing to processes on the same node, in which
-case the IP lookback device will likely be used.  But this is not the
+case the IP loopback device will likely be used.  But this is not the
 default; either shared memory has to fail to startup properly or the
 user must specifically request not to use the shared memory BTL.";
 
@@ -181,7 +181,7 @@ $q[] = "How do I tell Open MPI which IP interfaces / networks to use?";
 $anchor[] = "tcp-selection";
 
 $a[] = "In some parallel environments, it is not uncommon to have
-multiple IP interfaces on each node -- for example, one IP network
+multiple IP interfaces on each node &mdash; for example, one IP network
 may be \"slow\" and used for control information such as a batch
 scheduler, a networked filesystem, and/or interactive logins.  Another
 IP network (or networks) may be \"fast\" and be intended for parallel
@@ -192,9 +192,9 @@ with virtual machines.
 Unless otherwise specified, Open MPI will greedily use all \"up\" IP
 networks that it can find and try to connect to all peers _upon
 demand_ (i.e., Open MPI does not open sockets to all of its MPI peers
-during [MPI_INIT] -- see <A HREF=\"#tcp-sockets\">this FAQ entry</A>
+during [MPI_INIT] &mdash; see <A HREF=\"#tcp-sockets\">this FAQ entry</A>
 for more details).  Hence, if you want MPI jobs to not use specific
-IP networks -- or not use any IP networks at all -- then you need to
+IP networks &mdash; or not use any IP networks at all &mdash; then you need to
 tell Open MPI.
 
 *NOTE:* Aggressively using all \"up\" interfaces can cause problems in
@@ -237,7 +237,7 @@ network interfaces.  For example:
 
 <geshi bash>
 # This says to not use the eth0 and lo interfaces.
-# (and implicitly use all the rest)  Per the description
+# (and implicitly use all the rest).  Per the description
 # above, IP loopback and all local-only devices *must*
 # be included if the exclude list is specified.
 shell$ mpirun --mca btl_tcp_if_exclude lo,eth0 ...
@@ -263,7 +263,7 @@ two IP networks 10.10.0.0/24 and 10.10.1.0/24, Open MPI will not
 recognize either of them if you specify \"10.10.0.0/16\".
 
 <font color=red><strong>NOTE:</strong></font> If you use the
-[btl_tcp_if_include] and [btl_tcp_if_exclude] MCA parametes to shape
+[btl_tcp_if_include] and [btl_tcp_if_exclude] MCA parameters to shape
 the behavior of the TCP BTL for MPI communications, you may also
 need/want to investigate the corresponding MCA parameters
 [oob_tcp_if_include] and [oob_tcp_if_exclude], which are used to shape
@@ -286,7 +286,7 @@ $anchor[] = "tcp-sockets";
 $a[] = "Although Open MPI is likely to open multiple TCP sockets
 during [MPI_INIT], the tcp BTL component *does not open one socket per
 MPI peer process during <code>MPI_INIT</code>.*  Open MPI opens
-sockets as they are required -- so the first time a process sends a
+sockets as they are required &mdash; so the first time a process sends a
 message to a peer and there is a TCP connection between the two, Open
 MPI will automatically open a new socket.
 
@@ -311,21 +311,21 @@ that some users have found helpful.
 
 <ol>
 <li> *" . goog("net.ipv4.tcp_syn_retries") . ":* Some Linux systems
-have very large initial connection timeouts -- they retry sending SYN
+have very large initial connection timeouts &mdash; they retry sending SYN
 packets many times before determining that a connection cannot be
 made.  If MPI is going to fail to make socket connections, it would be
-better for them to fail in somewhat quickly (minutes vs. hours).  You
-might want to reduce this value to smaller value; YMMV.</li>
+better for them to fail somewhat quickly (minutes vs. hours).  You
+might want to reduce this value to a smaller value; YMMV.</li>
 
 <li> *" . goog("net.ipv4.tcp_keepalive_time") . ":* Some MPI
 applications send an initial burst of MPI messages (over TCP) and then
-send nothing for long periods of time (e.g., embarrissingly parallel
+send nothing for long periods of time (e.g., embarrassingly parallel
 applications).  Linux may decide that these dormant TCP sockets are
 dead because it has seen no traffic on them for long periods of time.
 You might therefore need to lengthen the TCP inactivity timeout.  Many
 Linux systems default to 7,200 seconds; increase it if necessary.</li>
 
-<li> Increase TCP buffering for 10G or 40G.  Many Linux distributions
+<li> Increase TCP buffering for 10G or 40G Ethernet.  Many Linux distributions
 come with good buffering presets for 1G Ethernet.  In a datacenter/HPC
 cluster with 10G or 40G Ethernet NICs, this amount of kernel buffering
 is typically insufficient.  Here's a set of parameters that some have
@@ -373,7 +373,7 @@ shell$ grep tcp_syn_retries /etc/sysctl.conf
 net.ipv4.tcp_syn_retries = 6
 </geshi>
 </li>
-<li> Your Linux distro may also support you putting individual files
+<li> Your Linux distro may also support putting individual files
 in [/etc/sysctl.d] (even if that directory does not yet exist), which
 is actually better practice than putting them in [/etc/sysctl.conf].
 For example:
@@ -390,12 +390,12 @@ $q[] = "How does Open MPI know which IP addresses are routable to each other in 
 
 $anchor[] = "tcp-routability";
 
-$a[] = "This is a fairly complicated question -- there can be
+$a[] = "This is a fairly complicated question &mdash; there can be
 ambiguity when hosts have multiple NICs and/or there are multiple
 IP networks that are not routable to each other in a single MPI job.
 
 It is important to note that Open MPI's atomic unit of routing is a
-_process_ -- not an IP address.  Hence, Open MPI makes connections
+_process_ &mdash; not an IP address.  Hence, Open MPI makes connections
 between _processes_, not nodes (these processes are almost always on
 remote nodes, but it's still better to think in terms of _processes_,
 not _nodes_).
@@ -403,15 +403,15 @@ not _nodes_).
 Specifically, since Open MPI jobs can span multiple IP networks, each
 MPI process may be able to use multiple IP addresses to communicate
 with each other MPI process (and vice versa).  So for each process,
-Open MPI needs to determine which IP address -- if any -- to use to
+Open MPI needs to determine which IP address &mdash; if any &mdash; to use to
 connect to a peer MPI process.
 
 For example, say that you have a cluster with 16 nodes on a private
 ethernet network.  One of these nodes doubles as the head node for the
-cluster and therefore has 2 ethernet NICs -- one to the external
+cluster and therefore has 2 ethernet NICs &mdash; one to the external
 network and one to the internal cluster network.  But since 16 is a
 nice number, you also want to use it for computation as well.  So when
-you mpirun spanning all 16 nodes, OMPI has to figure out to _not_ use
+you [mpirun] spanning all 16 nodes, OMPI has to figure out to _not_ use
 the external NIC on the head node and only use the internal NIC.
 
 To explain what happens, we need to explain some of what happens in
@@ -432,12 +432,12 @@ A \"match\" is defined by the following rules:
 
 <ol>
 <li> If the two IP addresses match after the subnet mask is applied,
-     assume that they are mutually routable and allow the connection</li>
+     assume that they are mutually routable and allow the connection.</li>
 <li> If the two IP addresses are public, assume that they are mutually
-     routable and allow the connection</li>
-<li> Otherwise, the connection is disallowed (this is not an error --
+     routable and allow the connection.</li>
+<li> Otherwise, the connection is disallowed (this is not an error &mdash;
      we just disallow this connection on the hope that some other
-     device can be used to make a connection)</li>
+     device can be used to make a connection).</li>
 </ol>
 
 These rules tend to cover the following scenarios:
@@ -516,7 +516,7 @@ of interfaces.
 
 From these two nodes, the software builds up a bipartite graph that
 shows all the possible connections with all the possible weights.  The
-_lo0_ interfaces are excluded as the [btl_tcp_if_exclude] mca parameter
+_lo0_ interfaces are excluded as the [btl_tcp_if_exclude] MCA parameter
 is set to _lo_ by default.  Here is what all the possible connections
 with their weights look like.
 
@@ -571,7 +571,7 @@ $anchor[] = "tcp-socket-closing";
 $a[] = "In general, no.
 
 Although TCP sockets are opened \"lazily\" (meaning that MPI
-connections / TCP sockets are only opened upon demand -- as opposed to
+connections / TCP sockets are only opened upon demand &mdash; as opposed to
 opening all possible sockets between MPI peer processes during
 MPI_INIT), they are never closed.";
 
@@ -607,7 +607,7 @@ $anchor[] = "ip-virtual-ip-interfaces";
 
 $a[] = "No.
 
-For exampe, if the output of your [ifconfig] has both \"eth0\" and
+For example, if the output of your [ifconfig] has both \"eth0\" and
 \"eth0:0\", Open MPI will get confused if you use the TCP BTL, and
 may hang or otherwise act unpredictably.
 
@@ -615,8 +615,8 @@ Note that using [btl_tcp_if_include] or [btl_tcp_if_exclude] to avoid
 using the virtual interface will *not* solve the issue.
 
 This may get fixed in a future release.  See <a
-href=\"https://svn.open-mpi.org/trac/ompi/ticket/3339\">Trac bug
-#3339</a> to follow the progress on this issue.";
+href=\"https://github.com/open-mpi/ompi/issues/160\">GitHub issue
+#160</a> to follow the progress on this issue.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -657,7 +657,7 @@ $anchor[] = "tcp-multi-links";
 
 $a[] = "Open MPI 4.0.0 and later can use multiple TCP connections
 between any pair of MPI processes, striping large messages across the
-connections.  The \"btl_tcp_links\" parameter can be used to set how
+connections.  The [btl_tcp_links] parameter can be used to set how
 many TCP connections should be established between MPI ranks.  Note
 that this may not improve application performance for common use cases
 of nearest-neighbor exchanges when there many MPI ranks on each host.
@@ -666,5 +666,4 @@ hosts (because of the many ranks all communicating), so the extra TCP
 connections are likely just consuming extra resources and adding work
 to the MPI implementation.  However, for highly multi-threaded
 applications, where there are only one or two MPI ranks per host, the
-\"btl_tcp_links\" option may improve TCP throughput considerably.";
-
+[btl_tcp_links] option may improve TCP throughput considerably.";

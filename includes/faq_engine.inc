@@ -136,12 +136,12 @@ function do_menu() {
     print("FAQ categories:\n\n<ul>\n\n");
     for ($i = 0; $i < sizeof($titles); ++$i) {
         if ("" != $titles[$i]) {
-            if("" == $parent_name[$i]) {
+            if ("" == $parent_name[$i]) {
                 # this is either a parent, or a top level page
-                for($j = $i + 1; $j < sizeof($titles); ++$j) {
-                    if("" != $short_titles[$j]) {
-                        if($names[$i] == $parent_name[$j]) {
-                            if(0 == $parent_printed) {
+                for ($j = $i + 1; $j < sizeof($titles); ++$j) {
+                    if ("" != $short_titles[$j]) {
+                        if ($names[$i] == $parent_name[$j]) {
+                            if (0 == $parent_printed) {
                                 printf("<li><b>%s</b><ul>\n\n", $titles[$i]);
                                 $parent_printed = 1;
                             }
@@ -152,7 +152,7 @@ function do_menu() {
                         }
                     }
                 }
-                if(1 == $parent_printed) {
+                if (1 == $parent_printed) {
                     printf("</ul></li>");
                     $parent_printed = 0;
                     $i = $j;
@@ -167,7 +167,7 @@ function do_menu() {
                 // this should never happen, but just in case...
                 printf("<li> <a href=\"./?category=%s\">%s</a></li>\n\n",
                        urlencode($names[$i]), $titles[$i]);
-            }   
+            }
         }
     }
     print("\n</ul>\n\n");
@@ -197,17 +197,17 @@ function do_category() {
     ompi_set_included($names[$cat_number] . ".inc");
 
     print("<p>Table of contents:</p>\n");
-    
+
     print("<p>\n<ol>\n");
     for ($i = 0; $i < sizeof($a); ++$i) {
         print("<li><a href=\"#" . urlencode($anchor[$i]) . "\">$q[$i]</a>\n");
     }
     print("</ol>\n</p>\n\n");
-    
+
     for ($i = 0; $i < sizeof($a); ++$i) {
         $j = $i + 1;
         print("<!--------------------------------------- -->
-<a name=\"" . urlencode($anchor[$i]) . "\">\n");
+<a name=\"" . urlencode($anchor[$i]) . "\"></a>\n");
         # Some anchors have special characters in them (e.g., "+")
         # which urlencode will transmorgify.  In this case, output
         # both the url-encoded version and the non-encoded version
@@ -250,31 +250,23 @@ function do_category() {
     }
 }
 
-function reg_display($str) {
-    // Pick up changes at the beginning of the string
-    $str = preg_replace("/^\*([^~]+?)\*([- \t\n,\.:;\(\)])/", 
-                        "<strong>\\1</strong>\\2", $str);
-    $str = preg_replace("/^_([^~]+?)_([- \t\n,\.:;\(\)])/", 
-                        "<em>\\1</em>\\2", $str);
-    $str = preg_replace("/^\[([^~]+?)\]([- \t\n,\.:;\(\)\'])/", 
-                        "<code>\\1</code>\\2", $str);
-    
-    // Pick up changes in the middle of the string
-    $str = preg_replace("/([ \t\n\"])\*([^~]+?)\*([- \"\t\n,\.:;\(\)])/", 
-                        "\\1<strong>\\2</strong>\\3", $str);
-    $str = preg_replace("/([ \t\n\"])_([^~]+?)_([- \"\t\n,\.:;\(\)])/", 
-                        "\\1<em>\\2</em>\\3", $str);
-    $str = preg_replace("/([ \t\n\"])\[([^~]+?)\]([- \"\t\n,\.:;\(\)\'])/", 
-                        "\\1<code>\\2</code>\\3", $str);
+function reg_display($str) {    
+    // *...*, _..._, and [...] notations
+    $str = preg_replace("/(?<=\W|^)\*(.+?)\*(?=\W|$)/",
+                        "<strong>\\1</strong>", $str);
+    $str = preg_replace("/(?<=\W|^)_(.+?)_(?=\W|$)/",
+                        "<em>\\1</em>", $str);
+    $str = preg_replace("/(?<=\W|^)\[(.+?)\](?=\W|$)/",
+                        "<code>\\1</code>", $str);
 
     // Trac-like notation
-    $str = preg_replace("/''(.+?)''/", 
+    $str = preg_replace("/''(.+?)''/",
                         "<em>\\1</em>", $str);
-    $str = preg_replace("/'''(.+?)'''/", 
+    $str = preg_replace("/'''(.+?)'''/",
                         "<strong>\\1</strong>", $str);
-    $str = preg_replace("/{{{(.+?)}}}/", 
+    $str = preg_replace("/{{{(.+?)}}}/",
                         "<code>\\1</code>", $str);
-    
+
     // Add in <p>'s
     $str = preg_replace("/\n\n([^\n])/", "\n\n<p>\\1", $str);
     print($str);

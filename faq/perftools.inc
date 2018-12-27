@@ -28,7 +28,7 @@ $anchor[] = "prof-vs-trace";
 $a[] = "These terms are sometimes used to refer to two different kinds
 of performance analysis.
 
-In profiling, one aggregates statistics at run time -- e.g., total
+In profiling, one aggregates statistics at run time &mdash; e.g., total
 amount of time spent in MPI, total number of messages or bytes sent,
 etc.  Data volumes are small.
 
@@ -52,7 +52,7 @@ settings you have chosen, etc.  In many cases, it makes most sense for
 you just to distinguish between time spent inside MPI from time spent
 outside MPI.
 
-Elapsed wallclock time will probably be your key metric.  Exactly how
+Elapsed wall clock time will probably be your key metric.  Exactly how
 the MPI implementation spends time waiting is less important.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -82,9 +82,9 @@ diagnostic information for certain MPI calls, etc.
 
 OMPI generally layers the various function interfaces as follows:
 <ul>
-<li> Fortran [MPI_] interfaces are weak symbols for ...
-<li> Fortran [PMPI_] interfaces, which call ...
-<li> C [MPI_] interfaces, which are weak symbols for ...
+<li> Fortran [MPI_] interfaces are weak symbols for...
+<li> Fortran [PMPI_] interfaces, which call...
+<li> C [MPI_] interfaces, which are weak symbols for...
 <li> C [PMPI_] interfaces, which provide the specified functionality.
 </ul>
 
@@ -105,13 +105,13 @@ the linker problems described in the Complications section of the
 Profiling Interface chapter of the MPI standard.
 
 See the section on " . "<a
-href=\"http://www.mpi-forum.org/docs/mpi22-report/node312.htm#Node312\">"
+href=\"https://www.mpi-forum.org/docs/mpi-3.1/mpi31-report/node358.htm#Node358\">"
 . "Profiling Interface</a> in the MPI standard for more details.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Should I use those switches --enable-mpi-profile and
---enable-trace when I configure OMPI?";
+$q[] = "Should I use those switches <code>--enable-mpi-profile</code> and
+<code>--enable-trace</code> when I configure OMPI?";
 
 $anchor[] = "configure-switches";
 
@@ -148,7 +148,7 @@ Unfortunately, PERUSE didn't win standardization, so it didn't really
 go anywhere.  Open MPI may drop PERUSE support at some point in the
 future.
 
-MPI-3 standardised the MPI_T tools interface API (see Chapter 14 in
+MPI-3 standardized the MPI_T tools interface API (see Chapter 14 in
 the MPI-3.0 specification).  MPI_T is fully supported starting with
 v1.7.3.
 
@@ -205,11 +205,11 @@ generally understanding the behavior of your program.
 
 As such, debugging tools can help you step through or pry into the
 execution of your MPI program.  Popular tools include " . "<a
-href=\"http://www.totalviewtech.com\">" . "TotalView</a>, which can be
+href=\"https://www.roguewave.com/products-services/totalview\">" . "TotalView</a>, which can be
 downloaded for free trial use, and " . "<a
-href=\"http://www.allinea.com/?page=48\">" . "Allinea DDT</a> which
+href=\"https://www.arm.com/products/development-tools/server-and-hpc/forge/ddt\">" . "Arm DDT</a> which
 also provides evaluation copies.
 
 The command-line job inspection tool " . "<a
 href=\"http://padb.pittman.org.uk\">" . "padb</a> has been ported to
-ORTE and OMPI";
+ORTE and OMPI.";

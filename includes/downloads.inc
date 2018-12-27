@@ -119,19 +119,19 @@ function print_release_section($project, $s3_bucket, $s3_prefix, $download_prefi
             $extra_rows[] = "Cygwin provides <A HREF=\"http://cygwin.com/cgi-bin2/package-grep.cgi?grep=openmpi\">binaries for the $release_series release series</A>.\n";
         }
 
-        print("</div>\n\n<p>Current stable release:</p>\n\n<p>\n<div align=center>\n\n");
+        print("</div>\n\n<h2>Current stable release downloads:</h2>\n\n<p>\n<div align=center>\n\n");
         print_release_table($project, array_slice($releases, 0, 1), $s3_bucket,
                             $s3_prefix, $download_prefix, $extra_rows);
     }
 
     if (count($prereleases) > 0) {
-        print("</div>\n\n<p>Prerelease:</p>\n\n<p>\n<div align=center>\n\n");
+        print("</div>\n\n<h2>Prerelease downloads:</h2>\n\n<p>\n<div align=center>\n\n");
         print_release_table($project, $prereleases, $s3_bucket, $s3_prefix,
                             $download_prefix);
     }
 
     if (count($releases) > 1) {
-        print("</div>\n\n<p>Previous releases:</p>\n\n<p>\n<div align=center>\n\n");
+        print("</div>\n\n<h2>Previous release downloads:</h2>\n\n<p>\n<div align=center>\n\n");
         print_release_table($project, array_slice($releases, 1), $s3_bucket,
                             $s3_prefix, $download_prefix);
     }

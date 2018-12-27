@@ -1,7 +1,7 @@
 <?php
 $title = "The Architecture of Open Source Applications, volume 2";
 
-$overview = "Chapter 15 presents an architectural overview of Open MPI.";
+$overview = "Chapter 15 presents an architectural overview of Open MPI";
 
 $presented = "<a href=\"http://www.aosabook.org/en/index.html\">
 Book web site</a>";

@@ -9,11 +9,11 @@ $q[] = "How do I debug Open MPI processes in parallel?";
 $anchor[] = "general-parallel-debugging";
 
 $a[] = "This is a difficult question.  Debugging in serial can be
-tricky: errors, uninitialized variables, stack smashing, ... etc.
+tricky: errors, uninitialized variables, stack smashing, etc.
 Debugging in parallel adds multiple different dimensions to this
 problem: a greater propensity for race conditions, asynchronous
 events, and the general difficulty of trying to understand N processes
-simultaneously executing -- the problem becomes quite formidable.
+simultaneously executing &mdash; the problem becomes quite formidable.
 
 This FAQ section does not provide any definite solutions to
 debugging in parallel.  At best, it shows some general techniques and
@@ -42,7 +42,7 @@ user to control every aspect of the MPI job, manually replicate race
 conditions, etc.</li>
 
 <li> *Profilers:* Tools that analyze your usage of MPI and display
-statistcs and meta information about your application's run.  Some
+statistics and meta information about your application's run.  Some
 tools present the information \"live\" (as it occurs), while others
 collect the information and display it in a post mortem analysis.</li>
 </ul>
@@ -103,19 +103,19 @@ OMPI will display lists of any MPI handles that were not freed before
 MPI_FINALIZE (e.g., communicators, datatypes, requests, etc.).</li>
 
 <li> *mpi_no_free_handles:* If set to true (any positive value), do
-not actually free MPI object when their corresponding MPI \"free\"
-function (e.g., do not free communicators when MPI_COMM_FREE is
+not actually free MPI objects when their corresponding MPI \"free\"
+function is invoked (e.g., do not free communicators when MPI_COMM_FREE is
 invoked).  This can be helpful in tracking down applications that
 accidentally continue to use MPI handles after they have been
 freed.</li>
 
 <li> *mpi_show_mca_params:* If set to true (any positive value), show
 a list of all MCA parameters and their values during MPI_INIT.  This
-can be quite helpful for reproducability of MPI applications.</li>
+can be quite helpful for reproducibility of MPI applications.</li>
 
 <li> *mpi_show_mca_params_file:* If set to a non-empty value, and if
 the value of *mpi_show_mca_params* is true, then output the list of
-MCA parameters to the filname value.  If this parameter is an empty
+MCA parameters to the filename value.  If this parameter is an empty
 value, the list is sent to stderr.</li>
 
 <li> *mpi_keep_peer_hostnames:* If set to a true value (any positive
@@ -131,7 +131,7 @@ when MPI_ABORT is invoked showing the hostname and PID of the process
 that invoked MPI_ABORT, and then delay that many seconds before
 exiting.  A negative value means to delay indefinitely.  This allows a
 user to manually come in and attach a debugger when an error occurs.
-Remember that the default MPI error handler -- MPI_ERRORS_ABORT --
+Remember that the default MPI error handler &mdash; MPI_ERRORS_ABORT &mdash;
 invokes MPI_ABORT, so this parameter can be useful to discover
 problems identified by *mpi_param_check*.</li>
 
@@ -156,7 +156,7 @@ $a[] = "No.
 If you build Open MPI without compiler/linker debugging flags (such as
 <code>-g</code>), you will not be able to step inside MPI functions
 when you debug your MPI applications.  However, this is likely what
-you want -- the internals of Open MPI are quite complex and you
+you want &mdash; the internals of Open MPI are quite complex and you
 probably don't want to start poking around in there.
 
 You'll need to compile your own applications with [-g] (or whatever
@@ -215,7 +215,7 @@ is:
 
 Then set a breakpoint after your block of code and continue execution
 until the breakpoint is hit.  Now you have control of your live MPI
-application and use the full functionality of the debugger.
+application and use of the full functionality of the debugger.
 
 You can even add conditionals to only allow this \"pause\" in the
 application for specific MPI processes (e.g., MPI_COMM_WORLD rank 0,
@@ -262,7 +262,7 @@ may not be suitable.</li>
 listening for remote/network traffic.  For example, see <a
 href=\"https://www.open-mpi.org/community/lists/users/2008/02/4995.php\">this
 post on the user's mailing list</a>, describing how to enable network
-access to the X11 on Fedora Linux.</li>
+access to the X11 server on Fedora Linux.</li>
 
 <li> There may be intermediate firewalls or other network blocks that
 prevent X traffic from flowing between the hosts where the MPI
@@ -275,7 +275,7 @@ The easiest way to get remote X applications (such as
 <code>xterm</code>) to display on your local screen is to forego the
 security of SSH-tunneled X forwarding.  In a closed environment such
 as an HPC cluster, this may be an acceptable practice (indeed, you may
-not even have the option of using SSH X forwarding if you SSH logins
+not even have the option of using SSH X forwarding if SSH logins
 to cluster nodes are disabled), but check with your security
 administrator to be sure.
 
@@ -310,7 +310,7 @@ shell$ mpirun -np 4 --hostfile my_hostfile \
     -x DISPLAY=arcade.example.com:0 xterm -e gdb my_mpi_application
 </geshi>
 
-Note that X traffic is fairly \"heavy\" -- if you are operating over a
+Note that X traffic is fairly \"heavy\" &mdash; if you are operating over a
 slow network connection, it may take some time before the [xterm]
 windows appear on your screen.</li>
 
@@ -318,7 +318,7 @@ windows appear on your screen.</li>
 [-hold] tells [xterm] to stay open even when the application has
 completed.  This means that if something goes wrong (e.g., [gdb] fails
 to execute, or unexpectedly dies, or ...), the [xterm] window will
-stay open allowing you to see what happened, instead of closing
+stay open, allowing you to see what happened, instead of closing
 immediately and losing whatever error message may have been
 output.</li>
 
@@ -355,17 +355,17 @@ your application fails due to memory corruption, Open MPI may
 subsequently fail to output an error message before dying.
 Specifically, starting with v1.3, Open MPI attempts to aggregate error
 messages from multiple processes in an attempt to show unique error
-messages only once (vs. one for each MPI process -- which can be
+messages only once (vs. one for each MPI process &mdash; which can be
 unwieldy, especially when running large MPI jobs).
 
 However, this aggregation process requires allocating memory in the
-MPI process when it displays the error message.  If the process'
+MPI process when it displays the error message.  If the process's
 memory is already corrupted, Open MPI's attempt to allocate memory may
 fail and the process will simply die, possibly silently.  When Open
 MPI does not attempt to aggregate error messages, most of its setup
 work is done during MPI_INIT and no memory is allocated during the
 \"print the error\" routine.  It therefore almost always successfully
-outputs error messages in real time -- but at the expense that you'll
+outputs error messages in real time &mdash; but at the expense that you'll
 potentially see the same error message for *each* MPI process that
 encountered the error.
 
@@ -385,7 +385,7 @@ $q[] = "What is Memchecker?";
 $anchor[] = "memchecker_what";
 
 $a[] = "The Memchecker-MCA is implemented to allow MPI-semantic
-checking for your application, (as well as internals of Open MPI) with
+checking for your application (as well as internals of Open MPI), with
 the help of memory checking tools such as the Memcheck of the
 Valgrind-suite (" . "<a href=\"http://www.valgrind.org/\">"
 . "http://www.valgrind.org/</a>).
@@ -398,7 +398,7 @@ $q[] = "What kind of errors can Memchecker find?";
 
 $anchor[] = "memchecker_errors";
 
-$a[] = "Memchecker is implemented on the basis of Memcheck tool from
+$a[] = "Memchecker is implemented on the basis of the Memcheck tool from
 Valgrind, so it takes all the advantages from it. Firstly, it checks
 all reads and writes of memory, and intercepts calls to
 malloc/new/free/delete. Most importantly, Memchecker is able to detect
@@ -466,10 +466,10 @@ $a[] = "To use Memchecker, you need Open MPI 1.3 or later, and
 Valgrind 3.2.0 or later.
 
 As this functionality is *off* by default, one needs to turn them on
-with the configure flag [--enable-memchecker].  Then, configure will
+with the configure flag [--enable-memchecker].  Then, [configure] will
 check for a recent Valgrind-distribution and include the compilation
-of [ompi/opal/mca/memchecker]. You may ensure, that the library is
-being built, by using the [ompi_info] application. Please note, that
+of [ompi/opal/mca/memchecker]. You may ensure that the library is
+being built by using the [ompi_info] application. Please note that
 all of this will only make sense together with [--enable-debug], which
 is required by Valgrind for outputting messages pointing directly to
 the relevant source code lines. Otherwise, without debugging info,
@@ -483,13 +483,13 @@ shell$ ./configure --prefix=/path/to/openmpi --enable-debug \
 </geshi>
 
 To check if Memchecker is successfully enabled after installation,
-simply run command:
+simply run this command:
 
 <geshi bash>
 shell$ ompi_info | grep memchecker
 </geshi>
 
-You will get the output message like this:
+You will get an output message like this:
 
 <geshi text>
     MCA memchecker: valgrind (MCA v1.0, API v1.0, Component v1.3)
@@ -560,10 +560,10 @@ and
    for every single ClientRequest.  In the case of not running
    Valgrind, these ClientRequest instructions do not change the
    arithmetic outcome (rotating a 64-bit register left by 128-Bits,
-   exchanging a register by itselve), except for the carry flag.
+   exchanging a register with itself), except for the carry flag.
 
-   The first request is checking whether we're run under Valgrind.
-   In case we're not run under Valgrind sub-sequent checks (aka ClientRequests)
+   The first request is checking whether we're running under Valgrind.
+   In case we're not running under Valgrind subsequent checks (aka ClientRequests)
    are not done.</li>
 
 <li>
@@ -572,8 +572,8 @@ and
    For costs and overheads of Valgrind's Memcheck tool on the SPEC 2000 Benchmark,
    please see the excellent paper
    \"" . "<a href=\"http://valgrind.org/docs/valgrind2007.pdf\">"
-    . "Valgrind: A Framework for Heavyweight Dynamic Binary Instrumentation</a>\",
-   for an evaluation of various internal implementation alternatives of Shadow Memory please see
+    . "Valgrind: A Framework for Heavyweight Dynamic Binary Instrumentation</a>\".
+   For an evaluation of various internal implementation alternatives of Shadow Memory, please see
    \"" . "<a href=\"http://www.valgrind.org/njn/pubs/shadow-memory2007-talk.ppt\">"
     . "Building Workload Characterization Tools with Valgrind</a>\".</li>
 </ul>
@@ -595,9 +595,9 @@ This issue has been raised many times on the mailing list, e.g.,
 <a HREF=\"$topdir/community/lists/users/2007/05/3192.php\">here</a> or
 <a HREF=\"$topdir/community/lists/users/2009/06/9565.php\">here</a>.
 
-There are many situations, where Open MPI purposefully does not initialize and
+There are many situations where Open MPI purposefully does not initialize and
 subsequently communicates memory, e.g., by calling <code>writev</code>.
-Furthermore, several cases are known, where memory is not properly freed upon
+Furthermore, several cases are known where memory is not properly freed upon
 <code>MPI_Finalize</code>.
 
 This certainly does not help distinguishing real errors from false positives.

@@ -15,26 +15,26 @@ predecessors. We recommend that anyone running large jobs and/or on
 large clusters make the upgrade to the $ver_current_dir series.
 
 Several major launch time enhancements have been made starting with the
-v3.0 release. Most of these take place in the background - i.e., there
+v3.0 release. Most of these take place in the background &mdash; i.e., there
 is nothing you (as a user) need do to take advantage of them. However,
 there are a few that are left as options until we can assess any potential
 negative impacts on different applications. Some options are only available
-when launching via \"mpirun\" - these include:
+when launching via [mpirun] - these include:
 
 <ul>
-<li>adding \"--fwd-mpirun-port\" to the cmd line (or the corresponding
-\"fwd_mpirun_port\" MCA parameter) will allow the daemons launched on compute
+<li>adding [--fwd-mpirun-port] to the cmd line (or the corresponding
+[fwd_mpirun_port] MCA parameter) will allow the daemons launched on compute
 nodes to wireup to each other using an overlay network (e.g., a tree-based
-pattern). This reduces the number of socket connections mpirun must handle
+pattern). This reduces the number of socket connections [mpirun] must handle
 and can significantly reduce startup time.</li>
 </ul>
 
-Other options are available when launching via mpirun or when launching using
-the native resource manager launcher (e.g., \"srun\" in a SLURM environment).
+Other options are available when launching via [mpirun] or when launching using
+the native resource manager launcher (e.g., [srun] in a Slurm environment).
 These are activated by setting the corresponding MCA parameter, and include:
 
 <ul>
-<li>setting the \"pmix_base_async_modex\" MCA parameter will eliminate a global
+<li>Setting the [pmix_base_async_modex] MCA parameter will eliminate a global
 out-of-band collective operation during MPI_Init. This operation is performed
 in order to share endpoint information prior to communication. At scale, this
 operation can take some time and scales at best logarithmically. Setting the
@@ -42,26 +42,26 @@ parameter bypasses the operation and causes the system to lookup the endpoint
 information for a peer only at first message. Thus, instead of collecting
 endpoint information for all processes, only the endpoint information for those
 processes this peer communicates with will be retrieved. The parameter is
-especially effective for applications with sparse communication patterns - i.e.,
+especially effective for applications with sparse communication patterns &mdash; i.e.,
 where a process only communicates with a few other peers. Applications that
 use dense communication patterns (i.e., where a peer communicates directly to
 all other peers in the job) will probably see a negative impact of this option.
 
-NOTE: this option is only available in PMIx-supporting environments, or when
-launching via \"mpirun\"</li>
+NOTE: This option is only available in PMIx-supporting environments, or when
+launching via [mpirun]</li>
 
-<li>the \"async_mpi_init\" parameter is automatically set to \"true\" when the
-\"pmix_base_async_modex\" parameter has been set, but can also be independently
-controlled. When set to \"true\", this parameter causes MPI_Init to skip an
+<li>The [async_mpi_init] parameter is automatically set to [true] when the
+[pmix_base_async_modex] parameter has been set, but can also be independently
+controlled. When set to [true], this parameter causes MPI_Init to skip an
 out-of-band barrier operation at the end of the procedure that is not required
 whenever direct retrieval of endpoint information is being used.</li>
 
-<li>similarly, the \"async_mpi_finalize\" skips an out-of-band barrier operation
+<li>Similarly, the [async_mpi_finalize] parameter skips an out-of-band barrier operation
 usually performed at the beginning of MPI_Finalize. Some transports (e.g., the
 usnic BTL) require this barrier to ensure that all MPI messages are completed
 prior to finalizing, while other transports handle this internally and thus do
 not require the additional barrier. Check with your transport provider to be sure,
-or you can experiment to determine the proper setting</li></ul>";
+or you can experiment to determine the proper setting.</li></ul>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -89,7 +89,7 @@ them when the Open MPI libraries will be mounted on a network file
 system! Doing so will lead to significant network traffic and delayed
 start times, especially on clusters with a large number of
 nodes. Instead, be sure to configure your build with
---disable-dlopen. This will include the DSO's in the main libraries,
+[--disable-dlopen]. This will include the DSO's in the main libraries,
 resulting in much faster startup times.</li>
 
 <li>Many networked file systems use automount for user level
@@ -117,10 +117,10 @@ $a[] = "It is perfectly fine to use either shared or static
 libraries. Shared libraries will save memory when operating multiple
 processes per node, especially on clusters with high numbers of cores
 on a node, but can also take longer to launch on networked file
-systems (see <a
-href=\"?category=large-clusters#network-vs-local\">network vs. local
+systems. (See <a
+href=\"?category=large-clusters#network-vs-local\">the network vs. local
 filesystem FAQ entry</a> for suggestions on how to mitigate such
-problems).  ";
+problems.)";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -130,28 +130,28 @@ $anchor[] = "listen-thread";
 
 $a[] = "Open MPI's run-time uses an _out-of-band_ (OOB) communication
 subsystem to pass messages during the launch, initialization, and
-termination stages for the job. These messages allow mpirun to tell
+termination stages for the job. These messages allow [mpirun] to tell
 its daemons what processes to launch, and allow the daemons in turn to
 forward stdio to [mpirun], update [mpirun] on process status, etc.
 
 The OOB uses TCP sockets for its communication, with each daemon
-opening a socket back to mpirun upon startup. In a large cluster, this
+opening a socket back to [mpirun] upon startup. In a large cluster, this
 can mean thousands of connections being formed on the node where
-mpirun resides, and requires that mpirun actually process all these
-connection requests. Mpirun defaults to processing connection requests
-sequentially - so on large clusters, a backlog can be created that can
+[mpirun] resides, and requires that [mpirun] actually process all these
+connection requests. [mpirun] defaults to processing connection requests
+sequentially &mdash; so on large clusters, a backlog can be created that can
 cause remote daemons to timeout waiting for a response.
 
 Fortunately, Open MPI provides an alternative mechanism for processing
 connection requests that helps alleviate this problem. Setting the MCA
-parameter _oob_tcp_listen_mode_ to _listen_thread_ causes mpirun to
+parameter _oob_tcp_listen_mode_ to _listen_thread_ causes [mpirun] to
 startup a separate thread dedicated to responding to connection
 requests. Thus, remote daemons receive a quick response to their
-connection request, allowing mpirun to deal with the message as soon
+connection request, allowing [mpirun] to deal with the message as soon
 as possible.
 
 This parameter can be included in the default MCA parameter file,
-placed in the user's environment, or added to the mpirun command
+placed in the user's environment, or added to the [mpirun] command
 line. See <a href=\"?category=tuning#setting-mca-params\">this FAQ
 entry</a> for more details on how to set MCA parameters.  ";
 
@@ -169,7 +169,7 @@ a connection to every other process in the job. This can rapidly
 overwhelm the usual system limits.
 
 There are two methods you can use to circumvent the problem. First,
-upgrade to the v1.3 series if you can - this would be our recommended
+upgrade to the v1.3 series if you can &mdash; this would be our recommended
 approach as there are considerable improvements in that series vs. the
 v1.2 one.
 
@@ -183,7 +183,7 @@ you want to allow jobs that fully occupy the cluster, than the minimum
 number of file descriptors you will need is roughly
 (#procs_on_a_node+1) * #procs_in_the_job.
 
-It is always wise to have a few extra just in case :-)
+It is always wise to have a few extra just in case. :-)
 
 Note that this only covers the file descriptors needed for the
 out-of-band communication subsystem.  It specifically does not address
@@ -215,8 +215,8 @@ rarely change at all.  If you know your cluster's configuration, there
 are several steps you can take to both reduce Open MPI's memory
 footprint and reduce the launch time of large-scale applications.
 These steps use a combination of build-time configuration options to
-eliminate components - thus eliminating their libraries and avoiding
-unnecessary component open/close operations - as well as run-time MCA
+eliminate components &mdash; thus eliminating their libraries and avoiding
+unnecessary component open/close operations &mdash; as well as run-time MCA
 parameters to specify what modules to use by default for most users.
 
 One way to save memory is to avoid building components that will
@@ -226,10 +226,10 @@ and tested as to whether or not they should be selected for use. If
 you know that a component can build on your system, but due to your
 cluster's configuration will never actually be selected, then it is
 best to simply configure OMPI to not build that component by using the
-_--enable-mca-no-build_ configure option.
+[--enable-mca-no-build] configure option.
 
 For example, if you know that your system will only utilize the
-\"ob1\" component of the PML framework, then you can _no_build_ all
+_ob1_ component of the PML framework, then you can _no_build_ all
 the others. This not only reduces memory in the libraries, but also
 reduces memory footprint that is consumed by Open MPI opening all the
 built components to see which of them can be selected to run.
@@ -245,13 +245,13 @@ You can still save launch time and memory, though, by setting the
 _routed=binomial_ MCA parameter in the default MCA parameter
 file. This causes OMPI to not open the other components during
 startup, but allows users to override this on their command line or in
-their environment so no functionality is lost - you just save some
+their environment so no functionality is lost &mdash; you just save some
 memory and time.
 
 Rather than have to figure this all out by hand, we are working on a
 new OMPI tool called _ompi-profiler_. When run on a cluster, it will
-tell you the selection results of all frameworks - i.e., for each
-framework on each node, which component was selected to run - and a
+tell you the selection results of all frameworks &mdash; i.e., for each
+framework on each node, which component was selected to run &mdash; and a
 variety of other information that will help you tailor Open MPI for
 your cluster.
 

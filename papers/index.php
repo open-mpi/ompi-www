@@ -67,17 +67,29 @@ href="https://doi.org/10.1007/978-3-540-75416-9_15">https://doi.org/10.1007/978-
 <p><B>Community Open MPI project slides, public presentations, and
 general architecture papers:</B><BR>
 
+<p><strong>2018</strong></p>
+<ul>
+<?php
+print_papers(array("sc-2018"
+                   ));
+?>
+</ul>
+
 <p><strong>2017</strong></p>
 <ul>
 <?php
-print_papers(array("sc-2017", "sc-2017-pmix"));
+print_papers(array("sc-2017",
+                   "sc-2017-pmix"
+                   ));
 ?>
 </ul>
 
 <p><strong>2016</strong></p>
 <ul>
 <?php
-print_papers(array("sc-2016", "sc-2016-pmix"));
+print_papers(array("sc-2016",
+                   "sc-2016-pmix"
+                   ));
 ?>
 </ul>
 
@@ -86,7 +98,8 @@ print_papers(array("sc-2016", "sc-2016-pmix"));
 <?php
 print_papers(array("sc-2015",
                    "sc-2015-pmix",
-                   "versioning-update-2015"));
+                   "versioning-update-2015"
+                   ));
 ?>
 </ul>
 
@@ -94,7 +107,7 @@ print_papers(array("sc-2015",
 <UL>
 <?php
 print_papers(array("sc-2014"
-		   ));
+                   ));
 ?>
 </UL>
 
@@ -102,7 +115,7 @@ print_papers(array("sc-2014"
 <UL>
 <?php
 print_papers(array("sc-2013"
-		   ));
+                   ));
 ?>
 </UL>
 
@@ -110,8 +123,8 @@ print_papers(array("sc-2013"
 <UL>
 <?php
 print_papers(array("sc-2012",
-		   "aosa-vol-2"
-		   ));
+                   "aosa-vol-2"
+                   ));
 ?>
 </UL>
 
@@ -119,7 +132,7 @@ print_papers(array("sc-2012",
 <UL>
 <?php
 print_papers(array("sc-2011",
-		   "euro-mpi-2011-ompio"
+                   "euro-mpi-2011-ompio"
                    ));
 ?>
 </UL>
@@ -144,7 +157,7 @@ print_papers(array("sc-2009",
 <UL>
 <?php
 print_papers(array("sc-2008",
-	           ));
+                   ));
 ?>
 </UL>
 
@@ -152,8 +165,9 @@ print_papers(array("sc-2008",
 <UL>
 <?php
 print_papers(array("euro-pvmmpi-2007-mtt",
-		   "isc-2007",
-                   "kicc-2007"));
+                   "isc-2007",
+                   "kicc-2007"
+                   ));
 ?>
 </UL>
 
@@ -161,8 +175,9 @@ print_papers(array("euro-pvmmpi-2007-mtt",
 <UL>
 <?php
 print_papers(array("sc-2006",
-	           "euro-pvmmpi-2006-hpc-protocols",
-                   "workshop-2006"));
+                   "euro-pvmmpi-2006-hpc-protocols",
+                   "workshop-2006"
+                   ));
 ?>
 </UL>
 
@@ -172,7 +187,7 @@ print_papers(array("sc-2006",
 print_papers(array("sc-2005",
                    "euro-pvmmpi-2005-orte",
                    "ppam-2005",
-		   ));
+                   ));
 ?>
 </UL>
 
@@ -180,9 +195,12 @@ print_papers(array("sc-2005",
 <UL>
 <?php
 print_papers(array("euro-pvmmpi-2004-overview",
-                   "ics-2004"));
+                   "ics-2004"
+                   ));
 ?>
 <UL>
 
 <?php
 include_once("$topdir/includes/footer.inc");
+
+?>

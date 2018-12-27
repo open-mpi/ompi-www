@@ -61,6 +61,7 @@ developers working on the internals of Open MPI itself</em>):
 </TR>
 
 </TABLE>
+</CENTER>
 
 <P>The following table lists the versions that are used to make
 nightly snapshot and official release Open MPI tarballs.  Other
@@ -73,19 +74,20 @@ variety of platforms and environments.</p>
 <code>configure.ac</code> scripts tend to be a bit lenient and enforce
 slightly <em>older</em> minimum versions than the ones listed below.
 This is because such older versions still make usable Open MPI builds
-on <em>many</em> platforms -- especially Linux on x86_64 with GNU
-compilers -- and are convenient for developers whose Linux distro may
+on <em>many</em> platforms &mdash; especially Linux on x86_64 with GNU
+compilers &mdash; and are convenient for developers whose Linux distro may
 not have as recent as the versions listed below (but are recent enough
 to produce a working version for their platform).</p>
 
 <p>To be clear: the versions listed below are <em>required</em> to
 support a wide variety of platforms and environments, and are used to
 make nightly and official release tarballs.  When building Open MPI,
-YMMV when using verions older than those listed below --
+YMMV when using versions older than those listed below &mdash;
 <em>especially if you are not building on Linux x86_64 with the GNU
 compilers</em>.  Using older versions is unsupported.  If you run into
 problems, upgrade to at least the versions listed below.</p>
 
+<CENTER>
 <TABLE BORDER=1 CELLPADDING=5>
 <TR>
 <TH>Open MPI Release</TH>
@@ -155,11 +157,11 @@ row("master", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
      <b>must</b> be used.</LI>
 
 <LI> The <code>master</code> branch and all release branches starting
-     with <code>v1.2</code> require the use of the Libtool 2.x (or
+     with <code>v1.2</code> require the use of Libtool 2.x (or
      higher) so that Open MPI can build the Fortran 90 module as a
      shared library.  If (and only if) you intend to not build the
      Fortran 90 library or your Fortran 77 and Fortran 90 compilers
-     have the same name (e.g., gfortran), you can use Libtool 1.5.22
+     have the same name (e.g., <code>gfortran</code>), you can use Libtool 1.5.22
      to build Open MPI v1.0 through v1.2.x.</LI>
 
 <LI> There was a period of time where OMPI nightly trunk snapshot
@@ -194,16 +196,16 @@ MPI.</p>
 
 <!- ------------------------------------------------------------------ -->
 
-<P><strong>NOTE:</strong> by default, when configuring and building
+<P><strong>NOTE:</strong> By default, when configuring and building
 Open MPI from a developer checkout, <strong><font color="red">all
 debugging code is enabled.</font></strong> This results in a
 <strong>significant</strong> run-time performance penalty.  There are
-several options for building an optimzed Open MPI; see the HACKING
+several options for building an optimized Open MPI; see the HACKING
 file for more details.</p>
 
 <p><strong>NOTE:</strong> Most Linux distributions and OS X/MacOS
 install Flex by default (and this is sufficient).  Other operating
-systems may provide "lex", but this is <em>not</em> sufficient -- flex
+systems may provide "lex", but this is <em>not</em> sufficient &mdash; flex
 is required.</p>
 
 <?php 

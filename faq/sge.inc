@@ -42,7 +42,7 @@ will just \"do the Right Thing.\"
 
 Specifically, if you execute an [mpirun] command in a SGE job, it
 will automatically use the SGE mechanisms to launch and kill
-processes.  There is no need to specify what nodes to run on -- Open
+processes.  There is no need to specify what nodes to run on &mdash; Open
 MPI will obtain this information directly from SGE and default to a number
 of processes equal to the slot count specified.  For example, this
 will run 4 MPI processes on the nodes that were allocated by SGE:
@@ -77,7 +77,7 @@ shell$ qstat -f
 
 In reference to the setup, be sure you have a Parallel Environment
 (PE) defined for submitting parallel jobs. You don't have to name your
-PE \"orte\". The following example shows a PE named 'orte' that would
+PE \"orte\". The following example shows a PE named \"orte\" that would
 look like:
 
 <geshi bash>
@@ -104,8 +104,8 @@ shell$ qconf -sp orte
    \"control_slaves\", specifying that the environment has \"tight
    integration\".  Note also the lack of a start or stop procedure.
    The tight integration means that mpirun automatically picks up the
-   slot count to use as a default in place of the '-np' argument,
-   picks up a host file, spawns remote processes via 'qrsh' so that
+   slot count to use as a default in place of the \"-np\" argument,
+   picks up a host file, spawns remote processes via \"qrsh\" so that
    SGE can control and monitor them, and creates and destroys a
    per-job temporary directory (\$TMPDIR), in which Open MPI's
    directory will be created (by default).
@@ -123,7 +123,7 @@ To determine whether the SGE parallel job is successfully launched to
 the remote nodes, you can pass in the MCA parameter \"[--mca
 plm_base_verbose 1]\" to mpirun.
 
-This will add in a -verbose flag to qrsh -inherit command that is used
+This will add in a [-verbose] flag to the [qrsh -inherit] command that is used
 to send parallel tasks to the remote SGE execution hosts. It will show
 whether the connections to the remote hosts are established
 successfully or not.
@@ -133,7 +133,7 @@ successfully or not.
 href=\"http://arc.liv.ac.uk/SGE/\">the Son of GridEngine site</a>, and configuration
 instructions can be found at
 <a
-href=\"http://arc.liv.ac.uk/SGE/howto/sge-configs.html\">the Son of GridEngine configuration how-to site.</a>.";
+href=\"http://arc.liv.ac.uk/SGE/howto/sge-configs.html\">the Son of GridEngine configuration how-to site</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -141,13 +141,13 @@ $q[] = "Does the SGE tight integration support the -notify flag to qsub?";
 
 $anchor[] = "qsub-notify";
 
-$a[] = "If you are running SGE6.2 Update 3 or later, then the -notify flag
-is supported.  If you are running earlier versions, then the -notify flag
+$a[] = "If you are running SGE6.2 Update 3 or later, then the [-notify] flag
+is supported.  If you are running earlier versions, then the [-notify] flag
 will not work and using it will cause the job to be killed.
 
-To use -notify, one has to be a careful.  First, let us review what
--notify does.  Here is an excerpt from the qsub man page for the
--notify flag.
+To use [-notify], one has to be careful.  First, let us review what
+[-notify] does.  Here is an excerpt from the qsub man page for the
+[-notify] flag.
 
 <dl>
 <dt>-notify</dt>
@@ -163,7 +163,7 @@ queue configuration.
 </dd>
 </dl>
 
-Let us assume you the reason you want to use
+Let us assume the reason you want to use
 the [-notify] flag is to get the SIGUSR1 signal prior to getting the
 SIGTSTP signal.  As mentioned in this <a
 href=\"?category=running#suspend-resume\">this FAQ entry</a> one could

@@ -18,6 +18,10 @@ into even numbered "super stable" series.</p>
 
 <p> <strong>Current release series</strong>
 
+<li><a href="v4.0.x/"><strong>v4.0.x series</strong></a>: These are images from
+the stable v4.0.x series.  <strong><font color="red">This is the recommended series
+for all users to download and use.</font></strong></li>
+
 <li><a href="v3.1.x/"><strong>v3.1.x series</strong></a>: These are images from
 the stable v3.1.x series.  <strong><font color="red">This is the recommended series
 for all users to download and use.</font></strong></li>
@@ -50,7 +54,7 @@ the upcoming v4.0.x series.
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
 
-<li><a href="v1.10/"><strong>v1.10 series</strong></a> (previuos stable
+<li><a href="v1.10/"><strong>v1.10 series</strong></a> (previous stable
 series): These are
 images from the stable v1.10 series.   This tree is unlikely to be
 updated any more.</li>

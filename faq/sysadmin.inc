@@ -10,12 +10,12 @@ that Open MPI is attractive for system administrators:
 
 <ul>
 <li> Simple, standards-based installation
-<li> Help reduce the number of MPI installations
+<li> Reduction of the number of MPI installations
 <li> Ability to set system-level and user-level parameters
 <li> Scriptable information sources about the Open MPI installation
 </ul>
 
-See the rest of the questions in the FAQ section for more details.";
+See the rest of the questions in this FAQ section for more details.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -36,7 +36,7 @@ $anchor[] = "multiple-installs";
 $a[] = "Yes and no.
 
 Open MPI can handle a variety of different run-time environments
-(e.g., rsh/ssh, SLURM, PBS, etc.) and a variety of different
+(e.g., rsh/ssh, Slurm, PBS, etc.) and a variety of different
 interconnection networks (e.g., ethernet, Myrinet, Infiniband, etc.)
 in a single installation.  Specifically: because Open MPI is
 fundamentally powered by a component architecture, plug-ins for all
@@ -45,13 +45,13 @@ installed in a single installation tree.  The relevant plug-ins will
 only be used in the environments where they make sense.
 
 Hence, there is no need to have one MPI installation for Myrinet, one
-MPI installation for Ethernet, one MPI installation for PBS, one MPI
+MPI installation for ethernet, one MPI installation for PBS, one MPI
 installation for [rsh], etc.  Open MPI can handle all of these in a
 single installation.
 
 However, there are some issues that Open MPI cannot solve.  Binary
 compatibility between different compilers is such an issue.  Let's
-examine this in a per-language basis (be sure see the big caveat at
+examine this on a per-language basis (be sure see the big caveat at
 the end):
 
 <ul>
@@ -97,7 +97,7 @@ Fortran compilers that are \"different enough\":
 
 <li> Fortran compilers may have different values for the logical
      [.TRUE.] constant.  As such, any MPI function that uses the
-     fortran [LOGICAL] type may only get [.TRUE.] values back that
+     Fortran [LOGICAL] type may only get [.TRUE.] values back that
      correspond to the the [.TRUE.] value of the Fortran compiler that
      Open MPI was configured with.
 </ol>
@@ -120,7 +120,7 @@ The bottom line is that Open MPI can support all manner of run-time
 systems and interconnects in a single installation, but supporting
 multiple compilers \"sort of\" works (i.e., is subject to trial and
 error) in some cases, and definitely does not work in other cases.
-There's unfortunately little that we can do about this -- it's a
+There's unfortunately little that we can do about this &mdash; it's a
 compiler compatibility issue, and one that compiler authors have
 little incentive to resolve.";
 
@@ -136,7 +136,7 @@ run-time.  For example, MCA parameters can specify:
 <ul>
 <li> Which interconnect networks to use
 <li> Which interconnect networks *not* to use
-<li> The size different between eager sends and rendezvous protocol
+<li> The size difference between eager sends and rendezvous protocol
 sends
 <li> How many registered buffers to pre-pin (e.g., for GM or mVAPI)
 <li> The size of the pre-pinned registered buffers
@@ -146,10 +146,10 @@ sends
 It can be quite valuable for a system administrator to play with such
 values a bit and find an \"optimal\" setting for a particular
 operating environment.  These values can then be set in a global text
-file that all users will, by default, inherit when then run Open MPI
+file that all users will, by default, inherit when they run Open MPI
 jobs.
 
-For example, say that you have a cluster with 2 ethernet networks --
+For example, say that you have a cluster with 2 ethernet networks &mdash;
 one for NFS and other system-level operations, and one for MPI jobs.
 The system administrator can tell Open MPI to not use the NFS TCP
 network at a system level, such that when users invoke [mpirun] or
@@ -157,7 +157,7 @@ network at a system level, such that when users invoke [mpirun] or
 the network meant for MPI jobs.
 
 See <a href=\"./?category=tuning\">the run-time tuning FAQ
-category</a> for information how to set global MCA parameters.";
+category</a> for information on how to set global MCA parameters.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -178,7 +178,7 @@ per-user basis in two important ways:
 parameters, potentially overriding system-wide defaults.
 <li> *Per-user plug-ins:* Users can install their own Open MPI
 plug-ins under [\$HOME/.openmpi/components].  Hence, developers can
-experiment with new components without de-stabilizing the rest of the
+experiment with new components without destabilizing the rest of the
 users on the system.  Or power users can download 3rd party components
 (perhaps even research-quality components) without affecting other users.
 </ul>";
@@ -251,8 +251,8 @@ with:
 shell$ ompi_info --param all all
 </geshi>
 
-NOTE: Starting with Open MPI v1.8, ompi_info categorizes
-its parameter parameters in so-called levels, as defined by
+NOTE: Starting with Open MPI v1.8, [ompi_info] categorizes
+its parameters in so-called levels, as defined by
 the MPI_T interface.  You will need to specify [--level 9]
 (or [--all]) to show _all_ MCA parameters.  See
 <a href=\"http://blogs.cisco.com/performance/open-mpi-and-the-mpi-3-mpi_t-interface\">this blog entry</a>
@@ -295,7 +295,7 @@ $anchor[] = "new-plugin";
 $a[] = "If your installation of Open MPI uses shared libraries and
 components are standalone plug-in files, then no.  If you add a new
 component (such as support for a new network), Open MPI will simply
-open the new plugin at run-time -- your applications do not need to be
+open the new plugin at run-time &mdash; your applications do not need to be
 recompiled or re-linked.";
 
 /////////////////////////////////////////////////////////////////////////

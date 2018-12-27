@@ -31,18 +31,20 @@ $q[] = "What OpenFabrics-based components does Open MPI have?";
 
 $anchor[] = "ib-components";
 
-$a[] = "Open MPI supports the verbs and (starting in version 1.2)
-udapl APIs from the ${ofa}OpenFabrics Alliance</a> (OFA) software
-stack.  The OpenFabrics software stack supports both InfiniBand and
-iWARP networks.  Note that the OpenFabrics Alliance used to be known
-as the OpenIB project -- so if you're thinking \"OpenIB\", you're
-thinking the right thing.  Open MPI's support of the OpenFabrics stack
-is provided through the multiple different components; see the table
-below.
+$a[] = "Current versions of Open MPI support the UCX and verbs APIs
+for the ${ofa}OpenFabrics Alliance</a> (OFA) software stack.  The
+OpenFabrics software stack supports both InfiniBand and iWARP
+networks.  Open MPI's support of the OpenFabrics stack is provided
+through multiple different components; see the table below.
 
-Open MPI also supported the Mellanox VAPI (mVAPI) software stack
-through the v1.2 series.  See <a href=\"#vapi-support\">this FAQ
-entry</a> for more details on VAPI support.
+Note that the OpenFabrics Alliance used to be known as the OpenIB
+project.  Hence, Open MPI's initial InfiniBand support was in a module
+named [openib].
+
+Older versions of Open MPI supported the uDAPL and Mellanox VAPI
+(mVAPI) APIs through the v1.2 series.  See <a
+href=\"#vapi-support\">this FAQ entry</a> for more details on VAPI
+support.
 
 <div align=\"center\">
 <table style=\"border:0px; padding:15px\">
@@ -56,11 +58,44 @@ $th OpenFabrics support </th>
 ". ofarow("v1.3 / v1.4 series", " [openib] BTL") . "
 ". ofarow("v1.5 / v1.6 series", " [openib] BTL, [mxm] MTL, [fca] coll") . "
 ". ofarow("v1.7 / v1.8 series", " [openib] BTL, [mxm] MTL, [fca] and [ml] and [hcoll] coll") . "
-". ofarow("v2.x series", " [openib] BTL, [mxm] PML, [ml] and [hcoll] coll") . "
-". ofarow("v3.x series", " [openib] BTL, [ucx] and [mxm] PML, [hcoll] coll") . "
-". ofarow("v4.x series", " [ucx] PML, [hcoll] coll") . "
+". ofarow("v2.x series", " [openib] BTL, [yalla] (MXM) PML, [ml] and [hcoll] coll") . "
+". ofarow("v3.x series", " [openib] BTL, [ucx] and [yalla] (MXM) PML, [hcoll] coll") . "
+". ofarow("v4.x series", " [openib] BTL, [ucx] PML, [hcoll] coll") . "
 </table>
-</div>";
+</div>
+";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "What component will my OpenFabrics-based network use by default?";
+
+$anchor[] = "openfabrics-default-stack";
+
+$a[] = "Per <a href=\"#ib-components\">this FAQ item</a>,
+OpenFabrics-based networks have generally used the [openib] BTL for
+native verbs-based communication for MPI point-to-point
+communications.  Because of this history, many of the questions below
+refer to the [openib] BTL, and are specifically marked as such.
+
+The following are exceptions to this general rule:
+
+<ul>
+<li> In the v2.x and v3.x series, Mellanox InfiniBand devices
+     defaulted to MXM-based components (e.g., [mxm] and/or [yalla]).</li>
+<li> In the v4.0.x series, Mellanox InfiniBand devices default to the
+     [ucx] PML.  The use of InfiniBand over the [openib] BTL is
+     officially deprecated in the v4.0.x series.</li>
+</ul>
+
+That being said, it is generally possible for any OpenFabrics device
+to use the [openib] BTL or the [ucx] PML:
+
+<ul>
+<li> To make the [openib] BTL use InfiniBand in v4.0.x, set the
+     [btl_openib_allow_ib] parameter to [1].</li>
+<li> <a href=\"#run-ucx\">See this FAQ item</a> for information about
+     using the [ucx] PML with arbitrary OpenFabrics devices.</li>
+</ul>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -68,7 +103,13 @@ $q[] = "Does Open MPI support iWARP?";
 
 $anchor[] = "iwarp-support";
 
-$a[] = "iWARP is fully supported as of the Open MPI v1.3 release.";
+$a[] = "iWARP is fully supported via the [openib] BTL as of the Open
+MPI v1.3 release.
+
+As of Open MPI v4.0.0, iWARP is also supported via the [ucx] PML, but
+iWARP devices still default to using the [openib] BTL.  <a
+href=\"#run-ucx\">Users can force the use of the [ucx] PML</a> with
+iWARP devices, if desired.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -90,7 +131,7 @@ $anchor[] = "ofed";
 $a[] = "Yes.
 
 OFED (OpenFabrics Enterprise Distribution) is basically the release
-mechanism for the OpenFabrics software packages.  So OFED releases are
+mechanism for the OpenFabrics software packages.  OFED releases are
 officially tested and released versions of the OpenFabrics stacks.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -102,9 +143,8 @@ $anchor[] = "ofed-software";
 $a[] = "The \"Download\" section of the ${ofa}OpenFabrics web site</a> has
 links for the various OFED releases.
 
-Additionally, several InfiniBand vendors have their own releases of
-the OFED stack, customized for their hardware and/or support
-requirements.  Consult with your IB vendor for more details.";
+Additionally, Mellanox distributes Mellanox OFED and Mellanox-X binary
+distributions.  Consult with your IB vendor for more details.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -112,10 +152,10 @@ $q[] = "Isn't Open MPI included in the OFED software package?  Can I install ano
 
 $anchor[] = "ofed-and-ompi";
 
-$a[] = "Yes, Open MPI is included in the OFED software.  And yes, you
-can [easily] install a later version of Open MPI on OFED-based
-clusters, even if you're also using the Open MPI that was included in
-OFED.
+$a[] = "Yes, Open MPI _used to be_ included in the OFED software.  And
+yes, you can _easily_ install a later version of Open MPI on
+OFED-based clusters, even if you're also using the Open MPI that was
+included in OFED.
 
 You can simply download the Open MPI version that you want and install
 it to an alternate directory from where the OFED-based Open MPI was
@@ -126,10 +166,9 @@ installations at a time, and never try to run an MPI executable
 compiled with one version of Open MPI with a different version of Open
 MPI.
 
-Ensure to specify to build Open MPI with OpenFabrics support (e.g.,
-use the \"[--with-openib=/usr/local/ofed]\" option to Open MPI's
-[configure] command, potentially replacing [/usr/local/ofed] with the
-path of your OFED installation).";
+Ensure to specify to build Open MPI with OpenFabrics support; <a
+href=\"./#category=building#build-p2p\">see this FAQ item for more
+information</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -137,9 +176,8 @@ $q[] = "What versions of Open MPI are in OFED?";
 
 $anchor[] = "ofed-and-ompi-versions";
 
-$a[] = "The following versions of Open MPI shipped (or will soon ship)
-in OFED (note that OFED stopped including MPI implementations as of
-OFED 1.5):
+$a[] = "The following versions of Open MPI shipped in OFED (note that
+OFED stopped including MPI implementations as of OFED 1.5):
 
 <ul>
 
@@ -157,7 +195,7 @@ $note A prior version of this
 FAQ entry specified that \"v1.2ofed\" would be included in OFED v1.2,
 representing a temporary branch from the v1.2 series that included
 some OFED-specific functionality.  All of this functionality was
-included in the v1.2.1 release, so OFED v1.2 simply included than.
+included in the v1.2.1 release, so OFED v1.2 simply included that.
 Some public betas of \"v1.2ofed\" releases were made available, but
 this version was never officially released.
 
@@ -174,12 +212,12 @@ $anchor[] = "why-openib-name";
 
 $a[] = "Before the iWARP vendors joined the OpenFabrics Alliance, the
 project was known as OpenIB.  Open MPI's support for this software
-stack was originally written during this timeframe -- the name of the
+stack was originally written during this timeframe &mdash; the name of the
 group was \"OpenIB\", so we named the BTL [openib].
 
 Since then, iWARP vendors joined the project and it changed names to
 \"OpenFabrics\".  Open MPI did not rename its BTL mainly for
-historical reasons -- we didn't want to break compatibility for users
+historical reasons &mdash; we didn't want to break compatibility for users
 who were already using the [openib] BTL name in scripts, etc.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -192,28 +230,26 @@ $a[] = "Yes, but only through the Open MPI v1.2 series; mVAPI support
 was removed starting with v1.3.
 
 The mVAPI support is an InfiniBand-specific BTL (i.e., it will not
-work in iWARP networks), and reflects the prior generation of
+work in iWARP networks), and reflects a prior generation of
 InfiniBand software stacks.
 
-However, the Open MPI team is doing no new work with mVAPI-based
-networks; all effort is being put into the [openib] BTL.  We'll
-provide critical bug fixes for the [mvapi] BTL, but we consider the
-[openib] BTL to be the future of InfiniBand and iWARP support in Open
-MPI.
+The Open MPI team is doing no new work with mVAPI-based networks.
 
 Generally, much of the information contained in this FAQ category
 applies to both the OpenFabrics [openib] BTL and the mVAPI [mvapi] BTL
--- simply replace [openib] with [mvapi] to get similar results.
+&mdash; simply replace [openib] with [mvapi] to get similar results.
 However, new features and options are continually being added to the
 [openib] BTL (and are being listed in this FAQ) that will not be
-back-ported to the [mvapi] BTL.  So not all items in this FAQ will
-apply to the [mvapi] BTL.
+back-ported to the [mvapi] BTL.  So not all [openib]-specific items in
+this FAQ category will apply to the [mvapi] BTL.
 
-We encourage users to switch to the OFED-based stack if possible.";
+All that being said, as of Open MPI v4.0.0, the use of InfiniBand over
+the [openib] BTL is deprecated &mdash; <a href=\"#run-ucx\">the UCX PML</a>
+is the preferred way to run over InfiniBand.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I specify to use the OpenFabrics network for MPI messages?";
+$q[] = "How do I specify to use the OpenFabrics network for MPI messages? (openib BTL)";
 
 $anchor[] = "ib-btl";
 
@@ -234,13 +270,15 @@ fine until a process tries to send to itself).
 
 Note that [openib,self] is the _minimum_ list of BTLs that you might
 want to use.  It is *highly* likely that you also want to include the
-[vader] or [sm] (shared memory) BTLs in the list as well, like this:
+[vader] (shared memory) BTL in the list as well, like this:
 
 <geshi bash>
 shell$ mpirun --mca btl openib,self,vader ...
-# Or
-shell$ mpirun --mca btl openib,self,sm ...
 </geshi>
+
+<strong>NOTE:</strong> Prior versions of Open MPI used an [sm] BTL for
+shared memory.  [sm] was effectively replaced with [vader] starting in
+Open MPI v3.0.0.
 
 See <a href=\"?category=tuning#selecting-components\">this FAQ
 entry</a> for more details on selecting which MCA plugins are used at
@@ -254,7 +292,7 @@ be absolutely positively definitely sure to use the specific BTL.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "But wait -- I also have a TCP network.  Do I need to explicitly
+$q[] = "But wait &mdash; I also have a TCP network.  Do I need to explicitly
 disable the TCP BTL?";
 
 $anchor[] = "ib-tcp-disable";
@@ -268,15 +306,17 @@ $q[] = "How do I know what MCA parameters are available for tuning MPI performan
 $anchor[] = "ib-params";
 
 $a[] = "The [ompi_info] command can display all the parameters
-available for the [openib] BTL component:
+available for any Open MPI component.  For example:
 
 <geshi bash>
-# Show the openib BTL parameters
-
 # Note that Open MPI v1.8 and later will only show an abbreviated list
 # of parameters by default.  Use \"--level 9\" to show all available
 # parameters.
 
+# Show the UCX PML parameters
+shell$ ompi_info --param pml ucx --level 9
+
+# Show the openib BTL parameters
 shell$ ompi_info --param btl openib --level 9
 </geshi>";
 
@@ -293,6 +333,9 @@ environment to help you.  Please include answers to the following
 questions in your e-mail:
 
 <ol>
+
+<li> Which Open MPI component are you using?  Possibilities include:
+the [ucx] PML, the [yalla] PML, the [mxm] MTL, the [openib] BTL.</li>
 
 <li> Which OpenFabrics version are you running?  Please specify where
 you got the software from (e.g., from the OpenFabrics community web
@@ -313,15 +356,15 @@ wrong with your OpenFabrics environment and Open MPI will not be able
 to run).</li>
 
 <li> What is the output of the [ifconfig] command on a known \"good\"
-node and a known \"bad\" node? (mainly relevant for IPoIB
-installations) Note that some Linux distributions do not put
-[ifconfig] in the default path for normal users; look for it in
+node and a known \"bad\" node? (Mainly relevant for IPoIB
+installations.) Note that some Linux distributions do not put
+[ifconfig] in the default path for normal users; look for it at
 [/sbin/ifconfig] or [/usr/sbin/ifconfig].</li>
 
-<li> If running under Bourne shells, what is the output of the \"ulimit
--l\" command? <br /> If running under C shells, what is the output of
-the \"limit | grep memorylocked\" command?  <br />
-(<strong>NOTE:</strong> If the value is not \"unlimited\", <a
+<li> If running under Bourne shells, what is the output of the [ulimit
+-l] command? <br /> If running under C shells, what is the output of
+the [limit | grep memorylocked] command?  <br />
+(<strong>NOTE:</strong> If the value is not \"unlimited\", see <a
 href=\"#ib-locked-pages\">this FAQ entry</a> and <a
 href=\"#ib-locked-pages-more\">this FAQ entry</a>).</li>
 
@@ -367,13 +410,13 @@ registering and unregistering memory.";
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "I'm getting errors about \"error registering openib memory\";
-what do I do?";
+what do I do? (openib BTL)";
 
 $anchor[] = "ib-locked-pages";
 
 $a[] = "With OpenFabrics (and therefore the [openib] BTL component),
 you need to set the available locked memory to a large number (or
-better yet, unlimited) -- the defaults with most Linux installations
+better yet, unlimited) &mdash; the defaults with most Linux installations
 are usually too low for most HPC applications that utilize
 OpenFabrics.  Failure to do so will result in a error message similar
 to one of the following (the messages have changed throughout the
@@ -454,11 +497,11 @@ helpful:
 
 <li><geshi text>
 error creating qp errno says Cannot allocate memory
-</geshi text></li>
+</geshi></li>
 </ol>
 
 There are two typical causes for Open MPI being unable to register
-memory, or warn that it might not be able to register enough memory:
+memory, or warning that it might not be able to register enough memory:
 
 <ol>
 
@@ -482,9 +525,10 @@ process can lock:
 
 <ol>
 
-<li>Assuming that the PAM limits module is being used (see " .  "<a
-href=\"http://www.kernel.org/pub/linux/libs/pam/Linux-PAM-html/\">" .
-"full docs for the Linux PAM limits module</a>), the system-level
+<li>Assuming that the PAM limits module is being used (see <a
+href=\"http://www.linux-pam.org/Linux-PAM-html/sag-pam_limits.html\">
+full docs for the Linux PAM limits module</a>, or 
+<a href=\"http://soc.if.usp.br/manual/libpam-doc/html/sag-pam_limits.html\">this mirror</a>), the system-level
 default values are controlled by putting a file in
 [/etc/security/limits.d/] (or directly editing the
 [/etc/security/limits.conf] file on older systems).  Two limits are
@@ -501,10 +545,10 @@ directory, add a line directly to [/etc/security/limits.conf]):
 * soft memlock <number>
 </geshi>
 
-where \"&lt;number&gt;\" is the number of bytes that you want user
+where [&lt;number&gt;] is the number of bytes that you want user
 processes to be allowed to lock by default (presumably rounded down to
-an integral number of pages).  \"&lt;number&gt;\" can also be
-\"unlimited\".
+an integral number of pages).  [&lt;number&gt;] can also be
+[unlimited].
 
 <li> *Hard:* The \"hard\" value is the maximum amount of memory that a
 user process can lock.  Similar to the soft lock, add it to the file
@@ -515,15 +559,17 @@ you added to [/etc/security/limits.d/] (or editing
 * hard memlock <number>
 </geshi>
 
-where \"&lt;number&gt;\" is the maximum number of bytes that you want
+where [&lt;number&gt;] is the maximum number of bytes that you want
 user processes to be allowed to lock (presumably rounded down to an
-integral number of pages).  \"&lt;number&gt;\" can also be
-\"unlimited\".</li></ul></li>
+integral number of pages).  [&lt;number&gt;] can also be
+[unlimited].</li>
+</ul>
+</li>
 
-<li>Per-user default values are controlled via the [ulimit] (or
-[limit] in csh) command.  The default amount of memory allowed to be
+<li>Per-user default values are controlled via the [ulimit] command (or
+[limit] in [csh]).  The default amount of memory allowed to be
 locked will correspond to the \"soft\" limit set in
-[/etc/security/limits.d/] (or [limits.conf] -- see above); users
+[/etc/security/limits.d/] (or [limits.conf] &mdash; see above); users
 cannot use [ulimit] (or [limit] in csh) to set their amount to be more
 than the hard limit in [/etc/security/limits.d] (or [limits.conf]).
 
@@ -542,8 +588,8 @@ shell% limit memorylocked unlimited
 
 This effectively sets their limit to the hard limit in
 [/etc/security/limits.d] (or [limits.conf]).  Alternatively, users can
-set a specific number instead of \"unlimited,\" but this has limited
-usefulness unless a user is aware of exactly how much locked memory
+set a specific number instead of \"unlimited\", but this has limited
+usefulness unless a user is aware of exactly how much locked memory they
 will require (which is difficult to know since Open MPI manages locked
 memory behind the scenes).
 
@@ -553,7 +599,7 @@ using [rsh] or [ssh] to start parallel jobs, it will be necessary to
 set the [ulimit] in your shell startup files so that it is effective
 on the processes that are started on each node.
 
-More specifically -- it may not be sufficient to simply execute the
+More specifically: it may not be sufficient to simply execute the
 following, because the [ulimit] may not be in effect on all nodes
 where Open MPI processes will be run:
 
@@ -566,7 +612,7 @@ shell$ mpirun -np 2 my_mpi_application
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "I'm <em>still</em> getting errors about \"error registering openib memory\"; what do I do?";
+$q[] = "I'm <em>still</em> getting errors about \"error registering openib memory\"; what do I do? (openib BTL)";
 
 $anchor[] = "ib-locked-pages-more";
 
@@ -599,12 +645,12 @@ upon <code>rsh</code>-based logins, meaning that the hard and soft
 limits were not set.
 
 There are also some default configurations where, even though the
-maximum limits are begin set system-wide in [limits.d] (or
+maximum limits are initially set system-wide in [limits.d] (or
 [limits.conf] on older systems), something
 during the boot procedure sets the default limit back down to a low
 number (e.g., 32k).  In this case, you may need to override this limit
-on a per-user basis (described <a href=\"#ib-locked-pages\">this FAQ
-entry</a>), or effectively system-wide by putting \"ulimit -l unlimited\"
+on a per-user basis (described in <a href=\"#ib-locked-pages\">this FAQ
+entry</a>), or effectively system-wide by putting [ulimit -l unlimited]
 (for Bourne-like shells) in a strategic location, such as:
 
 <ul>
@@ -615,7 +661,7 @@ startup scripts are located (e.g., [/etc/profile] and
 [/etc/csh.cshrc])</li>
 </ul>
 
-Also, note that resource managers such as SLURM, Torque/PBS, LSF,
+Also, note that resource managers such as Slurm, Torque/PBS, LSF,
 etc. may affect OpenFabrics jobs in two ways:
 
 <ol>
@@ -629,7 +675,7 @@ Otherwise, jobs that are started under that resource manager
 will get the default locked memory limits, which are far too small for
 Open MPI.</li>
 
-*The files in [limits.d] (or the [limits.conf] file) does not usually
+*The files in [limits.d] (or the [limits.conf] file) do not usually
 apply to resource daemons!* The [limits.s] files usually only applies
 to [rsh] or [ssh]-based logins.  Hence, daemons usually inherit the
 system default of maximum 32k of locked memory (which then gets passed
@@ -638,10 +684,10 @@ you typically need to modify daemons' startup scripts to increase the
 limit before they drop root privliedges.
 
 <li> Some resource managers can limit the amount of locked
-memory that is made available to jobs.  For example, SLURM has some
-fine-grained controls that allow locked memory for _only_ SLURM jobs
-(i.e., the system's default is low memory lock limits, but SLURM jobs
-can get high memory lock limits).  See these FAQ items on the SLURM
+memory that is made available to jobs.  For example, Slurm has some
+fine-grained controls that allow locked memory for _only_ Slurm jobs
+(i.e., the system's default is low memory lock limits, but Slurm jobs
+can get high memory lock limits).  See these FAQ items on the Slurm
 web site for more details: " .
 "<a href=\"http://www.llnl.gov/linux/slurm/faq.html#rlimit\">" .
 "propagating limits</a> and " .
@@ -656,7 +702,7 @@ node and seeing that your memlock limits are far lower than what you
 have listed in [/etc/security/limits.d/] (or [limits.conf]) (e.g., 32k
 instead of unlimited).  Several web sites suggest disabling privilege
 separation in ssh to make PAM limits work properly, but others imply
-that this may be fixed in recent versions of Open SSH.
+that this may be fixed in recent versions of OpenSSH.
 
 If you do disable privilege separation in ssh, be sure to check with
 your local system administrator and/or security officers to understand
@@ -672,7 +718,7 @@ $anchor[] = 'ib-low-reg-mem';
 
 $a[] = "OpenFabrics network vendors provide Linux kernel module
 parameters controlling the size of the size of the memory translation
-table (MTT) used to map virtual addresses to physical address. The
+table (MTT) used to map virtual addresses to physical addresses. The
 size of this table controls the amount of physical memory that can be
 registered for use with OpenFabrics devices.
 
@@ -699,8 +745,8 @@ In older hardware:
 *<font color=\"red\">At least some versions of OFED (community OFED,
 Mellanox OFED, and upstream OFED in Linux distributions) set the
 default values of these variables FAR too low!</font>* For example, in
-some cases, the default values may only allow registering 2 GB -- even
-if the node has much more than 2GB of physical memory.
+some cases, the default values may only allow registering 2 GB &mdash; even
+if the node has much more than 2 GB of physical memory.
 
 Mellanox has advised the Open MPI community to increase the
 [log_num_mtt] value (or [num_mtt] value), _not the [log_mtts_per_seg]
@@ -754,7 +800,7 @@ latency, especially on ConnectX (and newer) Mellanox hardware.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How much registered memory is used by Open MPI?  Is there a way to limit it?";
+$q[] = "How much registered memory is used by Open MPI?  Is there a way to limit it? (openib BTL)";
 
 $anchor[] = "limiting-registered-memory-usage";
 
@@ -804,8 +850,8 @@ row("User memory", "[mpool_rdma_rcache_size_limit]", "By default Open
     Note that this MCA parameter was introduced in <a
     href=\"#ofed-and-ompi-versions\">v1.2.1</a>.") .
 
-row("Internal eager fragment buffers", "2 x
-    <code>btl_openib_free_list_max</code> x
+row("Internal eager fragment buffers", "2 &times;
+    <code>btl_openib_free_list_max</code> &times;
     (<code>btl_openib_eager_limit</code> + overhead)",
 
     "A \"free list\" of buffers used in the [openib] BTL for \"eager\"
@@ -816,13 +862,13 @@ row("Internal eager fragment buffers", "2 x
     unbounded, meaning that Open MPI will try to allocate as many
     registered buffers as it needs.  If [btl_openib_free_list_max] is
     greater than 0, the list will be limited to this size.  Each entry
-    in the list is approximately [btl_openib_eager_limit] bytes --
+    in the list is approximately [btl_openib_eager_limit] bytes &mdash;
     some additional overhead space is required for alignment and
     internal accounting.  <code>btl_openib_eager_limit</code> is the
     maximum size of an eager fragment.") .
 
-row("Internal send/receive buffers", "2 x
-    <code>btl_openib_free_list_max</code> x
+row("Internal send/receive buffers", "2 &times;
+    <code>btl_openib_free_list_max</code> &times;
     (<code>btl_openib_max_send_size</code> + overhead)",
 
     "A \"free list\" of buffers used for send/receive communication in
@@ -833,20 +879,20 @@ row("Internal send/receive buffers", "2 x
     unbounded, meaning that Open MPI will allocate as many registered
     buffers as it needs.  If [btl_openib_free_list_max] is greater
     than 0, the list will be limited to this size.  Each entry in the
-    list is approximately [btl_openib_max_send_size] bytes -- some
+    list is approximately [btl_openib_max_send_size] bytes &mdash; some
     additional overhead space is required for alignment and internal
     accounting.  <code>btl_openib_max_send_size</code> is the maximum
     size of a send/receive fragment.") .
 
 row("Internal \"eager\" RDMA buffers",
-    "<code>btl_openib_eager_rdma_num</code> x
-    <code>btl_openib_max_eager_rdma</code> x (<code>btl_openib_eager_limit</code>
+    "<code>btl_openib_eager_rdma_num</code> &times;
+    <code>btl_openib_max_eager_rdma</code> &times; (<code>btl_openib_eager_limit</code>
     + overhead)",
 
     "If <code>btl_openib_user_eager_rdma</code> is true, RDMA buffers are used
     for eager fragments (because RDMA semantics can be faster than
     send/receive semantics in some cases), and an additional set of
-    registered buffers are created (as needed).
+    registered buffers is created (as needed).
 
     Each MPI process will use RDMA buffers for eager fragments up to
     <code>btl_openib_eager_rdma_num</code> MPI peers.  Upon receiving the
@@ -879,11 +925,11 @@ for information on how to set MCA parameters at run-time.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I get Open MPI working on Chelsio iWARP devices?";
+$q[] = "How do I get Open MPI working on Chelsio iWARP devices? (openib BTL)";
 
 $anchor[] = "iwarp-chelsio-enablement";
 
-$a[] = "iWARP support is only available in version Open MPI v1.3 or
+$a[] = "iWARP support is only available in Open MPI v1.3 or
 greater.
 
 For the Chelsio T3 adapter, you must have at least OFED v1.3.1 and
@@ -902,11 +948,10 @@ shell# gunzip t3fw-6.0.0.bin.gz
 shell# rmmod iw_cxgb3 cxgb3
 shell# modprobe iw_cxgb3
 
-# This last step <em>may</em> happen automatically, depending on your
+# This last step *may* happen automatically, depending on your
 # Linux distro (assuming that the ethernet interface has previously
 # been properly configured and is ready to bring up).  Substitute the
-# proper ethernet interface name for your T3 (vs. <font
-# color=red>ethX</font>).
+# proper ethernet interface name for your T3 (vs. ethX).
 shell# ifup ethX
 </geshi>
 
@@ -920,12 +965,12 @@ kernel: cxgb3 0000:0c:00.0: successful upgrade to firmware 6.0.0
 Open MPI will work without any specific configuration to the [openib]
 BTL.  Users wishing to performance tune the configurable options may
 wish to inspect the receive queue values.  Those can be found in the
-\"Chelsio T3\" section of mca-btl-openib-hca-params.ini.";
+\"Chelsio T3\" section of [mca-btl-openib-hca-params.ini].";
 
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "I'm getting \"ibv_create_qp: returned 0 byte(s) for max inline
-data\" errors; what is this, and how do I fix it?";
+data\" errors; what is this, and how do I fix it? (openib BTL)";
 
 $anchor[] = "ibv_create_qp_equals_0";
 
@@ -953,17 +998,17 @@ Open MPI user's list for more details:
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "My bandwidth seems [far] smaller than it should be; why?  Can this be fixed?";
+$q[] = "My bandwidth seems [far] smaller than it should be; why?  Can this be fixed? (openib BTL)";
 
 $anchor[] = "ib-leave-pinned";
 
 $a[] = "Open MPI, by default, uses a pipelined RDMA protocol.
 Additionally, in the v1.0 series of Open MPI, small messages use
-send/receive semantics (instead of RDMA -- small message RDMA <a
+send/receive semantics (instead of RDMA &mdash; small message RDMA <a
 href=\"#ib-small-message-rdma\">was added in the v1.1 series</a>).
 For some applications, this may result in lower-than-expected
 bandwidth.  However, Open MPI also supports caching of registrations
-in a most recently used (MRU) list -- this bypasses the pipelined RDMA
+in a most recently used (MRU) list &mdash; this bypasses the pipelined RDMA
 and allows messages to be sent faster (in some cases).
 
 For version the v1.1 series, see <a
@@ -990,7 +1035,7 @@ unnecessary to specify this flag anymore.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I tune small messages in Open MPI v1.1 and later versions?";
+$q[] = "How do I tune small messages in Open MPI v1.1 and later versions? (openib BTL)";
 
 $anchor[] = "ib-small-message-rdma";
 
@@ -1027,7 +1072,7 @@ valuable RDMA resources for peers who only exchange a few \"startup\"
 control messages). </li>
 
 <li> [btl_openib_max_eager_rdma] (default value: 16): This parameter
-controls the maximum number of peers that can receive and RDMA
+controls the maximum number of peers that can receive an RDMA
 connection for short messages.  It is not advisable to change this
 value to a very large number because the polling time increase with
 the number of the connections; as a direct result, short message
@@ -1051,7 +1096,7 @@ not used when the shared receive queue is used.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I tune large message behavior in Open MPI the v1.2 series?";
+$q[] = "How do I tune large message behavior in Open MPI the v1.2 series? (openib BTL)";
 
 $anchor[] = "large-message-tuning-1.2";
 
@@ -1134,7 +1179,7 @@ the extra code complexity didn't seem worth it for long messages
 </ol>
 
 Note that the user buffer is *not* unregistered when the RDMA
-transfer(s) is(are) completed.
+transfer(s) is (are) completed.
 
 </li>
 
@@ -1201,7 +1246,7 @@ the [btl_openib_min_rdma_size] value is infinite.
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I tune large message behavior in the Open MPI v1.3 (and later) series?";
+$q[] = "How do I tune large message behavior in the Open MPI v1.3 (and later) series? (openib BTL)";
 
 $anchor[] = "large-message-tuning-1.3";
 
@@ -1225,8 +1270,8 @@ the child that is registered in the parent will cause a segfault or
 other error).  Because memory is registered in units of pages, the end
 of a long message is likely to share the same page as other heap
 memory in use by the application.  If this last page of the large
-message is registered, then all the memory in that page -- to include
-other buffers that are not part of the long message -- will not be
+message is registered, then all the memory in that page &mdash; to include
+other buffers that are not part of the long message &mdash; will not be
 available to the child.  By moving the \"intermediate\" fragments to
 the end of the message, the end of the message will be sent with copy
 in/copy out semantics and, more importantly, will not have its page
@@ -1257,7 +1302,7 @@ Messages shorter than this length will use the *Send/Receive* protocol
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "How does the <code>mpi_leave_pinned</code> parameter affect
-large message transfers?";
+large message transfers? (openib BTL)";
 
 $anchor[] = "large-message-leave-pinned";
 
@@ -1288,7 +1333,7 @@ with very little software intervention results in utilizing the
 maximum possible bandwidth.
 
 Leaving user memory registered has disadvantages, however.  Bad Things
-happen if registered memory is <code>free()</code>ed, for example --
+happen if registered memory is <code>free()</code>ed, for example &mdash;
 it can silently invalidate Open MPI's cache of knowing which memory is
 registered and which is not.  The MPI layer usually has no visibility
 on when the MPI application calls [free()] (or otherwise frees memory,
@@ -1301,7 +1346,7 @@ These schemes are best described as \"icky\" and can actually cause
 real problems in applications that provide their own internal memory
 allocators.  Additionally, only _some_ applications (most notably,
 ping-pong benchmark applications) benefit from \"leave pinned\"
-behavior -- those who consistently re-use the same buffers for sending
+behavior &mdash; those who consistently re-use the same buffers for sending
 and receiving long messages.
 
 *It is for these reasons that \"leave pinned\" behavior is not enabled
@@ -1319,7 +1364,7 @@ applications.";
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "How does the <code>mpi_leave_pinned</code> parameter affect
-memory management?";
+memory management? (openib BTL)";
 
 $anchor[] = "leave-pinned-memory-management";
 
@@ -1339,9 +1384,9 @@ entry for details</a>.
 However, registered memory has two drawbacks:
 
 <ul>
-<li> There is only so much registered memory available</li>
+<li> There is only so much registered memory available.</li>
 <li> User applications may free the memory, thereby invalidating Open
-MPI's internal table of what memory is already registered</li>
+MPI's internal table of what memory is already registered.</li>
 </ul>
 
 The second problem can lead to silent data corruption or process
@@ -1354,7 +1399,7 @@ different process).  Open MPI has two methods of solving the issue:
 <li> Using an internal memory manager; effectively overriding calls to
 [malloc()], [free()], [mmap()], [munmap()], etc.</li>
 <li> Telling the OS to never return memory from the process to the
-OS.</li>
+OS</li>
 </ul>
 
 How these options are used differs between <a
@@ -1365,7 +1410,7 @@ MPI v1.3 (and later)</a>.";
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "How does the <code>mpi_leave_pinned</code> parameter affect
-memory management in Open MPI v1.2?";
+memory management in Open MPI v1.2? (openib BTL)";
 
 $anchor[] = "leave-pinned-memory-management-v1.2";
 
@@ -1392,7 +1437,7 @@ leave pinned memory management differently</a>.";
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "How does the <code>mpi_leave_pinned</code> parameter affect
-memory management in Open MPI v1.3?";
+memory management in Open MPI v1.3? (openib BTL)";
 
 $anchor[] = "leave-pinned-memory-management-v1.3";
 
@@ -1425,14 +1470,14 @@ shell$ mpicc foo.o -o foo -lopenmpi-malloc
 </geshi>
 
 Linking in libopenmpi-malloc will result in the OpenFabrics BTL not
-enabling mallopt() but using the hooks provided with the ptmalloc2
+enabling [mallopt()] but using the hooks provided with the ptmalloc2
 library instead.
 
 To revert to the v1.2 (and prior) behavior, with ptmalloc2 folded into
 libopen-pal, Open MPI can be built with the
 [--enable-ptmalloc2-internal] configure flag.
 
-When not using ptmalloc2, mallopt() behavior can be disabled by
+When not using ptmalloc2, [mallopt()] behavior can be disabled by
 disabling [mpi_leave_pined]:
 
 <geshi bash>
@@ -1450,14 +1495,14 @@ implementations that enable similar behavior by default.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How can I set the <code>mpi_leave_pinned</code> MCA parameter?";
+$q[] = "How can I set the <code>mpi_leave_pinned</code> MCA parameter? (openib BTL)";
 
 $anchor[] = "setting-mpi-leave-pinned-1.3.2";
 
 $a[] = "$mlp
 
 As with all MCA parameters, the [mpi_leave_pinned] parameter (and
-[mpi_leave_pinned_pipeline] parameter) can be set from the mpirun
+[mpi_leave_pinned_pipeline] parameter) can be set from the [mpirun]
 command line:
 
 <geshi bash>
@@ -1471,11 +1516,11 @@ to set MCA parameters</a> could be used to set [mpi_leave_pinned].
 However, starting with v1.3.2, not all of the <a
 href=\"./?category=tuning#setting-mca-params\">usual methods to set
 MCA parameters</a> apply to [mpi_leave_pinned].  Due to various
-operating system memory subsystem constriaints, Open MPI must react to
+operating system memory subsystem constraints, Open MPI must react to
 the setting of the [mpi_leave_pinned] parameter in each MPI process
 _before MPI_INIT is invoked._ Specifically, some of Open MPI's MCA
 parameter propagation mechanisms are not activated until during
-MPI_INIT -- which is too late for [mpi_leave_pinned].
+MPI_INIT &mdash; which is too late for [mpi_leave_pinned].
 
 As such, only the following MCA parameter-setting mechanisms can be
 used for [mpi_leave_pinned] and [mpi_leave_pinned_pipeline]:
@@ -1500,7 +1545,7 @@ MPI will use leave-pinned bheavior:
 [OMPI_MCA_mpi_leave_pinned_pipeline] is set to a positive value (note
 that the \"[mpirun --mca mpi_leave_pinned 1 ...\"] command-line syntax
 simply results in setting these environment variables in each MPI
-process).</li>
+process)</li>
 <li> Any of the following files / directories can be found in the
 filesystem where the MPI process is running:
 <ul>
@@ -1518,7 +1563,7 @@ will _not_ use leave-pinned behavior.";
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "I got an error message from Open MPI about not using the
-default GID prefix.  What does that mean, and how do I fix it?";
+default GID prefix.  What does that mean, and how do I fix it? (openib BTL)";
 
 $anchor[] = "ofa-default-subnet-gid";
 
@@ -1545,7 +1590,7 @@ to reconfigure your OFA networks to have different subnet ID values,
 and then Open MPI will function properly.
 
 Please note that the same issue can occur when any two physically
-separate subnets share the same subnet ID value -- not just the
+separate subnets share the same subnet ID value &mdash; not just the
 factory-default subnet ID value.  However, Open MPI only warns about
 the factory default subnet ID value because most users do not bother
 to change it unless they know that they have to.
@@ -1570,7 +1615,7 @@ endpoints that it can use.  Specifically, for each network endpoint,
 Open MPI calculates which other network endpoints are reachable.
 
 In OpenFabrics networks, Open MPI uses the subnet ID to differentiate
-between subnets -- assuming that if two ports share the same subnet
+between subnets &mdash; assuming that if two ports share the same subnet
 ID, they are reachable from each other.  If multiple, physically
 separate OFA networks use the same subnet ID (such as the default
 subnet ID), it is not possible for Open MPI to tell them apart and
@@ -1626,11 +1671,11 @@ The [-o] option causes OpenSM to run for one loop and exit.
 The [-c] option tells OpenSM to create an \"options\" text file.</li>
 
 <li> The OpenSM options file will be generated under
-[/var/cache/opensm/opensm.opts].  Open the file and find line with
-[subnet_prefix]. Replace the default value prefix with new one.
+[/var/cache/opensm/opensm.opts].  Open the file and find the line with
+[subnet_prefix]. Replace the default value prefix with the new one.
 </li>
 
-<li> Re start OpenSM:
+<li> Restart OpenSM:
 <geshi bash>
 shell# /etc/init.d/opensm start
 </geshi>
@@ -1653,7 +1698,7 @@ subnet prefix.</li>
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "In a configuration with multiple host ports on the same fabric, what connection pattern does Open MPI use?";
+$q[] = "In a configuration with multiple host ports on the same fabric, what connection pattern does Open MPI use? (openib BTL)";
 
 $anchor[] = "ofa-port-wireup";
 
@@ -1662,9 +1707,9 @@ between multiple hosts in an MPI job, Open MPI will attempt to use
 them all by default.  Open MPI makes several assumptions regarding
 active ports when establishing connections between two hosts. Active
 ports that have the same subnet ID are assumed to be connected to the
-same physical fabric -- that is to say that communication is possible
+same physical fabric &mdash; that is to say that communication is possible
 between these ports. Active ports with different subnet IDs
-are assumed to be connected to different physical fabric -- no
+are assumed to be connected to different physical fabric &mdash; no
 communication is possible between them. It is therefore very important
 that if active ports on the same host are on physically separate
 fabrics, they must have different subnet IDs.  Otherwise Open MPI may
@@ -1675,10 +1720,10 @@ fabrics are in use.
 
 The following is a brief description of how connections are
 established between multiple ports. During initialization, each
-process discovers all active ports (and their corresponding subnet ID)
+process discovers all active ports (and their corresponding subnet IDs)
 on the local host and shares this information with every other process
 in the job. Each process then examines all active ports (and the
-corresponding subnet ID) of every other process in the job and makes a
+corresponding subnet IDs) of every other process in the job and makes a
 one-to-one assignment of active ports within the same subnet. If the
 number of active ports within a subnet differ on the local process and
 the remote process, then the smaller number of active ports are
@@ -1708,7 +1753,7 @@ href=\"?category=tuning#running-perf-numbers\">this FAQ entry</a> for
 many suggestions on benchmarking performance.
 
 _Pay particular attention to the discussion of processor affinity and
-NUMA systems_ -- running benchmarks without processor affinity and/or
+NUMA systems_ &mdash; running benchmarks without processor affinity and/or
 on CPU sockets that are not directly connected to the bus where the
 HCA is located can lead to confusing or misleading performance
 results.";
@@ -1731,7 +1776,7 @@ in their entirety.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Can I use <code>system()</code>, <code>popen()</code>, or <code>fork()</code> in an MPI application that uses the OpenFabrics support?";
+$q[] = "Can I use <code>system()</code>, <code>popen()</code>, or <code>fork()</code> in an MPI application that uses the OpenFabrics support? (openib BTL)";
 
 $anchor[] = "ofa-fork";
 
@@ -1777,13 +1822,13 @@ available.</li>
 
 </ul>
 
-Hence, you can reliably query OMPI to see if it has support for
-[fork()] and force OMPI to abort if you request fork support and it
-doesn't have it.
+Hence, you can reliably query Open MPI to see if it has support for
+[fork()] and force Open MPI to abort if you request fork support and
+it doesn't have it.
 
 This feature is helpful to users who switch around between multiple
 clusters and/or versions of Open MPI; they can script to know whether
-the OMPI that they're using (and therefore the underlying IB stack)
+the Open MPI that they're using (and therefore the underlying IB stack)
 has fork support.  For example:
 
 <geshi bash>
@@ -1793,7 +1838,7 @@ have_fork_support=`ompi_info --param btl openib --level 9 --parsable | grep have
 if test \"\$have_fork_support\" = \"1\"; then
     # Happiness / world peace / birds are singing
 else
-    # Despair / time for Haagen Daas
+    # Despair / time for Häagen-Dazs
 fi
 </geshi>
 
@@ -1803,7 +1848,7 @@ Alternatively, you can skip querying and simply try to run your job:
 shell\$ mpirun --mca btl_openib_want_fork_support 1 --mca btl openib,self ...
 </geshi>
 
-Which will abort if OMPI's openib BTL does not have fork support.
+Which will abort if Open MPI's openib BTL does not have fork support.
 
 All this being said, even if Open MPI is able to enable the
 OpenFabrics [fork()] support, <font color=\"red\">it does not mean
@@ -1827,7 +1872,7 @@ other internally-registered memory inside Open MPI.  You may therefore
 accidentally \"touch\" a page that is registered without even
 realizing it, thereby crashing your application.
 
-This is unfortunately no way around this issue; it was intentionally
+There is unfortunately no way around this issue; it was intentionally
 designed into the OpenFabrics software stack.  Please complain to the
 OpenFabrics Alliance that they should really fix this problem!</li>
 </ul>";
@@ -1835,7 +1880,7 @@ OpenFabrics Alliance that they should really fix this problem!</li>
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "My MPI application sometimes hangs when using the
-<code>openib</code> BTL; how can I fix this?";
+<code>openib</code> BTL; how can I fix this? (openib BTL)";
 
 $anchor[] = "v1.2-use-early-completion";
 
@@ -1848,7 +1893,8 @@ functions often.  The default is 1, meaning that early completion
 optimization semantics are enabled (because it can reduce
 point-to-point latency).
 
-See Open MPI " . ompi_bug(1224) . "ticket #1224</a> for further
+See Open MPI <a href=\"https://svn.open-mpi.org/trac/ompi/ticket/1224\">
+legacy Trac ticket #1224</a> for further
 information.
 
 $note This FAQ entry only applies to the v1.2 series.  This
@@ -1878,7 +1924,7 @@ please see <a href=\"#ib-sl\">this FAQ entry</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Does Open MPI support InfiniBand clusters with torus/mesh topologies?";
+$q[] = "Does Open MPI support InfiniBand clusters with torus/mesh topologies? (openib BTL)";
 
 $anchor[] = "ib-3d-torus";
 
@@ -1905,7 +1951,7 @@ topologies are supported as of version 1.5.4.
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I tell Open MPI which IB Service Level to use?";
+$q[] = "How do I tell Open MPI which IB Service Level to use? (openib BTL)";
 
 $anchor[] = "ib-sl";
 
@@ -1952,15 +1998,13 @@ as of version 1.5.4.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I run Open MPI over <code>RoCE</code>?";
+$q[] = "What is RDMA over Converged Ethernet (RoCE)?";
 
-$anchor[] = "ompi-over-roce";
+$anchor[] = "what-is-roce";
 
-$a[] = "*First of all, what exactly is <code>RoCE</code>?*
-
-RoCE (which stands for _RDMA over Converged Ethernet_) provides
-InfiniBand native RDMA transport (OFA Verbs) on top of lossless
-Ethernet data link.
+$a[] = "RoCE (which stands for _RDMA over Converged Ethernet_)
+provides InfiniBand native RDMA transport (OFA Verbs) on top of
+lossless Ethernet data link.
 
 Since we're talking about Ethernet, there's no Subnet Manager, no
 Subnet Administrator, no InfiniBand SL, nor any other InfiniBand Subnet
@@ -1970,26 +2014,30 @@ Connection management in RoCE is based on the OFED RDMACM (RDMA
 Connection Manager) service:
 <ul>
 <li>The OS IP stack is used to resolve remote (IP,hostname) tuples to
-a DMAC</li>
+a DMAC.</li>
 <li>The outgoing Ethernet interface and VLAN are determined according
-to this resolution</li>
-<li>The appropriate RoCE device is selected accordingly</li>
+to this resolution.</li>
+<li>The appropriate RoCE device is selected accordingly.</li>
 <li>Network parameters (such as MTU, SL, timeout) are set locally by
-the RDMACM in accordance with kernel policy</li>
-</ul>
+the RDMACM in accordance with kernel policy.</li>
+</ul>";
 
-*So how does Open MPI run on top of <code>RoCE</code>?*
+/////////////////////////////////////////////////////////////////////////
 
-OMPI uses the OFED Verbs-based [openib] BTL for traffic and its
-internal [rdmacm] CPC (Connection Pseudo-Component) for establishing
-connections for MPI traffic.
+$q[] = "How do I run Open MPI over <code>RoCE</code>? (openib BTL)";
+
+$anchor[] = "ompi-over-roce";
+
+$a[] = "Open MPI can use the OFED Verbs-based [openib] BTL for traffic
+and its internal [rdmacm] CPC (Connection Pseudo-Component) for
+establishing connections for MPI traffic.
 
 So if you just want the data to run over <code>RoCE</code> and you're
 not interested in VLANs, PCP, or other VLAN tagging parameters, you
-can just run OMPI with the [openib] BTL and [rdmacm] CPC:
+can just run Open MPI with the [openib] BTL and [rdmacm] CPC:
 
 <geshi bash>
-shell$ mpirun --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm ...
+shell$ mpirun --mca btl openib,self,vader --mca btl_openib_cpc_include rdmacm ...
 </geshi>
 
 (or set these MCA parameters <a
@@ -2001,39 +2049,20 @@ Routable RoCE is supported in Open MPI starting v1.8.8.
 
 In order to use it, RRoCE needs to be enabled from the command line.
 <geshi bash>
-shell$ mpirun --mca pml ob1 --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm ****--mca btl_openib_rroce_enable 1**** ...
+shell$ mpirun --mca pml ob1 --mca btl openib,self,vader --mca btl_openib_cpc_include rdmacm ****--mca btl_openib_rroce_enable 1**** ...
 </geshi>
-
-*How does UCX run on top of RoCE?*
-
-In order to use RoCE with <a href=\"#ucx\">UCX</a>, the Ethernet port
-must be specified using the UCX_NET_DEVICES environment parameter.
-For example:
-
-<geshi bash>
-shell$ mpirun --mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 ...
-</geshi>
-
-*How does UCX run with Routable RoCE (RoCEv2)?*
-
-UCX selects IPV4 RoCEv2 by default. If a different behavior is needed, it's possible
-to set a speific GID index to use:
-<geshi bash>
-shell$ mpirun --mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 -x UCX_IB_GID_INDEX=1 ...
-</geshi>
-
 
 *How do I tell Open MPI to use a specific RoCE VLAN?*
 
 When a system administrator configures VLAN in RoCE, every VLAN is
 assigned with its own GID. The QP that is created by the
-<code>rdmacm</code> CPC uses this GID as a Source GID.  When OMPI (or
-any other application for that matter) posts a send to this QP, the
-driver checks the source GID to determine which VLAN the traffic is
-supposed to use, and marks the packet accordingly.
+<code>rdmacm</code> CPC uses this GID as a Source GID.  When Open MPI
+(or any other application for that matter) posts a send to this QP,
+the driver checks the source GID to determine which VLAN the traffic
+is supposed to use, and marks the packet accordingly.
 
 Note that InfiniBand SL (Service Level) is not involved in this
-process - marking is done in accordance with local kernel policy.
+process &mdash; marking is done in accordance with local kernel policy.
 
 To control which VLAN will be selected, use the
 [btl_openib_ipaddr_include/exclude] MCA parameters and
@@ -2041,16 +2070,39 @@ provide it with the required IP/netmask values.  For
 example, if you want to use a VLAN with IP 13.x.x.x:
 
 <geshi bash>
-shell$ mpirun --mca btl openib,self,sm --mca btl_openib_cpc_include rdmacm \
+shell$ mpirun --mca btl openib,self,vader --mca btl_openib_cpc_include rdmacm \
     --mca btl_openib_ipaddr_include \"13.0.0.0/8\" ...
 </geshi>
 
-$note VLAN selection in the OMPI v1.4 series works only with version
-v1.4.4 or later.";
+$note VLAN selection in the Open MPI v1.4 series works only with
+version v1.4.4 or later.";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Does Open MPI support XRC?";
+$q[] = "How do I run Open MPI over <code>RoCE</code>? (UCX PML)";
+
+$anchor[] = "ompi-over-roce-ucx-pml";
+
+$a[] = "In order to use RoCE with <a href=\"#run-ucx\">UCX</a>, the
+Ethernet port must be specified using the [UCX_NET_DEVICES] environment
+variable.  For example:
+
+<geshi bash>
+shell$ mpirun --mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 ...
+</geshi>
+
+*How does UCX run with Routable RoCE (RoCEv2)?*
+
+UCX selects IPV4 RoCEv2 by default. If a different behavior is needed,
+it's possible to set a speific GID index to use:
+
+<geshi bash>
+shell$ mpirun --mca pml ucx -x UCX_NET_DEVICES=mlx5_0:1 -x UCX_IB_GID_INDEX=1 ...
+</geshi>";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Does Open MPI support XRC? (openib BTL)";
 $anchor[] = "ib-xrc";
 $a[] = "Older versions of Open MPI support XRC.
 
@@ -2082,14 +2134,14 @@ how to tell Open MPI to use XRC receive queues.  ";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I specify the type of receive queues that I want OMPI to use?";
+$q[] = "How do I specify the type of receive queues that I want Open MPI to use? (openib BTL)";
 
 $anchor[] = "ib-receive-queues";
 
 $a[] = "You can use the [btl_openib_receive_queues] MCA parameter to
-specify the exact type of the receive queues for the OMPI to use.
+specify the exact type of the receive queues for the Open MPI to use.
 This can be advantageous, for example, when you know the exact sizes
-of messages that your MPI application will use -- Open MPI can
+of messages that your MPI application will use &mdash; Open MPI can
 internally pre-post receive buffers of exactly the right size.  See <a
 href=\"$topdir/papers/euro-pvmmpi-2007-ib/\">this paper</a> for more
 details.
@@ -2105,7 +2157,7 @@ queues:
 <li> *S* : Shared Receive Queues (SRQ) </li>
 <li> *X* : eXtended Reliable Connection queues (see <a
 href=\"#ib-xrc\">this FAQ item</a> to see when XRC support was removed
-from Open MPI</li>
+from Open MPI)</li>
 </ul>
 
 The default value of the [btl_openib_receive_queues] MCA parameter
@@ -2116,7 +2168,7 @@ shell$ mpirun ... --mca btl_openib_receive_queues P,128,256,192,128:S,2048,256,1
 </geshi>
 
 In particular, note that XRC is (currently) _not_ used by default (and
-is no longer supported -- see <a href=\"#ib-xrc\">this FAQ item</a>
+is no longer supported &mdash; see <a href=\"#ib-xrc\">this FAQ item</a>
 for more information).
 
 $note Open MPI chooses a default value of [btl_openib_receive_queues]
@@ -2137,7 +2189,7 @@ Per-peer receive queues require between 1 and 5 parameters:
 <li> Low buffer count watermark: optional; defaults to (num_buffers / 2)</li>
 <li> Credit window size: optional; defaults to (low_watermark / 2)</li>
 <li> Number of buffers reserved for credit messages: optional; defaults to
-((num_buffers*2 - 1) / credit_window)</li>
+((num_buffers &times; 2 - 1) / credit_window)</li>
 </ol>
 
 Example: *<code>P,128,256,128,16</code>*
@@ -2148,7 +2200,7 @@ Example: *<code>P,128,256,128,16</code>*
 buffers to reach a total of 256</li>
 <li> If the number of available credits reaches 16, send an explicit
 credit message to the sender</li>
-<li> Defaulting to ((256*2) - 1) / 16 = 31; this many buffers are
+<li> Defaulting to ((256 &times; 2) - 1) / 16 = 31; this many buffers are
 reserved for explicit credit messages</li>
 </ol>
 
@@ -2192,6 +2244,7 @@ $note the [rdmacm] CPC cannot be used unless the first QP is per-peer.";
 
 
 /////////////////////////////////////////////////////////////////////////
+
 $q[] = "Does Open MPI support <code>FCA</code>?";
 $anchor[] = "fca";
 $a[] = "Yes.
@@ -2211,7 +2264,7 @@ FCA is available for download here: "
 *Building Open MPI 1.5.x or later with FCA support*
 
 By default, FCA is installed in [/opt/mellanox/fca]. Use the following
-configure option to enable FCA integration in OMPI:
+configure option to enable FCA integration in Open MPI:
 <geshi bash>
 shell$ ./configure --with-fca=/opt/mellanox/fca ...
 </geshi>
@@ -2236,68 +2289,66 @@ To turn on FCA for an arbitrary number of ranks ( [N] ), please use
 the following MCA parameters:
 
 <geshi bash>
-shell$ mpirun --mca coll_fca_enable 1 --mca coll_fca_np &lt;N&gt; ...
+shell$ mpirun --mca coll_fca_enable 1 --mca coll_fca_np <N>; ...
 </geshi>
 ";
+
 /////////////////////////////////////////////////////////////////////////
+
 $q[] = "Does Open MPI support <code>MXM</code>?";
 $anchor[] = "mxm";
-$a[] = "MXM support is currently deprecated and replaced by <a href=\"#ucx\">UCX</a>.";
+$a[] = "MXM support is currently deprecated and replaced by <a href=\"#run-ucx\">UCX</a>.";
 
 /////////////////////////////////////////////////////////////////////////
+
 $q[] = "Does Open MPI support <code>UCX</code>?";
-$anchor[] = "ucx";
+$anchor[] = "run-ucx";
 $a[] = "Yes.
 
-UCX is an open-source optimized communication library which supports multiple
-networks, including RoCE, InfiniBand, uGNI, TCP, shared memory, and others. UCX
-mixes-and-matches transports and protocols which are available on the system
-to provide optimal performance. It also has built-in support for GPU transports
-(with Cuda and RoCM providers) which lets RDMA-capable transports access the
-GPU memory directly.
+<a href=\"http://www.openucx.org/\">UCX</a> is an open-source
+optimized communication library which supports multiple networks,
+including RoCE, InfiniBand, uGNI, TCP, shared memory, and others. UCX
+mixes-and-matches transports and protocols which are available on the
+system to provide optimal performance. It also has built-in support
+for GPU transports (with CUDA and RoCM providers) which lets
+RDMA-capable transports access the GPU memory directly.
 
-UCX can be downloaded from:
- <a href=\"http://www.openucx.org\" target=\"&#95;blank\">http://www.openucx.org</a>
+<a href=\"./?category=building#build-p2p\">Make sure Open MPI was
+built with UCX support</a>.
 
+UCX is enabled and selected by default; typically, no additional
+parameters are required.  In this case, the network port with the
+highest bandwidth on the system will be used for inter-node
+communication, and shared memory will be used for intra-node
+communication.  To select a specific network device to use (for
+example, [mlx5_0] device port 1):
 
-*Building Open MPI with UCX support*
-
-Use the following configure option to enable UCX support in OMPI. It will search
-for UCX headers and libraries in the default installation prefix, which is /usr:
-<geshi bash>
-shell$ ./configure --with-ucx ...
-</geshi>
-
-*Running with UCX*
-
-UCX is enabled and selected by default, so no additional parameters are required.
-In this case the network port with the highest bandwidth on the system will be
-used for inter-node communication, and shared memory will be used intra-node
-communication. To select a specific network device to use (for example, mlx5_0
-device port 1):
 <geshi bash>
 shell$ mpirun -x UCX_NET_DEVICES=mlx5_0:1 ...
 </geshi>
 
-It's also possible to force using UCX for MPI point-to-point and one-sided operations:
+It's also possible to force using UCX for MPI point-to-point and
+one-sided operations:
+
 <geshi bash>
 shell$ mpirun --mca pml ucx --mca osc ucx ...
 </geshi>
 
-For OpenSHMEM, in addition to the above, it's possible to force using UCX for remote
-memory access and atomic memory operations:
+For OpenSHMEM, in addition to the  above, it's possible to force using
+UCX for remote memory access and atomic memory operations:
+
 <geshi bash>
 shell$ mpirun --mca pml ucx --mca osc ucx --mca scoll ucx --mca atomic ucx ...
-</geshi>
+</geshi>";
 
-";
 /////////////////////////////////////////////////////////////////////////
+
 $q[] = "What is <code>cpu-set</code>?";
 $anchor[] = "cpu-set";
 $a[] = "
-The --cpu-set parameter allows you to specify the logical CPUs to use in an MPI job.
+The [--cpu-set] parameter allows you to specify the logical CPUs to use in an MPI job.
 
-From 'mpirun --help':
+From [mpirun --help]:
 Comma-separated list of ranges specifying logical cpus allocated to this job.
 
 <geshi bash>
@@ -2307,13 +2358,13 @@ shell$ mpirun -cpu-set 0,1,2,3 ...
 The hwloc package can be used to get information about the topology on your host.
 More information about hwloc is available <a href=\"https://www.open-mpi.org/projects/hwloc\">here</a>.
 
-Here is a usage example with 'hwloc-ls'.<br>
+Here is a usage example with [hwloc-ls].<br>
 Consider the following command line:
 <geshi bash>
 shell$ mpirun --report-bindings -n 4 --oversubscribe --cpu-set 14,15,0,1 --bind-to hwthread --map-by hwthread  hostname
 </geshi><br>
-The output of the --report-bindings is:
-<geshi bash>
+The output of the [--report-bindings] is:
+<geshi text>
 [clx-orion-001:25028] MCW rank 0 bound to socket 0[core 0[hwt 0]]: [B./../../../../../../../../../../../../..][../../../../../../../../../../../../../..]
 [clx-orion-001:25028] MCW rank 1 bound to socket 0[core 0[hwt 1]]: [.B/../../../../../../../../../../../../..][../../../../../../../../../../../../../..]
 [clx-orion-001:25028] MCW rank 2 bound to socket 0[core 7[hwt 0]]: [../../../../../../../B./../../../../../..][../../../../../../../../../../../../../..]
@@ -2321,8 +2372,8 @@ The output of the --report-bindings is:
 </geshi>
 
 The explanation is as follows.
-When 'hwloc-ls' is run, the output will show the mappings of physical cores to logical ones.<br>
-As per the example in the command line, the logical PUs 0,1,14,15 match the physical cores - 0 and 7. (as shown in the map above)
+When [hwloc-ls] is run, the output will show the mappings of physical cores to logical ones.<br>
+As per the example in the command line, the logical PUs 0,1,14,15 match the physical cores &mdash; 0 and 7 (as shown in the map above).
 
 <pre>
     NUMANode L#0 (P#0 128GB)
@@ -2338,19 +2389,21 @@ As per the example in the command line, the logical PUs 0,1,14,15 match the phys
 
 </pre>
 
-It is also possible to use 'hwloc-calc'. The following command line will show all the available logical CPUs on the host:
+It is also possible to use [hwloc-calc]. The following command line will show all the available logical CPUs on the host:
 <geshi bash>
-hwloc-calc all -I pu
+shell$ hwloc-calc all -I pu
 </geshi>
 
-The following will show two specific hwthreads specified by phys ids 0 and 1:
+The following will show two specific hwthreads specified by physical ids 0 and 1:
 <geshi bash>
-hwloc-calc -I pu --physical-input pu:0 pu:1
+shell$ hwloc-calc -I pu --physical-input pu:0 pu:1
 </geshi>
 
 ";
+
 /////////////////////////////////////////////////////////////////////////
-$q[] = "Does Open MPI support connecting hosts from different subnets?";
+
+$q[] = "Does Open MPI support connecting hosts from different subnets? (openib BTL)";
 $anchor[] = "ib-router";
 $a[] = "Yes.
 
@@ -2362,9 +2415,9 @@ The support for IB-Router is available starting with Open MPI v1.10.3.
 To enable routing over IB, follow these steps:
 
 <ol>
-<li> Configure OMPI with [--enable-openib-rdmacm-ibaddr] </li>
+<li> Configure Open MPI with [--enable-openib-rdmacm-ibaddr].</li>
 <li> Ensure to use an Open SM with support for IB-Router (available in
-MLNX_OFED starting version 3.3)</li>
+MLNX_OFED starting version 3.3).</li>
 <li> Select to use [rdmacm] with the [openib] BTL from the [mpirun]
 command line.</li>
 <li> Set the [btl_openib_allow_different_subnets] MCA parameter to 1
@@ -2392,4 +2445,4 @@ If the default value of [btl_openib_receive_queues] is to use only SRQ
 QPs, please set the first QP in the list to a per-peer QP.
 
 Please see <a href=\"#ib-receive-queues\">this FAQ entry</a> for more
-information on this mca parameter.";
+information on this MCA parameter.";

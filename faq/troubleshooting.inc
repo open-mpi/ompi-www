@@ -12,7 +12,7 @@ include_once("$topdir/software/ompi/current/version.inc");
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "Open MPI tells me that it fails to load components with a \"file not found\" error -- but the file is there!  Why does it say this?";
+$q[] = "Open MPI tells me that it fails to load components with a \"file not found\" error &mdash; but the file is there!  Why does it say this?";
 
 $anchor[] = "erroneous-file-not-found-message";
 
@@ -46,7 +46,7 @@ about this case.</li>
 example, if the [openib] plugin fails to load, ensure that
 [libibverbs.so] can be found by the linker at run time (e.g., check
 the value of your [LD_LIBRARY_PATH] environment variable).  The same is
-true for any other plugin that have shared library dependencies (e.g.,
+true for any other plugins that have shared library dependencies (e.g.,
 the [mx] BTL and MTL plugins need to be able to find
 the [libmyriexpress.so] shared library at run time).</li>
 </ol>";
@@ -74,12 +74,12 @@ a private symbol space.  For example, if an application is not linked
 against [libmpi], but rather calls something like this:
 
 <geshi c>
-/* This is a Linux example -- the issue is similar/the same on other
+/* This is a Linux example &mdash; the issue is similar/the same on other
    operating systems */
 handle = dlopen(\"libmpi.so\", RTLD_NOW | RTLD_LOCAL);
 </geshi>
 
-This is due to some deep run time linker voodoo -- it is discussed
+This is due to some deep run time linker voodoo &mdash; it is discussed
 towards the end of <a
 href=\"https://www.open-mpi.org/community/lists/devel/2010/05/7931.php\">this
 post to the Open MPI developer's list</a>.  Briefly, the issue is
@@ -99,13 +99,13 @@ its symbols, and displays a warning message to that effect.</li>
 </ol>
 
 The ultimate fix for this issue is a bit bigger than Open MPI,
-unfortunately -- it's a POSIX issue (as briefly described in the devel
+unfortunately &mdash; it's a POSIX issue (as briefly described in the devel
 posting, above).
 
 However, there are several common workarounds:
 
 <ul>
-<li> Dynamically open [libmpi] in a public / global symbol scope --
+<li> Dynamically open [libmpi] in a public / global symbol scope &mdash;
 not a private / local scope.  This will enable [libmpi]'s symbols to
 be available for resolution when Open MPI dynamically opens its
 plugins.</li>
@@ -114,13 +114,13 @@ it is not possible to change the private / local scope to a public /
 global scope, then dynamically open [libmpi] in a public / global
 scope before invoking the underlying framework.  This sounds a little
 gross (and it is), but at least the run-time linker is smart enough to
-not load [libmpi] twice -- but it does keeps [libmpi] in a public
+not load [libmpi] twice &mdash; but it does keeps [libmpi] in a public
 scope.</li>
 <li> Use the [--disable-dlopen] or
 [--disable-mca-dso] options to Open MPI's [configure] script (see <a
 href=\"?category=building#avoid-dso\">this FAQ entry</a> for more
 details on these options).  These options slurp all of Open MPI's
-plugins up in to [libmpi] -- meaning that the plugins physically
+plugins up in to [libmpi] &mdash; meaning that the plugins physically
 reside in [libmpi] and will not be dynamically opened at run
 time.</li>
 <li> Build Open MPI as a static library by configuring Open MPI with
@@ -314,7 +314,7 @@ $a[] = "As noted in <a
 href=\"?category=supported-systems#parallel-debuggers\">this FAQ
 entry</a>, Open MPI supports parallel debuggers that utilize the
 TotalView API for parallel process attaching.  However, it can
-sometimes fail of Open MPI is not installed correctly.  Symptoms of
+sometimes fail if Open MPI is not installed correctly.  Symptoms of
 this failure typically involve having the debugger hang (or crash)
 when attempting to attach to a parallel MPI application.
 
@@ -361,7 +361,7 @@ $q[] = "When launching large MPI jobs, I see messages like: <code>mca_oob_tcp_pe
 
 $anchor[] = "large-job-tcp-oob-timeout";
 
-$a[] = "This is a known issue in the Open MPI v1.2. series.  Try the
+$a[] = "This is a known issue in the Open MPI v1.2 series.  Try the
 following:
 
 <ol>

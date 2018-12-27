@@ -7,7 +7,7 @@
  *
  * Date: 2008-05-24 14:22:17 -0400 (Sat, 24 May 2008)
  * Rev: 5685
- * Slightly modified/simiplified for www.open-mpi.org.
+ * Slightly modified/simplified for www.open-mpi.org.
  */
 
 $(document).ready(function() {

@@ -48,7 +48,7 @@ $q[] = "What license is Open MPI distributed under?";
 $anchor[] = "ompi-license";
 
 $a[] = "Open MPI is distributed under <a
-href=\"$topdir/community/license.php\">the BSD license</a>.";
+href=\"$topdir/community/license.php\">the 3-clause BSD license</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -83,7 +83,7 @@ $anchor[] = "contribute-code";
 $a[] = "We love code contributions!
 
 All code contributions are submitted as pull requests on the
-<a href=\"https://github.com/open-mpi/ompi/\">Open MPI Github project</a>.
+<a href=\"https://github.com/open-mpi/ompi/\">Open MPI GitHub project</a>.
 
 We need to have an established intellectual property pedigree of the
 code in Open MPI.  This means being able to ensure that all code
@@ -106,7 +106,7 @@ how can I contribute to Open MPI?";
 
 $anchor[] = "cant-sign-agreement";
 
-$a[] = "This question is obsolete (as of November, 2016).  The Open MPI
+$a[] = "This question is obsolete (as of November 2016).  The Open MPI
 project *used* to require a signed Open MPI Third Party Contribution
 Agreement before we could accept code contributions.
 
@@ -116,7 +116,7 @@ MPI Contributor's Declaration</a>.
 
 See <a href=\"#contribute-code\">this FAQ entry for more details</a>.
 
-If you are unable to agree to the Contributor's Declaration, fear not --
+If you are unable to agree to the Contributor's Declaration, fear not &mdash;
 there are
 other ways to contribute to Open MPI.  Here are some examples:
 
@@ -124,7 +124,7 @@ other ways to contribute to Open MPI.  Here are some examples:
 <li>Become an active participant in the mailing lists</li>
 <li>Write and distribute your own components (remember: Open MPI
 components can be distributed completely separately from the main Open
-MPI distribution -- they can be added to existing Open MPI
+MPI distribution &mdash; they can be added to existing Open MPI
 installations, and don't even need to be open source)</li>
 <li>Report bugs</li>
 <li>Do a good deed daily</li>
@@ -140,8 +140,8 @@ $a[] = "No problem.
 
 While we are creating free / open-source software, and we would prefer
 if everyone's contributions to Open MPI were also free / open-source,
-we certainly recognize that other organizations have difference goals
-than us.  Such is the reality of software development in today's
+we certainly recognize that other organizations have different goals
+from us.  Such is the reality of software development in today's
 global economy.
 
 As such, it is perfectly acceptable to make non-free / non-open-source
@@ -178,7 +178,7 @@ origanization needs to release a version of Open MPI with a specific
 feature.
 
 If you're thinking of forking the Open MPI code base, please let us
-know -- let's see if we can work something out so that it is not
+know &mdash; let's see if we can work something out so that it is not
 necessary.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -195,6 +195,6 @@ technical, perhaps due to licensing restrictions, etc.).
 If you wrote a standalone component, you can still distribute this
 component independent of the main Open MPI distribution.  Open MPI
 components can be installed into existing Open MPI installations.  As
-such, you can distribute your component -- even if it is closed source
-(e.g., distributed as binary-only) -- via any mechanism you choose,
+such, you can distribute your component &mdash; even if it is closed source
+(e.g., distributed as binary-only) &mdash; via any mechanism you choose,
 such as on a web site, FTP site, etc.";
