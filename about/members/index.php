@@ -15,7 +15,7 @@ include_once("$topdir/includes/header.inc");
   of the project, participate in release processes, etc.  "Partners"
   provide services to the Open MPI project.  See the full definitions
   of these three levels of membership
-  <a href="https://github.com/open-mpi/ompi/wiki/Admistrative-rules">here</a>.</p>
+  <a href="https://github.com/open-mpi/ompi/wiki/Administrative-rules">here</a>.</p>
 
   <p>Open MPI contributors who have submitted signed 3rd Party
   Contribution Agreements and members are listed below in alphabetical
