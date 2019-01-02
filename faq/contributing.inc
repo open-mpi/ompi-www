@@ -96,7 +96,7 @@ intend it to remain that way.
 
 We enforce this policy by requiring all git commits to include a
 \"Signed-off-by\" token in the commit message, indicating your
-agreement to the <a href=\"https://github.com/open-mpi/ompi/wiki/Admistrative-rules#contributors-declaration\">Open
+agreement to the <a href=\"https://github.com/open-mpi/ompi/wiki/Administrative-rules#contributors-declaration\">Open
 MPI Contributor's Declaration</a>.";
 
 /////////////////////////////////////////////////////////////////////////
@@ -111,7 +111,7 @@ project *used* to require a signed Open MPI Third Party Contribution
 Agreement before we could accept code contributions.
 
 However, we have changed our policy and now only require agreement
-with the <a href=\"https://github.com/open-mpi/ompi/wiki/Admistrative-rules#contributors-declaration\">Open
+with the <a href=\"https://github.com/open-mpi/ompi/wiki/Administrative-rules#contributors-declaration\">Open
 MPI Contributor's Declaration</a>.
 
 See <a href=\"#contribute-code\">this FAQ entry for more details</a>.
