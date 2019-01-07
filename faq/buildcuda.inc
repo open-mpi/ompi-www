@@ -21,14 +21,14 @@ updated set of MPI features and for better performance.
 1. Configure and build UCX to provide CUDA support
 
 <geshi bash>
-shell$ ./configure --prefix=$UCX_PREFIX --with-cuda=$CUDA_HOME --with-gdrcopy=$GDRCOPY_HOME
+shell$ ./configure --with-cuda=/usr/local/cuda --with-gdrcopy=/usr
 shell$ make -j8 install
 </geshi>
 
 2. Configure and build Open MPI to leverage UCX CUDA supprt
 
 <geshi bash>
-shell$ ./configure --prefix=$OMPI_PREFIX --with-cuda=$CUDA_HOME --with-ucx=$UCX_PREFIX
+shell$ ./configure --with-cuda=/usr/local/cuda --with-ucx=/path/to/ucx/installation
 shell$ make -j8 install
 </geshi>
 
