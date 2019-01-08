@@ -130,8 +130,8 @@ $parent_name[] = "";
     $names[] = "tuning";
     $parent_name[] = "tune_parent";
 
-    $titles[] = "Tuning the run-time characteristics of MPI sm communications";
-    $short_titles[] = "Shared memory/Vader";
+    $titles[] = "Tuning the run-time characteristics of MPI shared memory communications";
+    $short_titles[] = "Shared memory (Vader)";
     $names[] = "sm";
     $parent_name[] = "tune_parent";
 
@@ -140,13 +140,8 @@ $parent_name[] = "";
     $names[] = "tcp";
     $parent_name[] = "tune_parent";
 
-    $titles[] = "Tuning the run-time characteristics of MPI Myrinet communications";
-    $short_titles[] = "Myrinet";
-    $names[] = "myrinet";
-    $parent_name[] = "tune_parent";
-
-    $titles[] = "Tuning the run-time characteristics of MPI OpenFabrics communications (InfiniBand, RoCE and iWARP)";
-    $short_titles[] = "OpenFabrics";
+    $titles[] = "Tuning the run-time characteristics of MPI InfiniBand, RoCE, and iWARP mmunications";
+    $short_titles[] = "IB, RoCE, iWARP";
     $names[] = "openfabrics";
     $parent_name[] = "tune_parent";
 
@@ -158,11 +153,6 @@ $parent_name[] = "";
     $names[] = "infiniband";
     $parent_name[] = "";
 
-    $titles[] = "Tuning the run-time characteristics of MPI UDAPL communications";
-    $short_titles[] = "UDAPL";
-    $names[] = "udapl";
-    $parent_name[] = "tune_parent";
-
     $titles[] = "Performance analysis tools";
     $short_titles[] = "Performance tools";
     $names[] = "perftools";
@@ -171,6 +161,16 @@ $parent_name[] = "";
     $titles[] = "Tuning the OMPIO parallel I/O component";
     $short_titles[] = "OMPIO";
     $names[] = "ompio";
+    $parent_name[] = "tune_parent";
+
+    $titles[] = "Tuning the run-time characteristics of MPI UDAPL communications";
+    $short_titles[] = "UDAPL";
+    $names[] = "udapl";
+    $parent_name[] = "tune_parent";
+
+    $titles[] = "Tuning the run-time characteristics of MPI Myrinet communications";
+    $short_titles[] = "Myrinet";
+    $names[] = "myrinet";
     $parent_name[] = "tune_parent";
 
 $titles[] = "Platform Specific Questions";
