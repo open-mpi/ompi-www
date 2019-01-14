@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Graph_neighbors_count(3) man page (version 2.1.5)";
-$meta_desc = "Open MPI v2.1.5 man page: MPI_GRAPH_NEIGHBORS_COUNT(3)";
+$title = "MPI_Graph_neighbors_count(3) man page (version 2.1.6)";
+$meta_desc = "Open MPI v2.1.6 man page: MPI_GRAPH_NEIGHBORS_COUNT(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
