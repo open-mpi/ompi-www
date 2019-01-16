@@ -140,9 +140,14 @@ $parent_name[] = "";
     $names[] = "tcp";
     $parent_name[] = "tune_parent";
 
-    $titles[] = "Tuning the run-time characteristics of MPI InfiniBand, RoCE, and iWARP mmunications";
+    $titles[] = "Tuning the run-time characteristics of MPI InfiniBand, RoCE, and iWARP communications";
     $short_titles[] = "IB, RoCE, iWARP";
     $names[] = "openfabrics";
+    $parent_name[] = "tune_parent";
+
+    $titles[] = "Tuning the run-time characteristics of MPI Omni-Path communications";
+    $short_titles[] = "Omni-Path";
+    $names[] = "opa";
     $parent_name[] = "tune_parent";
 
     # The "infiniband" FAQ category got renamed to "openfabrics".  Putting
