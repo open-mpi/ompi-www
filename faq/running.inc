@@ -1663,6 +1663,20 @@ For more information refer to
 libfabric.org</a> web site.
 ";
 
+$q[] = "How can Open MPI communicate with Intel Omni-Path Architecture (OPA)
+based devices?";
+
+$anchor[] = "opa-support";
+
+$opa = "<a href\"https://www.intel.com/content/www/us/en/support/products/92003/network-and-i-o/fabric-products/intel-omnipath-host-fabric-interface-products.html\">";
+
+$a[] = "Currently, Open MPI supports PSM2 MTL and OFI MTL (using PSM2 OFI
+provider)  components which can be used to communicate with
+Intel ${opa}Omni-Path</a> (OPA) software stack
+
+For guidlines on tuning run-time characteristics when using OPA devices, please
+refer to <a href=\"?category=opa\">this FAQ entry</a>.";
+
 /////////////////////////////////////////////////////////////////////////
 
 # Return "a" or "an"
