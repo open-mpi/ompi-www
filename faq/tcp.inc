@@ -560,7 +560,7 @@ shell$ mpirun --mca btl self,sm,tcp --mca btl_base_verbose 30 -np 2 -host NodeA,
 
 In case you want more details about the theory behind the connection
 code, you can find the background story in a brief
-" . "<a href=\"http://www.ieeexplore.ieee.org/xpl/freeabs_all.jsp?isnumber=4476518&arnumber=4476565&count=56&index=46\">" . "IEEE paper.</A>";
+" . "<a href=\"https://ieeexplore.ieee.org/document/4476565\">" . "IEEE paper.</A>";
 
 /////////////////////////////////////////////////////////////////////////
 
