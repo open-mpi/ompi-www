@@ -7,9 +7,7 @@
 
 <p>Before deciding which series to download, be sure to read <a 
 href="<?php print($topdir); ?>/software/ompi/versions/">Open MPI's
-philosophy on version numbers</a>.  The short version is that odd
-numbered release series are "feature" series that eventually morph
-into even numbered "super stable" series.</p>
+philosophy on version numbers</a>.</p>
 
 <p>There are multiple versions of nightly snapshot tarballs:</p>
 
@@ -18,26 +16,25 @@ into even numbered "super stable" series.</p>
 
 <p> <strong>Current release series</strong>
 
-<li><a href="v4.0.x/"><strong>v4.0.x series</strong></a>: These are images from
-the stable v4.0.x series.  <strong><font color="red">This is the recommended series
-for all users to download and use.</font></strong></li>
-
-<li><a href="v3.1.x/"><strong>v3.1.x series</strong></a>: These are images from
-the stable v3.1.x series.  <strong><font color="red">This is the recommended series
-for all users to download and use.</font></strong></li>
+<li><a href="v4.0.x/"><strong>v4.0.x series</strong></a>: These are
+images from the stable v4.0.x series.  <strong><font color="red">This
+is the recommended series for all users to download and
+use.</font></strong></li>
 
 <p> <strong>Prior stable release series</strong>
 
-<li><a href="v3.0.x/"><strong>v3.0.x series</strong></a>: These are images from
-the stable v3.0.x series.  <strong><font color="red">This code base is still supported, but is in "bug fix only" mode.</font></strong></li>
-
-<li><a href="v2.x/"><strong>v2.1.x series</strong></a>: These are images from
-the stable v2.1.x series.  <strong><font color="red">This
+<li><a href="v3.1.x/"><strong>v3.1.x series</strong></a>: These are
+images from the stable v3.1.x series.  <strong><font color="red">This
 code base is still supported, but is in "bug fix only"
-mode.</font></strong></li> 
+mode.</font></strong></li>
 
-<li><a href="v2.0.x/"><strong>v2.0.x series</strong></a>: These are
-images from the stable v2.0.x series.  <strong><font color="red">This
+<li><a href="v3.0.x/"><strong>v3.0.x series</strong></a>: These are
+images from the stable v3.0.x series.  <strong><font color="red">This
+code base is still supported, but is in "bug fix only"
+mode.</font></strong></li>
+
+<li><a href="v2.x/"><strong>v2.1.x series</strong></a>: These are
+images from the stable v2.1.x series.  <strong><font color="red">This
 code base is still supported, but is in "bug fix only"
 mode.</font></strong></li>
 
@@ -48,11 +45,12 @@ These snapshots are from the Git master and reflect the current
 head of development.  The usual disclaimers about the state of
 development code apply.</li>
 
-<li><a href="v4.0.x/"><strong>v4.0.x series</strong></a>: These are images from
-the upcoming v4.0.x series.
-
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
+
+<li><a href="v2.0.x/"><strong>v2.0.x series</strong></a>: These are
+images from the stable v2.0.x series.  This tree is unlikely to be
+updated any more.</li>
 
 <li><a href="v1.10/"><strong>v1.10 series</strong></a> (previous stable
 series): These are
