@@ -17,7 +17,7 @@ $releases = array("4.0.0");
    is added to releases above */
 #$prereleases = array("4.0.0rc5", "4.0.0rc4", "4.0.0rc3", "4.0.0rc2", "4.0.0rc1");
 #$prereleases = array();
-$prereleases = array("4.0.1.rc2");
+$prereleases = array("4.0.1rc2");
 
 /* set to true if we should add a cygwin note */
 $cygwin_note = 0;
