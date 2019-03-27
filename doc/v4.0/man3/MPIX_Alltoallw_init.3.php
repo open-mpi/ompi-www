@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPIX_Alltoallw_init(3) man page (version 4.0.0)";
-$meta_desc = "Open MPI v4.0.0 man page: MPIX_Alltoallw_init(3)";
+$title = "MPIX_Alltoallw_init(3) man page (version 4.0.1)";
+$meta_desc = "Open MPI v4.0.1 man page: MPIX_Alltoallw_init(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -480,14 +480,15 @@ MPIX_Neighbor_alltoallw_init(sendbuf, sendcounts, sdispls, sendtypes,
 <h2><a name='sect5' href='#toc5'>Description</a></h2>
 Creates a persistent communication request for a collective
 operation or neighborhood collective operation.
-<p> As of Sept. 2018, the feature
+<p> As of Nov. 2018, the feature
 of persistent collective communication operations and persistent collective
 neighborhood communication operations is planned to be included in the
-next MPI Standerd after MPI-3.1. <br>
+next MPI Standard after MPI-3.1. <br>
 <pre>    https://github.com/mpi-forum/mpi-issues/issues/25
 </pre>
-<p> Open MPI implements its draft version shown in the following URL. <br>
-<pre>    https://github.com/mpi-forum/mpi-issues/files/2078076/mpi32-report-ticket25-austin-vote-june2018.pdf
+<p> Open MPI implements 2018 Draft Specification of the MPI standard shown
+in the following URL. <br>
+<pre>    https://www.mpi-forum.org/docs/drafts/mpi-2018-draft-report.pdf
 </pre>
 <p> The interface may still change in the standard. Therefore the prefix <i>MPIX_</i>
 is used instead of <i>MPI_</i> for these request creation routines. To start, complete,

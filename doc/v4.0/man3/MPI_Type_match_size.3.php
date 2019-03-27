@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Type_match_size(3) man page (version 4.0.0)";
-$meta_desc = "Open MPI v4.0.0 man page: MPI_TYPE_MATCH_SIZE(3)";
+$title = "MPI_Type_match_size(3) man page (version 4.0.1)";
+$meta_desc = "Open MPI v4.0.1 man page: MPI_TYPE_MATCH_SIZE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
