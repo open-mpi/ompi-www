@@ -2343,6 +2343,86 @@ shell$ mpirun --mca pml ucx --mca osc ucx --mca scoll ucx --mca atomic ucx ...
 
 /////////////////////////////////////////////////////////////////////////
 
+$q[] = "I'm getting errors about \"initializing an OpenFabrics device\" when running v4.0.0 with UCX support enabled.  What should I do?";
+$anchor[] = "ofa-device-error";
+
+$a[] = "The short answer is that you should probably just disable
+verbs support in Open MPI.
+
+The messages below were observed by at least one site where Open MPI
+v4.0.0 was built with support for InfiniBand verbs ([--with-verbs]),
+OFA UCX ([--with-ucx]), and CUDA ([--with-cuda]) with applications
+running on GPU-enabled hosts:
+
+<geshi>
+WARNING: There was an error initializing an OpenFabrics device.
+
+    Local host: c36a-s39
+    Local device: mlx4_0
+</geshi>
+
+and
+
+<geshi>
+By default, for Open MPI 4.0 and later, infiniband ports on a device
+are not used by default.  The intent is to use UCX for these devices.
+You can override this policy by setting the btl_openib_allow_ib MCA parameter
+to true.
+
+    Local host:              c36a-s39
+    Local adapter:           mlx4_0
+    Local port:              1
+</geshi>
+
+These messages are coming from the [openib] BTL.  As noted in the
+messages above, Open MPI deprecated the openib BTL (enabled when Open
+MPI is configured [--with-verbs]) is deprecated in favor of the UCX
+PML, which includes support for OpenFabrics devices.  The [openib] BTL
+is therefore not needed.
+
+You can disable the [openib] BTL (and therefore avoid these messages)
+in a few different ways:
+
+<ul>
+<li> Configure Open MPI [--without-verbs].  This will prevent building
+the [openib] BTL in the first place.</li>
+<li> Disable the [openib] BTL via the [btl] MCA param (see <a
+href=\"?category=tuning#setting-mca-params\">this FAQ item</a> for
+information on how to set MCA params).  For example,
+<geshi bash>
+shell$ mpirun --mca btl '^openib' ...
+</geshi></li>
+</ul>
+
+Note that simply selecting a different PML (e.g., the UCX PML) is
+*not* sufficient to avoid these messages.  For example:
+
+<geshi bash>
+shell$ mpirun --mca pml ucx ...
+</geshi>
+
+You will still see these messages because the [openib] BTL is not only
+used by the PML, it is also used in other contexts internally in Open
+MPI.  Hence, it is not sufficient to simply choose a non-OB1 PML; you
+need to actually disable the [openib] BTL to make the messages go
+away.";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "How can I find out what devices and transports are supported by UCX on my system?";
+$anchor[] = "ucx-supported-devices";
+
+$a[] = "Check out the <a
+href=\"http://www.openucx.org/documentation/\">UCX documentation</a>
+for more information, but you can use the [ucx_info] command.  For
+example:
+
+<gesh bash>
+shell$ ucx_info -d
+</geshi>";
+
+/////////////////////////////////////////////////////////////////////////
+
 $q[] = "What is <code>cpu-set</code>?";
 $anchor[] = "cpu-set";
 $a[] = "
