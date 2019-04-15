@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Ibcast(3) man page (version 3.0.3)";
-$meta_desc = "Open MPI v3.0.3 man page: MPI_IBCAST(3)";
+$title = "MPI_Ibcast(3) man page (version 3.0.4)";
+$meta_desc = "Open MPI v3.0.4 man page: MPI_IBCAST(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
