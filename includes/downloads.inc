@@ -15,10 +15,8 @@ use Aws\Exception\AwsException;
 if (strpos(gethostname(), 'hostgator.com') !== false) {
     $provider = CredentialProvider::ini("default", "/home2/ompiteam/.aws/credentials");
     $provider = CredentialProvider::memoize($provider);
-} elseif ($_SERVER['SERVER_NAME'] == 'aws.open-mpi.org') {
-    $provider = CredentialProvider::defaultProvider();
 } else {
-    $provider = false;
+    $provider = CredentialProvider::defaultProvider();
 }
 
 function prettyprint_filesize($size) {
