@@ -97,7 +97,17 @@ function print_download_table($release_infos, $download_prefix, $extra_rows = []
             print("<TD><A HREF=\"" . $download_prefix . $file . "\">" . $file . "</A></TD>\n");
             print("<TD>" . prettyprint_filesize($filedata["size"]) . "</TD>\n");
             print("<TD>" . gmdate("M d, Y", $release["build_unix_time"]) . "</TD>\n");
-            print("<TD>MD5: " . $filedata["md5"] . "<BR>SHA1: " . $filedata["sha1"] . "</TD>\n");
+            print("<TD>");
+            if (isset($filedata["md5"])) {
+                print("MD5:&nbsp;" . $filedata["md5"] . "<BR>");
+            }
+            if (isset($filedata["sha1"])) {
+                print("SHA1:&nbsp;" . $filedata["sha1"] . "<BR>");
+            }
+            if (isset($filedata["sha256"])) {
+                print("SHA256:&nbsp;" . $filedata["sha256"] . "<BR>");
+            }
+            print("</TD>\n");
             print("</TR>\n");
         }
     }
