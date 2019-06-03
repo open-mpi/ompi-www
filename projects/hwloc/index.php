@@ -16,9 +16,9 @@ include_once("$topdir/includes/code.inc");
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
 <?php
 # Lists are not mirrored - use an absolute URL
-//news("hwloc 2.0.3rc1 and 1.11.12rc1",
-//     "Stable release candidates",
-//     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00119.html");
+news("hwloc 2.0.4rc1 and 1.11.13rc1",
+     "Stable release candidates",
+     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00122.html");
 news("hwloc v2.0.3 released",
      "Stable release",
      "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00120.html");
@@ -234,7 +234,7 @@ how to debug and report issues.
 <p>
 See also the
 <a href="https://github.com/open-mpi/hwloc/wiki/Linux-kernel-bugs">
-wiki page about Linux kernel bugs</a> affect locality information in hwloc.
+wiki page about Linux kernel bugs</a> (or BIOS bugs) affecting locality information in hwloc.
 </p>
 
 <p>
