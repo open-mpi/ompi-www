@@ -87,7 +87,7 @@ including Intel Xeon Phi.</li>
 <li>Solaris, AIX and HP-UX</li>
 <li>NetBSD, FreeBSD and kFreeBSD/GNU</li>
 <li>Darwin / OS X</li>
-<li>Microsoft Windows (either using MinGW or a native Visual Studio solution)</li>
+<li>Microsoft Windows (either using MinGW, or Cygwin, or a native Visual Studio solution)</li>
 <li>IBM BlueGene/Q Compute Node Kernel (CNK)</li>
 </ul></p>
 
