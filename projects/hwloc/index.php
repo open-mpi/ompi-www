@@ -16,15 +16,15 @@ include_once("$topdir/includes/code.inc");
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
 <?php
 # Lists are not mirrored - use an absolute URL
-news("hwloc 2.0.4rc1 and 1.11.13rc1",
-     "Stable release candidates",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00122.html");
-news("hwloc v2.0.3 released",
+//news("hwloc 2.0.4rc1 and 1.11.13rc1",
+//     "Stable release candidates",
+//     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00122.html");
+news("hwloc v2.0.4 released",
      "Stable release",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00120.html");
-news("hwloc v1.11.12 released",
+     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00124.html");
+news("hwloc v1.11.13 released",
      "Ultrastable release",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00121.html");
+     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00123.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
      "doc/v2.0.0/a00327.php");
