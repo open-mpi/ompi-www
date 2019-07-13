@@ -1998,6 +1998,23 @@ as of version 1.5.4.";
 
 /////////////////////////////////////////////////////////////////////////
 
+$q[] = "How do I tell Open MPI which IB Service Level to use? (UCX PML)";
+
+$anchor[] = "ib-sl-ucx-pml";
+
+$a[] = "In order to tell <a href=\"#run-ucx\">UCX</a> which SL to use, the
+IB SL must be specified using the [UCX_IB_SL] environment variable.
+For example:
+
+<geshi bash>
+shell$ mpirun --mca pml ucx -x UCX_IB_SL=N ...
+</geshi>
+
+The value of IB SL *N* should be between 0 and 15, where 0 is the
+default value.
+
+/////////////////////////////////////////////////////////////////////////
+
 $q[] = "What is RDMA over Converged Ethernet (RoCE)?";
 
 $anchor[] = "what-is-roce";
