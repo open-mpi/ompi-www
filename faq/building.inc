@@ -1739,28 +1739,17 @@ ignores [\$prefix] altogether.</li> </ol>";
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "I'm still having problems / my problem is not listed here.  What do I do?";
-
-$anchor[] = "other";
-
-$a[] = "Please see <a href=\"./?category=troubleshooting\">this FAQ
-category</a> for troubleshooting tips and the <a
-href=\"$topdir/community/help/\">Getting Help</a> page &mdash; it details
-how to send a request to the Open MPI mailing lists.";
-
-/////////////////////////////////////////////////////////////////////////
-
 $q[] = "How do I statically link to the libraries of Intel compiler suite?";
 
 $anchor[] = "statically-link-with-intel-libraries";
 
-$a[] = "The Intel compiler suite, by default, dynamically links its runtime libraries 
-against the Open MPI binaries and libraries. This can cause problems if the Intel 
-compiler libraries are installed in non-standard locations. For example, you might 
+$a[] = "The Intel compiler suite, by default, dynamically links its runtime libraries
+against the Open MPI binaries and libraries. This can cause problems if the Intel
+compiler libraries are installed in non-standard locations. For example, you might
 get errors like:
- 
+
 <geshi bash>
-error while loading shared libraries: libimf.so: cannot open shared object file: 
+error while loading shared libraries: libimf.so: cannot open shared object file:
 No such file or directory
 </geshi>
 
@@ -1773,3 +1762,242 @@ shell$ ./configure CC=icc CXX=icpc FC=ifort LDFLAGS=-Wc,-static-intel ...
 </geshi>";
 
 /////////////////////////////////////////////////////////////////////////
+
+$q[] = "Why do I get errors about hwloc or libevent not found?";
+
+$anchor[] = "libevent-or-hwloc-errors-when-linking-fortran";
+
+$a[] = "Sometimes you may see errors similar to the following when attempting to build Open MPI:
+
+<geshi text>
+...
+PPFC     profile/pwin_unlock_f08.lo
+PPFC     profile/pwin_unlock_all_f08.lo
+PPFC     profile/pwin_wait_f08.lo
+FCLD     libmpi_usempif08.la
+ld: library not found for -lhwloc
+collect2: error: ld returned 1 exit status
+make[2]: *** [libmpi_usempif08.la] Error 1
+</geshi>
+
+This error can happen when a number of factors occur together:
+
+<ol>
+<li> If Open MPI's [configure] script chooses to use an \"external\"
+installation of <a
+href=\"https://www.open-mpi.org/projects/hwloc/\">hwloc</a> and/or <a
+href=\"https://libevent.org/\">Libevent</a> (i.e., outside of Open
+MPI's source tree).</li>
+<li> If Open MPI's [configure] script chooses a C and Fortran
+compilers from different suites/installations.</li>
+</ol>
+
+Put simply: if the default search library search paths differ between
+the C and Fortran compiler suites, the C linker may find a
+system-installed [libhwloc] and/or [libevent], but the Fortran linker
+may not.
+
+This may tend to happen more frequently starting with Open MPI v4.0.0
+on Mac OS because:
+
+<ol>
+<li> In v4.0.0, Open MPI's [configure] script was changed to
+\"prefer\" system-installed versions of hwloc and Libevent
+(vs. preferring the hwloc and Libevent that are bundled in the Open
+MPI distribution tarballs).</li>
+<li> In MacOS, it is common for <a
+href=\"https://brew.sh/\">Homebrew</a> or <a
+href=\"https://www.macports.org/\">MacPorts</a> to install:
+    <ul>
+    <li>hwloc and/or Libevent</li>
+    <li>gcc and gfortran</li>
+    </ul>
+</ol>
+
+For example, as of July 2019, Homebrew:
+
+<ul>
+<li> Installs hwloc v2.0.4 under [/usr/local]</li>
+<li> Installs the Gnu C and Fortran compiler suites v9.0.1 under
+[/usr/local].  *However*, the C compiler executable is named [gcc-9]
+(not <code>gcc</code>!), whereas the Fortran compiler executable is
+named [gfortran].</li>
+</ul>
+
+These factors, taken together, result in Open MPI's [configure] script deciding the following:
+
+<ul>
+<li> The C compiler is [gcc] (which is the MacOS-installed C compiler).</li>
+<li> The Fortran compiler is [gfortran] (which is the
+Homebrew-installed Fortran compiler).</li>
+<li> There is a suitable system-installed hwloc in [/usr/local], which
+can be found -- by the C compiler/linker -- without specifying any
+additional linker search paths.</li>
+
+</ul>
+
+The careful reader will realize that the C and Fortran compilers are
+from two entirely different installations.  Indeed, their default
+library search paths are different:
+
+<ul>
+<li> The MacOS-installed [gcc] will search [/usr/local/lib] by default.</li>
+<li> The Homebrew-installed [gfortran] will _not_ search [/usr/local/lib] by default.</li>
+</ul>
+
+Hence, since the majority of Open MPI's source code base is in C, it
+compiles/links against hwloc successfully.  But when Open MPI's
+Fortran code for the [mpi_f08] module is compiled and linked, the
+Homebrew-installed [gfortran] -- which does not search
+[/usr/local/lib] by default -- cannot find [libhwloc], and the link
+fails.
+
+There are a few different possible solutions to this issue:
+
+<ol>
+<li> The best solution is to always ensure that Open MPI uses a C and
+Fortran compiler from the same suite/installation.  This will ensure
+that both compilers/linkers will use the same default library search
+paths, and all behavior should be consistent.  For example, the
+following instructs Open MPI's [configure] script to use [gcc-9] for
+the C compiler, which (as of July 2019) is the Homebrew executable
+name for its installed C compiler:
+<geshi bash>
+shell$ ./configure CC=gcc-9 ...
+
+# You can be precise and specify an absolute path for the C
+# compiler, and/or also specify the Fortran compiler:
+shell$ ./configure CC=/usr/local/bin/gcc-9 FC=/usr/local/bin/gfortran ...
+</geshi>
+Note that this will likely cause [configure] to _not_ find the
+Homebrew-installed hwloc, and instead fall back to using the bundled
+hwloc in the Open MPI source tree (see <a
+href=\"#internal-or-external-hwloc-and-libevent\">this FAQ
+question</a> for more information about the bundled hwloc and/or
+Libevent vs. system-installed versions).
+</li>
+
+<li> Alternatively, you can simply force [configure] to select the
+bundled versions of hwloc and libevent, which avoids the issue
+altogether:
+<geshi bash>
+shell$ ./configure --with-hwloc=internal --with-libevent=internal ...
+</geshi>
+</li>
+
+<li> Finally, you can tell [configure] exactly where to find the
+external hwloc library.  This can have some unintended consequences,
+however, because it will prefix both the C and Fortran linker's
+default search paths with [/usr/local/lib]:
+<geshi bash>
+shell$ ./configure --with-hwloc-libdir=/usr/local/lib ...
+</geshi>
+</li>
+</ol>
+
+Be sure to also see <a
+href=\"#internal-or-external-hwloc-and-libevent\">this FAQ
+question</a> for more information about using the bundled hwloc and/or
+Libevent vs. system-installed versions.";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "Should I use the bundled hwloc and Libevent, or system-installed versions?";
+
+$anchor[] = "internal-or-external-hwloc-and-libevent";
+
+$a[] = "From a performance perspective, there is no significant reason
+to choose the bundled vs. system-installed hwloc and Libevent
+installations.  Specifically: both will likely give the same
+performance.
+
+There are other reasons to choose one or the other, however.
+
+First, some background: Open MPI has internally used <a
+href=\"https://www.open-mpi.org/projects/hwloc/\">hwloc</a> and/or <a
+href=\"https://libevent.org/\">Libevent</a> for almost its entire
+life.  Years ago, it was not common for hwloc and/or Libevent to be
+available on many systems, so the Open MPI community decided to bundle
+entire copies of the hwloc and Libevent source code in Open MPI
+distribution tarballs.
+
+This system worked well: Open MPI used the bundled copies of hwloc and
+Libevent which a) guaranteed that those packages would be available
+(vs. telling users that they had to separately download/install those
+packages before installing Open MPI), and b) guaranteed that the
+versions of hwloc and Libevent were suitable for Open MPI's
+requirements.
+
+In the last few years, two things have changed:
+
+<ol>
+<li> hwloc and Libevent are now installed on many more systems by
+default.</li>
+<li> The hwloc and Libevent APIs have stabilized such that a wide
+variety of hwloc/Libevent release versions are suitable for Open MPI's
+requirements.</li>
+</ol>
+
+While not _all_ systems have hwloc and Libevent available by default
+(cough cough MacOS cough cough), it is now common enough that -- with
+the suggestion from Open MPI's downstream packagers -- starting with
+v4.0.0, Open MPI \"prefers\" system-installed hwloc and Libevent
+installations over its own bundled copies.
+
+Meaning: if [configure] finds a suitable system-installed hwloc and/or
+Libevent, [configure] will chose to use those installations instead of
+the bundled copies in the Open MPI source tree.
+
+That being said, there definitely are obscure technical corner cases
+and philosophical reasons to force the choice of one or the other.  As
+such, Open MPI provides [configure] command line options that can be
+used to specify exact behavior in searching for hwloc and/or Libevent:
+
+<ul>
+<li> [--with-hwloc=VALUE]: [VALUE] can be one of the following:
+    <ul>
+    <li> [internal]: use the bundled copy of hwloc from Open MPI's source tree.</li>
+    <li> [external]: use an external copy of hwloc (e.g., a
+    system-installed copy), but only use default compiler/linker
+    search paths to find it.</li>
+    <li> A directory: use an external copy of hwloc that can be found
+    at [dir/include] and [dir/lib] or [dir/lib64].</li>
+    </ul>
+    Note that Open MPI _requires_ hwloc -- it is invalid to specify
+    [--without-hwloc] or [--with-hwloc=no].  Similarly, it is
+    meaningless to specify [--with-hwloc] (with no value) or
+    [--with-hwloc=yes].
+</li>
+<li> [--with-hwloc-libdir=DIR]: When used with
+[--with-hwloc=external], default compiler search paths will be used to
+find hwloc's header files, but [DIR] will be used to specify the
+location of the hwloc libraries.  This can be necessary, for example,
+if both 32 and 64 bit versions of the hwloc libraries are available,
+and default linker search paths would find the \"wrong\" one.</li>
+</ul>
+
+[--with-libevent] and [--with-libevent-libdir] behave the same as the
+hwloc versions described above, but influence [configure]'s behavior
+with respect to Libevent, not hwloc.
+
+From Open MPI's perspective, it is always safe to use the bundled
+copies.  If there is ever a problem or conflict, you can specify
+[--with-hwloc=internal] and/or [--with-libevent=internal], and this
+will likely solve your problem.
+
+Additionally, note that Open MPI's [configure] will check some version
+and functionality aspects from system-installed hwloc / Libevent, and
+may still choose the bundled copies over system-installed copies
+(e.g., the system-installed version is too low, the system-installed
+version is not thread safe, ... etc.).";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "I'm still having problems / my problem is not listed here.  What do I do?";
+
+$anchor[] = "other";
+
+$a[] = "Please see <a href=\"./?category=troubleshooting\">this FAQ
+category</a> for troubleshooting tips and the <a
+href=\"$topdir/community/help/\">Getting Help</a> page &mdash; it details
+how to send a request to the Open MPI mailing lists.";
