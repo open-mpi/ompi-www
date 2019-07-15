@@ -1788,7 +1788,7 @@ installation of <a
 href=\"https://www.open-mpi.org/projects/hwloc/\">hwloc</a> and/or <a
 href=\"https://libevent.org/\">Libevent</a> (i.e., outside of Open
 MPI's source tree).</li>
-<li> If Open MPI's [configure] script chooses a C and Fortran
+<li> If Open MPI's [configure] script chooses C and Fortran
 compilers from different suites/installations.</li>
 </ol>
 
@@ -1818,7 +1818,7 @@ For example, as of July 2019, Homebrew:
 
 <ul>
 <li> Installs hwloc v2.0.4 under [/usr/local]</li>
-<li> Installs the Gnu C and Fortran compiler suites v9.0.1 under
+<li> Installs the Gnu C and Fortran compiler suites v9.1.0 under
 [/usr/local].  *However*, the C compiler executable is named [gcc-9]
 (not <code>gcc</code>!), whereas the Fortran compiler executable is
 named [gfortran].</li>
