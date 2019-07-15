@@ -2011,7 +2011,7 @@ shell$ mpirun --mca pml ucx -x UCX_IB_SL=N ...
 </geshi>
 
 The value of IB SL *N* should be between 0 and 15, where 0 is the
-default value.
+default value.";
 
 /////////////////////////////////////////////////////////////////////////
 
