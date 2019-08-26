@@ -195,7 +195,7 @@ Open MPI 1.3 supports all of MPI-2.1.
 
 Open MPI 1.8 supports all of MPI-3.
 
-Open MPI 2.0 supports all of MPI-3.1";
+Starting with v2.0, Open MPI supports all of MPI-3.1";
 
 /////////////////////////////////////////////////////////////////////////
 
