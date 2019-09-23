@@ -209,6 +209,7 @@ ported to it:<ul>
  <li><a href="https://www.ibm.com/us-en/marketplace/hpc-workload-management">IBM Platform LSF</a> workload management platform</li>
 </ul>
 <li>and even more!</li><ul>
+ <li>The <a href="https://github.com/tensorflow/tensorflow">TensorFlow</a> library for numerical computation using data flow graphs</li>
  <li><a href="https://pmix.github.io/pmix/">PMI-Exascale (PMIx)</a></li>
  <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a></li>
  <li>The interactive process viewer <a href="http://hisham.hm/htop/">htop</a> for Linux</a></li>
