@@ -41,7 +41,7 @@ print($blank_line);
 $versions = array("v2.0.4", "v2.0.3", "v2.0.2", "v2.0.1", "v2.0.0");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (new stable" . (!$first ? ", old" : "") . ")",
+    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
