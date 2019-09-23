@@ -36,6 +36,20 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 
 #########################################################
 
+$v = "v2.1.0rc1";
+# See if there's doc for this prerelease, display it.
+if (preg_match("/[a-z]/i", $v) &&
+    file_exists("$v") &&
+    file_exists("hwloc-$v-a4.pdf") &&
+    file_exists("hwloc-$v-letter.pdf")) {
+    print($blank_line);
+
+    print_docs("Pre-release $v (newest of the new, unstable)",
+               "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
+}
+
+#########################################################
+
 print($blank_line);
 
 $versions = array("v2.0.4", "v2.0.3", "v2.0.2", "v2.0.1", "v2.0.0");
