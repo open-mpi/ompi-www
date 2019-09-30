@@ -9,8 +9,8 @@ include_once("$topdir/includes/code.inc");
 ?>
 
 <div style="float: right; padding-left: 6px">
- <a href="devel09-pci.png">
-  <img src="devel09-pci.png" width="405px" alt="Sample hwloc output">
+ <a href="lstopo.png">
+  <img src="lstopo.png" width="405px" alt="Sample hwloc output">
 </a></div>
 
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
