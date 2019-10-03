@@ -11,6 +11,14 @@ $files = array();
 $descriptions = array();
 $sections = array();
 
+$files[] = "2XeonSPv2+msc.v2.1.png";
+$descriptions[] = "2x Xeon <em>CascadeLake</em> 6230 with DDR as a cache in front of NVDIMMs (from 2019, with hwloc v2.1)."
+."<br/>Processors are configured in <em>SubNUMA-Cluster</em> mode which shows 2 NUMA nodes per package."
+."<br/>Large sets of cores (10 here) are factorized:";
+$sections[] = 1;
+$files[] = "2XeonSPv2+2kmem.v2.1.png";
+$descriptions[] = "2x Xeon <em>CascadeLake</em> 6230 with NVDIMMs as separate NUMA nodes (from 2019, with hwloc v2.1).";
+$sections[] = 1;
 $files[] = "2XeonE5300.v1.11.png";
 $descriptions[] = "2x Xeon <em>Clovertown</em> E5345 (from 2007, with hwloc v1.11)";
 $sections[] = 1;
@@ -25,6 +33,9 @@ $files[] = "8Opteron8400.v1.11.png";
 $descriptions[] = "8x Opteron <em>Istanbul</em> 8439SE (from 2010, with hwloc v1.11)";
 $sections[] = 1;
 
+$files[] = "2XeonSPv2+dax+pmem.v2.1.png";
+$descriptions[] = "2x Xeon <em>CascadeLake</em> 6230 + 1x NVDIMM exposed as DAX + 1x NVDIMM exposed as a PMEM block device (from 2019, with hwloc v2.1)";
+$sections[] = 2;
 $files[] = "2XeonE5+1mic+1ib.v1.11.png";
 $descriptions[] = "2x Xeon <em>Sandy-Bridge-EP</em> E5-2680 + 1x Xeon Phi + 1x InfiniBand HCA (from 2013, with hwloc v1.11)";
 $sections[] = 2;
