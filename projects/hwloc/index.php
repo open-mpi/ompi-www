@@ -27,7 +27,7 @@ news("hwloc 2.1.0",
 //     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00123.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
-     "doc/v2.0.0/a00327.php");
+     "doc/v2.1.0/a00343.php");
 news("The Best of lstopo",
      "Best lstopo graphical outputs",
      "lstopo");
