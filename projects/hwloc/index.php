@@ -31,9 +31,6 @@ news("Upgrading to v2.0 API",
 news("The Best of lstopo",
      "Best lstopo graphical outputs",
      "lstopo");
-news("Network Locality (netloc)",
-     "New hwloc companion",
-     "http://blogs.cisco.com/performance/the-network-locality-project-netloc/");
 //news("hwloc tutorial material",
 //     "Slides and code available",
 //     "$topdir/projects/hwloc/tutorials");
