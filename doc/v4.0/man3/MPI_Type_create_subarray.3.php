@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Type_create_subarray(3) man page (version 4.0.1)";
-$meta_desc = "Open MPI v4.0.1 man page: MPI_TYPE_CREATE_SUBARRAY(3)";
+$title = "MPI_Type_create_subarray(3) man page (version 4.0.2)";
+$meta_desc = "Open MPI v4.0.2 man page: MPI_TYPE_CREATE_SUBARRAY(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

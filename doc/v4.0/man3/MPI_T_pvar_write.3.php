@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_T_pvar_write(3) man page (version 4.0.1)";
-$meta_desc = "Open MPI v4.0.1 man page: MPI_T_PVAR_WRITE(3)";
+$title = "MPI_T_pvar_write(3) man page (version 4.0.2)";
+$meta_desc = "Open MPI v4.0.2 man page: MPI_T_PVAR_WRITE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -43,7 +43,7 @@ variable handle. </dd>
 <h2><a name='sect4' href='#toc4'>Description</a></h2>
 MPI_T_pvar_write attempts to set the value of the performance
 variable identified by the handle specified in <i>handle</i> in the session specified
-in session<i>. The value to be written is specified in <i>buf</i></i>. The caller must
+in <i>session</i>. The value to be written is specified in <i>buf</i>. The caller must
 ensure that the buffer specified in <i>buf</i> is large enough to hold the entire
 value of the performance variable.
 <p>

@@ -90,21 +90,15 @@ information</a></h3>
 news("Open MPI v4.0.2 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00124.html");
+news("hwloc 2.1.0",
+     "Major release",
+     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00127.html");
 news("Open MPI v3.1.4 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00123.html");
 news("Open MPI v3.0.4 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00123.html");
-news("Open MPI v4.0.1 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00122.html");
-news("Open MPI v2.1.6 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00121.html");
-news("hwloc 2.1.0",
-     "Major release",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00127.html");
 ?>
 </td>
 </tr>

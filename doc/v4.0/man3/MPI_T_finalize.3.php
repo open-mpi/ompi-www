@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_T_finalize(3) man page (version 4.0.1)";
-$meta_desc = "Open MPI v4.0.1 man page: MPI_T_FINALIZE(3)";
+$title = "MPI_T_finalize(3) man page (version 4.0.2)";
+$meta_desc = "Open MPI v4.0.2 man page: MPI_T_FINALIZE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -23,7 +23,9 @@ include_once("$topdir/includes/header.inc");
 <br>
 <pre>#include &lt;mpi.h&gt;
 int MPI_T_finalize(void)
-DescriptionMPI_T_finalize() finalizes the MPI tool information interface
+</pre>
+<h2><a name='sect3' href='#toc3'>Description</a></h2>
+MPI_T_finalize() finalizes the MPI tool information interface
 and must be called the same number of times as <a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_thread</a>() by the
 end of execution. Calls to MPI tool functions are allowed at any point in
 execution as long as <a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_thread</a>() has been called at least once
@@ -31,11 +33,26 @@ and the number of calls to <a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_
 of calls to MPI_T_finalize(). If at any point in execution the number of
 calls to MPI_T_finalize() equals the number of calls to <a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_thread</a>()
 the MPI tool interface will no longer be available until another call to
-<a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_thread</a>().  NotesBefore the end of execution the number of calls
-to <a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_thread</a>() and MPI_T_finalize must be the same.  ErrorsMPI_T_finalize()
-will fail if: [MPI_T_ERR_NOT_INITIALIZED] The MPI Tools interface not initialized
- See Also
-<a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_thread</a>
+<a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_thread</a>().
+<p>
+<h2><a name='sect4' href='#toc4'>Notes</a></h2>
+Before the end of execution the number of calls
+to <a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_thread</a>() and MPI_T_finalize must be the same.
+<p>
+<h2><a name='sect5' href='#toc5'>Errors</a></h2>
+MPI_T_finalize()
+will fail if:
+<dl>
+
+<dt>[MPI_T_ERR_NOT_INITIALIZED] </dt>
+<dd>The MPI Tools interface not initialized
+
+<p> </dd>
+</dl>
+
+<h2><a name='sect6' href='#toc6'>See Also</a></h2>
+<br>
+<pre><a href="../man3/MPI_T_init_thread.3.php">MPI_T_init_thread</a>
 
 <p> <a href="../">&laquo; Return to documentation listing</a></p>
 <?php
