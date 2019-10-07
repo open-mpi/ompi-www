@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_T_pvar_session_free(3) man page (version 4.0.1)";
-$meta_desc = "Open MPI v4.0.1 man page: MPI_T_PVAR_SESSION_FREE(3)";
+$title = "MPI_T_pvar_session_free(3) man page (version 4.0.2)";
+$meta_desc = "Open MPI v4.0.2 man page: MPI_T_PVAR_SESSION_FREE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -23,15 +23,56 @@ performance variable session
 <pre>#include &lt;mpi.h&gt;
 int <a href="../man3/MPI_T_pvar_session_create.3.php">MPI_T_pvar_session_create</a>(MPI_T_pvar_session *session)
 int MPI_T_pvar_session_free(MPI_T_pvar_session *session)
-DescriptionMPI_T_pvar_session_create creates a session for accessing performance
-variables. The new session is returned in the session parameter.  MPI_T_pvar_session_free
+</pre>
+<h2><a name='sect3' href='#toc3'>Description</a></h2>
+<a href="../man3/MPI_T_pvar_session_create.3.php">MPI_T_pvar_session_create</a> creates a session for accessing performance
+variables. The new session is returned in the <i>session</i> parameter.
+<p> MPI_T_pvar_session_free
 releases a session allocated by <a href="../man3/MPI_T_pvar_session_create.3.php">MPI_T_pvar_session_create</a> and sets the
-session parameter to MPI_T_PVAR_SESSION_NULL.  ErrorsMPI_T_pvar_session_create()
-will fail if: [MPI_T_ERR_NOT_INITIALIZED] The MPI Tools interface not initialized
-[MPI_T_ERR_MEMORY] Out of memory [MPI_T_ERR_OUT_OF_SESSIONS] No more sessions
-available MPI_T_pvar_session_free() will fail if: [MPI_T_ERR_NOT_INITIALIZED]
-The MPI Tools interface not initialized [MPI_T_ERR_INVALID_SESSION] The
-session parameter is not a valid session   
+<i>session</i> parameter to MPI_T_PVAR_SESSION_NULL.
+<p>
+<h2><a name='sect4' href='#toc4'>Errors</a></h2>
+<a href="../man3/MPI_T_pvar_session_create.3.php">MPI_T_pvar_session_create</a>()
+will fail if:
+<dl>
+
+<dt>[MPI_T_ERR_NOT_INITIALIZED] </dt>
+<dd>The MPI Tools interface not initialized
+</dd>
+
+<dt>[MPI_T_ERR_MEMORY] </dt>
+<dd>Out of memory </dd>
+
+<dt>[MPI_T_ERR_OUT_OF_SESSIONS] </dt>
+<dd>No more sessions
+available </dd>
+
+<dt>MPI_T_pvar_session_free() will fail if: </dt>
+<dd></dd>
+
+<dt>[MPI_T_ERR_NOT_INITIALIZED]
+</dt>
+<dd>The MPI Tools interface not initialized </dd>
+
+<dt>[MPI_T_ERR_INVALID_SESSION] </dt>
+<dd>The
+
+<p>session parameter is not a valid session
+<p>  </dd>
+</dl>
+<p>
+
+<hr><p>
+<a name='toc'><b>Table of Contents</b></a><p>
+<ul>
+<li><a name='toc0' href='#sect0'>Name</a></li>
+<li><a name='toc1' href='#sect1'>Syntax</a></li>
+<li><a name='toc2' href='#sect2'>C Syntax</a></li>
+<li><a name='toc3' href='#sect3'>Description</a></li>
+<li><a name='toc4' href='#sect4'>Errors</a></li>
+</ul>
+
+
 <p> <a href="../">&laquo; Return to documentation listing</a></p>
 <?php
 include_once("$topdir/includes/footer.inc");

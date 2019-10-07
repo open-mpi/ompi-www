@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_T_pvar_handle_free(3) man page (version 4.0.1)";
-$meta_desc = "Open MPI v4.0.1 man page: MPI_T_PVAR_HANDLE_FREE(3)";
+$title = "MPI_T_pvar_handle_free(3) man page (version 4.0.2)";
+$meta_desc = "Open MPI v4.0.2 man page: MPI_T_PVAR_HANDLE_FREE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -21,22 +21,33 @@ MPI performance variable handles
 <h2><a name='sect2' href='#toc2'>C Syntax</a></h2>
 <br>
 <pre>#include &lt;mpi.h&gt;
-int <a href="../man3/MPI_T_pvar_handle_alloc.3.php">MPI_T_pvar_handle_alloc</a>(int pvar_index, void *obj_handle,
+int <a href="../man3/MPI_T_pvar_handle_alloc.3.php">MPI_T_pvar_handle_alloc</a>(int session, int pvar_index, void *obj_handle,
                             MPI_T_pvar_handle *handle, int *count)
-int MPI_T_pvar_handle_free(MPI_T_pvar_handle *handle)
+int MPI_T_pvar_handle_free(int session, MPI_T_pvar_handle *handle)
 DescriptionMPI_T_pvar_handle_alloc binds the performance variable specified
-in pvar_index to the MPI object specified in obj_handle. If <a href="../man3/MPI_T_pvar_get_info.3.php">MPI_T_pvar_get_info</a>
-returns MPI_T_BIND_NO_OBJECT as the binding for the variable the obj_handle
-argument is ignored. The number of values represented by this performance
-variable is returned in the count parameter.  MPI_T_pvar_handle_free frees
-a handle allocated by <a href="../man3/MPI_T_pvar_handle_alloc.3.php">MPI_T_pvar_handle_alloc</a> and sets the handle argument
-to MPI_T_PVAR_HANDLE_NULL.   ErrorsMPI_T_pvar_handle_alloc() will fail if:
-[MPI_T_ERR_NOT_INITIALIZED] The MPI Tools interface not initialized [MPI_T_ERR_INVALID_INDEX]
-The performance variable index is invalid [MPI_T_ERR_OUT_OF_HANDLES] No
-more handles available MPI_T_pvar_handle_free() will fail if: [MPI_T_ERR_NOT_INITIALIZED]
-The MPI Tools interface not initialized [MPI_T_ERR_INVALID_HANDLE] The
-handle is invalid   See Also
+in pvar_index to the MPI object specified in obj_handle in the session
+identified by the parameter session. The object is passed in the argument
+obj_handle as an address to a local variable that stores the object’s
+handle. If <a href="../man3/MPI_T_pvar_get_info.3.php">MPI_T_pvar_get_info</a> returns MPI_T_BIND_NO_OBJECT as the binding
+for the variable the obj_handle argument is ignored. The handle allocated
+to reference the variable is returned in the argument handle. Upon successful
+return, count contains the number of elements (of the datatype returned
+by a previous <a href="../man3/MPI_T_pvar_get_info.3.php">MPI_T_PVAR_GET_INFO</a> call) used to represent this variable.
+ The value of pvar_index should be in the range 0 to num_pvar - 1, where
+num_pvar is the number of available performance variables as determined
+from a prior call to <a href="../man3/MPI_T_pvar_get_num.3.php">MPI_T_PVAR_GET_NUM</a>. The type of the MPI object it references
+must be consistent with the type returned in the bind argument in a prior
+call to <a href="../man3/MPI_T_pvar_get_info.3.php">MPI_T_PVAR_GET_INFO</a>.  MPI_T_pvar_handle_free frees a handle allocated
+by <a href="../man3/MPI_T_pvar_handle_alloc.3.php">MPI_T_pvar_handle_alloc</a> and sets the handle argument to MPI_T_PVAR_HANDLE_NULL.
+  ErrorsMPI_T_pvar_handle_alloc() will fail if: [MPI_T_ERR_NOT_INITIALIZED]
+The MPI Tools interface not initialized [MPI_T_ERR_INVALID_INDEX] The performance
+variable index is invalid [MPI_T_ERR_OUT_OF_HANDLES] No more handles available
+MPI_T_pvar_handle_free() will fail if: [MPI_T_ERR_NOT_INITIALIZED] The
+MPI Tools interface not initialized [MPI_T_ERR_INVALID_HANDLE] The handle
+is invalid or the handle argument passed in is not associated with the
+session argument   See Also
 <a href="../man3/MPI_T_pvar_get_info.3.php">MPI_T_pvar_get_info</a>
+<a href="../man3/MPI_T_pvar_get_num.3.php">MPI_T_pvar_get_num</a>
 
 <p> <a href="../">&laquo; Return to documentation listing</a></p>
 <?php

@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "opal_crs(7) man page (version 4.0.1)";
-$meta_desc = "Open MPI v4.0.1 man page: opal_crs(7)";
+$title = "opal_crs(7) man page (version 4.0.2)";
+$meta_desc = "Open MPI v4.0.2 man page: opal_crs(7)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -16,7 +16,7 @@ include_once("$topdir/includes/header.inc");
 <p>
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
  OPAL_CRS - Open PAL MCA Checkpoint/Restart Service (CRS):
-Overview of Open PAL&rsquo;s CRS framework, and selected modules.  Open MPI 4.0.1.
+Overview of Open PAL&rsquo;s CRS framework, and selected modules.  Open MPI 4.0.2.
 
 <h2><a name='sect1' href='#toc1'>Description</a></h2>
  <p>
