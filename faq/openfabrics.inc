@@ -2392,7 +2392,7 @@ to true.
 </geshi>
 
 These messages are coming from the [openib] BTL.  As noted in the
-messages above, Open MPI deprecated the openib BTL (enabled when Open
+messages above, the openib BTL (enabled when Open
 MPI is configured [--with-verbs]) is deprecated in favor of the UCX
 PML, which includes support for OpenFabrics devices.  The [openib] BTL
 is therefore not needed.
