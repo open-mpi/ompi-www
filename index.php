@@ -88,7 +88,7 @@ information</a></h3>
 <?php
 news("SC'19 State of the Union BOF",
      "Submit questions ahead of time!",
-     "https://www.open-mpi.org/sc19/")
+     "https://www.open-mpi.org/sc19/");
 news("Open MPI v4.0.2 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00124.html");
