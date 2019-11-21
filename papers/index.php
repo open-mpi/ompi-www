@@ -67,6 +67,14 @@ href="https://doi.org/10.1007/978-3-540-75416-9_15">https://doi.org/10.1007/978-
 <p><B>Community Open MPI project slides, public presentations, and
 general architecture papers:</B><BR>
 
+<p><strong>2019</strong></p>
+<ul>
+<?php
+print_papers(array("sc-2019"
+                   ));
+?>
+</ul>
+
 <p><strong>2018</strong></p>
 <ul>
 <?php
