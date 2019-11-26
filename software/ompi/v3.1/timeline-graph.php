@@ -33,6 +33,7 @@ milestone("v3.1.1", "2018-06-29", $data, $vpos);
 milestone("v3.1.2", "2018-08-22", $data, $vpos);
 milestone("v3.1.3", "2018-10-29", $data, $vpos);
 milestone("v3.1.4", "2019-04-15", $data, $vpos);
+milestone("v3.1.5", "2019-11-15", $data, $vpos);
 
 
 // Party on

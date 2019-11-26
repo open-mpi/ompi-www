@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_File_get_atomicity(3) man page (version 3.0.4)";
-$meta_desc = "Open MPI v3.0.4 man page: MPI_FILE_GET_ATOMICITY(3)";
+$title = "MPI_File_get_atomicity(3) man page (version 3.0.5)";
+$meta_desc = "Open MPI v3.0.5 man page: MPI_FILE_GET_ATOMICITY(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
