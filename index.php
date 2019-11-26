@@ -91,10 +91,10 @@ news("SC'19 State of the Union BOF",
      "https://www.open-mpi.org/sc19/");
 news("Open MPI v3.1.5 released",
      "Bug fix release",
-     "https://www.open-mpi.org/software/ompi/v3.1/");
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00126.html");
 news("Open MPI v3.0.5 released",
      "Bug fix release",
-     "https://www.open-mpi.org/software/ompi/v3.0/");
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00126.html");
 news("Open MPI v4.0.2 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00124.html");
