@@ -90,7 +90,7 @@ if (preg_match("/[a-z]/i", $v) &&
 
 print($blank_line);
 
-$versions = array("v1.11.13", "v1.11.12", "v1.11.11", "v1.11.10");
+$versions = array("v1.11.13");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (ultrastable" . (!$first ? ", old" : "") . ")",
