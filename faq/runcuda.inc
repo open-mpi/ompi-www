@@ -260,7 +260,7 @@ The cost of registering the GPU memory with the Mellanox driver is
 expensive so it is best to reuse the same GPU buffer for
 communication.
 
-*NUMA Node Issues*
+<a name=\"mpi-cuda-numa-issues\"></a>*NUMA Node Issues*
 When running on a node that has multiple GPUs, you may want to select
 the GPU that is closest to the process you are running on.  One way to
 do this is to make use of the [hwloc] library.  Following is a code
@@ -388,6 +388,29 @@ int main(int argc, char *argv[])
 See <a href=\"?category=buildcuda\">this FAQ entry</a>
 for details on how to configure the CUDA support into the library.
 ";
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "How do I develop CUDA-aware Open MPI applications?";
+
+$anchor[] = "mpi-cuda-dev";
+
+$a[] = "Developing CUDA-aware applications is a complex topic, and beyond
+the scope of this document. CUDA-aware applications often have to take 
+machine-specific considerations into account, including the number of GPUs
+installed on each node and how the GPUs are connected to the CPUs and to each
+other. Often, when using a particular transport layer (such as OPA/PSM2)
+there will be run-time decisions to make about which CPU cores will be used
+with which GPUs.
+
+A good place to start is the <a href=\"https://docs.nvidia.com/cuda/\">nVidia
+CUDA Toolkit Documentation</a>, including the
+<a href=\"https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html\">Programming Guide</a>
+and the <a href=\"https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html\">Best Practices Guide</a>.
+For examples of how to write CUDA-aware MPI applications, the
+<a href=\"https://github.com/NVIDIA-developer-blog/code-samples/tree/master/posts/cuda-aware-mpi-example\">nVidia developers blog</a>
+offers examples and the <a href=\"http://mvapich.cse.ohio-state.edu/benchmarks/\">OSU
+Micro-Benchmarks</a> offer an excellent example of how to write CUDA-aware MPI
+applications.";
 /////////////////////////////////////////////////////////////////////////
 
 $q[] = "Which MPI APIs work with CUDA-aware?";
@@ -630,3 +653,33 @@ shown in this example:
 shell$ --mca mpool_rgpusm_rcache_empty_cache 1
 </geshi>
 ";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "What are some guidelines for using CUDA and Open MPI with Omni-Path?";
+
+$anchor[] = "mpi-cuda-dev-opa";
+
+$a[] = "When developing CUDA-aware Open MPI applications for OPA-based
+fabrics, the PSM2 transport is preferred and a CUDA-aware version of PSM2
+is provided with all versions of the Intel Omni-Path IFS software suite.
+
+The PSM2 library provides a number of settings that will govern how it
+will interact with CUDA, including <b>PSM2_CUDA</b> and <b>PSM2_GPUDIRECT</b>,
+which should be set in the environment before [MPI_Init()] is called. For
+example:
+
+<geshi bash>
+shell$ mpirun -x PSM2_CUDA=1 -x PSM2_GPUDIRECT=1 --mca mtl psm2 mpi_hello
+</geshi>
+
+In addition, each process of the application should select a specific GPU card to
+use before calling [MPI_Init()], by using [cudaChooseDevice()],
+[cudaSetDevice()] and similar. The chosen GPU should be within the same
+NUMA node as the CPU the MPI process is running on. You will also want to use
+the [mpirun] [--bind-to-core] or [--bind-to-socket] option to ensure that
+MPI processes do not move between NUMA nodes. (See the section on
+*NUMA Node Issues*, <a href=\"#mpi-cuda-numa-issues\">above</a>, for more information.)
+
+For more information see the <b>Intel Performance Scaled Messaging 2 (PSM2)
+Programmer's Guide</b> and the <b>Intel Omni-Path Performance Tuning Guide</b>, which can be found on the <a href=\"https://www.intel.com/omnipath/FabricSoftwarePublications\">Intel Omni-Path web site</a>.";
