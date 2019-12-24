@@ -26,7 +26,7 @@ main Open MPI repository where most active development is done.</li>
 <li>Clone either of these repositories.  For example (as of October
 2014), to clone the main development repository via HTTPS:
 
-<?php print_code("<strong>shell$</strong> git clone https://github.com/open-mpi/ompi.git
+<?php print_code("<strong>shell$</strong> git clone --recursive https://github.com/open-mpi/ompi.git
 Cloning into 'ompi'...
 remote: Counting objects: 256644, done.
 remote: Total 256644 (delta 0), reused 0 (delta 0)
