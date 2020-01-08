@@ -43,21 +43,18 @@ the latest progression in the 3.0.x series.
 in "bug fix only" mode.</font></strong>
 </li>
 
-<li><a href="v2.1/"><strong>v2.1 series
-</strong></a>.  This documentation reflects
-the latest progression in the 2.1.x series.  The emphasis of this
-tree is on bug fixes and stability, although it also introduces a few
-new features (compared to the v2.0 series). 
-<strong><font color=red>This code base is still supported, but is 
-in "bug fix only" mode.</font></strong>
-</li>
-
 </ul></p>
 
 <h2>Older series (retired, deprecated, or otherwise no longer in
 development)</h2>
 
 <p><ul>
+
+<li><a href="v2.1/"><strong>v2.1 series
+</strong></a> (prior stable release series).  This documentation reflects
+the latest progression in the 2.1.x series.  The emphasis of this
+tree is on bug fixes and stability, although it also introduced a few
+new features (compared to the v2.0 series).</li>
 
 <li><a href="v2.0/"><strong>v2.0 series
 </strong></a> (prior stable release series).  This documentation reflects
