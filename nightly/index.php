@@ -33,11 +33,6 @@ images from the stable v3.0.x series.  <strong><font color="red">This
 code base is still supported, but is in "bug fix only"
 mode.</font></strong></li>
 
-<li><a href="v2.x/"><strong>v2.1.x series</strong></a>: These are
-images from the stable v2.1.x series.  <strong><font color="red">This
-code base is still supported, but is in "bug fix only"
-mode.</font></strong></li>
-
 <p> <strong>Current development</strong>
 
 <li><a href="master/"><strong>Master</strong></a> (development head):
@@ -47,6 +42,10 @@ development code apply.</li>
 
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
+
+<li><a href="v2.x/"><strong>v2.1.x series</strong></a>: These are
+images from the stable v2.1.x series.  This tree is unlikely to be
+updated any more.</li>
 
 <li><a href="v2.0.x/"><strong>v2.0.x series</strong></a>: These are
 images from the stable v2.0.x series.  This tree is unlikely to be
