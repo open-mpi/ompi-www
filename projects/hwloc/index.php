@@ -28,6 +28,9 @@ news("hwloc 2.1.0",
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
      "doc/v2.1.0/a00343.php");
+news("XML topology database",
+     "Repository of XML topologies",
+     "https://hwloc.gitlabpages.inria.fr/xmls/");
 news("The Best of lstopo",
      "Best lstopo graphical outputs",
      "lstopo");
@@ -91,7 +94,17 @@ including Intel Xeon Phi.</li>
 <p>Additionally hwloc can detect the locality PCI devices as well as OpenCL,
 CUDA and Xeon Phi accelerators, network and InfiniBand interfaces,
 etc.
-See the <a href="lstopo">Best of lstopo</a> for more examples of supported platforms.</p>
+See the <a href="lstopo">Best of lstopo</a> for more examples of supported platforms.
+The topologies of many existing platforms are also available in the
+<a href="https://hwloc.gitlabpages.inria.fr/xmls/">XML topology database</a>
+for testing your software on architectures you don't have access to.
+</p>
+
+<p> hwloc may display the topology in multiple convenient formats (see
+<a href="doc/v<?php print($last_dir); ?>/a00328.php#cli_examples">v<?php
+print($last_ver); ?> examples</a> and the <a href="lstopo">Best of lstopo</a>).
+It also offers a powerful programming interface to gather information
+about the hardware, bind processes, and much more.</p>
 
 <p>Since it uses standard Operating System information, hwloc's support is
 almost always independent from the processor type (x86, powerpc, ia64, ...),
@@ -103,12 +116,6 @@ CPUID-based backend.</p>
 it and run <tt>lstopo</tt> or <tt>lstopo-no-graphics</tt>.
 If some things do not look right (e.g. bogus or
 missing cache information), see Questions and bugs below</p>
-
-<p> hwloc may display the topology in multiple convenient formats (see
-<a href="doc/v<?php print($last_dir); ?>/a00328.php#cli_examples">v<?php
-print($last_ver); ?> examples</a> and the <a href="lstopo">Best of lstopo</a>).
-It also offers a powerful programming interface to gather information
-about the hardware, bind processes, and much more.</p>
 
 <!------------------------------------------------------------------------->
 
