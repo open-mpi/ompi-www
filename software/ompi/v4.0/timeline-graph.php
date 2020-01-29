@@ -32,6 +32,8 @@ milestone("v4.0.0", "2018-11-12", $data, $vpos);
 milestone("v4.0.1", "2019-03-27", $data, $vpos);
 milestone("v4.0.2", "2019-10-7", $data, $vpos);
 milestone("v4.0.3rc1", "2020-01-17", $data, $vpos);
+// v4.0.3rc2 was tagged before updating the greek, so we skipped to rc3.
+milestone("v4.0.3rc3", "2020-01-29", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
