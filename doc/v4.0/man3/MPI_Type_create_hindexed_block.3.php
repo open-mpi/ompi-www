@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Type_create_hindexed_block(3) man page (version 4.0.2)";
-$meta_desc = "Open MPI v4.0.2 man page: MPI_TYPE_CREATE_HINDEXED_BLOCK(3)";
+$title = "MPI_Type_create_hindexed_block(3) man page (version 4.0.3)";
+$meta_desc = "Open MPI v4.0.3 man page: MPI_TYPE_CREATE_HINDEXED_BLOCK(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -25,7 +25,7 @@ include_once("$topdir/includes/header.inc");
 <pre>#include &lt;mpi.h&gt;
 int <a href="../man3/MPI_Type_create_indexed_block.3.php">MPI_Type_create_indexed_block</a>(int count, int blocklength, const int
 array_of_displacements[], MPI_Datatype oldtype, MPI_Datatype *newtype)
-int MPI_Type_create_hindexed_block(int count, int blocklength, const int
+int MPI_Type_create_hindexed_block(int count, int blocklength, const MPI_Aint
 array_of_displacements[], MPI_Datatype oldtype, MPI_Datatype *newtype)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
@@ -38,8 +38,9 @@ array_of_displacements[], MPI_Datatype oldtype, MPI_Datatype *newtype)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;        OLDTYPE, NEWTYPE, IERROR
 MPI_TYPE_CREATE_HINDEXED_BLOCK(COUNT, BLOCKLENGTH,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;ARRAY_OF_DISPLACEMENTS, OLDTYPE, NEWTYPE, IERROR)
-<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COUNT, BLOCKLENGTH, ARRAY_OF_DISPLACEMENTS(*),
-<tt> </tt>&nbsp;<tt> </tt>&nbsp;        OLDTYPE, NEWTYPE, IERROR
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COUNT, BLOCKLENGTH, OLDTYPE, NEWTYPE
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER(KIND=MPI_ADDRESS_KIND) ARRAY_OF_DISPLACEMENTS(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 USE mpi_f08 <a href="../man3/MPI_Type_create_indexed_block.3.php">MPI_Type_create_indexed_block</a>(<i>count</i>, <i>blocklength</i>,
