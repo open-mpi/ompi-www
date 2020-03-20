@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "intro_shmem(3) man page (version 3.1.5)";
-$meta_desc = "Open MPI v3.1.5 man page: intro_shmem(3)";
+$title = "intro_shmem(3) man page (version 3.1.6)";
+$meta_desc = "Open MPI v3.1.6 man page: intro_shmem(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
