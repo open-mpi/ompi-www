@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "ompi_crcp(7) man page (version 3.1.5)";
-$meta_desc = "Open MPI v3.1.5 man page: ompi_crcp(7)";
+$title = "ompi_crcp(7) man page (version 3.1.6)";
+$meta_desc = "Open MPI v3.1.6 man page: ompi_crcp(7)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -16,7 +16,7 @@ include_once("$topdir/includes/header.inc");
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
  OMPI_CRCP - Open MPI MCA Checkpoint/Restart Coordination Protocol
 (CRCP) Framework: Overview of Open MPI&rsquo;s CRCP framework, and selected modules.
- Open MPI 3.1.5
+ Open MPI 3.1.6
 <h2><a name='sect1' href='#toc1'>Description</a></h2>
  <p>
 The CRCP Framework is used by Open MPI for
