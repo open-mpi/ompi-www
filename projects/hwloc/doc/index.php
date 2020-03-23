@@ -88,20 +88,6 @@ foreach ($versions as $key => $v) {
 
 #########################################################
 
-$v = "v2.0.5rc1";
-# See if there's doc for this prerelease, display it.
-if (preg_match("/[a-z]/i", $v) &&
-    file_exists("$v") &&
-    file_exists("hwloc-$v-a4.pdf") &&
-    file_exists("hwloc-$v-letter.pdf")) {
-    print($blank_line);
-
-    print_docs("Pre-release $v (newest of the new, unstable)",
-               "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
-}
-
-#########################################################
-
 print($blank_line);
 
 $versions = array("v1.11.13");
