@@ -60,6 +60,12 @@ developers working on the internals of Open MPI itself</em>):
 <TD><?php print("<a href=\"ftp://ftp.gnu.org/non-gnu/flex/\">"); ?>ftp://ftp.gnu.org/non-gnu/flex/</A></TD>
 </TR>
 
+<TR>
+<TD>Pandoc</TD>
+<TD>Required for master and from Open MPI 5.0 on</TD>
+<TD><?php print("<a href=\"https://pandoc.org/\">"); ?>https://pandoc.org/</A></TD>
+</TR>
+
 </TABLE>
 </CENTER>
 
