@@ -27,46 +27,48 @@ developers working on the internals of Open MPI itself</em>):
 <TR>
 <TD>Git client</TD>
 <TD>Version 1.8.0 or above</TD>
-<TD><?php print("<a href=\"http://git-scm.org/\">"); ?>http://git-scm.org/</A></TD>
+<TD><?php print("<a href=\"https://git-scm.org/\">"); ?>https://git-scm.org/</A></TD>
 </TR>
 
 <TR>
 <TD>GNU m4</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/gnu/m4\">"); ?>ftp://ftp.gnu.org/gnu/m4/</A></TD>
+<TD><?php print("<a href=\"https://ftp.gnu.org/gnu/m4\">"); ?>https://ftp.gnu.org/gnu/m4/</A></TD>
 </TR>
 
 <TR>
 <TD>GNU autoconf</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/gnu/autoconf\">"); ?>ftp://ftp.gnu.org/gnu/autoconf/</A></TD>
+<TD><?php print("<a href=\"https://ftp.gnu.org/gnu/autoconf\">"); ?>https://ftp.gnu.org/gnu/autoconf/</A></TD>
 </TR>
 
 <TR>
 <TD>GNU automake</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/gnu/automake\">"); ?>ftp://ftp.gnu.org/gnu/automake/</A></TD>
+<TD><?php print("<a href=\"https://ftp.gnu.org/gnu/automake\">"); ?>https://ftp.gnu.org/gnu/automake/</A></TD>
 </TR>
 
 <TR>
 <TD>GNU libtool</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/gnu/libtool/\">"); ?>ftp://ftp.gnu.org/gnu/libtool/</A></TD>
+<TD><?php print("<a href=\"https://ftp.gnu.org/gnu/libtool/\">"); ?>https://ftp.gnu.org/gnu/libtool/</A></TD>
 </TR>
 
 <TR>
 <TD>Flex</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/non-gnu/flex/\">"); ?>ftp://ftp.gnu.org/non-gnu/flex/</A></TD>
+<TD><?php print("<a href=\"https://github.com/westes/flex/\">"); ?>https://github.com/westes/flex/</A></TD>
 </TR>
 
 <TR>
 <TD>Pandoc</TD>
-<TD>Version &gt;=v1.12 required for master / from Open MPI &gt;=5.0</TD>
-<TD>Pandoc &gt;=v1.12 is available in modern Linux distros, and MacOS
-via Homebrew/Mac Ports.  If your Linux distro does not have Pandoc
-&gt;=v1.12, you can download a static Pandoc Linux binary from <a
-href="https://github.com/jgm/pandoc/releases">https://github.com/jgm/pandoc/releases</a>.
+
+<TD>Version &gt;=v1.12 required for master / from Open MPI &gt;=5.0,
+and is available in modern Linux distros, and MacOS via Homebrew /
+MacPorts.</TD>
+
+<TD>Static 64-bit Pandoc Linux binary available from <a
+href="https://github.com/jgm/pandoc/releases">https://github.com/jgm/pandoc/releases</a>.<br />
 Also see <a href="https://pandoc.org/">https://pandoc.org/</a>.</TD>
 </TR>
 
@@ -106,40 +108,41 @@ problems, upgrade to at least the versions listed below.</p>
 <TH>Automake Versions</TH>
 <TH>Libtool Versions</TH>
 <TH>Flex Versions</TH>
+<TH>Pandoc Versions</TH>
 </TR>
 
 <?php
 
-function row($str, $m4, $ac, $am, $lt, $flex) {
-    print("<TR>\n<TD>$str</TD><TD>$m4</TD><TD>$ac</TD><TD>$am</TD><TD>$lt</TD><TD>$flex</TD>\n</TR>\n\n");
+function row($str, $m4, $ac, $am, $lt, $flex, $pandoc) {
+    print("<TR>\n<TD>$str</TD><TD>$m4</TD><TD>$ac</TD><TD>$am</TD><TD>$lt</TD><TD>$flex</TD><TD>$pandoc</TD>\n</TR>\n\n");
 }
 
-row("v1.0", "NA", "2.58 - 2.59", "1.7 - 1.9.6", "1.5.16 - 1.5.22", "2.5.4");
+row("v1.0", "NA", "2.58 - 2.59", "1.7 - 1.9.6", "1.5.16 - 1.5.22", "2.5.4", "NA");
 
-row("v1.1", "NA", "2.59", "1.9.6", "1.5.16 - 1.5.22", "2.5.4");
+row("v1.1", "NA", "2.59", "1.9.6", "1.5.16 - 1.5.22", "2.5.4", "NA");
 
-row("v1.2", "NA", "2.59", "1.9.6", "1.5.22 - 2.1a", "2.5.4");
+row("v1.2", "NA", "2.59", "1.9.6", "1.5.22 - 2.1a", "2.5.4", "NA");
 
-row("v1.3", "1.4.11", "2.63", "1.10.1", "2.2.6b", "2.5.4");
+row("v1.3", "1.4.11", "2.63", "1.10.1", "2.2.6b", "2.5.4", "NA");
 
-row("v1.4", "1.4.11", "2.63", "1.10.3", "2.2.6b", "2.5.4");
+row("v1.4", "1.4.11", "2.63", "1.10.3", "2.2.6b", "2.5.4", "NA");
 
-row("v1.5 thru 1.5.4", "1.4.13", "2.65", "1.11.1", "2.2.6b", "2.5.4");
+row("v1.5 thru 1.5.4", "1.4.13", "2.65", "1.11.1", "2.2.6b", "2.5.4", "NA");
 
-row("v1.5.5 and up", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35");
+row("v1.5.5 and up", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35", "NA");
 
-row("v1.6", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35");
+row("v1.6", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35", "NA");
 
-row("v1.7",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35");
-row("v1.8",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35");
-row("v1.10.x", "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35");
+row("v1.7",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35", "NA");
+row("v1.8",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35", "NA");
+row("v1.10.x", "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35", "NA");
 
-row("v2.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
-row("v2.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
-row("v3.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
-row("v3.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
-row("v4.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
-row("master", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
+row("v2.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
+row("v2.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
+row("v3.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
+row("v3.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
+row("v4.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
+row("master", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "1.12");
 
 ?>
 
