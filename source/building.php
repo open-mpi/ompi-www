@@ -62,7 +62,7 @@ developers working on the internals of Open MPI itself</em>):
 
 <TR>
 <TD>Pandoc</TD>
-<TD>Version >=v1.12 required for master / from Open MPI 5.0 on.</TD>
+<TD>Version &gt;=v1.12 required for master / from Open MPI &gt;=5.0</TD>
 <TD>Pandoc &gt;=v1.12 is available in modern Linux distros, and MacOS
 via Homebrew/Mac Ports.  If your Linux distro does not have Pandoc
 &gt;=v1.12, you can download a static Pandoc Linux binary from <a
