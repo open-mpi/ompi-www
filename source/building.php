@@ -27,37 +27,37 @@ developers working on the internals of Open MPI itself</em>):
 <TR>
 <TD>Git client</TD>
 <TD>Version 1.8.0 or above</TD>
-<TD><?php print("<a href=\"http://git-scm.org/\">"); ?>http://git-scm.org/</A></TD>
+<TD><?php print("<a href=\"https://git-scm.org/\">"); ?>https://git-scm.org/</A></TD>
 </TR>
 
 <TR>
 <TD>GNU m4</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/gnu/m4\">"); ?>ftp://ftp.gnu.org/gnu/m4/</A></TD>
+<TD><?php print("<a href=\"https://ftp.gnu.org/gnu/m4\">"); ?>https://ftp.gnu.org/gnu/m4/</A></TD>
 </TR>
 
 <TR>
 <TD>GNU autoconf</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/gnu/autoconf\">"); ?>ftp://ftp.gnu.org/gnu/autoconf/</A></TD>
+<TD><?php print("<a href=\"https://ftp.gnu.org/gnu/autoconf\">"); ?>https://ftp.gnu.org/gnu/autoconf/</A></TD>
 </TR>
 
 <TR>
 <TD>GNU automake</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/gnu/automake\">"); ?>ftp://ftp.gnu.org/gnu/automake/</A></TD>
+<TD><?php print("<a href=\"https://ftp.gnu.org/gnu/automake\">"); ?>https://ftp.gnu.org/gnu/automake/</A></TD>
 </TR>
 
 <TR>
 <TD>GNU libtool</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/gnu/libtool/\">"); ?>ftp://ftp.gnu.org/gnu/libtool/</A></TD>
+<TD><?php print("<a href=\"https://ftp.gnu.org/gnu/libtool/\">"); ?>https://ftp.gnu.org/gnu/libtool/</A></TD>
 </TR>
 
 <TR>
 <TD>Flex</TD>
 <TD>See version chart below</TD>
-<TD><?php print("<a href=\"ftp://ftp.gnu.org/non-gnu/flex/\">"); ?>ftp://ftp.gnu.org/non-gnu/flex/</A></TD>
+<TD><?php print("<a href=\"https://github.com/westes/flex/\">"); ?>https://github.com/westes/flex/</A></TD>
 </TR>
 
 <TR>
