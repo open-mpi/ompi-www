@@ -35,6 +35,10 @@ mode.</font></strong></li>
 
 <p> <strong>Current development</strong>
 
+<li><a href="v4.1.x/"><strong>v4.1.x series</strong></a>: These are
+images from the upcoming v4.1.x series.  While more stable than
+master, the 4.1 branch has not yet had an official release.</li>
+
 <li><a href="master/"><strong>Master</strong></a> (development head):
 These snapshots are from the Git master and reflect the current
 head of development.  The usual disclaimers about the state of
