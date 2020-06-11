@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Win_call_errhandler(3) man page (version 4.0.3)";
-$meta_desc = "Open MPI v4.0.3 man page: MPI_WIN_CALL_ERRHANDLER(3)";
+$title = "MPI_Win_call_errhandler(3) man page (version 4.0.4)";
+$meta_desc = "Open MPI v4.0.4 man page: MPI_WIN_CALL_ERRHANDLER(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
