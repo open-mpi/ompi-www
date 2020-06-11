@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Type_create_indexed_block(3) man page (version 4.0.3)";
-$meta_desc = "Open MPI v4.0.3 man page: MPI_TYPE_CREATE_INDEXED_BLOCK(3)";
+$title = "MPI_Type_create_indexed_block(3) man page (version 4.0.4)";
+$meta_desc = "Open MPI v4.0.4 man page: MPI_TYPE_CREATE_INDEXED_BLOCK(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
