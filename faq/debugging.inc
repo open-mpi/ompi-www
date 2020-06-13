@@ -223,8 +223,8 @@ or whatever process is misbehaving).
 
 </li>
 
-<li> <strong>Use <code>mpirun</code> to launch <code>xterm</code>s
-(or equivalent) with serial debuggers.</strong>
+<li> <strong>Use <code>mpirun</code> to launch separate instances
+of serial debuggers.</strong>
 
 This technique launches a separate window for each MPI process in
 MPI_COMM_WORLD, each one running a serial debugger (such as [gdb])
@@ -239,8 +239,13 @@ shell$ mpirun -np 4 xterm -e gdb my_mpi_application
 </geshi>
 
 If running on a personal computer, this will probably work.
-Unfortunately, it likely _won't_ work on an computing cluster.
-Several factors must be considered:
+You can also use " . aurchin_click("https://github.com/Azrael3000/tmpi") .
+"<code>tmpi</code></a> to launch the debuggers in separate [tmux]
+panes instead of separate [xterm] windows, which has the advantage of
+synchronizing keyboard input between all debugger instances.
+
+Unfortunately, the [tmpi] or [xterm] approaches likely _won't_ work
+on an computing cluster. Several factors must be considered:
 
 <ol>
 
