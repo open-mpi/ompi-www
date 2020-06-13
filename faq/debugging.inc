@@ -223,8 +223,8 @@ or whatever process is misbehaving).
 
 </li>
 
-<li> *Use [mpirun] to launch <code>xterm</code>s (or equivalent) with
-serial debuggers.*
+<li> <strong>Use <code>mpirun</code> to launch <code>xterm</code>s
+(or equivalent) with serial debuggers.</strong>
 
 This technique launches a separate window for each MPI process in
 MPI_COMM_WORLD, each one running a serial debugger (such as [gdb])
