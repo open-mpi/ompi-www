@@ -238,8 +238,9 @@ assume that the following would immediately work:
 shell$ mpirun -np 4 xterm -e gdb my_mpi_application
 </geshi>
 
-Unfortunately, it likely _won't_ work.  Several factors must be
-considered:
+If running on a personal computer, this will probably work.
+Unfortunately, it likely _won't_ work on an computing cluster.
+Several factors must be considered:
 
 <ol>
 
