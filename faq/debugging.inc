@@ -239,8 +239,8 @@ shell$ mpirun -np 4 xterm -e gdb my_mpi_application
 </geshi>
 
 If running on a personal computer, this will probably work.
-You can also use " . aurchin_click("https://github.com/Azrael3000/tmpi") .
-"<code>tmpi</code></a> to launch the debuggers in separate [tmux]
+You can also use <a href=\"https://github.com/Azrael3000/tmpi\">
+<code>tmpi</code></a> to launch the debuggers in separate [tmux]
 panes instead of separate [xterm] windows, which has the advantage of
 synchronizing keyboard input between all debugger instances.
 
