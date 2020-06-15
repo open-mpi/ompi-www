@@ -49,7 +49,13 @@ Use the normal "GitHub flow" to make a pull request:
 
 We're not *as* picky about code on our web site as we are with code in the main Open MPI code repository, but having good, easy-to-read and easy-to-review commits is definitely helpful.
 
-Testing your commits before making the pull request is strongly suggested.  You should be able to test most functionality on the web site with any modern PHP-enabled web server.
+Testing your commits before making the pull request is strongly suggested.  You should be able to test most functionality on the web site with any modern PHP-enabled web server. This should be as easy as:
+```bash
+cd /path/to/ompi-www
+php -S localhost:8000
+# point your browser to http://localhost:8000/
+# check your changes
+```
 
 Before submitting, please read the [Contributing to the Open MPI Project FAQ](https://www.open-mpi.org/faq/?category=contributing) web page, and the [SubmittingPullRequests](https://github.com/open-mpi/ompi/wiki/SubmittingPullRequests) wiki page.  In particular, note that all Git commits contributed to Open MPI require a "Signed-off-by" line.
 
