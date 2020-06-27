@@ -33,7 +33,7 @@ $anchor[] = "ib-components";
 
 $a[] = "Current versions of Open MPI support the UCX and verbs APIs
 for the ${ofa}OpenFabrics Alliance</a> (OFA) software stack.  The
-OpenFabrics software stack supports both InfiniBand and iWARP
+OpenFabrics software stack supports both InfiniBand and Ethernet RoCE
 networks.  Open MPI's support of the OpenFabrics stack is provided
 through multiple different components; see the table below.
 
@@ -106,10 +106,38 @@ $anchor[] = "iwarp-support";
 $a[] = "iWARP is fully supported via the [openib] BTL as of the Open
 MPI v1.3 release.
 
-As of Open MPI v4.0.0, iWARP is also supported via the [ucx] PML, but
-iWARP devices still default to using the [openib] BTL.  <a
-href=\"#run-ucx\">Users can force the use of the [ucx] PML</a> with
-iWARP devices, if desired.";
+Note that the [openib] BTL is scheduled to be removed from Open MPI
+starting with v5.0.0.  After the [openib] BTL is removed, support for
+iWARP is murky, at best.  As of June 2020 (in the v4.x series), there
+are two alternate mechanisms for iWARP support which will likely
+continue into the v5.x series:
+
+<ol>
+<li> The [cm] PML with the [ofi] MTL.  This mechanism is actually
+designed for networks that natively support \"MPI-style matching\",
+which iWARP does not support.  Hence, Libfabric adds in a layer of
+software emulation to provide this functionality.  This slightly
+decreases Open MPI's performance on iWARP networks.  That being said,
+it seems to work correctly.</li>
+
+<li> The [ofi] BTL.  A new/prototype BTL named [ofi] is being
+developed (and can be used in place of the [openib] BTL); it uses
+Libfabric to directly access the native iWARP device functionality --
+without the software emulation performance penality from using the
+\"MPI-style matching\" of the [cm] PML + [ofi] MTL combination.
+However, the [ofi] BTL is neither widely tested nor fully developed.
+As of June 2020, it did not work with iWARP, but may be updated in the
+future.</li> </ol>
+
+This state of affairs reflects that the iWARP vendor community is not
+involved with Open MPI; we therefore have no one who is actively
+developing, testing, or supporting iWARP users in Open MPI.  If anyone
+is interested in helping with this situation, please let the Open MPI
+developer community know.
+
+*NOTE:* A prior version of this FAQ entry stated that iWARP support
+was available through the [ucx] PML.  That was incorrect.  As of UCX
+v1.8, iWARP is not supported.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -119,8 +147,14 @@ $anchor[] = "roce-support";
 
 $a[] = "RoCE is fully supported as of the Open MPI v1.4.4 release.
 
-For more details on how to run Open MPI over RoCE, see <a
-href=\"#ompi-over-roce\">this FAQ entry</a>.";
+As of Open MPI v4.0.0, the UCX PML is the preferred mechanism for
+running over RoCE-based networks.  See <a
+href=\"#ompi-over-roce-ucx-pml\">this FAQ entry</a> for details.
+
+The [openib] BTL is also available for use with RoCE-based networks
+through the v4.x series; see <a href=\"#ompi-over-roce\">this FAQ
+entry</a> for information how to use it.  Note, however, that the
+[openib] BTL is scheduled to be removed from Open MPI in v5.0.0.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -929,8 +963,9 @@ $q[] = "How do I get Open MPI working on Chelsio iWARP devices? (openib BTL)";
 
 $anchor[] = "iwarp-chelsio-enablement";
 
-$a[] = "iWARP support is only available in Open MPI v1.3 or
-greater.
+$a[] = "Please see <a href=\"#iwarp-support\">this FAQ entry</a> for
+an important note about iWARP support (particularly for Open MPI
+versions starting with v5.0.0).
 
 For the Chelsio T3 adapter, you must have at least OFED v1.3.1 and
 Chelsio firmware v6.0.  Download the firmware from "
