@@ -27,24 +27,16 @@ function ofarow($ver, $support) {
 
 $th = '<th style="border-bottom:1px solid black; padding:5px">';
 
-$q[] = "What OpenFabrics-based components does Open MPI have?";
+$q[] = "What Open MPI components support InfiniBand / RoCE / iWARP?";
 
 $anchor[] = "ib-components";
 
-$a[] = "Current versions of Open MPI support the UCX and verbs APIs
-for the ${ofa}OpenFabrics Alliance</a> (OFA) software stack.  The
-OpenFabrics software stack supports both InfiniBand and Ethernet RoCE
-networks.  Open MPI's support of the OpenFabrics stack is provided
-through multiple different components; see the table below.
+$a[] = "In order to meet the needs of an ever-changing networking
+hardware and software ecosystem, Open MPI's support of InfiniBand,
+RoCE, and iWARP has evolved over time.
 
-Note that the OpenFabrics Alliance used to be known as the OpenIB
-project.  Hence, Open MPI's initial InfiniBand support was in a module
-named [openib].
-
-Older versions of Open MPI supported the uDAPL and Mellanox VAPI
-(mVAPI) APIs through the v1.2 series.  See <a
-href=\"#vapi-support\">this FAQ entry</a> for more details on VAPI
-support.
+Here is a summary of components in Open MPI that support InfiniBand,
+RoCE, and/or iWARP, ordered by Open MPI release series:
 
 <div align=\"center\">
 <table style=\"border:0px; padding:15px\">
@@ -60,10 +52,28 @@ $th OpenFabrics support </th>
 ". ofarow("v1.7 / v1.8 series", " [openib] BTL, [mxm] MTL, [fca] and [ml] and [hcoll] coll") . "
 ". ofarow("v2.x series", " [openib] BTL, [yalla] (MXM) PML, [ml] and [hcoll] coll") . "
 ". ofarow("v3.x series", " [openib] BTL, [ucx] and [yalla] (MXM) PML, [hcoll] coll") . "
-". ofarow("v4.x series", " [openib] BTL, [ucx] PML, [hcoll] coll") . "
+". ofarow("v4.x series", " [openib] BTL, [ucx] PML, [hcoll] coll, [ofi] MTL") . "
 </table>
 </div>
-";
+
+History / notes:
+
+<ul>
+<li> The [openib] BTL uses the ${ofa}OpenFabrics Alliance's</a> (OFA) verbs
+API stack to support InfiniBand, RoCE, and iWARP devices.  The OFA's
+original name was \"OpenIB\", which is why the BTL is named
+[openib].</li>
+<li> Before the verbs API was effectively standardized in the OFA's
+verbs stack, Open MPI supported Mellanox VAPI in the [mvapi] module.
+The MVAPI API stack has long-since been discarded, and is no longer
+supported after Open MPI the v1.2 series.</li>
+<li> The next-generation, higher-abstraction API for support
+InfiniBand and RoCE devices is named UCX.  As of Open MPI v1.4, the
+[ucx] PML is the preferred mechanism for utilizing InfiniBand and RoCE
+devices.  As of UCX v1.8, iWARP is not supported.  See <a
+href=\"#iwarp-support\">this FAQ entry</a> for more information about
+iWARP.</li>
+</ul>";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -84,7 +94,8 @@ The following are exceptions to this general rule:
      defaulted to MXM-based components (e.g., [mxm] and/or [yalla]).</li>
 <li> In the v4.0.x series, Mellanox InfiniBand devices default to the
      [ucx] PML.  The use of InfiniBand over the [openib] BTL is
-     officially deprecated in the v4.0.x series.</li>
+     officially deprecated in the v4.0.x series, and is scheduled to
+     be removed in Open MPI v5.0.0.</li>
 </ul>
 
 That being said, it is generally possible for any OpenFabrics device
