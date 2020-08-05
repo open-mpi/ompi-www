@@ -47,8 +47,27 @@ $extras[$a][] = "easybuild_tech_talks_01_OpenMPI_part2_20200708.pdf";
 $youtubes[$a] = "C4XfxUoSYQs";
 
 $summaries[$a] = "In conjunction with the EasyBuild community, Ralph
-Castain and Jeff Squyres gave an online seminar about Open MPI in June
+Castain and Jeff Squyres gave an online seminar about Open MPI in July
 of 2020.  The general scope of the presentation was to demystify the
 alphabet soup of the Open MPI ecosystem: the user-facing frameworks
 and components, the 3rd party dependencies, etc.  This video is part 2
 of that seminar.";
+
+##########################################################################
+
+$titles[] = "The ABCs of Open MPI: Decoding the Alphabet Soup of the Modern HPC Ecosystem (Part 3)";
+
+$a = "abcs-of-open-mpi-part-3";
+$anchors[] = $a;
+
+$durations[$a] = "1:32:23";
+
+$extras[$a][] = "easybuild_tech_talks_01_OpenMPI_part3_20200805.pdf";
+$youtubes[$a] = "U_xC6L1f3B8";
+
+$summaries[$a] = "In conjunction with the EasyBuild community, Ralph
+Castain and Jeff Squyres gave an online seminar about Open MPI in
+August of 2020.  The general scope of the presentation was to
+demystify the alphabet soup of the Open MPI ecosystem: the user-facing
+frameworks and components, the 3rd party dependencies, etc.  This
+video is part 3 of that seminar.";
