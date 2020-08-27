@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Bsend_init(3) man page (version 4.0.4)";
-$meta_desc = "Open MPI v4.0.4 man page: MPI_BSEND_INIT(3)";
+$title = "MPI_Bsend_init(3) man page (version 4.0.5)";
+$meta_desc = "Open MPI v4.0.5 man page: MPI_BSEND_INIT(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

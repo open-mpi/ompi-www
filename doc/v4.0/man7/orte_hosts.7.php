@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "orte_hosts(7) man page (version 4.0.4)";
-$meta_desc = "Open MPI v4.0.4 man page: orte_hosts(7)";
+$title = "orte_hosts(7) man page (version 4.0.5)";
+$meta_desc = "Open MPI v4.0.5 man page: orte_hosts(7)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
