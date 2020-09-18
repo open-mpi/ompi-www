@@ -90,10 +90,10 @@ if (preg_match("/[a-z]/i", $v) &&
 
 print($blank_line);
 
-$versions = array("v2.0.4", "v2.0.3", "v2.0.2", "v2.0.1", "v2.0.0");
+$versions = array("v2.0.4");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (stable, old)",
+    print_docs("Release $v (old)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
