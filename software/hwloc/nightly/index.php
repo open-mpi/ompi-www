@@ -9,27 +9,19 @@ The following versions are available as nightly snapshots:
 
 <ul>
 
-<li> <strong>v2.2 branch &mdash; New beta release series:</strong>
+<li> <strong>v2.3 branch &mdash; New beta release series:</strong>
+<p>
+ <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.3/lastSuccessfulBuild/">Latest snapshot</a>
+ &mdash;
+ <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.3/">All snapshots</a>
+</p>
+</li>
+
+<li> <strong>v2.2 branch &mdash; Stable release series:</strong> <strong>This is the recommended series for all users to download and use.</strong>
 <p>
  <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.2/lastSuccessfulBuild/">Latest snapshot</a>
  &mdash;
  <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.2/">All snapshots</a>
-</p>
-</li>
-
-<li> <strong>v2.1 branch &mdash; Stable release series:</strong> <strong>This is the recommended series for all users to download and use.</strong>
-<p>
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.1/lastSuccessfulBuild/">Latest snapshot</a>
- &mdash;
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.1/">All snapshots</a>
-</p>
-</li>
-
-<li> <strong>v2.0 branch &mdash; Former stable release series:</strong>
-<p>
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.0/lastSuccessfulBuild/">Latest snapshot</a>
- &mdash;
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.0/">All snapshots</a>
 </p>
 </li>
 
