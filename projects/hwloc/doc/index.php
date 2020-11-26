@@ -36,7 +36,7 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 
 #########################################################
 
-$v = "v2.4.0rc1";
+$v = "v2.4.0rc2";
 # See if there's doc for this prerelease, display it.
 if (preg_match("/[a-z]/i", $v) &&
     file_exists("$v") &&
