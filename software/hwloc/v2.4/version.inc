@@ -15,4 +15,4 @@ $releases = array();
 /* prereleases must be ordered newest to oldest.  All prereleases
    will be shown, so make an empty array when the official release
    is added to releases above */
-$prereleases = array("2.4.0rc1");
+$prereleases = array("2.4.0rc2");

@@ -38,7 +38,11 @@ $(function() {
 Distances</h1>
 <p>A machine with 4 CPUs may have identical links between every pairs of CPUs, or those CPUs could also only be connected through a ring. In the ring case, accessing the memory of nearby CPUs is slower than local memory, but it is also faster than accessing the memory of CPU on the opposite side of the ring. These deep details cannot be exposed in the hwloc hierarchy, that is why hwloc also exposes distances.</p>
 <p>Distances are matrices of values between sets of objects, usually latencies or bandwidths. By default, hwloc tries to get a matrix of relative latencies between NUMA nodes when exposed by the hardware.</p>
-<p>In the aforementioned ring case, the matrix could report 10 for latency between a NUMA node and itself, 20 for nearby nodes, and 30 for nodes that are opposites on the ring. Those are theoretical values exposed by hardware vendors (in the System Locality Distance Information Table (SLIT) in the ACPI) rather than physical latencies.</p>
+<p>In the aforementioned ring case, the matrix could report 10 for latency between a NUMA node and itself, 20 for nearby nodes, and 30 for nodes that are opposites on the ring. Those are theoretical values exposed by hardware vendors (in the System Locality Distance Information Table (SLIT) in the ACPI) rather than physical latencies. They are mostly meant for comparing node relative distances.</p>
+<p>Distances structures currently created by hwloc are: </p><dl>
+<dt>NUMALatency (Linux, Solaris, FreeBSD) </dt>
+<dd>This is the matrix of theoretical latencies described above.  </dd>
+</dl>
 <p>Users may also specify their own matrices between any set of objects, even if these objects are of different types (e.g. bandwidths between GPUs and CPUs).</p>
 <p>The entire API is located in <a class="el" href="a00101_source.php" title="Object distances.">hwloc/distances.h</a>. See also <a class="el" href="a00178.php">Retrieve distances between objects</a>, as well as <a class="el" href="a00179.php">Helpers for consulting distance matrices</a> and <a class="el" href="a00180.php">Add or remove distances between objects</a>.</p>
 <p> 

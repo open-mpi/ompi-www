@@ -252,7 +252,8 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Retrieve a distance matrix with the given name. </p>
-<p>Usually only one distances structure may match a given name. </p>
+<p>Usually only one distances structure may match a given name.</p>
+<p>The name of the most common structure is "NUMALatency". </p>
 
 </div>
 </div>
