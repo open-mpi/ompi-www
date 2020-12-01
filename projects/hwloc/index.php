@@ -21,7 +21,7 @@ news("hwloc 2.4.0",
      "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00136.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
-     "doc/v2.3.0/a00365.php");
+     "doc/v2.4.0/a00365.php");
 news("XML topology database",
      "Repository of XML topologies",
      "https://hwloc.gitlabpages.inria.fr/xmls/");
