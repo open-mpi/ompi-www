@@ -21,7 +21,7 @@ news("hwloc 2.4.0",
      "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00136.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
-     "doc/v2.3.0/a00365.php");
+     "doc/v2.4.0/a00365.php");
 news("XML topology database",
      "Repository of XML topologies",
      "https://hwloc.gitlabpages.inria.fr/xmls/");
@@ -193,7 +193,7 @@ ported to it:<ul>
 <li>Parallel scientific libraries and toolkits</li><ul>
  <li>The <a href="http://www.cp2k.org/">CP2K</a> quantum chemistry and solid state physics software package</li>
  <li>The <a href="http://www.feelpp.org/">Feel++</a> library for partial differential equations</li>
- <li>The <a href="http://pastix.gforge.inria.fr/">Parallel Sparse matriX (PaStiX)</a> package</li>
+ <li>The <a href="https://solverstack.gitlabpages.inria.fr/pastix/">Parallel Sparse matriX (PaStiX)</a> package</li>
  <li>The <a href="https://bitbucket.org/icl/plasma">Parallel Linear Algebra for Scalable Multi-core Architectures (PLASMA)</a> project</li>
  <li>The <a href="http://www.mcs.anl.gov/petsc">Portable Extensible Toolkit for Scientific Computation (PETSc)</a></li>
 </ul>
