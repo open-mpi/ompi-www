@@ -16,21 +16,12 @@ include_once("$topdir/includes/code.inc");
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
 <?php
 # Lists are not mirrored - use an absolute URL
-news("hwloc 2.4.0rc2",
+news("hwloc 2.4.0",
      "Beta release",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00135.html");
-news("hwloc 2.3.0",
-     "Major release",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00132.html");
-//news("hwloc v2.0.4 released",
-//     "Stable release",
-//     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00124.html");
-//news("hwloc v1.11.13 released",
-//     "Ultrastable release",
-//     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00123.html");
+     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00136.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
-     "doc/v2.3.0/a00360.php");
+     "doc/v2.3.0/a00365.php");
 news("XML topology database",
      "Repository of XML topologies",
      "https://hwloc.gitlabpages.inria.fr/xmls/");
@@ -104,7 +95,7 @@ for testing your software on architectures you don't have access to.
 </p>
 
 <p> hwloc may display the topology in multiple convenient formats (see
-<a href="doc/v<?php print($last_dir); ?>/a00345.php#cli_examples">v<?php
+<a href="doc/v<?php print($last_dir); ?>/a00349.php#cli_examples">v<?php
 print($last_ver); ?> examples</a> and the <a href="lstopo">Best of lstopo</a>).
 It also offers a powerful programming interface to gather information
 about the hardware, bind processes, and much more.</p>
@@ -126,9 +117,9 @@ missing cache information), see Questions and bugs below</p>
 
 <p> More details are available in the <a href="doc/">Documentation</a>
 (in both PDF and HTML).  The documentation for each version contains
-<a href="doc/v<?php print($last_dir); ?>/a00345.php#cli_examples">examples of
+<a href="doc/v<?php print($last_dir); ?>/a00349.php#cli_examples">examples of
 outputs</a> and an <a href="doc/v<?php print($last_ver);
-?>/a00345.php#interface">API interface example</a> (these links are for v<?php
+?>/a00349.php#interface">API interface example</a> (these links are for v<?php
 print($last_ver); ?>).</p>
 
 <p>The materials from several hwloc tutorials are
