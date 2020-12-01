@@ -193,7 +193,7 @@ ported to it:<ul>
 <li>Parallel scientific libraries and toolkits</li><ul>
  <li>The <a href="http://www.cp2k.org/">CP2K</a> quantum chemistry and solid state physics software package</li>
  <li>The <a href="http://www.feelpp.org/">Feel++</a> library for partial differential equations</li>
- <li>The <a href="http://pastix.gforge.inria.fr/">Parallel Sparse matriX (PaStiX)</a> package</li>
+ <li>The <a href="https://solverstack.gitlabpages.inria.fr/pastix/">Parallel Sparse matriX (PaStiX)</a> package</li>
  <li>The <a href="https://bitbucket.org/icl/plasma">Parallel Linear Algebra for Scalable Multi-core Architectures (PLASMA)</a> project</li>
  <li>The <a href="http://www.mcs.anl.gov/petsc">Portable Extensible Toolkit for Scientific Computation (PETSc)</a></li>
 </ul>
