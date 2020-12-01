@@ -16,21 +16,12 @@ include_once("$topdir/includes/code.inc");
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
 <?php
 # Lists are not mirrored - use an absolute URL
-news("hwloc 2.4.0rc2",
+news("hwloc 2.4.0",
      "Beta release",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00135.html");
-news("hwloc 2.3.0",
-     "Major release",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00132.html");
-//news("hwloc v2.0.4 released",
-//     "Stable release",
-//     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00124.html");
-//news("hwloc v1.11.13 released",
-//     "Ultrastable release",
-//     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00123.html");
+     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00136.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
-     "doc/v2.3.0/a00360.php");
+     "doc/v2.3.0/a00365.php");
 news("XML topology database",
      "Repository of XML topologies",
      "https://hwloc.gitlabpages.inria.fr/xmls/");
@@ -104,7 +95,7 @@ for testing your software on architectures you don't have access to.
 </p>
 
 <p> hwloc may display the topology in multiple convenient formats (see
-<a href="doc/v<?php print($last_dir); ?>/a00345.php#cli_examples">v<?php
+<a href="doc/v<?php print($last_dir); ?>/a00349.php#cli_examples">v<?php
 print($last_ver); ?> examples</a> and the <a href="lstopo">Best of lstopo</a>).
 It also offers a powerful programming interface to gather information
 about the hardware, bind processes, and much more.</p>
@@ -126,9 +117,9 @@ missing cache information), see Questions and bugs below</p>
 
 <p> More details are available in the <a href="doc/">Documentation</a>
 (in both PDF and HTML).  The documentation for each version contains
-<a href="doc/v<?php print($last_dir); ?>/a00345.php#cli_examples">examples of
+<a href="doc/v<?php print($last_dir); ?>/a00349.php#cli_examples">examples of
 outputs</a> and an <a href="doc/v<?php print($last_ver);
-?>/a00345.php#interface">API interface example</a> (these links are for v<?php
+?>/a00349.php#interface">API interface example</a> (these links are for v<?php
 print($last_ver); ?>).</p>
 
 <p>The materials from several hwloc tutorials are
@@ -184,21 +175,20 @@ ported to it:<ul>
  <li><a href="https://www.open-mpi.org">Open MPI</a></li>
  <li>The <a href="http://www.mpich.org">MPICH</a> process launcher Hydra</li>
  <li><a href="http://mvapich.cse.ohio-state.edu/">MVAPICH2</a></li>
- <li>CEA and Paratools' <a href="http://mpc.hpcframework.paratools.com/">Multiprocessor Computing framework (MPC)</a></li>
+ <li>CEA and Paratools' <a href="http://mpc.hpcframework.com/">Multiprocessor Computing framework (MPC)</a></li>
  <li>The parallel job inspector <a href="http://padb.pittman.org.uk/">Padb</a></li>
- <li>TACC's <a href="https://www.tacc.utexas.edu/research-development/tacc-projects/mpi-advisor">MPI Advisor tool</a></li>
 </ul>
 <li>Runtime systems and compilers</li><ul>
- <li>Cray's <a href="http://chapel.cray.com/">Chapel Parallel Programming Language</a></li>
+ <li>The <a href="http://chapel-lang.org/">Chapel Parallel Programming Language</a></li>
  <li>The <a href="https://legion.stanford.edu/">Legion Programming System</a></li>
- <li>The <a href="http://starpu.gforge.inria.fr/">StarPU</a> runtime system for heterogeneous multicore architectures</li>
+ <li>The <a href="https://starpu.gitlabpages.inria.fr/">StarPU</a> runtime system for heterogeneous multicore architectures</li>
  <li>The <a href="http://icl.cs.utk.edu/parsec">Parallel Runtime Scheduling and Execution Controller (PaRSEC)</a> project</li>
- <li>The <a href="https://pm.bsc.es/projects/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss-bsc">OmpSs</a></li>
+ <li>The <a href="https://pm.bsc.es/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss">OmpSs</a></li>
  <li>The <a href="http://stellar.cct.lsu.edu/projects/hpx/">High Performance ParalleX (HPX)</a> runtime system</li>
  <li>The <a href="http://www.cs.sandia.gov/qthreads/">Qthreads</a> project</li>
  <li>The <a href="http://www.rosecompiler.org/">Rose compiler</a></li>
  <li>The <a href="http://portablecl.org/">Portable Computing Language (POCL)</a></li>
- <li>The former <a href="http://runtime.bordeaux.inria.fr/forestgomp">ForestGOMP</a> OpenMP platform for hierarchical architectures</li>
+ <li>The former <a href="https://runtime.gitlabpages.inria.fr/forestgomp/">ForestGOMP</a> OpenMP platform for hierarchical architectures</li>
 </ul>
 <li>Parallel scientific libraries and toolkits</li><ul>
  <li>The <a href="http://www.cp2k.org/">CP2K</a> quantum chemistry and solid state physics software package</li>
@@ -209,20 +199,20 @@ ported to it:<ul>
 </ul>
 <li>Resource manager and job schedulers</li><ul>
  <li>The <a href="http://gridscheduler.sourceforge.net/">Open Grid Scheduler</a></li>
- <li>The <a href="http://www.adaptivecomputing.com/products/open-source/torque/">TORQUE resource manager</a></li>
+ <li>The <a href="https://adaptivecomputing.com/cherry-services/torque-resource-manager/">TORQUE resource manager</a></li>
  <li>Univa <a href="http://www.univa.com/products/grid-engine">Grid Engine</a></li>
  <li>The <a href="http://arc.liv.ac.uk/trac/SGE/">Son of Grid Engine</a> project</li>
- <li>Altair's <a href="http://www.pbsworks.com/Product.aspx?id=1">PBS Professional</a> solution (part of PBS Works)</li>
+ <li>Altair's <a href="https://www.altair.com/pbs-professional/">PBS Professional</a> solution (part of PBS Works)</li>
  <li><a href="https://www.ibm.com/us-en/marketplace/hpc-workload-management">IBM Platform LSF</a> workload management platform</li>
 </ul>
 <li>and even more!</li><ul>
  <li>The <a href="https://github.com/tensorflow/tensorflow">TensorFlow</a> library for numerical computation using data flow graphs</li>
- <li><a href="https://pmix.github.io/pmix/">PMI-Exascale (PMIx)</a></li>
+ <li><a href="https://openpmix.github.io/">OpenPMIx</a></li>
  <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a></li>
- <li>The interactive process viewer <a href="http://hisham.hm/htop/">htop</a> for Linux</a></li>
+ <li>The interactive process viewer <a href="http://htop.dev/">htop</a> for Linux</a></li>
  <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
  <li>The <a href="http://www.scylladb.com">Scylla</a> NoSQL server.</li>
- <li><a href="http://geopm.github.io/geopm/">Global Energy Optimization Power Management (GEOPM)</a>.</li>
+ <li><a href="http://geopm.github.io/">Global Energy Optimization Power Management (GEOPM)</a>.</li>
  <li>The <a href="https://github.com/pwrapi/pwrapi-ref">Reference Implementation</a> of the <a href="http://powerapi.sandia.gov/">HPC Power API</a>.</li>
 </ul></ul></p>
 

@@ -36,6 +36,18 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 
 #########################################################
 
+print($blank_line);
+
+$versions = array("v2.4.0");
+$first = 1;
+foreach ($versions as $key => $v) {
+    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
+               "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
+    $first = 0;
+}
+
+#########################################################
+
 $v = "v2.4.0rc2";
 # See if there's doc for this prerelease, display it.
 if (preg_match("/[a-z]/i", $v) &&
@@ -52,10 +64,10 @@ if (preg_match("/[a-z]/i", $v) &&
 
 print($blank_line);
 
-$versions = array("v2.4.0");
+$versions = array("v2.3.0");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
+    print_docs("Release $v (stable, old)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -81,7 +93,7 @@ print($blank_line);
 $versions = array("v2.2.0");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (stable, old)",
+    print_docs("Release $v (old)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
