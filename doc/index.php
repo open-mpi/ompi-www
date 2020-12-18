@@ -12,11 +12,11 @@ Documentation for the following versions is available:
 
 <p><ul>
 
-<li><a href="current/"><strong>v4.0 series</strong></a>.
-This documentation reflects the latest progression in the 4.0.x series.
+<li><a href="current/"><strong>v4.1 series</strong></a>.
+This documentation reflects the latest progression in the 4.1.x series.
 <strong><font
 color=red><?php
-  $t = mktime(0, 0, 0, 2, 1, 2019);
+  $t = mktime(0, 0, 0, 2, 1, 2021);
   if (time() < $t) {
           printf("This stable series is relatively new.  Please upgrade with caution and test your codes thoroughly.");
   } else {
@@ -29,18 +29,8 @@ color=red><?php
 <h2>Prior stable release series</h2>
 
 <p><ul>
-
-<li><a href="v3.1/"><strong>v3.1 series</strong></a>.
-This documentation reflects the latest progression in the 3.1.x series.
-<strong><font color=red>This code base is still supported, but is 
-in "bug fix only" mode.</font></strong>
-</li>
-
-<li><a href="v3.0/"><strong>v3.0 series
-</strong></a>.  This documentation reflects
-the latest progression in the 3.0.x series.
-<strong><font color=red>This code base is still supported, but is 
-in "bug fix only" mode.</font></strong>
+<li><a href="current/"><strong>v4.0 series</strong></a>.
+This documentation reflects the latest progression in the 4.0.x series.
 </li>
 
 </ul></p>
@@ -49,6 +39,21 @@ in "bug fix only" mode.</font></strong>
 development)</h2>
 
 <p><ul>
+
+<li><a href="v3.1/"><strong>v3.1 series</strong></a>
+(prior stable release series). This documentation reflects the latest progression in the 3.1.x series.
+The emphasis of this
+tree is on bug fixes and stability, although it also introduced a few
+new features (compared to the v2.0 series).</li>
+</li>
+
+<li><a href="v3.0/"><strong>v3.0 series
+</strong></a> (prior stable release series).  This documentation reflects
+the latest progression in the 3.0.x series.
+The emphasis of this
+tree is on bug fixes and stability, although it also introduced many
+new features (compared to the v2.0 series).</li>
+</li>
 
 <li><a href="v2.1/"><strong>v2.1 series
 </strong></a> (prior stable release series).  This documentation reflects
