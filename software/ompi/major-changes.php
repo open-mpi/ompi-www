@@ -5,9 +5,39 @@
 ?>
 
 The following are major user-noticeable changes across the major
-releases of Open MPI.  Specifically, these are changes that may
+releases of Open MPI.  Specifically, <em>these are changes that may
 present an incompatibility vs. a prior version of Open MPI, or cause
-some other type of user-noticeable change in behavior.
+some other type of user-noticeable change in behavior.</em>
+
+<h2>v4.1.x series</h2>
+
+<p>The v4.1.x series introduced the following major feature
+enhancements compared to the v4.0.x series:</p>
+
+<p><ol>
+
+<li> The "OMPIO" module is now the default module for the MPI-IO APIs
+on <em>all</em> filesystems -- including Lustre.
+
+<p> Prior to v4.1.0, OMPI was the default for all filesystems
+<em>except</em> Lustre (and the "ROMIO" module was the default for
+Lustre).</p></li>
+
+<!-- ------------------- -->
+
+<li> AVX support was added for MPI collective reduction operations.</li>
+
+<p></p>
+
+<!-- ------------------- -->
+
+<li> Open MPI v4.1.x is ABI compatible with Open MPI 4.0.x.</li>
+
+</ol></p>
+
+<!-- =================== -->
+
+<p><hr></p>
 
 <h2>v4.0.x series</h2>
 

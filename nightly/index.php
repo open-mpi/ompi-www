@@ -5,7 +5,7 @@
   include_once("$topdir/includes/header.inc");
 ?>
 
-<p>Before deciding which series to download, be sure to read <a 
+<p>Before deciding which series to download, be sure to read <a
 href="<?php print($topdir); ?>/software/ompi/versions/">Open MPI's
 philosophy on version numbers</a>.</p>
 
@@ -16,28 +16,21 @@ philosophy on version numbers</a>.</p>
 
 <p> <strong>Current release series</strong>
 
-<li><a href="v4.0.x/"><strong>v4.0.x series</strong></a>: These are
-images from the stable v4.0.x series.  <strong><font color="red">This
+<li><a href="v4.1.x/"><strong>v4.1.x series</strong></a>: These are
+images from the stable v4.1.x series.
+<strong><font color="red">This
 is the recommended series for all users to download and
 use.</font></strong></li>
 
 <p> <strong>Prior stable release series</strong>
 
-<li><a href="v3.1.x/"><strong>v3.1.x series</strong></a>: These are
-images from the stable v3.1.x series.  <strong><font color="red">This
-code base is still supported, but is in "bug fix only"
-mode.</font></strong></li>
-
-<li><a href="v3.0.x/"><strong>v3.0.x series</strong></a>: These are
-images from the stable v3.0.x series.  <strong><font color="red">This
+<li><a href="v4.0.x/"><strong>v4.0.x series</strong></a>: These are
+images from the prior stable v4.0.x series.
+<strong><font color="red">This
 code base is still supported, but is in "bug fix only"
 mode.</font></strong></li>
 
 <p> <strong>Current development</strong>
-
-<li><a href="v4.1.x/"><strong>v4.1.x series</strong></a>: These are
-images from the upcoming v4.1.x series.  While more stable than
-master, the 4.1 branch has not yet had an official release.</li>
 
 <li><a href="master/"><strong>Master</strong></a> (development head):
 These snapshots are from the Git master and reflect the current
@@ -46,6 +39,16 @@ development code apply.</li>
 
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
+
+<li><a href="v3.1.x/"><strong>v3.1.x series</strong></a>: These are
+images from the stable v3.1.x series.
+This tree is unlikely to be
+updated any more.</li>
+
+<li><a href="v3.0.x/"><strong>v3.0.x series</strong></a>: These are
+images from the stable v3.0.x series.
+This tree is unlikely to be
+updated any more.</li>
 
 <li><a href="v2.x/"><strong>v2.1.x series</strong></a>: These are
 images from the stable v2.1.x series.  This tree is unlikely to be
