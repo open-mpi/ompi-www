@@ -17,8 +17,11 @@ include_once("$topdir/includes/code.inc");
 <?php
 # Lists are not mirrored - use an absolute URL
 news("hwloc 2.4.0",
-     "Beta release",
+     "Major release",
      "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00136.html");
+news("hwloc 2.4.1rc1",
+     "Stable release candidate",
+     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00137.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
      "doc/v2.4.0/a00365.php");
