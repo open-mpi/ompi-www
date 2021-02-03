@@ -33,7 +33,7 @@ $(function() {
 <div class="contents">
 <div class="fragment"><div class="line"><a name="l00001"></a><span class="lineno">    1</span>&#160;<span class="comment">/*</span></div>
 <div class="line"><a name="l00002"></a><span class="lineno">    2</span>&#160;<span class="comment"> * Copyright © 2009 CNRS</span></div>
-<div class="line"><a name="l00003"></a><span class="lineno">    3</span>&#160;<span class="comment"> * Copyright © 2009-2020 Inria.  All rights reserved.</span></div>
+<div class="line"><a name="l00003"></a><span class="lineno">    3</span>&#160;<span class="comment"> * Copyright © 2009-2021 Inria.  All rights reserved.</span></div>
 <div class="line"><a name="l00004"></a><span class="lineno">    4</span>&#160;<span class="comment"> * Copyright © 2009-2012 Université Bordeaux</span></div>
 <div class="line"><a name="l00005"></a><span class="lineno">    5</span>&#160;<span class="comment"> * Copyright © 2009-2020 Cisco Systems, Inc.  All rights reserved.</span></div>
 <div class="line"><a name="l00006"></a><span class="lineno">    6</span>&#160;<span class="comment"> * See COPYING in top-level directory.</span></div>
@@ -574,44 +574,44 @@ $(function() {
 <div class="line"><a name="l02338"></a><span class="lineno"> 2338</span>&#160; </div>
 <div class="line"><a name="l02360"></a><span class="lineno"><a class="line" href="a00164.php#gad980782ade737900c5cf208946768c30"> 2360</a></span>&#160;HWLOC_DECLSPEC <a class="code" href="a00208.php">hwloc_obj_t</a> <a class="code" href="a00164.php#gad980782ade737900c5cf208946768c30">hwloc_topology_insert_misc_object</a>(<a class="code" href="a00156.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, <a class="code" href="a00208.php">hwloc_obj_t</a> parent, <span class="keyword">const</span> <span class="keywordtype">char</span> *name);</div>
 <div class="line"><a name="l02361"></a><span class="lineno"> 2361</span>&#160; </div>
-<div class="line"><a name="l02382"></a><span class="lineno"><a class="line" href="a00164.php#ga4cea4741165faf5323931a9ed8786ef7"> 2382</a></span>&#160;HWLOC_DECLSPEC <a class="code" href="a00208.php">hwloc_obj_t</a> <a class="code" href="a00164.php#ga4cea4741165faf5323931a9ed8786ef7">hwloc_topology_alloc_group_object</a>(<a class="code" href="a00156.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology);</div>
-<div class="line"><a name="l02383"></a><span class="lineno"> 2383</span>&#160; </div>
-<div class="line"><a name="l02420"></a><span class="lineno"><a class="line" href="a00164.php#ga1fc6012b3e1c249b83f48cb7bcacaa5b"> 2420</a></span>&#160;HWLOC_DECLSPEC <a class="code" href="a00208.php">hwloc_obj_t</a> <a class="code" href="a00164.php#ga1fc6012b3e1c249b83f48cb7bcacaa5b">hwloc_topology_insert_group_object</a>(<a class="code" href="a00156.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, <a class="code" href="a00208.php">hwloc_obj_t</a> group);</div>
-<div class="line"><a name="l02421"></a><span class="lineno"> 2421</span>&#160; </div>
-<div class="line"><a name="l02431"></a><span class="lineno"><a class="line" href="a00164.php#gad458715d3335df44849216cc123d1055"> 2431</a></span>&#160;HWLOC_DECLSPEC <span class="keywordtype">int</span> <a class="code" href="a00164.php#gad458715d3335df44849216cc123d1055">hwloc_obj_add_other_obj_sets</a>(<a class="code" href="a00208.php">hwloc_obj_t</a> dst, <a class="code" href="a00208.php">hwloc_obj_t</a> src);</div>
-<div class="line"><a name="l02432"></a><span class="lineno"> 2432</span>&#160; </div>
-<div class="line"><a name="l02447"></a><span class="lineno"><a class="line" href="a00164.php#ga698ecd640d2b76742bba3829a145cd9a"> 2447</a></span>&#160;HWLOC_DECLSPEC <span class="keywordtype">int</span> <a class="code" href="a00164.php#ga698ecd640d2b76742bba3829a145cd9a">hwloc_topology_refresh</a>(<a class="code" href="a00156.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology);</div>
-<div class="line"><a name="l02448"></a><span class="lineno"> 2448</span>&#160; </div>
-<div class="line"><a name="l02453"></a><span class="lineno"> 2453</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a name="l02454"></a><span class="lineno"> 2454</span>&#160;} <span class="comment">/* extern &quot;C&quot; */</span></div>
-<div class="line"><a name="l02455"></a><span class="lineno"> 2455</span>&#160;<span class="preprocessor">#endif</span></div>
-<div class="line"><a name="l02456"></a><span class="lineno"> 2456</span>&#160; </div>
+<div class="line"><a name="l02369"></a><span class="lineno"><a class="line" href="a00164.php#ga4cea4741165faf5323931a9ed8786ef7"> 2369</a></span>&#160;HWLOC_DECLSPEC <a class="code" href="a00208.php">hwloc_obj_t</a> <a class="code" href="a00164.php#ga4cea4741165faf5323931a9ed8786ef7">hwloc_topology_alloc_group_object</a>(<a class="code" href="a00156.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology);</div>
+<div class="line"><a name="l02370"></a><span class="lineno"> 2370</span>&#160; </div>
+<div class="line"><a name="l02417"></a><span class="lineno"><a class="line" href="a00164.php#ga1fc6012b3e1c249b83f48cb7bcacaa5b"> 2417</a></span>&#160;HWLOC_DECLSPEC <a class="code" href="a00208.php">hwloc_obj_t</a> <a class="code" href="a00164.php#ga1fc6012b3e1c249b83f48cb7bcacaa5b">hwloc_topology_insert_group_object</a>(<a class="code" href="a00156.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology, <a class="code" href="a00208.php">hwloc_obj_t</a> group);</div>
+<div class="line"><a name="l02418"></a><span class="lineno"> 2418</span>&#160; </div>
+<div class="line"><a name="l02428"></a><span class="lineno"><a class="line" href="a00164.php#gad458715d3335df44849216cc123d1055"> 2428</a></span>&#160;HWLOC_DECLSPEC <span class="keywordtype">int</span> <a class="code" href="a00164.php#gad458715d3335df44849216cc123d1055">hwloc_obj_add_other_obj_sets</a>(<a class="code" href="a00208.php">hwloc_obj_t</a> dst, <a class="code" href="a00208.php">hwloc_obj_t</a> src);</div>
+<div class="line"><a name="l02429"></a><span class="lineno"> 2429</span>&#160; </div>
+<div class="line"><a name="l02444"></a><span class="lineno"><a class="line" href="a00164.php#ga698ecd640d2b76742bba3829a145cd9a"> 2444</a></span>&#160;HWLOC_DECLSPEC <span class="keywordtype">int</span> <a class="code" href="a00164.php#ga698ecd640d2b76742bba3829a145cd9a">hwloc_topology_refresh</a>(<a class="code" href="a00156.php#ga9d1e76ee15a7dee158b786c30b6a6e38">hwloc_topology_t</a> topology);</div>
+<div class="line"><a name="l02445"></a><span class="lineno"> 2445</span>&#160; </div>
+<div class="line"><a name="l02450"></a><span class="lineno"> 2450</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a name="l02451"></a><span class="lineno"> 2451</span>&#160;} <span class="comment">/* extern &quot;C&quot; */</span></div>
+<div class="line"><a name="l02452"></a><span class="lineno"> 2452</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l02453"></a><span class="lineno"> 2453</span>&#160; </div>
+<div class="line"><a name="l02454"></a><span class="lineno"> 2454</span>&#160; </div>
+<div class="line"><a name="l02455"></a><span class="lineno"> 2455</span>&#160;<span class="comment">/* high-level helpers */</span></div>
+<div class="line"><a name="l02456"></a><span class="lineno"> 2456</span>&#160;<span class="preprocessor">#include &quot;hwloc/helper.h&quot;</span></div>
 <div class="line"><a name="l02457"></a><span class="lineno"> 2457</span>&#160; </div>
-<div class="line"><a name="l02458"></a><span class="lineno"> 2458</span>&#160;<span class="comment">/* high-level helpers */</span></div>
-<div class="line"><a name="l02459"></a><span class="lineno"> 2459</span>&#160;<span class="preprocessor">#include &quot;hwloc/helper.h&quot;</span></div>
+<div class="line"><a name="l02458"></a><span class="lineno"> 2458</span>&#160;<span class="comment">/* inline code of some functions above */</span></div>
+<div class="line"><a name="l02459"></a><span class="lineno"> 2459</span>&#160;<span class="preprocessor">#include &quot;hwloc/inlines.h&quot;</span></div>
 <div class="line"><a name="l02460"></a><span class="lineno"> 2460</span>&#160; </div>
-<div class="line"><a name="l02461"></a><span class="lineno"> 2461</span>&#160;<span class="comment">/* inline code of some functions above */</span></div>
-<div class="line"><a name="l02462"></a><span class="lineno"> 2462</span>&#160;<span class="preprocessor">#include &quot;hwloc/inlines.h&quot;</span></div>
+<div class="line"><a name="l02461"></a><span class="lineno"> 2461</span>&#160;<span class="comment">/* memory attributes */</span></div>
+<div class="line"><a name="l02462"></a><span class="lineno"> 2462</span>&#160;<span class="preprocessor">#include &quot;hwloc/memattrs.h&quot;</span></div>
 <div class="line"><a name="l02463"></a><span class="lineno"> 2463</span>&#160; </div>
-<div class="line"><a name="l02464"></a><span class="lineno"> 2464</span>&#160;<span class="comment">/* memory attributes */</span></div>
-<div class="line"><a name="l02465"></a><span class="lineno"> 2465</span>&#160;<span class="preprocessor">#include &quot;hwloc/memattrs.h&quot;</span></div>
+<div class="line"><a name="l02464"></a><span class="lineno"> 2464</span>&#160;<span class="comment">/* kinds of CPU cores */</span></div>
+<div class="line"><a name="l02465"></a><span class="lineno"> 2465</span>&#160;<span class="preprocessor">#include &quot;hwloc/cpukinds.h&quot;</span></div>
 <div class="line"><a name="l02466"></a><span class="lineno"> 2466</span>&#160; </div>
-<div class="line"><a name="l02467"></a><span class="lineno"> 2467</span>&#160;<span class="comment">/* kinds of CPU cores */</span></div>
-<div class="line"><a name="l02468"></a><span class="lineno"> 2468</span>&#160;<span class="preprocessor">#include &quot;hwloc/cpukinds.h&quot;</span></div>
+<div class="line"><a name="l02467"></a><span class="lineno"> 2467</span>&#160;<span class="comment">/* exporting to XML or synthetic */</span></div>
+<div class="line"><a name="l02468"></a><span class="lineno"> 2468</span>&#160;<span class="preprocessor">#include &quot;hwloc/export.h&quot;</span></div>
 <div class="line"><a name="l02469"></a><span class="lineno"> 2469</span>&#160; </div>
-<div class="line"><a name="l02470"></a><span class="lineno"> 2470</span>&#160;<span class="comment">/* exporting to XML or synthetic */</span></div>
-<div class="line"><a name="l02471"></a><span class="lineno"> 2471</span>&#160;<span class="preprocessor">#include &quot;hwloc/export.h&quot;</span></div>
+<div class="line"><a name="l02470"></a><span class="lineno"> 2470</span>&#160;<span class="comment">/* distances */</span></div>
+<div class="line"><a name="l02471"></a><span class="lineno"> 2471</span>&#160;<span class="preprocessor">#include &quot;hwloc/distances.h&quot;</span></div>
 <div class="line"><a name="l02472"></a><span class="lineno"> 2472</span>&#160; </div>
-<div class="line"><a name="l02473"></a><span class="lineno"> 2473</span>&#160;<span class="comment">/* distances */</span></div>
-<div class="line"><a name="l02474"></a><span class="lineno"> 2474</span>&#160;<span class="preprocessor">#include &quot;hwloc/distances.h&quot;</span></div>
+<div class="line"><a name="l02473"></a><span class="lineno"> 2473</span>&#160;<span class="comment">/* topology diffs */</span></div>
+<div class="line"><a name="l02474"></a><span class="lineno"> 2474</span>&#160;<span class="preprocessor">#include &quot;hwloc/diff.h&quot;</span></div>
 <div class="line"><a name="l02475"></a><span class="lineno"> 2475</span>&#160; </div>
-<div class="line"><a name="l02476"></a><span class="lineno"> 2476</span>&#160;<span class="comment">/* topology diffs */</span></div>
-<div class="line"><a name="l02477"></a><span class="lineno"> 2477</span>&#160;<span class="preprocessor">#include &quot;hwloc/diff.h&quot;</span></div>
+<div class="line"><a name="l02476"></a><span class="lineno"> 2476</span>&#160;<span class="comment">/* deprecated headers */</span></div>
+<div class="line"><a name="l02477"></a><span class="lineno"> 2477</span>&#160;<span class="preprocessor">#include &quot;hwloc/deprecated.h&quot;</span></div>
 <div class="line"><a name="l02478"></a><span class="lineno"> 2478</span>&#160; </div>
-<div class="line"><a name="l02479"></a><span class="lineno"> 2479</span>&#160;<span class="comment">/* deprecated headers */</span></div>
-<div class="line"><a name="l02480"></a><span class="lineno"> 2480</span>&#160;<span class="preprocessor">#include &quot;hwloc/deprecated.h&quot;</span></div>
-<div class="line"><a name="l02481"></a><span class="lineno"> 2481</span>&#160; </div>
-<div class="line"><a name="l02482"></a><span class="lineno"> 2482</span>&#160;<span class="preprocessor">#endif </span><span class="comment">/* HWLOC_H */</span><span class="preprocessor"></span></div>
+<div class="line"><a name="l02479"></a><span class="lineno"> 2479</span>&#160;<span class="preprocessor">#endif </span><span class="comment">/* HWLOC_H */</span><span class="preprocessor"></span></div>
 </div><!-- fragment --></div><!-- contents -->
 <div class="ttc" id="aa00163_php_ga91f992f8d6c4905b2d3c4f43e509c2a3"><div class="ttname"><a href="a00163.php#ga91f992f8d6c4905b2d3c4f43e509c2a3">hwloc_topology_get_userdata</a></div><div class="ttdeci">void * hwloc_topology_get_userdata(hwloc_topology_t topology)</div><div class="ttdoc">Retrieve the topology-specific userdata pointer.</div></div>
 <div class="ttc" id="aa00208_php_a8604654c38b7a720efae5025d3a96ee6"><div class="ttname"><a href="a00208.php#a8604654c38b7a720efae5025d3a96ee6">hwloc_obj::infos</a></div><div class="ttdeci">struct hwloc_info_s * infos</div><div class="ttdoc">Array of stringified info type=name.</div><div class="ttdef"><b>Definition:</b> hwloc.h:577</div></div>

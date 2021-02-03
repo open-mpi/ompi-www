@@ -173,11 +173,8 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Allocate a Group object to insert later with <a class="el" href="a00164.php#ga1fc6012b3e1c249b83f48cb7bcacaa5b" title="Add more structure to the topology by adding an intermediate Group.">hwloc_topology_insert_group_object()</a>. </p>
-<p>This function returns a new Group object. The caller should (at least) initialize its sets before inserting the object. See <a class="el" href="a00164.php#ga1fc6012b3e1c249b83f48cb7bcacaa5b" title="Add more structure to the topology by adding an intermediate Group.">hwloc_topology_insert_group_object()</a>.</p>
-<p>The <code>subtype</code> object attribute may be set to display something else than "Group" as the type name for this object in lstopo. Custom name/value info pairs may be added with <a class="el" href="a00159.php#gace7654bb8a9002caae1a4b8a59e7452e" title="Add the given info name and value pair to the given object.">hwloc_obj_add_info()</a> after insertion.</p>
-<p>The <code>kind</code> group attribute should be 0. The <code>subkind</code> group attribute may be set to identify multiple Groups of the same level.</p>
-<p>It is recommended not to set any other object attribute before insertion, since the Group may get discarded during insertion.</p>
-<p>The object will be destroyed if passed to <a class="el" href="a00164.php#ga1fc6012b3e1c249b83f48cb7bcacaa5b" title="Add more structure to the topology by adding an intermediate Group.">hwloc_topology_insert_group_object()</a> without any set defined. </p>
+<p>This function returns a new Group object.</p>
+<p>The caller should (at least) initialize its sets before inserting the object in the topology. See <a class="el" href="a00164.php#ga1fc6012b3e1c249b83f48cb7bcacaa5b" title="Add more structure to the topology by adding an intermediate Group.">hwloc_topology_insert_group_object()</a>. </p>
 
 </div>
 </div>
@@ -255,14 +252,13 @@ Functions</h2></td></tr>
 
 <p>Add more structure to the topology by adding an intermediate Group. </p>
 <p>The caller should first allocate a new Group object with <a class="el" href="a00164.php#ga4cea4741165faf5323931a9ed8786ef7" title="Allocate a Group object to insert later with hwloc_topology_insert_group_object().">hwloc_topology_alloc_group_object()</a>. Then it must setup at least one of its CPU or node sets to specify the final location of the Group in the topology. Then the object can be passed to this function for actual insertion in the topology.</p>
-<p>The group <code>dont_merge</code> attribute may be set to prevent the core from ever merging this object with another object hierarchically-identical.</p>
-<p>Either the cpuset or nodeset field (or both, if compatible) must be set to a non-empty bitmap. The complete_cpuset or complete_nodeset may be set instead if inserting with respect to the complete topology (including disallowed, offline or unknown objects).</p>
-<p>It grouping several objects, <a class="el" href="a00164.php#gad458715d3335df44849216cc123d1055" title="Setup object cpusets/nodesets by OR&#39;ing another object&#39;s sets.">hwloc_obj_add_other_obj_sets()</a> is an easy way to build the Group sets iteratively.</p>
-<p>These sets cannot be larger than the current topology, or they would get restricted silently.</p>
-<p>The core will setup the other sets after actual insertion.</p>
+<p>Either the cpuset or nodeset field (or both, if compatible) must be set to a non-empty bitmap. The complete_cpuset or complete_nodeset may be set instead if inserting with respect to the complete topology (including disallowed, offline or unknown objects). If grouping several objects, <a class="el" href="a00164.php#gad458715d3335df44849216cc123d1055" title="Setup object cpusets/nodesets by OR&#39;ing another object&#39;s sets.">hwloc_obj_add_other_obj_sets()</a> is an easy way to build the Group sets iteratively. These sets cannot be larger than the current topology, or they would get restricted silently. The core will setup the other sets after actual insertion.</p>
+<p>The <code>subtype</code> object attribute may be defined (to a dynamically allocated string) to display something else than "Group" as the type name for this object in lstopo. Custom name/value info pairs may be added with <a class="el" href="a00159.php#gace7654bb8a9002caae1a4b8a59e7452e" title="Add the given info name and value pair to the given object.">hwloc_obj_add_info()</a> after insertion.</p>
+<p>The group <code>dont_merge</code> attribute may be set to <code>1</code> to prevent the hwloc core from ever merging this object with another hierarchically-identical object. This is useful when the Group itself describes an important feature that cannot be exposed anywhere else in the hierarchy.</p>
+<p>The group <code>kind</code> attribute may be set to a high value such as <code>0xffffffff</code> to tell hwloc that this new Group should always be discarded in favor of any existing Group with the same locality.</p>
 <dl class="section return"><dt>Returns</dt><dd>The inserted object if it was properly inserted.</dd>
 <dd>
-An existing object if the Group was discarded because the topology already contained an object at the same location (the Group did not add any locality information). Any name/info key pair set before inserting is appended to the existing object.</dd>
+An existing object if the Group was merged or discarded because the topology already contained an object at the same location (the Group did not add any hierarchy information).</dd>
 <dd>
 <code>NULL</code> if the insertion failed because of conflicting sets in topology tree.</dd>
 <dd>
