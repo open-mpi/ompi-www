@@ -232,8 +232,7 @@ printsublink("$topurl/software/", "Download");
 printsublink("$topurl/doc/", "Documentation");
 printsublink("$topurl/source/", "Source Code Access");
 printsublink("$topurl/community/help/bugs.php", "Bug Tracking");
-// MTT is not mirrored
-printsublink("http://mtt.open-mpi.org/", "Regression Testing");
+printsublink("https://mtt.open-mpi.org/", "Regression Testing");
 printsublink("https://github.com/open-mpi/ompi/blob/master/README.md#open-mpi-version-numbers-and-binary-compatibility", "Version Information");
 
 // Sub-Projects
