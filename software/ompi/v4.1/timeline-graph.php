@@ -28,7 +28,8 @@ $beyond_end_date = strftime("%Y-%m-%d", $ts);
 // v4.0 release series
 series("v4.1 series", $series_start->format("Y-m-d"), $beyond_end_date, $data, $vpos, $graph);
 milestone("branch from v4.0.x", "2020-05-30", $data, $vpos);
-milestone("v4.1.x", "2020-12-18", $data, $vpos);
+milestone("v4.1.0", "2020-12-18", $data, $vpos);
+milestone("v4.1.1rc1", "2021-02-10", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
