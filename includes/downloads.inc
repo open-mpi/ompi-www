@@ -291,7 +291,7 @@ function print_nightly_table($bucket, $prefix, $download_prefix) {
     print_download_table($builds, $download_prefix);
 }
 
-function latest_snapshot_output($s3_prefix, $prereleases, $releases) {
+function latest_snapshot_output($project, $s3_prefix, $prereleases, $releases) {
     if (count($prereleases) > 0) {
         $latest = $prereleases[0];
     } else if (count($releases) > 0) {
@@ -301,7 +301,7 @@ function latest_snapshot_output($s3_prefix, $prereleases, $releases) {
     }
 
     if ($latest != NULL) {
-        $filename = $s3_prefix . "build-openmpi-" . $latest . ".json";
+        $filename = $s3_prefix . "build-" . $project . "-" . $latest . ".json";
         $blob = get_download_file("open-mpi-release", $filename);
     } else {
         $blob = NULL;
