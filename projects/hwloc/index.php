@@ -142,6 +142,11 @@ The GIT repository is also accessible for
 or <a href="git.php">checkout</a>.
 </p>
 
+<p> The version string of the latest release or release-candidate is available
+ from <a href="../../software/hwloc/current/downloads/latest_snapshot.txt">here</a>.
+ For the latest on a specific series, replace "current" with "v2.4" for instance.
+</p>
+
 <p>hwloc is already available as official packages for many Linux distributions
 (at least Debian/Ubuntu, Fedora/RHEL, SUSE, ArchLinux, Slackware, Gentoo and their derivatives),
 as well as NetBSD, FreeBSD, Cygwin, Mac OS X ports, and <a href="http://hpux.connect.org.uk/hppd/hpux/">HP-UX</a>.
