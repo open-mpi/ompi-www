@@ -32,6 +32,11 @@ mode.</font></strong></li>
 
 <p> <strong>Current development</strong>
 
+<li><a href="v5.0.x/"><strong>v5.0.x series</strong></a>: These are
+snapshots are from the Git v5.0.x upcoming release series, and
+they reflect the current head of development.  The usual disclaimers
+about the state of development code apply.</li>
+
 <li><a href="master/"><strong>Master</strong></a> (development head):
 These snapshots are from the Git master and reflect the current
 head of development.  The usual disclaimers about the state of
