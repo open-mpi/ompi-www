@@ -67,6 +67,16 @@ href="https://doi.org/10.1007/978-3-540-75416-9_15">https://doi.org/10.1007/978-
 <p><B>Community Open MPI project slides, public presentations, and
 general architecture papers:</B><BR>
 
+<p><strong>2021</strong></p>
+<ul>
+<?php
+print_papers(array("ecp-bof-2021"
+                   ));
+?>
+</ul>
+
+<p> There was no Open MPI State of the Union BOF in 2020 due to COVID-19 heavily restricting the BOFs at SC'20.</p>
+
 <p><strong>2019</strong></p>
 <ul>
 <?php
