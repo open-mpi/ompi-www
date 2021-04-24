@@ -88,7 +88,7 @@ information</a></h3>
 <?php
 news("Open MPI v4.1.1 released",
      "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00139.html");
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00141.html");
 news("Open MPI v4.0.5 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00135.html");
