@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "orterun(1) man page (version 4.1.0)";
-$meta_desc = "Open MPI v4.1.0 man page: orterun(1)";
+$title = "orterun(1) man page (version 4.1.1)";
+$meta_desc = "Open MPI v4.1.1 man page: orterun(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -1446,40 +1446,25 @@ the primary job. Any non-zero exit status in secondary jobs will be reported
 solely in a summary print statement.  </dd>
 </dl>
 <p>
-By default, OMPI records and notes
-that MPI processes exited with non-zero termination status. This is generally
-not considered an "abnormal termination" - i.e., OMPI will not abort an MPI
-job if one or more processes return a non-zero status. Instead, the default
-behavior simply reports the number of processes terminating with non-zero
-status upon completion of the job. <p>
-However, in some cases it can be desirable
-to have the job abort when any process terminates with non-zero status. For
-example, a non-MPI job might detect a bad result from a calculation and
-want to abort, but doesn&rsquo;t want to generate a core file. Or an MPI job might
-continue past a call to <a href="../man3/MPI_Finalize.3.php">MPI_Finalize</a>, but indicate that all processes should
-abort due to some post-MPI result. <p>
-It is not anticipated that this situation
-will occur frequently. However, in the interest of serving the broader community,
-OMPI now has a means for allowing users to direct that jobs be aborted
-upon any process exiting with non-zero status. Setting the MCA parameter
-"orte_abort_on_non_zero_status" to 1 will cause OMPI to abort all processes
-once any process  exits with non-zero status.<br>
- <p>
-Terminations caused in this manner will be reported on the console as
-an "abnormal termination", with the first process to so exit identified
-along with its exit status. <p>
+By default, the job will abort when
+any process terminates with non-zero status. The MCA parameter "orte_abort_on_non_zero_status"
+can be set to "false" (or "0") to cause OMPI to not abort a job if one
+or more processes return a non-zero status. In that situation the OMPI records
+and notes that processes exited with non-zero termination status to report
+the approprate exit status of <i>mpirun</i> (per bullet points above). <p>
 
 <h2><a name='sect27' href='#toc27'>Examples</a></h2>
-Be sure also to see the examples
-throughout the sections above.
+Be
+sure also to see the examples throughout the sections above.
 <dl>
 
-<dt>mpirun -np 4 -mca btl ib,tcp,self prog1 </dt>
-<dd>Run
-4 copies of prog1 using the "ib", "tcp", and "self" BTL&rsquo;s for the transport
-of MPI messages.   </dd>
+<dt>mpirun -np
+4 -mca btl ib,tcp,self prog1 </dt>
+<dd>Run 4 copies of prog1 using the "ib", "tcp",
+and "self" BTL&rsquo;s for the transport of MPI messages.   </dd>
 
-<dt>mpirun -np 4 -mca btl tcp,sm,self </dt>
+<dt>mpirun -np 4 -mca btl
+tcp,sm,self </dt>
 <dd><br>
 --mca btl_tcp_if_include eth0 prog1 <br>
 Run 4 copies of prog1 using the "tcp", "sm" and "self" BTLs for the transport
