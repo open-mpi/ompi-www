@@ -198,10 +198,6 @@ add_org("http://www.cisco.com/", "Cisco Systems, Inc.", "",
 add_org("http://www.cs.uh.edu/", "Department of Computer Science",
              "University of Houston", "uh.jpg", $member);
 
-// Removed by JMS 30 Oct 2013: this company no longer exists
-//add_org("http://www.evergrid.com/", "Evergrid", "",
-//           "evergrid.jpg", $contrib);
-
 add_org("http://www.hft-stuttgart.de", "HFT Stuttgart",
         "University of Applied Science",
         "hft-stuttgart.jpg", $contrib);
@@ -212,11 +208,6 @@ add_org("http://www.inria.fr/index.en.html", "Inria",
 
 add_org("http://www.minet.uni-jena.de/",
            "Friedrich-Schiller-Universitat Jena", "", "jena.jpg", $contrib);
-
-// Removed by JMS 30 Oct 2013: cannot find any reference to them on
-// the internet
-//add_org("", "Grid Technology Research Center",
-//           "AIST", "aist.gif", $contrib);
 
 add_org("http://www.fujitsu.com/",
         "Fujitsu", "", "fujitsu.jpg", $contrib);
@@ -234,12 +225,6 @@ Tennessee", "utk-icl.gif", $member);
 
 add_org("http://www.llnl.gov", "Lawrence Livermore National Laboratory",
            "", "llnl.png", $contrib);
-
-add_org("http://www.mellanox.com/", "Mellanox Technologies", "",
-             "mellanox.gif", $member);
-
-add_org("http://www.myricom.com/", "Myricom, Inc.", "",
-             "myricom.gif", $contrib);
 
 add_org("http://www.nvidia.com/", "Nvidia", "",
         "nvidia.jpg", $member);
@@ -259,16 +244,6 @@ add_org("http://www.cs.ubc.ca/labs/dsg/mpi-sctp/",
 
 add_org("http://www.oracle.com/", "Oracle", "", "oracle.png", $contrib);
 
-// Removed by JMS 30 Oct 2013: this company no longer exists (they
-// were bought by IBM)
-//add_org("http://www.platform.com/", "Platform Computing",
-//             "", "platform.gif", $contrib);
-
-// Removed by JMS 30 Oct 2013: this company no longer exists (they
-// were bought by Intel)
-// add_org("http://www.qlogic.com/", "QLogic Corporation", "",
-//         "qlogic.gif", $contrib);
-
 add_org("http://www.rist.or.jp/ehome.html", "RIST",
            "Research Organization for Information Science and Technology",
            "rist.png", $member);
@@ -286,10 +261,6 @@ Services and High Performance Computing (ZIH)",
 
 add_org("http://www.cs.uwlax.edu/", "Computer Science Department",
         "University of Wisconsin-La Crosse", "uwlax.jpg", $contrib);
-
-add_org("http://www.wattsys.com/",
-        "Watt Systems Systems Technologies, Inc.", "",
-        "wattsys.jpg", $contrib);
 
 add_org("http://hpcc.kpi.ua/", "High Performance Computing Center",
         "National Technical University of Ukraine \"KPI\"",
