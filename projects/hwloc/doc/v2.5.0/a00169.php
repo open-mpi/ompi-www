@@ -137,7 +137,7 @@ Functions</h2></td></tr>
 <tr><td class="fieldname"><a id="ggada025d3ec20b4b420f8038d23d6e7bdeaa595aed197779012acf43e8ca4a2658d"></a>HWLOC_TOPOLOGY_FLAG_RESTRICT_TO_CPUBINDING&#160;</td><td class="fielddoc"><p>Do not consider resources outside of the process CPU binding. </p>
 <p>If the binding of the process is limited to a subset of cores, ignore the other cores during discovery.</p>
 <p>The resulting topology is identical to what a call to <a class="el" href="a00170.php#ga6db81ed13ac0a9d70cc80372ab537815" title="Restrict the topology to the given CPU set or nodeset.">hwloc_topology_restrict()</a> would generate, but this flag also prevents hwloc from ever touching other resources during the discovery.</p>
-<p>This flag especially tells the x86 backend to never temporarily rebind a thread on any excluded core. This is useful on Windows because such temporary rebinding can change the process binding.</p>
+<p>This flag especially tells the x86 backend to never temporarily rebind a thread on any excluded core. This is useful on Windows because such temporary rebinding can change the process binding. Another use-case is to avoid cores that would not be able to perform the hwloc discovery anytime soon because they are busy executing some high-priority real-time tasks.</p>
 <p>If process CPU binding is not supported, the thread CPU binding is considered instead if supported, or the flag is ignored.</p>
 <p>This flag requires <a class="el" href="a00169.php#ggada025d3ec20b4b420f8038d23d6e7bdea6ecb6abc6a0bb75e81564f8bca85783b" title="Assume that the selected backend provides the topology for the system on which we are running.">HWLOC_TOPOLOGY_FLAG_IS_THISSYSTEM</a> as well since binding support is required. </p>
 </td></tr>
