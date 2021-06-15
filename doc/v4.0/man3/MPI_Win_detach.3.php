@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Win_detach(3) man page (version 4.0.5)";
-$meta_desc = "Open MPI v4.0.5 man page: MPI_WIN_DETACH(3)";
+$title = "MPI_Win_detach(3) man page (version 4.0.6)";
+$meta_desc = "Open MPI v4.0.6 man page: MPI_WIN_DETACH(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,8 +14,9 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b><a href="../man3/MPI_Win_attach.3.php">MPI_Win_attach</a>, MPI_Win_detach</b> - One-sided MPI call that attach
-/ detach a window object for RMA operations.
+<b><a href="../man3/MPI_Win_attach.3.php">MPI_Win_attach</a>, MPI_Win_detach</b> - One-sided MPI call that attaches
+/ detaches a memory region to / from a window object for RMA operations.
+
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -76,37 +77,38 @@ integer).
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
 <a href="../man3/MPI_Win_attach.3.php">MPI_Win_attach</a>
-is a one-sided MPI communication collective call executed by all processes
-in the group of <i>comm</i>. It returns a window object that can be used by these
-processes to perform RMA operations. Each process specifies a window of
-existing memory that it exposes to RMA accesses by the processes in the
-group of <i>comm</i>. The window consists of <i>size</i> bytes, starting at address <i>base</i>.
-A process may elect to expose no memory by specifying <i>size</i> = 0. <p>
-If the <i>base</i>
-value used by <a href="../man3/MPI_Win_attach.3.php">MPI_Win_attach</a> was allocated by <a href="../man3/MPI_Alloc_mem.3.php">MPI_Alloc_mem</a>, the size of
-the window can be no larger than the value set by the <a href="../man3/MPI_Alloc_mem.3.php">MPI_ALLOC_MEM</a> function.
+is a one-sided MPI communication call used to attach a memory region of
+<i>size</i> bytes starting at address <i>base</i> to a window for RMA access. The window
+<i>win</i> must have been created using <i><a href="../man3/MPI_Win_create_dynamic.3.php">MPI_Win_create_dynamic</a></i>. Multiple non-overlapping
+memory regions may be attached to the same dynamic window. Attaching overlapping
+memory regions to the same dynamic window is erroneous. <p>
+If the <i>base</i> value
+used by <a href="../man3/MPI_Win_attach.3.php">MPI_Win_attach</a> was allocated by <a href="../man3/MPI_Alloc_mem.3.php">MPI_Alloc_mem</a>, the size of the
+window can be no larger than the value set by the <a href="../man3/MPI_Alloc_mem.3.php">MPI_ALLOC_MEM</a> function.
 <p>
-
+<p>
+MPI_Win_detach can be used to detach a previously attached memory region
+from <i>win</i>. The memory address <i>base</i> and <i>win</i> must match arguments passed to
+a previous call to <a href="../man3/MPI_Win_attach.3.php">MPI_Win_attach</a>.
 <p>
 <h2><a name='sect8' href='#toc8'>Notes</a></h2>
-Use memory allocated by <a href="../man3/MPI_Alloc_mem.3.php">MPI_Alloc_mem</a> to guarantee properly aligned
-window boundaries (such as word, double-word, cache line, page frame, and
-so on). <p>
+Use memory allocated by <a href="../man3/MPI_Alloc_mem.3.php">MPI_Alloc_mem</a>
+to guarantee properly aligned window boundaries (such as word, double-word,
+cache line, page frame, and so on). <p>
 
 <p>
 <p>
 <p>
 <h2><a name='sect9' href='#toc9'>Errors</a></h2>
-Almost all MPI routines return an error value; C routines
-as the value of the function and Fortran routines in the last argument.
-<p>
-Before the error value is returned, the current MPI error handler is called.
-By default, this error handler aborts the MPI job, except for I/O function
-errors. The error handler may be changed with <a href="../man3/MPI_Comm_set_errhandler.3.php">MPI_Comm_set_errhandler</a>; the
-predefined error handler MPI_ERRORS_RETURN may be used to cause error values
-to be returned. Note that MPI does not guarantee that an MPI program can
-continue past an error.
-<p>
+Almost all MPI routines return
+an error value; C routines as the value of the function and Fortran routines
+in the last argument. <p>
+Before the error value is returned, the current MPI
+error handler is called. By default, this error handler aborts the MPI job,
+except for I/O function errors. The error handler may be changed with <a href="../man3/MPI_Comm_set_errhandler.3.php">MPI_Comm_set_errhandler</a>;
+the predefined error handler MPI_ERRORS_RETURN may be used to cause error
+values to be returned. Note that MPI does not guarantee that an MPI program
+can continue past an error.
 <p>
 <p>  <p>
 
