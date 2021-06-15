@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Pack_external_size(3) man page (version 4.0.5)";
-$meta_desc = "Open MPI v4.0.5 man page: MPI_PACK_EXTERNAL_SIZE(3)";
+$title = "MPI_Pack_external_size(3) man page (version 4.0.6)";
+$meta_desc = "Open MPI v4.0.6 man page: MPI_PACK_EXTERNAL_SIZE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

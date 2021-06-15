@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "mpiexec(1) man page (version 4.0.5)";
-$meta_desc = "Open MPI v4.0.5 man page: mpiexec(1)";
+$title = "mpiexec(1) man page (version 4.0.6)";
+$meta_desc = "Open MPI v4.0.6 man page: mpiexec(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -79,40 +79,131 @@ If your application uses threads, then you probably
 want to ensure that you are either not bound at all (by specifying --bind-to
 none), or bound to multiple cores using an appropriate binding level or
 specific number of processing elements per application process.
-<h2><a name='sect3' href='#toc3'>Options</a></h2>
-
-<i>mpirun</i> will send the name of the directory where it was invoked on the
-local node to each of the remote nodes, and attempt to change to that directory.
- See the "Current Working Directory" section below for further details.
+<h2><a name='sect3' href='#toc3'>Definition
+of &rsquo;slot&rsquo;</a></h2>
+ <p>
+The term "slot" is used extensively in the rest of this manual
+page. A slot is an allocation unit for a process.  The number of slots on
+a node indicate how many processes can potentially execute on that node.
+By default, Open MPI will allow one process per slot.  <p>
+If Open MPI is not
+explicitly told how many slots are available on a node (e.g., if a hostfile
+is used and the number of slots is not specified for a given node), it
+will determine a maximum number of slots for that node in one of two ways:
 
 <dl>
 
-<dt><b>&lt;program&gt;</b> </dt>
-<dd>The program executable. This is identified as the first non-recognized
-argument to mpirun.   </dd>
-
-<dt><b>&lt;args&gt;</b> </dt>
-<dd>Pass these run-time arguments to every new process.
- These must always be the last arguments to <i>mpirun</i>. If an app context file
-is used, <i>&lt;args&gt;</i> will be ignored.   </dd>
-
-<dt><b>-h, --help</b> </dt>
-<dd>Display help for this command
+<dt>1. Default behavior </dt>
+<dd>By default, Open MPI will attempt to discover the number
+of processor cores on the node, and use that as the number of slots available.
  </dd>
 
+<dt>2. When <i>--use-hwthread-cpus</i> is used </dt>
+<dd>If <i>--use-hwthread-cpus</i> is specified on the
+<i>mpirun</i> command line, then Open MPI will attempt to discover the number
+of hardware threads on the node, and use that as the number of slots available.
+ </dd>
+</dl>
+<p>
+This default behavior also occurs when specifying the <i>-host</i> option with
+a single host.  Thus, the command:
+<dl>
+
+<dt>mpirun --host node1 ./a.out </dt>
+<dd>launches a number
+of processes equal to the number of cores on node node1, whereas: </dd>
+
+<dt>mpirun
+--host node1 --use-hwthread-cpus ./a.out </dt>
+<dd>launches a number of processes equal to
+the number of hardware threads on node1.  </dd>
+</dl>
+<p>
+When Open MPI applications are
+invoked in an environment managed by a resource manager (e.g., inside of
+a SLURM job), and Open MPI was built with appropriate support for that
+resource manager, then Open MPI will be informed of the number of slots
+for each node by the resource manager.  For example:
+<dl>
+
+<dt>mpirun ./a.out </dt>
+<dd>launches
+one process for every slot (on every node) as dictated by the resource
+manager job specification.  </dd>
+</dl>
+<p>
+Also note that the one-process-per-slot restriction
+can be overridden in unmanaged environments (e.g., when using hostfiles without
+a resource manager) if oversubscription is enabled (by default, it is disabled).
+ Most MPI applications and HPC environments do not oversubscribe; for simplicity,
+the majority of this documentation assumes that oversubscription is not
+enabled.
+<h3><a name='sect4' href='#toc4'>Slots are not hardware resources</a></h3>
+ Slots are frequently incorrectly
+conflated with hardware resources. It is important to realize that slots
+are an entirely different metric than the number (and type) of hardware
+resources available.  <p>
+Here are some examples that may help illustrate the
+difference:
+<dl>
+
+<dt>1. More processor cores than slots </dt>
+<dd>
+<p> Consider a resource manager
+job environment that tells Open MPI that there is a single node with 20
+processor cores and 2 slots available. By default, Open MPI will only let
+you run up to 2 processes.
+<p> Meaning: you run out of slots long before you
+run out of processor cores.  </dd>
+
+<dt>2. More slots than processor cores </dt>
+<dd>
+<p> Consider
+a hostfile with a single node listed with a "slots=50" qualification.  The
+node has 20 processor cores.  By default, Open MPI will let you run up to
+50 processes.
+<p> Meaning: you can run many more processes than you have processor
+cores.   </dd>
+</dl>
+
+<h2><a name='sect5' href='#toc5'>Definition of &rsquo;processor Element&rsquo;</a></h2>
+By default, Open MPI defines that
+a "processing element" is a processor core.  However, if <i>--use-hwthread-cpus</i>
+is specified on the <i>mpirun</i> command line, then a "processing element" is
+a hardware thread.
+<h2><a name='sect6' href='#toc6'>Options</a></h2>
+ <i>mpirun</i> will send the name of the directory
+where it was invoked on the local node to each of the remote nodes, and
+attempt to change to that directory.  See the "Current Working Directory"
+section below for further details.
+<dl>
+
+<dt><b>&lt;program&gt;</b> </dt>
+<dd>The program executable. This
+is identified as the first non-recognized argument to mpirun.   </dd>
+
+<dt><b>&lt;args&gt;</b> </dt>
+<dd>Pass
+these run-time arguments to every new process.  These must always be the
+last arguments to <i>mpirun</i>. If an app context file is used, <i>&lt;args&gt;</i> will be ignored.
+  </dd>
+
+<dt><b>-h, --help</b> </dt>
+<dd>Display help for this command   </dd>
+
 <dt><b>-q, --quiet</b> </dt>
-<dd>Suppress informative messages from orterun during application
-execution.   </dd>
+<dd>Suppress informative
+messages from orterun during application execution.   </dd>
 
 <dt><b>-v, --verbose</b> </dt>
-<dd>Be verbose   </dd>
+<dd>Be verbose
+  </dd>
 
 <dt><b>-V, --version</b> </dt>
-<dd>Print version number.  If
-no other arguments are given, this will also cause orterun to exit.   </dd>
+<dd>Print version number.  If no other arguments are given, this
+will also cause orterun to exit.   </dd>
 
-<dt><b>-N
-&lt;num&gt;</b> </dt>
+<dt><b>-N &lt;num&gt;</b> </dt>
 <dd><br>
 Launch num processes per node on all allocated nodes (synonym for npernode).
    </dd>
@@ -223,12 +314,12 @@ To map processes:
 
 <dt><b>--map-by &lt;foo&gt;</b> </dt>
 <dd>Map to the specified object,
-defaults to <i>socket</i>. Supported options include slot, hwthread, core, L1cache,
-L2cache, L3cache, socket, numa, board, node, sequential, distance, and
-ppr. Any object can include modifiers by adding a : and any combination
-of PE=n (bind n processing elements to each proc), SPAN (load balance the
-processes across the allocation), OVERSUBSCRIBE (allow more processes on
-a node than processing elements), and NOOVERSUBSCRIBE. This includes PPR,
+defaults to <i>socket</i>. Supported options include <i>slot</i>, <i>hwthread</i>, <i>core</i>, <i>L1cache</i>,
+<i>L2cache</i>, <i>L3cache</i>, <i>socket</i>, <i>numa</i>, <i>board</i>, <i>node</i>, <i>sequential</i>, <i>distance</i>, and
+<i>ppr</i>. Any object can include modifiers by adding a <i>:</i> and any combination
+of <i>PE=n</i> (bind n processing elements to each proc), <i>SPAN</i> (load balance the
+processes across the allocation), <i>OVERSUBSCRIBE</i> (allow more processes on
+a node than processing elements), and <i>NOOVERSUBSCRIBE</i>.  This includes <i>PPR</i>,
 where the pattern would be terminated by another colon to separate it from
 the modifiers.  </dd>
 
@@ -596,7 +687,15 @@ DVM.   </dd>
 
 <dt><b>-use-hwthread-cpus, --use-hwthread-cpus</b> </dt>
 <dd>Use hardware threads as independent
-cpus.   </dd>
+CPUs.
+<p> Note that if a number of slots is not provided to Open MPI (e.g., via
+the "slots" keyword in a hostfile or from a resource manager such as SLURM),
+the use of this option changes the default calculation of number of slots
+on a node.  See "DEFINITION OF &rsquo;SLOT&rsquo;", above.
+<p> Also note that the use of this
+option changes the Open MPI&rsquo;s definition of a "processor element" from a
+processor core to a hardware thread.  See "DEFINITION OF &rsquo;PROCESSOR ELEMENT&rsquo;",
+above.   </dd>
 
 <dt><b>-use-regexp, --use-regexp</b> </dt>
 <dd>Use regular expressions for launch.     </dd>
@@ -654,7 +753,7 @@ of each process when the timeout expires.   </dd>
 <p>
 There may be other options listed
 with <i>mpirun --help</i>.
-<h3><a name='sect4' href='#toc4'>Environment Variables</a></h3>
+<h3><a name='sect7' href='#toc7'>Environment Variables</a></h3>
 
 <dl>
 
@@ -663,7 +762,7 @@ with <i>mpirun --help</i>.
 <b>--timeout</b> command line option.      </dd>
 </dl>
 
-<h2><a name='sect5' href='#toc5'>Description</a></h2>
+<h2><a name='sect8' href='#toc8'>Description</a></h2>
  One invocation of <i>mpirun</i> starts
 an MPI application running under Open MPI. If the application is single
 process multiple data (SPMD), the application can be specified on the <i>mpirun</i>
@@ -682,7 +781,7 @@ allow for the description of the application layout on the command line
 using colons (<i>:</i>) to separate the specification of programs and arguments.
 Some options are globally set across all specified programs (e.g. --hostfile),
 while others are specific to a single program (e.g. -np).
-<h3><a name='sect6' href='#toc6'>Specifying Host
+<h3><a name='sect9' href='#toc9'>Specifying Host
 Nodes</a></h3>
  Host nodes can be identified on the <i>mpirun</i> command line with the
 <i>-host</i> option or in a hostfile.  <p>
@@ -703,72 +802,57 @@ Or, consider the hostfile
 
 <p>  <p>
 Here, we list both the host names (aa, bb, and cc) but also how many
-"slots" there are for each.  Slots indicate how many processes can potentially
-execute on a node.  For best performance, the number of slots may be chosen
-to be the number of cores on the node or the number of processor sockets.
- If the hostfile does not provide slots information, Open MPI will attempt
-to discover the number of cores (or hwthreads, if the use-hwthreads-as-cpus
-option is set) and set the number of slots to that value. This default behavior
-also occurs when specifying the <i>-host</i> option with a single hostname. Thus,
-the command
-<dl>
-
-<dt>mpirun -H aa ./a.out </dt>
-<dd>launches a number of processes equal to
-the number of cores on node aa.  </dd>
-</dl>
-<p>
-
+slots there are for each.
 <dl>
 
 <dt>mpirun -hostfile myhostfile ./a.out </dt>
-<dd>will
-launch two processes on each of the three nodes.  </dd>
+<dd>will launch
+two processes on each of the three nodes.  </dd>
 
-<dt>mpirun -hostfile myhostfile
--host aa ./a.out </dt>
+<dt>mpirun -hostfile myhostfile -host
+aa ./a.out </dt>
 <dd>will launch two processes, both on node aa.  </dd>
 
-<dt>mpirun -hostfile
-myhostfile -host dd ./a.out </dt>
-<dd>will find no hosts to run on and abort with an
-error. That is, the specified host dd is not in the specified hostfile.
-</dd>
+<dt>mpirun -hostfile myhostfile
+-host dd ./a.out </dt>
+<dd>will find no hosts to run on and abort with an error. That
+is, the specified host dd is not in the specified hostfile.  </dd>
 </dl>
 <p>
-When running under resource managers (e.g., SLURM, Torque, etc.), Open MPI
-will obtain both the hostnames and the number of slots directly from the
-resource manger.
-<h3><a name='sect7' href='#toc7'>Specifying Number of Processes</a></h3>
- As we have just seen, the
-number of processes to run can be set using the hostfile.  Other mechanisms
-exist.  <p>
-The number of processes launched can be specified as a multiple
-of the number of nodes or processor sockets available.  For example,
+When running
+under resource managers (e.g., SLURM, Torque, etc.), Open MPI will obtain
+both the hostnames and the number of slots directly from the resource manger.
+
+<h3><a name='sect10' href='#toc10'>Specifying Number of Processes</a></h3>
+ As we have just seen, the number of processes
+to run can be set using the hostfile.  Other mechanisms exist.  <p>
+The number
+of processes launched can be specified as a multiple of the number of nodes
+or processor sockets available.  For example,
 <dl>
 
-<dt>mpirun
--H aa,bb -npersocket 2 ./a.out </dt>
-<dd>launches processes 0-3 on node aa and process
-4-7 on node bb, where aa and bb are both dual-socket nodes. The <i>-npersocket</i>
-option also turns on the <i>-bind-to-socket</i> option, which is discussed in a later
-section.  </dd>
+<dt>mpirun -H aa,bb -npersocket
+2 ./a.out </dt>
+<dd>launches processes 0-3 on node aa and process 4-7 on node bb, where
+aa and bb are both dual-socket nodes. The <i>-npersocket</i> option also turns on
+the <i>-bind-to-socket</i> option, which is discussed in a later section.  </dd>
 
-<dt>mpirun -H aa,bb -npernode 2 ./a.out </dt>
-<dd>launches processes 0-1 on node
-aa and processes 2-3 on node bb.  </dd>
+<dt>mpirun
+-H aa,bb -npernode 2 ./a.out </dt>
+<dd>launches processes 0-1 on node aa and processes
+2-3 on node bb.  </dd>
 
 <dt>mpirun -H aa,bb -npernode 1 ./a.out </dt>
-<dd>launches
-one process per host node.  </dd>
+<dd>launches one process per
+host node.  </dd>
 
 <dt>mpirun -H aa,bb -pernode ./a.out </dt>
-<dd>is the same as
-<i>-npernode</i> 1.   </dd>
+<dd>is the same as <i>-npernode</i> 1.   </dd>
 </dl>
 <p>
-Another alternative is to specify the number of processes
-with the <i>-np</i> option.  Consider now the hostfile
+Another
+alternative is to specify the number of processes with the <i>-np</i> option.  Consider
+now the hostfile
 <p>    <b>%</b> cat myhostfile<br>
     aa slots=4<br>
     bb slots=4<br>
@@ -785,7 +869,7 @@ will not be used since the <i>-np</i> option indicated that only 6 processes sho
 be launched.  </dd>
 </dl>
 
-<h3><a name='sect8' href='#toc8'>Mapping Processes to Nodes:  Using Policies</a></h3>
+<h3><a name='sect11' href='#toc11'>Mapping Processes to Nodes:  Using Policies</a></h3>
  The examples above
 illustrate the default mapping of process processes to nodes.  This mapping
 can also be controlled with various <i>mpirun</i> options that describe mapping
@@ -870,7 +954,7 @@ and processes 1 and 2 each running <i>uptime</i> on nodes bb and cc, respectivel
  </dd>
 </dl>
 
-<h3><a name='sect9' href='#toc9'>Mapping, Ranking, and Binding: Oh My!</a></h3>
+<h3><a name='sect12' href='#toc12'>Mapping, Ranking, and Binding: Oh My!</a></h3>
  Open MPI employs a three-phase procedure
 for assigning process locations and ranks:
 <dl>
@@ -969,9 +1053,10 @@ In this manner, users can exert detailed control over relative MCW rank
 location and binding.  <p>
 Finally, <i>--report-bindings</i> can be used to report bindings.
  <p>
-As an example, consider a node with two processor sockets, each comprising
-four cores.  We run <i>mpirun</i> with <i>-np 4 --report-bindings</i> and the following additional
-options:
+As an example, consider a node with two processor sockets, each comprised
+of four cores, and each of those cores contains one hardware thread.  We
+run <i>mpirun</i> with <i>-np 4 --report-bindings</i> and the following additional options:
+
 <p>  % mpirun ... --map-by core --bind-to core<br>
   [...] ... binding child [...,0] to cpus 0001<br>
   [...] ... binding child [...,1] to cpus 0002<br>
@@ -984,7 +1069,7 @@ options:
   [...] ... binding child [...,2] to socket 0 cpus 000f<br>
   [...] ... binding child [...,3] to socket 1 cpus 00f0<br>
 
-<p>  % mpirun ... --map-by core:PE=2 --bind-to core<br>
+<p>  % mpirun ... --map-by slot:PE=2 --bind-to core<br>
   [...] ... binding child [...,0] to cpus 0003<br>
   [...] ... binding child [...,1] to cpus 000c<br>
   [...] ... binding child [...,2] to cpus 0030<br>
@@ -997,20 +1082,26 @@ first case, the processes bind to successive cores as indicated by the
 masks 0001, 0002, 0004, and 0008.  In the second case, processes bind to
 all cores on successive sockets as indicated by the masks 000f and 00f0.
 The processes cycle through the processor sockets in a round-robin fashion
-as many times as are needed.  In the third case, the masks show us that
-2 cores have been bound per process.  In the fourth case, binding is turned
-off and no bindings are reported.  <p>
-Open MPI&rsquo;s support for process binding
-depends on the underlying operating system.  Therefore, certain process
-binding options may not be available on every system.  <p>
-Process binding can
-also be set with MCA parameters. Their usage is less convenient than that
-of <i>mpirun</i> options. On the other hand, MCA parameters can be set not only
-on the <i>mpirun</i> command line, but alternatively in a system or user mca-params.conf
-file or as environment variables, as described in the MCA section below.
-Some examples include:  <p>
-    mpirun option          MCA parameter key
-      value<br>
+as many times as are needed.  <p>
+In the third case, the masks show us that
+2 cores have been bound per process.  Specifically, the mapping by slot
+with the <i>PE=2</i> qualifier indicated that each slot (i.e., process) should consume
+two processor elements.  Since <i>--use-hwthread-cpus</i> was not specified, Open MPI
+defined "processor element" as "core", and therefore the <i>--bind-to core</i> caused
+each process to be bound to both of the cores to which it was mapped.  <p>
+In
+the fourth case, binding is turned off and no bindings are reported.  <p>
+Open
+MPI&rsquo;s support for process binding depends on the underlying operating system.
+ Therefore, certain process binding options may not be available on every
+system.  <p>
+Process binding can also be set with MCA parameters. Their usage
+is less convenient than that of <i>mpirun</i> options. On the other hand, MCA parameters
+can be set not only on the <i>mpirun</i> command line, but alternatively in a
+system or user mca-params.conf file or as environment variables, as described
+in the MCA section below. Some examples include:  <p>
+    mpirun option
+     MCA parameter key         value<br>
 
 <p>   --map-by core          rmaps_base_mapping_policy   core<br>
    --map-by socket        rmaps_base_mapping_policy   socket<br>
@@ -1019,7 +1110,7 @@ Some examples include:  <p>
    --bind-to socket       hwloc_base_binding_policy   socket<br>
    --bind-to none         hwloc_base_binding_policy   none<br>
 
-<h3><a name='sect10' href='#toc10'>Rankfiles</a></h3>
+<h3><a name='sect13' href='#toc13'>Rankfiles</a></h3>
  Rankfiles are text files that specify detailed information
 about how individual processes should be mapped to nodes, and to which
 processor(s) they should be bound.  Each line of a rankfile specifies the
@@ -1081,13 +1172,13 @@ Starting with Open MPI v1.7, all socket/core slot locations are be specified
 as <i>logical</i> indexes (the Open MPI v1.6 series used <i>physical</i> indexes).  You
 can use tools such as HWLOC&rsquo;s "lstopo" to find the logical indexes of socket
 and cores.
-<h3><a name='sect11' href='#toc11'>Application Context or Executable Program?</a></h3>
+<h3><a name='sect14' href='#toc14'>Application Context or Executable Program?</a></h3>
  To distinguish the
 two different forms, <i>mpirun</i> looks on the command line for <i>--app</i> option.  If
 it is specified, then the file named on the command line is assumed to
 be an application context.  If it is not specified, then the file is assumed
 to be an executable program.
-<h3><a name='sect12' href='#toc12'>Locating Files</a></h3>
+<h3><a name='sect15' href='#toc15'>Locating Files</a></h3>
  If no relative or absolute
 path is specified for a file, Open MPI will first look for files by searching
 the directories specified by the <i>--path</i> option.  If there is no <i>--path</i> option
@@ -1099,7 +1190,7 @@ working directory determined by the specific starter used. For example when
 using the rsh or ssh starters, the initial directory is $HOME by default.
 Other starters may set the initial directory to the current working directory
 from the invocation of <i>mpirun</i>.
-<h3><a name='sect13' href='#toc13'>Current Working Directory</a></h3>
+<h3><a name='sect16' href='#toc16'>Current Working Directory</a></h3>
  The <i>-wdir</i> mpirun
 option (and its synonym, <i>-wd</i>) allows the user to change to an arbitrary
 directory before the program is invoked.  It can also be used in application
@@ -1119,7 +1210,7 @@ default directory determined by the starter. <p>
 All directory changing occurs
 before the user&rsquo;s program is invoked; it does not wait until <i><a href="../man3/MPI_Init.3.php">MPI_INIT</a></i> is
 called.
-<h3><a name='sect14' href='#toc14'>Standard I/O</a></h3>
+<h3><a name='sect17' href='#toc17'>Standard I/O</a></h3>
  Open MPI directs UNIX standard input to /dev/null
 on all processes except the MPI_COMM_WORLD rank 0 process. The MPI_COMM_WORLD
 rank 0 process inherits standard input from <i>mpirun</i>. <b>Note:</b> The node that
@@ -1139,7 +1230,7 @@ on <i>mpirun</i>.
 receive the stream from <i>my_input</i> on stdin.  The stdin on all the other nodes
 will be tied to /dev/null.  However, the stdout from all nodes will be collected
 into the <i>my_output</i> file.
-<h3><a name='sect15' href='#toc15'>Signal Propagation</a></h3>
+<h3><a name='sect18' href='#toc18'>Signal Propagation</a></h3>
  When orterun receives a SIGTERM
 and SIGINT, it will attempt to kill the entire job by sending all processes
 in the job a SIGTERM, waiting a small number of seconds, then sending all
@@ -1151,7 +1242,7 @@ mpirun will cause a SIGSTOP signal to be sent to all of the programs started
 by mpirun and likewise a SIGCONT signal to mpirun will cause a SIGCONT
 sent.  <p>
 Other signals are not currently propagated by orterun.
-<h3><a name='sect16' href='#toc16'>Process Termination
+<h3><a name='sect19' href='#toc19'>Process Termination
 / Signal Handling</a></h3>
  During the run of an MPI application, if any process
 dies abnormally (either exiting before invoking <i><a href="../man3/MPI_Finalize.3.php">MPI_FINALIZE</a></i>, or dying
@@ -1167,7 +1258,7 @@ happen since Open MPI was already "in" MPI when the error occurred.  Since
 <i>mpirun</i> will notice that the process died due to a signal, it is probably
 not necessary (and safest) for the user to only clean up non-MPI state.
 
-<h3><a name='sect17' href='#toc17'>Process Environment</a></h3>
+<h3><a name='sect20' href='#toc20'>Process Environment</a></h3>
  Processes in the MPI application inherit their environment
 from the Open RTE daemon upon the node on which they are running.  The environment
 is typically inherited from the user&rsquo;s shell.  On remote nodes, the exact
@@ -1179,7 +1270,7 @@ which require the <i>LD_LIBRARY_PATH</i> environment variable to be set, care
 must be taken to ensure that it is correctly set when booting Open MPI.
 <p>
 See the "Remote Execution" section for more details.
-<h3><a name='sect18' href='#toc18'>Remote Execution</a></h3>
+<h3><a name='sect21' href='#toc21'>Remote Execution</a></h3>
 
 Open MPI requires that the <i>PATH</i> environment variable be set to find executables
 on remote nodes (this is typically only necessary in <i>rsh</i>- or <i>ssh</i>-based environments
@@ -1235,7 +1326,7 @@ to <i>mpirun</i>.  For example:
 <p> is equivalent to
 <p>     <b>%</b> mpirun --prefix /usr/local<br>
 
-<h3><a name='sect19' href='#toc19'>Exported Environment Variables</a></h3>
+<h3><a name='sect22' href='#toc22'>Exported Environment Variables</a></h3>
  All environment variables that are named
 in the form OMPI_* will automatically be exported to new processes on the
 local and remote nodes. Environmental parameters can also be set/forwarded
@@ -1246,7 +1337,7 @@ the definition of new variables, note that the parser for these options
 are currently not very sophisticated - it does not even understand quoted
 values.  Users are advised to set variables in the environment and use the
 option to export them; not to define them.
-<h3><a name='sect20' href='#toc20'>Setting MCA Parameters</a></h3>
+<h3><a name='sect23' href='#toc23'>Setting MCA Parameters</a></h3>
  The
 <i>-mca</i> switch allows the passing of parameters to various MCA (Modular Component
 Architecture) modules.  MCA modules have direct impact on MPI programs because
@@ -1291,7 +1382,7 @@ To find the available component types under
 the MCA architecture, or to find the available parameters for a specific
 component, use the <i>ompi_info</i> command. See the <i><i>ompi_info(1)</i></i> man page for
 detailed information on the command.
-<h3><a name='sect21' href='#toc21'>Setting MCA parameters and environment
+<h3><a name='sect24' href='#toc24'>Setting MCA parameters and environment
 variables from file.</a></h3>
 The <i>-tune</i> command line option and its synonym <i>-mca mca_base_envar_file_prefix</i>
 allows a user to set mca parameters and environment variables with the
@@ -1304,7 +1395,7 @@ in the file, the last value read will be used. <p>
 MCA parameters and environment
 specified on the command line have higher precedence than variables specified
 in the file.
-<h3><a name='sect22' href='#toc22'>Running as root</a></h3>
+<h3><a name='sect25' href='#toc25'>Running as root</a></h3>
  The Open MPI team strongly advises against
 executing <i>mpirun</i> as the root user.  MPI applications should be run as regular
 (non-root) users.  <p>
@@ -1321,7 +1412,7 @@ environmental control (vs. the existing <i>--allow-run-as-root</i> command line 
  The compromise of using <i>two</i> environment variables was reached: it allows
 root execution via an environmental control, but it conveys the Open MPI
 team&rsquo;s strong recomendation against this behavior.
-<h3><a name='sect23' href='#toc23'>Exit status</a></h3>
+<h3><a name='sect26' href='#toc26'>Exit status</a></h3>
  There is
 no standard definition for what <i>mpirun</i> should return as an exit status.
 After considerable discussion, we settled on the following method for assigning
@@ -1355,40 +1446,25 @@ the primary job. Any non-zero exit status in secondary jobs will be reported
 solely in a summary print statement.  </dd>
 </dl>
 <p>
-By default, OMPI records and notes
-that MPI processes exited with non-zero termination status. This is generally
-not considered an "abnormal termination" - i.e., OMPI will not abort an MPI
-job if one or more processes return a non-zero status. Instead, the default
-behavior simply reports the number of processes terminating with non-zero
-status upon completion of the job. <p>
-However, in some cases it can be desirable
-to have the job abort when any process terminates with non-zero status. For
-example, a non-MPI job might detect a bad result from a calculation and
-want to abort, but doesn&rsquo;t want to generate a core file. Or an MPI job might
-continue past a call to <a href="../man3/MPI_Finalize.3.php">MPI_Finalize</a>, but indicate that all processes should
-abort due to some post-MPI result. <p>
-It is not anticipated that this situation
-will occur frequently. However, in the interest of serving the broader community,
-OMPI now has a means for allowing users to direct that jobs be aborted
-upon any process exiting with non-zero status. Setting the MCA parameter
-"orte_abort_on_non_zero_status" to 1 will cause OMPI to abort all processes
-once any process  exits with non-zero status.<br>
- <p>
-Terminations caused in this manner will be reported on the console as
-an "abnormal termination", with the first process to so exit identified
-along with its exit status. <p>
+By default, the job will abort when
+any process terminates with non-zero status. The MCA parameter "orte_abort_on_non_zero_status"
+can be set to "false" (or "0") to cause OMPI to not abort a job if one
+or more processes return a non-zero status. In that situation the OMPI records
+and notes that processes exited with non-zero termination status to report
+the approprate exit status of <i>mpirun</i> (per bullet points above). <p>
 
-<h2><a name='sect24' href='#toc24'>Examples</a></h2>
-Be sure also to see the examples
-throughout the sections above.
+<h2><a name='sect27' href='#toc27'>Examples</a></h2>
+Be
+sure also to see the examples throughout the sections above.
 <dl>
 
-<dt>mpirun -np 4 -mca btl ib,tcp,self prog1 </dt>
-<dd>Run
-4 copies of prog1 using the "ib", "tcp", and "self" BTL&rsquo;s for the transport
-of MPI messages.   </dd>
+<dt>mpirun -np
+4 -mca btl ib,tcp,self prog1 </dt>
+<dd>Run 4 copies of prog1 using the "ib", "tcp",
+and "self" BTL&rsquo;s for the transport of MPI messages.   </dd>
 
-<dt>mpirun -np 4 -mca btl tcp,sm,self </dt>
+<dt>mpirun -np 4 -mca btl
+tcp,sm,self </dt>
 <dd><br>
 --mca btl_tcp_if_include eth0 prog1 <br>
 Run 4 copies of prog1 using the "tcp", "sm" and "self" BTLs for the transport
@@ -1397,7 +1473,7 @@ of MPI messages, with TCP using only the eth0 interface to communicate.
     </dd>
 </dl>
 
-<h2><a name='sect25' href='#toc25'>Return Value</a></h2>
+<h2><a name='sect28' href='#toc28'>Return Value</a></h2>
  <i>mpirun</i> returns 0 if all processes started by <i>mpirun</i> exit
 after calling <a href="../man3/MPI_Finalize.3.php">MPI_FINALIZE</a>.  A non-zero value is returned if an internal
 error occurred in mpirun, or one or more processes exited before calling
@@ -1413,7 +1489,7 @@ is used and the timeout expires before the job completes (thereby forcing
 the value of <b>ETIMEDOUT</b> (which is typically 110 on Linux and OS X systems).
 
 <p>
-<h2><a name='sect26' href='#toc26'>See Also</a></h2>
+<h2><a name='sect29' href='#toc29'>See Also</a></h2>
 <i><a href="../man3/MPI_Init_thread.3.php">MPI_Init_thread</a>(3)</i> <p>
 
 <hr><p>
@@ -1422,34 +1498,39 @@ the value of <b>ETIMEDOUT</b> (which is typically 110 on Linux and OS X systems)
 <li><a name='toc0' href='#sect0'>Name</a></li>
 <li><a name='toc1' href='#sect1'>Synopsis</a></li>
 <li><a name='toc2' href='#sect2'>Quick Summary</a></li>
-<li><a name='toc3' href='#sect3'>Options</a></li>
+<li><a name='toc3' href='#sect3'>Definition of 'slot'</a></li>
 <ul>
-<li><a name='toc4' href='#sect4'>Environment Variables</a></li>
+<li><a name='toc4' href='#sect4'>Slots are not hardware resources</a></li>
 </ul>
-<li><a name='toc5' href='#sect5'>Description</a></li>
+<li><a name='toc5' href='#sect5'>Definition of 'processor Element'</a></li>
+<li><a name='toc6' href='#sect6'>Options</a></li>
 <ul>
-<li><a name='toc6' href='#sect6'>Specifying Host Nodes</a></li>
-<li><a name='toc7' href='#sect7'>Specifying Number of Processes</a></li>
-<li><a name='toc8' href='#sect8'>Mapping Processes to Nodes:  Using Policies</a></li>
-<li><a name='toc9' href='#sect9'>Mapping, Ranking, and Binding: Oh My!</a></li>
-<li><a name='toc10' href='#sect10'>Rankfiles</a></li>
-<li><a name='toc11' href='#sect11'>Application Context or Executable Program?</a></li>
-<li><a name='toc12' href='#sect12'>Locating Files</a></li>
-<li><a name='toc13' href='#sect13'>Current Working Directory</a></li>
-<li><a name='toc14' href='#sect14'>Standard I/O</a></li>
-<li><a name='toc15' href='#sect15'>Signal Propagation</a></li>
-<li><a name='toc16' href='#sect16'>Process Termination / Signal Handling</a></li>
-<li><a name='toc17' href='#sect17'>Process Environment</a></li>
-<li><a name='toc18' href='#sect18'>Remote Execution</a></li>
-<li><a name='toc19' href='#sect19'>Exported Environment Variables</a></li>
-<li><a name='toc20' href='#sect20'>Setting MCA Parameters</a></li>
-<li><a name='toc21' href='#sect21'>Setting MCA parameters and environment variables from file.</a></li>
-<li><a name='toc22' href='#sect22'>Running as root</a></li>
-<li><a name='toc23' href='#sect23'>Exit status</a></li>
+<li><a name='toc7' href='#sect7'>Environment Variables</a></li>
 </ul>
-<li><a name='toc24' href='#sect24'>Examples</a></li>
-<li><a name='toc25' href='#sect25'>Return Value</a></li>
-<li><a name='toc26' href='#sect26'>See Also</a></li>
+<li><a name='toc8' href='#sect8'>Description</a></li>
+<ul>
+<li><a name='toc9' href='#sect9'>Specifying Host Nodes</a></li>
+<li><a name='toc10' href='#sect10'>Specifying Number of Processes</a></li>
+<li><a name='toc11' href='#sect11'>Mapping Processes to Nodes:  Using Policies</a></li>
+<li><a name='toc12' href='#sect12'>Mapping, Ranking, and Binding: Oh My!</a></li>
+<li><a name='toc13' href='#sect13'>Rankfiles</a></li>
+<li><a name='toc14' href='#sect14'>Application Context or Executable Program?</a></li>
+<li><a name='toc15' href='#sect15'>Locating Files</a></li>
+<li><a name='toc16' href='#sect16'>Current Working Directory</a></li>
+<li><a name='toc17' href='#sect17'>Standard I/O</a></li>
+<li><a name='toc18' href='#sect18'>Signal Propagation</a></li>
+<li><a name='toc19' href='#sect19'>Process Termination / Signal Handling</a></li>
+<li><a name='toc20' href='#sect20'>Process Environment</a></li>
+<li><a name='toc21' href='#sect21'>Remote Execution</a></li>
+<li><a name='toc22' href='#sect22'>Exported Environment Variables</a></li>
+<li><a name='toc23' href='#sect23'>Setting MCA Parameters</a></li>
+<li><a name='toc24' href='#sect24'>Setting MCA parameters and environment variables from file.</a></li>
+<li><a name='toc25' href='#sect25'>Running as root</a></li>
+<li><a name='toc26' href='#sect26'>Exit status</a></li>
+</ul>
+<li><a name='toc27' href='#sect27'>Examples</a></li>
+<li><a name='toc28' href='#sect28'>Return Value</a></li>
+<li><a name='toc29' href='#sect29'>See Also</a></li>
 </ul>
 
 

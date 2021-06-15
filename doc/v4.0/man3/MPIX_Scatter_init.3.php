@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPIX_Scatter_init(3) man page (version 4.0.5)";
-$meta_desc = "Open MPI v4.0.5 man page: MPIX_Scatter_init(3)";
+$title = "MPIX_Scatter_init(3) man page (version 4.0.6)";
+$meta_desc = "Open MPI v4.0.6 man page: MPIX_Scatter_init(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
