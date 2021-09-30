@@ -26,6 +26,15 @@ color=red><?php
 
 </ul></p>
 
+<h2>Upcoming release series</h2>
+
+<p><ul>
+<li><a href="current/"><strong>v5.0 series</strong></a>.
+This documentation reflects the latest progression in the 5.0.x series.
+</li>
+
+</ul></p>
+
 <h2>Prior stable release series</h2>
 
 <p><ul>
