@@ -4,6 +4,8 @@ include_once("$topdir/includes/nav.inc");
 $this_dir = "doc";
 $this_nav[] = new Nav("Current");
 $this_nav[] = new Nav("v4.1 (current stable)", "$topdir/doc/v4.1/");
+$this_nav[] = new Nav("Upcoming");
+$this_nav[] = new Nav("v5.0 (unreleased)", "$topdir/doc/v5.0/");
 $this_nav[] = new Nav("Still supported");
 $this_nav[] = new Nav("v4.0 (prior stable)", "$topdir/doc/v4.0/");
 $this_nav[] = new Nav("Older versions");
