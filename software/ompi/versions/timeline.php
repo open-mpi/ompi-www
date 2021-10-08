@@ -5,7 +5,7 @@
   include_once("$topdir/includes/header.inc");
 
 function g($v) {
-    print("<p><div align=center><img src=\"../$v/timeline-graph.php\"></div></p>\n");
+    print("<p>Version $v series:</p>\n<p><img src=\"../$v/timeline-graph.php\"></p>\n");
 }
 
 g("v5.0");
