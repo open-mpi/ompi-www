@@ -9,19 +9,19 @@ The following versions are available as nightly snapshots:
 
 <ul>
 
-<li> <strong>v2.5 branch &mdash; New beta release series:</strong>
+<li> <strong>v2.6 branch &mdash; New beta release series:</strong>
+<p>
+ <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.6/lastSuccessfulBuild/">Latest snapshot</a>
+ &mdash;
+ <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.6/">All snapshots</a>
+</p>
+</li>
+
+<li> <strong>v2.5 branch &mdash; Stable release series:</strong> <strong>This is the recommended series for all users to download and use.</strong>
 <p>
  <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.5/lastSuccessfulBuild/">Latest snapshot</a>
  &mdash;
  <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.5/">All snapshots</a>
-</p>
-</li>
-
-<li> <strong>v2.4 branch &mdash; Stable release series:</strong> <strong>This is the recommended series for all users to download and use.</strong>
-<p>
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.4/lastSuccessfulBuild/">Latest snapshot</a>
- &mdash;
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.4/">All snapshots</a>
 </p>
 </li>
 
