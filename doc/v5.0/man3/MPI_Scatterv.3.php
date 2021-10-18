@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Scatterv(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_SCATTERV(3)";
+$title = "MPI_Scatterv(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_SCATTERV(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,8 +14,8 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b>MPI_Scatterv, <a href="../man3/MPI_Iscatterv.3.php">MPI_Iscatterv</a></b> - Scatters a buffer in parts to
-all tasks in a group.
+<b>MPI_Scatterv, <a href="../man3/MPI_Iscatterv.3.php">MPI_Iscatterv</a>, <a href="../man3/MPI_Scatterv_init.3.php">MPI_Scatterv_init</a></b> - Scatters a
+buffer in parts to all tasks in a group.
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -30,6 +30,11 @@ int <a href="../man3/MPI_Iscatterv.3.php">MPI_Iscatterv</a>(const void *sendbuf,
 displs[],
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype sendtype, void *recvbuf, int recvcount,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Request *request)
+int <a href="../man3/MPI_Scatterv_init.3.php">MPI_Scatterv_init</a>(const void *sendbuf, const int sendcounts[], const
+int displs[],
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype sendtype, void *recvbuf, int recvcount,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request
+*request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
@@ -45,6 +50,11 @@ MPI_SCATTERV(SENDBUF, SENDCOUNTS, DISPLS, SENDTYPE, RECVBUF,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNTS(*), DISPLS(*), SENDTYPE
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNT, RECVTYPE, ROOT, COMM, REQUEST, IERROR
+<a href="../man3/MPI_Scatterv_init.3.php">MPI_SCATTERV_INIT</a>(SENDBUF, SENDCOUNTS, DISPLS, SENDTYPE, RECVBUF,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNT, RECVTYPE, ROOT, COMM, INFO, REQUEST, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNTS(*), DISPLS(*), SENDTYPE
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNT, RECVTYPE, ROOT, COMM, INFO, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -65,6 +75,17 @@ MPI_Scatterv(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: recvcount, root
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Scatterv_init.3.php">MPI_scatterv_init</a>(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;recvtype, root, comm, info, request, ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN), ASYNCHRONOUS :: sendcounts(*), displs(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: recvcount, root
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
@@ -101,7 +122,11 @@ buffer elements (handle). </dd>
 of sending process (integer). </dd>
 
 <dt>comm </dt>
-<dd>Communicator (handle).
+<dd>Communicator (handle). </dd>
+
+<dt>info </dt>
+<dd>Info (handle,
+persistent only).
 <p> </dd>
 </dl>
 
@@ -109,28 +134,28 @@ of sending process (integer). </dd>
 
 <dl>
 
-<dt>recvbuf
-</dt>
-<dd>Address of receive buffer (choice). </dd>
+<dt>recvbuf </dt>
+<dd>Address of receive buffer (choice).
+</dd>
 
 <dt>request </dt>
-<dd>Request (handle, non-blocking
-only). </dd>
+<dd>Request (handle, non-blocking only). </dd>
 
 <dt>IERROR </dt>
-<dd>Fortran only: Error status (integer).
+<dd>Fortran only: Error status
+(integer).
 <p> </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
-MPI_Scatterv
-is the inverse operation to <a href="../man3/MPI_Gatherv.3.php">MPI_Gatherv</a>. <p>
-MPI_Scatterv extends the functionality
-of <a href="../man3/MPI_Scatter.3.php">MPI_Scatter</a> by allowing a varying count of data to be sent to each process,
-since <i>sendcounts</i> is now an array. It also allows more flexibility as to
-where the data is taken from on the root, by providing the new argument,
-<i>displs</i>. <p>
-The outcome is as if the root executed <i>n</i> send operations, <p>
+MPI_Scatterv is the inverse operation to <a href="../man3/MPI_Gatherv.3.php">MPI_Gatherv</a>.
+<p>
+MPI_Scatterv extends the functionality of <a href="../man3/MPI_Scatter.3.php">MPI_Scatter</a> by allowing a varying
+count of data to be sent to each process, since <i>sendcounts</i> is now an array.
+It also allows more flexibility as to where the data is taken from on the
+root, by providing the new argument, <i>displs</i>. <p>
+The outcome is as if the root
+executed <i>n</i> send operations, <p>
 <br>
 <pre>    <a href="../man3/MPI_Send.3.php">MPI_Send</a>(sendbuf + displs[i] * extent(sendtype), \
              sendcounts[i], sendtype, i, ...)

@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Allgatherv(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_ALLGATHERV(3)";
+$title = "MPI_Allgatherv(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_ALLGATHERV(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,9 +14,9 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b>MPI_Allgatherv, <a href="../man3/MPI_Iallgatherv.3.php">MPI_Iallgatherv</a></b> - Gathers data from all processes
-and delivers it to all. Each process may contribute a different amount of
-data.
+<b>MPI_Allgatherv, <a href="../man3/MPI_Iallgatherv.3.php">MPI_Iallgatherv</a>, <a href="../man3/MPI_Allgatherv_init.3.php">MPI_Allgatherv_init</a></b> - Gathers
+data from all processes and delivers it to all. Each process may contribute
+a different amount of data.
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -30,6 +30,10 @@ int <a href="../man3/MPI_Iallgatherv.3.php">MPI_Iallgatherv</a>(const void *send
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype sendtype, void *recvbuf, const int recvcounts[],
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;const int displs[], MPI_Datatype recvtype, MPI_Comm comm,
         MPI_Request *request)
+int <a href="../man3/MPI_Allgatherv_init.3.php">MPI_Allgatherv_init</a>(const void *sendbuf, int sendcount,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype sendtype, void *recvbuf, const int recvcounts[],
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;const int displs[], MPI_Datatype recvtype, MPI_Comm comm,
+        MPI_Info info, MPI_Request *request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
@@ -41,10 +45,15 @@ MPI_ALLGATHERV(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;DISPLS(*), RECVTYPE, COMM, IERROR
 <a href="../man3/MPI_Iallgatherv.3.php">MPI_IALLGATHERV</a>(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF,
-<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNT, DISPLS, RECVTYPE, COMM, REQUEST, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNT, DISPLS, RECVTYPE, COMM,  REQUEST,  IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT(*),
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;DISPLS(*), RECVTYPE, COMM, REQUEST, IERROR
+<a href="../man3/MPI_Allgatherv_init.3.php">MPI_ALLGATHERV_INIT</a>(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNT, DISPLS, RECVTYPE, COMM,  INFO,  REQUEST,  IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT(*),
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;DISPLS(*), RECVTYPE, COMM, INFO, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -65,6 +74,18 @@ MPI_Allgatherv(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN), ASYNCHRONOUS :: recvcounts(*), displs(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Allgatherv_init.3.php">MPI_Allgatherv_init</a>(sendbuf, sendcount, sendtype, recvbuf, recvcounts,
+displs,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;recvtype, comm, info, request, ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: sendcount
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN), ASYNCHRONOUS :: recvcounts(*), displs(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
@@ -98,7 +119,10 @@ to recvbuf) at which to place the incoming data from process i. </dd>
 
 <dt>comm </dt>
 <dd>Communicator (handle).
-<p>
+</dd>
+
+<dt>info </dt>
+<dd>Info (handle, persistent only). <p>
 </dd>
 </dl>
 
@@ -107,29 +131,29 @@ to recvbuf) at which to place the incoming data from process i. </dd>
 <dl>
 
 <dt>recvbuf </dt>
-<dd>Address of receive buffer (choice). </dd>
+<dd>Address of
+receive buffer (choice). </dd>
 
 <dt>request </dt>
-<dd>Request
-(handle, non-blocking only). </dd>
+<dd>Request (handle, non-blocking only). </dd>
 
-<dt>IERROR </dt>
+<dt>IERROR
+</dt>
 <dd>Fortran only: Error status (integer).
-
 <p> </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
-MPI_Allgatherv is similar to <a href="../man3/MPI_Allgather.3.php">MPI_Allgather</a> in that all processes
-gather data from all other processes, except that each process can send
-a different amount of data. The block of data sent from the jth process
-is received by every process and placed in the jth block of the buffer
-<i>recvbuf.</i> <p>
-The type signature associated with sendcount, sendtype, at process
-j must be equal to the type signature associated with recvcounts[j], recvtype
-at any other process. <p>
-The outcome is as if all processes executed calls
-to <br>
+MPI_Allgatherv is similar
+to <a href="../man3/MPI_Allgather.3.php">MPI_Allgather</a> in that all processes gather data from all other processes,
+except that each process can send a different amount of data. The block
+of data sent from the jth process is received by every process and placed
+in the jth block of the buffer <i>recvbuf.</i> <p>
+The type signature associated with
+sendcount, sendtype, at process j must be equal to the type signature associated
+with recvcounts[j], recvtype at any other process. <p>
+The outcome is as if
+all processes executed calls to <br>
 <pre>MPI_Allgatherv(sendbuf,sendcount,sendtype,recvbuf,recvcount,
             displs,recvtype,root,comm)
 </pre><p>

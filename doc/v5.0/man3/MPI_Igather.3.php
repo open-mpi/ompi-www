@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Igather(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_IGATHER(3)";
+$title = "MPI_Igather(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_IGATHER(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -15,8 +15,8 @@ include_once("$topdir/includes/header.inc");
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
 <p>
-C]MPI_GatherR], C]MPI_IgatherR] - Gathers values from a group of
-processes.
+C]MPI_GatherR], C]MPI_IgatherR], C]MPI_Gather_initR] - Gathers values
+from a group of processes.
 <h2><a name='sect1' href='#toc1'>Synopsis</a></h2>
 
 <h3><a name='sect2' href='#toc2'>C Syntax</a></h3>
@@ -28,7 +28,10 @@ processes.
 sendtype,    void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,
    MPI_Comm comm)int MPI_Igather(const void *sendbuf, int sendcount, MPI_Datatype
 sendtype,    void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,
-   MPI_Comm comm, MPI_Request *request)R]Fortran Syntax</a></h3>
+   MPI_Comm comm, MPI_Request *request)int <a href="../man3/MPI_Gather_init.3.php">MPI_Gather_init</a>(const void *sendbuf,
+int sendcount, MPI_Datatype sendtype,    void *recvbuf, int recvcount,
+MPI_Datatype recvtype, int root,    MPI_Comm comm, MPI_Info info, MPI_Request
+*request)R]Fortran Syntax</a></h3>
 <br>
 <pre>
 
@@ -39,7 +42,11 @@ SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,        RECVTYPE, ROOT, COMM, IERROR)
 RECVTYPE, ROOT    INTEGER COMM, IERRORMPI_IGATHER(SENDBUF, SENDCOUNT, SENDTYPE,
 RECVBUF, RECVCOUNT,        RECVTYPE, ROOT, COMM, REQUEST, IERROR)    &lt;type&gt;
  SENDBUF(*), RECVBUF(*)    INTEGER SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE,
-ROOT    INTEGER COMM, REQUEST, IERRORR]Fortran 2008 Syntax</a></h3>
+ROOT    INTEGER COMM, REQUEST, IERRORMPI_GATHER_INIT(SENDBUF, SENDCOUNT,
+SENDTYPE, RECVBUF, RECVCOUNT,        RECVTYPE, ROOT, COMM, INFO, REQUEST,
+IERROR)    &lt;type&gt;  SENDBUF(*), RECVBUF(*)    INTEGER SENDCOUNT, SENDTYPE,
+RECVCOUNT, RECVTYPE, ROOT    INTEGER COMM, INFO, REQUEST, IERRORR]Fortran
+2008 Syntax</a></h3>
 <br>
 <pre>
 
@@ -55,36 +62,46 @@ INTENT(IN), ASYNCHRONOUS :: sendbuf    TYPE(*), DIMENSION(..), ASYNCHRONOUS
 :: recvbuf    INTEGER, INTENT(IN) :: sendcount, recvcount, root    TYPE(MPI_Datatype),
 INTENT(IN) :: sendtype, recvtype    TYPE(MPI_Comm), INTENT(IN) :: comm
    TYPE(MPI_Request), INTENT(OUT) :: request    INTEGER, OPTIONAL, INTENT(OUT)
-:: ierrorR]Input Parameters</a></h2>
+:: ierrorMPI_Gather_init(sendbuf, sendcount, sendtype, recvbuf, recvcount,
+recvtype,        root, comm, info, request, ierror)    TYPE(*), DIMENSION(..),
+INTENT(IN), ASYNCHRONOUS :: sendbuf    TYPE(*), DIMENSION(..), ASYNCHRONOUS
+:: recvbuf    INTEGER, INTENT(IN) :: sendcount, recvcount, root    TYPE(MPI_Datatype),
+INTENT(IN) :: sendtype, recvtype    TYPE(MPI_Comm), INTENT(IN) :: comm
+   TYPE(MPI_Info), INTENT(IN) :: info    TYPE(MPI_Request), INTENT(OUT)
+:: request    INTEGER, OPTIONAL, INTENT(OUT) :: ierrorR]Input Parameters</a></h2>
 
 <dl>
 
 <dt>[bu]</dt>
-<dd>C]sendbufR] : Starting address of send buffer
-(choice). </dd>
+<dd>C]sendbufR]
+: Starting address of send buffer (choice). </dd>
 
 <dt>[bu]</dt>
-<dd>C]sendcountR] : Number of elements in send buffer (integer).
+<dd>C]sendcountR] : Number of
+elements in send buffer (integer). </dd>
+
+<dt>[bu]</dt>
+<dd>C]sendtypeR] : Datatype of send buffer
+elements (handle). </dd>
+
+<dt>[bu]</dt>
+<dd>C]recvcountR] : Number of elements for any single
+receive (integer, significant only at root). </dd>
+
+<dt>[bu]</dt>
+<dd>C]recvtypeR] : Datatype
+of recvbuffer elements (handle, significant only at root). </dd>
+
+<dt>[bu]</dt>
+<dd>C]rootR]
+: Rank of receiving process (integer). </dd>
+
+<dt>[bu]</dt>
+<dd>C]commR] : Communicator (handle).
 </dd>
 
 <dt>[bu]</dt>
-<dd>C]sendtypeR] : Datatype of send buffer elements (handle). </dd>
-
-<dt>[bu]</dt>
-<dd>C]recvcountR]
-: Number of elements for any single receive (integer, significant only
-at root). </dd>
-
-<dt>[bu]</dt>
-<dd>C]recvtypeR] : Datatype of recvbuffer elements (handle, significant
-only at root). </dd>
-
-<dt>[bu]</dt>
-<dd>C]rootR] : Rank of receiving process (integer). </dd>
-
-<dt>[bu]</dt>
-<dd>C]commR]
-: Communicator (handle). </dd>
+<dd>C]infoR] : Info (handle, persistent only). </dd>
 </dl>
 
 <h2><a name='sect6' href='#toc6'>Output Parameters</a></h2>
@@ -92,24 +109,25 @@ only at root). </dd>
 <dl>
 
 <dt>[bu]</dt>
-<dd>C]recvbufR] : Address of receive
-buffer (choice, significant only at root). </dd>
+<dd>C]recvbufR]
+: Address of receive buffer (choice, significant only at root). </dd>
 
 <dt>[bu]</dt>
-<dd>C]requestR] : Request (handle,
-non-blocking only). </dd>
+<dd>C]requestR]
+: Request (handle, non-blocking only). </dd>
 
 <dt>[bu]</dt>
-<dd>C]IERRORR] : Fortran only: Error status (integer).
-</dd>
+<dd>C]IERRORR] : Fortran only: Error
+status (integer). </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
 <p>
-Each process (root process included) sends the contents of its
-send buffer to the root process. The root process receives the messages
-and stores them in rank order. The outcome is as if each of the n processes
-in the group (including the root process) had executed a call to <br>
+Each process (root process included) sends
+the contents of its send buffer to the root process. The root process receives
+the messages and stores them in rank order. The outcome is as if each of
+the n processes in the group (including the root process) had executed
+a call to <br>
 <pre>
 
 </pre><p>
@@ -245,10 +263,10 @@ C]MPI_ScatterR](3) C]MPI_ScattervR](3)  <p>
 <li><a name='toc1' href='#sect1'>Synopsis</a></li>
 <ul>
 <li><a name='toc2' href='#sect2'>C Syntax</a></li>
-<li><a name='toc3' href='#sect3'>C]#include <mpi.h>int <a href="../man3/MPI_Gather.3.php">MPI_Gather</a>(const void *sendbuf, int sendcount, MPI_Datatype sendtype,    void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,    MPI_Comm comm)int MPI_Igather(const void *sendbuf, int sendcount, MPI_Datatype sendtype,    void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,    MPI_Comm comm, MPI_Request *request)R]Fortran Syntax</a></li>
-<li><a name='toc4' href='#sect4'>C]USE MPI! or the older form: INCLUDE [aq]mpif.h[aq]<a href="../man3/MPI_Gather.3.php">MPI_GATHER</a>(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,        RECVTYPE, ROOT, COMM, IERROR)    <type>  SENDBUF(*), RECVBUF(*)    INTEGER SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, ROOT    INTEGER COMM, IERRORMPI_IGATHER(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,        RECVTYPE, ROOT, COMM, REQUEST, IERROR)    <type>  SENDBUF(*), RECVBUF(*)    INTEGER SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, ROOT    INTEGER COMM, REQUEST, IERRORR]Fortran 2008 Syntax</a></li>
+<li><a name='toc3' href='#sect3'>C]#include <mpi.h>int <a href="../man3/MPI_Gather.3.php">MPI_Gather</a>(const void *sendbuf, int sendcount, MPI_Datatype sendtype,    void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,    MPI_Comm comm)int MPI_Igather(const void *sendbuf, int sendcount, MPI_Datatype sendtype,    void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,    MPI_Comm comm, MPI_Request *request)int <a href="../man3/MPI_Gather_init.3.php">MPI_Gather_init</a>(const void *sendbuf, int sendcount, MPI_Datatype sendtype,    void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,    MPI_Comm comm, MPI_Info info, MPI_Request *request)R]Fortran Syntax</a></li>
+<li><a name='toc4' href='#sect4'>C]USE MPI! or the older form: INCLUDE [aq]mpif.h[aq]<a href="../man3/MPI_Gather.3.php">MPI_GATHER</a>(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,        RECVTYPE, ROOT, COMM, IERROR)    <type>  SENDBUF(*), RECVBUF(*)    INTEGER SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, ROOT    INTEGER COMM, IERRORMPI_IGATHER(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,        RECVTYPE, ROOT, COMM, REQUEST, IERROR)    <type>  SENDBUF(*), RECVBUF(*)    INTEGER SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, ROOT    INTEGER COMM, REQUEST, IERRORMPI_GATHER_INIT(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,        RECVTYPE, ROOT, COMM, INFO, REQUEST, IERROR)    <type>  SENDBUF(*), RECVBUF(*)    INTEGER SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, ROOT    INTEGER COMM, INFO, REQUEST, IERRORR]Fortran 2008 Syntax</a></li>
 </ul>
-<li><a name='toc5' href='#sect5'>C]USE mpi_f08MPI_Gather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype,        root, comm, ierror)    TYPE(*), DIMENSION(..), INTENT(IN) :: sendbuf    TYPE(*), DIMENSION(..) :: recvbuf    INTEGER, INTENT(IN) :: sendcount, recvcount, root    TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype    TYPE(MPI_Comm), INTENT(IN) :: comm    INTEGER, OPTIONAL, INTENT(OUT) :: ierrorMPI_Igather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype,        root, comm, request, ierror)    TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf    TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf    INTEGER, INTENT(IN) :: sendcount, recvcount, root    TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype    TYPE(MPI_Comm), INTENT(IN) :: comm    TYPE(MPI_Request), INTENT(OUT) :: request    INTEGER, OPTIONAL, INTENT(OUT) :: ierrorR]Input Parameters</a></li>
+<li><a name='toc5' href='#sect5'>C]USE mpi_f08MPI_Gather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype,        root, comm, ierror)    TYPE(*), DIMENSION(..), INTENT(IN) :: sendbuf    TYPE(*), DIMENSION(..) :: recvbuf    INTEGER, INTENT(IN) :: sendcount, recvcount, root    TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype    TYPE(MPI_Comm), INTENT(IN) :: comm    INTEGER, OPTIONAL, INTENT(OUT) :: ierrorMPI_Igather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype,        root, comm, request, ierror)    TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf    TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf    INTEGER, INTENT(IN) :: sendcount, recvcount, root    TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype    TYPE(MPI_Comm), INTENT(IN) :: comm    TYPE(MPI_Request), INTENT(OUT) :: request    INTEGER, OPTIONAL, INTENT(OUT) :: ierrorMPI_Gather_init(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype,        root, comm, info, request, ierror)    TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf    TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf    INTEGER, INTENT(IN) :: sendcount, recvcount, root    TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype    TYPE(MPI_Comm), INTENT(IN) :: comm    TYPE(MPI_Info), INTENT(IN) :: info    TYPE(MPI_Request), INTENT(OUT) :: request    INTEGER, OPTIONAL, INTENT(OUT) :: ierrorR]Input Parameters</a></li>
 <li><a name='toc6' href='#sect6'>Output Parameters</a></li>
 <li><a name='toc7' href='#sect7'>Description</a></li>
 <li><a name='toc8' href='#sect8'>C]MPI_Comm comm;int gsize,sendarray[100];int root, *rbuf;MPI_Datatype rtype;//...<a href="../man3/MPI_Comm_size.3.php">MPI_Comm_size</a>( comm, &gsize);<a href="../man3/MPI_Type_contiguous.3.php">MPI_Type_contiguous</a>( 100, MPI_INT, &rtype );<a href="../man3/MPI_Type_commit.3.php">MPI_Type_commit</a>( &rtype );rbuf = (int *)malloc(gsize*100*sizeof(int));<a href="../man3/MPI_Gather.3.php">MPI_Gather</a>( sendarray, 100, MPI_INT, rbuf, 1, rtype, root, comm);R]Use Of In-Place Option</a></li>

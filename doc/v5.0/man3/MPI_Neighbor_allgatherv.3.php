@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Neighbor_allgatherv(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_NEIGHBOR_ALLGATHERV(3)";
+$title = "MPI_Neighbor_allgatherv(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_NEIGHBOR_ALLGATHERV(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,9 +14,9 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b>MPI_Neighbor_allgatherv, <a href="../man3/MPI_Ineighbor_allgatherv.3.php">MPI_Ineighbor_allgatherv</a></b> - Gathers and
-distributes data from and to all neighbors. Each process may contribute
-a different amount of data.
+<b>MPI_Neighbor_allgatherv, <a href="../man3/MPI_Ineighbor_allgatherv.3.php">MPI_Ineighbor_allgatherv</a>, <a href="../man3/MPI_Neighbor_allgatherv_init.3.php">MPI_Neighbor_allgatherv_init</a></b>
+- Gathers and distributes data from and to all neighbors. Each process may
+contribute a different amount of data.
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -30,6 +30,10 @@ int <a href="../man3/MPI_Ineighbor_allgatherv.3.php">MPI_Ineighbor_allgatherv</a
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype sendtype, void *recvbuf, const int recvcounts[],
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;const int displs[], MPI_Datatype recvtype, MPI_Comm comm,
         MPI_Request *request)
+int MPI_Neighbor_allgatherv(const void *sendbuf, int sendcount,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype sendtype, void *recvbuf, const int recvcounts[],
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;const int displs[], MPI_Datatype recvtype, MPI_Comm comm,
+        MPI_Info info, MPI_Request *request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
@@ -45,6 +49,11 @@ MPI_NEIGHBOR_ALLGATHERV(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT(*),
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;DISPLS(*), RECVTYPE, COMM,REQUEST, IERROR
+<a href="../man3/MPI_Neighbor_allgatherv_init.3.php">MPI_NEIGHBOR_ALLGATHERV_INIT</a>(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNT, DISPLS, RECVTYPE, COMM, INFO, REQUEST, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT(*),
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;DISPLS(*), RECVTYPE, COMM,INFO,REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -65,6 +74,17 @@ MPI_Neighbor_allgatherv(sendbuf, sendcount, sendtype, recvbuf, recvcounts,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN), ASYNCHRONOUS :: recvcounts(*), displs(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Neighbor_allgatherv_init.3.php">MPI_Neighbor_allgatherv_init</a>(sendbuf, sendcount, sendtype, recvbuf, recvcounts,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;displs, recvtype, comm, info, request, ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: sendcount
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN), ASYNCHRONOUS :: recvcounts(*), displs(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
@@ -98,7 +118,7 @@ to recvbuf) at which to place the incoming data from neighbor i. </dd>
 
 <dt>comm </dt>
 <dd>Communicator (handle).
-<p>
+ info Info (handle, persistent only). <p>
 </dd>
 </dl>
 
@@ -107,35 +127,36 @@ to recvbuf) at which to place the incoming data from neighbor i. </dd>
 <dl>
 
 <dt>recvbuf </dt>
-<dd>Address of receive buffer (choice). </dd>
+<dd>Address of
+receive buffer (choice). </dd>
 
 <dt>request </dt>
-<dd>Request
-(handle, non-blocking only). </dd>
+<dd>Request (handle, non-blocking only). </dd>
 
-<dt>IERROR </dt>
+<dt>IERROR
+</dt>
 <dd>Fortran only: Error status (integer).
-
 <p> </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
-MPI_Neighbor_allgatherv is similar to <a href="../man3/MPI_Neighbor_allgather.3.php">MPI_Neighbor_allgather</a>
-in that all processes gather data from all neighbors, except that each
-process can send a different amount of data. The block of data sent from
-the jth neighbor is received by every neighbor and placed in the jth block
-of the buffer. The neighbors and buffer layout is determined by the topology
-of <i>comm</i>. <i>recvbuf.</i> <p>
-The type signature associated with sendcount, sendtype,
-at process j must be equal to the type signature associated with the corresponding
-entry in <i>recvcounts</i> on neighboring processes.
+MPI_Neighbor_allgatherv
+is similar to <a href="../man3/MPI_Neighbor_allgather.3.php">MPI_Neighbor_allgather</a> in that all processes gather data
+from all neighbors, except that each process can send a different amount
+of data. The block of data sent from the jth neighbor is received by every
+neighbor and placed in the jth block of the buffer. The neighbors and buffer
+layout is determined by the topology of <i>comm</i>. <i>recvbuf.</i> <p>
+The type signature
+associated with sendcount, sendtype, at process j must be equal to the
+type signature associated with the corresponding entry in <i>recvcounts</i> on
+neighboring processes.
 <p> <p>
 
 <h2><a name='sect8' href='#toc8'>Neighbor Ordering</a></h2>
-For a distributed
-graph topology, created with <a href="../man3/MPI_Dist_graph_create.3.php">MPI_Dist_graph_create</a>, the sequence of neighbors
-in the send and receive buffers at each process is defined as the sequence
-returned by <a href="../man3/MPI_Dist_graph_neighbors.3.php">MPI_Dist_graph_neighbors</a> for destinations and sources, respectively.
+For a distributed graph topology,
+created with <a href="../man3/MPI_Dist_graph_create.3.php">MPI_Dist_graph_create</a>, the sequence of neighbors in the send
+and receive buffers at each process is defined as the sequence returned
+by <a href="../man3/MPI_Dist_graph_neighbors.3.php">MPI_Dist_graph_neighbors</a> for destinations and sources, respectively.
 For a general graph topology, created with <a href="../man3/MPI_Graph_create.3.php">MPI_Graph_create</a>, the order
 of neighbors in the send and receive buffers is defined as the sequence
 of neighbors as returned by <a href="../man3/MPI_Graph_neighbors.3.php">MPI_Graph_neighbors</a>. Note that general graph

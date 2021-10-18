@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Ireduce(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_IREDUCE(3)";
+$title = "MPI_Ireduce(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_IREDUCE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,8 +14,8 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b><a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>, MPI_Ireduce</b> - Reduces values on all processes within
-a group.
+<b><a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>, MPI_Ireduce, <a href="../man3/MPI_Reduce_init.3.php">MPI_Reduce_init</a></b> - Reduces values on
+all processes within a group.
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -28,6 +28,9 @@ int <a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>(const void *sendbuf, void 
 int MPI_Ireduce(const void *sendbuf, void *recvbuf, int count,
                 MPI_Datatype datatype, MPI_Op op, int root,
                 MPI_Comm comm, MPI_Request *request)
+int <a href="../man3/MPI_Reduce_init.3.php">MPI_Reduce_init</a>(const void *sendbuf, void *recvbuf, int count,
+                MPI_Datatype datatype, MPI_Op op, int root,
+                MPI_Comm comm, MPI_Info info, MPI_Request *request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
@@ -41,6 +44,10 @@ MPI_IREDUCE(SENDBUF, RECVBUF, COUNT, DATATYPE, OP, ROOT, COMM,
             REQUEST, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COUNT, DATATYPE, OP, ROOT, COMM, REQUEST, IERROR
+<a href="../man3/MPI_Reduce_init.3.php">MPI_REDUCE_INIT</a>(SENDBUF, RECVBUF, COUNT, DATATYPE, OP, ROOT, COMM,
+            INFO, REQUEST, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COUNT, DATATYPE, OP, ROOT, COMM, INFO, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -61,6 +68,18 @@ MPI_Ireduce(sendbuf, recvbuf, count, datatype, op, root, comm, request,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: datatype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Op), INTENT(IN) :: op
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Reduce_init.3.php">MPI_Reduce_init</a>(sendbuf, recvbuf, count, datatype, op, root, comm, info,
+request,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: count, root
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: datatype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Op), INTENT(IN) :: op
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
@@ -87,109 +106,113 @@ buffer (handle). </dd>
 (integer). </dd>
 
 <dt>comm </dt>
-<dd>Communicator (handle).
+<dd>Communicator (handle). </dd>
+
+<dt>info </dt>
+<dd>Info (handle, persistent).
 <p> </dd>
 </dl>
 
-<h2><a name='sect6' href='#toc6'>Output Parameters</a></h2>
+<h2><a name='sect6' href='#toc6'>Output
+Parameters</a></h2>
 
 <dl>
 
 <dt>recvbuf </dt>
-<dd>Address
-of receive buffer (choice, significant only at root). </dd>
+<dd>Address of receive buffer (choice, significant only at
+root). </dd>
 
 <dt>request </dt>
-<dd>Request (handle,
-non-blocking only). </dd>
+<dd>Request (handle, non-blocking only). </dd>
 
 <dt>IERROR </dt>
-<dd>Fortran only: Error status (integer).
+<dd>Fortran only: Error
+status (integer).
 <p> </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
-The
-global reduce functions (<a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>, <a href="../man3/MPI_Op_create.3.php">MPI_Op_create</a>, <a href="../man3/MPI_Op_free.3.php">MPI_Op_free</a>, <a href="../man3/MPI_Allreduce.3.php">MPI_Allreduce</a>,
-<a href="../man3/MPI_Reduce_scatter.3.php">MPI_Reduce_scatter</a>, <a href="../man3/MPI_Scan.3.php">MPI_Scan</a>) perform a global reduce operation (such as
-sum, max, logical AND, etc.) across all the members of a group. The reduction
-operation can be either one of a predefined list of operations, or a user-defined
-operation. The global reduction functions come in several flavors: a reduce
-that returns the result of the reduction at one node, an all-reduce that
-returns this result at all nodes, and a scan (parallel prefix) operation.
-In addition, a reduce-scatter operation combines the functionality of a
-reduce and a scatter operation. <p>
-<a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a> combines the elements provided
-in the input buffer of each process in the group, using the operation op,
-and returns the combined value in the output buffer of the process with
-rank root. The input buffer is defined by the arguments sendbuf, count,
-and datatype; the output buffer is defined by the arguments recvbuf, count,
-and datatype; both have the same number of elements, with the same type.
-The routine is called by all group members using the same arguments for
-count, datatype, op, root, and comm. Thus, all processes provide input buffers
-and output buffers of the same length, with elements of the same type. Each
-process can provide one element, or a sequence of elements, in which case
-the combine operation is executed element-wise on each entry of the sequence.
-For example, if the operation is MPI_MAX and the send buffer contains two
-elements that are floating-point numbers (count = 2 and datatype = MPI_FLOAT),
-then <i>recvbuf(1)</i> = global max (<i>sendbuf(1)</i>) and <i>recvbuf(2)</i> = global max(<i>sendbuf(2)</i>).
-<p>
+The global reduce functions (<a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>, <a href="../man3/MPI_Op_create.3.php">MPI_Op_create</a>,
+<a href="../man3/MPI_Op_free.3.php">MPI_Op_free</a>, <a href="../man3/MPI_Allreduce.3.php">MPI_Allreduce</a>, <a href="../man3/MPI_Reduce_scatter.3.php">MPI_Reduce_scatter</a>, <a href="../man3/MPI_Scan.3.php">MPI_Scan</a>) perform a global
+reduce operation (such as sum, max, logical AND, etc.) across all the members
+of a group. The reduction operation can be either one of a predefined list
+of operations, or a user-defined operation. The global reduction functions
+come in several flavors: a reduce that returns the result of the reduction
+at one node, an all-reduce that returns this result at all nodes, and a
+scan (parallel prefix) operation. In addition, a reduce-scatter operation
+combines the functionality of a reduce and a scatter operation. <p>
+<a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>
+combines the elements provided in the input buffer of each process in the
+group, using the operation op, and returns the combined value in the output
+buffer of the process with rank root. The input buffer is defined by the
+arguments sendbuf, count, and datatype; the output buffer is defined by
+the arguments recvbuf, count, and datatype; both have the same number of
+elements, with the same type. The routine is called by all group members
+using the same arguments for count, datatype, op, root, and comm. Thus,
+all processes provide input buffers and output buffers of the same length,
+with elements of the same type. Each process can provide one element, or
+a sequence of elements, in which case the combine operation is executed
+element-wise on each entry of the sequence. For example, if the operation
+is MPI_MAX and the send buffer contains two elements that are floating-point
+numbers (count = 2 and datatype = MPI_FLOAT), then <i>recvbuf(1)</i> = global
+max (<i>sendbuf(1)</i>) and <i>recvbuf(2)</i> = global max(<i>sendbuf(2)</i>). <p>
 
-<h2><a name='sect8' href='#toc8'>Use of In-place Option</a></h2>
-When the communicator is an intracommunicator, you
-can perform a reduce operation in-place (the output buffer is used as the
-input buffer).  Use the variable MPI_IN_PLACE as the value of the root process
-<i>sendbuf</i>.  In this case, the input data is taken at the root from the receive
-buffer, where it will be replaced by the output data. <p>
-Note that MPI_IN_PLACE
-is a special kind of value; it has the same restrictions on its use as
-MPI_BOTTOM. <p>
-Because the in-place option converts the receive buffer into
-a send-and-receive buffer, a Fortran binding that includes INTENT must mark
-these as INOUT, not OUT. <p>
+<h2><a name='sect8' href='#toc8'>Use of In-place
+Option</a></h2>
+When the communicator is an intracommunicator, you can perform a
+reduce operation in-place (the output buffer is used as the input buffer).
+ Use the variable MPI_IN_PLACE as the value of the root process <i>sendbuf</i>.
+ In this case, the input data is taken at the root from the receive buffer,
+where it will be replaced by the output data. <p>
+Note that MPI_IN_PLACE is
+a special kind of value; it has the same restrictions on its use as MPI_BOTTOM.
+<p>
+Because the in-place option converts the receive buffer into a send-and-receive
+buffer, a Fortran binding that includes INTENT must mark these as INOUT,
+not OUT. <p>
 
 <h2><a name='sect9' href='#toc9'>When Communicator is an Inter-communicator</a></h2>
 <p>
-When the
-communicator is an inter-communicator, the root process in the first group
-combines data from all the processes in the second group and then performs
-the <i>op</i> operation.  The first group defines the root process.  That process
-uses MPI_ROOT as the value of its <i>root</i> argument.  The remaining processes
-use MPI_PROC_NULL as the value of their <i>root</i> argument.  All processes in
-the second group use the rank of that root process in the first group as
-the value of their <i>root</i> argument.  Only the send buffer arguments are significant
-in the second group, and only the receive buffer arguments are significant
-in the root process of the first group. <p>
+When the communicator
+is an inter-communicator, the root process in the first group combines data
+from all the processes in the second group and then performs the <i>op</i> operation.
+ The first group defines the root process.  That process uses MPI_ROOT as
+the value of its <i>root</i> argument.  The remaining processes use MPI_PROC_NULL
+as the value of their <i>root</i> argument.  All processes in the second group
+use the rank of that root process in the first group as the value of their
+<i>root</i> argument.  Only the send buffer arguments are significant in the second
+group, and only the receive buffer arguments are significant in the root
+process of the first group. <p>
 
 <h2><a name='sect10' href='#toc10'>Predefined Reduce Operations</a></h2>
 <p>
-The
-set of predefined operations provided by MPI is listed below (Predefined
-Reduce Operations). That section also enumerates the datatypes each operation
-can be applied to. In addition, users may define their own operations that
-can be overloaded to operate on several datatypes, either basic or derived.
-This is further explained in the description of the user-defined operations
-(see the man pages for <a href="../man3/MPI_Op_create.3.php">MPI_Op_create</a> and <a href="../man3/MPI_Op_free.3.php">MPI_Op_free</a>). <p>
-The operation op
-is always assumed to be associative. All predefined operations are also
-assumed to be commutative. Users may define operations that are assumed
-to be associative, but not commutative. The &lsquo;&lsquo;canonical&rsquo;&rsquo; evaluation order of
-a reduction is determined by the ranks of the processes in the group. However,
-the implementation can take advantage of associativity, or associativity
-and commutativity, in order to change the order of evaluation. This may
-change the result of the reduction for operations that are not strictly
-associative and commutative, such as floating point addition. <p>
-Predefined
-operators work only with the MPI types listed below (Predefined Reduce
-Operations, and the section MINLOC and MAXLOC, below).  User-defined operators
-may operate on general, derived datatypes. In this case, each argument that
-the reduce operation is applied to is one element described by such a datatype,
-which may contain several basic values. This is further explained in Section
-4.9.4 of the MPI Standard, "User-Defined Operations."
-<p> The following predefined
-operations are supplied for <a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a> and related functions <a href="../man3/MPI_Allreduce.3.php">MPI_Allreduce</a>,
-<a href="../man3/MPI_Reduce_scatter.3.php">MPI_Reduce_scatter</a>, and <a href="../man3/MPI_Scan.3.php">MPI_Scan</a>. These operations are invoked by placing
-the following in op: <p>
+The set of predefined
+operations provided by MPI is listed below (Predefined Reduce Operations).
+That section also enumerates the datatypes each operation can be applied
+to. In addition, users may define their own operations that can be overloaded
+to operate on several datatypes, either basic or derived. This is further
+explained in the description of the user-defined operations (see the man
+pages for <a href="../man3/MPI_Op_create.3.php">MPI_Op_create</a> and <a href="../man3/MPI_Op_free.3.php">MPI_Op_free</a>). <p>
+The operation op is always assumed
+to be associative. All predefined operations are also assumed to be commutative.
+Users may define operations that are assumed to be associative, but not
+commutative. The &lsquo;&lsquo;canonical&rsquo;&rsquo; evaluation order of a reduction is determined
+by the ranks of the processes in the group. However, the implementation
+can take advantage of associativity, or associativity and commutativity,
+in order to change the order of evaluation. This may change the result of
+the reduction for operations that are not strictly associative and commutative,
+such as floating point addition. <p>
+Predefined operators work only with the
+MPI types listed below (Predefined Reduce Operations, and the section MINLOC
+and MAXLOC, below).  User-defined operators may operate on general, derived
+datatypes. In this case, each argument that the reduce operation is applied
+to is one element described by such a datatype, which may contain several
+basic values. This is further explained in Section 4.9.4 of the MPI Standard,
+"User-Defined Operations."
+<p> The following predefined operations are supplied
+for <a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a> and related functions <a href="../man3/MPI_Allreduce.3.php">MPI_Allreduce</a>, <a href="../man3/MPI_Reduce_scatter.3.php">MPI_Reduce_scatter</a>,
+and <a href="../man3/MPI_Scan.3.php">MPI_Scan</a>. These operations are invoked by placing the following in op:
+<p>
 <br>
 <pre><tt> </tt>&nbsp;<tt> </tt>&nbsp;Name                Meaning
      ---------           --------------------

@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Ialltoallv(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_IALLTOALLV(3)";
+$title = "MPI_Ialltoallv(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_IALLTOALLV(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -15,9 +15,9 @@ include_once("$topdir/includes/header.inc");
 
 <p>
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b><a href="../man3/MPI_Alltoallv.3.php">MPI_Alltoallv</a>, MPI_Ialltoallv</b> - All processes send different
-amount of data to, and receive different amount of data from, all processes
-
+<b><a href="../man3/MPI_Alltoallv.3.php">MPI_Alltoallv</a>, MPI_Ialltoallv, <a href="../man3/MPI_Alltoallv_init.3.php">MPI_Alltoallv_init</a></b> - All processes
+send different amount of data to, and receive different amount of data
+from, all processes
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
 <p>
@@ -33,6 +33,11 @@ int MPI_Ialltoallv(const void *sendbuf, const int sendcounts[],
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;void *recvbuf, const int recvcounts[],
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;const int rdispls[], MPI_Datatype recvtype, MPI_Comm comm,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Request *request)
+int <a href="../man3/MPI_Alltoallv_init.3.php">MPI_Alltoallv_init</a>(const void *sendbuf, const int sendcounts[],
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;const int sdispls[], MPI_Datatype sendtype,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;void *recvbuf, const int recvcounts[],
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;const int rdispls[], MPI_Datatype recvtype, MPI_Comm comm,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Info info, MPI_Request *request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
@@ -50,6 +55,12 @@ MPI_IALLTOALLV(SENDBUF, SENDCOUNTS, SDISPLS, SENDTYPE,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNTS(*), SDISPLS(*), SENDTYPE
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNTS(*), RDISPLS(*), RECVTYPE
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COMM, REQUEST, IERROR
+<a href="../man3/MPI_Alltoallv_init.3.php">MPI_ALLTOALLV_INIT</a>(SENDBUF, SENDCOUNTS, SDISPLS, SENDTYPE,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVBUF, RECVCOUNTS, RDISPLS, RECVTYPE, COMM, INFO, REQUEST, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNTS(*), SDISPLS(*), SENDTYPE
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNTS(*), RDISPLS(*), RECVTYPE
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COMM, INFO, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -71,6 +82,17 @@ MPI_Ialltoallv(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;recvcounts(*), rdispls(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Alltoallv_init.3.php">MPI_Alltoallv_init</a>(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;rdispls, recvtype, comm, info, request, ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN), ASYNCHRONOUS :: sendcounts(*), sdispls(*),
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;recvcounts(*), rdispls(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
@@ -109,7 +131,10 @@ units of <i>recvtype</i>) to which data from rank j should be written. </dd>
 
 <dt>comm </dt>
 <dd>Communicator over which data is
-to be exchanged.
+to be exchanged. </dd>
+
+<dt>info </dt>
+<dd>Info (handle, persistent only)
 <p> </dd>
 </dl>
 
@@ -117,27 +142,28 @@ to be exchanged.
 
 <dl>
 
-<dt>recvbuf </dt>
+<dt>recvbuf
+</dt>
 <dd>Address of receive buffer. </dd>
 
-<dt>request
-</dt>
+<dt>request </dt>
 <dd>Request (handle, non-blocking only). </dd>
 
-<dt>IERROR </dt>
+<dt>IERROR
+</dt>
 <dd>Fortran only: Error status.
 <p> </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
-<a href="../man3/MPI_Alltoallv.3.php">MPI_Alltoallv</a>
-is a generalized collective operation in which all processes send data
-to and receive data from all other processes. It adds flexibility to <a href="../man3/MPI_Alltoall.3.php">MPI_Alltoall</a>
-by allowing the user to specify data to send and receive vector-style (via
-a displacement and element count). The operation of this routine can be
-thought of as follows, where each process performs 2n (n being the number
-of processes in communicator <i>comm</i>) independent point-to-point communications
-(including communication with itself). <p>
+<a href="../man3/MPI_Alltoallv.3.php">MPI_Alltoallv</a> is a generalized collective
+operation in which all processes send data to and receive data from all
+other processes. It adds flexibility to <a href="../man3/MPI_Alltoall.3.php">MPI_Alltoall</a> by allowing the user
+to specify data to send and receive vector-style (via a displacement and
+element count). The operation of this routine can be thought of as follows,
+where each process performs 2n (n being the number of processes in communicator
+<i>comm</i>) independent point-to-point communications (including communication
+with itself). <p>
 <br>
 <pre><tt> </tt>&nbsp;<tt> </tt>&nbsp;<a href="../man3/MPI_Comm_size.3.php">MPI_Comm_size</a>(comm, &amp;n);
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;for (i = 0, i &lt; n; i++)

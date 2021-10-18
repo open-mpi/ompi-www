@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Iscan(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_ISCAN(3)";
+$title = "MPI_Iscan(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_ISCAN(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -15,8 +15,8 @@ include_once("$topdir/includes/header.inc");
 
 <p>
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b><a href="../man3/MPI_Scan.3.php">MPI_Scan</a>, MPI_Iscan</b> - Computes an inclusive scan (partial reduction)
-
+<b><a href="../man3/MPI_Scan.3.php">MPI_Scan</a>, MPI_Iscan, <a href="../man3/MPI_Scan_init.3.php">MPI_Scan_init</a></b> - Computes an inclusive
+scan (partial reduction)
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -29,6 +29,9 @@ int <a href="../man3/MPI_Scan.3.php">MPI_Scan</a>(const void *sendbuf, void *rec
 int MPI_Iscan(const void *sendbuf, void *recvbuf, int count,
               MPI_Datatype datatype, MPI_Op op, MPI_Comm comm,
               MPI_Request *request)
+int <a href="../man3/MPI_Scan_init.3.php">MPI_Scan_init</a>(const void *sendbuf, void *recvbuf, int count,
+              MPI_Datatype datatype, MPI_Op op, MPI_Comm comm,
+              MPI_Info info, MPI_Request *request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
@@ -40,6 +43,10 @@ int MPI_Iscan(const void *sendbuf, void *recvbuf, int count,
 MPI_ISCAN(SENDBUF, RECVBUF, COUNT, DATATYPE, OP, COMM, REQUEST, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COUNT, DATATYPE, OP, COMM, REQUEST, IERROR
+<a href="../man3/MPI_Scan_init.3.php">MPI_SCAN_INIT</a>(SENDBUF, RECVBUF, COUNT, DATATYPE, OP, COMM, INFO, REQUEST,
+IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COUNT, DATATYPE, OP, COMM, INFO, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -59,6 +66,17 @@ MPI_Iscan(sendbuf, recvbuf, count, datatype, op, comm, request, ierror)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: datatype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Op), INTENT(IN) :: op
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Scan_init.3.php">MPI_Scan_init</a>(sendbuf, recvbuf, count, datatype, op, comm, info, request,
+ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: count
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: datatype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Op), INTENT(IN) :: op
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
@@ -81,7 +99,11 @@ input buffer (integer). </dd>
 <dd>Operation (handle). </dd>
 
 <dt>comm </dt>
-<dd>Communicator (handle).
+<dd>Communicator (handle). </dd>
+
+<dt>info </dt>
+<dd>Info (handle, persistent
+only)
 <p> </dd>
 </dl>
 
@@ -89,33 +111,32 @@ input buffer (integer). </dd>
 
 <dl>
 
-<dt>recvbuf
-</dt>
+<dt>recvbuf </dt>
 <dd>Receive buffer (choice). </dd>
 
 <dt>request </dt>
-<dd>Request (handle, non-blocking only). </dd>
+<dd>Request
+(handle, non-blocking only). </dd>
 
-<dt>IERROR
-</dt>
+<dt>IERROR </dt>
 <dd>Fortran only: Error status (integer).
+
 <p> </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
-<a href="../man3/MPI_Scan.3.php">MPI_Scan</a> is used to perform
-an inclusive prefix reduction on data distributed across the calling processes.
-The operation returns, in the <i>recvbuf</i> of the process with rank i, the reduction
-(calculated according to the function <i>op</i>) of the values in the <i>sendbuf</i>s
-of processes with ranks 0, ..., i (inclusive). The type of operations supported,
-their semantics, and the constraints on send and receive buffers are as
-for <a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>.
+<a href="../man3/MPI_Scan.3.php">MPI_Scan</a> is used to perform an inclusive prefix reduction on
+data distributed across the calling processes. The operation returns, in
+the <i>recvbuf</i> of the process with rank i, the reduction (calculated according
+to the function <i>op</i>) of the values in the <i>sendbuf</i>s of processes with ranks
+0, ..., i (inclusive). The type of operations supported, their semantics, and
+the constraints on send and receive buffers are as for <a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>.
 <p>
 <h2><a name='sect8' href='#toc8'>Example</a></h2>
-This example uses a user-defined operation to produce
-a segmented scan. A segmented scan takes, as input, a set of values and
-a set of logicals, where the logicals delineate the various segments of
-the scan. For example, <p>
+This
+example uses a user-defined operation to produce a segmented scan. A segmented
+scan takes, as input, a set of values and a set of logicals, where the
+logicals delineate the various segments of the scan. For example, <p>
 <br>
 <pre>values     v1      v2      v3      v4      v5      v6      v7      v8
 logicals   0       0       1       1       1       0       0       1

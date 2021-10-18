@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Reduce_scatter(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_REDUCE_SCATTER(3)";
+$title = "MPI_Reduce_scatter(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_REDUCE_SCATTER(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,8 +14,8 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b>MPI_Reduce_scatter, <a href="../man3/MPI_Ireduce_scatter.3.php">MPI_Ireduce_scatter</a></b> - Combines values and
-scatters the results.
+<b>MPI_Reduce_scatter, <a href="../man3/MPI_Ireduce_scatter.3.php">MPI_Ireduce_scatter</a>, <a href="../man3/MPI_Reduce_scatter_init.3.php">MPI_Reduce_scatter_init</a></b>
+- Combines values and scatters the results.
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -26,7 +26,11 @@ int MPI_Reduce_scatter(const void *sendbuf, void *recvbuf, const int recvcounts[
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype datatype, MPI_Op op, MPI_Comm comm)
 int <a href="../man3/MPI_Ireduce_scatter.3.php">MPI_Ireduce_scatter</a>(const void *sendbuf, void *recvbuf, const int recvcounts[],
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Request *request)
-</pre>
+</pre>int <a href="../man3/MPI_Reduce_scatter_init.3.php">MPI_Reduce_scatter_init</a>(const void *<i>sendbuf</i>, void<i> *recvbuf</i>, const int<i>
+recvcounts</i>[], <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype<i> datatype</i>, MPI_Op<i> op</i>, MPI_Comm<i> comm</i>, MPI_Info
+<i>info</i>, MPI_Request <i>*request</i>)<br>
+
+<p> </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
 <pre>USE MPI
@@ -39,6 +43,10 @@ MPI_REDUCE_SCATTER(SENDBUF, RECVBUF, RECVCOUNTS, DATATYPE, OP,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;COMM, REQUEST, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNTS(*), DATATYPE, OP, COMM, REQUEST, IERROR
+<a href="../man3/MPI_Reduce_scatter_init.3.php">MPI_REDUCE_SCATTER_INIT</a>(SENDBUF, RECVBUF, RECVCOUNTS, DATATYPE, OP,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;COMM, INFO, REQUEST, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVCOUNTS(*), DATATYPE, OP, COMM, INFO, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -60,6 +68,17 @@ MPI_Reduce_scatter(sendbuf, recvbuf, recvcounts, datatype, op, comm,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: datatype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Op), INTENT(IN) :: op
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Reduce_scatter_init.3.php">MPI_Reduce_scatter_init</a>(sendbuf, recvbuf, recvcounts, datatype, op, comm,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;info, request, ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN), ASYNCHRONOUS :: recvcounts(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: datatype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Op), INTENT(IN) :: op
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
@@ -84,7 +103,10 @@ each process. Array must be identical on all calling processes. </dd>
 
 <dt>comm
 </dt>
-<dd>Communicator (handle).
+<dd>Communicator (handle). </dd>
+
+<dt>info </dt>
+<dd>Info (handle, persistent).
 <p> </dd>
 </dl>
 
@@ -92,23 +114,23 @@ each process. Array must be identical on all calling processes. </dd>
 
 <dl>
 
-<dt>recvbuf </dt>
-<dd>Starting address of receive
-buffer (choice). </dd>
+<dt>recvbuf
+</dt>
+<dd>Starting address of receive buffer (choice). </dd>
 
 <dt>request </dt>
-<dd>Request (handle, non-blocking only). </dd>
+<dd>Request (handle, non-blocking
+only). </dd>
 
 <dt>IERROR </dt>
-<dd>Fortran
-only: Error status (integer).
+<dd>Fortran only: Error status (integer).
 <p> </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
 
-<p> MPI_Reduce_scatter first does
-an element-wise reduction on vector of <i>count<i>op</i>, <i>comm</i>,  =&nbsp;S(i)<i>recvcounts</i>[i]
+<p> MPI_Reduce_scatter
+first does an element-wise reduction on vector of <i>count<i>op</i>, <i>comm</i>,  =&nbsp;S(i)<i>recvcounts</i>[i]
 elements in the send buffer defined by <i>sendbuf</i>, <i>count</i>, and<br>
  <i>datatype</i>. Next, the resulting vector of results is split into n disjoint
 segments, where n is the number of processes in the group. Segment i contains

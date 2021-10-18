@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Neighbor_allgather(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_NEIGHBOR_ALLGATHER(3)";
+$title = "MPI_Neighbor_allgather(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_NEIGHBOR_ALLGATHER(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,9 +14,8 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b>MPI_Neighbor_allgather, <a href="../man3/MPI_Ineighbor_allgather.3.php">MPI_Ineighbor_allgather</a></b> - Gathers and
-
-<p>distributes data from and to all neighbors
+<b>MPI_Neighbor_allgather, <a href="../man3/MPI_Ineighbor_allgather.3.php">MPI_Ineighbor_allgather</a>, MPI_Neighbor_allgather</b>
+- Gathers and distributes data from and to all neighbors
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -29,6 +28,9 @@ int MPI_Neighbor_allgather(const void *sendbuf, int  sendcount,
 int <a href="../man3/MPI_Ineighbor_allgather.3.php">MPI_Ineighbor_allgather</a>(const void *sendbuf, int  sendcount,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype sendtype, void *recvbuf, int recvcount,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp; MPI_Datatype recvtype, MPI_Comm comm, MPI_Request req)
+int <a href="../man3/MPI_Neighbor_allgather_init.3.php">MPI_Neighbor_allgather_init</a>(const void *sendbuf, int  sendcount,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Datatype sendtype, void *recvbuf, int recvcount,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp; MPI_Datatype recvtype, MPI_Comm comm, MPI_Infoinfo, MPI_Request req)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
@@ -44,6 +46,11 @@ MPI_NEIGHBOR_ALLGATHER(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF (*), RECVBUF (*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, COMM,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;REQUEST, IERROR
+<a href="../man3/MPI_Neighbor_allgather_init.3.php">MPI_NEIGHBOR_ALLGATHER_INIT</a>(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVTYPE, COMM, INFO,IREQUEST, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF (*), RECVBUF (*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, COMM,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;INFO, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -63,6 +70,16 @@ MPI_Neighbor_allgather(sendbuf, sendcount, sendtype, recvbuf, recvcount,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: sendcount, recvcount
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Neighbor_allgather_init.3.php">MPI_Neighbor_allgather_init</a>(sendbuf, sendcount, sendtype, recvbuf, recvcount,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;recvtype, comm, info, request, ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: sendcount, recvcount
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
