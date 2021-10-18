@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Iscatter(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_ISCATTER(3)";
+$title = "MPI_Iscatter(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_ISCATTER(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,8 +14,8 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b><a href="../man3/MPI_Scatter.3.php">MPI_Scatter</a>, MPI_Iscatter</b> - Sends data from one task to all tasks
-in a group.
+<b><a href="../man3/MPI_Scatter.3.php">MPI_Scatter</a>, MPI_Iscatter, <a href="../man3/MPI_Scatter_init.3.php">MPI_Scatter_init</a></b> - Sends data from
+one task to all tasks in a group.
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -28,6 +28,9 @@ int <a href="../man3/MPI_Scatter.3.php">MPI_Scatter</a>(const void *sendbuf, int
 int MPI_Iscatter(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Comm comm, MPI_Request *request)
+int <a href="../man3/MPI_Scatter_init.3.php">MPI_Scatter_init</a>(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;MPI_Comm comm, MPI_Info info, MPI_Request *request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
@@ -43,6 +46,11 @@ MPI_ISCATTER(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, ROOT
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COMM, REQUEST, IERROR
+<a href="../man3/MPI_Scatter_init.3.php">MPI_SCATTER_INIT</a>(SENDBUF, SENDCOUNT, SENDTYPE, RECVBUF, RECVCOUNT,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;RECVTYPE, ROOT, COMM, INFO, REQUEST, IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDCOUNT, SENDTYPE, RECVCOUNT, RECVTYPE, ROOT
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COMM, INFO, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -62,6 +70,16 @@ MPI_Iscatter(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype,
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: sendcount, recvcount, root
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Scatter_init.3.php">MPI_Scatter_init</a>(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;root, comm, info, request, ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: sendcount, recvcount, root
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: sendtype, recvtype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
@@ -93,7 +111,11 @@ only at root). </dd>
 process (integer). </dd>
 
 <dt>comm </dt>
-<dd>Communicator (handle).
+<dd>Communicator (handle). </dd>
+
+<dt>info </dt>
+<dd>Info (handle, persistent).
+
 <p> </dd>
 </dl>
 
@@ -101,24 +123,23 @@ process (integer). </dd>
 
 <dl>
 
-<dt>recvbuf
-</dt>
+<dt>recvbuf </dt>
 <dd>Address of receive buffer (choice). </dd>
 
 <dt>request </dt>
-<dd>Request (handle, non-blocking
-only). </dd>
+<dd>Request
+(handle, non-blocking only). </dd>
 
 <dt>IERROR </dt>
 <dd>Fortran only: Error status (integer).
+
 <p> </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
-<a href="../man3/MPI_Scatter.3.php">MPI_Scatter</a>
-is the inverse operation to <a href="../man3/MPI_Gather.3.php">MPI_Gather</a>. <p>
-The outcome is as if the root executed
-n send operations, <p>
+<a href="../man3/MPI_Scatter.3.php">MPI_Scatter</a> is the inverse operation to <a href="../man3/MPI_Gather.3.php">MPI_Gather</a>. <p>
+The outcome
+is as if the root executed n send operations, <p>
 <br>
 <pre>    <a href="../man3/MPI_Send.3.php">MPI_Send</a>(sendbuf + i * sendcount * extent(sendtype), sendcount,
              sendtype, i, ...)

@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Allreduce(3) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: MPI_ALLREDUCE(3)";
+$title = "MPI_Allreduce(3) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: MPI_ALLREDUCE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -14,8 +14,9 @@ include_once("$topdir/includes/header.inc");
 <a href='#toc'>Table of Contents</a><p>
 
 <h2><a name='sect0' href='#toc0'>Name</a></h2>
-<b>MPI_Allreduce, <a href="../man3/MPI_Iallreduce.3.php">MPI_Iallreduce</a></b> - Combines values from all processes
-and distributes the result back to all processes.
+<b>MPI_Allreduce, <a href="../man3/MPI_Iallreduce.3.php">MPI_Iallreduce</a>, <a href="../man3/MPI_Allreduce_init.3.php">MPI_Allreduce_init</a></b> - Combines
+values from all processes and distributes the result back to all processes.
+
 <p>
 <h2><a name='sect1' href='#toc1'>Syntax</a></h2>
 
@@ -27,6 +28,9 @@ int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
 int <a href="../man3/MPI_Iallreduce.3.php">MPI_Iallreduce</a>(const void *sendbuf, void *recvbuf, int count,
                    MPI_Datatype datatype, MPI_Op op, MPI_Comm comm,
                    MPI_Request *request)
+int <a href="../man3/MPI_Allreduce_init.3.php">MPI_Allreduce_init</a>(const void *sendbuf, void *recvbuf, int count,
+                       MPI_Datatype datatype, MPI_Op op, MPI_Comm comm,
+                       MPI_Info info, MPI_Request *request)
 </pre>
 <h2><a name='sect3' href='#toc3'>Fortran Syntax</a></h2>
 <br>
@@ -38,6 +42,10 @@ MPI_ALLREDUCE(SENDBUF, RECVBUF, COUNT, DATATYPE, OP, COMM, IERROR)
 <a href="../man3/MPI_Iallreduce.3.php">MPI_IALLREDUCE</a>(SENDBUF, RECVBUF, COUNT, DATATYPE, OP, COMM, REQUEST, IERROR)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COUNT, DATATYPE, OP, COMM, REQUEST, IERROR
+<a href="../man3/MPI_Allreduce_init.3.php">MPI_ALLREDUCE_INIT</a>(SENDBUF, RECVBUF, COUNT, DATATYPE, OP, COMM, INFO, REQUEST,
+IERROR)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;&lt;type&gt;<tt> </tt>&nbsp;<tt> </tt>&nbsp;SENDBUF(*), RECVBUF(*)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER<tt> </tt>&nbsp;<tt> </tt>&nbsp;COUNT, DATATYPE, OP, COMM, INFO, REQUEST, IERROR
 </pre>
 <h2><a name='sect4' href='#toc4'>Fortran 2008 Syntax</a></h2>
 <br>
@@ -58,6 +66,17 @@ MPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm, ierror)
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: datatype
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Op), INTENT(IN) :: op
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
+<a href="../man3/MPI_Allreduce_init.3.php">MPI_Allreduce_init</a>(sendbuf, recvbuf, count, datatype, op, comm, info, request,
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;<tt> </tt>&nbsp;ierror)
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), INTENT(IN), ASYNCHRONOUS :: sendbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(*), DIMENSION(..), ASYNCHRONOUS :: recvbuf
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, INTENT(IN) :: count
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Datatype), INTENT(IN) :: datatype
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Op), INTENT(IN) :: op
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Comm), INTENT(IN) :: comm
+<tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Info), INTENT(IN) :: info
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;TYPE(MPI_Request), INTENT(OUT) :: request
 <tt> </tt>&nbsp;<tt> </tt>&nbsp;INTEGER, OPTIONAL, INTENT(OUT) :: ierror
 </pre>
@@ -81,7 +100,10 @@ of send buffer (handle). </dd>
 
 <dt>comm </dt>
 <dd>Communicator (handle).
+</dd>
 
+<dt>info </dt>
+<dd>Info (handle, persistent only).
 <p> </dd>
 </dl>
 
@@ -90,25 +112,25 @@ of send buffer (handle). </dd>
 <dl>
 
 <dt>recvbuf </dt>
-<dd>Starting address of receive buffer (choice). </dd>
+<dd>Starting
+address of receive buffer (choice). </dd>
 
-<dt>request
-</dt>
-<dd>Request (handle, non-blocking only). </dd>
+<dt>request </dt>
+<dd>Request (handle, non-blocking
+only). </dd>
 
 <dt>IERROR </dt>
 <dd>Fortran only: Error status (integer).
-
 <p> </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
-Same as <a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a> except that the result appears in the receive
-buffer of all the group members. <p>
-<b>Example 1:</b> A routine that computes the
-product of a vector and an array that are distributed across a group of
-processes and returns the answer at all nodes (compare with Example 2,
-with <a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>, below). <p>
+Same as <a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>
+except that the result appears in the receive buffer of all the group members.
+<p>
+<b>Example 1:</b> A routine that computes the product of a vector and an array
+that are distributed across a group of processes and returns the answer
+at all nodes (compare with Example 2, with <a href="../man3/MPI_Reduce.3.php">MPI_Reduce</a>, below). <p>
 <br>
 <pre>SUBROUTINE PAR_BLAS2(m, n, a, b, c, comm)
 REAL a(m), b(m,n)    ! local slice of array

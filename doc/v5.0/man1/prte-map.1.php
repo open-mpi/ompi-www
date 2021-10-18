@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "prte-map(1) man page (version 5.0.0rc1)";
-$meta_desc = "Open MPI v5.0.0rc1 man page: prte-map(1)";
+$title = "prte-map(1) man page (version 5.0.0rc2)";
+$meta_desc = "Open MPI v5.0.0rc2 man page: prte-map(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
