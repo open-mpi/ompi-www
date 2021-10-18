@@ -13,8 +13,8 @@
   $rawbase_url = "https://raw.githubusercontent.com/open-mpi/ompi";
   $linux_dir = "$release_branch/contrib/dist/linux";
 
-  $readme = "$base_url/$linux_dir/README";
-  $raw_readme = "$rawbase_url/$linux_dir/README";
+  $readme = "$base_url/$linux_dir/README.md";
+  $raw_readme = "$rawbase_url/$linux_dir/README.md";
   $build_script = "$base_url/$linux_dir/buildrpm.sh";
   $specfile = "$base_url/$linux_dir/openmpi.spec";
 ?>
