@@ -296,9 +296,17 @@ How do I build hwloc for BlueGene/Q?</h2>
 </pre><p>CPPFLAGS may have to be updated if your platform headers are installed in a different directory.</p>
 <h2><a class="anchor" id="faq_windows"></a>
 How do I build hwloc for Windows?</h2>
-<p>hwloc releases are available as pre-built ZIPs for Windows on both 32bits and 64bits x86 platforms. They are built using MSYS2 and MinGW on a Windows host. Such an environment allows using the Unix-like <code>configure</code>, <code>make</code> and <code>make install</code> steps without having to tweak too many variables or options. One may look at <code>contrib/ci.inria.fr/job-3-mingw.sh</code> in the hwloc repository for an example used for nightly testing.</p>
-<p>hwloc also supports the Cygwin environment for porting Unix code to Windows.</p>
-<p>hwloc releases also contain a basic Microsoft Visual Studio solution under <code>contrib/windows/</code>.</p>
+<p><b>hwloc binary releases for Windows are available on the website download pages</b> (as pre-built ZIPs for both 32bits and 64bits x86 platforms). However hwloc also offers several ways to build on Windows:</p>
+<ul>
+<li>
+The usual Unix build steps (<code>configure</code>, <code>make</code> and <code>make install</code>) work on the <b>MSYS2/MinGW</b> environment on Windows (the official hwloc binary releases are built this way). Some environment variables and options must be configured, see <code>contrib/ci.inria.fr/job-3-mingw.sh</code> in the hwloc repository for an example (used for nightly testing).  </li>
+<li>
+hwloc also supports such Unix-like builds in <b>Cygwin</b> (environment for porting Unix code to Windows).  </li>
+<li>
+Windows build is also possible with <b>CMake</b> (<code>CMakeLists.txt</code> available under <code>contrib/windows-cmake/</code>).  </li>
+<li>
+hwloc also comes with an example of <b>Microsoft Visual Studio solution</b> (under <code>contrib/windows/</code>) that may serve as a base for custom builds.  </li>
+</ul>
 <h2><a class="anchor" id="faq_netbsd_bind"></a>
 How to get useful topology information on NetBSD?</h2>
 <p>The NetBSD (and FreeBSD) backend uses x86-specific topology discovery (through the x86 component). This implementation requires CPU binding so as to query topology information from each individual processor. This means that hwloc cannot find any useful topology information unless user-level process binding is allowed by the NetBSD kernel. The <code>security.models.extensions.user_set_cpu_affinity</code> sysctl variable must be set to 1 to do so. Otherwise, only the number of processors will be detected.</p>
