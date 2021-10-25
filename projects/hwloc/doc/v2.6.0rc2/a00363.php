@@ -89,8 +89,6 @@ GPUs (<a class="el" href="a00160.php#gga64f5d539df299c97ae80ce53fc4b56c0aa3a0979
 <li>
 <em>rsmi0</em> for the first RSMI device ("RSMI" subtype, from the RSMI component, using the AMD ROCm SMI library) </li>
 <li>
-<em>ze0</em> for the first Level Zero device ("LevelZero" subtype, from the levelzero component, using the oneAPI Level Zero library) </li>
-<li>
 <em>nvml0</em> for the first NVML device ("NVML" subtype, from the NVML component, using the NVIDIA Management Library) </li>
 <li>
 <em>:0.0</em> for the first display ("Display" subtype, from the GL component, using the NV-CONTROL X extension library, NVCtrl) </li>
@@ -102,6 +100,8 @@ GPUs (<a class="el" href="a00160.php#gga64f5d539df299c97ae80ce53fc4b56c0aa3a0979
 Co-Processors (<a class="el" href="a00160.php#gga64f5d539df299c97ae80ce53fc4b56c0a46f8927e1c3e137eaa86cc8f6861fb83" title="Operating system co-processor device. For instance &quot;opencl0d0&quot; for a OpenCL device,...">HWLOC_OBJ_OSDEV_COPROC</a>) <ul>
 <li>
 <em>opencl0d0</em> for the first device of the first OpenCL platform, <em>opencl1d3</em> for the fourth device of the second OpenCL platform ("OpenCL" subtype, from the OpenCL component) </li>
+<li>
+<em>ze0</em> for the first Level Zero device ("LevelZero" subtype, from the levelzero component, using the oneAPI Level Zero library) </li>
 <li>
 <em>cuda0</em> for the first NVIDIA CUDA device ("CUDA" subtype, from the CUDA component, using the NVIDIA CUDA Library) </li>
 <li>
