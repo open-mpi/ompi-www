@@ -10,7 +10,7 @@ if (preg_match("/\/doc\/v([0-9]+).([0-9]+)/", $_SERVER['REQUEST_URI'], $matches)
 }
 
 $this_dir = "hwloc";
-$this_nav[] = new Nav("Download v2.6 (beta)", "$topdir/software/hwloc/v2.6/");
+$this_nav[] = new Nav("Download v2.6 (new)", "$topdir/software/hwloc/v2.6/");
 $this_nav[] = new Nav("Download v2.5 (stable)", "$topdir/software/hwloc/v2.5/");
 $this_nav[] = new Nav("Download v2.4 (old)", "$topdir/software/hwloc/v2.4/");
 $this_nav[] = new Nav("Download v1.11 (ultrastable)", "$topdir/software/hwloc/v1.11/");

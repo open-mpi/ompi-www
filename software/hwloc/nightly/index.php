@@ -9,7 +9,7 @@ The following versions are available as nightly snapshots:
 
 <ul>
 
-<li> <strong>v2.6 branch &mdash; New beta release series:</strong>
+<li> <strong>v2.6 branch &mdash; New release series:</strong>
 <p>
  <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.6/lastSuccessfulBuild/">Latest snapshot</a>
  &mdash;
