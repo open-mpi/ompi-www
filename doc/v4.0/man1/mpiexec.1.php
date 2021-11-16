@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "mpiexec(1) man page (version 4.0.6)";
-$meta_desc = "Open MPI v4.0.6 man page: mpiexec(1)";
+$title = "mpiexec(1) man page (version 4.0.7)";
+$meta_desc = "Open MPI v4.0.7 man page: mpiexec(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -1037,7 +1037,7 @@ their local rank on a node using the <i>--bind-to cpu-list:ordered</i> option wi
 an associated <i>--cpu-list "0,2,5"</i>. In this example, the first process on a node
 will be bound to cpu 0, the second process on the node will be bound to
 cpu 2, and the third process on the node will be bound to cpu 5. <i>--bind-to</i>
-will also accept <i>cpulist:ortered</i> as a synonym to <i>cpu-list:ordered</i>.  Note
+will also accept <i>cpulist:ordered</i> as a synonym to <i>cpu-list:ordered</i>.  Note
 that an error will result if more processes are assigned to a node than
 cpus are provided.  <p>
 To help balance loads, the binding directive uses a
