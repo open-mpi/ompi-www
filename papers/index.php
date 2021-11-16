@@ -70,7 +70,8 @@ general architecture papers:</B><BR>
 <p><strong>2021</strong></p>
 <ul>
 <?php
-print_papers(array("ecp-bof-2021"
+print_papers(array("sc-2021",
+                   "ecp-bof-2021"
                    ));
 ?>
 </ul>
