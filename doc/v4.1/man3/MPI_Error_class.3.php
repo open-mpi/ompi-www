@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Error_class(3) man page (version 4.1.1)";
-$meta_desc = "Open MPI v4.1.1 man page: MPI_ERROR_CLASS(3)";
+$title = "MPI_Error_class(3) man page (version 4.1.2)";
+$meta_desc = "Open MPI v4.1.2 man page: MPI_ERROR_CLASS(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
