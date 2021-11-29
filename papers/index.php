@@ -204,6 +204,7 @@ print_papers(array("sc-2006",
 <UL>
 <?php
 print_papers(array("sc-2005",
+                   "euro-pvmmpi-2005-fortran",
                    "euro-pvmmpi-2005-orte",
                    "ppam-2005",
                    ));
