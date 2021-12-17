@@ -1361,6 +1361,15 @@ networks</a>, except that you use [--with-lsf].  For example:
 shell$ ./configure --with-lsf=/path/to/lsf/installation
 </geshi>
 
+Note: There are some dependencies needed to build with LSF.
+
+1. Network Information Service Version 2, formerly referred to as YP.
+   This is typically found in libnsl, but could vary based on your OS.
+
+   - On RHEL: libnsl, libnsl2 AND libnsl2-devel are required.
+
+2. Posix shmem. Can be found in librt on most distros.
+
 After Open MPI is installed, you should see a component named
 \"[lsf]\":
 
