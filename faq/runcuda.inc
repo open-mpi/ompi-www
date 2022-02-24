@@ -683,3 +683,36 @@ MPI processes do not move between NUMA nodes. (See the section on
 
 For more information see the <b>Intel Performance Scaled Messaging 2 (PSM2)
 Programmer's Guide</b> and the <b>Intel Omni-Path Performance Tuning Guide</b>, which can be found on the <a href=\"https://www.intel.com/omnipath/FabricSoftwarePublications\">Intel Omni-Path web site</a>.";
+
+/////////////////////////////////////////////////////////////////////////
+
+$q[] = "When do I need to select a CUDA device?";
+
+$anchor[] = "mpi-cuda-dev-selection";
+
+$a[] = "OpenMPI requires CUDA resources allocated for internal use. These
+are allocated lazily when they are first needed, e.g. CUDA IPC mem handles
+are created when a communication routine first requires them during a
+transfer. So, the CUDA device needs to be selected before the first MPI
+call requiring a CUDA resource. MPI_Init and most communicator related
+operations do not create any CUDA resources (guaranteed for MPI_Init,
+MPI_Comm_rank, MPI_Comm_size, MPI_Comm_split_type and MPI_Comm_free). It
+is thus possible to use those routines to query rank information and use
+those to select a GPU, e.g. using
+
+ 
+<geshi c>
+    int local_rank = -1;
+    {
+        MPI_Comm local_comm;
+        MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, rank, MPI_INFO_NULL, &local_comm);
+        MPI_Comm_rank(local_comm, &local_rank);
+        MPI_Comm_free(&local_comm);
+    }
+    int num_devices = 0;
+    cudaGetDeviceCount(&num_devices);
+    cudaSetDevice(local_rank % num_devices);
+</geshi>
+
+MPI internal CUDA resources are released during MPI_Finalize. Thus
+it is an application error to call cudaDeviceReset before MPI_Finalize is called.";
