@@ -29,7 +29,7 @@ color=red><?php
 <h2>Upcoming release series</h2>
 
 <p><ul>
-<li><a href="current/"><strong>v5.0 series</strong></a>.
+<li><a href="v5.0"><strong>v5.0 series</strong></a>.
 This documentation reflects the latest progression in the 5.0.x series.
 </li>
 
@@ -38,7 +38,7 @@ This documentation reflects the latest progression in the 5.0.x series.
 <h2>Prior stable release series</h2>
 
 <p><ul>
-<li><a href="current/"><strong>v4.0 series</strong></a>.
+<li><a href="v4.0"><strong>v4.0 series</strong></a>.
 This documentation reflects the latest progression in the 4.0.x series.
 </li>
 
