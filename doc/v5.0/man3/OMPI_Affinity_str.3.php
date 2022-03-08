@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "OMPI_Affinity_str(3) man page (version 5.0.0rc2)";
-$meta_desc = "Open MPI v5.0.0rc2 man page: OMPI_Affinity_str(3)";
+$title = "OMPI_Affinity_str(3) man page (version 5.0.0rc3)";
+$meta_desc = "Open MPI v5.0.0rc3 man page: OMPI_Affinity_str(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

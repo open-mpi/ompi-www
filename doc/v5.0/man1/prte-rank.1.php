@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "prte-rank(1) man page (version 5.0.0rc2)";
-$meta_desc = "Open MPI v5.0.0rc2 man page: prte-rank(1)";
+$title = "prte-rank(1) man page (version 5.0.0rc3)";
+$meta_desc = "Open MPI v5.0.0rc3 man page: prte-rank(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -69,9 +69,9 @@ the absence of any further directives:
 <dd>when the number
 of total processes in the job is &lt;= 2 </dd>
 
-<dt>B]CB]Map by package:B]R] </dt>
-<dd>when the
-number of total processes in the job is &gt; 2 </dd>
+<dt>B]CB]Map by NUMA:B]R] </dt>
+<dd>when the number
+of total processes in the job is &gt; 2 </dd>
 </dl>
 <p>
 PRTE automatically binds processes.
@@ -83,18 +83,18 @@ Three binding patterns are used in the absence of any further directives:
 <dd>when the number of total processes in the job is
 &lt;= 2 </dd>
 
-<dt>B]CB]Bind to package:B]R] </dt>
-<dd>when the number of total processes in the
-job is &gt; 2 </dd>
+<dt>B]CB]Bind to NUMA:B]R] </dt>
+<dd>when the number of total processes in the job
+is &gt; 2 </dd>
 
 <dt>B]CB]Bind to none:B]R] </dt>
 <dd>when oversubscribed </dd>
 </dl>
 <p>
-If your application
-uses threads, then you probably want to ensure that you are either not
-bound at all (by specifying C]--bind-to noneR]), or bound to multiple cores
-using an appropriate binding level or specific number of processing elements
+If your application uses
+threads, then you probably want to ensure that you are either not bound
+at all (by specifying C]--bind-to noneR]), or bound to multiple cores using
+an appropriate binding level or specific number of processing elements
 per application process. <p>
 PRTE automatically ranks processes starting from
 0. Two ranking patterns are used in the absence of any further directives:
@@ -105,104 +105,104 @@ PRTE automatically ranks processes starting from
 <dd>when the number of total processes in the job is
 &lt;= 2 </dd>
 
-<dt>B]CB]Rank by package:B]R] </dt>
-<dd>when the number of total processes in the
-job is &gt; 2 </dd>
+<dt>B]CB]Rank by NUMA:B]R] </dt>
+<dd>when the number of total processes in the job
+is &gt; 2 </dd>
 </dl>
 
 <h2><a name='sect3' href='#toc3'>Options</a></h2>
 <p>
-Listed here are the subset of command line options that
-will be used in the process mapping/ranking/binding discussion in this
-manual page.
+Listed here are the subset of command line options that will
+be used in the process mapping/ranking/binding discussion in this manual
+page.
 <h3><a name='sect4' href='#toc4'>Specifying Host Nodes</a></h3>
 <p>
-Use one of the following options to specify
-which hosts (nodes) within the PRTE DVM environment to run on.
+Use one of the following options to specify which
+hosts (nodes) within the PRTE DVM environment to run on.
 <dl>
 
-<dt>B]CB]--host
-&lt;host1,host2,...,hostN&gt;B]R] or B]CB]--host &lt;host1:X,host2:Y,...,hostN:Z&gt;B]R] </dt>
-<dd>List of
-hosts on which to invoke processes. After each hostname a colon (C]:R])
-followed by a positive integer can be used to specify the number of slots
-on that host (C]:XR], C]:YR], and C]:ZR]). The default is C]1R]. </dd>
+<dt>B]CB]--host &lt;host1,host2,...,hostN&gt;B]R]
+or B]CB]--host &lt;host1:X,host2:Y,...,hostN:Z&gt;B]R] </dt>
+<dd>List of hosts on which to invoke
+processes. After each hostname a colon (C]:R]) followed by a positive integer
+can be used to specify the number of slots on that host (C]:XR], C]:YR],
+and C]:ZR]). The default is C]1R]. </dd>
 
-<dt>B]CB]--hostfile
-&lt;hostfile&gt;B]R] </dt>
-<dd>Provide a hostfile to use. </dd>
+<dt>B]CB]--hostfile &lt;hostfile&gt;B]R] </dt>
+<dd>Provide a hostfile
+to use. </dd>
 
-<dt>B]CB]--machinefile &lt;machinefile&gt;B]R]
-</dt>
+<dt>B]CB]--machinefile &lt;machinefile&gt;B]R] </dt>
 <dd>Synonym for C]-hostfileR]. </dd>
 
-<dt>B]CB]--default-hostfile &lt;hostfile&gt;B]R] </dt>
-<dd>Provide a default
-hostfile to use. </dd>
+<dt>B]CB]--default-hostfile
+&lt;hostfile&gt;B]R] </dt>
+<dd>Provide a default hostfile to use. </dd>
 </dl>
 
-<h3><a name='sect5' href='#toc5'>Process Mapping / Ranking / Binding Options</a></h3>
+<h3><a name='sect5' href='#toc5'>Process Mapping / Ranking
+/ Binding Options</a></h3>
 <p>
-The following
-options specify the number of processes to launch. Note that none of the
-options imply a particular binding policy - e.g., requesting C]NR] processes
-for each socket does not imply that the processes will be bound to the
-socket.
+The following options specify the number of processes
+to launch. Note that none of the options imply a particular binding policy
+- e.g., requesting C]NR] processes for each socket does not imply that the
+processes will be bound to the socket.
 <dl>
 
 <dt>B]CB]-c, -n, --n, --np &lt;#&gt;B]R] </dt>
-<dd>Run this many copies of the program on the
-given nodes. This option indicates that the specified file is an executable
-program and not an application context. If no value is provided for the
-number of copies to execute (i.e., neither the C]-npR] nor its synonyms are
-provided on the command line), C]prunR] will automatically execute a copy
-of the program on each process slot (see below for description of a [lq]process
-slot[rq]). This feature, however, can only be used in the SPMD model and
-will return an error (without beginning execution of the application) otherwise.
-</dd>
+<dd>Run this many
+copies of the program on the given nodes. This option indicates that the
+specified file is an executable program and not an application context.
+If no value is provided for the number of copies to execute (i.e., neither
+the C]-npR] nor its synonyms are provided on the command line), C]prunR]
+will automatically execute a copy of the program on each process slot (see
+below for description of a [lq]process slot[rq]). This feature, however,
+can only be used in the SPMD model and will return an error (without beginning
+execution of the application) otherwise. </dd>
 </dl>
 <p>
-To map processes across sets of objects:
+To map processes across sets of
+objects:
 <dl>
 
 <dt>B]CB]--map-by &lt;object&gt;B]R] </dt>
-<dd>Map to the
-specified object. See defaults in Quick Summary. Supported options include
-C]slotR], C]hwthreadR], C]coreR], C]l1cacheR], C]l2cacheR], C]l3cacheR],
-C]packageR], C]nodeR], C]seqR], C]distR], C]pprR], and C]rankfileR]. </dd>
+<dd>Map to the specified object. See defaults
+in Quick Summary. Supported options include C]slotR], C]hwthreadR], C]coreR],
+C]l1cacheR], C]l2cacheR], C]l3cacheR], C]numaR], C]packageR], C]nodeR],
+C]seqR], C]distR], C]pprR], and C]rankfileR]. </dd>
 </dl>
 <p>
-Any
-object can include qualifier by adding a colon (C]:R]) and any combination
-of one or more of the following to the C]--map-byR] option:
+Any object can include qualifier
+by adding a colon (C]:R]) and any combination of one or more of the following
+to the C]--map-byR] option:
 <dl>
 
 <dt>[bu]</dt>
-<dd>C]PE=nR] bind
-C]nR] processing elements to each process </dd>
+<dd>C]PE=nR] bind C]nR] processing elements to
+each process </dd>
 
 <dt>[bu]</dt>
-<dd>C]SPANR] load balance the
-processes across the allocation </dd>
-
-<dt>[bu]</dt>
-<dd>C]OVERSUBSCRIBER] allow more processes
-on a node than processing elements </dd>
-
-<dt>[bu]</dt>
-<dd>C]NOOVERSUBSCRIBER] means C]!OVERSUBSCRIBER]
+<dd>C]SPANR] load balance the processes across the allocation
 </dd>
 
 <dt>[bu]</dt>
-<dd>C]NOLOCALR] do not launch processes on the same node as C]prunR] </dd>
+<dd>C]OVERSUBSCRIBER] allow more processes on a node than processing elements
+</dd>
 
 <dt>[bu]</dt>
-<dd>C]HWTCPUSR]
-use hardware threads as CPU slots </dd>
+<dd>C]NOOVERSUBSCRIBER] means C]!OVERSUBSCRIBER] </dd>
 
 <dt>[bu]</dt>
-<dd>C]CORECPUSR] use cores as CPU slots
-(default) </dd>
+<dd>C]NOLOCALR] do not
+launch processes on the same node as C]prunR] </dd>
+
+<dt>[bu]</dt>
+<dd>C]HWTCPUSR] use hardware
+threads as CPU slots </dd>
+
+<dt>[bu]</dt>
+<dd>C]CORECPUSR] use cores as CPU slots (default)
+</dd>
 
 <dt>[bu]</dt>
 <dd>C]DEVICE=devR] device specifier for the C]distR] policy </dd>
@@ -234,12 +234,12 @@ ranks:
 <dd>Rank in round-robin fashion according to the
 specified object. See defaults in Quick Summary. Supported options include
 C]slotR], C]hwthreadR], C]coreR], C]l1cacheR], C]l2cacheR], C]l3cacheR],
-C]packageR], and C]nodeR]. </dd>
+C]numaR], C]packageR], and C]nodeR]. </dd>
 </dl>
 <p>
-Any object can include qualifiers by adding a
-colon (C]:R]) and any combination of one or more of the following to the
-C]--rank-byR] option:
+Any object can include qualifiers by
+adding a colon (C]:R]) and any combination of one or more of the following
+to the C]--rank-byR] option:
 <dl>
 
 <dt>[bu]</dt>
@@ -249,77 +249,77 @@ C]--rank-byR] option:
 <dd>C]FILLR] </dd>
 </dl>
 <p>
-To bind processes to sets
-of objects:
+To bind processes to
+sets of objects:
 <dl>
 
 <dt>B]CB]--bind-to &lt;object&gt;B]R] </dt>
-<dd>Bind processes to the specified object.
-See defaults in Quick Summary. Supported options include C]noneR], C]hwthreadR],
-C]coreR], C]l1cacheR], C]l2cacheR], C]l3cacheR], and C]packageR]. </dd>
+<dd>Bind processes to the specified
+object. See defaults in Quick Summary. Supported options include C]noneR],
+C]hwthreadR], C]coreR], C]l1cacheR], C]l2cacheR], C]l3cacheR], C]numaR],
+and C]packageR]. </dd>
 </dl>
 <p>
-Any object
-can include qualifiers by adding a colon (C]:R]) and any combination of
-one or more of the following to the C]--bind-toR] option:
+Any object can include qualifiers by adding a colon (C]:R])
+and any combination of one or more of the following to the C]--bind-toR] option:
+
 <dl>
 
 <dt>[bu]</dt>
-<dd>C]overload-allowedR]
-allows for binding more than one process in relation to a CPU </dd>
+<dd>C]overload-allowedR] allows for binding more than one process in relation
+to a CPU </dd>
 
 <dt>[bu]</dt>
-<dd>C]if-supportedR]
-if that object is supported on this system </dd>
+<dd>C]if-supportedR] if that object is supported on this system
+</dd>
 </dl>
 
 <h3><a name='sect6' href='#toc6'>Diagnostics</a></h3>
 
 <dl>
 
-<dt>B]CB]--map-by :DISPLAYB]R]
-</dt>
-<dd>Display a table showing the mapped location of each process prior to launch.
-</dd>
+<dt>B]CB]--map-by :DISPLAYB]R] </dt>
+<dd>Display a table showing the mapped location
+of each process prior to launch. </dd>
 
 <dt>B]CB]--map-by :DISPLAYALLOCB]R] </dt>
-<dd>Display the detected allocation of resources
-(e.g., nodes, slots) </dd>
+<dd>Display the
+detected allocation of resources (e.g., nodes, slots) </dd>
 
-<dt>B]CB]--bind-to :REPORTB]R] </dt>
-<dd>Report bindings for launched
-processes to C]stderrR]. </dd>
+<dt>B]CB]--bind-to :REPORTB]R]
+</dt>
+<dd>Report bindings for launched processes to C]stderrR]. </dd>
 </dl>
 
 <h2><a name='sect7' href='#toc7'>Description</a></h2>
 <p>
-PRTE employs a three-phase procedure
-for assigning process locations and ranks:
+PRTE employs
+a three-phase procedure for assigning process locations and ranks:
 <dl>
 
 <dt>1.</dt>
-<dd>B]mappingR]: Assigns a default
-location to each process </dd>
+<dd>B]mappingR]:
+Assigns a default location to each process </dd>
 
 <dt>2.</dt>
-<dd>B]rankingR]: Assigns a unique rank value to each
-process </dd>
+<dd>B]rankingR]: Assigns a unique
+rank value to each process </dd>
 
 <dt>3.</dt>
-<dd>B]bindingR]: Constrains each process to run on specific processors
-</dd>
+<dd>B]bindingR]: Constrains each process to run
+on specific processors </dd>
 </dl>
 <p>
-The first phase of B]mappingR] is used to assign a default location to
-each process based on the mapper being employed. Mapping by slot, node,
-and sequentially results in the assignment of the processes to the node
-level. In contrast, mapping by object, allows the mapper to assign the process
-to an actual object on each node. <p>
-I]Note:R] The location assigned to the
-process is independent of where it will be bound - the assignment is used
-solely as input to the binding algorithm. <p>
-The second phase focuses on the
-B]rankingR] of the process within the job[cq]s namespace. PRTE separates
+The first phase of B]mappingR] is used to assign
+a default location to each process based on the mapper being employed. Mapping
+by slot, node, and sequentially results in the assignment of the processes
+to the node level. In contrast, mapping by object, allows the mapper to
+assign the process to an actual object on each node. <p>
+I]Note:R] The location
+assigned to the process is independent of where it will be bound - the assignment
+is used solely as input to the binding algorithm. <p>
+The second phase focuses
+on the B]rankingR] of the process within the job[cq]s namespace. PRTE separates
 this from the mapping procedure to allow more flexibility in the relative
 placement of processes. <p>
 The third phase of B]bindingR] actually binds each
@@ -651,11 +651,11 @@ in the MCA section below. Some examples include: <br>
 <pre>
 
 </pre>
-<h3><a name='sect12' href='#toc12'>C]prun option          MCA parameter key           value--map-by core
-   rmaps_base_mapping_policy   core--map-by package     rmaps_base_mapping_policy
-  package--rank-by core       rmaps_base_ranking_policy   core--bind-to core
-      hwloc_base_binding_policy   core--bind-to package    hwloc_base_binding_policy
-  package--bind-to none       hwloc_base_binding_policy   noneR]Difference
+<h3><a name='sect12' href='#toc12'>C]prun option              MCA parameter key          value--map-by core
+      rmaps_default_mapping_policy   core--map-by package     rmaps_default_mapping_policy
+  package--rank-by core       rmaps_default_ranking_policy   core--bind-to core
+      hwloc_default_binding_policy   core--bind-to package    hwloc_default_binding_policy
+  package--bind-to none       hwloc_default_binding_policy   noneR]Difference
 between overloading and oversubscription</a></h3>
 <p>
 This section explores the difference
@@ -1233,7 +1233,7 @@ CB]--map-by :XMLOUTPUTB])R] Provide all output in XML format </dd>
 <li><a name='toc9' href='#sect9'>Specifying Number of Processes</a></li>
 <li><a name='toc10' href='#sect10'>Mapping Processes to Nodes: Using Policies</a></li>
 <li><a name='toc11' href='#sect11'>Mapping, Ranking, and Binding: Fundamentals</a></li>
-<li><a name='toc12' href='#sect12'>C]prun option          MCA parameter key           value--map-by core        rmaps_base_mapping_policy   core--map-by package     rmaps_base_mapping_policy   package--rank-by core       rmaps_base_ranking_policy   core--bind-to core       hwloc_base_binding_policy   core--bind-to package    hwloc_base_binding_policy   package--bind-to none       hwloc_base_binding_policy   noneR]Difference between overloading and oversubscription</a></li>
+<li><a name='toc12' href='#sect12'>C]prun option              MCA parameter key          value--map-by core        rmaps_default_mapping_policy   core--map-by package     rmaps_default_mapping_policy   package--rank-by core       rmaps_default_ranking_policy   core--bind-to core       hwloc_default_binding_policy   core--bind-to package    hwloc_default_binding_policy   package--bind-to none       hwloc_default_binding_policy   noneR]Difference between overloading and oversubscription</a></li>
 <li><a name='toc13' href='#sect13'>Overloading vs Oversubscription: Package Example</a></li>
 <li><a name='toc14' href='#sect14'>Overloading vs Oversubscription: Hardware Threads Example</a></li>
 <li><a name='toc15' href='#sect15'>Diagnostics</a></li>

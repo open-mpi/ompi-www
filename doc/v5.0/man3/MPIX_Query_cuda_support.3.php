@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPIX_Query_cuda_support(3) man page (version 5.0.0rc2)";
-$meta_desc = "Open MPI v5.0.0rc2 man page: MPIX_Query_cuda_support(3)";
+$title = "MPIX_Query_cuda_support(3) man page (version 5.0.0rc3)";
+$meta_desc = "Open MPI v5.0.0rc3 man page: MPIX_Query_cuda_support(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -32,9 +32,28 @@ There
 is no C++ binding for this function.
 <h2><a name='sect5' href='#toc5'>Description</a></h2>
 
+<p> This routine return 1
+if MPI library is build with CUDA and runtime supports CUDA buffers. This
+routine must be called after MPI is initialized by a call to <a href="../man3/MPI_Init.3.php">MPI_Init</a> or
+<a href="../man3/MPI_Init_thread.3.php">MPI_Init_thread</a>.
 <p>
 <h2><a name='sect6' href='#toc6'>Examples</a></h2>
-
+<br>
+<pre>#include &lt;stdio.h&gt;
+#include "mpi.h"
+#include "mpi-ext.h" /* Needed for CUDA-aware check */
+int main(int argc, char *argv[])
+{
+    <a href="../man3/MPI_Init.3.php">MPI_Init</a>(&amp;argc, &amp;argv);
+    if (MPIX_Query_cuda_support()) {
+        printf("This MPI library has CUDA-aware support.0);
+    } else {
+        printf("This MPI library does not have CUDA-aware support.0);
+    }
+    <a href="../man3/MPI_Finalize.3.php">MPI_Finalize</a>();
+    return 0;
+}
+</pre>
 <p>
 <h2><a name='sect7' href='#toc7'>See Also</a></h2>
 <br>

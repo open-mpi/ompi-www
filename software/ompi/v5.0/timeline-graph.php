@@ -30,6 +30,7 @@ series("v5.0 series", $series_start->format("Y-m-d"), $beyond_end_date, $data, $
 milestone("branch from master", "2021-03-11", $data, $vpos);
 milestone("v5.0.0rc1", "2021-09-30", $data, $vpos);
 milestone("v5.0.0rc2", "2021-10-18", $data, $vpos);
+milestone("v5.0.0rc3", "2022-03-08", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
