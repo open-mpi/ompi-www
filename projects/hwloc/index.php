@@ -275,11 +275,11 @@ There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</t
  use this paper:
 </p>
 <blockquote>
- Brice Goglin.
- <b>Exposing the Locality of Heterogeneous Memory Architectures to HPC Applications.</b>
- In <em>Proceedings of the First ACM International Symposium on Memory Systems (MEMSYS16)</em>,
- Washington, DC, USA, October 2016.
- <a href="https://hal.inria.fr/hal-01330194">https://hal.inria.fr/hal-01330194</a>
+ Brice Goglin and Andrès Rubio Proaño.
+ <b>Using Performance Attributes for Managing Heterogeneous Memory in HPC Applications.</b>
+ In <em>Proceedings of the 23rd IEEE International Workshop on Parallel and Distributed Scientific and Engineering Computing (PDSEC 2022), held in conjunction with IPDPS 2022</em>,
+ Lyon, France, May 2022.
+ <a href="https://hal.inria.fr/hal-03599360">https://hal.inria.fr/hal-03599360</a>
 </blockquote>
 
 <p>
