@@ -1,4 +1,2 @@
 <?php
-$topdir = "../..";
-include_once("data-5.0.0rc3.inc");
-include_once("../engine.inc");
+header("Location: http://docs.open-mpi.org/en/v5.0.x/");
