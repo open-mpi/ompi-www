@@ -30,7 +30,12 @@ news("Network Locality announced",
 */
 ?>
 
-<p> The Portable Network Locality (netloc) software package provides
+<h2><font style="color: red;">This web page is only maintained for archival reasons.
+Starting with hwloc 2.0, both netloc and hwloc are distributed in
+hwloc releases.<br /><br />
+You should be browsing the <a href="../hwloc/">Hardware Locality</a> site, instead.</font></h2>
+
+    <p> The Portable Network Locality (netloc) software package provides
 network topology discovery tools, and an abstract representation of 
 those networks topologies for a range of network types and configurations.
 It is provided as a companion to the <a
@@ -39,8 +44,6 @@ two software packages work together to provide a comprehensive view of
 the HPC system topology, spanning from the processor cores in one
 server to the cores in another – including the complex network(s) in
 between.
-<b style="color: red;">Starting with hwloc 2.0, both netloc and hwloc are distributed in
-hwloc releases.</b>
 </p>
 
 <p>Towards this end, netloc is divided into three components:<p>
