@@ -240,7 +240,6 @@ printbutton("Sub-Projects");
 printsublink("$topurl/projects/hwloc/", "Hardware Locality");
 printsublink("$topurl/projects/netloc/", "Network Locality");
 printsublink("$topurl/projects/mtt/", "MPI Testing Tool");
-printsublink("$topurl/projects/user-docs/", "Open MPI User Docs");
 printsublink("$topurl/projects/otpo/", "Open Tool for Parameter Optimization");
 
 // Community
