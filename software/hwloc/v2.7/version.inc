@@ -11,8 +11,8 @@ $download_prefix="https://download.open-mpi.org/release/hwloc/v" . $release_seri
 $s3_prefix = "release/hwloc/v" . $release_series . "/";
 
 /* releases must be ordered newest to oldest */
-$releases = array("2.7.0");
+$releases = array("2.7.1", "2.7.0");
 /* prereleases must be ordered newest to oldest.  All prereleases
    will be shown, so make an empty array when the official release
    is added to releases above */
-$prereleases = array("2.7.1rc1");
+$prereleases = array();
