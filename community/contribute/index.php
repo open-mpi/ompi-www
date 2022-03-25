@@ -87,7 +87,7 @@ Github</a>.  All commits <em>must</em> contain a "Signed-off-by" token
 in the commit message.  This constitutes your agreement with <a
 href="https://github.com/open-mpi/ompi/wiki/Administrative-rules#contributors-declaration">the
 Open MPI Contributor's Declaration</a>.  Check out the overall <a
-href="https://github.com/open-mpi/ompi/blob/master/CONTRIBUTING.md">code
+href="https://github.com/open-mpi/ompi/blob/main/CONTRIBUTING.md">code
 contribution guidelines</a>.</li>
 
 </ul>

@@ -81,7 +81,7 @@ checkpoint/restart systems (e.g., Condor, libckpt) and protocols
 
 <font color=\"red\"><strong>Note:</strong></font> The
 checkpoint/restart support was last released as part of the v1.6
-series.  The v1.7 series and the Open MPI master do not support this
+series.  The v1.7 series and the Open MPI main do not support this
 functionality (most of the code is present in the repository, but it
 is known to be non-functional in most cases).  This feature is looking
 for a maintainer. Interested parties should inquire on the developers

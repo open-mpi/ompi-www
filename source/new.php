@@ -15,19 +15,19 @@ file provides short bullets describing user-visible changes in Open
 MPI between versions.
 
 <p>The NEWS file at the head of our development (i.e., the Git
-"master" branch) is kept up-to-date with changes both on the master and
+"main" branch) is kept up-to-date with changes both on the main and
 all release branches.  The Open MPI team starts a new section in NEWS
 immediately after each release and keeps it up-to-date as changes are
 made in the repository.  Hence, checking this file will show he
 high-level changes that are available in each version -- even versions
 that are not yet available as stable releases.
 
-<p> Here is the current NEWS file from the Git master branch (<?php
-print("<a href=\"https://github.com/open-mpi/ompi/blob/master/NEWS\">"); ?>also
+<p> Here is the current NEWS file from the Git main branch (<?php
+print("<a href=\"https://github.com/open-mpi/ompi/blob/main/NEWS\">"); ?>also
 available here</a>):
 
 <?php
-$str = do_curl_get("https://raw.githubusercontent.com/open-mpi/ompi/master/NEWS");
+$str = do_curl_get("https://raw.githubusercontent.com/open-mpi/ompi/main/NEWS");
 print("<p><hr>\n<pre>\n$str\n</pre><p><hr>\n\n");
 
 include_once("$topdir/includes/footer.inc");

@@ -37,8 +37,8 @@ snapshots are from the Git v5.0.x upcoming release series, and
 they reflect the current head of development.  The usual disclaimers
 about the state of development code apply.</li>
 
-<li><a href="master/"><strong>Master</strong></a> (development head):
-These snapshots are from the Git master and reflect the current
+<li><a href="main/"><strong>main</strong></a> (development head):
+These snapshots are from the Git main and reflect the current
 head of development.  The usual disclaimers about the state of
 development code apply.</li>
 
