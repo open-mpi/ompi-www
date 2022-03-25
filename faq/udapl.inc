@@ -42,7 +42,7 @@ $anchor[] = "udapl";
 $a[] = "Sun's ClusterTools is based off of Open MPI with one significant
 difference: Sun's ClusterTools includes uDAPL RDMA capabilities in the
 uDAPL BTL. Open MPI v1.2 uDAPL BTL does not include the RDMA
-capabilities. These improvements do exist today in the Open MPI master
+capabilities. These improvements do exist today in the Open MPI main 
 and will be included in future Open MPI releases.";
 
 /////////////////////////////////////////////////////////////////////////

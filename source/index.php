@@ -25,7 +25,7 @@ find any bugs, <em>please</em> report them!  <a href="<?php
 print("$topdir/community/lists/"); ?>">Contributions,
 suggestions, and comments are welcome</a>.</p>
 
-<P> The Git "master" branch is the current development version of
+<P> The Git "main" branch is the current development version of
 Open MPI.  It is generally where new Open MPI work is done.</p>
 
 <p> There are multiple ways to get access to Open MPI's source code:
@@ -34,7 +34,7 @@ Open MPI.  It is generally where new Open MPI work is done.</p>
 
 <li> <a href="https://github.com/open-mpi/ompi">Clone the main Open
 MPI Git repo at GitHub</a>.  The main development work occurs on the
-"master" branch in this repo.
+"main" branch in this repo.
 
 <br>
 

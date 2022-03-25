@@ -1,2 +1,2 @@
 <?php
-header("Location: ../master/");
+header("Location: ../main/");

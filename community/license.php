@@ -11,7 +11,7 @@ print("<a href=\"https://opensource.org/licenses/BSD-3-Clause\">");
 ?>3-clause BSD license</a>, listed below.</strong>
 
 <?php
-$str = do_curl_get("https://raw.githubusercontent.com/open-mpi/ompi/master/LICENSE");
+$str = do_curl_get("https://raw.githubusercontent.com/open-mpi/ompi/main/LICENSE");
 print("<p><hr>\n<pre>\n$str\n</pre><p><hr>\n\n");
 
 include_once("$topdir/includes/footer.inc");

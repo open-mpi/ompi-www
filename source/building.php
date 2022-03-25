@@ -63,7 +63,7 @@ developers working on the internals of Open MPI itself</em>):
 <TR>
 <TD>Pandoc</TD>
 
-<TD>Version &gt;=v1.12 required for master / from Open MPI &gt;=5.0,
+<TD>Version &gt;=v1.12 required for main / from Open MPI &gt;=5.0,
 and is available in modern Linux distros, and MacOS via Homebrew /
 MacPorts.</TD>
 
@@ -142,7 +142,7 @@ row("v2.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
 row("v3.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
 row("v3.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
 row("v4.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
-row("master", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "1.12");
+row("main", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "1.12");
 
 ?>
 
@@ -158,7 +158,7 @@ row("master", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "1.12");
 
 <LI> Other version combinations <em>may</em> work, but are untested
      and unsupported.  In particular, developers tend to use higher
-     versions of Autotools for master/development work, and they
+     versions of Autotools for main/development work, and they
      usually work fine.</LI>
 
 <LI> The v1.4 and v1.5 series had their Automake versions updated on
@@ -170,7 +170,7 @@ row("master", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "1.12");
 <LI> If Autoconf 2.60 (and higher) is used, Automake 1.10 (and higher)
      <b>must</b> be used.</LI>
 
-<LI> The <code>master</code> branch and all release branches starting
+<LI> The <code>main</code> branch and all release branches starting
      with <code>v1.2</code> require the use of Libtool 2.x (or
      higher) so that Open MPI can build the Fortran 90 module as a
      shared library.  If (and only if) you intend to not build the
@@ -195,7 +195,7 @@ the Fortran MPI bindings, and a Java compiler if you want to build the
 (unofficial) Java MPI bindings.</P>
 
 <P> The <?php
-print("<a href=\"https://github.com/open-mpi/ompi/blob/master/HACKING\">");
+print("<a href=\"https://github.com/open-mpi/ompi/blob/main/HACKING\">");
 ?>HACKING file</a> in the top-level directory of the Open MPI checkout
 details how to install the tools listed above and the steps required
 to build a developer checkout of Open MPI.  It always contains the
