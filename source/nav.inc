@@ -2,7 +2,7 @@
 include_once("$topdir/includes/nav.inc");
 
 $this_dir = "source";
-$this_nav[] = new Nav("What's new?", "new.php");
+$this_nav[] = new Nav("What's new?", "https://docs.open-mpi.org/en/main/news/news-main.html");
 $this_nav[] = new Nav("Git clone", "git.php");
 $this_nav[] = new Nav("Building from Git", "building.php");
 $this_nav[] = new Nav("OpenHub stats", "http://www.openhub.net/p/openmpi");
