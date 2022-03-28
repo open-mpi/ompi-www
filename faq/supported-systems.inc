@@ -178,9 +178,9 @@ $anchor[] = "rte-lsf-support";
 
 $a[] = "Starting with Open MPI v1.3, yes!
 
-Prior to Open MPI v1.3, Platform released a script-based integration
+Prior to Open MPI v1.3, Platform (which is now IBM) released a script-based integration
 in the LSF 6.1 and 6.2 maintenance packs around November of 2006.  If
-you want this integration, please contact your normal Platform support
+you want this integration, please contact your normal IBM support
 channels.";
 
 /////////////////////////////////////////////////////////////////////////
