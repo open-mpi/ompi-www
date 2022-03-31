@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Type_create_hindexed(3) man page (version 4.1.2)";
-$meta_desc = "Open MPI v4.1.2 man page: MPI_TYPE_CREATE_HINDEXED(3)";
+$title = "MPI_Type_create_hindexed(3) man page (version 4.1.3)";
+$meta_desc = "Open MPI v4.1.3 man page: MPI_TYPE_CREATE_HINDEXED(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
