@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Comm_rank(3) man page (version 4.1.2)";
-$meta_desc = "Open MPI v4.1.2 man page: MPI_COMM_RANK(3)";
+$title = "MPI_Comm_rank(3) man page (version 4.1.3)";
+$meta_desc = "Open MPI v4.1.3 man page: MPI_COMM_RANK(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -68,10 +68,10 @@ process in the particular communicator&rsquo;s group. It is equivalent to access
 the communicator&rsquo;s group with <a href="../man3/MPI_Comm_group.3.php">MPI_Comm_group</a>, computing the rank using <a href="../man3/MPI_Group_rank.3.php">MPI_Group_rank</a>,
 and then freeing the temporary group via <a href="../man3/MPI_Group_free.3.php">MPI_Group_free</a>. <p>
 Many programs will
-be written with the master-slave model, where one process (such as the rank-zero
-process) will play a supervisory role, and the other processes will serve
-as compute nodes. In this framework, <a href="../man3/MPI_Comm_size.3.php">MPI_Comm_size</a> and MPI_Comm_rank are
-useful for determining the roles of the various processes of a communicator.
+be written with the manager-worker model, where one process (such as the
+rank-zero process) will play a supervisory role, and the other processes
+will serve as compute nodes. In this framework, <a href="../man3/MPI_Comm_size.3.php">MPI_Comm_size</a> and MPI_Comm_rank
+are useful for determining the roles of the various processes of a communicator.
 
 <p>
 <h2><a name='sect8' href='#toc8'>Errors</a></h2>
