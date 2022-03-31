@@ -15,7 +15,7 @@ $releases = array();
 /* prereleases must be ordered newest to oldest.  All prereleases
    will be shown, so make an empty array when the official release
    is added to releases above */
-$prereleases = array("5.0.0rc3", "5.0.0rc2", "5.0.0rc1");
+$prereleases = array("5.0.0rc4", "5.0.0rc3", "5.0.0rc2", "5.0.0rc1");
 
 /* set to true if we should add a cygwin note */
 $cygwin_note = 0;
