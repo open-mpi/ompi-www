@@ -86,21 +86,15 @@ information</a></h3>
 <td valign=top>
 
 <?php
+news("Open MPI v4.1.3 released",
+     "Bug fix release",
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00147.html");
 news("Open MPI v4.1.2 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00145.html");
 news("Open MPI v4.0.7 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00144.html");
-news("Open MPI v4.0.6 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org//msg00142.html");
-news("Open MPI v4.1.1 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00141.html");
-news("Open MPI v4.0.5 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00135.html");
 news("hwloc 2.7.1",
      "Stable release",
      "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00149.html");
