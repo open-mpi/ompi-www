@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Info_get_nthkey(3) man page (version 4.1.3)";
-$meta_desc = "Open MPI v4.1.3 man page: MPI_INFO_GET_NTHKEY(3)";
+$title = "MPI_Info_get_nthkey(3) man page (version 4.1.4)";
+$meta_desc = "Open MPI v4.1.4 man page: MPI_INFO_GET_NTHKEY(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
