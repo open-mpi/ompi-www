@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Ineighbor_alltoallv(3) man page (version 4.1.3)";
-$meta_desc = "Open MPI v4.1.3 man page: MPI_INEIGHBOR_ALLTOALLV(3)";
+$title = "MPI_Ineighbor_alltoallv(3) man page (version 4.1.4)";
+$meta_desc = "Open MPI v4.1.4 man page: MPI_INEIGHBOR_ALLTOALLV(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
