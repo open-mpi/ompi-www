@@ -98,9 +98,9 @@ news("Open MPI v4.1.2 released",
 news("Open MPI v4.0.7 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00144.html");
-news("hwloc 2.7.1",
-     "Stable release",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00149.html");
+news("hwloc 2.8.0",
+     "Major release",
+     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00151.html");
 ?>
 </td>
 </tr>
