@@ -44,6 +44,7 @@ milestone("v4.1.3", "2022-03-31", $data, $vpos);
 #milestone("v4.1.4rc1", "2022-04-27", $data, $vpos);
 milestone("v4.1.4", "2022-05-26", $data, $vpos);
 milestone("v4.1.5rc1", "2022-10-25", $data, $vpos);
+milestone("v4.1.5rc2", "2022-12-10", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
