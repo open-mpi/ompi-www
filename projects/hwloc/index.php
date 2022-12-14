@@ -246,7 +246,7 @@ Questions may be sent to the users or developers
 </p>
 
 <p>
-There is also a <tt>#hwloc</tt> IRC channel on Freenode (<tt>irc.freenode.net</tt>).
+There is also a <tt>#hwloc</tt> IRC channel on Libera Chat (<tt>irc.libera.chat</tt>) and Freenode (<tt>irc.freenode.net</tt>).
 </p>
 
 <!------------------------------------------------------------------------->
