@@ -135,9 +135,7 @@ Functions</h2></td></tr>
 <p>This is typically useful when an application wants to distribute <code>n</code> threads over a machine, giving each of them as much private cache as possible and keeping them locally in number order.</p>
 <p>The caller may typically want to also call <a class="el" href="a00181.php#gaa611a77c092e679246afdf9a60d5db8b" title="Keep a single index among those set in bitmap bitmap.">hwloc_bitmap_singlify()</a> before binding a thread so that it does not move at all.</p>
 <p><code>flags</code> should be 0 or a OR'ed set of <a class="el" href="a00177.php#ga8b835295a52b6768a5e6c8abb1f9c54d" title="Flags to be given to hwloc_distrib().">hwloc_distrib_flags_e</a>.</p>
-<dl class="section note"><dt>Note</dt><dd>This function requires the <code>roots</code> objects to have a CPU set.</dd>
-<dd>
-This function replaces the now deprecated hwloc_distribute() and hwloc_distributev() functions. </dd></dl>
+<dl class="section note"><dt>Note</dt><dd>This function requires the <code>roots</code> objects to have a CPU set. </dd></dl>
 
 </div>
 </div>
