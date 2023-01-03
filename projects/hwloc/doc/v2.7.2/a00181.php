@@ -199,7 +199,7 @@ Several examples of using the bitmap API are available under the doc/examples/ d
 
 <p>Loop macro iterating on bitmap <code>bitmap</code>. </p>
 <p>The loop must start with <a class="el" href="a00181.php#ga3f6861045a8029ade373510ffa727d2a" title="Loop macro iterating on bitmap bitmap.">hwloc_bitmap_foreach_begin()</a> and end with <a class="el" href="a00181.php#gafcf3246db406218d4e155735b3fa6528" title="End of loop macro iterating on a bitmap.">hwloc_bitmap_foreach_end()</a> followed by a terminating ';'.</p>
-<p><code>index</code> is the loop variable; it should be an unsigned int. The first iteration will set <code>index</code> to the lowest index in the bitmap. Successive iterations will iterate through, in order, all remaining indexes set in the bitmap. To be specific: each iteration will return a value for <code>index</code> such that hwloc_bitmap_isset(bitmap, index) is true.</p>
+<p><code>id</code> is the loop variable; it should be an unsigned int. The first iteration will set <code>id</code> to the lowest index in the bitmap. Successive iterations will iterate through, in order, all remaining indexes set in the bitmap. To be specific: each iteration will return a value for <code>id</code> such that hwloc_bitmap_isset(bitmap, id) is true.</p>
 <p>The assert prevents the loop from being infinite if the bitmap is infinitely set. </p>
 
 </div>

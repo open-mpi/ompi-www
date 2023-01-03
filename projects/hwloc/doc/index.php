@@ -89,7 +89,7 @@ if (preg_match("/[a-z]/i", $v) &&
 
 print($blank_line);
 
-$versions = array("v2.7.1");
+$versions = array("v2.7.2");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (old)",
