@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Intercomm_merge(3) man page (version 4.1.4)";
-$meta_desc = "Open MPI v4.1.4 man page: MPI_INTERCOMM_MERGE(3)";
+$title = "MPI_Intercomm_merge(3) man page (version 4.1.5)";
+$meta_desc = "Open MPI v4.1.5 man page: MPI_INTERCOMM_MERGE(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");

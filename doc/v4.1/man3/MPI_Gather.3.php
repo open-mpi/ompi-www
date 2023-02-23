@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Gather(3) man page (version 4.1.4)";
-$meta_desc = "Open MPI v4.1.4 man page: MPI_GATHER(3)";
+$title = "MPI_Gather(3) man page (version 4.1.5)";
+$meta_desc = "Open MPI v4.1.5 man page: MPI_GATHER(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
@@ -125,7 +125,10 @@ the root process) had executed a call to <p>
 </pre><p>
 and the root had executed n calls to <p>
 <br>
-<pre>    <a href="../man3/MPI_Recv.3.php">MPI_Recv</a>(recfbuf + i * recvcount * extent(recvtype),
+<pre>    <a href="../man3/MPI_Recv.3.php">MPI_Recv</a>(recfbuf + i * recvcount * extent(recvtype), The root process
+receives the messages and stores them in rank order. The outcome is as if
+each of the n processes in the group (including the root process) had executed
+a call to
              recvcount, recvtype, i, ...)
 </pre><p>
 where extent(recvtype) is the type extent obtained from a call to <a href="../man3/MPI_Type_extent.3.php">MPI_Type_extent</a>().

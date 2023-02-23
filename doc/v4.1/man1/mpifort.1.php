@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "mpifort(1) man page (version 4.1.4)";
-$meta_desc = "Open MPI v4.1.4 man page: mpifort(1)";
+$title = "mpifort(1) man page (version 4.1.5)";
+$meta_desc = "Open MPI v4.1.5 man page: mpifort(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
