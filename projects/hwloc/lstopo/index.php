@@ -63,6 +63,12 @@ $descriptions[] = "2x Power8 with 2 NUMA node each + 1x InfiniBand HCA (IBM Powe
 ."<br/>20 cores and 160 hardware threads total";
 $sections[] = 2;
 
+$files[] = "AMD-Trento+8GPU+4HSN.v2.0.png";
+$descriptions[] = "AMD Trento CPU with 4 dual MI250 GPUs."
+."<br/>Each half GPU is connected to half a NUMA node through Infinity Fabric."
+."<br/>There is also a Cray network interface in each dual-GPU module."
+."<br/>This node is used in supercomputers such as Frontier and Adastra.";
+$sections[] = 3;
 $files[] = "KNL.SNC4.H50.v2.0.png";
 $descriptions[] = "Intel Knights Landing Xeon Phi."
 ."<br/>MCDRAM is configured in <em>Hybrid</em> mode (half as a memory-side cache, half as an additional high-bandwidth NUMA node)."
