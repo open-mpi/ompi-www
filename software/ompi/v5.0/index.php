@@ -18,10 +18,10 @@ include_once("$topdir/includes/subscribe-announce.inc");
 
 <p><hr>
 
-<P><?php $dir = "https://github.com/open-mpi/ompi/raw/$release_branch/NEWS";
+<P><?php $dir = "https://docs.open-mpi.org/en/v5.0.x/release-notes/index.html";
       print("<a href=\"$dir\">"); ?>This
-file</a> contains a list of changes between the releases in the Open
-MPI in the v<?php print("$release_series"); ?> series.</p>
+file</a> contains the release notes for the Open
+MPI v<?php print("$release_series"); ?> series.</p>
 
 <p>See the <a href="<?php print($topdir);
 ?>/software/ompi/versions/timeline.php">version timeline</a> for
