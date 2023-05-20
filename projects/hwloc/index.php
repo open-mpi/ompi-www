@@ -163,10 +163,7 @@ The following langages also have dedicated bindings:
   <b>Perl</b> <a href="http://search.cpan.org/~bka/Sys-Hwloc-0.10/">on CPAN</a> (thanks to Bernd Kallies).
  </li>
  <li>
-  <b>Python</b>
-  as <a href="https://copr.fedorainfracloud.org/coprs/streeter/python-hwloc/">Fedora RPM and tarball</a>
-  or within their <a href="https://gitlab.com/guystreeter/python-hwloc">git tree</a>
-  (thanks to Guy Streeter).
+  <b>Python</b> <a href="https://gitlab.com/guystreeter/python-hwloc">git tree</a> (thanks to Guy Streeter).
  </li>
  <li>
   <b>Rust</b> <a href="https://github.com/daschl/hwloc-rs">on GitHub</a> (thanks to Michael Nitschinger).
@@ -176,49 +173,54 @@ The following langages also have dedicated bindings:
 
 <p><b>The following software already benefit from hwloc</b> or are being
 ported to it:<ul>
-<li>MPI implementations and tools</li><ul>
- <li><a href="https://www.open-mpi.org">Open MPI</a></li>
- <li>The <a href="http://www.mpich.org">MPICH</a> process launcher Hydra</li>
- <li><a href="http://mvapich.cse.ohio-state.edu/">MVAPICH2</a></li>
- <li>CEA and Paratools' <a href="http://mpc.hpcframework.com/">Multiprocessor Computing framework (MPC)</a></li>
- <li>The parallel job inspector <a href="http://padb.pittman.org.uk/">Padb</a></li>
+<li>MPI implementations:</li><ul>
+ <li><a href="https://www.open-mpi.org">Open MPI</a>.</li>
+ <li>The <a href="http://www.mpich.org">MPICH</a> process launcher Hydra.</li>
+ <li><a href="http://mvapich.cse.ohio-state.edu/">MVAPICH2</a>.</li>
+ <li>CEA and Paratools' <a href="http://mpc.hpcframework.com/">Multiprocessor Computing framework (MPC)</a>.</li>
+ <li>The <a href="https://pm2.gitlabpages.inria.fr/newmadeleine/">Newmadeleine</a> communication library.</li>
 </ul>
-<li>Runtime systems and compilers</li><ul>
- <li>The <a href="http://chapel-lang.org/">Chapel Parallel Programming Language</a></li>
- <li>The <a href="https://legion.stanford.edu/">Legion Programming System</a></li>
- <li>The <a href="https://starpu.gitlabpages.inria.fr/">StarPU</a> runtime system for heterogeneous multicore architectures</li>
- <li>The <a href="http://icl.cs.utk.edu/parsec">Parallel Runtime Scheduling and Execution Controller (PaRSEC)</a> project</li>
- <li>The <a href="https://pm.bsc.es/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss">OmpSs</a></li>
- <li>The <a href="http://stellar.cct.lsu.edu/projects/hpx/">High Performance ParalleX (HPX)</a> runtime system</li>
- <li>The <a href="http://www.cs.sandia.gov/qthreads/">Qthreads</a> project</li>
- <li>The <a href="http://www.rosecompiler.org/">Rose compiler</a></li>
- <li>The <a href="http://portablecl.org/">Portable Computing Language (POCL)</a></li>
- <li>The former <a href="https://runtime.gitlabpages.inria.fr/forestgomp/">ForestGOMP</a> OpenMP platform for hierarchical architectures</li>
+<li>Runtime systems and compilers:</li><ul>
+ <li>The <a href="http://chapel-lang.org/">Chapel Parallel Programming Language</a>.</li>
+ <li>The <a href="https://legion.stanford.edu/">Legion Programming System</a>.</li>
+ <li>The <a href="https://starpu.gitlabpages.inria.fr/">StarPU</a> runtime system for heterogeneous multicore architectures.</li>
+ <li>The <a href="http://icl.cs.utk.edu/parsec">Parallel Runtime Scheduling and Execution Controller (PaRSEC)</a> project.</li>
+ <li>The <a href="https://pm.bsc.es/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss">OmpSs</a>.</li>
+ <li>The <a href="https://stellar-group.org/libraries/hpx/">High Performance ParalleX (HPX)</a> runtime system.</li>
+ <li>The <a href="https://openmp.llvm.org/">LLVM OpenMP runtime</a>.</li>
+ <li>The <a href="http://www.sandia.gov/qthreads/">Qthreads</a> project.</li>
+ <li>The <a href="http://www.rosecompiler.org/">Rose compiler</a>.</li>
+ <li>The <a href="http://portablecl.org/">Portable Computing Language (POCL)</a>.</li>
+ <li>The <a href="https://gitlab.inria.fr/h2m/h2m">H2M runtime</a> for managing heterogeneous memory.</li>
+ <li>The former <a href="https://runtime.gitlabpages.inria.fr/forestgomp/">ForestGOMP</a> OpenMP platform for hierarchical architectures.</li>
 </ul>
-<li>Parallel scientific libraries and toolkits</li><ul>
- <li>The <a href="http://www.cp2k.org/">CP2K</a> quantum chemistry and solid state physics software package</li>
- <li>The <a href="http://www.feelpp.org/">Feel++</a> library for partial differential equations</li>
- <li>The <a href="https://solverstack.gitlabpages.inria.fr/pastix/">Parallel Sparse matriX (PaStiX)</a> package</li>
- <li>The <a href="https://bitbucket.org/icl/plasma">Parallel Linear Algebra for Scalable Multi-core Architectures (PLASMA)</a> project</li>
- <li>The <a href="http://www.mcs.anl.gov/petsc">Portable Extensible Toolkit for Scientific Computation (PETSc)</a></li>
+<li>Parallel scientific applications, libraries and toolkits:</li><ul>
+ <li>The <a href="https://www.gromacs.org/">Gromacs</a> software suite for high-performance molecular dynamics.</li>
+ <li>The <a href="http://www.cp2k.org/">CP2K</a> quantum chemistry and solid state physics software package.</li>
+ <li>The <a href="http://www.feelpp.org/">Feel++</a> library for partial differential equations.</li>
+ <li>The <a href="https://solverstack.gitlabpages.inria.fr/pastix/">Parallel Sparse matriX (PaStiX)</a> package.</li>
+ <li>The <a href="https://icl.utk.edu/plasma/">Parallel Linear Algebra for Scalable Multi-core Architectures (PLASMA)</a> project.</li>
+ <li>The <a href="http://www.mcs.anl.gov/petsc">Portable Extensible Toolkit for Scientific Computation (PETSc)</a>.</li>
 </ul>
-<li>Resource manager and job schedulers</li><ul>
- <li>The <a href="http://gridscheduler.sourceforge.net/">Open Grid Scheduler</a></li>
- <li>The <a href="https://adaptivecomputing.com/cherry-services/torque-resource-manager/">TORQUE resource manager</a></li>
- <li>Univa <a href="http://www.univa.com/products/grid-engine">Grid Engine</a></li>
- <li>The <a href="http://arc.liv.ac.uk/trac/SGE/">Son of Grid Engine</a> project</li>
- <li>Altair's <a href="https://www.altair.com/pbs-professional/">PBS Professional</a> solution (part of PBS Works)</li>
- <li><a href="https://www.ibm.com/us-en/marketplace/hpc-workload-management">IBM Platform LSF</a> workload management platform</li>
+<li>Resource manager and job schedulers:</li><ul>
+ <li>The <a href="https://slurm.schedmd.com/">SLURM</a> workload manager.</li>
+ <li>The <a href="http://gridscheduler.sourceforge.net/">Open Grid Scheduler</a>.</li>
+ <li>The <a href="https://adaptivecomputing.com/cherry-services/torque-resource-manager/">TORQUE resource manager</a>.</li>
+ <li>Univa <a href="http://www.univa.com/products/grid-engine">Grid Engine</a>.</li>
+ <li>Altair's <a href="https://www.altair.com/pbs-professional/">PBS Professional</a> solution (part of PBS Works).</li>
+</ul>
+<li>Performance analysis and debugging tools:</li><ul>
+ <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a>.</li>
+ <li>The interactive process viewer <a href="http://htop.dev/">htop</a> for Linux.</li>
+ <li>The parallel job inspector <a href="http://padb.pittman.org.uk/">Padb</a>.</li>
 </ul>
 <li>and even more!</li><ul>
- <li>The <a href="https://github.com/tensorflow/tensorflow">TensorFlow</a> library for numerical computation using data flow graphs</li>
- <li><a href="https://openpmix.github.io/">OpenPMIx</a></li>
- <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a></li>
- <li>The interactive process viewer <a href="http://htop.dev/">htop</a> for Linux</a></li>
- <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a></li>
+ <li>The <a href="https://github.com/tensorflow/tensorflow">TensorFlow</a> library for numerical computation using data flow graphs.</li>
+ <li>Apache <a href="http://trafficserver.apache.org/">Traffic Server</a>.</li>
  <li>The <a href="http://www.scylladb.com">Scylla</a> NoSQL server.</li>
  <li><a href="http://geopm.github.io/">Global Energy Optimization Power Management (GEOPM)</a>.</li>
  <li>The <a href="https://github.com/pwrapi/pwrapi-ref">Reference Implementation</a> of the <a href="http://powerapi.sandia.gov/">HPC Power API</a>.</li>
+ <li>The <a href="https://openpmix.github.io/">OpenPMIx</a> implementation of the Process Management Interface Exascale (PMIx) standard.</li>
 </ul></ul></p>
 
 <!------------------------------------------------------------------------->
