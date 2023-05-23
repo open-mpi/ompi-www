@@ -187,7 +187,10 @@ ported to it:<ul>
  <li>The <a href="http://icl.cs.utk.edu/parsec">Parallel Runtime Scheduling and Execution Controller (PaRSEC)</a> project.</li>
  <li>The <a href="https://pm.bsc.es/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss">OmpSs</a>.</li>
  <li>The <a href="https://stellar-group.org/libraries/hpx/">High Performance ParalleX (HPX)</a> runtime system.</li>
- <li>The <a href="https://openmp.llvm.org/">LLVM OpenMP runtime</a>.</li>
+ <li>LLVM's <a href="https://openmp.llvm.org/">OpenMP runtime</a>.</li>
+ <li>The <a href="https://github.com/kokkos/kokkos">C++ Performance Portability Programming EcoSystem</a>.</li>
+ <li>Intel's <a href="https://github.com/oneapi-src/oneTBB">oneTBB</a> project.</li>
+ <li>The <a href="https://github.com/memkind/memkind">memkind heap manager</a>.</li>
  <li>The <a href="http://www.sandia.gov/qthreads/">Qthreads</a> project.</li>
  <li>The <a href="http://www.rosecompiler.org/">Rose compiler</a>.</li>
  <li>The <a href="http://portablecl.org/">Portable Computing Language (POCL)</a>.</li>
@@ -201,6 +204,8 @@ ported to it:<ul>
  <li>The <a href="https://solverstack.gitlabpages.inria.fr/pastix/">Parallel Sparse matriX (PaStiX)</a> package.</li>
  <li>The <a href="https://icl.utk.edu/plasma/">Parallel Linear Algebra for Scalable Multi-core Architectures (PLASMA)</a> project.</li>
  <li>The <a href="http://www.mcs.anl.gov/petsc">Portable Extensible Toolkit for Scientific Computation (PETSc)</a>.</li>
+ <li>The <a href="https://librsb.sourceforge.net/">librsb</a> sparse linear algebra library.</li>
+ <li>The <a href="https://icl.utk.edu/magma/">Magma</a> dense linear algebra library.</li>
 </ul>
 <li>Resource manager and job schedulers:</li><ul>
  <li>The <a href="https://slurm.schedmd.com/">SLURM</a> workload manager.</li>
@@ -208,6 +213,7 @@ ported to it:<ul>
  <li>The <a href="https://adaptivecomputing.com/cherry-services/torque-resource-manager/">TORQUE resource manager</a>.</li>
  <li>Univa <a href="http://www.univa.com/products/grid-engine">Grid Engine</a>.</li>
  <li>Altair's <a href="https://www.altair.com/pbs-professional/">PBS Professional</a> solution (part of PBS Works).</li>
+ <li>The <a href="http://ceph.com">Ceph</a> distributed storage system.</li>
 </ul>
 <li>Performance analysis and debugging tools:</li><ul>
  <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a>.</li>
@@ -221,6 +227,7 @@ ported to it:<ul>
  <li><a href="http://geopm.github.io/">Global Energy Optimization Power Management (GEOPM)</a>.</li>
  <li>The <a href="https://github.com/pwrapi/pwrapi-ref">Reference Implementation</a> of the <a href="http://powerapi.sandia.gov/">HPC Power API</a>.</li>
  <li>The <a href="https://openpmix.github.io/">OpenPMIx</a> implementation of the Process Management Interface Exascale (PMIx) standard.</li>
+ <li>The <a href="https://www.aircrack-ng.org/">aircrack-ng</a> WiFi network security assesser.</li>
 </ul></ul></p>
 
 <!------------------------------------------------------------------------->
