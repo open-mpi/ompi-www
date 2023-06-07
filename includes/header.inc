@@ -245,7 +245,10 @@ printsublink("$topurl/projects/otpo/", "Open Tool for Parameter Optimization");
 // Community
 printbutton("Community");
 printsublink("$topurl/community/lists/", "Mailing Lists");
-printsublink("$topurl/community/help/", "<font color=red>Getting Help/Support</font>");
+// Set the "Getting Help" link to be the main "Getting Help" page on
+// the on docs.open-mpi.org (vs. any specific release).
+printsublink("https://docs.open-mpi.org/en/main/getting-help.html",
+             "<font color=red>Getting Help/Support</font>");
 printsublink("$topurl/community/contribute/", "Contribute");
 printsublink("$topurl/community/contact.php", "Contact");
 printsublink("$topurl/community/license.php", "License");
