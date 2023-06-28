@@ -36,7 +36,7 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 
 #########################################################
 
-$versions = array("v2.9.1", "v2.9.0");
+$versions = array("v2.9.2", "v2.9.1", "v2.9.0");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
@@ -47,7 +47,7 @@ foreach ($versions as $key => $v) {
 
 #########################################################
 
-$v = "v2.9.2rc1";
+$v = "v2.9.3rc1";
 # See if there's doc for this prerelease, display it.
 if (preg_match("/[a-z]/i", $v) &&
     file_exists("$v") &&
