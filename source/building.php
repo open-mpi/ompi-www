@@ -7,6 +7,34 @@ include_once("$topdir/includes/code.inc");
 include_once("warning.inc");
 ?>
 
+<P><HR></P>
+
+<DIV ALIGN="CENTER">
+
+<P> <STRONG>NOTE:</STRONG> This page applies to Open MPI &lt;= v4.x.
+Instructions and requirements for building from source for other
+versions can be found here:</P>
+
+<P> <A
+HREF="https://docs.open-mpi.org/en/main/developers/index.html">Open
+MPI's <CODE>main</CODE> branch</A>
+
+<BR />
+
+<A
+HREF="https://docs.open-mpi.org/en/v5.0.x/developers/index.html">Open
+MPI's <CODE>v5.0.x</CODE> branch</A></P>
+
+<P>If you are looking to build branches other than what are listed
+above,<BR />go to any of the above links and then use the left-hand
+navigation to select the appropriate version.</P>
+
+</DIV>
+
+<P><HR></P>
+
+<!- ------------------------------------------------------------------ -->
+
 <p>After obtaining a successful <a href="git.php">Git clone</a>, the
 following tools are required for developers to compile Open MPI from
 its repository sources (users who download Open MPI tarballs <em>do
@@ -60,18 +88,6 @@ developers working on the internals of Open MPI itself</em>):
 <TD><?php print("<a href=\"https://github.com/westes/flex/\">"); ?>https://github.com/westes/flex/</A></TD>
 </TR>
 
-<TR>
-<TD>Pandoc</TD>
-
-<TD>Version &gt;=v1.12 required for main / from Open MPI &gt;=5.0,
-and is available in modern Linux distros, and MacOS via Homebrew /
-MacPorts.</TD>
-
-<TD>Static 64-bit Pandoc Linux binary available from <a
-href="https://github.com/jgm/pandoc/releases">https://github.com/jgm/pandoc/releases</a>.<br />
-Also see <a href="https://pandoc.org/">https://pandoc.org/</a>.</TD>
-</TR>
-
 </TABLE>
 </CENTER>
 
@@ -108,43 +124,53 @@ problems, upgrade to at least the versions listed below.</p>
 <TH>Automake Versions</TH>
 <TH>Libtool Versions</TH>
 <TH>Flex Versions</TH>
-<TH>Pandoc Versions</TH>
 </TR>
 
 <?php
 
-function row($str, $m4, $ac, $am, $lt, $flex, $pandoc) {
-    print("<TR>\n<TD>$str</TD><TD>$m4</TD><TD>$ac</TD><TD>$am</TD><TD>$lt</TD><TD>$flex</TD><TD>$pandoc</TD>\n</TR>\n\n");
+function row($str, $m4, $ac, $am, $lt, $flex) {
+    print("<TR>\n<TD>$str</TD><TD>$m4</TD><TD>$ac</TD><TD>$am</TD><TD>$lt</TD><TD>$flex</TD>\n</TR>\n\n");
 }
 
-row("v1.0", "NA", "2.58 - 2.59", "1.7 - 1.9.6", "1.5.16 - 1.5.22", "2.5.4", "NA");
+row("v1.0", "NA", "2.58 - 2.59", "1.7 - 1.9.6", "1.5.16 - 1.5.22", "2.5.4");
 
-row("v1.1", "NA", "2.59", "1.9.6", "1.5.16 - 1.5.22", "2.5.4", "NA");
+row("v1.1", "NA", "2.59", "1.9.6", "1.5.16 - 1.5.22", "2.5.4");
 
-row("v1.2", "NA", "2.59", "1.9.6", "1.5.22 - 2.1a", "2.5.4", "NA");
+row("v1.2", "NA", "2.59", "1.9.6", "1.5.22 - 2.1a", "2.5.4");
 
-row("v1.3", "1.4.11", "2.63", "1.10.1", "2.2.6b", "2.5.4", "NA");
+row("v1.3", "1.4.11", "2.63", "1.10.1", "2.2.6b", "2.5.4");
 
-row("v1.4", "1.4.11", "2.63", "1.10.3", "2.2.6b", "2.5.4", "NA");
+row("v1.4", "1.4.11", "2.63", "1.10.3", "2.2.6b", "2.5.4");
 
-row("v1.5 thru 1.5.4", "1.4.13", "2.65", "1.11.1", "2.2.6b", "2.5.4", "NA");
+row("v1.5 thru 1.5.4", "1.4.13", "2.65", "1.11.1", "2.2.6b", "2.5.4");
 
-row("v1.5.5 and up", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35", "NA");
+row("v1.5.5 and up", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35");
 
-row("v1.6", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35", "NA");
+row("v1.6", "1.4.16", "2.68", "1.11.3", "2.4.2", "2.5.35");
 
-row("v1.7",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35", "NA");
-row("v1.8",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35", "NA");
-row("v1.10.x", "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35", "NA");
+row("v1.7",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35");
+row("v1.8",    "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35");
+row("v1.10.x", "1.4.16", "2.69", "1.12.2", "2.4.2", "2.5.35");
 
-row("v2.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
-row("v2.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
-row("v3.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
-row("v3.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
-row("v4.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "NA");
-row("main", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35", "1.12");
+row("v2.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
+row("v2.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
+row("v3.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
+row("v3.1.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
+row("v4.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
 
 ?>
+
+<TR>
+<TD>main</TD>
+
+<TD COLSPAN="5" ALIGN="CENTER"><A
+HREF="https://docs.open-mpi.org/en/main/developers/index.html">See
+this documentation</A><BR /> If looking for requirements for other
+Open MPI versions (i.e., &gt;= v5.0.0),<BR />go to the above
+documentation link and use the left-hand navigation to select the
+desired version.</TD>
+
+</TR>
 
 </TABLE>
 
