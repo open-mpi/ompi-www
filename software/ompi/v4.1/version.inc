@@ -11,11 +11,11 @@ $download_prefix="https://download.open-mpi.org/release/open-mpi/v" . $release_s
 $s3_prefix = "release/open-mpi/v" . $release_series . "/";
 
 /* releases must be ordered newest to oldest */
-$releases = array("4.1.5", "4.1.4", "4.1.3", "4.1.2", "4.1.1", "4.1.0");
+$releases = array("4.1.6", "4.1.5", "4.1.4", "4.1.3", "4.1.2", "4.1.1", "4.1.0");
 /* prereleases must be ordered newest to oldest.  All prereleases
    will be shown, so make an empty array when the official release
    is added to releases above */
-$prereleases = array("4.1.6rc3");
+$prereleases = array();
 
 /* set to true if we should add a cygwin note */
 $cygwin_note = 0;
