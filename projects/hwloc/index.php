@@ -130,10 +130,10 @@ print($last_ver); ?>).</p>
 
 <h1>Getting and using hwloc</h1>
 
-<p><b>
+<p>
 hwloc is open-source, available under the
 <a href="<?php print "$topdir/projects/hwloc/license.php" ?>">BSD license</a>.
-</b></p>
+</p>
 
 <p> The latest <b>hwloc releases are available on the
 <a href="../../software/hwloc/<?php print($series_dir); ?>/">download page</a>.</b>
@@ -142,8 +142,8 @@ The GIT repository is also accessible for
 or <a href="git.php">checkout</a>.
 </p>
 
-<p> The version string of the latest release or release-candidate is available
- from <a href="../../software/hwloc/current/downloads/latest_snapshot.txt">here</a>.
+<p> The <b>version string of the latest release or release-candidate is available
+ from <a href="../../software/hwloc/current/downloads/latest_snapshot.txt">here</a></b>.
  For the latest on a specific series, replace "current" with "v2.4" for instance.
 </p>
 
