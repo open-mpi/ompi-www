@@ -142,9 +142,11 @@ The GIT repository is also accessible for
 or <a href="git.php">checkout</a>.
 </p>
 
-<p> The <b>version string of the latest release or release-candidate is available
- from <a href="../../software/hwloc/current/downloads/latest_snapshot.txt">here</a></b>.
- For the latest on a specific series, replace "current" with "v2.4" for instance.
+<p> The <b>version string of the latest release is available from the
+ <a href="../../software/hwloc/current/downloads/latest_release.txt"><tt>latest_release.txt</tt></a> link</b>.
+ For the latest release or release candidate, rather use the
+ <a href="../../software/hwloc/current/downloads/latest_snapshot.txt"><tt>latest_snapshot.txt</tt></a> link.
+ For the latest on a specific series, replace "<tt>current</tt>" with "<tt>v2.9</tt>" in these links for instance.
 </p>
 
 <p>hwloc is already available as official packages for many Linux distributions
