@@ -28,22 +28,7 @@ $beyond_end_date = strftime("%Y-%m-%d", $ts);
 // v5.0 release series
 series("v5.0 series", $series_start->format("Y-m-d"), $beyond_end_date, $data, $vpos, $graph);
 milestone("branch from main", "2021-03-11", $data, $vpos);
-milestone("v5.0.0rc1", "2021-09-30", $data, $vpos);
-milestone("v5.0.0rc2", "2021-10-18", $data, $vpos);
-milestone("v5.0.0rc3", "2022-03-08", $data, $vpos);
-milestone("v5.0.0rc4", "2022-03-31", $data, $vpos);
-milestone("v5.0.0rc5", "2022-04-07", $data, $vpos);
-milestone("v5.0.0rc6", "2022-04-15", $data, $vpos);
-milestone("v5.0.0rc7", "2022-05-13", $data, $vpos);
-milestone("v5.0.0rc8", "2022-09-29", $data, $vpos);
-milestone("v5.0.0rc9", "2022-10-21", $data, $vpos);
-milestone("v5.0.0rc10", "2023-02-02", $data, $vpos);
-milestone("v5.0.0rc11", "2023-04-06", $data, $vpos);
-milestone("v5.0.0rc12", "2023-05-19", $data, $vpos);
-milestone("v5.0.0rc13", "2023-09-29", $data, $vpos);
-milestone("v5.0.0rc14", "2023-10-17", $data, $vpos);
-milestone("v5.0.0rc15", "2023-10-19", $data, $vpos);
-milestone("v5.0.0rc16", "2023-10-24", $data, $vpos);
+milestone("v5.0.0", "2023-10-26", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
