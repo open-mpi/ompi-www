@@ -28,20 +28,25 @@ enhancements compared to the v4.1.x series:</p>
 
 <!-- ------------------- -->
 
-<li> Open MPI v5.0.x switched from using ORTE to the PRRTE runtime environment.
+<li> Open MPI v5.0.x switched from using ORTE to the <a
+href="https://prrte.org/">PRRTE runtime environment</a>.
 
-<p> Open MPI 5.0.x adopted PRRTE (PMIx Reference RunTime Environment) as the default runtime environment
-  management system.<br> PRRTE provides run-time environment infrastructure for environments that do not
-  natively have them. In practical terms, this typically means providing infrastructure for
-  non-scheduled environments that have no concept of distributed scheduling, file staging,
-  remote stdout/stderr redirection, and only have <em>ssh</em> to execute commands on remote nodes.
-  </p></li>
+<p> Open MPI 5.0.x adopted PRRTE (PMIx Reference RunTime Environment)
+  as the default runtime environment management system.<br>
+
+  PRRTE is the evolution of ORTE into an independent project that
+  provides run-time environment infrastructure for environments that
+  do not natively have them. In practical terms, this typically means
+  providing infrastructure for non-scheduled environments that have no
+  concept of distributed scheduling, file staging, remote
+  stdout/stderr redirection, and only have <code>ssh</code> to execute
+  commands on remote nodes.  </p></li>
 
 <!-- ------------------- -->
 
 <li>Notable features:</li>
 <ul>
-  <li> Support for MPI Sessions. </li>
+  <li> Support for MPI-4 Sessions. </li>
   <li> ULFM Fault Tolerance support. </li>
   <li> CUDA support in <em>OFI</em> MTL. </li>
   <li> Added a new <em>Accelerator</em> framework. <br> CUDA-specific code
@@ -57,9 +62,11 @@ enhancements compared to the v4.1.x series:</p>
 </ol></p>
 
 For the full list of features and updates please refer to
-<a href="https://docs.open-mpi.org/en/v5.0.x/news/news-v5.0.x.html">v5.0.x news</a> section.
+<a href="https://docs.open-mpi.org/en/v5.0.x/news/news-v5.0.x.html">v5.0.x release notes</a> section.
 
 <!-- =================== -->
+
+<p><hr></p>
 
 <h2>v4.1.x series</h2>
 
