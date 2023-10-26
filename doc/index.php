@@ -34,7 +34,6 @@ color=red><?php
 This documentation reflects the latest progression in the 4.1.x series.
 </li>
 
-<p><ul>
 <li><a href="v4.0"><strong>v4.0 series</strong></a>.
 This documentation reflects the latest progression in the 4.0.x series.
 </li>
