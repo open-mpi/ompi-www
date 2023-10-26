@@ -12,11 +12,11 @@ Documentation for the following versions is available:
 
 <p><ul>
 
-<li><a href="current/"><strong>v4.1 series</strong></a>.
-This documentation reflects the latest progression in the 4.1.x series.
+<li><a href="https://docs.open-mpi.org/en/v5.0.x/"><strong>v5.0 series</strong></a>.
+This documentation reflects the latest progression in the 5.0.x series.
 <strong><font
 color=red><?php
-  $t = mktime(0, 0, 0, 2, 1, 2021);
+  $t = mktime(0, 0, 0, 2, 1, 2024);
   if (time() < $t) {
           printf("This stable series is relatively new.  Please upgrade with caution and test your codes thoroughly.");
   } else {
@@ -26,16 +26,13 @@ color=red><?php
 
 </ul></p>
 
-<h2>Upcoming release series</h2>
-
-<p><ul>
-<li><a href="v5.0"><strong>v5.0 series</strong></a>.
-This documentation reflects the latest progression in the 5.0.x series.
-</li>
-
 </ul></p>
 
 <h2>Prior stable release series</h2>
+<p><ul>
+<li><a href="v4.1"><strong>v4.1 series</strong></a>.
+This documentation reflects the latest progression in the 4.1.x series.
+</li>
 
 <p><ul>
 <li><a href="v4.0"><strong>v4.0 series</strong></a>.
