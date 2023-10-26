@@ -39,7 +39,7 @@ include:</p>
 <td valign=top>
 <ul>
 
-<li> Full MPI-3.1 standards conformance
+<li> Full MPI-4.1 standards conformance
 <li> Thread safety and concurrency
 <li> Dynamic process spawning
 <li> Network and process fault tolerance
@@ -86,21 +86,12 @@ information</a></h3>
 <td valign=top>
 
 <?php
+news("Open MPI v5.0.0 released",
+     "Major new release",
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00162.html");
 news("Open MPI v4.1.6 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00158.html");
-news("Open MPI v4.1.5 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00155.html");
-news("Open MPI v4.1.4 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00152.html");
-news("Open MPI v4.1.3 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00147.html");
-news("Open MPI v4.1.2 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00145.html");
 news("Open MPI v4.0.7 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00144.html");
