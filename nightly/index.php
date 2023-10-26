@@ -16,13 +16,18 @@ philosophy on version numbers</a>.</p>
 
 <p> <strong>Current release series</strong>
 
-<li><a href="v4.1.x/"><strong>v4.1.x series</strong></a>: These are
-images from the stable v4.1.x series.
-<strong><font color="red">This
-is the recommended series for all users to download and
-use.</font></strong></li>
+<li><a href="v5.0.x/"><strong>v5.0.x series</strong></a>: These are
+images from the stable v5.0.x series.
+<strong><font color="red">This is the recommended series for all users
+to download and use.</font></strong></li>
+
 
 <p> <strong>Prior stable release series</strong>
+
+<li><a href="v4.1.x/"><strong>v4.1.x series</strong></a>: These are
+images from the prior stable v4.1.x series.
+<strong><font color="red">This code base is still
+supported.</font></strong></li>
 
 <li><a href="v4.0.x/"><strong>v4.0.x series</strong></a>: These are
 images from the prior stable v4.0.x series.
@@ -31,11 +36,6 @@ code base is still supported, but is in "bug fix only"
 mode.</font></strong></li>
 
 <p> <strong>Current development</strong>
-
-<li><a href="v5.0.x/"><strong>v5.0.x series</strong></a>: These are
-snapshots are from the Git v5.0.x upcoming release series, and
-they reflect the current head of development.  The usual disclaimers
-about the state of development code apply.</li>
 
 <li><a href="main/"><strong>main</strong></a> (development head):
 These snapshots are from the Git main and reflect the current

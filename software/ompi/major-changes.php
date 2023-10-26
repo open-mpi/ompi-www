@@ -9,6 +9,58 @@ releases of Open MPI.  Specifically, <em>these are changes that may
 present an incompatibility vs. a prior version of Open MPI, or cause
 some other type of user-noticeable change in behavior.</em>
 
+<h2>v5.0.x series</h2>
+
+<p>The v5.0.x series introduced the following major feature
+enhancements compared to the v4.1.x series:</p>
+
+<!-- ------------------- -->
+
+<p><ol>
+
+<li> Changes in building and linking against 3rd-party packages.
+  <p> Open MPI v5.0.x changed the default behavior of how it builds and links
+  against its required 3rd-party packages: libevent, hwloc, PMIx, and PRRTE.<br>
+  Unlike previous versions of Open MPI, Open MPI 5.0 and later will prefer
+    an external package that meets our version requirements, even if it is
+    older than our internal version. </p>
+</li>
+
+<!-- ------------------- -->
+
+<li> Open MPI v5.0.x switched from using ORTE to the PRRTE runtime environment.
+
+<p> Open MPI 5.0.x adopted PRRTE (PMIx Reference RunTime Environment) as the default runtime environment
+  management system.<br> PRRTE provides run-time environment infrastructure for environments that do not
+  natively have them. In practical terms, this typically means providing infrastructure for
+  non-scheduled environments that have no concept of distributed scheduling, file staging,
+  remote stdout/stderr redirection, and only have <em>ssh</em> to execute commands on remote nodes.
+  </p></li>
+
+<!-- ------------------- -->
+
+<li>Notable features:</li>
+<ul>
+  <li> Support for MPI Sessions. </li>
+  <li> ULFM Fault Tolerance support. </li>
+  <li> CUDA support in <em>OFI</em> MTL. </li>
+  <li> Added a new <em>Accelerator</em> framework. <br> CUDA-specific code
+      was replaced with a generic framework that standardizes various
+      device features such as copies or pointer type detection. </li>
+  <li> HAN collectives enabled by default </li>
+</ul>
+
+<p></p>
+
+<li> Open MPI v5.0.x is ABI compatible with Open MPI 4.1.x and 4.0.x.</li>
+
+</ol></p>
+
+For the full list of features and updates please refer to
+<a href="https://docs.open-mpi.org/en/v5.0.x/news/news-v5.0.x.html">v5.0.x news</a> section.
+
+<!-- =================== -->
+
 <h2>v4.1.x series</h2>
 
 <p>The v4.1.x series introduced the following major feature
