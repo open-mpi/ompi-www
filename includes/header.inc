@@ -233,7 +233,7 @@ printsublink("$topurl/doc/", "Documentation");
 printsublink("$topurl/source/", "Source Code Access");
 printsublink("https://github.com/open-mpi/ompi/issues", "Bug Tracking");
 printsublink("https://mtt.open-mpi.org/", "Regression Testing");
-printsublink("https://github.com/open-mpi/ompi/blob/master/README.md#open-mpi-version-numbers-and-binary-compatibility", "Version Information");
+printsublink("https://docs.open-mpi.org/en/main/version-numbering.html", "Version Information");
 
 // Sub-Projects
 printbutton("Sub-Projects");
