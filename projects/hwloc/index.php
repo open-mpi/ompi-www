@@ -40,7 +40,8 @@ news("The Best of lstopo",
 <p> The Portable Hardware Locality (hwloc) software package provides a
 <b>portable abstraction</b> (across OS, versions, architectures, ...)  of the
 <b>hierarchical topology of modern architectures</b>, including NUMA memory
-nodes, sockets, shared caches, cores and simultaneous
+nodes (DRAM, HBM, non-volatile memory, CXL, etc.),
+sockets, shared caches, cores and simultaneous
 multithreading. It also gathers various system attributes such as
 cache and memory information as well as the locality of I/O devices
 such as network interfaces, InfiniBand HCAs or GPUs.
@@ -77,20 +78,20 @@ and a reliable way to
 <p> hwloc supports the following operating systems:</p>
 
 <p><ul>
-<li>Linux (including old kernels not having sysfs topology
-information, with knowledge of cgroups, offline CPUs, ScaleMP vSMP,
-and NumaScale NumaConnect) on all supported hardware,
-including Intel Xeon Phi.</li>
+<li>Linux (with knowledge of cgroups, heterogeneous memory,
+hybrid CPUs, offline CPUs, ScaleMP vSMP, and NumaScale NumaConnect)
+on all supported hardware.</li>
 <li>Solaris, AIX and HP-UX</li>
 <li>NetBSD, FreeBSD and kFreeBSD/GNU</li>
 <li>Darwin / OS X</li>
-<li>Microsoft Windows (either using MinGW, or Cygwin, or a native Visual Studio solution)</li>
+<li>Microsoft Windows (either using MinGW, Cygwin, CMake, or a native Visual Studio solution)</li>
 <li>IBM BlueGene/Q Compute Node Kernel (CNK)</li>
 </ul></p>
 
-<p>Additionally hwloc can detect the locality PCI devices as well as OpenCL,
-CUDA and Xeon Phi accelerators, network and InfiniBand interfaces,
-etc.
+<p>Additionally hwloc can detect the locality PCI devices
+as well as software devices to manipulate accelerators
+(OpenCL, NVIDIA CUDA, AMD ROCm, Intel LevelZero, NEC Vector Engine, etc.),
+network and InfiniBand interfaces, etc.
 See the <a href="lstopo">Best of lstopo</a> for more examples of supported platforms.
 The topologies of many existing platforms are also available in the
 <a href="https://hwloc.gitlabpages.inria.fr/xmls/">XML topology database</a>
@@ -104,7 +105,7 @@ It also offers a powerful programming interface to gather information
 about the hardware, bind processes, and much more.</p>
 
 <p>Since it uses standard Operating System information, hwloc's support is
-almost always independent from the processor type (x86, powerpc, ia64, ...),
+almost always independent from the processor type (x86, ARM, RISC-V, POWER, etc),
 and just relies on the Operating System support. Whenever the OS does not
 support topology information (e.g. some BSDs), hwloc uses an x86-only
 CPUID-based backend.</p>
