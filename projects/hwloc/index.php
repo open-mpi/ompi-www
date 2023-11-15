@@ -86,6 +86,7 @@ on all supported hardware.</li>
 <li>Darwin / OS X</li>
 <li>Microsoft Windows (either using MinGW, Cygwin, CMake, or a native Visual Studio solution)</li>
 <li>IBM BlueGene/Q Compute Node Kernel (CNK)</li>
+<li>Android</li>
 </ul></p>
 
 <p>Additionally hwloc can detect the locality PCI devices
@@ -157,6 +158,9 @@ or <a href="git.php">checkout</a>.
 (at least Debian/Ubuntu, Fedora/RHEL, SUSE, ArchLinux, Slackware, Gentoo and their derivatives),
 as well as NetBSD, FreeBSD, Cygwin, Mac OS X ports, and <a href="http://hpux.connect.org.uk/hppd/hpux/">HP-UX</a>.
 It is also available as EasyBuild and Spack packages.
+The lstopo Android app is available in the
+ <a href="https://play.google.com/store/apps/details?id=com.hwloc.lstopo">Play Store</a>
+ and in <a href="https://f-droid.org/fr/packages/com.hwloc.lstopo/">F-Droid</a>.
 </p>
 
 <a name="language_bindings"></a>
