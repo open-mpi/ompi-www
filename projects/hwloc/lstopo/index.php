@@ -129,6 +129,10 @@ $descriptions[] = "Apple Mac Mini with M1 hybrid processor (from 2022, with hwlo
 ."<br/>4 E-cores on top (energy efficient), 4 P-cores below (performance, with bigger caches)."
 ."<br/>The machine has 16GB of memory but most of it is given to the GPU (as shown in the OpenCL device)";
 $sections[] = 4;
+$files[] = "RaptorLake-hybrid.v2.10.png";
+$descriptions[] = "Intel Core i7-1370P <em>RaptorLake</em> hybrid processor (from 2023, with hwloc v2.10)."
+."<br/>6 P-cores on the left (performance hungry, with bigger caches), 6 E-cores on the right (energy efficient).";
+$sections[] = 4;
 $files[] = "BlueGeneQ.v1.11.png";
 $descriptions[] = "BlueGene/Q node (from 2013, with hwloc v1.11)";
 $sections[] = 4;
