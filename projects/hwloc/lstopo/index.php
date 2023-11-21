@@ -11,6 +11,11 @@ $files = array();
 $descriptions = array();
 $sections = array();
 
+$files[] = "2XeonSapphireRapids+HBM.v2.10.png";
+$descriptions[] = "2x Xeon <em>SapphireRapids</em> Max 9460 (from 2023, with hwloc v2.10)."
+."<br/>Processors are configured in <em>SubNUMA-Cluster</em> mode, hence showing 4 DRAM NUMA nodes and 4 HBMs in each package."
+."<br/>Large sets of cores (10 here) are factorized:";
+$sections[] = 1;
 $files[] = "2XeonSPv2+msc.v2.1.png";
 $descriptions[] = "2x Xeon <em>CascadeLake</em> 6230 with DDR as a cache in front of NVDIMMs (from 2019, with hwloc v2.1)."
 ."<br/>Processors are configured in <em>SubNUMA-Cluster</em> mode which shows 2 NUMA nodes per package."
