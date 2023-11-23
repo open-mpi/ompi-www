@@ -76,6 +76,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Bus number (yy in the PCI BDF notation xxxx:yy:zz.t). </p>
+
 </div>
 </div>
 <a id="aee735352d9f1686fd290fc6d6397c334" name="aee735352d9f1686fd290fc6d6397c334"></a>
@@ -89,6 +91,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>The class number (first two bytes, without the prog_if). </p>
 
 </div>
 </div>
@@ -104,6 +108,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Device number (zz in the PCI BDF notation xxxx:yy:zz.t). </p>
+
 </div>
 </div>
 <a id="a35b66064ab7d768caf7154e410caf0fa" name="a35b66064ab7d768caf7154e410caf0fa"></a>
@@ -117,6 +123,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Device ID (yyyy in [xxxx:yyyy]). </p>
 
 </div>
 </div>
@@ -132,6 +140,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Domain number (xxxx in the PCI BDF notation xxxx:yy:zz.t). Only 16bits PCI domains are supported by default. </p>
+
 </div>
 </div>
 <a id="a695f32df53f4ef728670bfcf31b74e0f" name="a695f32df53f4ef728670bfcf31b74e0f"></a>
@@ -145,6 +155,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Function number (t in the PCI BDF notation xxxx:yy:zz.t). </p>
 
 </div>
 </div>
@@ -160,6 +172,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Link speed in GB/s. This datarate is the currently configured speed of the entire PCI link (sum of the bandwidth of all PCI lanes in that link). It may change during execution since some devices are able to slow their PCI links down when idle. </p>
+
 </div>
 </div>
 <a id="a13ad54c93d08d8ac808e4de9674c5ee7" name="a13ad54c93d08d8ac808e4de9674c5ee7"></a>
@@ -173,6 +187,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Revision number. </p>
 
 </div>
 </div>
@@ -188,6 +204,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Sub-Device ID. </p>
+
 </div>
 </div>
 <a id="a499db3d8cc89eaba04fcaef3df1cba97" name="a499db3d8cc89eaba04fcaef3df1cba97"></a>
@@ -202,6 +220,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Sub-Vendor ID. </p>
+
 </div>
 </div>
 <a id="aad970ad19b62eb2d5df30e4802da4f4c" name="aad970ad19b62eb2d5df30e4802da4f4c"></a>
@@ -215,6 +235,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Vendor ID (xxxx in [xxxx:yyyy]). </p>
 
 </div>
 </div>

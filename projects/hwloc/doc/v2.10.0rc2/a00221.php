@@ -91,6 +91,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Domain number the downstream PCI buses. Only 16bits PCI domains are supported by default. </p>
+
 </div>
 </div>
 <a id="abe1e38eb5ac8dc59829c8dc045f0d747" name="abe1e38eb5ac8dc59829c8dc045f0d747"></a>
@@ -119,6 +121,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Downstream Bridge type. </p>
+
 </div>
 </div>
 <a id="ab5c564e7c95b747dae9eb84ec0a2c31e" name="ab5c564e7c95b747dae9eb84ec0a2c31e"></a>
@@ -132,6 +136,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>PCI attribute of the upstream part as a PCI device. </p>
 
 </div>
 </div>
@@ -161,6 +167,8 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>First PCI bus number below the bridge. </p>
+
 </div>
 </div>
 <a id="af3f3f7d76bf03e8d2afa721c2b8d6771" name="af3f3f7d76bf03e8d2afa721c2b8d6771"></a>
@@ -174,6 +182,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Highest PCI bus number below the bridge. </p>
 
 </div>
 </div>
@@ -202,6 +212,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Upstream Bridge type. </p>
 
 </div>
 </div>
