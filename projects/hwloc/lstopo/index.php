@@ -11,6 +11,11 @@ $files = array();
 $descriptions = array();
 $sections = array();
 
+$files[] = "2XeonSapphireRapids+HBM.v2.10.png";
+$descriptions[] = "2x Xeon <em>SapphireRapids</em> Max 9460 (from 2023, with hwloc v2.10)."
+."<br/>Processors are configured in <em>SubNUMA-Cluster</em> mode, hence showing 4 DRAM NUMA nodes and 4 HBMs in each package."
+."<br/>Large sets of cores (10 here) are factorized:";
+$sections[] = 1;
 $files[] = "2XeonSPv2+msc.v2.1.png";
 $descriptions[] = "2x Xeon <em>CascadeLake</em> 6230 with DDR as a cache in front of NVDIMMs (from 2019, with hwloc v2.1)."
 ."<br/>Processors are configured in <em>SubNUMA-Cluster</em> mode which shows 2 NUMA nodes per package."
@@ -124,6 +129,15 @@ $descriptions[] = "16x Power7 (IBM Power 780 from 2011, with hwloc v1.11)."
 ."<br/>The buggy hardware <em>Device-Tree</em> reports 8 single-core packages instead of each octo-core package";
 $sections[] = 3;
 
+$files[] = "Apple-MacMini-M1-1pa2ca4co.v2.9.png";
+$descriptions[] = "Apple Mac Mini with M1 hybrid processor (from 2022, with hwloc v2.9)."
+."<br/>4 E-cores on top (energy efficient), 4 P-cores below (performance, with bigger caches)."
+."<br/>The machine has 16GB of memory but most of it is given to the GPU (as shown in the OpenCL device)";
+$sections[] = 4;
+$files[] = "RaptorLake-hybrid.v2.10.png";
+$descriptions[] = "Intel Core i7-1370P <em>RaptorLake</em> hybrid processor (from 2023, with hwloc v2.10)."
+."<br/>6 P-cores on the left (performance hungry, with bigger caches), 6 E-cores on the right (energy efficient).";
+$sections[] = 4;
 $files[] = "BlueGeneQ.v1.11.png";
 $descriptions[] = "BlueGene/Q node (from 2013, with hwloc v1.11)";
 $sections[] = 4;
@@ -216,7 +230,7 @@ If your output is even nicer, please send it together with the XML!
 <?php show_by_section(2); ?>
 <h2>Big platforms (make sure you have a giant screen)</h2>
 <?php show_by_section(3); ?>
-<h2>Unusual platforms (you won't often run hwloc there)</h2>
+<h2>Random and unusual platforms</h2>
 <?php show_by_section(4); ?>
 <h2>Miscellaneous</h2>
 <?php show_by_section(5); ?>
