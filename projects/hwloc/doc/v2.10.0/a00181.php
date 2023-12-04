@@ -487,6 +487,7 @@ The output diff may be modified by removing some entries from the list. The remo
 </div><div class="memdoc">
 
 <p>Load a list of topology differences from a XML buffer. </p>
+<p >Build a list of differences from the XML memory buffer given at <code>xmlbuffer</code> and of length <code>buflen</code> (including an ending \0). This buffer may have been filled earlier with <a class="el" href="a00181.php#gaa2f0918df60c1c4a0bef9411f7d92a13" title="Export a list of topology differences to a XML buffer.">hwloc_topology_diff_export_xmlbuffer()</a>.</p>
 <p >If not <code>NULL</code>, <code>refname</code> will be filled with the identifier string of the reference topology for the difference file, if any was specified in the XML file. This identifier is usually the name of the other XML file that contains the reference topology.</p>
 <dl class="section return"><dt>Returns</dt><dd>0 on success, -1 on error.</dd></dl>
 <dl class="section note"><dt>Note</dt><dd>the pointer returned in refname should later be freed by the caller. </dd></dl>
