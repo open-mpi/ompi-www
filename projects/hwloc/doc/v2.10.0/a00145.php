@@ -272,7 +272,7 @@ If an invalid XML input file is given, the error may be reported either here or 
 </div><div class="memdoc">
 
 <p>Enable XML based topology using a memory buffer (instead of a file, as with <a class="el" href="a00145.php#ga879439b7ee99407ee911b3ac64e9a25e" title="Enable XML-file based topology.">hwloc_topology_set_xml()</a>). </p>
-<p >Gather topology information from the XML memory buffer given at <code>buffer</code> and of length <code>size</code>. This buffer may have been filled earlier with <a class="el" href="a00159.php#gad33b7f7c11db10459505a3b1634fd3f1" title="Export the topology into a newly-allocated XML memory buffer.">hwloc_topology_export_xmlbuffer()</a> in <a class="el" href="a00077_source.php">hwloc/export.h</a>.</p>
+<p >Gather topology information from the XML memory buffer given at <code>buffer</code> and of length <code>size</code> (including an ending \0). This buffer may have been filled earlier with <a class="el" href="a00159.php#gad33b7f7c11db10459505a3b1634fd3f1" title="Export the topology into a newly-allocated XML memory buffer.">hwloc_topology_export_xmlbuffer()</a> in <a class="el" href="a00077_source.php">hwloc/export.h</a>.</p>
 <p >Note that this function does not actually load topology information; it just tells hwloc where to load it from. You'll still need to invoke <a class="el" href="a00139.php#gabdf58d87ad77f6615fccdfe0535ff826" title="Build the actual topology.">hwloc_topology_load()</a> to actually load the topology information.</p>
 <dl class="section return"><dt>Returns</dt><dd>0 on success. </dd>
 <dd>
