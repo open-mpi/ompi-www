@@ -86,6 +86,9 @@ information</a></h3>
 <td valign=top>
 
 <?php
+news("Open MPI v5.0.1 released",
+     "Major new release",
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00166.html");
 news("Open MPI v5.0.0 released",
      "Major new release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00162.html");
