@@ -31,6 +31,7 @@ milestone("branch from main", "2021-03-11", $data, $vpos);
 milestone("v5.0.0", "2023-10-26", $data, $vpos);
 milestone("v5.0.1", "2023-12-20", $data, $vpos);
 milestone("v5.0.2rc1", "2024-01-24", $data, $vpos);
+milestone("v5.0.2rc2", "2024-01-31", $data, $vpos);
 
 // Party on
 $graph->CreateSimple($data);
