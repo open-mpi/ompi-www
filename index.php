@@ -89,18 +89,9 @@ information</a></h3>
 news("Open MPI v5.0.2 released",
      "Major new release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00167.html");
-news("Open MPI v5.0.1 released",
-     "Major new release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00166.html");
-news("Open MPI v5.0.0 released",
-     "Major new release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00162.html");
 news("Open MPI v4.1.6 released",
      "Bug fix release",
      "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00158.html");
-news("Open MPI v4.0.7 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00144.html");
 news("hwloc 2.10.0",
      "Major release",
      "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00164.html");
