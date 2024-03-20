@@ -13,7 +13,7 @@ include_once("$topdir/includes/code.inc");
 <p><b>
   Note that all these slides focus on hwloc v1.x,
   The v2.x API might require some changes to the given examples of code.
-  See also <a href="../doc/v<?php print($last_dir); ?>/a00375.php">Upgrading to hwloc 2.0 API</a>.
+  See also <a href="../doc/v<?php print($last_dir); ?>/a00351.php">Upgrading to hwloc 2.0 API</a>.
 </b></p>
 
 <ul>

@@ -38,7 +38,7 @@ news("The Best of lstopo",
 <b>portable abstraction</b> (across OS, versions, architectures, ...)  of the
 <b>hierarchical topology of modern architectures</b>, including NUMA memory
 nodes (DRAM, HBM, non-volatile memory, CXL, etc.),
-sockets, shared caches, cores and simultaneous
+processor packages, shared caches, cores and simultaneous
 multithreading. It also gathers various system attributes such as
 cache and memory information as well as the locality of I/O devices
 such as network interfaces, InfiniBand HCAs or GPUs.
@@ -51,7 +51,7 @@ parallel computing platforms so as to exploit them accordingly and efficiently</
 For instance, two tasks that tightly cooperate
 should probably be placed onto cores sharing a cache.
 However, two independent memory-intensive tasks should better be spread out
-onto different sockets so as to maximize their memory throughput.
+onto different processor packages so as to maximize their memory throughput.
 As described in <a href="http://hal.inria.fr/inria-00496295">this paper</a>,
 OpenMP threads have to be placed according to their affinities and to the
 hardware characteristics.
