@@ -116,6 +116,11 @@ function faqlink($link, $text) {
   return "<a href=\"$link\">$text</a>";
 }
 
+function faq_for_4x() {
+    print("<font size=+2><font color=\"red\">This FAQ is for Open MPI v4.x and earlier.</font><br />\n");
+    print("If you are looking for documentation for Open MPI v5.x and later, please visit <a href=\"https://docs.open-mpi.org/\">docs.open-mpi.org</a>.</font>\n\n<p>");
+}
+
 $shell_font = "<font color=\"blue\">";
 $shell = "shell$</font>";
 $cmd_font = "<font color=\"red\">";
@@ -132,6 +137,8 @@ function do_menu() {
     global $parent_name;
     global $short_titles;
     $parent_printed = 0;
+
+    faq_for_4x();
 
     print("FAQ categories:\n\n<ul>\n\n");
     for ($i = 0; $i < sizeof($titles); ++$i) {
@@ -195,6 +202,8 @@ function do_category() {
 
     include_once($names[$cat_number] . ".inc");
     ompi_set_included($names[$cat_number] . ".inc");
+
+    faq_for_4x();
 
     print("<p>Table of contents:</p>\n");
 
