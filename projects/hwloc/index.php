@@ -225,6 +225,7 @@ ported to it:<ul>
 </ul>
 <li>Performance analysis and debugging tools:</li><ul>
  <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a>.</li>
+ <li>The <a href="https://maqao.org/">Modular Assembly Quality Analyzer and Optimizer (MAQAO)</a>.</li>
  <li>The interactive process viewer <a href="http://htop.dev/">htop</a> for Linux.</li>
  <li>The parallel job inspector <a href="http://padb.pittman.org.uk/">Padb</a>.</li>
 </ul>
