@@ -153,7 +153,8 @@ or <a href="git.php">checkout</a>.
 
 <p>hwloc is already available as official packages for many Linux distributions
 (at least Debian/Ubuntu, Fedora/RHEL, SUSE, ArchLinux, Slackware, Gentoo and their derivatives),
-as well as NetBSD, FreeBSD, Cygwin, Mac OS X ports, and <a href="http://hpux.connect.org.uk/hppd/hpux/">HP-UX</a>.
+as well as NetBSD, FreeBSD, Cygwin, Mac OS X ports (Homebrew), Windows <a href="https://vcpkg.io">vcpkg</a>
+and <a href="http://hpux.connect.org.uk/hppd/hpux/">HP-UX</a>.
 It is also available as EasyBuild and Spack packages.
 The lstopo Android app is available in the
  <a href="https://play.google.com/store/apps/details?id=com.hwloc.lstopo">Play Store</a>
