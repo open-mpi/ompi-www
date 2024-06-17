@@ -16,6 +16,9 @@ include_once("$topdir/includes/code.inc");
 <div style="float: right; clear: both"><!-- "clear: both" prevents news from going near the float image above -->
 <?php
 # Lists are not mirrored - use an absolute URL
+news("hwloc 2.11.0rc1",
+     "Beta release",
+     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00165.html");
 news("hwloc 2.10.0",
      "Major release",
      "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00164.html");
@@ -153,7 +156,8 @@ or <a href="git.php">checkout</a>.
 
 <p>hwloc is already available as official packages for many Linux distributions
 (at least Debian/Ubuntu, Fedora/RHEL, SUSE, ArchLinux, Slackware, Gentoo and their derivatives),
-as well as NetBSD, FreeBSD, Cygwin, Mac OS X ports, and <a href="http://hpux.connect.org.uk/hppd/hpux/">HP-UX</a>.
+as well as NetBSD, FreeBSD, Cygwin, Mac OS X ports (Homebrew), Windows <a href="https://vcpkg.io">vcpkg</a>
+and <a href="http://hpux.connect.org.uk/hppd/hpux/">HP-UX</a>.
 It is also available as EasyBuild and Spack packages.
 The lstopo Android app is available in the
  <a href="https://play.google.com/store/apps/details?id=com.hwloc.lstopo">Play Store</a>
@@ -225,6 +229,7 @@ ported to it:<ul>
 </ul>
 <li>Performance analysis and debugging tools:</li><ul>
  <li>The performance-oriented tool suite <a href="https://github.com/RRZE-HPC/likwid">LIKWID</a>.</li>
+ <li>The <a href="https://maqao.org/">Modular Assembly Quality Analyzer and Optimizer (MAQAO)</a>.</li>
  <li>The interactive process viewer <a href="http://htop.dev/">htop</a> for Linux.</li>
  <li>The parallel job inspector <a href="http://padb.pittman.org.uk/">Padb</a>.</li>
 </ul>
