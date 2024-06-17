@@ -9,27 +9,19 @@ The following versions are available as nightly snapshots:
 
 <ul>
 
-<li> <strong>v2.10 branch &mdash; New release series:</strong>
+<li> <strong>v2.11 branch &mdash; New release series:</strong>
+<p>
+ <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.11/lastSuccessfulBuild/">Latest snapshot</a>
+ &mdash;
+ <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.11/">All snapshots</a>
+</p>
+</li>
+
+<li> <strong>v2.10 branch &mdash; Stable release series:</strong> <strong>This is the recommended series for all users to download and use.</strong>
 <p>
  <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.10/lastSuccessfulBuild/">Latest snapshot</a>
  &mdash;
  <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.10/">All snapshots</a>
-</p>
-</li>
-
-<li> <strong>v2.9 branch &mdash; Stable release series:</strong> <strong>This is the recommended series for all users to download and use.</strong>
-<p>
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.9/lastSuccessfulBuild/">Latest snapshot</a>
- &mdash;
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.9/">All snapshots</a>
-</p>
-</li>
-
-<li> <strong>v1.11 branch &mdash; Former ultra-stable release series:</strong> This was the recommended series for users that had a good reason not to switch to v2.x yet.
-<p>
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v1.11/lastSuccessfulBuild/">Latest snapshot</a>
- &mdash;
- <a href="https://ci.inria.fr/hwloc/job/extended/job/v1.11/">All snapshots</a>
 </p>
 </li>
 
