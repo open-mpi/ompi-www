@@ -89,8 +89,7 @@ Functions</h2></td></tr>
 
 <p>Kinds of distance matrices. </p>
 <p>The <code>kind</code> attribute of struct <a class="el" href="a00268.php" title="Matrix of distances between a set of objects.">hwloc_distances_s</a> is a OR'ed set of kinds.</p>
-<p>A kind of format HWLOC_DISTANCES_KIND_FROM_* specifies where the distance information comes from, if known.</p>
-<p>A kind of format HWLOC_DISTANCES_KIND_MEANS_* specifies whether values are latencies or bandwidths, if applicable. </p>
+<p>Each distance matrix may have only one kind among HWLOC_DISTANCES_KIND_FROM_* specifying where distance information comes from, and one kind among HWLOC_DISTANCES_KIND_MEANS_* specifying whether values are latencies or bandwidths. </p>
 <table class="fieldtable">
 <tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="ggab1bb10d3adb85b52cdc6fe5a7f74f108a90dc38248c8d5392d4dd3e88f391e984" name="ggab1bb10d3adb85b52cdc6fe5a7f74f108a90dc38248c8d5392d4dd3e88f391e984"></a>HWLOC_DISTANCES_KIND_FROM_OS&#160;</td><td class="fielddoc"><p>These distances were obtained from the operating system or hardware. </p>
 </td></tr>
