@@ -307,7 +307,7 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p>Interleave policy is supported. </p>
+<p>Weighted interleave policy is supported. </p>
 
 </div>
 </div>
