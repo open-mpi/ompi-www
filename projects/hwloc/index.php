@@ -197,7 +197,7 @@ ported to it:<ul>
  <li>The <a href="https://pm.bsc.es/nanox">Nanos++</a> runtime library for <a href="https://pm.bsc.es/ompss">OmpSs</a>.</li>
  <li>The <a href="https://stellar-group.org/libraries/hpx/">High Performance ParalleX (HPX)</a> runtime system.</li>
  <li>LLVM's <a href="https://openmp.llvm.org/">OpenMP runtime</a>.</li>
- <li>The <a href="https://github.com/kokkos/kokkos">C++ Performance Portability Programming EcoSystem</a>.</li>
+ <li>The <a href="https://github.com/kokkos/kokkos">Kokkos C++ Performance Portability Programming EcoSystem</a>.</li>
  <li>Intel's <a href="https://github.com/oneapi-src/oneTBB">oneTBB</a> project.</li>
  <li>The <a href="https://github.com/memkind/memkind">memkind heap manager</a>.</li>
  <li>The <a href="http://www.sandia.gov/qthreads/">Qthreads</a> project.</li>
