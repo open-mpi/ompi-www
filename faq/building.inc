@@ -1088,7 +1088,8 @@ You tell [configure] where support libraries are with the appropriate
 <ul>
 <li> *--with-libfabric=&lt;dir&gt;:* Build support for OpenFabrics
 Interfaces (OFI), commonly known as \"libfabric\" (starting with the
-v1.10 series).</li>
+v1.10 series). *NOTE:* v4.1.6 or older will only build successfully
+with libfabric v1.x.</li>
 <li> *--with-ucx=&lt;dir&gt;:* Build support for the UCX library.</li>
 <li> *--with-mxm=&lt;dir&gt;:* Build support for the Mellanox
 Messaging (MXM) library (starting with the v1.5 series).</li>
