@@ -74,7 +74,7 @@ CPU Kinds</h1>
 <dt>FrequencyMaxMHz (Linux) </dt>
 <dd>The maximal operating frequency of the core, as reported by <code>cpufreq</code> drivers on Linux.  </dd>
 <dt>FrequencyBaseMHz (Linux) </dt>
-<dd>The base operating frequency of the core, as reported by some <code>cpufreq</code> drivers on Linux (e.g. <code>intel_pstate</code>).  </dd>
+<dd>The base/nominal operating frequency of the core, as reported by some <code>cpufreq</code> or ACPI drivers on Linux (e.g. <code>cpufreq_cppc</code> or <code>intel_pstate</code>).  </dd>
 <dt>CoreType (x86) </dt>
 <dd>A string describing the kind of core, currently <code>IntelAtom</code> or <code>IntelCore</code>, as reported by the x86 CPUID instruction and Linux PMU on some Intel processors.  </dd>
 <dt>LinuxCapacity (Linux) </dt>
