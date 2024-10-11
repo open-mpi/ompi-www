@@ -232,6 +232,7 @@ ported to it:<ul>
  <li>The <a href="https://maqao.org/">Modular Assembly Quality Analyzer and Optimizer (MAQAO)</a>.</li>
  <li>The interactive process viewer <a href="http://htop.dev/">htop</a> for Linux.</li>
  <li>The parallel job inspector <a href="http://padb.pittman.org.uk/">Padb</a>.</li>
+ <li>The <a href="https://gforgeron.gitlab.io/easypap/">EasyPAP</a> parallel-programming learning environment.</li>
 </ul>
 <li>and even more!</li><ul>
  <li>The <a href="https://github.com/tensorflow/tensorflow">TensorFlow</a> library for numerical computation using data flow graphs.</li>
