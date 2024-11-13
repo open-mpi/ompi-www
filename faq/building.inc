@@ -947,13 +947,13 @@ the latest <a href='http://www.oracle.com/technetwork/server-storage/solarisstud
 
 /////////////////////////////////////////////////////////////////////////
 
-$q[] = "How do I build OpenMPI on IBM QS22 cell blade machines with GCC and XLC/XLF compilers?";
+$q[] = "How do I build Open MPI on IBM QS22 cell blade machines with GCC and XLC/XLF compilers?";
 
 $anchor[] = "build-qs22";
 
 $a[] = "You can use two following scripts (contributed by IBM) to build Open MPI on QS22.
 
-Script to build OpenMPI using the GCC compiler:
+Script to build Open MPI using the GCC compiler:
 
 <geshi bash>
 #!/bin/bash
@@ -985,7 +985,7 @@ EOF
 cp config.status \$PREFIX/config.status
 </geshi>
 
-Script to build OpenMPI using XLC and XLF compilers:
+Script to build Open MPI using XLC and XLF compilers:
 
 <geshi bash>
 #!/bin/bash
