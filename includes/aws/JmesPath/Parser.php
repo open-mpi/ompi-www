@@ -55,9 +55,9 @@ class Parser
     ];
 
     /**
-     * @param Lexer $lexer Lexer used to tokenize expressions
+     * @param Lexer|null $lexer Lexer used to tokenize expressions
      */
-    public function __construct(Lexer $lexer = null)
+    public function __construct(?Lexer $lexer = null)
     {
         $this->lexer = $lexer ?: new Lexer();
     }
@@ -142,7 +142,8 @@ class Parser
         return ['type' => T::T_NOT, 'children' => [$this->expr(self::$bp[T::T_NOT])]];
     }
 
-    private function nud_lparen() {
+    private function nud_lparen()
+    {
         $this->next();
         $result = $this->expr(0);
         if ($this->token['type'] !== T::T_RPAREN) {
@@ -365,7 +366,7 @@ class Parser
         ];
     }
 
-    private function parseWildcardObject(array $left = null)
+    private function parseWildcardObject(?array $left = null)
     {
         $this->next();
 
@@ -379,7 +380,7 @@ class Parser
         ];
     }
 
-    private function parseWildcardArray(array $left = null)
+    private function parseWildcardArray(?array $left = null)
     {
         static $getRbracket = [T::T_RBRACKET => true];
         $this->next($getRbracket);
@@ -472,7 +473,7 @@ class Parser
             : $this->tokens[$this->tpos + 1]['type'];
     }
 
-    private function next(array $match = null)
+    private function next(?array $match = null)
     {
         if (!isset($this->tokens[$this->tpos + 1])) {
             $this->token = self::$nullToken;

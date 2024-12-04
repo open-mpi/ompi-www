@@ -12,8 +12,8 @@ class AstRuntime
     private $cachedCount = 0;
 
     public function __construct(
-        Parser $parser = null,
-        callable $fnDispatcher = null
+        ?Parser $parser = null,
+        ?callable $fnDispatcher = null
     ) {
         $fnDispatcher = $fnDispatcher ?: FnDispatcher::getInstance();
         $this->interpreter = new TreeInterpreter($fnDispatcher);
@@ -29,7 +29,7 @@ class AstRuntime
      *                           is similar to data returned from json_decode
      *                           using associative arrays rather than objects.
      *
-     * @return mixed|null Returns the matching data or null
+     * @return mixed Returns the matching data or null
      */
     public function __invoke($expression, $data)
     {
