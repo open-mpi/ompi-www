@@ -4695,7 +4695,15 @@ class GeSHi {
             // TODO: a|bb|c => [ac]|bb
             static $callback_2;
             if (!isset($callback_2)) {
-                $callback_2 = create_function('$matches', 'return "[" . str_replace("|", "", $matches[1]) . "]";');
+                # JMS: This is the last release of Geshi; there has
+                # been no new version since 2017.  However, it has a
+                # problem with PHP 8.  Got this fix from
+                # https://sourceforge.net/p/geshi/bugs/247/.
+                // create_function has been removed in php8 --> replaced by anonymous function
+                //$callback_2 = create_function('$matches', 'return "[" . str_replace("|", "", $matches[1]) . "]";');
+                $callback_2 = function($matches) {
+                    return (count($matches) > 1) ? "[" . str_replace("|", "", $matches[1]) . "]" : "[]";
+                };
             }
             $list = preg_replace_callback('#\(\?\:((?:.\|)+.)\)#', $callback_2, $list);
         }
