@@ -26,6 +26,16 @@ internet and then just send a link to it across our lists.</p>
 
 <p><center><hr width=50%></center>
 
+<h2 align=center><font color=red>NOTE:</font> New subscriptions to
+the mailing lists curently broken.</h2>
+
+<h2 align=center>Please <a
+href="https://github.com/open-mpi/ompi/issues/new/choose">create a
+GitHub issue with any questions</a> until we can get the mailing lists
+fixed.</h2>
+
+<p><center><hr width=50%></center>
+
 <P>The following lists are available for the Open MPI community:</p>
 
 <P>
