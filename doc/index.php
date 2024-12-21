@@ -34,16 +34,16 @@ color=red><?php
 This documentation reflects the latest progression in the 4.1.x series.
 </li>
 
-<li><a href="v4.0"><strong>v4.0 series</strong></a>.
-This documentation reflects the latest progression in the 4.0.x series.
-</li>
-
 </ul></p>
 
 <h2>Older series (retired, deprecated, or otherwise no longer in
 development)</h2>
 
 <p><ul>
+
+<li><a href="v4.0"><strong>v4.0 series</strong></a>.
+This documentation reflects the latest progression in the 4.0.x series.
+</li>
 
 <li><a href="v3.1/"><strong>v3.1 series</strong></a>
 (prior stable release series). This documentation reflects the latest progression in the 3.1.x series.
