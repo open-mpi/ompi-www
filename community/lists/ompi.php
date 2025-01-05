@@ -9,30 +9,18 @@ include_once("$topdir/includes/mailto.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
-<h2> Please do not send conference Call For Papers/Posters/Abstracts/etc. (and related) notices to our mailing lists.</h2>
-
-<p><center><?php red("YOU MUST BE SUBSCRIBED IN ORDER TO POST!");
-?></center></p>
-
-<p> Due to the ever-present problem of spam, we cannot accept posts
-from non-subscribers.  If you are not subscribed <?php red("with the
-address that you post from"); ?>, you posts will be automatically
-discarded.</p>
-
-<p>Please note that our mailing lists have a <strong>150 KB</strong>
-message size limit.  If you need to send an attachment that makes your
-overall message be over that size, please post it elsewhere on the
-internet and then just send a link to it across our lists.</p>
+<h2> Please do not send conference Call For
+Papers/Posters/Abstracts/etc. (and related) notices to our mailing
+lists.</h2>
 
 <p><center><hr width=50%></center>
 
-<h2 align=center><font color=red>NOTE:</font> New subscriptions to
-the mailing lists curently broken.</h2>
+<p> Open MPI's mailing lists are hosted at Google Groups, which
+contains archived conversations going back to January, 2025.</p>
 
-<h2 align=center>Please <a
-href="https://github.com/open-mpi/ompi/issues/new/choose">create a
-GitHub issue with any questions</a> until we can get the mailing lists
-fixed.</h2>
+<p> However, Open MPI's <em>complete</em> mail archives go back much
+further than that and are available at <a
+href="https://mail-archive.com/">https://mail-archive.com/</a>.</p>
 
 <p><center><hr width=50%></center>
 
@@ -93,17 +81,6 @@ topics dealing with platform support, packaging details, dependencies,
 etc.</p>
 
 <?php print_list("ompi-packagers"); ?>
-
-<!--------------------------------------------------------------------->
-
-<?php print_link("Git commit list (<font
-color=red>USERS CANNOT POST TO THIS LIST</font>)", "ompi-commits"); ?>
-
-<p>A mail is sent to this list for every Git push to Github commit in
-the Open MPI code base.  The mail includes a list of files that were
-changed, the developer's commit message, and a diff of the changes.
-<strong>Only the automated git-email-bot can post to this
-list;</strong> all other posts are automatically discarded.
 
 </UL>
 

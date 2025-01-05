@@ -1,5 +1,5 @@
 <?php
-function print_link($name, $dir) {
+function print_link($name, $dir, $emit_ggroups=True) {
     global $topdir;
     global $is_mirror;
 
@@ -8,12 +8,16 @@ function print_link($name, $dir) {
      [ ");
 
     if (is_dir($dir) || is_link($dir)) {
-        print("<a href=\"https://www.mail-archive.com/$dir@lists.open-mpi.org//\">Archives</a> | \n");
+        print("<a href=\"https://www.mail-archive.com/$dir@lists.open-mpi.org//\">Complete archives</a>");
+        if ($emit_ggroups) {
+            print(" | \n");
+        }
     }
 
-    // Mailman is not mirrored, of course -- must link to the original page
-    print("<a href=\"http://lists.open-mpi.org/mailman/listinfo/$dir\">Subscribe, unsubscribe, or change options</a> ]
-");
+    if ($emit_ggroups) {
+        print("<a href=\"https://groups.google.com/a/lists.open-mpi.org/g/$dir\">Subscribe, unsubscribe, or change options (Google Groups)</a>");
+    }
+    print(" ]\n");
 }
 
 function red($msg) {
@@ -22,10 +26,6 @@ function red($msg) {
 
 function print_list($name) {
     printf("<P><CENTER>\n");
-    red("YOU MUST BE SUBSCRIBED IN ORDER TO POST TO THE LIST");
-    printf("<br /\n>");
-    print_mailto("lists.open-mpi.org", $name, "$name at lists dot open dash mpi dot org");
-    printf("<br /\n>");
-    red("YOU MUST BE SUBSCRIBED IN ORDER TO POST TO THE LIST");
+    print_mailto("lists.open-mpi.org", $name, "$name@lists.open-mpi.org");
     printf("</center></p>\n\n");
 }

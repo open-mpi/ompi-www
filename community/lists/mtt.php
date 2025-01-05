@@ -11,23 +11,14 @@ include_once("$topdir/includes/mailto.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
-<p><center><?php red("YOU MUST BE SUBSCRIBED IN ORDER TO POST!");
-?></center></p>
-
-<p> Due to the ever-present problem of spam, we cannot accept posts
-from non-subscribers.  If you are not subscribed <?php red("with the
-address that you post from"); ?>, you posts will be automatically
-discarded.</p>
-
 <p><center><hr width=50%></center>
 
-<h2 align=center><font color=red>NOTE:</font> New subscriptions to
-the mailing lists curently broken.</h2>
+<p> MTT's mailing lists are hosted at Google Groups, which
+contains archived conversations going back to January, 2025.</p>
 
-<h2 align=center>Please <a
-href="https://github.com/open-mpi/mtt/issues/new/choose">create a
-GitHub issue with any questions</a> until we can get the mailing lists
-fixed.</h2>
+<p> However, MTT's <em>complete</em> mail archives go back much
+further than that and are available at <a
+href="https://mail-archive.com/">https://mail-archive.com/</a>.</p>
 
 <p><center><hr width=50%></center>
 
@@ -36,15 +27,6 @@ print($topdir); ?>/projects/mtt/">MTT</a> community:</p>
 
 <P>
 <UL>
-
-<?php print_link("MTT announcement list (<font color=red>USERS
-CANNOT POST TO THIS LIST</font>)", "mtt-announce"); ?>
-
-<P> This is a low-volume list that is used to announce new version of
-MTT, important updates, etc.  The list is only for announcements, so
-<strong>only the MTT development team can post to the list.</strong>
-Posts from outside the MTT development team will be automatically
-discarded.</p>
 
 <?php print_link("MTT user list", "mtt-users"); ?>
 
@@ -56,14 +38,12 @@ suspected bug reports, etc. to the list at the following address:</p>
 
 <?php print_list("mtt-devel"); ?>
 
-<?php print_link("MTT developers list", "mtt-devel"); ?>
+<?php print_link("MTT developers list", "mtt-devel", $emit_ggroups=False); ?>
 
-<P>This list is used for developers who are working with the internals
-of MTT itself.  <?php red("Subscribers"); ?> are welcome to post
-any topics dealing with the internal code of MTT are welcome on
-this list: questions, comments, bug reports, etc.</p>
-
-<?php print_list("mtt-devel"); ?>
+<P>This list used to be for developers who were working with the
+internals of MTT itself.  Due to very low volume, this list is no
+longer available -- it has been folder into the MTT user's list.  The
+old archives are still available, however.</p>
 </UL>
 
 <?php

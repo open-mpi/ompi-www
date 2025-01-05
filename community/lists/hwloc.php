@@ -9,23 +9,14 @@ include_once("$topdir/includes/mailto.inc");
 include_once("$topdir/includes/header.inc");
 ?>
 
-<p><center><?php red("YOU MUST BE SUBSCRIBED IN ORDER TO POST!");
-?></center></p>
-
-<p> Due to the ever-present problem of spam, we cannot accept posts
-from non-subscribers.  If you are not subscribed <?php red("with the
-address that you post from"); ?>, you posts will be automatically
-discarded.</p>
-
 <p><center><hr width=50%></center>
 
-<h2 align=center><font color=red>NOTE:</font> New subscriptions to
-the mailing lists curently broken.</h2>
+<p> Hwloc's mailing lists are hosted at Google Groups, which
+contains archived conversations going back to January, 2025.</p>
 
-<h2 align=center>Please <a
-href="https://github.com/open-mpi/hwloc/issues/new/choose">create a
-GitHub issue with any questions</a> until we can get the mailing lists
-fixed.</h2>
+<p> However, Hwloc's <em>complete</em> mail archives go back much
+further than that and are available at <a
+href="https://mail-archive.com/">https://mail-archive.com/</a>.</p>
 
 <p><center><hr width=50%></center>
 
@@ -54,24 +45,12 @@ suspected bug reports, etc. to the list at the following address:</p>
 
 <?php print_list("hwloc-users"); ?>
 
-<?php print_link("hwloc developers list", "hwloc-devel"); ?>
+<?php print_link("hwloc developers list", "hwloc-devel", $emit_ggroups=False); ?>
 
-<P>This list is used for general questions and discussion of hwloc.
-Please see the "<a href="<?php printf("$topdir/community/help/");
-?>">Getting Help</a>" page for details on submitting requests for
-help.  <?php red("Subscribers"); ?> can post questions, comments,
-suspected bug reports, etc. to the list at the following address:</p>
-
-<?php print_list("hwloc-devel"); ?>
-
-<?php print_link("Git commit list (<font color=red>USERS
-CANNOT POST TO THIS LIST</font>)", "hwloc-commits"); ?>
-
-<p>A mail is sent to this list for every git push to Github in the
-hwloc code base.  The mail includes a list of files that were changed,
-the developer's commit message, and a diff of the changes.  <strong>Only the
-automated Github web hook post to this list;</strong> all other posts
-are automatically discarded.
+<P>This list used to be for developers who were working with the
+internals of hwloc itself.  Due to low volume, this list is no longer
+available -- it has been folder into the hwloc user's list.  The old
+archives are still available, however.</p>
 
 </UL>
 
