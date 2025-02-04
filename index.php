@@ -86,12 +86,19 @@ information</a></h3>
 <td valign=top>
 
 <?php
+news("Open MPI v4.1.7 released",
+     "Bug fix release.<br><br>
+   <b>NOTE</b>: Open MPI 4.1.7 incorrectly changed the shared library
+   versioning information for the OpenSHMEM interface, potentially
+   causing link errors when updating from prior releases of Open MPI
+   to 4.1.7.  This release resets the shared library version number
+   history to allow updates from Open MPI 4.1.6 and prior.  Customers
+   who updated to 4.1.7 and relinked their OpenSHMEM applications will
+   have to relink their application again.",
+     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00171.html");
 news("Open MPI v5.0.6 released",
      "Bug fix release",
      "");
-news("Open MPI v4.1.7 released",
-     "Bug fix release",
-     "https://www.mail-archive.com/announce@lists.open-mpi.org/msg00171.html");
 news("hwloc 2.11.2",
      "Stable release",
      "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00169.html");

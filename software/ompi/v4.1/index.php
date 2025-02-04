@@ -36,7 +36,17 @@ sub-release of the Open MPI v<?php print($release_series);
 information on the chronology of Open MPI releases.</p>
 
 <p>
+<B>NOTE</B>: Open MPI 4.1.7 incorrectly changed the shared library
+   versioning information for the OpenSHMEM interface, potentially
+   causing link errors when updating from prior releases of Open MPI
+   to 4.1.7.  Open MPI 4.1.8 resets the shared library version number
+   history to allow updates from Open MPI 4.1.6 and prior.  Customers
+   who updated to 4.1.7 and relinked their OpenSHMEM applications will
+   have to relink their application again when updating to Open MPI
+   4.1.8 or later.
+<p>
 <div align="center">
+
 
 <?php
 print_release_section("openmpi", "open-mpi-release", $s3_prefix, $download_prefix,
