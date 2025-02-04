@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "opal_wrapper(1) man page (version 4.1.7)";
-$meta_desc = "Open MPI v4.1.7 man page: opal_wrapper(1)";
+$title = "opal_wrapper(1) man page (version 4.1.8)";
+$meta_desc = "Open MPI v4.1.8 man page: opal_wrapper(1)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
