@@ -1,7 +1,7 @@
 <?php
 $topdir = "../../..";
-$title = "MPI_Win_shared_query(3) man page (version 4.1.7)";
-$meta_desc = "Open MPI v4.1.7 man page: MPI_WIN_SHARED_QUERY(3)";
+$title = "MPI_Win_shared_query(3) man page (version 4.1.8)";
+$meta_desc = "Open MPI v4.1.8 man page: MPI_WIN_SHARED_QUERY(3)";
 
 include_once("$topdir/doc/nav.inc");
 include_once("$topdir/includes/header.inc");
