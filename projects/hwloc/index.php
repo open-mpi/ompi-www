@@ -25,12 +25,12 @@ print("<br />\n\n&gt; <a href=\"https://sympa.inria.fr/sympa/arc/hwloc-users/202
 endnews();
 skipnews("2");
 
+news("hwloc 2.12.0rc1",
+     "Major release candidate",
+     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2025-02/msg00001.html");
 news("hwloc 2.11.2",
      "Stable release",
      "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00169.html");
-news("hwloc 2.11.1",
-     "Stable release",
-     "https://www.mail-archive.com/hwloc-announce@lists.open-mpi.org/msg00167.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
      "doc/v2.11.2/a00360.php");
