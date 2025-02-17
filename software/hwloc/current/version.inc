@@ -7,7 +7,7 @@
 # $last_dir: the directory of the last release on that series
 # (relative to $topdir/software/hwloc/$series_dir or $topdir/projects/hwloc/doc)
 #
-$series_dir = "v2.11";
+$series_dir = "v2.12";
 
 include_once("$topdir/software/hwloc/$series_dir/version.inc");
 
