@@ -39,7 +39,7 @@ include:</p>
 <td valign=top>
 <ul>
 
-<li> Full MPI-4.1 standards conformance
+<li> Full MPI-3.1 standards conformance, with many elements from MPI-4.0
 <li> Thread safety and concurrency
 <li> Dynamic process spawning
 <li> Network and process fault tolerance
