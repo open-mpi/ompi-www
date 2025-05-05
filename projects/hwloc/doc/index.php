@@ -39,8 +39,7 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 $versions = array("v2.12.0");
 $first = 1;
 foreach ($versions as $key => $v) {
-#    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
-    print_docs("Release $v (new)",
+    print_docs("Release $v (new" . (!$first ? ", old" : "") . ")",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -67,7 +66,6 @@ $versions = array("v2.11.2", "v2.11.1", "v2.11.0");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
-#    print_docs("Release $v (new)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -93,7 +91,7 @@ print($blank_line);
 $versions = array("v2.10.0");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
+    print_docs("Release $v (old)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -119,7 +117,7 @@ print($blank_line);
 $versions = array("v2.9.3");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
+    print_docs("Release $v (old)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
@@ -145,7 +143,7 @@ print($blank_line);
 $versions = array("v2.8.0");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
+    print_docs("Release $v (old)",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
