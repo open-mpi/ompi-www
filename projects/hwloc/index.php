@@ -25,15 +25,12 @@ print("<br />\n\n&gt; <a href=\"https://sympa.inria.fr/sympa/arc/hwloc-users/202
 endnews();
 skipnews("2");
 
-news("hwloc 2.12.1rc1",
-     "Stable release candidate",
-     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2025-05/msg00000.html");
-news("hwloc 2.12.0",
-     "Major release",
-     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2025-02/msg00002.html");
+news("hwloc 2.12.1",
+     "Stable release",
+     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2025-05/msg00001.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
-     "doc/v2.12.0/a00359.php");
+     "doc/v2.12.1/a00359.php");
 news("XML topology database",
      "Repository of XML topologies",
      "https://hwloc.gitlabpages.inria.fr/xmls/");
