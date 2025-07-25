@@ -28,7 +28,7 @@ function print_docs($desc, $letterpdf, $a4pdf, $html) {
 <td><strong>$desc</strong></td>
 <td><a align=\"center\" href=\"$letterpdf\">US letter PDF</a></td>
 <td><a align=\"center\" href=\"$a4pdf\">A4 PDF</a></td>
-<td><a align=\"center\" href=\"$html\">HTML</a></td>
+<td><a target=\"_blank\" rel=\"noopener noreferrer\" align=\"center\" href=\"$html\">HTML</a></td>
 </tr>\n\n");
 }
 
