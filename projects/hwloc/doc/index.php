@@ -8,9 +8,12 @@ include_once("$topdir/includes/code.inc");
 
 ?>
 
-<p>See also the <a href="<?php print "$topdir/projects/hwloc/tutorials" ?>">tutorials</a> page for lengthy talks and hands-on sessions.</p>
+<p>
+ Below is a list of hwloc documentation by version.
+ Some are also available on <a href="https://hwloc.readthedocs.io">Read the docs</a>.
+</p>
 
-<p>hwloc documentation by version:</p>
+<p>See also the <a href="<?php print "$topdir/projects/hwloc/tutorials" ?>">tutorials</a> page for lengthy talks and hands-on sessions.</p>
 
 <div align="center">
 <table border="1" cellpadding="5">
