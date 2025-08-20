@@ -8,9 +8,12 @@ include_once("$topdir/includes/code.inc");
 
 ?>
 
-<p>See also the <a href="<?php print "$topdir/projects/hwloc/tutorials" ?>">tutorials</a> page for lengthy talks and hands-on sessions.</p>
+<p>
+ Below is a list of hwloc documentation by version.
+ Some are also available on <a href="https://hwloc.readthedocs.io">Read the docs</a>.
+</p>
 
-<p>hwloc documentation by version:</p>
+<p>See also the <a href="<?php print "$topdir/projects/hwloc/tutorials" ?>">tutorials</a> page for lengthy talks and hands-on sessions.</p>
 
 <div align="center">
 <table border="1" cellpadding="5">
@@ -28,7 +31,7 @@ function print_docs($desc, $letterpdf, $a4pdf, $html) {
 <td><strong>$desc</strong></td>
 <td><a align=\"center\" href=\"$letterpdf\">US letter PDF</a></td>
 <td><a align=\"center\" href=\"$a4pdf\">A4 PDF</a></td>
-<td><a align=\"center\" href=\"$html\">HTML</a></td>
+<td><a target=\"_blank\" rel=\"noopener noreferrer\" align=\"center\" href=\"$html\">HTML</a></td>
 </tr>\n\n");
 }
 
@@ -46,7 +49,7 @@ foreach ($versions as $key => $v) {
 
 #########################################################
 
-$v = "v2.12.1rc1";
+$v = "v2.12.2rc1";
 # See if there's doc for this prerelease, display it.
 if (preg_match("/[a-z]/i", $v) &&
     file_exists("$v") &&
