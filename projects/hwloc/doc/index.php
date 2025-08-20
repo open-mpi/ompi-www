@@ -49,7 +49,7 @@ foreach ($versions as $key => $v) {
 
 #########################################################
 
-$v = "v2.12.1rc1";
+$v = "v2.12.2rc1";
 # See if there's doc for this prerelease, display it.
 if (preg_match("/[a-z]/i", $v) &&
     file_exists("$v") &&
