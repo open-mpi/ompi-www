@@ -105,9 +105,9 @@ news("Open MPI v4.1.7 released",
 news("Open MPI v5.0.6 released",
      "Bug fix release",
      "");
-news("hwloc 2.12.1",
+news("hwloc 2.12.2",
      "Stable release",
-     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2025-05/msg00001.html");
+     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2025-08/msg00001.html");
 ?>
 </td>
 </tr>
