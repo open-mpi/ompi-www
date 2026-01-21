@@ -175,13 +175,13 @@ The lstopo Android app is available in the
 The following langages also have dedicated bindings:
 <ul>
  <li>
+  <b>Python</b> <a href="https://github.com/open-mpi/pyhwloc/">pyhwloc on GitHub</a> (thanks to Jiaming Yuan).
+ </li>
+ <li>
   <b>Julia</b> <a href="https://github.com/JuliaParallel/Hwloc.jl">on GitHub</a> (thanks to Erik Schnetter).
  </li>
  <li>
   <b>Perl</b> <a href="http://search.cpan.org/~bka/Sys-Hwloc-0.10/">on CPAN</a> (thanks to Bernd Kallies).
- </li>
- <li>
-  <b>Python</b> <a href="https://gitlab.com/guystreeter/python-hwloc">git tree</a> (thanks to Guy Streeter).
  </li>
  <li>
   <b>Rust</b> <a href="https://github.com/daschl/hwloc-rs">on GitHub</a> (thanks to Michael Nitschinger).
