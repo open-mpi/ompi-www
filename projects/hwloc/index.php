@@ -25,6 +25,9 @@ print("<br />\n\n&gt; <a href=\"https://sympa.inria.fr/sympa/arc/hwloc-users/202
 endnews();
 skipnews("2");
 
+news("hwloc 2.13.0rc1",
+     "Major release candidate",
+     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-01/msg00000.html");
 news("hwloc 2.12.2",
      "Stable release",
      "https://sympa.inria.fr/sympa/arc/hwloc-announce/2025-08/msg00001.html");
