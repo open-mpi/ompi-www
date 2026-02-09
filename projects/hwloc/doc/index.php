@@ -39,7 +39,9 @@ $blank_line = "<tr><td style=\"background-color:#999999\" colspan=\"4\"></td></t
 
 #########################################################
 
-$versions = array();
+print($blank_line);
+
+$versions = array("2.13.0");
 $first = 1;
 foreach ($versions as $key => $v) {
 #    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
@@ -69,7 +71,7 @@ print($blank_line);
 $versions = array("v2.12.2", "v2.12.1", "v2.12.0");
 $first = 1;
 foreach ($versions as $key => $v) {
-    print_docs("Release $v (new" . (!$first ? ", old" : "") . ")",
+    print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
                "hwloc-$v-letter.pdf", "hwloc-$v-a4.pdf", "$v/");
     $first = 0;
 }
