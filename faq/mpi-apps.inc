@@ -835,7 +835,19 @@ $a[] = "The [blacs_install.ps] file (available from that web site)
 describes how to build BLACS, so we won't repeat much of it here
 (especially since it might change in future versions). These
 instructions only pertain to making Open MPI work correctly with
-BLACS.
+BLACS. Note that it uses the older BMake, rather than CMake.
+
+<blockquote>
+<font color=\"red\"><strong>NOTE:</strong></font> From at least ScaLAPACK 2.1.0, BLACS
+is part of the ScaLAPACK distribution. This instruction is for installation without 
+ScaLAPACK.
+
+Additionally, if compiling with gcc 10 or newer, use the following flags:
+
+NOOPT         = -O3 -std=legacy
+
+FCFLAGS       = -O3 -std=legacy
+</blockquote>
 
 After selecting the appropriate starting [Bmake.inc], make the
 following changes to Sections 1, 2, and 3. The example below is from
@@ -892,6 +904,12 @@ build correctly and use Open MPI as its MPI communication layer.
 $q[] = "How do I build ScaLAPACK with Open MPI?";
 
 $anchor[] = "scalapack";
+
+<blockquote>
+<font color=\"red\"><strong>NOTE:</strong></font> From at least ScaLAPACK 2.1.0, BLACS
+is part of the ScaLAPACK distribution. Accordingly, follow the instructions there.
+Use the more modern mpifort flag for FC.
+</blockquote>
 
 $a[] = "The [scalapack_install.ps] file (available from that web site)
 describes how to build ScaLAPACK, so we won't repeat much of it here
