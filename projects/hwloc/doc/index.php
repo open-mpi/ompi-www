@@ -68,7 +68,7 @@ if (preg_match("/[a-z]/i", $v) &&
 
 print($blank_line);
 
-$versions = array("v2.12.2", "v2.12.1", "v2.12.0");
+$versions = array("v2.12.2");
 $first = 1;
 foreach ($versions as $key => $v) {
     print_docs("Release $v (stable" . (!$first ? ", old" : "") . ")",
