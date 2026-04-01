@@ -6,6 +6,13 @@ $title = "Portable Hardware Locality (hwloc): ancient release series";
 include_once("$topdir/projects/hwloc/nav.inc");
 include_once("$topdir/includes/header.inc");
 include_once("$topdir/includes/downloads.inc");
+
+function one_ancient($ver, $epoch) {
+  global $topdir;
+  echo "<li><a href=\"$topdir/software/hwloc/v$ver/\">";
+  echo "Download v$ver ($epoch)";
+  echo "</a></li>\n";
+}
 ?>
 
 <p>
@@ -13,30 +20,45 @@ include_once("$topdir/includes/downloads.inc");
  Here are the links to ancient release series archives:
 </p>
 <ul>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.9/">Download v2.9 (old)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.8/">Download v2.8 (very old)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.7/">Download v2.7 (very very old)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.6/">Download v2.6 (older)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.5/">Download v2.5 (even older)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.4/">Download v2.4 (Renaissance)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.3/">Download v2.3 (Modern Age)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.2/">Download v2.2 (Middle Age)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.1/">Download v2.1 (Antiquity)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v2.0/">Download v2.0 (Iron Age)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.11/">Download v1.11 (Bronze Age)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.10/">Download v1.10 (Neolithic)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.9/">Download v1.9 (Mesolithic)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.8/">Download v1.8 (Cretaceous)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.7/">Download v1.7 (Jurassic)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.6/">Download v1.6 (Precambrian)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.5/">Download v1.5 (Solar System formation)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.4/">Download v1.4 (Earliest Structures)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.3/">Download v1.3 (Dark Age)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.2/">Download v1.2 (Recombination)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.1/">Download v1.1 (Inflation)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v1.0/">Download v1.0 (Planck Epoch)</a></li>
-<li><a href="<?php echo $topdir; ?>/software/hwloc/v0.9/">Download v0.9 (Big-Bang)</a></li>
-<!-- https://en.wikipedia.org/wiki/Chronology_of_the_universe -->
+<!--
+<?php one_ancient("", ""); ?>
+<?php one_ancient("", ""); ?>
+<?php one_ancient("", ""); ?>
+<?php one_ancient("", ""); ?>
+<?php one_ancient("2.14", "Renaissance"); ?>
+<?php one_ancient("2.13", "Modern Age"); ?>
+<?php one_ancient("2.12", "Middle Age"); ?>
+-->
+<!-- 2.x from https://en.wikipedia.org/wiki/Geologic_time_scale#Divisions_of_geologic_time -->
+<?php one_ancient("2.11", "Antiquity"); ?>
+<?php one_ancient("2.10", "Iron Age"); ?>
+<?php one_ancient("2.9", "Bronze Age"); ?>
+<?php one_ancient("2.8", "Stone Age"); ?>
+<?php one_ancient("2.7", "Cenozoic"); ?>
+<!-- https://en.wikipedia.org/wiki/Mesozoic -->
+<?php one_ancient("2.6", "Cretaceous"); ?>
+<?php one_ancient("2.5", "Jurassic"); ?>
+<?php one_ancient("2.4", "Triassic"); ?>
+<!-- https://en.wikipedia.org/wiki/Paleozoic -->
+<?php one_ancient("2.3", "Paleozoic"); ?>
+<!-- https://en.wikipedia.org/wiki/Precambrian -->
+<?php one_ancient("2.2", "Proterozoic"); ?>
+<?php one_ancient("2.1", "Archean"); ?>
+<?php one_ancient("2.0", "Hadean"); ?>
+<!-- 1.x from https://en.wikipedia.org/wiki/Chronology_of_the_universe -->
+<?php one_ancient("1.11", "Theia Impact"); ?>
+<?php one_ancient("1.10", "Solar System Formation"); ?>
+<?php one_ancient("1.9", "Reionization"); ?>
+<?php one_ancient("1.8", "Star and Galaxy Formation"); ?>
+<?php one_ancient("1.7", "Earliest Structures"); ?>
+<?php one_ancient("1.6", "Dark Ages"); ?>
+<?php one_ancient("1.5", "Recombination"); ?>
+<?php one_ancient("1.4", "Nucleosynthesis"); ?>
+<?php one_ancient("1.3", "Neutrino Decoupling"); ?>
+<?php one_ancient("1.2", "Baryogenesis"); ?>
+<?php one_ancient("1.1", "Inflation"); ?>
+<?php one_ancient("1.0", "Planck Epoch"); ?>
+<?php one_ancient("0.9", "Big-Bang"); ?>
 </ul>
 
 <?php
