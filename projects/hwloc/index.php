@@ -214,6 +214,7 @@ ported to it:<ul>
  <li>The <a href="http://portablecl.org/">Portable Computing Language (POCL)</a>.</li>
  <li>The <a href="https://gitlab.inria.fr/h2m/h2m">H2M runtime</a> for managing heterogeneous memory.</li>
  <li>The former <a href="https://runtime.gitlabpages.inria.fr/forestgomp/">ForestGOMP</a> OpenMP platform for hierarchical architectures.</li>
+ <li>The <a href="https://github.com/scylladb/seastar">Seastar</a> event-driven framework.</li>
 </ul>
 <li>Parallel scientific applications, libraries and toolkits:</li><ul>
  <li>The <a href="https://www.gromacs.org/">Gromacs</a> software suite for high-performance molecular dynamics.</li>
@@ -239,6 +240,7 @@ ported to it:<ul>
  <li>The interactive process viewer <a href="http://htop.dev/">htop</a> for Linux.</li>
  <li>The parallel job inspector <a href="http://padb.pittman.org.uk/">Padb</a>.</li>
  <li>The <a href="https://gforgeron.gitlab.io/easypap/">EasyPAP</a> parallel-programming learning environment.</li>
+ <li>The <a href="https://github.com/SpareCores/sc-membench">SpareCores membench</a> memory bandwidth benchmark.</li>
 </ul>
 <li>and even more!</li><ul>
  <li>The <a href="https://github.com/tensorflow/tensorflow">TensorFlow</a> library for numerical computation using data flow graphs.</li>
@@ -248,6 +250,8 @@ ported to it:<ul>
  <li>The <a href="https://github.com/pwrapi/pwrapi-ref">Reference Implementation</a> of the <a href="http://powerapi.sandia.gov/">HPC Power API</a>.</li>
  <li>The <a href="https://openpmix.github.io/">OpenPMIx</a> implementation of the Process Management Interface Exascale (PMIx) standard.</li>
  <li>The <a href="https://www.aircrack-ng.org/">aircrack-ng</a> WiFi network security assesser.</li>
+ <li>The <a href="https://suricata.io/">Suricata</a> intrusion detection and prevention tool.</li>
+ <li>The <a href="https://xmrig.com/">XMRig</a> RandomX, KawPow, CryptoNight, and GhostRider unified CPU/GPU miner.</li>
 </ul></ul></p>
 
 <!------------------------------------------------------------------------->
