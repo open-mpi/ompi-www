@@ -10,7 +10,7 @@
 # (relative to $topdir/software/hwloc/$series_dir or $topdir/projects/hwloc/doc)
 #
 
-$new_series_dir = "v2.13";
+$new_series_dir = "v2.14";
 $series_dir = "v2.13";
 
 # get the (pre)releases on the new branch for latest_snapshot
