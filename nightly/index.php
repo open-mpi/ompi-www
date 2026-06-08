@@ -42,6 +42,11 @@ These snapshots are from the Git main and reflect the current
 head of development.  The usual disclaimers about the state of
 development code apply.</li>
 
+<p> <strong>Upcoming release series</strong>
+<li><a href="v6.0.x/"><strong>v6.0.x series</strong></a>:
+These snapshots are from the Git v6.0.x branch, which is currently under development.
+The usual disclaimers about the state of development code apply.</li>
+
 <p> <strong>Older series (retired, deprecated, or otherwise no longer in
 development)</strong>
 
