@@ -11,7 +11,7 @@
 #
 
 $new_series_dir = "v2.14";
-$series_dir = "v2.13";
+$series_dir = "v2.14";
 
 # get the (pre)releases on the new branch for latest_snapshot
 include_once("$topdir/software/hwloc/$new_series_dir/version.inc");

@@ -89,9 +89,9 @@ information</a></h3>
 news("Open MPI v5.0.9 released",
      "Bug fix release",
      "");
-news("hwloc 2.13.0",
+news("hwloc 2.14.0",
      "Major release",
-     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-02/msg00000.html");
+     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-06/msg00001.html");
 news("Open MPI v4.1.7 released",
      "Bug fix release.<br><br>
    <b>NOTE</b>: Open MPI 4.1.7 incorrectly changed the shared library
