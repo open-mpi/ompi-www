@@ -17,17 +17,18 @@ include_once("$topdir/includes/code.inc");
 <?php
 # Lists are not mirrored - use an absolute URL
 
+news("hwloc 2.14.0",
+     "Major release",
+     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-06/msg00001.html");
+
 # custom news with 2 links
 startnews("hwloc mailing lists now at @inria.fr");
-print("Mailing lists are migrating (and merging).");
+print("Mailing lists migrated (and merged).");
 print("<br />\n\n&gt; <a href=\"https://sympa.inria.fr/sympa/arc/hwloc-announce/2025-02/msg00000.html\">hwloc-announce migration</a>\n");
 print("<br />\n\n&gt; <a href=\"https://sympa.inria.fr/sympa/arc/hwloc-users/2025-02/msg00000.html\">hwloc-users and -devel migration</a>\n");
 endnews();
 skipnews("2");
 
-news("hwloc 2.14.0",
-     "Major release",
-     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-06/msg00001.html");
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
      "doc/v2.14.0/upgrade_to_api_2x.html");
