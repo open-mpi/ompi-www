@@ -1,6 +1,8 @@
 <?php
 $topdir = "../..";
 $title = "Open MPI Developer's Workshop: Prerequisites";
+include_once("$topdir/software/ompi/current/version.inc");
+$ompi_docs_release_branch = isset($release_branch) ? $release_branch : "$ver_current_dir.x";
 include_once("$topdir/includes/mailto.inc");
 include_once("$topdir/includes/header.inc");
 ?>
@@ -313,9 +315,9 @@ build is complete and ready for testing.
 
 <P>For now, we can just use a simple Hello, World example to make sure
 that Open MPI is operating correctly (<A HREF="hello.c">hello.c</A>).
-Make sure Open MPI is in your path according to the FAQ item on <A
-HREF="https://www.open-mpi.org/faq/?category=running#adding-ompi-to-path">shell
-configuation</A>.  The compile and execution output should look like
+Make sure Open MPI is in your path according to the <A
+HREF="https://docs.open-mpi.org/en/<?php print($ompi_docs_release_branch); ?>/launching-apps/quickstart.html">quickstart
+documentation</A>.  The compile and execution output should look like
 that below.</P>
 
 <p><table width=100% border=0 cellpadding=5 cellspacing=0 class=example>

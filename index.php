@@ -76,8 +76,8 @@ of research, academic, and industry partners.  The <a
 href="about/members/">Open MPI Team</a> page has a comprehensive
 listing of all contributors and active members.</p>
 
-<h3 align=center><a href="faq/">See the FAQ page for more technical
-information</a></h3>
+<h3 align=center><a href="https://docs.open-mpi.org/">See the Open MPI
+documentation for more technical information</a></h3>
 
 <h3 align=center><a href="community/lists/">Join the mailing lists</a></h3>
 

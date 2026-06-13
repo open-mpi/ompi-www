@@ -16,6 +16,10 @@ if (!isset($logo_url)) {
 if (!isset($project)) {
     $project = "Open MPI";
 }
+include_once("$topdir/software/ompi/current/version.inc");
+$ompi_docs_release_branch = isset($release_branch) ? $release_branch : "$ver_current_dir.x";
+$is_faq_page = (isset($_SERVER["REQUEST_URI"]) &&
+                preg_match("/^\/faq(\/|\?|$)/", $_SERVER["REQUEST_URI"]) == 1);
 
 // For debugging
 $table_border = 0;
@@ -86,6 +90,55 @@ function printtoplink($link, $text, $class) {
 function printbutton($text) {
   global $topdir;
   print("<tr><td class=\"buttonbox\">&nbsp;$text</td></tr>\n\n");
+}
+
+function print_old_doc_notice() {
+    global $release_branch;
+    global $ver_current_dir;
+
+    $uri = isset($_SERVER["REQUEST_URI"]) ? $_SERVER["REQUEST_URI"] : "";
+
+    $pattern = "/\/doc\/(current|v[1-4](\.[0-9]+)?)\/man([137])\/" .
+               "([^\/?#]+)\.\\3\.php/";
+    if (preg_match($pattern, $uri, $matches) != 1) {
+        return;
+    }
+
+    $section = $matches[3];
+    $manpage = $matches[4];
+    $docs_release_branch = isset($release_branch) ? $release_branch : "$ver_current_dir.x";
+    $docs_release_label = $ver_current_dir;
+    $docs_man_url = "https://docs.open-mpi.org/en/$docs_release_branch/man-openmpi";
+    $docs_url = "$docs_man_url/";
+    $link_text = "the current Open MPI manual pages";
+    $wrapper_compilers = array("mpicc", "mpic++", "mpicxx", "mpif77",
+                               "mpif90", "mpifort", "opalcc", "opalc++",
+                               "oshcc", "oshc++", "oshcxx", "oshfort",
+                               "shmemcc", "shmemc++", "shmemcxx",
+                               "shmemfort");
+
+    if ($section == "3" && preg_match("/^MPI_/", $manpage) == 1) {
+        $docs_url = "$docs_man_url/man3/$manpage.3.html";
+        $link_text = "the current $manpage($section) man page";
+    } else if ($section == "1" && in_array($manpage, $wrapper_compilers, TRUE)) {
+        $docs_url = "$docs_man_url/man1/ompi-wrapper-compiler.1.html";
+        $link_text = "the current Open MPI wrapper compiler man page";
+    } else if ($section == "1" && ($manpage == "mpirun" || $manpage == "mpiexec")) {
+        $docs_url = "$docs_man_url/man1/mpirun.1.html";
+        $link_text = "the current mpirun(1) man page";
+    } else if ($section == "1" && $manpage == "ompi_info") {
+        $docs_url = "$docs_man_url/man1/ompi_info.1.html";
+        $link_text = "the current ompi_info(1) man page";
+    }
+
+    $docs_url = htmlspecialchars($docs_url, ENT_QUOTES);
+    $docs_release_label = htmlspecialchars($docs_release_label, ENT_QUOTES);
+    $link_text = htmlspecialchars($link_text, ENT_QUOTES);
+    print("<div style=\"border: 1px solid #c0c0c0; background: #f8f8f8; padding: 8px; margin: 0 0 12px 0;\">\n");
+    print("This is documentation for an older version of Open MPI. ");
+    print("For Open MPI $docs_release_label and later, see ");
+    print("<a href=\"$docs_url\">$link_text</a> on docs.open-mpi.org.\n");
+    print("</div>\n");
 }
 
 function printsublink($link, $text, $a_modifier = "") {
@@ -188,8 +241,10 @@ print("      <h1 class=\"doctitle\">$title</H1>\n");
 	<a href="<?php print("$topurl"); ?>/" class="quickbar">Home</A>
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
 	<a href="<?php print("$topurl"); ?>/community/help/" class="quickbar"><font color=red>Support</font></A>
+<?php if ($is_faq_page) { ?>
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
 	<a href="<?php print("$topurl"); ?>/faq/" class="quickbar">FAQ</A>
+<?php } ?>
 	<span class="divider">&nbsp;&nbsp;|&nbsp;&nbsp;</span>
 	<?php nav_search_make(); ?>
        </td>
@@ -222,7 +277,9 @@ print("      <h1 class=\"doctitle\">$title</H1>\n");
 printbutton("About");
 printsublink("$topurl/papers/", "Presentations");
 printsublink("$topurl/about/members/", "Open MPI Team");
-printsublink("$topurl/faq/", "FAQ");
+if ($is_faq_page) {
+    printsublink("$topurl/faq/", "FAQ");
+}
 printsublink("$topurl/video/", "Videos");
 printsublink("$topurl/performance/", "Performance");
 
@@ -233,7 +290,7 @@ printsublink("$topurl/doc/", "Documentation");
 printsublink("$topurl/source/", "Source Code Access");
 printsublink("https://github.com/open-mpi/ompi/issues", "Bug Tracking");
 printsublink("https://mtt.open-mpi.org/", "Regression Testing");
-printsublink("https://docs.open-mpi.org/en/main/version-numbering.html", "Version Information");
+printsublink("https://docs.open-mpi.org/en/$ompi_docs_release_branch/version-numbering.html", "Version Information");
 
 // Sub-Projects
 printbutton("Sub-Projects");
@@ -245,9 +302,8 @@ printsublink("$topurl/projects/otpo/", "Open Tool for Parameter Optimization");
 // Community
 printbutton("Community");
 printsublink("$topurl/community/lists/", "Mailing Lists");
-// Set the "Getting Help" link to be the main "Getting Help" page on
-// the on docs.open-mpi.org (vs. any specific release).
-printsublink("https://docs.open-mpi.org/en/main/getting-help.html",
+// Set the "Getting Help" link to the current release docs.
+printsublink("https://docs.open-mpi.org/en/$ompi_docs_release_branch/getting-help.html",
              "<font color=red>Getting Help/Support</font>");
 printsublink("$topurl/community/contribute/", "Contribute");
 printsublink("$topurl/community/contact.php", "Contact");
@@ -278,4 +334,5 @@ printbutton("");
 if (file_exists("$topdir/sitewide_notice.inc")) {
   include("$topdir/sitewide_notice.inc");
 }
+print_old_doc_notice();
 ?>

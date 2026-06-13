@@ -48,10 +48,10 @@ MPI from a developer checkout.</li>
 <br>
 
 <li> <a href="<?php print("$topdir/nightly/"); ?>">Download a nightly
-snapshot tarball</a>.  Then see the <a href="<?php
-print($topdir); ?>/faq/?category=building">Building Open MPI</a>
-section of the FAQ for instructions on how to build and install
-it.<br>
+snapshot tarball</a>.  Then see the <a
+href="https://docs.open-mpi.org/en/<?php print($ompi_docs_release_branch); ?>/installing-open-mpi/">Open
+MPI installation documentation</a> for instructions on how to build and
+install it.<br>
 
 <strong><font color=green>Advantage:</font></strong> You need no
 extra tools to compile and install Open MPI.<br>
