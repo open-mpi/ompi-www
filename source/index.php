@@ -42,7 +42,7 @@ MPI Git repo at GitHub</a>.  The main development work occurs on the
 able to keep up with the latest source code using normal Git
 commands (e.g., '<code>git pull --rebase --recurse-submodules</code>').<br>
 <strong><font color=red>Disadvantage:</font></strong> You need to have
-<a href="building.php">several tools installed</a> to compile Open
+<a href="https://docs.open-mpi.org/en/<?php print($ompi_docs_release_branch); ?>/developers/index.html">several tools installed</a> to compile Open
 MPI from a developer checkout.</li>
 
 <br>

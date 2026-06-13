@@ -14,7 +14,7 @@ $q[] = "How do I build Open MPI?";
 $anchor[] = "easy-build";
 
 $a[] = "If you have obtained a developer's checkout from Git, skip this
-FAQ question and <a href=\"$topdir/source/building.php\">consult these
+FAQ question and <a href=\"https://docs.open-mpi.org/en/$ompi_docs_release_branch/developers/index.html\">consult these
 directions</a>.
 
 For everyone else, in general, all you need to do is expand the
@@ -523,7 +523,7 @@ languages as well.  You do _not_ need any special version of the GNU
 \"Auto\" tools (Autoconf, Automake, Libtool).
 
 If you are building Open MPI from a Git checkout, you need some
-additional tools.  See <a href=\"$topdir/source/building.php\">the
+additional tools.  See <a href=\"https://docs.open-mpi.org/en/$ompi_docs_release_branch/developers/index.html\">the
 source code access pages</a> for more information.";
 
 /////////////////////////////////////////////////////////////////////////
