@@ -15,15 +15,9 @@ include_once("warning.inc");
 Instructions and requirements for building from source for other
 versions can be found here:</P>
 
-<P> <A
-HREF="https://docs.open-mpi.org/en/main/developers/index.html">Open
-MPI's <CODE>main</CODE> branch</A>
-
-<BR />
-
-<A
-HREF="https://docs.open-mpi.org/en/v5.0.x/developers/index.html">Open
-MPI's <CODE>v5.0.x</CODE> branch</A></P>
+<P><A
+HREF="https://docs.open-mpi.org/en/<?php print($ompi_docs_release_branch); ?>/developers/index.html">Open
+MPI's <CODE><?php print($ompi_docs_release_branch); ?></CODE> branch</A></P>
 
 <P>If you are looking to build branches other than what are listed
 above,<BR />go to any of the above links and then use the left-hand
@@ -161,10 +155,10 @@ row("v4.0.x", "1.4.17", "2.69", "1.15", "2.4.6", "2.5.35");
 ?>
 
 <TR>
-<TD>main</TD>
+<TD><?php print($ompi_docs_release_branch); ?> and up</TD>
 
 <TD COLSPAN="5" ALIGN="CENTER"><A
-HREF="https://docs.open-mpi.org/en/main/developers/index.html">See
+HREF="https://docs.open-mpi.org/en/<?php print($ompi_docs_release_branch); ?>/developers/index.html">See
 this documentation</A><BR /> If looking for requirements for other
 Open MPI versions (i.e., &gt;= v5.0.0),<BR />go to the above
 documentation link and use the left-hand navigation to select the

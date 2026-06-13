@@ -114,9 +114,8 @@ certainly cause some legacy MPI applications to fail to
 compile.</strong>
 
 <p> <strong><font color="red">DO NOT FEAR!</font></strong> It is easy
-to fix such issues.  <a href="<?php print($topdir);
-?>/faq/?category=mpi-removed">See this FAQ category for more
-information</a>, including:</p>
+to fix such issues.  <a href="https://docs.open-mpi.org/">See the Open
+MPI documentation for more information</a>, including:</p>
 
 <p><ul>
     <li>How to upgrade your application to no longer use these legacy
@@ -137,20 +136,19 @@ the preferred method of InfiniBand support.
 
 <p><ul>
 
-    <li><a href="<?php print($topdir);
-    ?>/faq/?category=building#build-p2p">See this FAQ item</a> for
+    <li><a href="https://docs.open-mpi.org/">See the Open MPI
+    documentation</a> for
     information on how to build Open MPI with UCX support.</li>
 
-    <li><a href="<?php print($topdir);
-    ?>/faq/?category=openfabrics#run-ucx">See this FAQ item</a> for
+    <li><a href="https://docs.open-mpi.org/">See the Open MPI
+    documentation</a> for
     information on how to run Open MPI jobs with UCX support.</li>
 
     <li> In the Open MPI v4.0.x series, the <code>openib</code> BTL
     will still be used &mdash; by default &mdash; for RoCE and iWARP networks
     (although UCX works fine with these networks, too).  Users can
     force the use of UCX for RoCE and iWARP networks, if desired (see
-    <a href="<?php print($topdir);
-    ?>/faq/?category=openfabrics#run-ucx">this FAQ item</a>).</li>
+    <a href="https://docs.open-mpi.org/">the Open MPI documentation</a>).</li>
 
 </ul></p>
 </li>
