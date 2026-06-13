@@ -18,7 +18,6 @@ community.</p>
 <li><a href="hwloc/">Portable Hardware Locality (hwloc)</a></li>
 <li><a href="netloc/">Portable Network Locality (netloc)</a></li>
 <li>The <a href="mtt/">MPI Testing Tool (MTT)</a></li>
-<li><a href="otpo">Open Tool for Parameter Optimization (OTPO)</a></li>
 </ul>
 </p>
 

@@ -106,7 +106,7 @@ $q[] = "How do I get a copy of the most recent source code?";
 $anchor[] = "git-checkout";
 
 $a[] = "See the instructions <a
-href=\"$topdir/source/git.php\">here</a>.";
+href=\"https://github.com/open-mpi/ompi\">here</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 
@@ -115,7 +115,7 @@ $q[] = "Ok, I got a Git checkout.  Now how do I build it?";
 $anchor[] = "svn-build";
 
 $a[] = "See the instructions <a
-href=\"$topdir/source/building.php\">here</a>.";
+href=\"https://docs.open-mpi.org/en/$ompi_docs_release_branch/developers/index.html\">here</a>.";
 
 /////////////////////////////////////////////////////////////////////////
 

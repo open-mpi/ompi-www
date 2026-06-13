@@ -250,11 +250,8 @@ individually. See ".
 "<a HREF=\"https://www.open-mpi.org/faq/?category=tuning#setting-mca-params\">"
 ." the FAQ entry </A> on setting MCA parameters for all details.
 
-For more exhaustive tuning of I/O parameters, we recommend the
-utilization of the " . "<A
-HREF=\"https://www.open-mpi.org/projects/otpo/\">" ." Open Tool for Parameter
-Optimization (OTPO)</A>, a tool specifically designed to explore the
-MCA parameter space of Open MPI.";
+For more exhaustive tuning of I/O parameters, use a tool specifically
+designed to explore the MCA parameter space of Open MPI.";
 
 /////////////////////////////////////////////////////////////////////////
 $q[] = "When should I use the <code>individual</code> sharedfp component and what are its
@@ -344,5 +341,4 @@ commonly used functions that are not implemented as of today:
 consistency through the MPI_File_set_atomicity functions</li>
 <li>Using user defined data representations</li>
 </ul>";
-
 

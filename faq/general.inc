@@ -252,8 +252,8 @@ and methodologies based on (literally) years of MPI implementation
 experience.
 
 After version 1.0 was released, the Open MPI Project grew to include
-<a href=\"$topdir/about/members/\">many other
-members</a> who have each brought their knowledge, expertise, and
+<a href=\"https://github.com/open-mpi/ompi/graphs/contributors\">many other
+contributors</a> who have each brought their knowledge, expertise, and
 resources to Open MPI.  Open MPI is now <em>far</em> more than just
 the best ideas of the founding for MPI implementation projects.";
 

@@ -72,9 +72,9 @@ include:</p>
 </p>
 
 <p>Open MPI is developed in a true open source fashion by a consortium
-of research, academic, and industry partners.  The <a
-href="about/members/">Open MPI Team</a> page has a comprehensive
-listing of all contributors and active members.</p>
+of research, academic, and industry partners.  See the <a
+href="https://github.com/open-mpi/ompi/graphs/contributors">Open MPI
+contributors</a> on GitHub for more details.</p>
 
 <h3 align=center><a href="https://docs.open-mpi.org/">See the Open MPI
 documentation for more technical information</a></h3>
