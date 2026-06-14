@@ -16,8 +16,28 @@ if (!isset($logo_url)) {
 if (!isset($project)) {
     $project = "Open MPI";
 }
+
+// The current Open MPI version metadata is needed for common nav links,
+// but release pages set similarly named globals before including this file.
+$ompi_header_saved_release_vars = array();
+foreach (array("release_series", "release_branch", "download_prefix", "s3_prefix",
+               "releases", "prereleases", "cygwin_note") as $var) {
+    $ompi_header_saved_release_vars[$var] = array(
+        "set" => isset($$var),
+        "value" => isset($$var) ? $$var : NULL,
+    );
+}
 include_once("$topdir/software/ompi/current/version.inc");
 $ompi_docs_release_branch = isset($release_branch) ? $release_branch : "$ver_current_dir.x";
+foreach ($ompi_header_saved_release_vars as $var => $saved) {
+    if ($saved["set"]) {
+        $$var = $saved["value"];
+    } else {
+        unset($$var);
+    }
+}
+unset($ompi_header_saved_release_vars, $var, $saved);
+
 $request_path = isset($_SERVER["REQUEST_URI"]) ?
     parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH) : "";
 if ($request_path === false) {
