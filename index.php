@@ -86,6 +86,9 @@ documentation for more technical information</a></h3>
 <td valign=top>
 
 <?php
+news("Open MPI v6.0.0 release coming soon",
+     "New major release",
+     "");
 news("Open MPI v5.0.9 released",
      "Bug fix release",
      "");

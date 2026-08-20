@@ -8,6 +8,13 @@ include_once("$topdir/includes/header.inc");
 
 Documentation for the following versions is available:
 
+<h2>Upcoming release series</h2>
+<p><ul>
+<li><a href="https://docs.open-mpi.org/en/v6.0.x-pre-release/"><strong>v6.0 series</strong></a>.
+This documentation is currently under development.
+</li>
+</ul></p>
+
 <h2>Current release series</h2>
 
 <p><ul>

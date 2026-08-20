@@ -9,7 +9,20 @@ releases of Open MPI.  Specifically, <em>these are changes that may
 present an incompatibility vs. a prior version of Open MPI, or cause
 some other type of user-noticeable change in behavior.</em>
 
-<h2>v5.0.x series</h2>
+<h2 id="v6.0.x-series">v6.0.x series</h2>
+
+<p>The v6.0.x series will introduce the following major feature
+enhancements compared to the v5.0.x series:</p>
+
+<!-- ------------------- -->
+
+<p>Coming soon!</p>
+
+<!-- =================== -->
+
+<p><hr></p>
+
+<h2 id="v5.0.x-series">v5.0.x series</h2>
 
 <p>The v5.0.x series introduced the following major feature
 enhancements compared to the v4.1.x series:</p>
