@@ -11,12 +11,7 @@ some other type of user-noticeable change in behavior.</em>
 
 <h2 id="v6.0.x-series">v6.0.x series</h2>
 
-<p>The v6.0.x series will introduce the following major feature
-enhancements compared to the v5.0.x series:</p>
-
-<!-- ------------------- -->
-
-<p>Coming soon!</p>
+<p><a href="https://docs.open-mpi.org/en/v6.0.x-pre-release/release-notes/index.html</a>">Release Notes</a></p>
 
 <!-- =================== -->
 
