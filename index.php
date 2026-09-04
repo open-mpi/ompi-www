@@ -89,9 +89,9 @@ documentation for more technical information</a></h3>
 news("Open MPI v6.0.0 release coming soon",
      "New major release",
      "");
-news("Open MPI v5.0.9 released",
+news("Open MPI v5.0.10 released",
      "Bug fix release",
-     "");
+     "software/ompi/v5.0.x/");
 news("hwloc 2.14.0",
      "Major release",
      "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-06/msg00001.html");
