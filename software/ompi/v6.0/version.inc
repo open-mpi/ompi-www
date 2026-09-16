@@ -16,7 +16,7 @@ $releases = array();
 /* prereleases must be ordered newest to oldest.  All prereleases
    will be shown, so make an empty array when the official release
    is added to releases above */
-$prereleases = array();
+$prereleases = array("6.0.0rc1");
 
 /* set to true if we should add a cygwin note */
 $cygwin_note = 0;
