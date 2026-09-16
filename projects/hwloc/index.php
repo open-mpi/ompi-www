@@ -17,6 +17,9 @@ include_once("$topdir/includes/code.inc");
 <?php
 # Lists are not mirrored - use an absolute URL
 
+news("hwloc 2.15.0rc1",
+     "Major release candidate",
+     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-09/msg00000.html");
 news("hwloc 2.14.0",
      "Major release",
      "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-06/msg00001.html");
