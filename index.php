@@ -89,7 +89,7 @@ documentation for more technical information</a></h3>
 news("Open MPI v6.0.0 release coming soon",
      "New major release",
      "");
-news("Open MPI v5.0.10 released",
+news("Open MPI v5.0.11 released",
      "Bug fix release",
      "software/ompi/v5.0/");
 news("hwloc 2.14.0",
