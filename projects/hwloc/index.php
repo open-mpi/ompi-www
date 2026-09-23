@@ -17,12 +17,9 @@ include_once("$topdir/includes/code.inc");
 <?php
 # Lists are not mirrored - use an absolute URL
 
-news("hwloc 2.15.0rc1",
-     "Major release candidate",
-     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-09/msg00000.html");
-news("hwloc 2.14.0",
+news("hwloc 2.15.0",
      "Major release",
-     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-06/msg00001.html");
+     "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-09/msg00001.html");
 
 # custom news with 2 links
 startnews("hwloc mailing lists now at @inria.fr");
@@ -34,7 +31,7 @@ skipnews("2");
 
 news("Upgrading to v2.0 API",
      "Guide for Porting your Code",
-     "doc/v2.14.0/upgrade_to_api_2x.html");
+     "doc/v2.15.0/upgrade_to_api_2x.html");
 news("XML topology database",
      "Repository of XML topologies",
      "https://hwloc.gitlabpages.inria.fr/xmls/");
