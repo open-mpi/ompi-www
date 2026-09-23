@@ -95,7 +95,7 @@ news("Open MPI v5.0.11 released",
 news("hwloc 2.15.0",
      "Major release",
      "https://sympa.inria.fr/sympa/arc/hwloc-announce/2026-09/msg00001.html");
-news("Open MPI v4.1.7 released",
+news("Open MPI v4.1.8 released",
      "Bug fix release.<br><br>
    <b>NOTE</b>: Open MPI 4.1.7 incorrectly changed the shared library
    versioning information for the OpenSHMEM interface, potentially
