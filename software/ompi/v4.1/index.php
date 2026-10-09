@@ -5,8 +5,9 @@ include_once("version.inc");
 $title = "Open MPI: Version $release_series";
 
 include_once("$topdir/software/ompi/nav.inc");
-include_once("$topdir/includes/header.inc");
 include_once("$topdir/includes/downloads.inc");
+$head_feed_links = release_feed_head_links("Open MPI", $release_series);
+include_once("$topdir/includes/header.inc");
 
 $project = "Open MPI";
 $list_name = "announce";
@@ -15,6 +16,8 @@ $prev_describe = "the v$release_series download page";
 $news_url = "https://github.com/open-mpi/ompi/raw/$release_branch/NEWS";
 
 include_once("$topdir/includes/subscribe-announce.inc");
+print_release_info_note("Open MPI", $release_series, $releases,
+                        "https://docs.open-mpi.org/en/main/installing-open-mpi/downloading.html#detecting-new-releases-programmatically");
 ?>
 
 <p><hr>
