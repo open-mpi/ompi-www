@@ -1,0 +1,61 @@
+name: Release info endpoint checks
+
+# Third parties poll the per-series latest_snapshot.txt,
+# latest_release.txt, and releases.json files (and the top-level
+# software/ompi/releases.json) to discover new Open MPI releases.
+# Make sure every release series from v4.1 on has all of them (older
+# series are historical and only have latest_snapshot.txt), that
+# they are identical across series (so a broken copy cannot hide in
+# one series), and that the PHP behind them parses.
+
+on:
+    pull_request:
+
+permissions:
+    contents: read
+
+jobs:
+  check:
+    name: Check release info endpoints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check per-series endpoint files
+        run: |
+          status=0
+          for inc in software/ompi/v*/version.inc; do
+              dir=$(dirname $inc)
+              series=${dir##*/v}
+              # Series before v4.1 are historical: they only have
+              # latest_snapshot.txt, and must not grow the newer files.
+              if [ "$(printf '%s\n' 4.1 $series | sort -V | head -n 1)" = 4.1 ]; then
+                  names="latest_snapshot.txt latest_release.txt releases.json"
+              else
+                  names=latest_snapshot.txt
+                  for name in latest_release.txt releases.json; do
+                      if [ -e $dir/downloads/$name ]; then
+                          echo "::error file=$dir/downloads/$name::historical series must not have $name"
+                          status=1
+                      fi
+                  done
+              fi
+              for name in $names; do
+                  ref=software/ompi/v5.0/downloads/$name
+                  file=$dir/downloads/$name
+                  if [ ! -f $file ]; then
+                      echo "::error file=$inc::missing $file"
+                      status=1
+                  elif ! diff -q $ref $file > /dev/null; then
+                      echo "::error file=$file::differs from $ref"
+                      status=1
+                  fi
+              done
+          done
+          exit $status
+      - name: PHP syntax check
+        run: |
+          for file in includes/downloads.inc software/ompi/releases.json \
+                      software/ompi/current/downloads/latest_release.txt \
+                      software/ompi/v*/downloads/*; do
+              php -l $file || exit 1
+          done

@@ -195,12 +195,18 @@ function get_latest_snapshot($bucket, $prefix) {
 }
 
 function get_download_file($bucket, $key) {
+    // Reuse one client for all lookups in a request; callers such as
+    // releases.json fetch many files.
+    static $s3_client = NULL;
+
     try {
         global $provider;
 
-        $s3_client = new S3Client(['region' => 'us-west-2',
-                                   'version' => '2006-03-01',
-                                   'credentials' => $provider]);
+        if ($s3_client === NULL) {
+            $s3_client = new S3Client(['region' => 'us-west-2',
+                                       'version' => '2006-03-01',
+                                       'credentials' => $provider]);
+        }
         $data = $s3_client->getObject(['Bucket' => $bucket,
                                        'Key' => $key]);
     } catch (Exception $e) {
@@ -315,4 +321,227 @@ function latest_snapshot_output($project, $s3_prefix, $prereleases, $releases) {
     header("Content-Type: text/plain; charset=UTF-8");
     header("Last-Modified: " . gmdate("D, d M Y H:i:s", $info["build_unix_time"]) . " GMT");
     print($latest);
+}
+
+// Machine-readable release information (releases.json).
+//
+// These documents are a public interface: third parties poll them to
+// discover new releases.  Their contract is documented in the
+// "Downloading Open MPI" section of the Open MPI documentation
+// (docs/installing-open-mpi/downloading.rst in the ompi repo).  Only
+// add fields; if an existing field must change meaning or go away,
+// bump $release_info_schema_version and update that documentation.
+$release_info_schema_version = 1;
+
+// Does the request's If-None-Match header match $etag?  Accept a list of
+// validators, weak validators, and the suffix that Apache's mod_deflate
+// adds to the ETag of a compressed response (e.g., "<etag>-gzip").
+function release_info_etag_matches($etag)
+{
+    if (!isset($_SERVER['HTTP_IF_NONE_MATCH'])) {
+        return false;
+    }
+    $etag = trim($etag, '"');
+    foreach (explode(",", $_SERVER['HTTP_IF_NONE_MATCH']) as $candidate) {
+        $candidate = trim($candidate);
+        if ($candidate === "*") {
+            return true;
+        }
+        $candidate = trim(preg_replace('/^W\//', '', $candidate), '"');
+        $candidate = preg_replace('/-(gzip|br|deflate)$/', '', $candidate);
+        if ($candidate === $etag) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Release series before v4.1 are ancient: the machine-readable release
+// information does not cover them, and their download directories do
+// not have the per-series files.
+function release_info_covers_series($series_info)
+{
+    return version_compare($series_info['release_series'], "4.1", ">=");
+}
+
+// Return the variables of interest from a release series'
+// version.inc.  The file is included inside this function so that
+// several series can be read without clobbering each other's
+// variables.
+function read_series_version_inc($filename)
+{
+    include($filename);
+
+    return ['release_series' => $release_series,
+            'release_branch' => $release_branch,
+            'download_prefix' => $download_prefix,
+            's3_prefix' => $s3_prefix,
+            'releases' => $releases,
+            'prereleases' => $prereleases];
+}
+
+// Summary of a release series, built only from its version.inc data
+// (i.e., no S3 lookups).  $web_prefix is the URL of the project's
+// software tree (e.g., https://www.open-mpi.org/software/ompi/).
+function series_summary($series_info, $web_prefix)
+{
+    $releases = $series_info['releases'];
+    $prereleases = $series_info['prereleases'];
+    $series_url = $web_prefix . "v" . $series_info['release_series'] . "/";
+
+    return ['series' => $series_info['release_series'],
+            'branch' => $series_info['release_branch'],
+            'latest_release' => (count($releases) > 0) ? $releases[0] : NULL,
+            'latest_prerelease' => (count($prereleases) > 0) ? $prereleases[0] : NULL,
+            'releases' => $releases,
+            'prereleases' => $prereleases,
+            'web_page_url' => $series_url,
+            'download_url_prefix' => $series_info['download_prefix'],
+            'details_url' => $series_url . "downloads/releases.json"];
+}
+
+// Details of a single release (date and downloadable files), from
+// its build JSON in S3.  Returns NULL if the build JSON could not be
+// retrieved.
+function release_details($project, $series_info, $version, $prerelease)
+{
+    $filename = $series_info['s3_prefix'] . "build-" . $project . "-" . $version . ".json";
+    $blob = get_download_file("open-mpi-release", $filename);
+    if ($blob === NULL) {
+        return NULL;
+    }
+    $info = json_decode($blob, true);
+    if (!is_array($info) || !isset($info['build_unix_time']) ||
+        !isset($info['files'])) {
+        error_log("Malformed build info: " . $filename);
+        return NULL;
+    }
+
+    $filenames = array_keys($info['files']);
+    sort($filenames);
+    $files = [];
+    foreach ($filenames as $name) {
+        $filedata = $info['files'][$name];
+        $file = ['name' => $name,
+                 'url' => $series_info['download_prefix'] . $name,
+                 'size' => $filedata['size']];
+        foreach (['sha256', 'sha1', 'md5'] as $hash) {
+            if (isset($filedata[$hash])) {
+                $file[$hash] = $filedata[$hash];
+            }
+        }
+        $files[] = $file;
+    }
+
+    return ['version' => $version,
+            'prerelease' => $prerelease,
+            'release_date' => gmdate("Y-m-d\TH:i:s\Z", $info['build_unix_time']),
+            'release_unix_time' => $info['build_unix_time'],
+            'files' => $files];
+}
+
+// Emit a release information document as JSON, honoring
+// If-None-Match so that well-behaved pollers can avoid re-downloading
+// an unchanged document.
+function release_info_json_output($doc, $last_modified = NULL)
+{
+    $body = json_encode($doc, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    if ($body === false) {
+        error_log("release info JSON encoding failed: " . json_last_error_msg());
+        header("HTTP/1.0 503 Service Unavailable");
+        header("Retry-After: 300");
+        return;
+    }
+    $body .= "\n";
+    $etag = '"' . md5($body) . '"';
+
+    header("Content-Type: application/json");
+    header("Cache-Control: public, max-age=300");
+    header("ETag: " . $etag);
+    if ($last_modified !== NULL) {
+        header("Last-Modified: " . gmdate("D, d M Y H:i:s", $last_modified) . " GMT");
+    }
+    if (release_info_etag_matches($etag)) {
+        http_response_code(304);
+        return;
+    }
+    print($body);
+}
+
+// Top-level releases.json: one summary entry per release series,
+// newest series first.  $project_dir is the project's software tree
+// relative to $topdir (e.g., "software/ompi"); it contains current/
+// and the vX.Y/ series directories.  This only reads version.inc
+// files, so it is cheap.
+function release_index_json_output($project_name, $topdir, $project_dir, $web_prefix)
+{
+    global $release_info_schema_version;
+
+    // current/version.inc uses $topdir to find the current series
+    $project_dir = $topdir . "/" . $project_dir;
+    include($project_dir . "/current/version.inc");
+    $current_series = preg_replace("/^v/", "", $ver_current_dir);
+
+    $series = [];
+    foreach (glob($project_dir . "/v*/version.inc") as $filename) {
+        $series_info = read_series_version_inc($filename);
+        if (release_info_covers_series($series_info)) {
+            $series[] = series_summary($series_info, $web_prefix);
+        }
+    }
+    usort($series, function ($a, $b) {
+        return version_compare($b['series'], $a['series']);
+    });
+
+    $latest_release = NULL;
+    foreach ($series as $s) {
+        if ($s['series'] === $current_series) {
+            $latest_release = $s['latest_release'];
+        }
+    }
+
+    release_info_json_output(['schema_version' => $release_info_schema_version,
+                              'project' => $project_name,
+                              'current_series' => $current_series,
+                              'latest_release' => $latest_release,
+                              'series' => $series]);
+}
+
+// Per-series releases.json: the series summary plus full details
+// (date, file URLs, sizes, checksums) of every release and
+// prerelease in the series, newest first.  Responds 503 if any
+// release's build information is unavailable rather than serving an
+// incomplete document.
+function release_series_json_output($project, $series_inc, $web_prefix)
+{
+    global $release_info_schema_version;
+
+    $series_info = read_series_version_inc($series_inc);
+    $doc = ['schema_version' => $release_info_schema_version] +
+        series_summary($series_info, $web_prefix);
+
+    $details = [];
+    $last_modified = NULL;
+    $versions = [];
+    foreach ($series_info['prereleases'] as $version) {
+        $versions[] = [$version, true];
+    }
+    foreach ($series_info['releases'] as $version) {
+        $versions[] = [$version, false];
+    }
+    foreach ($versions as $v) {
+        $entry = release_details($project, $series_info, $v[0], $v[1]);
+        if ($entry === NULL) {
+            header("HTTP/1.0 503 Service Unavailable");
+            header("Retry-After: 300");
+            return;
+        }
+        if ($last_modified === NULL || $entry['release_unix_time'] > $last_modified) {
+            $last_modified = $entry['release_unix_time'];
+        }
+        $details[] = $entry;
+    }
+    $doc['release_details'] = $details;
+
+    release_info_json_output($doc, $last_modified);
 }
