@@ -150,26 +150,16 @@ function print_release_table($project, $releases, $bucket, $s3_prefix,
 {
     $release_infos = [];
 
-    try {
-        global $provider;
-
-        $s3_client = new S3Client(['region' => 'us-west-2',
-                                   'version' => '2006-03-01',
-                                   'credentials' => $provider]);
-    } catch (Exception $e) {
-        error_log("s3_client connect failed: " . $e);
-        return;
+    $keys = [];
+    foreach($releases as $release) {
+        $keys[$release] = $s3_prefix . "build-" . $project . "-" . $release . ".json";
     }
+    $infos = get_release_build_infos($bucket, array_values($keys));
 
-    foreach($releases as &$release) {
-        try {
-            $keyname = $s3_prefix . "build-" . $project . "-" . $release . ".json";
-            $data = $s3_client->getObject(['Bucket' => $bucket,
-                                           'Key' => $keyname]);
-            $info = json_decode($data['Body'], true);
-        } catch (Exception $e) {
+    foreach($releases as $release) {
+        $info = $infos[$keys[$release]];
+        if ($info === NULL) {
             // not much we can do, so just skip this entry
-            error_log("Release download failed: " . $e);
             continue;
         }
 
@@ -218,6 +208,159 @@ function get_download_file($bucket, $key) {
     }
 
     return $data['Body'];
+}
+
+// Local cache of release build information.
+//
+// Every release has a small build-<project>-<version>.json in S3
+// with its date, files, sizes, and checksums.  It essentially never
+// changes once a release is published, but the download pages,
+// latest_*.txt, releases.json, and releases.atom all need it, and
+// automated tools poll the latter.  Caching it on local disk keeps
+// those requests fast and from turning into a stream of S3 GETs.
+// Entries expire after $release_cache_ttl seconds, in case a
+// release's files are ever re-uploaded; an expired entry is still
+// used if S3 cannot be reached.  Nightly snapshot information
+// changes constantly, so it is never cached.
+$release_cache_ttl = 24 * 60 * 60;
+
+// The cache directory, or NULL if there is no safe one (in which case
+// everything is read from S3).  The cached files hold the checksums
+// that the web site publishes, so only use a directory that is
+// private to the user PHP runs as: nobody else must be able to plant
+// a file in it.
+function release_cache_dir() {
+    static $dir = false;
+
+    if ($dir !== false) {
+        return $dir;
+    }
+    $dir = NULL;
+
+    $candidate = sys_get_temp_dir() . "/ompi-www-release-cache";
+    if (!file_exists($candidate)) {
+        @mkdir($candidate, 0700);
+    }
+    clearstatcache();
+    if (is_link($candidate) || !is_dir($candidate)) {
+        error_log("release cache: $candidate is not a directory; not caching");
+        return $dir;
+    }
+    if ((fileperms($candidate) & 0077) != 0 ||
+        (function_exists('posix_geteuid') && fileowner($candidate) !== posix_geteuid())) {
+        error_log("release cache: $candidate is not private; not caching");
+        return $dir;
+    }
+
+    $dir = $candidate;
+    return $dir;
+}
+
+function release_cache_filename($bucket, $key) {
+    $dir = release_cache_dir();
+    if ($dir === NULL) {
+        return NULL;
+    }
+    return $dir . "/" . hash('sha256', $bucket . "/" . $key) . ".json";
+}
+
+function release_cache_get($bucket, $key, $allow_expired = false) {
+    global $release_cache_ttl;
+
+    $filename = release_cache_filename($bucket, $key);
+    if ($filename === NULL || !is_file($filename) ||
+        (!$allow_expired && time() - filemtime($filename) > $release_cache_ttl)) {
+        return NULL;
+    }
+    $data = @file_get_contents($filename);
+    return ($data === false) ? NULL : $data;
+}
+
+// The decoded contents of a cache entry, even if it has expired, for
+// use when S3 cannot be reached: build information essentially never
+// changes, so an old copy is far better than none.
+function release_cache_get_expired($bucket, $key) {
+    $data = release_cache_get($bucket, $key, true);
+    if ($data === NULL) {
+        return NULL;
+    }
+    $info = json_decode($data, true);
+    return is_array($info) ? $info : NULL;
+}
+
+function release_cache_put($bucket, $key, $data) {
+    $filename = release_cache_filename($bucket, $key);
+    if ($filename === NULL) {
+        return;
+    }
+    // Write to a private temporary file and rename it into place so
+    // that concurrent requests never read a partially-written file.
+    $tmp = @tempnam(dirname($filename), "tmp");
+    if ($tmp === false) {
+        return;
+    }
+    if (@file_put_contents($tmp, $data) !== strlen($data) ||
+        !@chmod($tmp, 0600) || !@rename($tmp, $filename)) {
+        @unlink($tmp);
+    }
+}
+
+// Return the decoded build information of several releases, as an
+// array mapping each of $keys (S3 keys of build-*.json files) to its
+// information, or to NULL if it could not be retrieved.  Cache misses
+// are fetched from S3 in parallel.
+function get_release_build_infos($bucket, $keys) {
+    $infos = [];
+    $misses = [];
+    foreach ($keys as $key) {
+        $infos[$key] = NULL;
+        $data = release_cache_get($bucket, $key);
+        if ($data !== NULL) {
+            $infos[$key] = json_decode($data, true);
+        }
+        if (!is_array($infos[$key])) {
+            $misses[] = $key;
+        }
+    }
+    if (count($misses) == 0) {
+        return $infos;
+    }
+
+    try {
+        $s3_client = get_s3_client();
+        $promises = [];
+        foreach ($misses as $key) {
+            $promises[$key] = $s3_client->getObjectAsync(['Bucket' => $bucket,
+                                                          'Key' => $key]);
+        }
+        $results = \GuzzleHttp\Promise\Utils::settle($promises)->wait();
+    } catch (Exception $e) {
+        error_log("get_release_build_infos failed: " . $e);
+        foreach ($misses as $key) {
+            $infos[$key] = release_cache_get_expired($bucket, $key);
+        }
+        return $infos;
+    }
+
+    foreach ($misses as $key) {
+        if ($results[$key]['state'] !== 'fulfilled') {
+            error_log("Release build info lookup failed: " . $key . ": " .
+                      $results[$key]['reason']);
+            $infos[$key] = release_cache_get_expired($bucket, $key);
+            continue;
+        }
+        $data = (string) $results[$key]['value']['Body'];
+        $info = json_decode($data, true);
+        if (!is_array($info) || !isset($info['build_unix_time']) ||
+            !isset($info['files'])) {
+            error_log("Malformed build info: " . $key);
+            $infos[$key] = release_cache_get_expired($bucket, $key);
+            continue;
+        }
+        release_cache_put($bucket, $key, $data);
+        $infos[$key] = $info;
+    }
+    return $infos;
 }
 
 // Get all the nightly tarballs currently available for a given prefix
@@ -311,15 +454,14 @@ function latest_snapshot_output($project, $s3_prefix, $prereleases, $releases) {
 
     if ($latest != NULL) {
         $filename = $s3_prefix . "build-" . $project . "-" . $latest . ".json";
-        $blob = get_download_file("open-mpi-release", $filename);
+        $info = get_release_build_infos("open-mpi-release", [$filename])[$filename];
     } else {
-        $blob = NULL;
+        $info = NULL;
     }
-    if ($blob === NULL) {
+    if ($info === NULL) {
         header("HTTP/1.0 404 Not Found");
         return;
     }
-    $info = json_decode($blob, true);
 
     header("Content-Type: text/plain; charset=UTF-8");
     header("Last-Modified: " . gmdate("D, d M Y H:i:s", $info["build_unix_time"]) . " GMT");
@@ -457,42 +599,24 @@ function series_versions($series_info, $include_prereleases = true)
 }
 
 // Details (date and downloadable files) of each of $versions (as
-// returned by series_versions()), from their build JSON in S3.  The
-// lookups are issued in parallel.  Returns the details in the same
-// order (keyed like $versions), or NULL if any of them could not be
+// returned by series_versions()), from their build information (see
+// get_release_build_infos()).  Returns the details in the same order,
+// (keyed like $versions), or NULL if any of them could not be
 // retrieved -- unless $skip_unavailable, in which case those are left
 // out.
 function fetch_release_details($project, $versions, $skip_unavailable = false)
 {
-    try {
-        $s3_client = get_s3_client();
-        $promises = [];
-        foreach ($versions as $i => $v) {
-            $key = $v['series_info']['s3_prefix'] . "build-" . $project . "-" .
-                $v['version'] . ".json";
-            $promises[$i] = $s3_client->getObjectAsync(['Bucket' => 'open-mpi-release',
-                                                        'Key' => $key]);
-        }
-        $results = \GuzzleHttp\Promise\Utils::settle($promises)->wait();
-    } catch (Exception $e) {
-        error_log("fetch_release_details failed: " . $e);
-        return NULL;
+    $keys = [];
+    foreach ($versions as $i => $v) {
+        $keys[$i] = $v['series_info']['s3_prefix'] . "build-" . $project . "-" .
+            $v['version'] . ".json";
     }
+    $infos = get_release_build_infos("open-mpi-release", array_values($keys));
 
     $details = [];
     foreach ($versions as $i => $v) {
-        if ($results[$i]['state'] !== 'fulfilled') {
-            error_log("Release build info lookup failed: " . $v['version'] .
-                      ": " . $results[$i]['reason']);
-            if ($skip_unavailable) {
-                continue;
-            }
-            return NULL;
-        }
-        $info = json_decode((string) $results[$i]['value']['Body'], true);
-        if (!is_array($info) || !isset($info['build_unix_time']) ||
-            !isset($info['files'])) {
-            error_log("Malformed build info: " . $v['version']);
+        $info = $infos[$keys[$i]];
+        if ($info === NULL) {
             if ($skip_unavailable) {
                 continue;
             }
