@@ -238,6 +238,18 @@ function printsublink($link, $text, $a_modifier = "") {
 print("<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js\"></script>\n");
 include_once("$topdir/includes/google-analytics.php");
 
+// Pages can advertise feeds (e.g., release Atom feeds) for
+// auto-discovery by setting $head_feed_links to an array of
+// ['type' => ..., 'title' => ..., 'href' => ...] before including
+// this file.
+if (isset($head_feed_links)) {
+    foreach ($head_feed_links as $feed_link) {
+        print("<link rel=\"alternate\" type=\"" . htmlspecialchars($feed_link['type']) .
+              "\" title=\"" . htmlspecialchars($feed_link['title']) .
+              "\" href=\"" . htmlspecialchars($feed_link['href']) . "\">\n");
+    }
+}
+
 print("</head>\n<body>\n");
 ?>
 <a name="top"></A>
