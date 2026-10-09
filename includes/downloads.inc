@@ -580,16 +580,13 @@ function series_summary($series_info, $web_prefix)
             'details_url' => $series_url . "downloads/releases.json"];
 }
 
-// The versions of a series, newest first: prereleases (if wanted),
-// then releases.
-function series_versions($series_info, $include_prereleases = true)
+// The versions of a series, newest first: prereleases, then releases.
+function series_versions($series_info)
 {
     $versions = [];
-    if ($include_prereleases) {
-        foreach ($series_info['prereleases'] as $version) {
-            $versions[] = ['series_info' => $series_info,
-                           'version' => $version, 'prerelease' => true];
-        }
+    foreach ($series_info['prereleases'] as $version) {
+        $versions[] = ['series_info' => $series_info,
+                       'version' => $version, 'prerelease' => true];
     }
     foreach ($series_info['releases'] as $version) {
         $versions[] = ['series_info' => $series_info,
@@ -740,13 +737,6 @@ function release_series_json_output($project, $series_inc, $web_prefix)
     release_info_json_output($doc, $last_modified);
 }
 
-// Atom feeds include prereleases unless the request says
-// ?prereleases=0.
-function release_feed_include_prereleases()
-{
-    return !(isset($_GET['prereleases']) && $_GET['prereleases'] === "0");
-}
-
 function release_feed_enclosure_type($filename)
 {
     $types = ['/\.tar\.bz2$/' => 'application/x-bzip2',
@@ -781,16 +771,6 @@ function release_atom_output($feed, $details, $web_prefix, $fallback_updated)
         $details = array_slice($details, 0, $feed['max_entries']);
     }
 
-    $include_prereleases = release_feed_include_prereleases();
-    $title = $feed['title'];
-    $id_suffix = $feed['id_suffix'];
-    $self_url = $feed['self_url'];
-    if (!$include_prereleases) {
-        $title .= " (excluding prereleases)";
-        $id_suffix .= "/no-prereleases";
-        $self_url .= "?prereleases=0";
-    }
-
     // Tag URIs (RFC 4151) give entries IDs that never change, even if
     // the web site moves.  Never change this prefix.
     $id_prefix = "tag:open-mpi.org,2026:" . $feed['project'] . "/";
@@ -799,10 +779,10 @@ function release_atom_output($feed, $details, $web_prefix, $fallback_updated)
 
     $xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
     $xml .= "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n";
-    $xml .= "  <id>" . xml_escape($id_prefix . $id_suffix) . "</id>\n";
-    $xml .= "  <title>" . xml_escape($title) . "</title>\n";
+    $xml .= "  <id>" . xml_escape($id_prefix . $feed['id_suffix']) . "</id>\n";
+    $xml .= "  <title>" . xml_escape($feed['title']) . "</title>\n";
     $xml .= "  <updated>" . gmdate("Y-m-d\TH:i:s\Z", $updated) . "</updated>\n";
-    $xml .= "  <link rel=\"self\" type=\"application/atom+xml\" href=\"" . xml_escape($self_url) . "\"/>\n";
+    $xml .= "  <link rel=\"self\" type=\"application/atom+xml\" href=\"" . xml_escape($feed['self_url']) . "\"/>\n";
     $xml .= "  <link rel=\"alternate\" type=\"text/html\" href=\"" . xml_escape($feed['page_url']) . "\"/>\n";
     $xml .= "  <author><name>The " . xml_escape($feed['project_name']) . " Project</name></author>\n";
 
@@ -855,8 +835,7 @@ function release_index_atom_output($project, $project_name, $topdir, $project_di
     list($current_series, $all_series) = read_all_series($topdir, $project_dir);
     $versions = [];
     foreach ($all_series as $series_info) {
-        $versions = array_merge($versions,
-                                series_versions($series_info, release_feed_include_prereleases()));
+        $versions = array_merge($versions, series_versions($series_info));
     }
     // Leave out any release whose details are unavailable rather than
     // failing the whole feed.
@@ -883,7 +862,7 @@ function release_index_atom_output($project, $project_name, $topdir, $project_di
 function release_series_atom_output($project, $project_name, $series_inc, $web_prefix)
 {
     $series_info = read_series_version_inc($series_inc);
-    $versions = series_versions($series_info, release_feed_include_prereleases());
+    $versions = series_versions($series_info);
     // Leave out any release whose details are unavailable rather than
     // failing the whole feed.
     $details = fetch_release_details($project, $versions, true);

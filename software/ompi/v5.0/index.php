@@ -17,11 +17,10 @@ $prev_describe = "the v$release_series download page";
 $news_url = "https://docs.open-mpi.org/en/v5.0.x/release-notes/";
 
 include_once("$topdir/includes/subscribe-announce.inc");
+print("<p><hr>\n\n");
 print_release_info_note("Open MPI", $release_series, $releases,
                         "https://docs.open-mpi.org/en/main/installing-open-mpi/downloading.html#detecting-new-releases-programmatically");
 ?>
-
-<p><hr>
 
 <h2>Changes in this release:</h2>
 

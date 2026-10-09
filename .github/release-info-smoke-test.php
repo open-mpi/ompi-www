@@ -28,14 +28,13 @@ function check($cond, $msg)
 }
 
 // Run an endpoint in a separate PHP process (as each web request is),
-// from its own directory, with the given query string.
-function run_endpoint($path, $query = "")
+// from its own directory.
+function run_endpoint($path)
 {
     global $root;
 
-    $code = 'parse_str(getenv("SMOKE_QUERY"), $_GET); include(getenv("SMOKE_SCRIPT"));';
+    $code = 'include(getenv("SMOKE_SCRIPT"));';
     $env = getenv();
-    $env['SMOKE_QUERY'] = $query;
     $env['SMOKE_SCRIPT'] = basename($path);
     $proc = proc_open([PHP_BINARY, '-d', 'display_errors=stderr',
                        '-d', 'error_reporting=' . (E_ALL & ~E_DEPRECATED), '-r', $code],
@@ -46,7 +45,7 @@ function run_endpoint($path, $query = "")
     fclose($pipes[1]);
     fclose($pipes[2]);
     $rc = proc_close($proc);
-    check($rc === 0 && $err === "", "$path?$query: exit $rc, stderr: $err");
+    check($rc === 0 && $err === "", "$path: exit $rc, stderr: $err");
     return $out;
 }
 
@@ -60,7 +59,7 @@ list($current_series, $all_series) = read_all_series($topdir, "software/ompi");
 check(count($all_series) > 0, "no release series found");
 $time = 1700000000;
 $num_versions = 0;
-$num_releases = 0;
+$is_prerelease = [];
 foreach ($all_series as $series_info) {
     foreach (series_versions($series_info) as $v) {
         $name = "openmpi-" . $v['version'] . ".tar.bz2";
@@ -75,32 +74,43 @@ foreach ($all_series as $series_info) {
                           $series_info['s3_prefix'] . "build-openmpi-" . $v['version'] . ".json",
                           json_encode($info));
         $num_versions++;
-        if (!$v['prerelease']) {
-            $num_releases++;
-        }
+        $is_prerelease[$v['version']] = $v['prerelease'];
     }
 }
 
-function check_feed($path, $query, $expected_entries)
+function check_feed($path, $expected_entries)
 {
-    $xml = run_endpoint($path, $query);
+    global $is_prerelease;
+
+    $xml = run_endpoint($path);
     $feed = @simplexml_load_string($xml);
-    check($feed !== false, "$path?$query: not well-formed XML");
+    check($feed !== false, "$path: not well-formed XML");
     if ($feed === false) {
         return;
     }
     check($feed->getName() === "feed" &&
           in_array("http://www.w3.org/2005/Atom", $feed->getNamespaces()),
-          "$path?$query: not an Atom feed");
+          "$path: not an Atom feed");
     check(count($feed->entry) == $expected_entries,
-          "$path?$query: " . count($feed->entry) . " entries, expected $expected_entries");
+          "$path: " . count($feed->entry) . " entries, expected $expected_entries");
+    $id_prefix = "tag:open-mpi.org,2026:openmpi/release/";
     foreach ($feed->entry as $entry) {
-        check(strpos((string) $entry->id, "tag:open-mpi.org,2026:openmpi/release/") === 0,
-              "$path?$query: bad entry id " . $entry->id);
-        if ($query === "prereleases=0") {
-            check(strpos((string) $entry->title, "prerelease") === false,
-                  "$path?$query: prerelease entry " . $entry->title);
+        $id = (string) $entry->id;
+        check(strpos($id, $id_prefix) === 0, "$path: bad entry id $id");
+        // Feed readers tell prereleases apart by their category and
+        // title, so check that both mark exactly the prereleases.
+        $version = substr($id, strlen($id_prefix));
+        $prerelease = $is_prerelease[$version] ?? NULL;
+        check($prerelease !== NULL, "$path: unknown version $version");
+        $terms = [];
+        foreach ($entry->category as $category) {
+            $terms[] = (string) $category['term'];
         }
+        $kinds = array_values(array_intersect($terms, ["release", "prerelease"]));
+        check($kinds === [$prerelease ? "prerelease" : "release"],
+              "$path: $version categories " . implode(",", $terms));
+        check((substr((string) $entry->title, -strlen(" (prerelease)")) === " (prerelease)") === $prerelease,
+              "$path: $version title " . $entry->title);
     }
 }
 
@@ -152,14 +162,11 @@ foreach ($all_series as $series_info) {
     $expected = (count($prereleases) > 0) ? $prereleases[0] : $expected;
     check(run_endpoint("$dir/latest_snapshot.txt") === $expected, "$dir/latest_snapshot.txt");
 
-    check_feed("$dir/releases.atom", "", count($prereleases) + count($releases));
-    check_feed("$dir/releases.atom", "prereleases=0", count($releases));
+    check_feed("$dir/releases.atom", count($prereleases) + count($releases));
 }
 
 // Top-level feed
-check_feed("software/ompi/releases.atom", "", min($release_feed_max_entries, $num_versions));
-check_feed("software/ompi/releases.atom", "prereleases=0",
-           min($release_feed_max_entries, $num_releases));
+check_feed("software/ompi/releases.atom", min($release_feed_max_entries, $num_versions));
 
 if ($failures > 0) {
     fwrite(STDERR, "$failures failure(s)\n");
