@@ -312,6 +312,7 @@ function latest_snapshot_output($project, $s3_prefix, $prereleases, $releases) {
     }
     $info = json_decode($blob, true);
 
+    header("Content-Type: text/plain; charset=UTF-8");
     header("Last-Modified: " . gmdate("D, d M Y H:i:s", $info["build_unix_time"]) . " GMT");
     print($latest);
 }
