@@ -16,6 +16,7 @@ series("v6.0 series", "2026-01-01", $beyond_end_date, $data, $vpos, $graph);
 milestone("branch from main", "2025-10-24", $data, $vpos);
 milestone("v6.0.0rc1", "2026-09-16", $data, $vpos);
 milestone("v6.0.0rc2", "2026-10-01", $data, $vpos);
+milestone("v6.0.0rc3", "2026-11-03", $data, $vpos);
 milestone("v6.0.0 (planned)", "2026-09-30", $data, $vpos);
 
 // Party on
