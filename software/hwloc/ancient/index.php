@@ -26,9 +26,9 @@ function one_ancient($ver, $epoch) {
 <?php one_ancient("", ""); ?>
 <?php one_ancient("", ""); ?>
 <?php one_ancient("2.14", "Renaissance"); ?>
+-->
 <?php one_ancient("2.13", "Modern Age"); ?>
 <?php one_ancient("2.12", "Middle Age"); ?>
--->
 <!-- 2.x from https://en.wikipedia.org/wiki/Geologic_time_scale#Divisions_of_geologic_time -->
 <?php one_ancient("2.11", "Antiquity"); ?>
 <?php one_ancient("2.10", "Iron Age"); ?>
