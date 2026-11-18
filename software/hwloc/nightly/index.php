@@ -27,7 +27,17 @@ The following versions are available as nightly snapshots.
 </p>
 </li>
 
-<li> <strong>Master branch &mdash; Current development head:</strong> The usual disclaimers about the state of development code apply.
+<li> <strong>v2.x branch &mdash; Current stable development head:</strong>
+     This is the next stable series.
+<p>
+ <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.x/lastSuccessfulBuild/">Latest snapshot</a>
+ &mdash;
+ <a href="https://ci.inria.fr/hwloc/job/extended/job/v2.x/">All snapshots</a>
+</p>
+</li>
+
+<li> <strong>Master branch &mdash; Current major development head:</strong>
+     The usual disclaimers about the state of development code apply.
 <p>
  <a href="https://ci.inria.fr/hwloc/job/extended/job/master/lastSuccessfulBuild/">Latest snapshot</a>
  &mdash;
