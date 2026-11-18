@@ -13,6 +13,10 @@ include_once("$topdir/includes/code.inc");
  Some are also available on <a href="https://hwloc.readthedocs.io">Read the docs</a>.
 </p>
 
+<p>
+ Documentation snapshots from current stable and development branches are available from the <a href="<?php print "$topdir/software/hwloc/nightly" ?>">nightly snapshot page</a>.
+</p>
+
 <p>See also the <a href="<?php print "$topdir/projects/hwloc/tutorials" ?>">tutorials</a> page for lengthy talks and hands-on sessions.</p>
 
 <div align="center">
