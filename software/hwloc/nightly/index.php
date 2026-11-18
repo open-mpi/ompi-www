@@ -1,11 +1,12 @@
 <?php
   $topdir = "../../..";
-  $title = "Hardware Locality (hwloc): Nightly snapshot tarballs";
+  $title = "Hardware Locality (hwloc): Nightly snapshot tarballs and documentation";
   include_once("$topdir/projects/hwloc/nav.inc");
   include_once("$topdir/includes/header.inc");
 ?>
 
-The following versions are available as nightly snapshots:
+The following versions are available as nightly snapshots.
+<b>Tarballs, Windows ZIPballs and documentation snapshots</b> are available from each branch (unless the build failed).
 
 <ul>
 
